@@ -9,6 +9,7 @@ parts in any order, each written to the storage before the answer, and is comple
 assembled into one object. The row says what was opened, by whom, and until when; the parts
 received are those the storage says it holds. A deposit lives twenty-four hours: expired, or
 completed, it receives nothing more. The requester is an account, whose module declares the key.
+A restoration keeps the deposits of the installation, and gives them back in place of the source's.
 """
 
 from dataclasses import dataclass
@@ -63,7 +64,8 @@ class FileUpload(Base):
     # The date the manifest of a backup deposited says, read once it is completed: a deposit whose
     # date does not read is not completed.
     backup_taken_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
-    uploaded_by: Mapped[UUID] = mapped_column(index=True)
+    # Null once a restoration brings the deposit back in a database that lacks its account.
+    uploaded_by: Mapped[UUID | None] = mapped_column(index=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
     expires_at: Mapped[datetime] = mapped_column(UtcDateTime)
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)

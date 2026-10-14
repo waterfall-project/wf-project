@@ -906,6 +906,11 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     journal d'audit ; sans quoi la liste perdrait les sauvegardes prises après celle qu'on
     restaure, dont les archives restent dans le compartiment. Test : deux sauvegardes,
     restaurer la première ; les deux restent listées et téléchargeables ;
+  - **les dépôts** (US-0440/L2c, #1011) : la table `file_upload` est relue, puis remplace celle
+    de la source, dont les dépôts nommeraient des objets d'une autre installation ; le dépôt
+    restauré garde sa ligne, par laquelle la purge d'EP-06 retrouve son objet. Un auteur que la
+    base restaurée n'a pas est effacé (`uploaded_by` nul). Test : un dépôt de la source n'est
+    plus là après la restauration, le dépôt restauré l'est, sans auteur ;
   - **le journal par identifiant** (#894) : le vidage n'est pas instantané au regard de la date
     de la sauvegarde, et une inscription faite pendant lui serait, par la date, réinscrite en
     double ou perdue. Le journal est réinscrit par identifiant, pour les inscriptions absentes

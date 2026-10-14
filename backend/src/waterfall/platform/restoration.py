@@ -23,6 +23,7 @@ from sqlalchemy import (
     Text,
     Uuid,
     case,
+    delete,
     exists,
     insert,
     inspect,
@@ -140,6 +141,17 @@ def write_back(connection: Connection, entity: type[Base], unsure: Collection[st
     values = [_sure(table, copy, name) if name in unsure else copy.c[name] for name in names]
     lacking = select(*values).where(~exists().where(table.c.id == copy.c.id))
     connection.execute(insert(table).from_select(names, lacking))
+
+
+def replace_by_kept(
+    connection: Connection, entity: type[Base], unsure: Collection[str] = ()
+) -> None:
+    """Make the restored table hold the rows kept, and those alone.
+
+    ``unsure`` as for ``write_back``.
+    """
+    connection.execute(delete(table_of(entity)))
+    write_back(connection, entity, unsure)
 
 
 def overwrite(connection: Connection, entity: type[Base], unsure: Collection[str] = ()) -> None:

@@ -5,10 +5,11 @@
 The list of the backups, the latest first, and one backup read; a backup taken by the worker,
 recorded with the outcome of its verification and inscribed in the journal of audit at its date,
 the instant of the state it copies (WF-SEC-0030). Around the replacement of the databases, a
-restoration keeps the journal, the list of the backups and their tasks, and writes back what the
-restored database lacks: the archives of the backups taken since stay in the bucket, and stay
-listed (#893); the accounts the journal says anonymised since are anonymised again (#988). The
-date a backup deposited from elsewhere says is read from the head of its archive (#350).
+restoration keeps the journal, the list of the backups and their tasks, and the deposits, and
+writes back what the restored database lacks: the archives of the backups taken since stay in the
+bucket, and stay listed (#893); the deposits are those of the installation, not the source's;
+the accounts the journal says anonymised since are anonymised again (#988). The date a backup
+deposited from elsewhere says is read from the head of its archive (#350).
 """
 
 import io
@@ -41,10 +42,12 @@ from waterfall.platform.restoration import (
     keep,
     keep_grants,
     kept_for,
+    replace_by_kept,
     take_over,
     write_back,
 )
 from waterfall.platform.tasks import keep_more_tasks, keep_tasks, write_back_tasks
+from waterfall.platform.uploads import FileUpload
 
 NOT_FOUND = "NOT_FOUND"
 # The member an archive of a backup holds first: what it holds, and when it was taken.
@@ -190,7 +193,8 @@ def inscribe_restoration(
 def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
     """Keep, once, what a restoration writes back once it has replaced the databases.
 
-    The journal of audit (WF-ADM-0160, #894), the list of the backups (#893), the task of the
+    The journal of audit (WF-ADM-0160, #894), the list of the backups (#893), the deposits — the
+    one restored among them, whose object the purge finds by its row (#350) —, the task of the
     restoration and those of the backups, and the rights of the role of the service, copied aside
     in the database the restoration replaces; a restoration taken up finds them kept already, and
     does not read again a database half replaced.
@@ -213,6 +217,7 @@ def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
     begin_keeping(connection)
     keep(connection, AuditEntry)
     keep(connection, Backup)
+    keep(connection, FileUpload)
     keep_tasks(connection, [restoration, *connection.scalars(select(Backup.task_id))])
     keep_grants(connection, restoration)
 
@@ -224,7 +229,9 @@ def write_back_after_restoration(
 
     The tasks first, which the backups name, in their state kept (#987); the backups and the
     inscriptions the restored database lacks, by their identifier — an inscription made while the
-    database was dumped is in the dump already, and is not written twice —; the tasks restored
+    database was dumped is in the dump already, and is not written twice —; the deposits kept in
+    place of those of the source, without their account where the restored database lacks it, so
+    that none names an object of another installation; the tasks restored
     pending fail (#892); the accounts the journal says anonymised since the backup are anonymised
     again (#988), and the role of the service gets its rights back. ``at`` ends the tasks that
     fail. Gives the subjects of the local accounts anonymised again, which the caller removes from
@@ -237,6 +244,7 @@ def write_back_after_restoration(
     write_back_tasks(connection, restoration, at)
     write_back(connection, Backup)
     write_back(connection, AuditEntry)
+    replace_by_kept(connection, FileUpload, unsure={"uploaded_by"})
     with Session(bind=connection) as session:
         subjects = anonymize_again(session)
     end_keeping(connection)

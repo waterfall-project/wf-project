@@ -78,6 +78,33 @@ def iso(at: datetime) -> str:
     return at.isoformat().replace("+00:00", "Z")
 
 
+def recorded(installation: Installation, purpose: str, taken_at: datetime | None = None) -> UUID:
+    """Write a deposit completed, as its owner, by the first account; give its identifier."""
+    with installation.database.transaction() as session:
+        held_by = session.scalars(select(UserAccount.id)).first()
+    upload_id = uuid4()
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        connection.execute(
+            insert(FileUpload).values(
+                id=upload_id,
+                purpose=purpose,
+                filename="planning.xml",
+                size_bytes=1,
+                part_size_bytes=SMALLEST_PART,
+                part_count=1,
+                object_key=f"uploads/{upload_id}",
+                backup_taken_at=taken_at,
+                uploaded_by=held_by,
+                created_at=utc_now(),
+                expires_at=utc_now() + timedelta(hours=1),
+                completed_at=utc_now(),
+            )
+        )
+    owner.dispose()
+    return upload_id
+
+
 def manifest_of(taken_at: str, **more: object) -> dict[str, object]:
     """Write the manifest of a backup of this version taken at ``taken_at``, saying ``more``."""
     return {"application_version": __version__, "taken_at": taken_at, "databases": [], **more}
@@ -379,6 +406,7 @@ def test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it
     source = f"subject-{uuid4()}"
     administration = role(installation.database, "Administration de la source")
     account(installation.database, "Source", "Alix", roles=(administration,), idp_subject=source)
+    deposit_of_the_source = recorded(installation, "external_backup", utc_now())
     take()
     with installation.database.transaction() as session:
         backup = session.scalars(select(Backup)).one()
@@ -406,12 +434,17 @@ def test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it
         accounts = set(session.scalars(select(UserAccount.idp_subject)))
         roles = set(session.scalars(select(AccessRole.label)))
         language = session.get_one(InstallationRow, THE_ROW).default_language
+        deposits = {row.id: row.uploaded_by for row in session.scalars(select(FileUpload))}
         last = session.scalars(
             select(AuditEntry).order_by(AuditEntry.occurred_at.desc(), AuditEntry.id.desc())
         ).first()
     assert source in accounts
     assert "Administration de la source" in roles
     assert language == "en"
+    # The deposits are those of the installation, not those of the source, the one restored among
+    # them, which the purge finds; its account, unknown to the source, is no longer named.
+    assert deposit_of_the_source not in deposits
+    assert deposits == {UUID(upload_id): None}
     assert last is not None
     assert (last.action, last.object_kind, str(last.object_id)) == (
         "restore",
@@ -476,28 +509,8 @@ def test_a_restoration_refuses_a_deposit_unknown_without_date_or_made_for_an_imp
     # (422, UPLOAD_PURPOSE_MISMATCH), the field that names it in fault. A deposit completed whose
     # date is not known — which its completion refuses — is one no confirmation names (400).
     headers = restorer_headers(installation, realm)
-    with installation.database.transaction() as session:
-        held_by = session.scalars(select(UserAccount.id)).one()
-    imported, undated = uuid4(), uuid4()
-    owner = create_database_engine(installation.owner["waterfall"])
-    with owner.begin() as connection:
-        for upload_id, purpose in ((imported, "import"), (undated, "external_backup")):
-            connection.execute(
-                insert(FileUpload).values(
-                    id=upload_id,
-                    purpose=purpose,
-                    filename="planning.xml",
-                    size_bytes=1,
-                    part_size_bytes=SMALLEST_PART,
-                    part_count=1,
-                    object_key=f"uploads/{upload_id}",
-                    uploaded_by=held_by,
-                    created_at=utc_now(),
-                    expires_at=utc_now() + timedelta(hours=1),
-                    completed_at=utc_now(),
-                )
-            )
-    owner.dispose()
+    imported = recorded(installation, "import")
+    undated = recorded(installation, "external_backup")
     asked = {"confirmed": True, "acknowledged_backup_taken_at": iso(utc_now())}
     unknown = {**asked, "external_backup_upload_id": str(uuid4())}
     assert installation_api.post(RESTORES, json=unknown, headers=headers).status_code == 404

@@ -39,7 +39,7 @@ def upgrade() -> None:
         sa.Column("object_key", sa.Text(), nullable=False),
         sa.Column("deposit", sa.Text(), nullable=True),
         sa.Column("backup_taken_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("uploaded_by", sa.Uuid(), nullable=False),
+        sa.Column("uploaded_by", sa.Uuid(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
