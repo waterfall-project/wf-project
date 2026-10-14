@@ -198,6 +198,26 @@ Reportés d'EP-03 le 2026-10-12 :
   son texte, lu deux fois par certaines aides techniques. EP-14 lit les langues de
   `FORMAT_LOCALE` et date l'attente de l'inscription, et ne pose le `title` que sur un texte
   tronqué. Reporté d'EP-03 le 2026-10-12.
+- #984 [EP-03] le test de l'aboutissement de la lecture des comptes montre le compte rendu d'une
+  autre tâche — relevé par la revue d'US-0370/L2b, tour 1 : dans `identity-sync.dom.test.tsx`,
+  le commentaire présente le compte rendu de la lecture qui vient d'aboutir (tâche …0941), mais
+  le test montre `identity_sync_report_flagged` (tâche …0942, variante contrefactuelle) ;
+  l'aboutissement est prouvé avant, par le suivi. EP-14 ajoute l'exemple du compte rendu de la
+  tâche …0941, ou retire ces lignes. Reporté d'EP-03 le 2026-10-12.
+- #990 [EP-03] « Adresse portée par le compte Compte anonymisé » — relevé par la revue
+  d'US-0370/L2b, tour 2 : la clé `admin.identitySync.carrier` (fr, en) met « compte » devant le
+  nom du porteur, qui, anonymisé, est déjà « Compte anonymisé ». EP-14 prend une tournure qui ne
+  l'ajoute pas, « Adresse portée par : » suivi du nom. Reporté d'EP-03 le 2026-10-12.
+
+Reportés d'EP-03 le 2026-10-13 :
+
+- #960 [EP-03] l'avis de la barre dit le nombre des écritures refusées, sans dire laquelle,
+  pourquoi ni ce qui reste possible — relevé par la revue d'US-0400/L2, tour 1 : l'avis de la
+  coquille (`left-refusals.tsx`, décision (b) de #863) compte les écritures refusées lancées
+  depuis un écran quitté ; un refus parce que le service est injoignable ou la session perdue
+  s'y dit comme un 412, alors que WF-EXP-0040 veut nommer le composant indisponible et ce qui
+  reste possible. L'avis existe et prévient : EP-14 garde, par écriture libérée, l'écran et la
+  nature du refus, et dit le dernier. Reporté d'EP-03 le 2026-10-13, sur décision de l'auteur.
 
 ## Conception
 
