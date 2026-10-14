@@ -5393,11 +5393,11 @@ export interface operations {
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Restreint à l'un des deux états, la colonne de l'état filtrée (WF-IHM-0130, WF-ADM-0060) : vrai, les seuls comptes actifs ; faux, les seuls désactivés, qui restent lisibles. Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. */
                 is_active?: boolean;
-                /** @description Restreint aux comptes de ces origines (WF-IHM-0130). */
+                /** @description Restreint aux comptes de ces origines (WF-IHM-0130). Le service vérifie la liste après les schémas des autres paramètres : une valeur hors de `UserOrigin`, ou vide, est refusée par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/origins`, une fois ces schémas tenus ; tant qu'un autre paramètre est refusé par son schéma, elle n'est pas nommée. */
                 origins?: components["schemas"]["UserOrigin"][];
                 /** @description Restreint aux comptes qui relèvent de ce nœud d'organisation : rattachés à lui ou à l'un de ses descendants (WF-IHM-0130, WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
-                /** @description Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme `org_node_id` un nœud inconnu. */
+                /** @description Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme `org_node_id` un nœud inconnu. Le service vérifie la liste comme `origins`, après les schémas des autres paramètres : un identifiant mal formé, ou vide, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/access_role_ids`, une fois ces schémas tenus. */
                 access_role_ids?: components["schemas"]["Uuid"][];
                 /** @description Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son libellé, un compte sans rattachement après les autres dans l'ordre croissant — et l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se comparent dans l'ordre des points de code Unicode, et deux comptes à égalité se rangent par le nom puis le prénom, puis par leur identifiant, dans l'ordre croissant. */
                 sort_by?: "last_name" | "first_name" | "email" | "origin" | "access_roles" | "org_node" | "is_active";
@@ -5819,7 +5819,7 @@ export interface operations {
                 search?: components["parameters"]["Search"];
                 /** @description Restreint à l'une des deux natures, la colonne de la nature filtrée (WF-IHM-0130) : vrai, les seuls rôles prédéfinis livrés avec la plateforme (WF-ADM-0010) ; faux, les seuls rôles composés ensuite (WF-ADM-0090). Absent, ne restreint rien. */
                 is_predefined?: boolean;
-                /** @description Borne inférieure, incluse, du nombre de porteurs : restreint aux rôles portés par au moins autant de comptes (WF-IHM-0130). */
+                /** @description Borne inférieure, incluse, du nombre de porteurs : restreint aux rôles portés par au moins autant de comptes (WF-IHM-0130). Le service vérifie les deux bornes après les schémas des autres paramètres : une borne qui n'est pas un entier est refusée avec eux, mais une borne négative, ou inférieure à l'autre, n'est refusée, et nommée, qu'une fois ces schémas tenus. */
                 holder_count_min?: number;
                 /** @description Borne supérieure, incluse, du nombre de porteurs : restreint aux rôles portés par au plus autant de comptes — à 0, les rôles que personne ne porte (WF-IHM-0130). Inférieure à `holder_count_min`, elle est refusée par 422. */
                 holder_count_max?: number;
