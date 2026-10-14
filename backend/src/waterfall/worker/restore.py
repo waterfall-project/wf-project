@@ -77,11 +77,12 @@ def extracted(path: Path, folder: Path, taken_at: datetime | None = None) -> dic
     A newer version is refused (422, ``BACKUP_FROM_NEWER_VERSION``); an archive that does not read
     back whole — a database of the platform lacking, a dump missing, unlike its digest, or that
     ``pg_restore`` does not list — as unreadable (422), before any database is touched; so is one
-    whose manifest does not say ``taken_at``, the date confirmed, when it is given. Nothing of the
-    archive is extracted but under a name chosen here.
+    whose manifest does not say ``taken_at``, the date confirmed, when it is given, and one
+    compressed: the worker writes none. Nothing of the archive is extracted but under a name chosen
+    here.
     """
     try:
-        with tarfile.open(path) as tar:
+        with tarfile.open(path, mode="r:") as tar:
             manifest = json.loads(_member(tar, MANIFEST).read())
             said = None if taken_at is None else datetime.fromisoformat(str(manifest["taken_at"]))
             if said != taken_at:
