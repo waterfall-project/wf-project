@@ -219,16 +219,10 @@ services:
       redis:
         condition: service_healthy
 
-  # The bootstrap of the installation (US-0420): the migrations, then what nobody may enter without,
-  # and the link of its first administrator, written on its standard output — then stops. Run by
-  # `make service-install` and `make e2e-service`, once the realm is applied, never by service-up.
-  # As the owner of the tables (#701), and the only service that holds the secret of the client of
-  # the bootstrap, whose links are valid until they are used (#652). The address of the
-  # administrator and the language of the installation are development values unless the
-  # environment says others.
   # Runs the restorations the API deposits in their stream (WF-ADM-0160, #953), as the owners of
   # both databases, the client of the bootstrap and the service account; it asks keycloak-realm to
-  # apply the realm again through the folder they alone share (#955).
+  # apply the realm again through the folder they alone share (#955). Started once keycloak-realm
+  # is healthy, as in production.
   restore:
     <<: *back
     environment:
@@ -250,7 +244,16 @@ services:
         condition: service_healthy
       storage-buckets:
         condition: service_completed_successfully
+      keycloak-realm:
+        condition: service_healthy
 
+  # The bootstrap of the installation (US-0420): the migrations, then what nobody may enter without,
+  # and the link of its first administrator, written on its standard output — then stops. Run by
+  # `make service-install` and `make e2e-service`, once the realm is applied, never by service-up.
+  # As the owner of the tables (#701), with the secret of the client of the bootstrap, which
+  # restore and keycloak-realm hold too, and whose links are valid until they are used (#652). The
+  # address of the administrator and the language of the installation are development values
+  # unless the environment says others.
   install:
     <<: *back
     profiles: [install]

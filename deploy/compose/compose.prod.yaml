@@ -269,10 +269,10 @@ services:
 
   # Runs the restorations the API deposits in their stream, and nothing else (WF-ADM-0160, #953),
   # and starts again if it stops: a restoration is asked for at the screen, where nobody runs a
-  # command. The only service that holds the owners of both databases, the client of the bootstrap,
-  # which clears the caches of Keycloak (#954), and the service account, which closes the sessions;
-  # it asks keycloak-realm, through the folder they alone share, to apply the realm again (#955).
-  # It opens no port.
+  # command. The only service that holds the owners of both databases; with them, the client of
+  # the bootstrap, which clears the caches of Keycloak (#954), and the service account, which
+  # closes the sessions. It asks keycloak-realm, through the folder they alone share, to apply the
+  # realm again (#955). It opens no port.
   restore:
     image: *waterfall-image
     environment:
@@ -294,9 +294,10 @@ services:
 
   # The bootstrap (US-0420): `docker compose -f compose.prod.yaml run --rm install` once the platform
   # is up. The migrations, then what nobody may enter without, and the link of the first
-  # administrator, alone on its standard output. As the owner of the tables (#701), and the only
-  # service that holds the secret of the client of the bootstrap (#652). Never started by `up`; run
-  # alone, it waits for the schema migrated and for the realm applied, whose client it uses.
+  # administrator, alone on its standard output. As the owner of the tables (#701), with the secret
+  # of the client of the bootstrap (#652), which restore and keycloak-realm hold too. Never started
+  # by `up`; run alone, it waits for the schema migrated and for the realm applied, whose client it
+  # uses.
   install:
     image: *waterfall-image
     profiles: [install]
