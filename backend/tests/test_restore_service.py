@@ -264,7 +264,6 @@ def test_a_restoration_asked_without_the_permission_to_read_the_backups_is_not_f
     assert not queue.restores().waiting()
 
 
-@pytest.mark.requirement("WF-ADM-0160-A")
 def test_in_maintenance_every_operation_but_the_probe_answers_503_and_the_probe_says_it(
     service: Service,
 ) -> None:
@@ -389,7 +388,6 @@ def test_a_restoration_interrupted_in_maintenance_starts_again_and_lifts_it_at_i
     assert service.provider.steps.count("keep_for_restoration") == 2
 
 
-@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenance(
     installation: Installation, take: Take, service: Service
 ) -> None:
