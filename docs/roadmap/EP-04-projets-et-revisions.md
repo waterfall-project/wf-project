@@ -159,3 +159,17 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
   `ActorRef.display_name`, et le front les nomme par `useAccountNaming`, avec un exemple de
   contributeur anonymisé et le test de la branche nulle d'`Actor` (`project-tables.tsx`).
   Reporté d'EP-03 le 2026-10-11.
+- #927 [EP-03] les facettes du journal nomment un projet par sa dernière inscription, non par
+  son libellé du jour — relevé par la revue d'US-0410/L2, tour 1 : le contrat veut, pour
+  `AuditFacets.projects`, le code et le libellé du jour de chaque projet, et ceux de la dernière
+  inscription pour un projet qui n'existe plus ; `journal_projects`
+  (`backend/src/waterfall/platform/audit_consultation.py`) rend toujours ceux de la dernière
+  inscription, faute de projets. EP-04, avec le module des projets, lit le code et le libellé du
+  jour, et teste qu'un projet renommé est nommé sous son libellé du jour. Reporté d'EP-03 le
+  2026-10-12.
+- #962 [EP-03] l'écran du journal tolère le 404 de `listProjects` — relevé par la revue
+  d'US-0410/L2b, tour 1 : `frontend/src/app/admin/audit-log/page.tsx` tolère le 404 de la
+  première page de `GET /projects`, que le service ne sert pas encore, et le journal nomme ses
+  projets sans lien ; une fois `listProjects` servi, un 404 fautif effacerait en silence tous
+  les liens vers les projets. EP-04, qui sert `listProjects`, retire cette tolérance. Reporté
+  d'EP-03 le 2026-10-12.
