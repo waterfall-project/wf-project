@@ -284,7 +284,9 @@
       et une autre date est une confirmation qui ne la nomme pas, refusée par 400
       `CONFIRMATION_REQUIRED` ; une sauvegarde ou un dépôt inconnus, 404 ; une restauration déjà
       en file ou en cours, 409 `STATE_FORBIDS_OPERATION`. Les tâches restaurées encore en file ou
-      en cours échouent par `TASK_INTERRUPTED_BY_RESTORE`, sans reprendre (#892) ; la liste des
+      en cours échouent par `TASK_INTERRUPTED_BY_RESTORE`, sans reprendre (#892), sauf celles que
+      la restauration garde — la sienne, celles des sauvegardes —, qui reprennent l'état gardé
+      (#987) ; la liste des
       sauvegardes et le journal d'audit gardent ce qu'ils tenaient avant la restauration (#893,
       #894). Le royaume du fournisseur d'identité garde la configuration de l'installation qui
       restaure — ses clients et ses adresses — ; ses comptes et leurs mots de passe sont ceux de
