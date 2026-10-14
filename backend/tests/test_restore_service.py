@@ -464,6 +464,29 @@ def test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenan
     assert told == [GIVE_THE_REALM_BACK] * 2
 
 
+def test_a_restoration_whose_attempts_are_spent_is_abandoned_and_never_deposited_again(
+    installation: Installation, take: Take, service: Service, logs: Logs
+) -> None:
+    # Its attempts spent, the restoration is abandoned in the maintenance, which stays: the
+    # service deposits it no more, and its failure is said once.
+    service.provider.failing = 9
+    take()
+    backup = taken(installation)
+    service.api.post(RESTORES, json=asked(backup), headers=service.headers)
+    for _ in range(4):
+        assert service.restorer.step()
+    held = service.maintenance.current()
+    assert held is not None
+    assert held.abandoned
+    service.restorer.redeposit()
+    assert not service.restorer.queue.waiting()
+    assert not service.restorer.step()
+    spent = [r for r in logs.named("task.failed") if r.get("reason") == "attempts_spent"]
+    assert len(spent) == 1
+    assert service.maintenance.current() is not None
+    assert not service.restorer.queue.waiting()
+
+
 def test_the_worker_runs_no_task_in_maintenance_and_runs_it_after(
     installation: Installation, queue: TaskQueue, service: Service
 ) -> None:

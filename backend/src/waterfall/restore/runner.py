@@ -13,8 +13,9 @@ attempts are counted in the maintenance, which keeps the task: the database it r
 longer hold its row (WF-ARC-0090). An attempt interrupted — the process stopped, a database or
 Keycloak out of reach — leaves the maintenance and the entry: the restoration starts again from the
 beginning when the entry is taken over, and the maintenance is lifted once it has ended, its task
-succeeded and committed. One whose attempts are spent leaves the platform in maintenance: the
-databases it was replacing are in no state to serve, which an operator must look at. A restoration
+succeeded and committed. One whose attempts are spent is abandoned, and leaves the platform in
+maintenance: the databases it was replacing are in no state to serve, which an operator must look
+at; it is deposited no more. A restoration
 refused before the maintenance — an archive of a newer version, one that does not read back — fails,
 and nothing has changed.
 """
@@ -138,7 +139,10 @@ class Restorer(Worker):
         return status == "succeeded"
 
     def resume(self, restoring: Restoring) -> Task | None:
-        """Take up the restoration a maintenance holds; ``None`` once its attempts are spent."""
+        """Take up the restoration a maintenance holds; ``None`` once its attempts are spent.
+
+        Its attempts spent, it is abandoned in the maintenance, which stays: deposited no more.
+        """
         attempt = restoring.attempts + 1
         task = Task(
             restoring.task_id,
@@ -149,8 +153,12 @@ class Restorer(Worker):
             attempt,
         )
         if restoring.attempts >= MAX_ATTEMPTS:
-            with logging_context(**context_of(task)):
-                logger.error("task.failed", reason="attempts_spent", attempts=restoring.attempts)
+            if not restoring.abandoned:
+                with logging_context(**context_of(task)):
+                    logger.error(
+                        "task.failed", reason="attempts_spent", attempts=restoring.attempts
+                    )
+                self.maintenance.hold(dataclasses.replace(restoring, abandoned=True))
             return None
         self.maintenance.hold(dataclasses.replace(restoring, attempts=attempt))
         return task
@@ -184,12 +192,13 @@ class Restorer(Worker):
     def redeposit(self) -> None:
         """Deposit again the restorations the stream no longer names.
 
-        In maintenance, the restoration that holds it, whose row the database may no longer hold;
-        otherwise, those the database holds pending, as the worker does for its own.
+        In maintenance, the restoration that holds it, whose row the database may no longer hold,
+        unless it is abandoned; otherwise, those the database holds pending, as the worker does for
+        its own.
         """
         restoring = self.restoring()
         if restoring is None:
             super().redeposit()
-        elif restoring.task_id not in self.queue.waiting():
+        elif not restoring.abandoned and restoring.task_id not in self.queue.waiting():
             self.queue.deposit(restoring.task_id)
             logger.warning("queue.redeposited", count=1)

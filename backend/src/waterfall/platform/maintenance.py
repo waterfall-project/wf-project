@@ -43,7 +43,8 @@ class Restoring:
 
     ``caches_cleared`` once an attempt has asked Keycloak to clear its caches: from then on, it may
     serve the realm of the backup, whose secrets are not the installation's, until the realm of
-    the installation is applied again.
+    the installation is applied again. ``abandoned`` once its attempts are spent: nothing takes it
+    up again, and the maintenance stays, for an operator.
     """
 
     task_id: UUID
@@ -52,6 +53,7 @@ class Restoring:
     correlation_id: str
     attempts: int
     caches_cleared: bool = False
+    abandoned: bool = False
 
 
 class Maintenance:
@@ -81,6 +83,7 @@ class Maintenance:
             kept["correlation_id"],
             kept["attempts"],
             caches_cleared=kept.get("caches_cleared", False),
+            abandoned=kept.get("abandoned", False),
         )
 
     def hold(self, restoring: Restoring) -> None:
@@ -92,6 +95,7 @@ class Maintenance:
             "correlation_id": restoring.correlation_id,
             "attempts": restoring.attempts,
             "caches_cleared": restoring.caches_cleared,
+            "abandoned": restoring.abandoned,
         }
         self.client.set(self.key, json.dumps(kept))
 

@@ -950,13 +950,13 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     lit la tâche dans la clé de la maintenance quand la base n'en a pas, ou plus, la ligne, et y
     compte ses tentatives ; pendant la maintenance, le worker n'exécute aucune tâche. Une erreur
     une fois la maintenance posée interrompt la restauration, qui reprend depuis le début ; après
-    trois tentatives, la plateforme reste en maintenance, que l'exploitant regarde. La
-    maintenance garde aussi que les caches de Keycloak ont été demandés vidés : Keycloak peut dès
-    lors servir le royaume de la sauvegarde, dont les secrets refusent le compte de service et le
-    client de l'amorçage ; une tentative reprise après cette étape fait d'abord réappliquer le
-    royaume de la cible par `keycloak-realm`, et, si cela échoue, journalise le recours de
-    l'exploitant — redémarrer `keycloak`, puis `keycloak-realm` — et continue (revue de L2b).
-    Refusée avant la maintenance — archive plus récente ou illisible —, la tâche échoue et rien
+    trois tentatives, la restauration est abandonnée dans la maintenance, qui reste, que
+    l'exploitant regarde, et le service ne la redépose plus. La maintenance garde aussi que les
+    caches de Keycloak ont été demandés vidés : Keycloak peut dès lors servir le royaume de la
+    sauvegarde, dont les secrets refusent le compte de service et le client de l'amorçage ; une
+    tentative reprise après cette étape fait d'abord réappliquer le royaume de la cible par
+    `keycloak-realm`, et, si cela échoue, journalise le recours de l'exploitant — redémarrer
+    `keycloak`, puis `keycloak-realm` — et continue (revue de L2b). Refusée avant la maintenance — archive plus récente ou illisible —, la tâche échoue et rien
     ne change. La maintenance n'est levée qu'une fois la tâche passée `succeeded` et la
     restauration inscrite, validées : ce qui se fait ensuite vient après la restauration dans le
     journal ; une restauration reprise dont la tâche a déjà réussi — la levée manquée — lève la
