@@ -43,8 +43,11 @@ class IdentityProvider(Protocol):
     def prepare(self) -> None:
         """Take, before its database is replaced, what clearing its caches needs."""
 
-    def renew(self, name: str) -> None:
-        """Clear its caches, then apply the realm of the installation again; ``name`` the asking."""
+    def clear_caches(self) -> None:
+        """Clear its caches, with what ``prepare`` took: it serves the database restored."""
+
+    def apply_realm(self, name: str) -> None:
+        """Apply the realm of the installation again over its database; ``name`` the asking."""
 
     def remove(self, subjects: Iterable[str]) -> None:
         """Remove accounts from the realm."""
@@ -102,9 +105,12 @@ class Keycloak:
         """Take the token of the client of the bootstrap, while the realm is the installation's."""
         self.installation.take_token()
 
-    def renew(self, name: str) -> None:
-        """Clear the caches with the token taken before, then have the realm applied again."""
+    def clear_caches(self) -> None:
+        """Clear the caches, as the client of the bootstrap, with the token it took before."""
         self.installation.clear_caches()
+
+    def apply_realm(self, name: str) -> None:
+        """Have ``keycloak-realm`` apply the realm of the installation again."""
         self.realm.apply(name)
 
     def remove(self, subjects: Iterable[str]) -> None:

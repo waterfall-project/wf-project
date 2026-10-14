@@ -19,6 +19,7 @@ refused before the maintenance — an archive of a newer version, one that does 
 and nothing has changed.
 """
 
+import dataclasses
 from uuid import UUID
 
 from sqlalchemy import ColumnElement
@@ -130,15 +131,7 @@ class Restorer(Worker):
             with logging_context(**context_of(task)):
                 logger.error("task.failed", reason="attempts_spent", attempts=restoring.attempts)
             return None
-        self.maintenance.hold(
-            Restoring(
-                restoring.task_id,
-                restoring.payload,
-                restoring.requested_by,
-                restoring.correlation_id,
-                attempt,
-            )
-        )
+        self.maintenance.hold(dataclasses.replace(restoring, attempts=attempt))
         return task
 
     def execute(self, session: Session, task: Task) -> None:

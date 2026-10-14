@@ -217,32 +217,53 @@ def sha256(bucket: Bucket, key: str) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+class RefusedError(RuntimeError):
+    """Keycloak refuses a client: it serves the realm of the backup, whose secrets are others."""
+
+
 @dataclass
 class Provider:
     """Stands for Keycloak: keeps what the restoration asks of it, in its order, in ``steps``.
 
-    ``failing`` renewals fail before one succeeds, as a realm not applied again does.
+    ``failing`` realms applied again fail before one succeeds, as ``keycloak-realm`` does. Once its
+    caches are cleared, Keycloak serves the realm of the backup: its service account and the
+    client of the bootstrap are refused until the realm of the installation is applied again.
     """
 
     steps: list[str]
     failing: int = 0
     removed: list[str] = field(default_factory=list[str])
+    serving_backup: bool = False
 
     def close_sessions(self) -> None:
         """Keep the closing of every session."""
         self.steps.append("close_sessions")
+        self.refuse()
 
     def prepare(self) -> None:
         """Keep the token taken before the replacement."""
         self.steps.append("prepare")
+        self.refuse()
 
-    def renew(self, name: str) -> None:
-        """Keep the caches cleared and the realm applied again, or fail ``failing`` times."""
-        self.steps.append("renew")
+    def clear_caches(self) -> None:
+        """Keep the caches cleared: from then on, the realm of the backup is served."""
+        self.steps.append("clear_caches")
+        self.serving_backup = True
+
+    def apply_realm(self, name: str) -> None:
+        """Keep the realm applied again, or fail ``failing`` times."""
+        self.steps.append("apply_realm")
         if self.failing:
             self.failing -= 1
             message = f"not applied again ({name})"
             raise RealmNotAppliedError(message)
+        self.serving_backup = False
+
+    def refuse(self) -> None:
+        """Refuse the clients of the installation while the realm of the backup is served."""
+        if self.serving_backup:
+            message = "the realm of the backup holds other secrets"
+            raise RefusedError(message)
 
     def remove(self, subjects: Iterable[str]) -> None:
         """Keep the accounts removed from the realm."""

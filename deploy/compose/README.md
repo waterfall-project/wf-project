@@ -193,6 +193,18 @@ en maintenance, et les journaux disent pourquoi :
 docker compose -f compose.prod.yaml logs restore keycloak-realm
 ```
 
+Interrompue après le vidage des caches de Keycloak, une restauration trouve Keycloak servant le
+royaume de la sauvegarde, dont les secrets ne sont pas ceux de `.env` : sa reprise fait d'abord
+appliquer de nouveau le royaume de l'installation par `keycloak-realm`. Si cela échoue, le journal
+de `restore` le dit (`restore.realm_not_given_back`) avec le recours, que l'exploitant applique
+avant la tentative suivante — `keycloak-realm` applique le royaume de l'installation à chaque
+démarrage, quel que soit l'administrateur du royaume `master` que la base de Keycloak tient :
+
+```sh
+docker compose -f compose.prod.yaml restart keycloak
+docker compose -f compose.prod.yaml restart keycloak-realm
+```
+
 ## Arrêter
 
 ```sh

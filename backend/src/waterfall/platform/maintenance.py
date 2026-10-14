@@ -39,13 +39,19 @@ return deleted
 
 @dataclass(frozen=True, slots=True)
 class Restoring:
-    """The task of the restoration that holds the platform in maintenance, and its attempts."""
+    """The task of the restoration that holds the platform in maintenance, and its attempts.
+
+    ``caches_cleared`` once an attempt has asked Keycloak to clear its caches: from then on, it may
+    serve the realm of the backup, whose secrets are not the installation's, until the realm of
+    the installation is applied again.
+    """
 
     task_id: UUID
     payload: dict[str, Any]
     requested_by: UUID | None
     correlation_id: str
     attempts: int
+    caches_cleared: bool = False
 
 
 class Maintenance:
@@ -74,6 +80,7 @@ class Maintenance:
             None if requested_by is None else UUID(requested_by),
             kept["correlation_id"],
             kept["attempts"],
+            caches_cleared=kept.get("caches_cleared", False),
         )
 
     def hold(self, restoring: Restoring) -> None:
@@ -84,6 +91,7 @@ class Maintenance:
             "requested_by": None if restoring.requested_by is None else str(restoring.requested_by),
             "correlation_id": restoring.correlation_id,
             "attempts": restoring.attempts,
+            "caches_cleared": restoring.caches_cleared,
         }
         self.client.set(self.key, json.dumps(kept))
 

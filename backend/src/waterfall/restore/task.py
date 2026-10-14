@@ -14,15 +14,22 @@ refused before anything changes (``waterfall.worker.restore``). Then, in this or
    as its owner (#701); the migrations that follow the backup are applied;
 4. what was kept is written back, the tasks restored pending fail, and the accounts anonymised since
    the backup are anonymised again (``write_back_after_restoration``, #892, #893, #894, #987, #988);
-5. the caches of Keycloak are cleared, and its realm, that of the installation, applied again over
-   the database restored (#954, #955, #991); the local accounts anonymised again leave it;
+5. the caches of Keycloak are cleared, which the maintenance keeps first, and its realm, that of
+   the installation, applied again over the database restored (#954, #955, #991); the local
+   accounts anonymised again leave it;
 6. every session is closed again, and the restoration inscribed in the journal, the last of its
    inscriptions; what runs it ends the task, then lifts the maintenance.
 
 Taken up after an interruption, it starts again from the beginning, the maintenance held
-(WF-ARC-0090): what it reads of the task and of who asked for it, the maintenance keeps.
+(WF-ARC-0090): what it reads of the task and of who asked for it, the maintenance keeps. So does it
+keep that the caches of Keycloak were asked cleared: Keycloak may then serve the realm of the
+backup, whose secrets refuse the service account and the client of the bootstrap, and the attempt
+taken up first has the realm of the installation applied again, which gives them theirs back. If
+that fails, the log says what the operator does — restart ``keycloak``, then ``keycloak-realm``,
+which applies the realm of the installation at its start — and the attempt goes on.
 """
 
+import dataclasses
 import tempfile
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -46,10 +53,13 @@ from waterfall.platform.logs import get_logger
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.storage import Bucket, MissingObjectError
 from waterfall.platform.tasks import PENDING, BackgroundTask, Task
-from waterfall.restore.provider import IdentityProvider
+from waterfall.restore.provider import IdentityProvider, RealmNotAppliedError
 from waterfall.worker.backup import DATABASES
 from waterfall.worker.restore import extracted, replace
 from waterfall.worker.runner import await_run
+
+# What the operator does when the realm of the installation cannot be applied again.
+GIVE_THE_REALM_BACK = "restart keycloak, then keycloak-realm"
 
 logger = get_logger(__name__)
 
@@ -76,7 +86,7 @@ class RestoreTask:
         self.migrate = migrate
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
-        """Read the archive, hold the maintenance, keep, replace, migrate, write back, renew.
+        """Read the archive, hold the maintenance, keep, replace, migrate, write back, renew Keycloak.
 
         ``session`` is the transaction that ends the task: it inscribes the restoration, once all is
         done. It holds no lock on a table while the databases are replaced, which would hold up
@@ -93,7 +103,11 @@ class RestoreTask:
             dumps = extracted(archive, folder)
             owner = create_database_engine(self.databases["waterfall"])
             try:
-                actor = self.hold(owner, task)
+                taken_up = self.taken_up(task)
+                actor = self.requester(owner, task, taken_up)
+                held = self.hold(task, actor, taken_up)
+                if taken_up is not None and taken_up.caches_cleared:
+                    self.give_the_realm_back(task)
                 self.close_sessions()
                 await_runs(owner, task.task_id)
                 with owner.begin() as kept:
@@ -106,37 +120,62 @@ class RestoreTask:
                     subjects = write_back_after_restoration(written, task.task_id, utc_now())
             finally:
                 owner.dispose()
-        self.provider.renew(f"{task.task_id}-{task.attempt}")
+        self.maintenance.hold(dataclasses.replace(held, caches_cleared=True))
+        self.provider.clear_caches()
+        self.provider.apply_realm(f"{task.task_id}-{task.attempt}")
         self.provider.remove(subjects)
         self.close_sessions()
         inscribe_restoration(session, backup_id, actor, utc_now())
         logger.info("restore.done", backup_id=str(backup_id))
         return {"backup_id": str(backup_id)}
 
-    def hold(self, owner: Engine, task: Task) -> AuditActor | None:
-        """Hold the platform in maintenance, and name who asked for the restoration.
-
-        Named as they were when they asked, which the maintenance keeps: the database restored may
-        not hold their account, and an attempt taken up reads a database already replaced.
-        """
+    def taken_up(self, task: Task) -> Restoring | None:
+        """Give what the maintenance keeps of an attempt of this restoration before, if it does."""
         held = self.maintenance.current()
-        if held is not None and held.task_id == task.task_id and "actor" in held.payload:
-            named = held.payload["actor"]
-            actor = None if named is None else AuditActor(UUID(named[0]), named[1])
-        else:
-            with Session(owner) as reading, reading.begin():
-                actor = inscribed_actor(reading, task.requested_by)
+        return held if held is not None and held.task_id == task.task_id else None
+
+    @staticmethod
+    def requester(owner: Engine, task: Task, taken_up: Restoring | None) -> AuditActor | None:
+        """Name who asked for the restoration, as they were when they asked.
+
+        As the maintenance keeps them: the database restored may not hold their account, and an
+        attempt taken up reads a database already replaced.
+        """
+        if taken_up is not None and "actor" in taken_up.payload:
+            named = taken_up.payload["actor"]
+            return None if named is None else AuditActor(UUID(named[0]), named[1])
+        with Session(owner) as reading, reading.begin():
+            return inscribed_actor(reading, task.requested_by)
+
+    def hold(self, task: Task, actor: AuditActor | None, taken_up: Restoring | None) -> Restoring:
+        """Hold the platform in maintenance, the requester named; give what it holds.
+
+        Whether an attempt before asked for the caches cleared is kept.
+        """
         kept = None if actor is None else [str(actor.user_id), actor.display_name]
-        self.maintenance.hold(
-            Restoring(
-                task.task_id,
-                {**task.payload, "actor": kept},
-                task.requested_by,
-                task.correlation_id,
-                task.attempt,
-            )
+        held = Restoring(
+            task.task_id,
+            {**task.payload, "actor": kept},
+            task.requested_by,
+            task.correlation_id,
+            task.attempt,
+            caches_cleared=taken_up is not None and taken_up.caches_cleared,
         )
-        return actor
+        self.maintenance.hold(held)
+        return held
+
+    def give_the_realm_back(self, task: Task) -> None:
+        """Have the realm of the installation applied again, which Keycloak may no longer serve.
+
+        If it is not, the operator is told what to do, and the attempt goes on: Keycloak may still
+        serve the realm of the installation, its caches not cleared before the interruption.
+        """
+        try:
+            self.provider.apply_realm(f"{task.task_id}-{task.attempt}-taken-up")
+        except RealmNotAppliedError:
+            logger.exception("restore.realm_not_given_back", action=GIVE_THE_REALM_BACK)
+        else:
+            logger.info("restore.realm_given_back")
 
     def close_sessions(self) -> None:
         """Close every session: the identity provider's, then the front's, which Redis keeps."""

@@ -31,7 +31,7 @@ from installations import (
 from openapi_core import OpenAPI
 from realm import TestRealm
 from sqlalchemy import Engine, insert, select
-from support import ContractClient, nowhere
+from support import ContractClient, Logs, nowhere
 from task_handlers import Runs, deposit, held_run
 
 from waterfall.core.access_roles.tables import AccessRole
@@ -45,7 +45,7 @@ from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore import task as restoration
 from waterfall.restore.provider import RealmNotAppliedError, RealmRequests
 from waterfall.restore.runner import Restorer
-from waterfall.restore.task import RestoreTask, await_runs
+from waterfall.restore.task import GIVE_THE_REALM_BACK, RestoreTask, await_runs
 from waterfall.worker.backup import MANIFEST
 from waterfall.worker.runner import Timing, Worker
 
@@ -141,8 +141,9 @@ def test_a_restoration_asked_of_the_api_is_run_by_its_service_alone_and_inscribe
     # « Une inscription faite après la sauvegarde est encore présente après la restauration, et la
     # dernière inscription est la restauration elle-même. » The task goes to the stream of the
     # restorations, never to the worker's, which runs nothing of it; the service runs it in the
-    # order of #981 — sessions closed, kept, replaced, migrated, written back, Keycloak renewed,
-    # sessions closed again —, then lifts the maintenance, the restoration inscribed last.
+    # order of #981 — sessions closed, kept, replaced, migrated, written back, the caches of
+    # Keycloak cleared and its realm applied again, sessions closed again —, then lifts the
+    # maintenance, the restoration inscribed last.
     take()
     backup = taken(installation)
     after = inscribe(installation.database, "Après la sauvegarde")
@@ -161,7 +162,8 @@ def test_a_restoration_asked_of_the_api_is_run_by_its_service_alone_and_inscribe
         "replace identity_provider",
         "migrate",
         "write_back_after_restoration",
-        "renew",
+        "clear_caches",
+        "apply_realm",
         "remove",
         "close_sessions",
     ]
@@ -388,20 +390,44 @@ def test_a_restoration_interrupted_in_maintenance_starts_again_and_lifts_it_at_i
     assert service.provider.steps.count("keep_for_restoration") == 2
 
 
-def test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenance(
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_interrupted_once_the_caches_are_cleared_gives_the_realm_back_first(
     installation: Installation, take: Take, service: Service
 ) -> None:
+    # Interrupted once the caches of Keycloak are cleared, the realm not applied again: Keycloak
+    # serves the realm of the backup, whose secrets refuse the service account and the client of
+    # the bootstrap. Taken up, the restoration has the realm of the installation applied again
+    # first, then starts again from the beginning, and lifts the maintenance at its end.
+    service.provider.failing = 1
+    take()
+    backup = taken(installation)
+    service.api.post(RESTORES, json=asked(backup), headers=service.headers)
+    assert service.restorer.step()
+    assert service.maintenance.current() is not None
+    assert service.provider.serving_backup
+    del service.provider.steps[:]
+    assert service.restorer.step()
+    assert service.provider.steps[:3] == ["apply_realm", "close_sessions", "keep_for_restoration"]
+    assert service.maintenance.current() is None
+    assert service.api.get("/api/v1/health").json() == {"status": "ok"}
+
+
+def test_a_restoration_whose_attempts_are_spent_leaves_the_platform_in_maintenance(
+    installation: Installation, take: Take, service: Service, logs: Logs
+) -> None:
     # Three attempts interrupted: the databases are in no state to serve, which an operator must
-    # look at; the maintenance stays, and the entry is acknowledged.
+    # look at; the maintenance stays, and the entry is acknowledged. The realm never applied
+    # again, each attempt taken up says what the operator does, and goes on: refused.
     service.provider.failing = 9
     take()
     backup = taken(installation)
     service.api.post(RESTORES, json=asked(backup), headers=service.headers)
     for _ in range(4):
         assert service.restorer.step()
-    assert service.provider.steps.count("renew") == 3
-    assert service.maintenance.current() is not None
-    assert not service.restorer.queue.waiting()
+    assert service.provider.steps.count("clear_caches") == 1
+    assert service.provider.steps.count("apply_realm") == 3
+    told = [record["action"] for record in logs.named("restore.realm_not_given_back")]
+    assert told == [GIVE_THE_REALM_BACK] * 2
 
 
 def test_the_worker_runs_no_task_in_maintenance_and_runs_it_after(

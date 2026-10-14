@@ -845,9 +845,11 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     cible ne parlerait plus à Keycloak. Le service prend son jeton avant de remplacer la base
     de Keycloak, et vide le cache du royaume en dernier : jusque-là, Keycloak sert le royaume
     de la cible depuis ses caches. Le service `keycloak-realm`, de l'image `keycloak`, devient
-    permanent : il applique le royaume à son démarrage, comme aujourd'hui, puis attend une
-    demande de réapplication dans un volume qu'il ne partage qu'avec le service de
-    restauration, l'exécute et y répond ; le service de restauration attend la réponse avant
+    permanent : il applique le royaume à son démarrage — lui aussi par l'administrateur
+    temporaire ci-dessous, l'administrateur de `master` pouvant être celui d'une sauvegarde :
+    redémarrer `keycloak`, puis `keycloak-realm`, rend toujours le royaume de la cible (revue de
+    L2b) —, puis attend une demande de réapplication dans un volume qu'il ne partage qu'avec le
+    service de restauration, l'exécute et y répond ; le service de restauration attend la réponse avant
     de fermer les sessions et de lever la maintenance. L'administrateur de `master` étant
     celui de la source, keycloak-config-cli s'y connecte par un administrateur temporaire
     créé d'après les réglages de la cible (`kc.sh bootstrap-admin service`, le recours de
@@ -865,7 +867,8 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     de la cible et ne trouve pas l'administrateur temporaire. `clear-realm-cache` demandé au
     royaume `waterfall` vide le cache de tous les royaumes, `master` compris (essai de L2b,
     2026-10-14). `keycloak-realm` rend le mot de passe à l'administrateur de `master` et retire
-    l'administrateur temporaire par `kcadm.sh`, dont le secret, tiré pour chaque demande, ne
+    par `kcadm.sh` tous les administrateurs temporaires (`waterfall-realm-*`), le sien et ceux
+    qu'une exécution arrêtée en route a laissés ; leur secret, tiré pour chaque application, ne
     passe que par l'environnement de ses commandes. La fermeture des sessions (`logout-all`) est
     permise au compte de service par `manage-users`, refusée au client de l'amorçage. Test : une sauvegarde restaurée sur une
     installation aux secrets et au domaine différents laisse le front et l'API parler à
@@ -947,10 +950,16 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     lit la tâche dans la clé de la maintenance quand la base n'en a pas, ou plus, la ligne, et y
     compte ses tentatives ; pendant la maintenance, le worker n'exécute aucune tâche. Une erreur
     une fois la maintenance posée interrompt la restauration, qui reprend depuis le début ; après
-    trois tentatives, la plateforme reste en maintenance, que l'exploitant regarde. Refusée avant
-    la maintenance — archive plus récente ou illisible —, la tâche échoue et rien ne change. La
-    maintenance n'est levée qu'une fois la tâche passée `succeeded` et la restauration inscrite,
-    validées : ce qui se fait ensuite vient après la restauration dans le journal ;
+    trois tentatives, la plateforme reste en maintenance, que l'exploitant regarde. La
+    maintenance garde aussi que les caches de Keycloak ont été demandés vidés : Keycloak peut dès
+    lors servir le royaume de la sauvegarde, dont les secrets refusent le compte de service et le
+    client de l'amorçage ; une tentative reprise après cette étape fait d'abord réappliquer le
+    royaume de la cible par `keycloak-realm`, et, si cela échoue, journalise le recours de
+    l'exploitant — redémarrer `keycloak`, puis `keycloak-realm` — et continue (revue de L2b).
+    Refusée avant la maintenance — archive plus récente ou illisible —, la tâche échoue et rien
+    ne change. La maintenance n'est levée qu'une fois la tâche passée `succeeded` et la
+    restauration inscrite, validées : ce qui se fait ensuite vient après la restauration dans le
+    journal ;
   - **un vidage dont la base cesse de répondre** (L2, #907) échoue en composant injoignable,
     503, et non en erreur interne : à l'échec de `pg_dump`, la tâche rejoint la base, et ne dit
     l'erreur interne que si elle répond.
