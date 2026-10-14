@@ -2388,7 +2388,7 @@ export interface paths {
         put?: never;
         /**
          * Terminer le dépôt par morceaux
-         * @description Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` : son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`). Refusé par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts` dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme (`platform_restore`), comme `startRestore` : sans elle, 403.
+         * @description Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` : son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`), et son `backup_taken_at` la date que dit le manifeste de la sauvegarde, que la confirmation de la restauration nomme (`acknowledged_backup_taken_at`). Refusé par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts` dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme (`platform_restore`), comme `startRestore` : sans elle, 403.
          */
         post: operations["completeChunkedUpload"];
         delete?: never;
@@ -4622,6 +4622,8 @@ export interface components {
             size_bytes: number;
             uploaded_at: components["schemas"]["Timestamp"];
             expires_at: components["schemas"]["Timestamp"];
+            /** @description La date de la sauvegarde déposée, que son manifeste dit en tête de l'archive, lue à l'achèvement (`completeChunkedUpload`) ; nulle si la tête de l'archive n'en dit pas. La confirmation de la restauration la nomme (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160). Présente pour un dépôt dont `purpose` est `external_backup` seulement (#1006). */
+            backup_taken_at?: components["schemas"]["Timestamp"] | null;
         };
         /** @description Ouvre le dépôt par morceaux d'une sauvegarde copiée hors de la plateforme, à restaurer (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). Il n'existe pas pour un autre usage : le fichier d'un import se dépose en une fois. */
         ChunkedUploadOpen: {

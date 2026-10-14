@@ -3625,6 +3625,11 @@ imports : `purpose` à `external_backup` y est refusé par `UPLOAD_PURPOSE_MISMA
 adresse signée du stockage objet, où le navigateur parlerait au stockage, hors des flux du
 §4.3.2 ; un gestionnaire de route qui relaie l'API, écarté par EP-02 (WF-ARC-0020). Écarté
 aussi : une opération d'abandon, l'expiration (24 heures, comme un fichier d'import) suffit.
+*Complété par EP-03/US-0440/L2c (#1006)* : le `FileUpload` que rend `completeChunkedUpload` porte
+`backup_taken_at`, la date que dit le manifeste, en tête de l'archive, lue à l'achèvement, nulle
+s'il n'en dit pas ; c'est la date que la confirmation de `startRestore` doit nommer, et l'écran ne
+la connaîtrait sinon qu'en lisant l'archive dans le navigateur, une seconde lecture du manifeste,
+fragile, que le service fait déjà (écarté). Le champ n'existe que pour `external_backup`.
 
 ## Les comptes non admis, les adresses et le 503 des opérations gardées (EP-03, #664, #665, #666)
 

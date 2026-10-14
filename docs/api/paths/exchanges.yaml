@@ -137,7 +137,9 @@
     description: >-
       Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur
       le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` :
-      son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`). Refusé
+      son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`), et son
+      `backup_taken_at` la date que dit le manifeste de la sauvegarde, que la confirmation de la
+      restauration nomme (`acknowledged_backup_taken_at`). Refusé
       par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts`
       dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà
       terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme
