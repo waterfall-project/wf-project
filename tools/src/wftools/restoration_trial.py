@@ -19,8 +19,8 @@ trial takes one from the realm as the front does — the code of the flow of the
 goes to the container on its standard input, never on a command line.
 
 The restoration is run by the service of the restoration, which the platform starts (#953, #985).
-The step is asked for by ``WATERFALL_TRIAL_RESTORATION=1``, which the chain sets (#948), and left out
-otherwise: a trial on a workstation may leave it out, as it lasts.
+The step is asked for by ``WATERFALL_TRIAL_RESTORATION=1``, which the chain sets (#948), and left
+out otherwise: a trial on a workstation may leave it out, as it lasts.
 """
 
 import base64
