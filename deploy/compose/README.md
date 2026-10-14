@@ -166,6 +166,33 @@ docker run --rm -v waterfall_postgres-data:/data:ro -v "$PWD:/copy" alpine \
 et de même pour `waterfall_storage-data`. Garder aussi une copie de `.env` : ses secrets sont ceux
 de l'installation.
 
+## Restaurer
+
+La restauration (WF-ADM-0160) se demande à l'écran des sauvegardes de l'administration
+(US-0440/L3) ou par l'API (`startRestore`), la date de la sauvegarde confirmée : le service
+`restore`, démarré avec la plateforme et relancé s'il s'arrête, l'exécute, et l'exploitant n'a
+rien à lancer. Elle remplace les deux bases, Waterfall et Keycloak, par celles de la sauvegarde.
+Pendant ce temps, la plateforme est en maintenance — l'API répond 503 et sa sonde de vie dit
+`maintenance` — et toutes les sessions sont fermées, avant et après. Le journal d'audit et la liste
+des sauvegardes gardent ce qu'ils tenaient, et la restauration s'y inscrit la dernière.
+`keycloak-realm`, qui reste démarré, applique ensuite de nouveau le royaume de l'installation : ses
+clients, leurs secrets et ses adresses viennent de `.env`, les comptes et leurs mots de passe de la
+sauvegarde, et l'administrateur `admin` du royaume `master` garde `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`.
+
+Reproduire une installation, c'est installer et amorcer la cible avec son propre `.env`, puis y
+déposer la sauvegarde téléchargée de la source et la restaurer : la cible garde son domaine, ses
+secrets et le mot de passe de l'administrateur de Keycloak, et prend de la source les comptes de
+Waterfall et leurs mots de passe. Une sauvegarde d'une version plus récente que la cible est
+refusée, avant que rien ne change.
+
+Une restauration interrompue — le service arrêté, une base ou Keycloak injoignable — reprend depuis
+le début, et ne lève la maintenance qu'une fois finie ; après trois tentatives, la plateforme reste
+en maintenance, et les journaux disent pourquoi :
+
+```sh
+docker compose -f compose.prod.yaml logs restore keycloak-realm
+```
+
 ## Arrêter
 
 ```sh
@@ -196,5 +223,5 @@ HTTP renvoie à la même page sur l'adresse publiée, port compris, que HTTPS r�
 autres en-têtes de Caddy, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se
 connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`,
 il demande à l'API une sauvegarde puis sa restauration, qu'il suit par la sonde de vie jusqu'à
-`ok` — une étape laissée de côté tant que la plateforme ne démarre pas le service de la
-restauration (US-0440/L2b) ; puis il retire la plateforme et ses volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.
+`ok` — la chaîne la demande, un essai sur un poste peut la laisser de côté ; puis il retire la
+plateforme et ses volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.

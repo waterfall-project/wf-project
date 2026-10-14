@@ -4,9 +4,9 @@
 # The production platform on one machine (US-0430, WF-ARC-0050): the images the chain publishes on
 # ghcr.io/waterfall-project — front, waterfall, keycloak —, under the tag WATERFALL_IMAGE_TAG, and
 # nothing built here. Caddy is its only door, in HTTPS (Caddyfile.prod); the front, the API, the
-# worker and the schedule of its tasks; PostgreSQL with two databases, Waterfall's and Keycloak's;
-# Redis; Garage, the object storage, and the buckets it makes; Keycloak and the application of its
-# realm; the data in named volumes. How to install, bootstrap, update, back up and stop it:
+# worker and the schedule of its tasks, the service of the restoration; PostgreSQL with two
+# databases, Waterfall's and Keycloak's; Redis; Garage, the object storage, and the buckets it
+# makes; Keycloak and the application of its realm; the data in named volumes. How to install, bootstrap, update, back up and stop it:
 # README.md.
 #
 # The settings and the secrets come from the file .env beside this one, which the operator fills
@@ -36,6 +36,12 @@ x-administrator: &administrator
   PGUSER: postgres
   PGPASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
 x-owner-database-url: &owner-database-url postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}@postgres:5432/waterfall
+# The database of Keycloak, as its owner: Keycloak, the application of its realm, and the service of
+# the restoration, which replaces it (#953).
+x-keycloak-database: &keycloak-database
+  KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+  KC_DB_USERNAME: keycloak
+  KC_DB_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}
 
 # The issuer of every token is the address the browser reaches Keycloak at; the API and the worker
 # reach it inside the network of the platform, for its keys and its administration API, as its
@@ -100,7 +106,7 @@ services:
     depends_on:
       api: *healthy
       redis: *healthy
-      keycloak-realm: *done
+      keycloak-realm: *healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
@@ -261,6 +267,31 @@ services:
       service-database-role: *done
       redis: *healthy
 
+  # Runs the restorations the API deposits in their stream, and nothing else (WF-ADM-0160, #953),
+  # and starts again if it stops: a restoration is asked for at the screen, where nobody runs a
+  # command. The only service that holds the owners of both databases, the client of the bootstrap,
+  # which clears the caches of Keycloak (#954), and the service account, which closes the sessions;
+  # it asks keycloak-realm, through the folder they alone share, to apply the realm again (#955).
+  # It opens no port.
+  restore:
+    image: *waterfall-image
+    environment:
+      <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      WATERFALL_DATABASE_URL: *owner-database-url
+      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://keycloak:${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}@postgres:5432/keycloak
+      WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
+      WATERFALL_REALM_REQUESTS: /realm-requests
+    command: ["waterfall-restore"]
+    volumes:
+      - realm-requests:/realm-requests
+    restart: unless-stopped
+    depends_on:
+      migrate: *done
+      keycloak-database: *done
+      redis: *healthy
+      storage-buckets: *done
+      keycloak-realm: *healthy
+
   # The bootstrap (US-0420): `docker compose -f compose.prod.yaml run --rm install` once the platform
   # is up. The migrations, then what nobody may enter without, and the link of the first
   # administrator, alone on its standard output. As the owner of the tables (#701), and the only
@@ -281,7 +312,7 @@ services:
       postgres: *healthy
       migrate: *done
       keycloak: *healthy
-      keycloak-realm: *done
+      keycloak-realm: *healthy
 
   # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of the
   # platform taken from the environment (garage.toml), its memory bounded (WF-CMP-0020).
@@ -324,9 +355,7 @@ services:
   keycloak:
     image: *keycloak-image
     environment:
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}
+      <<: *keycloak-database
       # The administrator of the master realm, read at the first start alone.
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
@@ -343,13 +372,17 @@ services:
       timeout: 3s
       retries: 60
 
-  # Applies the realm of the image, at each start, then stops: a setting changed by hand in the
-  # console comes back to what the realm says. Keycloak tells the front of a closed session on its
-  # back channel, inside the network of the platform (#731).
+  # Applies the realm of the image at each start: a setting changed by hand in the console comes back
+  # to what the realm says. Keycloak tells the front of a closed session on its back channel, inside
+  # the network of the platform (#731). Then stays, and applies it again when the service of the
+  # restoration asks, over the database it has restored (#955): as a temporary administrator it
+  # makes on the database of Keycloak (realm-service), the administrator of master being then the
+  # backup's, whose password it gives back.
   keycloak-realm:
     image: *keycloak-image
-    entrypoint: ["/opt/keycloak/bin/apply-realm"]
+    entrypoint: ["/opt/keycloak/bin/realm-service", "/opt/keycloak/bin/apply-realm"]
     environment:
+      <<: *keycloak-database
       KEYCLOAK_URL: http://keycloak:8080/auth
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
@@ -358,12 +391,28 @@ services:
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?set WATERFALL_FRONT_CLIENT_SECRET in .env}
       WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?set WATERFALL_SERVICE_CLIENT_SECRET in .env}
       WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
-    restart: "no"
+      WATERFALL_REALM_REQUESTS: /realm-requests
+    volumes:
+      - realm-requests:/realm-requests
+    restart: unless-stopped
     depends_on:
       keycloak: *healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "test -f /tmp/realm-applied"]
+      interval: 5s
+      timeout: 3s
+      retries: 120
 
 volumes:
   caddy-data:
   caddy-config:
   postgres-data:
   storage-data:
+  # Where the service of the restoration asks keycloak-realm to apply the realm again, and reads the
+  # answer: in memory, theirs alone, written by the user of both images.
+  realm-requests:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: uid=1000,gid=1000,mode=0700,size=1m

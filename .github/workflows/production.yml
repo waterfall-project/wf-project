@@ -37,6 +37,8 @@ jobs:
       WATERFALL_STORAGE_SECRET: chain-only-storage-secret
       # Garage wants the secret of its RPC in 64 hexadecimal digits.
       WATERFALL_STORAGE_RPC_SECRET: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
+      # The trial backs the platform up, then restores it, by its API (US-0440, #948).
+      WATERFALL_TRIAL_RESTORATION: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

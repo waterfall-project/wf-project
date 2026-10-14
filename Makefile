@@ -166,12 +166,13 @@ lint-shell: ## Lint the shell scripts
 lint-docker: ## Lint the Dockerfiles
 	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
 
-# Keycloak answers before its realm is applied: the application runs once it does, and stops. The
-# root of the authority of its front end is copied out first: a new volume makes a new one.
-service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit
+# Keycloak answers before its realm is applied: the application starts once it does, anew at each
+# start, and stays, to apply it again after a restoration (#955). The root of the authority of its
+# front end is copied out first: a new volume makes a new one.
+service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, the service of the restoration, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler restore keycloak keycloak-front-end openldap mailpit
 	@$(MAKE) --no-print-directory keycloak-authority
-	@$(COMPOSE_SERVICE) run --rm keycloak-realm
+	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate keycloak-realm
 
 # The bootstrap of the platform (US-0420), once its realm is applied: the link of the first
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
@@ -250,7 +251,7 @@ production-trial: ## Start the production platform on the images of WATERFALL_IM
 test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens and the bootstrap included, measuring its administration client and the bootstrap (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
 	@$(MAKE) --no-print-directory keycloak-authority
-	@$(COMPOSE_SERVICE) run --rm keycloak-realm
+	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate keycloak-realm
 	@cd $(BACK) && uv sync --frozen
 	@WATERFALL_TEST_KEYCLOAK_CONTAINER=$$($(COMPOSE_SERVICE) ps --quiet keycloak) && export WATERFALL_TEST_KEYCLOAK_CONTAINER && \
 		cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \

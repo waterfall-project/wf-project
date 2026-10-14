@@ -3,8 +3,9 @@
 
 # The image `waterfall`, which the chain publishes (US-0430) and the service platform builds: the
 # API (`waterfall-api`, the default command), the worker (`waterfall-worker`), its schedule
-# (`waterfall-worker enqueue <kind>`) and the migrations (`waterfall-migrate`) are commands of one
-# distribution, so one image runs them all (WF-ARC-0010). No secret is in it (WF-SEC-0010): each
+# (`waterfall-worker enqueue <kind>`), the migrations (`waterfall-migrate`) and the service of the
+# restoration (`waterfall-restore`) are commands of one distribution, so one image runs them all
+# (WF-ARC-0010). No secret is in it (WF-SEC-0010): each
 # command reads its settings from the environment of the container, and stops naming the one that
 # lacks. The base image is pinned by digest: a tag can be moved, a digest cannot. It is Debian's
 # trixie; the client of PostgreSQL comes from the repository of the PostgreSQL project (PGDG), in

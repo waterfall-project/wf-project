@@ -732,7 +732,9 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
   (#569) : `make production-trial` demande une sauvegarde puis une restauration par l'API,
   la restauration suivie par la sonde de vie jusqu'à la levée de la maintenance (#948,
   point 2). L2 pose l'étape derrière la garde `WATERFALL_TRIAL_RESTORATION` ; US-0440/L2b
-  (#985), qui démarre le service de restauration, la lève.
+  (#985), qui démarre le service de restauration, la fait jouer par la chaîne : `production.yml`
+  et `images.yml` posent `WATERFALL_TRIAL_RESTORATION=1`, et un essai sur un poste peut la
+  laisser de côté.
 
 ### Stockage objet
 
@@ -773,11 +775,17 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
      cible, qui garde ainsi la trace de ce qui s'y est fait —, et de même les lignes de
      `backup` relues qui manquent à la table restaurée (#893) ;
   4. passe `failed`, avec un code propre, les tâches restaurées encore `queued` ou `running`,
-     avant que le worker ne reprenne (#892) ;
-  5. vide les caches de Keycloak — royaume, comptes et clés (`realm`, `user`, `keys`) — par
-     son API d'administration (#954), et ceux que Redis garde ;
+     avant que le worker ne reprenne (#892), sauf celles qu'elle garde — la sienne, celles des
+     sauvegardes —, qui reprennent l'état gardé, plus récent que la sauvegarde (auteur,
+     2026-10-13, #987) ; et anonymise de nouveau les comptes que le journal réinscrit dit
+     anonymisés depuis la sauvegarde (`user_anonymize`), à la date de cette inscription, le
+     journal oubliant encore leur nom : l'anonymisation reste irréversible (WF-ADM-0060,
+     WF-SEC-0030 ; auteur, 2026-10-13, #988) ;
+  5. vide les caches de Keycloak — comptes et clés, puis royaume (`user`, `keys`, `realm`,
+     #991) — par son API d'administration (#954), et ceux que Redis garde ;
   6. force la réapplication du royaume de la cible (#955) : les comptes et leurs mots de passe
-     viennent de la sauvegarde, la configuration du royaume vient de la cible ;
+     viennent de la sauvegarde, la configuration du royaume vient de la cible ; les comptes
+     locaux anonymisés de nouveau sont retirés du royaume restauré, qui les tenait encore (#988) ;
   7. ferme de nouveau les sessions, inscrit la restauration au journal, et lève la
      maintenance.
 
@@ -798,7 +806,10 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     migrations, que le worker n'importe pas (`make imports-back`) ;
   - **le worker ordinaire reste au rôle de sauvegarde**, en lecture seule (#895) : il vide les
     bases, n'en écrit aucune hors de son rôle de service, et n'exécute jamais `restore` ;
-    pendant la maintenance, il n'exécute aucune tâche ;
+    pendant la maintenance, il n'exécute aucune tâche. Une tâche qu'il exécutait déjà quand la
+    maintenance a été posée continue : le service de restauration attend, avant de rien garder,
+    la fin de chaque tâche en file ou en cours, par le verrou de son exécution, et le worker qui
+    prend ce verrou après la pose de la maintenance laisse la tâche (US-0440/L2b) ;
   - **comment il reçoit une restauration demandée par l'écran** (WF-ADM-0160) : par une file
     à lui, un second flux Redis, que seul il lit. `startRestore` écrit la tâche `restore` dans
     `background_task`, comme toute tâche, puis la dépose, après validation de sa transaction,
@@ -827,9 +838,22 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     celui de la source, keycloak-config-cli s'y connecte par un administrateur temporaire
     créé d'après les réglages de la cible (`kc.sh bootstrap-admin service`, le recours de
     Keycloak 26 à un administrateur perdu), rend à l'administrateur de `master` le mot de passe
-    de la cible, puis retire l'administrateur temporaire. Reste à vérifier que
-    `bootstrap-admin` s'exécute à côté du serveur démarré ; s'il ne le peut pas, le lot ouvre
-    un constat avant de choisir une autre voie. Test : une sauvegarde restaurée sur une
+    de la cible, puis retire l'administrateur temporaire. Vérifié le 2026-10-13 (#991) et
+    réalisé par US-0440/L2b, à trois conditions : (a) `bootstrap-admin` s'exécute dans un
+    second conteneur — dans celui du serveur, le port de gestion 9000 est pris —, et c'est
+    `keycloak-realm` ; (b) il s'exécute avec `--optimized`, l'image étant construite par
+    `kc.sh build`, et l'adresse de la base (`KC_DB_URL`, `KC_DB_USERNAME`, `KC_DB_PASSWORD`),
+    que `keycloak-realm` tient donc ; (c) après le remplacement de la base, le service vide les
+    caches `user` et `keys`, puis `realm`, avec le jeton du client de l'amorçage pris avant —
+    une fois le royaume oublié, ce jeton, signé de clés que la base restaurée n'a plus, est
+    refusé —, et seulement ensuite `keycloak-realm` crée l'administrateur temporaire et lance
+    keycloak-config-cli : tant que le cache du royaume n'est pas vidé, Keycloak sert le `master`
+    de la cible et ne trouve pas l'administrateur temporaire. `clear-realm-cache` demandé au
+    royaume `waterfall` vide le cache de tous les royaumes, `master` compris (essai de L2b,
+    2026-10-14). `keycloak-realm` rend le mot de passe à l'administrateur de `master` et retire
+    l'administrateur temporaire par `kcadm.sh`, dont le secret, tiré pour chaque demande, ne
+    passe que par l'environnement de ses commandes. La fermeture des sessions (`logout-all`) est
+    permise au compte de service par `manage-users`, refusée au client de l'amorçage. Test : une sauvegarde restaurée sur une
     installation aux secrets et au domaine différents laisse le front et l'API parler à
     Keycloak, et l'administrateur de la source s'y connecte ;
   - **sa place dans Compose**, que réalise US-0440/L2b : dans `compose.service.yaml` et
@@ -849,8 +873,11 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   - **les tâches restaurées** (#892) : le vidage porte la ligne de la sauvegarde en cours, à
     l'état `running` ; redéposée par le worker, elle relancerait la sauvegarde et écraserait son
     archive. Toute tâche restaurée `queued` ou `running` passe donc `failed` avant la relance du
-    worker. Test : restaurer, faire un pas du worker ; l'archive restaurée garde son empreinte,
-    et aucune ligne `backup` ne s'ajoute ;
+    worker — sauf, depuis #987 (auteur, 2026-10-13), les tâches gardées, la restauration et les
+    sauvegardes, dont l'état gardé l'emporte : la sauvegarde restaurée reste `succeeded`, sa
+    ligne listée et vérifiée. Test : restaurer, faire un pas du worker ; l'archive restaurée garde
+    son empreinte, aucune ligne `backup` ne s'ajoute, et la tâche de la sauvegarde reste
+    `succeeded` ;
   - **la liste des sauvegardes** (#893) : la table `backup` est relue puis réinscrite, comme le
     journal d'audit ; sans quoi la liste perdrait les sauvegardes prises après celle qu'on
     restaure, dont les archives restent dans le compartiment. Test : deux sauvegardes,
@@ -891,7 +918,11 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     déjà à demi remplacée ; il est réinscrit, puis le schéma supprimé, dans une seule
     transaction. Une ligne gardée dont le demandeur manque à la base restaurée y revient sans
     demandeur. Ce qui est gardé et réinscrit est l'affaire du module des sauvegardes, que le
-    service appelle autour du remplacement, et que les tests éprouvent sans lui ;
+    service appelle autour du remplacement, et que les tests éprouvent sans lui. La conservation
+    porte la tâche de la restauration qui l'a faite (US-0440/L2b, revue de L2) : une autre
+    restauration qui trouve la conservation d'une première, jamais réinscrite — un remplacement
+    échoué pour de bon —, la reprend telle quelle, ce qu'elle tient étant l'état d'avant la
+    première, y ajoute sa propre tâche, et la tâche de la première échoue à la réinscription ;
   - **le remplacement** (L2) : le schéma de la base de Waterfall est supprimé et recréé, puis le
     vidage restauré en une transaction, sans propriétaire ni droits de la source
     (`pg_restore --no-owner --no-privileges`) — le rôle du service d'une autre installation
@@ -899,8 +930,13 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     après les migrations. La base du fournisseur d'identité est remplacée de même, sous son
     propriétaire ;
   - **la reprise** (L2b) : le service de restauration qui reprend une restauration interrompue
-    lit la tâche dans la clé de la maintenance quand la base n'en a pas, ou plus, la ligne ;
-    pendant la maintenance, le worker n'exécute aucune tâche ;
+    lit la tâche dans la clé de la maintenance quand la base n'en a pas, ou plus, la ligne, et y
+    compte ses tentatives ; pendant la maintenance, le worker n'exécute aucune tâche. Une erreur
+    une fois la maintenance posée interrompt la restauration, qui reprend depuis le début ; après
+    trois tentatives, la plateforme reste en maintenance, que l'exploitant regarde. Refusée avant
+    la maintenance — archive plus récente ou illisible —, la tâche échoue et rien ne change. La
+    maintenance n'est levée qu'une fois la tâche passée `succeeded` et la restauration inscrite,
+    validées : ce qui se fait ensuite vient après la restauration dans le journal ;
   - **un vidage dont la base cesse de répondre** (L2, #907) échoue en composant injoignable,
     503, et non en erreur interne : à l'échec de `pg_dump`, la tâche rejoint la base, et ne dit
     l'erreur interne que si elle répond.
@@ -1083,6 +1119,9 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | Le service de restauration vide les caches de Keycloak (`realm`, `user`, `keys`) par le client de l'amorçage, qui porte `manage-realm` (auteur, 2026-10-12, #954) | `manage-realm` au compte du service : droit trop large, l'API et le worker pourraient modifier le royaume ; un point d'entrée de l'extension Java qui ne vide que les caches, sous un rôle dédié : une pièce Java de plus à écrire, tester et tenir, pour ce que l'API d'administration fait déjà |
 | La restauration force la réapplication du royaume de la cible : comptes et mots de passe de la sauvegarde, configuration du royaume de la cible (auteur, 2026-10-12, #955) | la notice seule, EP-13 l'outillant : la reproduction d'une installation, promise par US-0440, serait inopérante, la cible ne parlant plus à Keycloak avant un geste de l'exploitant ; ne restaurer que la base de Waterfall : contraire à WF-ADM-0160, qui recrée les deux bases, et les comptes du fournisseur ne seraient pas reproduits |
 | Les parcours contre le service se jouent sur le Compose de développement ; le Compose de production est prouvé par l'essai `production-trial` (auteur, 2026-10-12, #948) | jouer les parcours sur le Compose de production : un nom public, des certificats et un amorçage par parcours, pour des images construites des mêmes Dockerfiles que la plateforme de service |
+| Les tâches que la restauration garde — la sienne, celles des sauvegardes — reprennent l'état gardé ; seules les autres tâches restaurées en file ou en cours échouent (auteur, 2026-10-13, #987) | faire échouer toute tâche restaurée en file ou en cours, comme #892 le disait : la tâche d'une sauvegarde listée, vérifiée et téléchargeable finirait en échec |
+| Après une restauration, les comptes que le journal dit anonymisés depuis la sauvegarde sont anonymisés de nouveau, et les comptes locaux retirés de Keycloak (auteur, 2026-10-13, #988) | l'accepter comme une conséquence de WF-ADM-0160 : le journal nommerait de nouveau un compte anonymisé, contre WF-SEC-0030-A, et l'anonymisation ne serait plus irréversible (WF-ADM-0060) |
+| Le client PostgreSQL 16 du dépôt PGDG dans l'image `waterfall`, de la version du serveur de la plateforme (auteur, 2026-10-13, #982) | PostgreSQL 17 partout : une montée de version complète, reportée à EP-13 ; le client 17 de Debian et le script de `pg_restore` filtré par `psql` : fragile |
 
 
 ### Issues à ouvrir avec la conception
