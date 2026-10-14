@@ -11,13 +11,15 @@ fixtures ``installation`` and ``take``.
 """
 
 import hashlib
-from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from access_rows import account, role
+from realm import KEY, TestRealm
 from sqlalchemy import ColumnElement, func, insert, select, text, update
-from support import as_backup
+from support import as_backup, bearer
 from task_handlers import REQUEST, deposit
 
 from waterfall.core.backups.interface import keep_for_restoration, write_back_after_restoration
@@ -28,6 +30,7 @@ from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
+from waterfall.restore.provider import RealmNotAppliedError
 from waterfall.worker.backup import DATABASES, BackupTask
 from waterfall.worker.restore import extracted, replace
 from waterfall.worker.runner import Timing, Worker
@@ -212,3 +215,48 @@ def sha256(bucket: Bucket, key: str) -> str:
     """Give the digest of an object of the bucket."""
     content = bucket.client.get_object(Bucket=bucket.name, Key=key)["Body"].read()
     return hashlib.sha256(content).hexdigest()
+
+
+@dataclass
+class Provider:
+    """Stands for Keycloak: keeps what the restoration asks of it, in its order, in ``steps``.
+
+    ``failing`` renewals fail before one succeeds, as a realm not applied again does.
+    """
+
+    steps: list[str]
+    failing: int = 0
+    removed: list[str] = field(default_factory=list[str])
+
+    def close_sessions(self) -> None:
+        """Keep the closing of every session."""
+        self.steps.append("close_sessions")
+
+    def prepare(self) -> None:
+        """Keep the token taken before the replacement."""
+        self.steps.append("prepare")
+
+    def renew(self, name: str) -> None:
+        """Keep the caches cleared and the realm applied again, or fail ``failing`` times."""
+        self.steps.append("renew")
+        if self.failing:
+            self.failing -= 1
+            message = f"not applied again ({name})"
+            raise RealmNotAppliedError(message)
+
+    def remove(self, subjects: Iterable[str]) -> None:
+        """Keep the accounts removed from the realm."""
+        self.removed.extend(subjects)
+        self.steps.append("remove")
+
+
+def restorer_headers(installation: Installation, realm: TestRealm) -> dict[str, str]:
+    """Write an account that may back up and restore the installation; give its bearer."""
+    subject = f"subject-{uuid4()}"
+    held = role(
+        installation.database,
+        "Restauration",
+        permissions=("backups.read", "backups.write", "platform_restore"),
+    )
+    account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
+    return bearer(realm.token(subject, KEY))

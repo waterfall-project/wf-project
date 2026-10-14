@@ -33,7 +33,7 @@ from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.maintenance import SUFFIX
+from waterfall.platform.maintenance import SUFFIX, Maintenance
 from waterfall.platform.queue import RESTORES, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_service_settings
 from waterfall.platform.storage import Bucket
@@ -347,3 +347,23 @@ def installation(
 def take(installation: Installation, queue: TaskQueue) -> Take:
     """Give a taker of backups: a backup deposited as a request does, then run by a worker."""
     return taker(installation, queue)
+
+
+@pytest.fixture
+def installation_api(
+    installation: Installation,
+    queue: TaskQueue,
+    contract: OpenAPI,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+) -> ContractClient:
+    """Serve the API on an installation, as the role of the service, the maintenance beside it."""
+    services = Services(
+        installation.database,
+        keycloak,
+        KeycloakAdmin(keycloak, realm_settings),
+        queue,
+        installation.bucket,
+        Maintenance.of(queue),
+    )
+    return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)

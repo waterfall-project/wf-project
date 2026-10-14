@@ -12,34 +12,35 @@ import json
 import tarfile
 import threading
 import time
-from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from access_rows import account, role
-from fastapi.testclient import TestClient
-from installations import Installation, Take, inscribe, written_task
+from access_rows import role
+from installations import (
+    Installation,
+    Provider,
+    Take,
+    inscribe,
+    restorer_headers,
+    written_task,
+)
 from openapi_core import OpenAPI
-from realm import KEY, TestRealm
+from realm import TestRealm
 from sqlalchemy import Engine, insert, select
-from support import ContractClient, bearer
+from support import ContractClient
 from task_handlers import Runs, deposit, held_run
 
-from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
 from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.backups.tables import Backup
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database, create_database_engine, utc_now
-from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.queue import TaskQueue
-from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore import task as restoration
 from waterfall.restore.provider import RealmNotAppliedError, RealmRequests
@@ -52,39 +53,6 @@ RESTORES = "/api/v1/restores"
 
 
 @dataclass
-class Provider:
-    """Stands for Keycloak: keeps what the restoration asks of it, in its order, in ``steps``.
-
-    ``failing`` renewals fail before one succeeds, as a realm not applied again does.
-    """
-
-    steps: list[str]
-    failing: int = 0
-    removed: list[str] = field(default_factory=list[str])
-
-    def close_sessions(self) -> None:
-        """Keep the closing of every session."""
-        self.steps.append("close_sessions")
-
-    def prepare(self) -> None:
-        """Keep the token taken before the replacement."""
-        self.steps.append("prepare")
-
-    def renew(self, name: str) -> None:
-        """Keep the caches cleared and the realm applied again, or fail ``failing`` times."""
-        self.steps.append("renew")
-        if self.failing:
-            self.failing -= 1
-            message = f"not applied again ({name})"
-            raise RealmNotAppliedError(message)
-
-    def remove(self, subjects: Iterable[str]) -> None:
-        """Keep the accounts removed from the realm."""
-        self.removed.extend(subjects)
-        self.steps.append("remove")
-
-
-@dataclass
 class Service:
     """The service of the restoration on an installation, what it asks Keycloak, and its API."""
 
@@ -94,26 +62,6 @@ class Service:
     api: ContractClient
     headers: dict[str, str]
     sessions: str
-
-
-@pytest.fixture
-def installation_api(
-    installation: Installation,
-    queue: TaskQueue,
-    contract: OpenAPI,
-    keycloak: Keycloak,
-    realm_settings: ServiceSettings,
-) -> ContractClient:
-    """Serve the API on an installation, as the role of the service, the maintenance beside it."""
-    services = Services(
-        installation.database,
-        keycloak,
-        KeycloakAdmin(keycloak, realm_settings),
-        queue,
-        installation.bucket,
-        Maintenance.of(queue),
-    )
-    return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
 
 
 @pytest.fixture
@@ -144,14 +92,7 @@ def service(
     owner = Database(create_database_engine(installation.owner["waterfall"]))
     restorer = Restorer(owner, queue, task, "restorer-test", Timing(0, 0.1))
     restorer.queue.prepare()
-    subject = f"subject-{uuid4()}"
-    held = role(
-        installation.database,
-        "Restauration",
-        permissions=("backups.read", "backups.write", "platform_restore"),
-    )
-    account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
-    headers = bearer(realm.token(subject, KEY))
+    headers = restorer_headers(installation, realm)
     yield Service(restorer, provider, maintenance, installation_api, headers, sessions)
     owner.dispose()
 
