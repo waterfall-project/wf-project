@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from installations import Installation, Take, installed, taker
 from openapi_core import Config, OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, delete, text
@@ -330,3 +331,17 @@ def backups_bucket() -> Iterator[Bucket]:
     for listed in bucket.client.list_objects_v2(Bucket=name).get("Contents", []):
         bucket.client.delete_object(Bucket=name, Key=listed.get("Key", ""))
     bucket.client.delete_bucket(Bucket=name)
+
+
+@pytest.fixture
+def installation(
+    database_url: str, backup_role: tuple[str, str], backups_bucket: Bucket
+) -> Iterator[Installation]:
+    """Give an installation of its own, dropped after the test (``installations``)."""
+    yield from installed(database_url, backup_role, backups_bucket)
+
+
+@pytest.fixture
+def take(installation: Installation, queue: TaskQueue) -> Take:
+    """Give a taker of backups: a backup deposited as a request does, then run by a worker."""
+    return taker(installation, queue)

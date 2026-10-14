@@ -35,7 +35,7 @@ from waterfall.platform.database import Base, UtcDateTime, utc_now
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.logs import get_logger
 from waterfall.platform.queue import TaskQueue
-from waterfall.platform.restoration import keep, write_back
+from waterfall.platform.restoration import keep, keep_more, overwrite, write_back
 
 # The kinds and the states of the contract (``BackgroundTaskRef.kind``, ``BackgroundTaskStatus``),
 # in its order; a new one is a change of the contract, then a migration of the constraint.
@@ -206,15 +206,23 @@ def keep_tasks(connection: Connection, task_ids: Collection[UUID]) -> None:
     keep(connection, BackgroundTask, BackgroundTask.id.in_(task_ids))
 
 
-def write_back_tasks(connection: Connection, restoration: UUID, at: datetime) -> None:
-    """Write back the tasks kept that the restored database lacks, then fail those it holds pending.
+def keep_more_tasks(connection: Connection, task_ids: Collection[UUID]) -> None:
+    """Add tasks to those a restoration keeps, if the database still holds them."""
+    keep_more(connection, BackgroundTask, BackgroundTask.id.in_(task_ids))
 
-    A task kept comes back without its requester where the restored database lacks the account.
-    Every task the restored database holds queued or running fails, under its own correlation, but
-    the restoration's (#892): run again, the backup the dump caught running would write over its
-    archive.
+
+def write_back_tasks(connection: Connection, restoration: UUID, at: datetime) -> None:
+    """Write back the tasks kept, as they were kept; fail the other tasks restored pending.
+
+    A task kept — the restoration's, a backup's — is later than the backup: the restored database
+    lacks it, or holds an earlier state of it, the backup that the dump caught running, which is
+    listed and verified since; it comes back as it was kept (#987), without its requester where the
+    restored database lacks the account. Every other task the restored database holds queued or
+    running fails, under its own correlation, but the restoration's (#892): run again, a backup the
+    dump caught running would write over its archive.
     """
     write_back(connection, BackgroundTask, unsure={"requested_by"})
+    overwrite(connection, BackgroundTask, unsure={"requested_by"})
     problem = func.jsonb_build_object(
         "code",
         INTERRUPTED["code"],

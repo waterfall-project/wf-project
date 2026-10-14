@@ -10,11 +10,13 @@ caller runs it under (WF-ADM-0120).
 A deactivated account is anonymised at the request of its holder, for good: its names, its address
 and its avatar are removed, the journal of audit forgets its name, and it is never reactivated
 (WF-ADM-0060, WF-SEC-0030). Its row stays, its identifier, its roles and the subject the provider
-knows it by with it: its acts stay attributed to it.
+knows it by with it: its acts stay attributed to it. A restoration that brings back an account as
+the backup held it, before its anonymisation, anonymises it again (#988).
 """
 
 from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import Stamp, change_columns, lock_account_at
@@ -23,9 +25,16 @@ from waterfall.core.users.commands import (
     STATE_FORBIDS_OPERATION,
     anonymized,
 )
-from waterfall.core.users.identity import inscribe, inscribed_actor
+from waterfall.core.users.identity import LOCAL, inscribe, inscribed_actor
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act, AuditObject, Inscription, forget_account, record
+from waterfall.platform.audit import (
+    Act,
+    AuditEntry,
+    AuditObject,
+    Inscription,
+    forget_account,
+    record,
+)
 from waterfall.platform.errors import ConflictError
 
 ACTIVE = "active"
@@ -95,3 +104,41 @@ def anonymize(session: Session, user_id: UUID, lock_version: int, act: Act) -> U
     audited = AuditObject("user", account.id, None)
     record(session, Inscription("user_anonymize", actor, audited, act.at, params={}))
     return account
+
+
+def anonymize_again(session: Session) -> list[str]:
+    """Anonymise again the accounts the journal says anonymised and the database holds named (#988).
+
+    A restoration brings back each account as the backup held it, and writes back after it the
+    inscriptions of the journal the backup lacks: an account anonymised since the backup is named
+    again, while its anonymisation (``user_anonymize``) is in the journal. The anonymisation is
+    irreversible (WF-ADM-0060): such an account is anonymised again, as of the date of its
+    inscription, by the platform, and the journal forgets its name again (WF-SEC-0030). Nothing new
+    is inscribed. Gives the subjects of the local accounts anonymised again, which the provider
+    restored with them holds again, and which the caller removes from it, out of any transaction.
+    """
+    said = (
+        select(AuditEntry.object_id, func.min(AuditEntry.occurred_at).label("at"))
+        .where(AuditEntry.action == "user_anonymize", AuditEntry.object_kind == "user")
+        .group_by(AuditEntry.object_id)
+        .subquery()
+    )
+    named = session.execute(
+        select(UserAccount.id, UserAccount.lock_version, said.c.at)
+        .join(said, said.c.object_id == UserAccount.id)
+        .where(UserAccount.anonymized_at.is_(None))
+        .order_by(UserAccount.id)
+        .with_for_update(of=UserAccount)
+    ).all()
+    subjects: list[str] = []
+    for user_id, lock_version, at in named:
+        values: dict[str, object] = {
+            **dict.fromkeys(FORGOTTEN),
+            "state": DEACTIVATED,
+            "anonymized_at": at,
+        }
+        account = change_columns(session, user_id, values, lock_version, Stamp(None, at))
+        forget_account(session, user_id)
+        if account.origin == LOCAL:
+            subjects.append(account.idp_subject)
+    return subjects

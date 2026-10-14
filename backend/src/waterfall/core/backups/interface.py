@@ -7,7 +7,7 @@ recorded with the outcome of its verification and inscribed in the journal of au
 the instant of the state it copies (WF-SEC-0030). Around the replacement of the databases, a
 restoration keeps the journal, the list of the backups and their tasks, and writes back what the
 restored database lacks: the archives of the backups taken since stay in the bucket, and stay
-listed (#893).
+listed (#893); the accounts the journal says anonymised since are anonymised again (#988).
 """
 
 from dataclasses import dataclass
@@ -18,7 +18,7 @@ from sqlalchemy import Connection, func, insert, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.backups.tables import Backup
-from waterfall.core.users.interface import inscribed_actor
+from waterfall.core.users.interface import anonymize_again, inscribed_actor
 from waterfall.platform.audit import (
     Act,
     AuditActor,
@@ -32,12 +32,13 @@ from waterfall.platform.identifiers import new_id
 from waterfall.platform.restoration import (
     begin_keeping,
     end_keeping,
-    is_kept,
     keep,
     keep_grants,
+    kept_for,
+    take_over,
     write_back,
 )
-from waterfall.platform.tasks import keep_tasks, write_back_tasks
+from waterfall.platform.tasks import keep_more_tasks, keep_tasks, write_back_tasks
 
 NOT_FOUND = "NOT_FOUND"
 
@@ -146,26 +147,39 @@ def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
     does not read again a database half replaced.
 
     ``connection`` holds one transaction, which the caller commits before it replaces anything: the
-    rows kept are then those of one instant. The rights are kept last, and mark the whole kept; a
-    keeping cut short — by a caller that committed on the way — is made again from the beginning,
-    the database not being replaced yet.
+    rows kept are then those of one instant. The rights are kept last, then the restoration marked,
+    which marks the whole kept; a keeping cut short — by a caller that committed on the way — is
+    made again from the beginning, the database not being replaced yet. A keeping another
+    restoration left whole, and never wrote back, holds what the installation held before it, the
+    database being replaced since or not: it is taken over, this restoration's task added to it,
+    and the task of the other, kept running, fails when it is written back (#985).
     """
-    if is_kept(connection):
+    held = kept_for(connection)
+    if held == restoration:
+        return
+    if held is not None:
+        keep_more_tasks(connection, [restoration])
+        take_over(connection, restoration)
         return
     begin_keeping(connection)
     keep(connection, AuditEntry)
     keep(connection, Backup)
     keep_tasks(connection, [restoration, *connection.scalars(select(Backup.task_id))])
-    keep_grants(connection)
+    keep_grants(connection, restoration)
 
 
-def write_back_after_restoration(connection: Connection, restoration: UUID, at: datetime) -> None:
+def write_back_after_restoration(
+    connection: Connection, restoration: UUID, at: datetime
+) -> list[str]:
     """Write back, in the restored database, what ``keep_for_restoration`` kept, then forget it.
 
-    The tasks first, which the backups name; the backups and the inscriptions the restored
-    database lacks, by their identifier — an inscription made while the database was dumped is in
-    the dump already, and is not written twice —; the tasks restored pending fail (#892), and the
-    role of the service gets its rights back. ``at`` ends the tasks that fail.
+    The tasks first, which the backups name, in their state kept (#987); the backups and the
+    inscriptions the restored database lacks, by their identifier — an inscription made while the
+    database was dumped is in the dump already, and is not written twice —; the tasks restored
+    pending fail (#892); the accounts the journal says anonymised since the backup are anonymised
+    again (#988), and the role of the service gets its rights back. ``at`` ends the tasks that
+    fail. Gives the subjects of the local accounts anonymised again, which the caller removes from
+    the identity provider restored.
 
     The restored database must be migrated first, to the revision of the installation: the rows and
     the rights kept are those of its tables, which a backup of an earlier revision lacks — the
@@ -174,4 +188,7 @@ def write_back_after_restoration(connection: Connection, restoration: UUID, at: 
     write_back_tasks(connection, restoration, at)
     write_back(connection, Backup)
     write_back(connection, AuditEntry)
+    with Session(bind=connection) as session:
+        subjects = anonymize_again(session)
     end_keeping(connection)
+    return subjects
