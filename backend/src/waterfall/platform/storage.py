@@ -162,6 +162,14 @@ class Bucket:
                 Bucket=self.name, Key=key, UploadId=deposit, MultipartUpload={"Parts": listed}
             )
 
+    def size(self, key: str) -> int | None:
+        """Give the size of the object of a key; ``None`` if there is none."""
+        try:
+            with reached():
+                return self.client.head_object(Bucket=self.name, Key=key)["ContentLength"]
+        except MissingObjectError:
+            return None
+
     def head(self, key: str, length: int) -> bytes:
         """Read the first bytes of an object, ``length`` at most."""
         with reached():

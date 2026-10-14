@@ -44,6 +44,7 @@ from waterfall.platform.maintenance import SUFFIX, Maintenance
 from waterfall.platform.queue import RESTORES as RESTORES_SUFFIX
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.storage import Bucket, unavailable
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import LARGEST_PART, MOST_PARTS, SMALLEST_PART, FileUpload, cut
 from waterfall.restore.runner import Restorer
@@ -256,6 +257,57 @@ def test_a_deposit_whose_date_does_not_read_is_refused_and_never_restored(
             session.scalars(select(BackgroundTask).where(BackgroundTask.kind == "restore")).all()
             == []
         )
+
+
+class Faltering(Bucket):
+    """A bucket whose first read of the head of an object finds the storage out of reach."""
+
+    def __init__(self, bucket: Bucket) -> None:
+        super().__init__(bucket.client, bucket.name)
+        self.faltered = False
+
+    def head(self, key: str, length: int) -> bytes:
+        """Refuse as a storage out of reach the first time (503), then read the head."""
+        if not self.faltered:
+            self.faltered = True
+            raise unavailable()
+        return super().head(key, length)
+
+
+@pytest.fixture
+def faltering_api(
+    installation: Installation,
+    queue: TaskQueue,
+    contract: OpenAPI,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+) -> ContractClient:
+    """Serve the API on an installation whose storage falters at the first head of an object."""
+    services = Services(
+        installation.database,
+        keycloak,
+        KeycloakAdmin(keycloak, realm_settings),
+        queue,
+        Faltering(installation.bucket),
+        Maintenance.of(queue),
+    )
+    return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
+
+
+def test_a_completion_cut_short_once_the_parts_are_assembled_is_taken_up(
+    installation: Installation, faltering_api: ContractClient, realm: TestRealm
+) -> None:
+    # The storage out of reach once the parts are assembled: the completion is unavailable (503),
+    # as the contract says, and asked again, completes the deposit, its parts gone from the
+    # storage: the object they made is there, whole, and its head is read then.
+    settled(installation)
+    api = faltering_api
+    headers = restorer_headers(installation, realm)
+    upload_id, cut_short = completion(api, headers, backup_archive(manifest_of(iso(TAKEN_AT))))
+    assert (cut_short.status_code, cut_short.json()["code"]) == (503, "COMPONENT_UNAVAILABLE")
+    taken_up = api.post(f"{DEPOSITS}/{upload_id}/completion", headers=headers)
+    assert (taken_up.status_code, taken_up.json()["backup_taken_at"]) == (201, iso(TAKEN_AT))
+    assert api.post(f"{DEPOSITS}/{upload_id}/completion", headers=headers).status_code == 404
 
 
 @dataclass(frozen=True, slots=True)

@@ -778,7 +778,8 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   échoue avant la maintenance (`FILE_FORMAT_UNREADABLE`). `startRestore` qui nomme un dépôt ne
   demande que
   `platform_restore` : un dépôt n'est pas une sauvegarde de la liste. Le
-  stockage est appelé hors de toute transaction. Un dépôt expiré ou achevé ne reçoit plus rien ;
+  stockage est appelé hors de toute transaction ; un achèvement coupé après l'assemblage (503) se
+  redemande : l'objet assemblé, de la taille du dépôt, tient lieu des morceaux. Un dépôt expiré ou achevé ne reçoit plus rien ;
   la purge des dépôts expirés et de l'objet restauré reste à EP-06, avec celle des fichiers
   d'import (WF-DAT-0120, écart d'US-0440). La restauration d'un dépôt s'inscrit au journal sur
   le dépôt (`external_backup_upload`, nommé par son fichier).

@@ -29,7 +29,7 @@ from waterfall.platform.errors import (
 )
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.installation import read_settings
-from waterfall.platform.storage import MissingObjectError
+from waterfall.platform.storage import Bucket, MissingObjectError
 from waterfall.platform.uploads import (
     EXTERNAL_BACKUP,
     LARGEST_PART,
@@ -154,6 +154,25 @@ def put_chunk(
     return chunked(row, sorted(received))
 
 
+def assembled(bucket: Bucket, row: Deposit, deposit: str) -> None:
+    """Assemble the parts of a deposit into its object, or find it assembled by an attempt before.
+
+    Refused while a part lacks (409, ``params.missing_parts``). A completion that assembled the
+    parts, then failed — the storage or the database out of reach — left the deposit open and the
+    storage without its parts: the object is there, of the size of the deposit, and is taken as
+    assembled. Neither the parts nor the object: ``MissingObjectError``.
+    """
+    try:
+        received = bucket.parts(row.object_key, deposit)
+        missing = [number for number in range(1, row.part_count + 1) if number not in received]
+        if missing:
+            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_parts": missing})
+        bucket.assemble(row.object_key, deposit, received)
+    except MissingObjectError:
+        if bucket.size(row.object_key) != row.size_bytes:
+            raise
+
+
 @router.post(
     "/chunked-uploads/{chunked_upload_id}/completion",
     operation_id="completeChunkedUpload",
@@ -167,7 +186,8 @@ def post_completion(chunked_upload_id: UUID, services: ServicesOf) -> FileUpload
     completed, expired or unknown is not found (404). The date of the backup is read from the head
     of the file assembled, and given, so that the confirmation of the restoration names it (#1006):
     a file whose head says none is refused (422, ``FILE_FORMAT_UNREADABLE``), the deposit left
-    uncompleted, which no restoration names.
+    uncompleted, which no restoration names. A completion cut short by a storage out of reach
+    (503) is asked again: the parts assembled before are found in their object.
     """
     with services.database.transaction() as session:
         row = open_upload(session, chunked_upload_id, utc_now())
@@ -175,14 +195,9 @@ def post_completion(chunked_upload_id: UUID, services: ServicesOf) -> FileUpload
             raise NotFoundError(NOT_FOUND)
         session.expunge(row)
     try:
-        received = services.backups.parts(row.object_key, row.deposit)
-        missing = [number for number in range(1, row.part_count + 1) if number not in received]
-        if missing:
-            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_parts": missing})
-        services.backups.assemble(row.object_key, row.deposit, received)
+        assembled(services.backups, row, row.deposit)
         taken_at = archive_taken_at(services.backups.head(row.object_key, MANIFEST_HEAD))
     except MissingObjectError:
-        # Completed meanwhile by another request, which the storage has assembled already.
         raise NotFoundError(NOT_FOUND) from None
     if taken_at is None:
         raise UnprocessableError(FILE_FORMAT_UNREADABLE)
