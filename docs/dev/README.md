@@ -67,7 +67,7 @@ sous un verrou consultatif qui lui est propre, par le traitement de son genre �
 `(session, tâche)` que `handlers(réglages)` (`waterfall.worker.main`) enregistre, et qui refuse par une
 exception typée du noyau, dont le code devient le motif de l'échec. Arrêté pendant une tâche, il
 ne laisse rien de son travail : un autre la reprend depuis le début, et elle échoue après trois
-tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter.  Une
+tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Une
 restauration (`restore`) n'est jamais celle du worker : `startRestore` la dépose dans un second
 flux, `waterfall:tasks:restores`, que le service de la restauration lit seul, dans son groupe de
 consommateurs ; il pose la maintenance, une clé de Redis à côté du flux du worker que l'API lit
