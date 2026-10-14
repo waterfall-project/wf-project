@@ -1004,7 +1004,8 @@ matrice lisent une seule source du rôle répondu le plus récent par sa `lock_v
 (`RoleAnswers`, `role-answers.tsx`) : un renommage puis une case cochée avant la relecture, ou
 l'inverse, part de la version répondue, et une relecture plus ancienne que la réponse ne la défait
 pas ; l'en-tête de la colonne d'un rôle renommé et le nom de chacune de ses cases prennent eux aussi
-le libellé répondu (`RoleLabel`, `PermissionCell`), sans attendre la relecture (#976). Ce que fait une commande de la table se dit dans sa région, nommée « Commandes des rôles
+le libellé répondu (`RoleLabel`, `PermissionCell`), sans attendre la relecture (#976). Ce que fait
+une commande de la table se dit dans sa région, nommée « Commandes des rôles
 d'habilitation » ; un refus, par le catalogue des codes d'erreur au-dessus de la table ou de la
 matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier administrateur
 (`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,
