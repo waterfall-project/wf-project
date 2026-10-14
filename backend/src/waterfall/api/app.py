@@ -20,6 +20,7 @@ from waterfall.api import (
     restores,
     system,
     tasks,
+    uploads,
     users,
 )
 from waterfall.api.authentication import Services
@@ -60,4 +61,5 @@ def create_app(services: Services) -> FastAPI:
     app.include_router(audit.router, prefix=PREFIX)
     app.include_router(backups.router, prefix=PREFIX)
     app.include_router(restores.router, prefix=PREFIX)
+    app.include_router(uploads.router, prefix=PREFIX)
     return app

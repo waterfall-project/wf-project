@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The object storage, reached by the standard operations of S3 alone (PBS-3.3, WF-ARC-0050).
 
-Writing, reading and the multipart upload that boto3 makes of a large file: no extension of one
-product, so that an operator plugs in the storage they already run — Garage on the platforms of
-Waterfall. The buckets are settings. A storage that cannot be reached refuses as a component that is
-unavailable (503), never as a failure of the service; an object that is missing is said apart.
+Writing, reading and the multipart upload that boto3 makes of a large file — or that a deposit by
+parts makes, a part at a time (#350): no extension of one product, so that an operator plugs in the
+storage they already run — Garage on the platforms of Waterfall. The buckets are settings. A storage
+that cannot be reached refuses as a component that is unavailable (503), never as a failure of the
+service; an object that is missing is said apart.
 """
 
 from collections.abc import Generator, Iterator
@@ -22,13 +23,16 @@ from waterfall.platform.settings import ServiceSettings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
+    from mypy_boto3_s3.type_defs import CompletedPartTypeDef
 
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 OBJECT_STORAGE = "object_storage"
 # What a stream of an object reads at a time.
 CHUNK = 1 << 20
-# The codes by which S3 says an object is not there.
-MISSING = {"NoSuchKey", "404"}
+# The codes by which S3 says an object, or a deposit in parts, is not there.
+MISSING = {"NoSuchKey", "NoSuchUpload", "404"}
+# How many parts S3 lists at a time.
+PARTS_PAGE = 1000
 
 
 class MissingObjectError(Exception):
@@ -116,3 +120,55 @@ class Bucket:
         with reached():
             body = self.client.get_object(Bucket=self.name, Key=key)["Body"]
         return body.iter_chunks(CHUNK)
+
+    def open_parts(self, key: str) -> str:
+        """Open the deposit in parts of an object under a key; give the identifier S3 gives it."""
+        with reached():
+            return self.client.create_multipart_upload(Bucket=self.name, Key=key)["UploadId"]
+
+    def put_part(self, key: str, deposit: str, number: int, content: bytes) -> None:
+        """Write a part of a deposit, by its number; a part written again is replaced."""
+        with reached():
+            self.client.upload_part(
+                Bucket=self.name, Key=key, UploadId=deposit, PartNumber=number, Body=content
+            )
+
+    def parts(self, key: str, deposit: str) -> dict[int, str]:
+        """Give the parts a deposit has received, by their number, with the tag S3 gave each."""
+        received: dict[int, str] = {}
+        marker = 0
+        with reached():
+            while True:
+                page = self.client.list_parts(
+                    Bucket=self.name,
+                    Key=key,
+                    UploadId=deposit,
+                    PartNumberMarker=marker,
+                    MaxParts=PARTS_PAGE,
+                )
+                for part in page.get("Parts", []):
+                    received[part.get("PartNumber", 0)] = part.get("ETag", "")
+                if not page.get("IsTruncated"):
+                    return received
+                marker = page.get("NextPartNumberMarker", 0)
+
+    def assemble(self, key: str, deposit: str, parts: dict[int, str]) -> None:
+        """Make the object of a deposit of its parts, in the order of their numbers."""
+        listed: list[CompletedPartTypeDef] = [
+            {"PartNumber": number, "ETag": tag} for number, tag in sorted(parts.items())
+        ]
+        with reached():
+            self.client.complete_multipart_upload(
+                Bucket=self.name, Key=key, UploadId=deposit, MultipartUpload={"Parts": listed}
+            )
+
+    def head(self, key: str, length: int) -> bytes:
+        """Read the first bytes of an object, ``length`` at most."""
+        with reached():
+            body = self.client.get_object(Bucket=self.name, Key=key, Range=f"bytes=0-{length - 1}")
+            return body["Body"].read()
+
+    def delete(self, key: str) -> None:
+        """Delete the object of a key; one that is not there is deleted already."""
+        with reached():
+            self.client.delete_object(Bucket=self.name, Key=key)

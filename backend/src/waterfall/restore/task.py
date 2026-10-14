@@ -43,6 +43,7 @@ from waterfall.core.backups.interface import (
     NOT_FOUND,
     inscribe_restoration,
     keep_for_restoration,
+    restored_object,
     write_back_after_restoration,
 )
 from waterfall.core.users.interface import inscribed_actor
@@ -92,7 +93,7 @@ class RestoreTask:
         done. It holds no lock on a table while the databases are replaced, which would hold up
         the replacement.
         """
-        backup_id = UUID(task.payload["backup_id"])
+        restored = restored_object(task.payload)
         with tempfile.TemporaryDirectory(prefix="waterfall-restore-") as work:
             folder = Path(work)
             archive = folder / "restored.tar"
@@ -125,9 +126,9 @@ class RestoreTask:
         self.provider.apply_realm(f"{task.task_id}-{task.attempt}")
         self.provider.remove(subjects)
         self.close_sessions()
-        inscribe_restoration(session, backup_id, actor, utc_now())
-        logger.info("restore.done", backup_id=str(backup_id))
-        return {"backup_id": str(backup_id)}
+        inscribe_restoration(session, restored, actor, utc_now())
+        logger.info("restore.done", restored=restored.kind, object_id=str(restored.object_id))
+        return {f"{restored.kind}_id": str(restored.object_id)}
 
     def taken_up(self, task: Task) -> Restoring | None:
         """Give what the maintenance keeps of an attempt of this restoration before, if it does."""
