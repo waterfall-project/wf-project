@@ -8,6 +8,10 @@ liveness says (#604). The task is deposited, once its transaction is committed, 
 the restorations, which that service alone reads, never in the worker's (#953). It carries the key
 of the archive, so that it never reads, to find it, the database it replaces. One restoration at a
 time: a second one, while the first is queued or running, is refused.
+
+The route asks for the permission to restore alone, as the contract says: a backup copied out of the
+platform names none of the list. The backup of the list it names does not exist, though, for a
+caller who may not read the backups (WF-ADM-0110): 404, as an unknown one, before it is read.
 """
 
 from typing import Annotated
@@ -17,8 +21,9 @@ from sqlalchemy import func, select
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import BackgroundTaskRef, RestoreRequest
-from waterfall.api.evaluation import Requires
+from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.tasks import task_ref
+from waterfall.core.access_roles.interface import require
 from waterfall.core.backups.interface import NOT_FOUND, read_backup
 from waterfall.platform.errors import BadRequestError, ConflictError, NotFoundError
 from waterfall.platform.tasks import BackgroundTask, pending_task, submit
@@ -27,8 +32,9 @@ router = APIRouter(tags=["platform"])
 
 CONFIRMATION_REQUIRED = "CONFIRMATION_REQUIRED"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-# The backup named does not exist for a caller who may not read the backups (WF-ADM-0110): 404.
-RESTORE = [Depends(Requires("backups.read", "platform_restore"))]
+RESTORE = [Depends(Requires("platform_restore"))]
+# The permission without which a backup of the list does not exist for the caller (WF-ADM-0110).
+CONSULTATION = "backups.read"
 # The key of the advisory lock under which a request looks for a pending restoration, then deposits.
 RESTORE_LOCK = 3_700_160
 
@@ -43,17 +49,20 @@ RESTORE_LOCK = 3_700_160
 def post_restore(
     request: Annotated[RestoreRequest, Body()],
     account: Caller,
+    actor: Acting,
     session: Transaction,
     services: ServicesOf,
 ) -> BackgroundTaskRef:
     """Deposit the restoration of a backup whose date the confirmation states, for its service.
 
     A backup copied out of the platform is deposited by chunks first (#350), which this lot does
-    not serve yet: its identifier names no deposit (404).
+    not serve yet: its identifier names no deposit (404). A backup of the list, for a caller who
+    may not read the backups, is not found either (404), before it is read.
     """
     asked = request.root
     if asked.backup_id is None:
         raise NotFoundError(NOT_FOUND)
+    require(actor, CONSULTATION)
     backup = read_backup(session, asked.backup_id.root)
     if backup.taken_at != asked.acknowledged_backup_taken_at.root:
         raise BadRequestError(CONFIRMATION_REQUIRED)
