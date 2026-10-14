@@ -523,6 +523,22 @@ def test_a_restoration_whose_attempts_are_spent_is_abandoned_and_never_deposited
     assert not service.restorer.queue.waiting()
 
 
+def test_a_restoration_already_abandoned_taken_over_is_acknowledged_and_said_no_more(
+    service: Service, logs: Logs
+) -> None:
+    # An entry of a restoration the maintenance holds abandoned — deposited before it was, taken
+    # over after —: the service acknowledges it and runs nothing; its failure, said once when it
+    # was abandoned, is not said again, and the maintenance stays, for an operator.
+    abandoned = Restoring(uuid4(), {}, None, "request-3f6a", 3, abandoned=True)
+    service.maintenance.hold(abandoned)
+    service.restorer.queue.deposit(abandoned.task_id)
+    assert service.restorer.step()
+    assert not service.restorer.queue.waiting()
+    assert logs.named("task.failed") == []
+    assert service.maintenance.current() == abandoned
+    assert service.provider.steps == []
+
+
 def test_the_worker_runs_no_task_in_maintenance_and_runs_it_after(
     installation: Installation, queue: TaskQueue, service: Service
 ) -> None:
