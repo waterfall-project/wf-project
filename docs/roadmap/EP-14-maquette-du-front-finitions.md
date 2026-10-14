@@ -95,6 +95,110 @@ et EP-02/L44b (sous-projets et contributeurs, à relire). Relevé par EP-02/L46,
 `DenseGrid` ne mémorise ni ses lignes ni ses cellules, si bien que chaque déplacement de la cellule
 active les rend toutes ; aucun défaut n'est démontré en production.
 
+Reportés d'EP-03 le 2026-10-11 :
+
+- #846 [EP-03] le guide dit encore à venir la confirmation de #836 — relevé par la revue
+  d'US-0380/L2 : `docs/dev/README.md`, à la règle des préférences d'une grille, écrit
+  « (#836, confirmation de l'auteur à venir) », alors que #836 est tranchée : les filtres d'une
+  grille qui les déclare sont gardés en préférence. EP-14 écrit « (#836, confirmée par l'auteur
+  le 2026-10-11) ». Reporté d'EP-03 le 2026-10-11.
+- #847 [EP-03] la source commune des rôles répondus n'est éprouvée que dans un sens, et le test
+  d'axe de la matrice en fait deux — relevé par la revue d'US-0380/L2 : seul « renommage puis case
+  cochée » est éprouvé sous `RoleAnswers` ; l'inverse, que `role-answers.tsx` et le guide
+  annoncent, n'a pas de test, et retirer `answers?.latest(shown)` de `renaming` ne casse rien ;
+  le contrôle d'axe de la matrice fait la lecture et l'écriture dans un seul `it`. EP-14 ajoute
+  le test du second sens — une case cochée, puis un renommage dont le corps porte la
+  `lock_version` et les `permissions` de la réponse — et coupe le contrôle d'axe en deux `it`.
+  Reporté d'EP-03 le 2026-10-11.
+- #872 [EP-03] un import refusé après la fermeture de son formulaire n'est dit nulle part —
+  relevé par la revue d'US-0350/L5b : `FileForm` (`import-commands.tsx`), fermé pendant
+  l'envoi, ne dit son refus ni dans le formulaire démonté, ni sur l'écran qui l'a ouvert. EP-14
+  rapporte le refus à l'écran porteur, comme `reference-form` le fait vers la liste, avec un
+  test « fermer pendant l'envoi, refus dit ». Reporté d'EP-03 le 2026-10-11.
+- #888 [EP-03] trois mineurs du front — relevés par la revue d'US-0350/L5b, tour 3 : le test
+  « nothing armed » de `session.test.ts` n'affirme que l'adresse rendue, et non qu'aucune clé
+  `wf:sign-out:*` n'a été écrite dans Redis ; `own` est créé sans condition dans
+  `reference-form.tsx` et `commands.tsx`, sans le commentaire qui dirait pourquoi ; la directive
+  `"use client"` de l'utilitaire de test `held-link.ts` n'a d'effet que sur les gardes d'import,
+  ce que le guide (`typescript.md`, « Où s'exécute un composant ») ne dit pas. EP-14 reprend les
+  trois. Reporté d'EP-03 le 2026-10-11.
+- #889 [EP-03] les écritures des rôles et de la matrice ne retiennent pas la navigation —
+  relevé par la revue d'US-0350/L5b, tour 4 : `permission-matrix.tsx` et `role-commands.tsx`
+  appellent leurs actions sans `list.held` ni `useHeldCommand` ; refusée pendant qu'on quitte
+  l'écran, une telle écriture n'est dite nulle part, contre l'invariant que #688 pose pour les
+  autres. EP-14 fait passer ces trois appels par la retenue, avec un test « refus pendant la
+  navigation » par écran, à l'image de `cost-commands.dom.test.tsx`. Le constat couvre aussi
+  les écritures de la table des comptes (`user-commands.tsx`), relevées à la reprise d'epic
+  d'US-0350/L5b après US-0360/L2b : EP-14 les fait passer par la même retenue. Reporté d'EP-03
+  le 2026-10-11.
+- #901 [EP-03] la liste garde les refus des lectures passées — relevé par la revue
+  d'US-0350/L5b, tour 5 : depuis que les refus sont datés par une génération de lecture,
+  `reported` (`reactivation.tsx`) garde ceux des générations passées, qui ne s'affichent plus
+  jamais mais restent en mémoire tant que la liste vit. EP-14 n'y garde que les refus de la
+  génération courante, avec un test qui le constate. Reporté d'EP-03 le 2026-10-11.
+- #902 [EP-03] un test importe `RouterContext` d'un module privé de Next — relevé par la revue
+  d'US-0350/L5b, tour 5 : `outcome-notice.dom.test.tsx` l'importe de `next/dist/shared/lib/…`,
+  qu'une montée de version de Next peut casser sans avertissement. EP-14 fournit le routeur au
+  test par une voie publique, une simulation de `next/navigation` comme les tests voisins.
+  Reporté d'EP-03 le 2026-10-11.
+- #905 [EP-03] des tests du front écrivent des espaces insécables littéraux, qu'ESLint ne relève
+  pas — relevé pendant la correction du tour 5 d'US-0350/L5b : `page.test.tsx` des coûts,
+  `reference-filters.dom.test.tsx`, `exchanges.dom.test.tsx`, `command.dom.test.tsx` et
+  `resource-commands.dom.test.tsx` en écrivent encore, invisibles à la lecture, et
+  `no-irregular-whitespace` ignore les chaînes par défaut. EP-14 les écrit par leur
+  échappement, comme les tests voisins, et active la règle avec `skipStrings: false` sur les
+  fichiers de tests. Reporté d'EP-03 le 2026-10-11.
+
+Reportés d'EP-03 le 2026-10-12 :
+
+- #937 [EP-03] le refus d'une écriture lancée avant un changement de lecture n'est dit nulle
+  part — relevé par la revue d'US-0350/L5b, tour 5 : une écriture lancée sur une liste du
+  référentiel, puis la lecture changée — recherche, filtre — avant sa réponse ; refusée, elle
+  n'est plus dite, même au retour sur la lecture d'origine (`useHeldCommand(generation)`,
+  #688), contre le « ne rien perdre en silence » d'US-0350. Rien n'est écrit par le service
+  dans ce cas ; seul le message manque. EP-14, au retour sur la lecture d'origine, y rattache
+  les écritures encore en cours et dit leur refus (décision de l'auteur). Reporté d'EP-03 le
+  2026-10-12.
+- #941 [EP-03] une confirmation d'anonymisation n'écrit rien sans le dire quand la ligne est
+  occupée — relevé par le développement d'US-0360/L3b : un renommage de la même ligne commencé
+  pendant que la confirmation est ouverte, celle-ci n'écrit rien, et rien ne le dit
+  (`UserWrites.run` refuse en silence une écriture sur une ligne occupée, comme pour
+  l'interrupteur d'état). EP-14 dit le refus, ou tient la confirmation indisponible tant que la
+  ligne est occupée. Reporté d'EP-03 le 2026-10-12.
+- #942 [EP-03] la confirmation d'anonymisation n'énumère pas tout ce que l'anonymisation fait —
+  relevé par la revue d'US-0360/L3b, tour 1 : `admin.users.anonymizationFinal` dit
+  l'irréversibilité (#856), mais ni le retrait de l'avatar ni celui du fournisseur d'identité
+  d'un compte local (corps de WF-ADM-0060). EP-14 complète la phrase, en français et en
+  anglais. Reporté d'EP-03 le 2026-10-12.
+- #949 [EP-03] la désactivation reste offerte pendant que le lien de la même ligne est en
+  route — relevé par la revue d'US-0360/L3b, tour 2 : `StateSwitch` (`user-cells.tsx`) ne lit
+  pas `writes.linking`, si bien qu'un lien demandé avant une désactivation peut s'afficher pour
+  un compte désactivé ; la connexion d'un tel compte reste refusée (WF-ADM-0060). EP-14 tient
+  l'interrupteur tant que le lien de sa ligne est en route, avec un test. Reporté d'EP-03 le
+  2026-10-12.
+- #951 [EP-03] aucun test ne dit où tombe le focus quand le dialogue d'un lien se ferme
+  par-dessus la création — relevé par la revue d'US-0360/L3b, tour 3 : `focusBack` vise la
+  cellule du compte, derrière le dialogue modal de création ; le piège de focus de Radix le
+  ramène probablement dans la création, sans test qui le constate. EP-14 ajoute l'assertion du
+  focus après la fermeture du lien. Reporté d'EP-03 le 2026-10-12.
+- #959 [EP-03] le focus tombe sur la page quand on ferme l'avis des écritures refusées de la
+  barre — relevé par le développement d'US-0400/L2 : le bouton de l'avis
+  (`left-refusals.tsx`, #863) disparaît à sa fermeture, et le focus tombe sur `<body>`. EP-14
+  le rend à un élément stable de la barre. Reporté d'EP-03 le 2026-10-12.
+- #963 [EP-03] deux finitions de l'écran et du parcours du journal d'audit — relevé par la
+  revue d'US-0410/L2b, tour 1 : le parcours du journal crée un rôle « Audit … » à chaque passage
+  sans le supprimer (`frontend/e2e/service/realm.ts`) ; une attribution sans effet dit « Aucun
+  rôle donné ni retiré », mais un `access_role_update` sans libellé ni permission changés
+  n'affiche rien (`audit-cells.tsx`). EP-14 supprime le rôle dans le `finally` du parcours, et
+  décide si la seconde appelle une phrase. Reporté d'EP-03 le 2026-10-12.
+- #967 [EP-03] deux finitions du parcours et de la cellule de l'action du journal — relevé par
+  la revue d'US-0410/L2b, tour 2 : `audit.spec.ts` recopie en dur les langues de format et prend
+  « aujourd'hui » à l'heure de l'assertion, non à celle de l'inscription, ce qui peut échouer à
+  minuit ; le `title` de la seconde ligne de la cellule de l'action (`audit-cells.tsx`) répète
+  son texte, lu deux fois par certaines aides techniques. EP-14 lit les langues de
+  `FORMAT_LOCALE` et date l'attente de l'inscription, et ne pose le `title` que sur un texte
+  tronqué. Reporté d'EP-03 le 2026-10-12.
+
 ## Conception
 
 Celle d'EP-02, qui fait foi : arborescence du front, faux back et exemples, composants partagés,

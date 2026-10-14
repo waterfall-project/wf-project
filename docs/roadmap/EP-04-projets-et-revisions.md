@@ -138,3 +138,24 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
   marquées sur la plateforme de développement ;
 - le parcours de bout en bout crée un projet, marque une révision et le fait sortir, contre le
   service réel.
+
+## Constats reçus
+
+- #754 [EP-03] la consultation d'un projet ne se décidera pas par `require(permission)` seule —
+  relevé par la revue d'US-0390 : `require` rend 404 pour une permission de consultation
+  absente et 403 pour toute autre, la consultation se reconnaissant au suffixe `.read`
+  (`backend/src/waterfall/core/access_roles/evaluation.py`). Exact pour le catalogue d'EP-03,
+  mais `all_projects_read` donnerait 403 en nommant la permission, alors que WF-ADM-0110 veut
+  qu'un projet non consultable n'existe pas pour l'appelant, et consulter un projet demande
+  la permission et la qualité de contributeur, ou `all_projects_read`. EP-04, qui ajoute la
+  qualité de contributeur à l'évaluation, décide la consultation d'un projet par une règle
+  propre, et la règle 404/403 par une propriété déclarée de la permission plutôt que par son
+  suffixe. Reporté d'EP-03 le 2026-10-11.
+- #870 [EP-03] le nom d'un contributeur anonymisé — relevé par la revue d'US-0360/L2b :
+  `Contributor.display_name` et `ContributorSuggestion.display_name` sont des chaînes non nulles
+  au contrat, et un compte désactivé reste listé comme contributeur ; anonymisé, le contrat
+  obligerait le service à rendre son nom (contre WF-ADM-0060-A) ou une phrase (contre
+  WF-ARC-0110). EP-04, qui sert les contributeurs, rend ces deux champs nullables comme
+  `ActorRef.display_name`, et le front les nomme par `useAccountNaming`, avec un exemple de
+  contributeur anonymisé et le test de la branche nulle d'`Actor` (`project-tables.tsx`).
+  Reporté d'EP-03 le 2026-10-11.
