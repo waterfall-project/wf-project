@@ -86,7 +86,7 @@ class RestoreTask:
         self.migrate = migrate
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
-        """Read the archive, hold the maintenance, keep, replace, migrate, write back, renew Keycloak.
+        """Read the archive, hold the maintenance, keep, replace, migrate, write back, renew.
 
         ``session`` is the transaction that ends the task: it inscribes the restoration, once all is
         done. It holds no lock on a table while the databases are replaced, which would hold up
