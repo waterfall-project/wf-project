@@ -250,13 +250,17 @@ class Provider:
         self.steps.append("remove")
 
 
-def restorer_headers(installation: Installation, realm: TestRealm) -> dict[str, str]:
-    """Write an account that may back up and restore the installation; give its bearer."""
+def restorer_headers(
+    installation: Installation,
+    realm: TestRealm,
+    permissions: tuple[str, ...] = ("backups.read", "backups.write", "platform_restore"),
+    first_name: str = "Claire",
+) -> dict[str, str]:
+    """Write an account that may back up and restore the installation; give its bearer.
+
+    Or one, of another ``first_name``, that holds ``permissions`` alone.
+    """
     subject = f"subject-{uuid4()}"
-    held = role(
-        installation.database,
-        "Restauration",
-        permissions=("backups.read", "backups.write", "platform_restore"),
-    )
-    account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
+    held = role(installation.database, f"Restauration {first_name}", permissions=permissions)
+    account(installation.database, "Martin", first_name, roles=(held,), idp_subject=subject)
     return bearer(realm.token(subject, KEY))

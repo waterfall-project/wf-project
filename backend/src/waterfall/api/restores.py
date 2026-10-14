@@ -27,7 +27,8 @@ router = APIRouter(tags=["platform"])
 
 CONFIRMATION_REQUIRED = "CONFIRMATION_REQUIRED"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-RESTORE = [Depends(Requires("platform_restore"))]
+# The backup named does not exist for a caller who may not read the backups (WF-ADM-0110): 404.
+RESTORE = [Depends(Requires("backups.read", "platform_restore"))]
 # The key of the advisory lock under which a request looks for a pending restoration, then deposits.
 RESTORE_LOCK = 3_700_160
 

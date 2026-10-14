@@ -241,6 +241,29 @@ def test_an_unknown_backup_is_not_found_and_a_second_restoration_conflicts(
     assert (second.status_code, second.json()["code"]) == (409, "STATE_FORBIDS_OPERATION")
 
 
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_a_restoration_asked_without_the_permission_to_read_the_backups_is_not_found(
+    installation: Installation,
+    take: Take,
+    service: Service,
+    realm: TestRealm,
+    queue: TaskQueue,
+) -> None:
+    # « Une adresse d’objet inexistant et une adresse d’objet non consultable mènent au même
+    # écran. » The permission to restore without that to read the backups: the backup named does
+    # not exist for the caller, 404 as an unknown one, and nothing is deposited.
+    take()
+    backup = taken(installation)
+    restoring_only = restorer_headers(installation, realm, ("platform_restore",), "Louise")
+    hidden = service.api.post(RESTORES, json=asked(backup), headers=restoring_only)
+    unknown = service.api.post(
+        RESTORES, json=asked({**backup, "backup_id": str(uuid4())}), headers=service.headers
+    )
+    assert hidden.status_code == unknown.status_code == 404
+    assert hidden.json()["code"] == unknown.json()["code"] == "NOT_FOUND"
+    assert not queue.restores().waiting()
+
+
 @pytest.mark.requirement("WF-ADM-0160-A")
 def test_in_maintenance_every_operation_but_the_probe_answers_503_and_the_probe_says_it(
     service: Service,
