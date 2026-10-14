@@ -175,8 +175,3 @@ class Bucket:
         with reached():
             body = self.client.get_object(Bucket=self.name, Key=key, Range=f"bytes=0-{length - 1}")
             return body["Body"].read()
-
-    def delete(self, key: str) -> None:
-        """Delete the object of a key; one that is not there is deleted already."""
-        with reached():
-            self.client.delete_object(Bucket=self.name, Key=key)
