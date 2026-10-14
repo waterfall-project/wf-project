@@ -761,7 +761,18 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
 - **Le dépôt d'une sauvegarde venue d'ailleurs** (`uploadFile`, `external_backup`, #350) ne
   passe pas par une action serveur, dont la taille de corps est bornée : il se fait par
   morceaux, chacun sous la borne, qui s'assemblent sur le stockage objet — une modification
-  du contrat (ci-dessous).
+  du contrat (ci-dessous). Réalisé par US-0440/L2b (#985) : la table `file_upload`
+  (`waterfall.platform.uploads`, migration 0017) tient le dépôt — usage, nom du fichier, taille,
+  découpage, clé de l'objet, identifiant du dépôt en plusieurs parties du stockage tant qu'il est
+  ouvert, auteur, échéance de vingt-quatre heures ; les morceaux reçus sont ceux que le stockage
+  dit tenir. Le serveur découpe le fichier en morceaux de 5 à 10 Mio, au plus 10 000 ; chaque
+  morceau est écrit sur le stockage avant la réponse, et l'achèvement les assemble, puis lit la
+  date de la sauvegarde dans le manifeste, en tête de l'archive, que `startRestore` confronte à la
+  date confirmée ; une archive dont la tête ne dit pas de date est refusée par la tâche, qui la
+  lit entière, avant la maintenance. Le stockage est appelé hors de toute transaction. Un dépôt
+  expiré ou achevé ne reçoit plus rien ; la purge des dépôts expirés et de l'objet restauré reste
+  à EP-06, avec celle des fichiers d'import (WF-DAT-0120, écart d'US-0440). La restauration
+  d'un dépôt s'inscrit au journal sur le dépôt (`external_backup_upload`, nommé par son fichier).
 - **La restauration** est une tâche `restore`, demandée avec la date de la sauvegarde confirmée,
   qu'exécute le service de restauration, et lui seul (ci-dessous ; auteur, 2026-10-12, #953) :
   elle refuse une archive d'une version plus récente que l'installation ; met la plateforme en

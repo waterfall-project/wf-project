@@ -180,7 +180,8 @@ clients, leurs secrets et ses adresses viennent de `.env`, les comptes et leurs 
 sauvegarde, et l'administrateur `admin` du royaume `master` garde `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`.
 
 Reproduire une installation, c'est installer et amorcer la cible avec son propre `.env`, puis y
-déposer la sauvegarde téléchargée de la source et la restaurer : la cible garde son domaine, ses
+déposer la sauvegarde téléchargée de la source — l'écran l'envoie par morceaux, quelle que soit sa
+taille, jusqu'à la borne de l'installation — et la restaurer : la cible garde son domaine, ses
 secrets et le mot de passe de l'administrateur de Keycloak, et prend de la source les comptes de
 Waterfall et leurs mots de passe. Une sauvegarde d'une version plus récente que la cible est
 refusée, avant que rien ne change.

@@ -7,11 +7,17 @@ recorded with the outcome of its verification and inscribed in the journal of au
 the instant of the state it copies (WF-SEC-0030). Around the replacement of the databases, a
 restoration keeps the journal, the list of the backups and their tasks, and writes back what the
 restored database lacks: the archives of the backups taken since stay in the bucket, and stay
-listed (#893); the accounts the journal says anonymised since are anonymised again (#988).
+listed (#893); the accounts the journal says anonymised since are anonymised again (#988). The
+date a backup deposited from elsewhere says is read from the head of its archive (#350).
 """
 
+import io
+import json
+import tarfile
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Connection, func, insert, select
@@ -41,6 +47,10 @@ from waterfall.platform.restoration import (
 from waterfall.platform.tasks import keep_more_tasks, keep_tasks, write_back_tasks
 
 NOT_FOUND = "NOT_FOUND"
+# The member an archive of a backup holds first: what it holds, and when it was taken.
+MANIFEST = "manifest.json"
+# How many bytes of the head of an archive hold its manifest: its header, then the manifest.
+MANIFEST_HEAD = 64 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,15 +137,45 @@ def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:
     return backup_id
 
 
-def inscribe_restoration(
-    session: Session, backup_id: UUID, actor: AuditActor | None, at: datetime
-) -> None:
-    """Inscribe a restoration of a backup, once it is done: the last inscription (WF-ADM-0160).
+def archive_taken_at(head: bytes) -> datetime | None:
+    """Read the date of a backup from the head of its archive; ``None`` if it does not say one.
 
-    ``actor`` is who asked for it, named as they were when they asked: the restored database may
-    not hold their account. The inscription carries no parameter, as that of a backup.
+    The manifest is the first member of an archive (``waterfall.worker.backup``): the head holds it
+    whole. A head that holds no manifest, or one without a date, says none.
     """
-    record(session, Inscription("restore", actor, AuditObject("backup", backup_id, None), at))
+    try:
+        with tarfile.open(fileobj=io.BytesIO(head), mode="r:") as tar:
+            first = tar.next()
+            member = None if first is None or first.name != MANIFEST else tar.extractfile(first)
+            if member is None:
+                return None
+            taken_at = datetime.fromisoformat(str(json.loads(member.read())["taken_at"]))
+    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError):
+        return None
+    return taken_at if taken_at.tzinfo is not None else None
+
+
+def restored_object(payload: Mapping[str, Any]) -> AuditObject:
+    """Name what a restoration restores, from its task: a backup of the list, or a deposit (#350).
+
+    A deposit of a backup copied out of a platform is named by its file, as the journal names it.
+    """
+    if "backup_id" in payload:
+        return AuditObject("backup", UUID(str(payload["backup_id"])), None)
+    upload_id = UUID(str(payload["upload_id"]))
+    return AuditObject("external_backup_upload", upload_id, str(payload["filename"]))
+
+
+def inscribe_restoration(
+    session: Session, restored: AuditObject, actor: AuditActor | None, at: datetime
+) -> None:
+    """Inscribe a restoration, once it is done: the last inscription (WF-ADM-0160).
+
+    ``restored`` is the backup or the deposit restored (``restored_object``); ``actor`` who asked
+    for it, named as they were when they asked: the restored database may not hold their account.
+    The inscription carries no parameter, as that of a backup.
+    """
+    record(session, Inscription("restore", actor, restored, at))
 
 
 def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
