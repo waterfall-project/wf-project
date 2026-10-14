@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 import yaml
 
-from wftools import REPOSITORY, images, paths, production
+from wftools import REPOSITORY, images, paths, production, restoration_trial
 from wftools.production import Answer, Browser, Platform, ProductionError
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
@@ -723,7 +723,10 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
 
 
 class Container:
-    """The container of the API, asked by the trial: a backup, then its restoration, succeed."""
+    """The container of the API, asked by the trial: a backup, then its restoration, succeed.
+
+    The role made after the backup is no more once it is restored.
+    """
 
     def __init__(self) -> None:
         self.asked: list[tuple[str, str]] = []
@@ -736,20 +739,40 @@ class Container:
         bodies: dict[str, tuple[int, object]] = {
             "/backups": (202, {"task_id": "b"}),
             "/backups?limit=1": (200, {"items": [backup]}),
+            "/access-roles": (201, {"access_role_id": "m"}),
             "/restores": (202, {"task_id": "r"}),
+            "/access-roles/m": (404, {"code": "NOT_FOUND"}),
         }
         status, body = bodies.get(asked["path"], (200, {"status": "succeeded"}))
         return 0, json.dumps({"status": status, "body": json.dumps(body)})
 
 
+class Restoring(Docker):
+    """A Compose whose API is in maintenance at the first look after its restoration is asked."""
+
+    def __init__(self, container: Container) -> None:
+        super().__init__()
+        self.container = container
+        self.maintained = False
+
+    def read(self, command: list[str]) -> tuple[int, str]:
+        asked = ("POST", "/restores") in self.container.asked
+        if asked and not self.maintained and "exec" in command and "postgres" not in command:
+            self.ran.append(command)
+            self.maintained = True
+            return 0, '{"status": "maintenance"}'
+        return super().read(command)
+
+
 @pytest.mark.requirement("WF-ARC-0050-A")
 def test_the_trial_backs_up_and_restores_by_the_api_when_asked_to(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # #948, point 2: asked for by its variable until the chain starts the service of the
     # restoration, the trial backs the platform up by its API and restores it.
-    docker = Docker()
+    monkeypatch.setattr(restoration_trial, "PAUSE", 0.0)
     container = Container()
+    docker = Restoring(container)
     fake = FakePlatform(realm_routes())
     given = {**GIVEN, "WATERFALL_TRIAL_RESTORATION": "1"}
     sender = platform_sender(fake)
@@ -758,11 +781,13 @@ def test_the_trial_backs_up_and_restores_by_the_api_when_asked_to(
         ("POST", "/backups"),
         ("GET", "/tasks/b"),
         ("GET", "/backups?limit=1"),
+        ("POST", "/access-roles"),
         ("POST", "/restores"),
         ("GET", "/tasks/r"),
+        ("GET", "/access-roles/m"),
     ]
     said = capsys.readouterr().out
-    assert "its restoration asked of the API has ended: the probe says ok" in said
+    assert "its restoration asked of the API has ended: the probe said the maintenance" in said
     assert docker.verbs()[-2:] == ["exec", "down"]
 
 

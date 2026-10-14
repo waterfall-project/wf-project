@@ -5,9 +5,8 @@
  * for none; the account an administrator creates signs in once its holder has set it on the page
  * of the realm, by the link the administrator was given — once, within its hour, the one before
  * it no longer valid —, and the realm holds it to its rules and locks the account after ten
- * failures. The administrator calls the API as the screens of the accounts will once wired
- * (US-0360/L3, #449): the person of the directory, given the role the bootstrap will give the
- * first administrator (US-0420).
+ * failures. The administrator is the one of the installation, which the bootstrap made (US-0420),
+ * calling the API as the screen of the accounts does (`accounts.spec.ts`).
  */
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 
@@ -48,7 +47,6 @@ test.beforeAll(async ({ browser, playwright }) => {
 });
 
 test.afterAll(async () => {
-  administrator.done();
   await calls.dispose();
 });
 
@@ -96,24 +94,28 @@ test("an account an administrator creates signs in only once its holder has set 
   await expect(page.getByRole("main")).toContainText(SPENT);
 });
 
-test("a link of setting a password opened after its hour is refused [WF-ADM-0140-A]", async ({
-  page,
-  request,
-}) => {
-  const { id } = await administrator.create();
-  // The hour of a link is the lifespan of the action tokens of the realm: a second here.
-  const link = await withRealm(request, { actionTokenGeneratedByAdminLifespan: 1 }, async () => {
-    const made = await administrator.link(id);
-    await new Promise((resolve) => setTimeout(resolve, 2_100));
-    return made;
-  });
-  await page.goto(link);
-  const said = page.getByRole("main");
-  await expect(said).toContainText("Nous sommes désolés");
-  await expect(said).not.toContainText(SPENT);
-  await expect(said).not.toContainText(REPLACED);
-  await expect(page.getByRole("link", { name: "» Cliquez ici pour continuer" })).toHaveCount(0);
-});
+// The hour of a link is the lifespan of the action tokens of the realm, a second here: the link of
+// any account made meanwhile would expire with it (`playwright.config.ts`, the project `realm`).
+test(
+  "a link of setting a password opened after its hour is refused [WF-ADM-0140-A]",
+  {
+    tag: "@realm-wide",
+  },
+  async ({ page, request }) => {
+    const { id } = await administrator.create();
+    const link = await withRealm(request, { actionTokenGeneratedByAdminLifespan: 1 }, async () => {
+      const made = await administrator.link(id);
+      await new Promise((resolve) => setTimeout(resolve, 2_100));
+      return made;
+    });
+    await page.goto(link);
+    const said = page.getByRole("main");
+    await expect(said).toContainText("Nous sommes désolés");
+    await expect(said).not.toContainText(SPENT);
+    await expect(said).not.toContainText(REPLACED);
+    await expect(page.getByRole("link", { name: "» Cliquez ici pour continuer" })).toHaveCount(0);
+  },
+);
 
 /** Lock a local account: ten failures on the sign-in page. */
 async function failTenTimes(page: Page, person: Person): Promise<void> {

@@ -1029,7 +1029,18 @@ de l'anonymisation, au-dessus de la table, sur la lecture d'où il est parti (`R
 d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
-se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
+WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
+(`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
+désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
+retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un compte
+nommé tel qu'il se lit à la consultation, sous le libellé neutre s'il est anonymisé depuis
+(`useAccountNaming`, `AnonymizedName`) ; une personne du fournisseur par son nom et son identifiant
+chez lui (#918) ; celle dont un compte porte l'adresse (`ALREADY_EXISTS`) par son identifiant et ce
+compte, tel qu'il se lit, ou par son seul identifiant quand aucun ne la portait plus (#920). À une
+session qui porte `users.write`, « Lire les comptes » (`startIdentitySync`) rend la main dès la
+tâche en file et la confie au suivi, qui l'annonce achevée et offre de relire l'écran, sans jamais
+le relire de lui-même. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
 mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
 les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
@@ -1118,8 +1129,8 @@ avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tou
 `ListPages` de `components/grid/list-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
-l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
-a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
+l'arborescence au niveau demandé —, et le suivi n'offre de télécharger que le résultat d'un export
+réussi (`givesFile` de `tracking.ts`), celui des autres tâches se lisant sur leur écran : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
 entier en mémoire et hors de la file des actions serveur, à la route `/tasks/[taskId]/result`, que
 le navigateur suit comme un lien, sans `download` : un type que le contrat déclare pour sa nature,
 et la pièce jointe nommée du nom de base que le contrat promet (`Content-Disposition`,
@@ -1472,7 +1483,7 @@ commande.
 | `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
 | `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
 | `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
-| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948) — laissées de côté tant que la chaîne ne démarre pas le service de la restauration ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948) — laissées de côté tant que la chaîne ne démarre pas le service de la restauration (US-0440/L2b, #985) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
 | `make check-production` | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
@@ -1954,7 +1965,7 @@ compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucke
 supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
 Debian et d'Ubuntu, d'une version au moins égale à celle du serveur. Elles vident les bases comme
 le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_role`
-(`backend/tests/test_backups.py`) crée pour la session, membre de `pg_read_all_data` (#895).
+(`backend/tests/conftest.py`) crée pour la session, membre de `pg_read_all_data` (#895).
 
 - **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
   reçoit pas les arguments qu'il demande — et pose la variable.
@@ -2055,18 +2066,44 @@ l'arrête. Avant Playwright, il amorce la plateforme (`waterfall-api install`, s
 US-0420) : le premier administrateur, `administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), porte le
 rôle « Administrateur », et le lien qui fixe son mot de passe, valable jusqu'à son emploi, est
 dans `E2E_INSTALLATION_LINK` — vide dès qu'un parcours l'a employé, l'administrateur se
-connectant ensuite avec le mot de passe que les parcours lui ont donné. Une précondition :
+connectant ensuite avec le mot de passe constant des parcours (`LOCAL_PASSWORD`,
+`frontend/e2e/service/realm.ts`). Une précondition :
 `E2E_ADMIN_EMAIL` doit être l'adresse avec laquelle la plateforme a été amorcée la première fois.
 Une relance n'installe rien de nouveau et ignore une autre adresse (`installation.admin_email_ignored`
 dans ses journaux) : sur une plateforme amorcée avec une autre, par `make service-install` et un autre
 `WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut alors
 donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
-(`make service-down WATERFALL_RESET_DATA=yes`). Les autres comptes qui se connectent sont la
-personne de l'annuaire de test, `dominique.annuaire@waterfall.test`, celle du fournisseur externe,
-`camille.externe` (`deploy/keycloak/development/`), que l'API admet sans rôle à leur première
-requête (WF-ADM-0180), et les comptes locaux qu'un parcours crée par l'API ; un parcours leur donne
-un rôle en écrivant dans la base de la plateforme (`grantRole`, `frontend/e2e/service/realm.ts`),
-comme le ferait l'administrateur.
+(`make service-down WATERFALL_RESET_DATA=yes`).
+
+Les parcours se jouent en quatre projets Playwright. `installation` d'abord
+(`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
+passe de l'administrateur, se connecte, et constate son rôle, les trois rôles prédéfinis et le
+catalogue. `service` ensuite, sur plusieurs workers (#730) : chaque parcours se connecte avec un
+compte local à lui, que l'administrateur crée par l'API (`createUser`, `createPasswordSetupLink`) et
+dont il fixe le mot de passe par le lien rendu, ou avec un compte dont aucun autre parcours ne ferme
+les sessions — l'administrateur lui-même, pour les écrans des comptes et des rôles et pour le
+journal d'audit (`accounts.spec.ts`, `roles.spec.ts`, `audit.spec.ts`). L'administrateur donne leurs
+rôles aux comptes locaux par l'API ; la personne de l'annuaire de test,
+`dominique.annuaire@waterfall.test`, et celle du fournisseur externe, `camille.externe`
+(`deploy/keycloak/development/`), que l'API admet sans rôle à leur première requête (WF-ADM-0180) et
+que seul `sign-in.spec.ts` emploie, reçoivent le leur par une écriture dans la base de la plateforme
+(`grantRole`), une fois admises. Aucun parcours ne donne à un autre compte que l'administrateur les
+deux permissions d'administration — `give` le refuse —, et aucun ne renomme ni ne change un rôle
+prédéfini : les refus `LAST_ADMINISTRATOR` de l'écran des rôles et de celui des comptes en dépendent
+(`roles.spec.ts`). Le jeton de l'administrateur, qui vit cinq minutes, se redemande quand il en a
+plus de quatre.
+
+Tous les workers connectent l'administrateur, et le royaume refuse les identifiants d'un compte
+qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_temporarily_disabled`, sans
+échec compté) : une connexion attend son tour (`oneAtATime`, `realm.ts`), sous un verrou — un
+répertoire du dossier temporaire du système, nommé d'après la course et le compte —, qu'elle tient
+jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deçà des trente que les
+autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse
+qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
+les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
+`realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
+qui raccourcissent une durée du royaume, que lit chaque compte. `contract` enfin, le démontage de
+`installation` : la garde du contrat de toute la course.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
 le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
@@ -2078,16 +2115,24 @@ l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheCon
 (`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire et échoue sur
 toute ligne où Prism écrit `Request terminated with error:` — ses propres erreurs comme celles du
 mandataire, corps illisible ou API injoignable (WF-ARC-0060). Prism écrit sa ligne une fois la
-réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : le fichier
+réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : chaque worker
 lit chaque ligne une fois — par `docker logs --since`, à partir du moment où il s'était arrêté, et
-du début du premier fichier du worker, sur un seul worker, ce que la garde affirme — ; un parcours
-échoue sur les erreurs écrites jusqu'à sa fin, une erreur plus tardive fait échouer le suivant, de
-son fichier ou du suivant, et celles d'après le dernier parcours font échouer le fichier, une fois
-ses pages fermées et le mandataire tu — rien d'autre que le contrôle de santé pendant deux
-secondes, la dernière ligne d'une réponse, qui ne nomme pas sa requête, n'en étant que si elle suit
-celle de la réponse d'un contrôle (#735). Un parcours le montre (`contract.spec.ts`) : une adresse
-hors du contrat, que la garde lit, seule, refusée. Un statut que
-l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
+du début de son premier fichier — ; un parcours échoue sur les erreurs écrites jusqu'à sa fin, une
+erreur plus tardive fait échouer le suivant du worker. Le journal ne dit pas quel worker a demandé
+quoi : une erreur fait échouer le parcours de chaque worker qui la lit, celui qui l'a causée parmi
+eux. Le projet `contract` (`contract.teardown.ts`) relit enfin tout le journal de la course, depuis
+son début (`E2E_SERVICE_STARTED`, que pose `playwright.config.ts`), une fois le mandataire tu —
+rien d'autre que le contrôle de santé pendant deux secondes, la dernière ligne d'une réponse, qui
+ne nomme pas sa requête, n'en étant que si elle suit celle de la réponse d'un contrôle (#735) — :
+les erreurs d'après le dernier parcours d'un worker le font échouer, et celles qu'un parcours a
+déjà dites, de nouveau. Ce début est la dernière ligne que le mandataire a écrite avant la course
+(`docker logs --timestamps --tail 1`, `frontend/e2e/service/proxy-log.ts`), et chaque moment que les
+parcours comparent est celui que Docker a donné à une ligne, jamais l'horloge du poste, qu'une
+machine virtuelle laisse dériver de la sienne ; la garde prouve sa fenêtre : une ligne lue au moins
+— le contrôle de santé en écrit une toutes les deux secondes —, et le refus de l'adresse hors du
+contrat quand son parcours a joué. Un parcours le montre (`contract.spec.ts`) : une adresse hors du
+contrat (`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut
+que l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
 `sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
 aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
 tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
@@ -2102,10 +2147,11 @@ remplacé et retiré, les colonnes masquées, les largeurs et les filtres des ta
 réouverture, chaque compte voyant les siens (`account.spec.ts`, US-0400) — ces réglages lus dans la
 base (`gridPreferences`), où le front les écrit après une pause ; une attribution de rôle faite par
 le service, que le journal d'audit, filtré sur son auteur et son action, présente à chaque lecteur
-dans sa langue (`audit.spec.ts`). Ils règlent le royaume par son API d'administration, en
-administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une durée raccourcie le
-temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —, et demandent un
-jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
+dans sa langue (`audit.spec.ts`) ; l'amorçage (`installation.setup.ts`), l'écran des comptes
+(`accounts.spec.ts`) et celui des rôles (`roles.spec.ts`). Ils règlent le royaume par son API
+d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une
+durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
+et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux

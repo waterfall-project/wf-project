@@ -315,7 +315,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404':
         description: >-
-          Sauvegarde ou dépôt inconnus, ou permission de restaurer refusée, sans distinction
+          Sauvegarde ou dépôt inconnus, ou lecture des sauvegardes refusée, sans distinction
           (WF-ADM-0110).
         content:
           application/problem+json:

@@ -12,6 +12,7 @@ tests standing for it; the API and the worker reach them as the role of the serv
 """
 
 import hashlib
+import io
 import json
 import tarfile
 from collections.abc import Callable, Iterator
@@ -22,41 +23,49 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import ColumnElement, func, insert, select, text, update
-from support import ContractClient, as_backup, bearer
+from support import ContractClient, as_backup, bearer, captured_logs
 from task_handlers import REQUEST, deposit
 
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.backups.interface import (
     inscribe_restoration,
     keep_for_restoration,
     write_back_after_restoration,
 )
 from waterfall.core.backups.tables import Backup
-from waterfall.migrations.runner import upgrade
+from waterfall.core.users.tables import UserAccount
+from waterfall.migrations.runner import alembic_config, downgrade, upgrade
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.queue import TaskQueue
+from waterfall.platform.restoration import begin_keeping, keep
 from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup
-from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask
-from waterfall.worker.restore import extracted, replace
+from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, dump
+from waterfall.worker.restore import RestoreError, errors_of, extracted, replace
 from waterfall.worker.runner import Timing, Worker
 
 BACKUPS = "/api/v1/backups"
 # An account the inscriptions of these tests name, without a foreign key.
 NAMED = UUID("01926f3a-7c00-7000-8000-0000000004c1")
+# The revision of the schema of the installation, to which a restoration migrates.
+HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
+# A database no server answers for.
+UNREACHABLE = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +134,16 @@ def installation(
             connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
         connection.execute(text(f'DROP ROLE "{signing}"'))
         connection.execute(text(f'DROP ROLE "{service}"'))
+    server.dispose()
+
+
+def dropped(server_address: str, *addresses: str) -> None:
+    """Drop databases of the server, the connections left to them closed."""
+    server = create_database_engine(server_address).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        for address in addresses:
+            name = engine_url(address).database
+            connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
     server.dispose()
 
 
@@ -269,6 +288,35 @@ def test_two_backups_stay_listed_and_downloadable_once_the_first_is_restored(
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")
+def test_both_databases_are_replaced_and_hold_what_they_held_at_the_backup_and_nothing_after(
+    installation: Installation, take: Take, tmp_path: Path
+) -> None:
+    # « … la plateforme présente exactement les projets, révisions et comptes qu'elle contenait à
+    # la date de la sauvegarde, et rien de postérieur … » : an account and a role made before the
+    # backup are there after the restoration, one of each made after are not; and so for a row of
+    # the database of the identity provider, which is restored too.
+    held = role(installation.database, "Avant la sauvegarde")
+    kept = account(installation.database, "Martin", "Claire", roles=(held,))
+    backup_task = take()
+    later = role(installation.database, "Après la sauvegarde")
+    gone = account(installation.database, "Durand", "Paul", roles=(later,))
+    provider = create_database_engine(installation.owner["identity_provider"])
+    with provider.begin() as connection:
+        connection.execute(text("INSERT INTO realm VALUES ('after-the-backup')"))
+    restore(installation, backup_task, tmp_path)
+    with provider.connect() as connection:
+        realms = connection.scalars(text("SELECT id FROM realm ORDER BY id")).all()
+    provider.dispose()
+    assert realms == ["waterfall"]
+    with installation.database.transaction() as session:
+        roles = set(session.scalars(select(AccessRole.id).where(AccessRole.id.in_((held, later)))))
+        accounts = set(
+            session.scalars(select(UserAccount.id).where(UserAccount.id.in_((kept, gone))))
+        )
+    assert (roles, accounts) == ({held}, {kept})
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
 def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_backup_is_inscribed(
     installation: Installation,
     take: Take,
@@ -278,7 +326,7 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
     # #894: the backup is dated before its dumps; an inscription made between the two is in the
     # dump and after the date. Written back by its identifier, it is there once; the inscription
     # of the backup, made after the dump, and one made after the backup, are there too; the
-    # restoration, inscribed once done, is the last.
+    # inscription of the restoration, written after what was written back, comes after them.
     during: list[UUID] = []
     reach = backup.reached
 
@@ -302,7 +350,10 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
     assert dated > taken.taken_at
     inscribed = (AuditEntry.action == "backup", AuditEntry.object_id == taken.id)
     assert count(installation.database, *inscribed) == 1
-    # « … et la dernière inscription est la restauration elle-même. »
+    # The test inscribes the restoration itself, as what runs it will: it holds that the
+    # inscription comes after those written back, not that what runs the restoration makes it.
+    # It does not prove « … et la dernière inscription est la restauration elle-même. » of
+    # WF-ADM-0160-A, which US-0440/L2b proves with the service that runs the restoration (#985).
     with logging_context(correlation_id=REQUEST), installation.database.transaction() as session:
         inscribe_restoration(session, taken.id, None, utc_now())
     with installation.database.transaction() as session:
@@ -346,6 +397,42 @@ def test_no_task_restored_queued_or_running_runs_again_and_the_archive_restored_
     assert tasks[restoration].status == "succeeded"
 
 
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_backup_of_an_earlier_revision_is_migrated_before_the_role_of_the_service_gets_its_rights(
+    installation: Installation,
+    take: Take,
+    backups_api: ContractClient,
+    realm: TestRealm,
+    tmp_path: Path,
+) -> None:
+    # The backup is taken at 0012, which lacks the reports of the readings of the accounts (0013);
+    # the installation is then brought to the head. The restoration keeps, replaces, migrates, and
+    # only then writes back: the rights kept name that table, which the migrations make again.
+    subject = f"subject-{uuid4()}"
+    held = role(installation.database, "Sauvegardes", permissions=("backups.read",))
+    account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
+    owner = create_database_engine(installation.owner["waterfall"])
+    downgrade(owner, "0012")
+    take()
+    upgrade(owner)
+    with installation.database.transaction() as session:
+        backup_task, revision = session.execute(
+            select(Backup.task_id, Backup.schema_revision)
+        ).one()
+    assert revision == "0012"
+    restore(installation, backup_task, tmp_path)
+    service = f"{engine_url(installation.owner['waterfall']).database}_service"
+    granted = "SELECT has_table_privilege(:service, 'identity_sync_report', 'SELECT, INSERT')"
+    with owner.connect() as connection:
+        migrated = connection.scalar(text("SELECT version_num FROM alembic_version"))
+        assert connection.scalar(text(granted), {"service": service})
+    owner.dispose()
+    assert migrated == HEAD
+    listed = backups_api.get(BACKUPS, headers=bearer(realm.token(subject, KEY)))
+    assert listed.status_code == 200
+    assert listed.json()["meta"]["total"] == 1
+
+
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_taken_up_after_an_interruption_writes_back_what_it_kept_the_first_time(
     installation: Installation,
@@ -381,6 +468,34 @@ def test_a_restoration_taken_up_after_an_interruption_writes_back_what_it_kept_t
         assert session.scalar(select(func.count()).select_from(Backup)) == 1
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_keeping_cut_short_before_the_replacement_is_made_again_whole(
+    installation: Installation,
+    take: Take,
+    backups_api: ContractClient,
+    realm: TestRealm,
+    tmp_path: Path,
+) -> None:
+    # A keeping committed on the way — the journal kept, nothing else — and cut short: the
+    # database is not replaced yet, and the restoration taken up keeps all again. The backups,
+    # an inscription made after the backup and the rights of the role of the service come back.
+    subject = f"subject-{uuid4()}"
+    held = role(installation.database, "Sauvegardes", permissions=("backups.read",))
+    account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
+    backup_task = take()
+    after = inscribe(installation.database, "Après la sauvegarde")
+    owner = create_database_engine(installation.owner["waterfall"])
+    with owner.begin() as connection:
+        begin_keeping(connection)
+        keep(connection, AuditEntry)
+    owner.dispose()
+    restore(installation, backup_task, tmp_path)
+    assert count(installation.database, AuditEntry.id == after) == 1
+    listed = backups_api.get(BACKUPS, headers=bearer(realm.token(subject, KEY)))
+    assert listed.status_code == 200
+    assert listed.json()["meta"]["total"] == 1
+
+
 def test_an_archive_of_a_newer_version_than_the_installation_is_refused_before_anything_changes(
     tmp_path: Path,
 ) -> None:
@@ -397,3 +512,144 @@ def test_an_archive_of_a_newer_version_than_the_installation_is_refused_before_a
         "BACKUP_FROM_NEWER_VERSION",
         {"backup_version": "999.0.0", "installed_version": __version__},
     )
+
+
+def archive_of(folder: Path, databases: list[dict[str, str]], members: dict[str, bytes]) -> Path:
+    """Write an archive of this version: a manifest that names ``databases``, and ``members``."""
+    manifest = folder / MANIFEST
+    manifest.write_text(json.dumps({"application_version": __version__, "databases": databases}))
+    archive = folder / "archive.tar"
+    with tarfile.open(archive, "w") as tar:
+        tar.add(manifest, arcname=MANIFEST)
+        for name, content in members.items():
+            member = tarfile.TarInfo(name)
+            member.size = len(content)
+            tar.addfile(member, io.BytesIO(content))
+    return archive
+
+
+NOT_A_DUMP = b"not a dump"
+
+
+def entry(name: str, content: bytes = NOT_A_DUMP, sha256: str | None = None) -> dict[str, str]:
+    """Name a dump in the manifest: its database, its file, its digest, that of ``content``."""
+    given = hashlib.sha256(content).hexdigest() if sha256 is None else sha256
+    return {"name": name, "file": f"{name}.dump", "sha256": given}
+
+
+@pytest.mark.parametrize(
+    ("databases", "members"),
+    [
+        ([entry("waterfall", sha256="0" * 64), entry("identity_provider")], ["waterfall"]),
+        ([entry("waterfall"), entry("identity_provider")], ["identity_provider"]),
+        ([entry("waterfall")], ["waterfall"]),
+        ([entry("waterfall"), entry("identity_provider")], ["waterfall", "identity_provider"]),
+    ],
+    ids=["digest", "member", "databases", "unlisted"],
+)
+def test_an_archive_that_does_not_read_back_whole_is_refused_before_anything_changes(
+    databases: list[dict[str, str]], members: list[str], tmp_path: Path
+) -> None:
+    # Proper to US-0440: a dump unlike its digest, one the archive lacks, a database of the
+    # platform the manifest does not name, a dump pg_restore does not list: the archive is
+    # unreadable, refused as it is read, before a database is touched.
+    archive = archive_of(tmp_path, databases, {f"{name}.dump": NOT_A_DUMP for name in members})
+    with pytest.raises(UnprocessableError) as raised:
+        extracted(archive, tmp_path)
+    assert (raised.value.code, dict(raised.value.params)) == ("FILE_FORMAT_UNREADABLE", {})
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_dump_the_database_refuses_is_journaled_without_the_row_it_refused(
+    database_url: str, tmp_path: Path
+) -> None:
+    # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » The
+    # dump of the provider holds the secrets of its clients and the digests of its passwords; the
+    # database refuses a row of it — by a check that only the source admits —, and pg_restore
+    # quotes that row after its error. The journal gets the error, without the row.
+    marker = f"marker-{uuid4().hex}"
+    source = created(database_url, f"waterfall_test_refused_{uuid4().hex}")
+    target = created(database_url, f"waterfall_test_refusing_{uuid4().hex}")
+    admitted = "coalesce(current_setting('waterfall.admitted', true), '') = 'yes'"
+    owner = create_database_engine(source)
+    with owner.begin() as connection:
+        name = engine_url(source).database
+        connection.execute(text(f"ALTER DATABASE \"{name}\" SET waterfall.admitted = 'yes'"))
+    owner.dispose()
+    owner = create_database_engine(source)
+    with owner.begin() as connection:
+        connection.execute(
+            text(f"CREATE TABLE realm (id text PRIMARY KEY, secret text CHECK ({admitted}))")
+        )
+        connection.execute(
+            text("INSERT INTO realm VALUES ('waterfall', :marker)"), {"marker": marker}
+        )
+    owner.dispose()
+    try:
+        dumped = dump("identity_provider", source, tmp_path)
+        with captured_logs() as logs, pytest.raises(RestoreError):
+            replace("identity_provider", dumped.path, target, tmp_path)
+    finally:
+        dropped(database_url, source, target)
+    (failed,) = logs.named("restore.replace_failed")
+    refused = 'new row for relation "..."'
+    assert failed["said"] == [
+        f'pg_restore: error: COPY failed for table "realm": ERROR:  {refused}'
+    ]
+    assert marker not in logs.text
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_value_the_server_quotes_is_masked_whole_whatever_it_holds_and_its_language() -> None:
+    # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » A
+    # value may hold a quotation mark or a line break that cuts it — splitlines() cuts on \x1e as
+    # on \n —, a few bytes may follow it, a server may quote with “ ” or „ “ after « ERROR: », or
+    # with « » after « ERREUR: » : nothing of the value is kept, in any case.
+    marker = "s3cr3t"
+    realm = 'pg_restore: error: COPY failed for table "realm": ERROR:  malformed array literal: '
+    query = "pg_restore: error: could not execute query: "
+    account = 'pg_restore: error: COPY failed for table "account": ERROR:  invalid input syntax: '
+    client = 'pg_restore: error: COPY failed for table "client": ERROR:  invalid input value '
+    encoding = "pg_restore: error: could not execute query: ERROR:  invalid byte sequence for "
+    said = "\n".join(
+        [
+            f'{realm}"{{"{marker} x"}}"',
+            f"{query}ERREUR:  valeur « {marker} » refusée",
+            f'{account}"ab"{marker}"',
+            f"DETAIL:  Failing row contains ({marker}).",
+            f'{realm}"{{{marker}\nx}}"',
+            f'{realm}"{{{marker}\x1ex}}"',
+            f"{client}\u201c{marker}\u201d refused",
+            f"{client}\u201e{marker}\u201c refused",
+            f'{encoding}encoding "UTF8": 0x{marker}',
+        ]
+    ).encode()
+    kept = errors_of(said)
+    assert kept == [
+        f'{realm}"..."',
+        f"{query}...",
+        f'{account}"..."',
+        f'{realm}"..."',
+        f'{realm}"..."',
+        f'{client}"..."',
+        f'{client}"..."',
+        f'{encoding}encoding "..."',
+    ]
+    assert marker not in "".join(kept)
+
+
+def test_a_database_the_restoration_cannot_reach_is_unavailable_and_journaled_as_the_restoration(
+    tmp_path: Path,
+) -> None:
+    # #907, for the restoration: a database that does not answer is a component out of reach
+    # (503), which the journal names as the restoration's, not as a backup's.
+    dumped = tmp_path / "unread.dump"
+    dumped.write_bytes(b"")
+    with captured_logs() as logs, pytest.raises(UnavailableError) as raised:
+        replace("waterfall", dumped, UNREACHABLE, tmp_path)
+    assert (raised.value.code, dict(raised.value.params)) == (
+        "COMPONENT_UNAVAILABLE",
+        {"component": "database"},
+    )
+    assert len(logs.named("restore.database_unreached")) == 1
+    assert logs.named("backup.database_unreached") == []

@@ -413,13 +413,14 @@ e2e-measure: install-front ## The measure of the second of §4.6.2 alone, agains
 # platform. The platform stays up afterwards: make service-down stops it. The addresses of the front
 # are the harness's, whatever the environment exports; the variables of the front go through the
 # environment, never the command line, which would show the password of Redis to anyone. The paths
-# are given the containers of the proxy, whose log they read, and of PostgreSQL, where they give an
-# account other than the first administrator a role, as an administrator would. The platform is
-# bootstrapped (US-0420, #730): the paths read the address of its first administrator in
-# E2E_ADMIN_EMAIL, and in E2E_INSTALLATION_LINK the link that sets its password — empty once a
-# path has set it, the administrator then signing in with the password the paths gave it. The
-# address must be the one the platform was first bootstrapped with: a bootstrap run again ignores
-# another one (the guide, « Un parcours de bout en bout »).
+# are given the containers of the proxy, whose log they read, and of PostgreSQL, where they give the
+# person of the directory and the one of the external provider a role, as an administrator would.
+# The platform is bootstrapped (US-0420, #730): the paths read the address of its first
+# administrator in E2E_ADMIN_EMAIL, and in E2E_INSTALLATION_LINK the link that sets its password —
+# empty once a path has set it, the administrator then signing in with the constant password of the
+# paths. Through it, each path signs in as an account of its own, on several workers. The address
+# must be the one the platform was first bootstrapped with: a bootstrap run again ignores another
+# one (the guide, « Un parcours de bout en bout »).
 E2E_FRONT_PORT ?= 3100
 WATERFALL_PROXY_PORT ?= 4210
 E2E_ADMIN_EMAIL ?= administrateur@waterfall.test

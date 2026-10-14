@@ -324,10 +324,14 @@ l'image Keycloak : aucune JVM n'est demandée au poste. Ses pièces :
   jeton dont l'`iat` précède la date de création, en base, du mot de passe du compte, avec le
   message « déjà servi » du thème. La marque d'emploi devient donc la date du mot de passe :
   un mot de passe fixé autrement après l'envoi du lien — un autre lien, la console, la page du
-  compte — invalide aussi ce lien. Reste à vérifier que Keycloak 26.5.7 laisse le fournisseur
-  déployé remplacer celui du même identifiant (`order()`) ; le test
+  compte — invalide aussi ce lien. Le jeton dit sa seconde, le mot de passe sa milliseconde :
+  un mot de passe fixé dans la seconde même où le lien a été fait laisse le lien valable, faute
+  d'en savoir l'ordre — personne ne reçoit un lien et ne s'en sert dans sa seconde, et le refuser
+  refuserait un lien demandé juste après un mot de passe fixé. Keycloak 26.5.7 préfère, à ordre
+  égal, un fournisseur déployé au sien du même identifiant ; la pièce déclare un ordre plus haut
+  (`order()`), sans dépendre de cette règle. Le test
   `test_a_link_for_a_forgotten_password_used_once_stays_refused_after_a_restart` le
-  constate, et perd son `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
+  constate, sans `xfail`. « Mot de passe oublié » reste le parcours de Keycloak : la
   pièce n'en change que la vérification du jeton.
 
 Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par
@@ -416,7 +420,7 @@ rien d'autre que leurs deux clés.
 | `access_role_permission` | rôle, permission | clé primaire sur les deux ; clés étrangères en refus |
 | `user_access_role` | compte, rôle | clé primaire sur les deux ; clés étrangères en refus |
 | `background_task` | `kind`, `status`, `progress`, `payload`, `result`, `problem` (jsonb), `requested_by`, `correlation_id`, `attempts`, dates | `kind` et `status` dans les énumérations du contrat |
-| `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, les signalements | clé étrangère vers la tâche |
+| `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, rétablis dans le fournisseur, les signalements | clé étrangère vers la tâche |
 | `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `actor_display_name`, `action`, `object_kind`, `object_id`, `object_label`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune suppression, et une seule mise à jour (WF-SEC-0030 révisée) : le rôle de base du service a `INSERT`, `SELECT` et, depuis la migration `0011_account_anonymization`, `UPDATE (actor_display_name, object_label)` ; le déclencheur du journal refuse toute suppression et toute mise à jour, sauf le passage à NULL de ces deux colonnes, le reste de la ligne inchangé, et un déclencheur du module des comptes ne l'admet que pour un compte anonymisé, comme auteur ou comme objet |
 | `backup` | `taken_at`, `size_bytes`, `verification` (`pending`, `passed`, `failed`), `origin` (`manual`, `scheduled`), `is_retained`, `object_key`, la version de l'application et la révision du schéma qui l'ont produite, la tâche | `verification` et `origin` dans leurs énumérations ; aucune ligne supprimée en EP-03 (la rotation est d'EP-13) |
 | `file_upload` | `purpose`, `object_key`, `size_bytes`, `requested_by`, `expires_at`, l'état du dépôt par morceaux | `purpose` dans `FileUploadPurpose` ; un dépôt non employé expire |
@@ -582,11 +586,25 @@ journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un
   - **l'identité des comptes locaux** : la lecture compare le nom, le prénom et l'adresse que
     Keycloak tient d'un compte local à ceux de Waterfall, et rétablit dans Keycloak ceux de
     Waterfall, hors transaction comme le report d'`updateUser` (#669) ; c'est ce qui réconcilie
-    un report resté sans réponse (#919) ;
+    un report resté sans réponse (#919). Le compte rendu les compte (`restored`) ; le
+    rétablissement suit la validation de la lecture, comme le retrait des orphelins, chaque
+    identité relue juste avant dans une transaction courte qui ne verrouille rien — une
+    modification validée entre-temps est celle que Keycloak reçoit, un compte anonymisé
+    entre-temps est laissé —, et un échec, journalisé, est repris par la lecture suivante.
+    Avec `updateUser`, une course reste, dans l'ordre inverse de celle que la seconde
+    transaction d'`updateUser` défait : la modification reporte la nouvelle identité dans
+    Keycloak, la lecture relit l'ancienne, que Waterfall tient encore, et la rétablit, puis la
+    modification valide la nouvelle ; Keycloak tient alors l'ancienne et Waterfall la nouvelle,
+    jusqu'à la lecture suivante, qui rétablit dans Keycloak celle que Waterfall tient.
+    Un compte local que Keycloak tiendrait d'un annuaire n'est jamais rétabli, et la lecture le
+    journalise. L'adresse se compare sans égard à la casse, que Keycloak ne garde pas ;
   - **aucune donnée personnelle d'un compte connu dans le compte rendu** : une entrée de
     `skipped` qui désigne un compte de Waterfall — le dernier administrateur gardé, par
     exemple — n'en garde que l'identifiant ; son nom est relu à la consultation, et un compte
-    anonymisé depuis s'y lit par le libellé neutre (WF-ADM-0060 ; #920).
+    anonymisé depuis s'y lit par le libellé neutre (WF-ADM-0060 ; #920). Une personne laissée
+    sans compte parce qu'un compte porte son adresse (`ALREADY_EXISTS`) n'est gardée que par
+    son identifiant chez le fournisseur et celui de ce compte, dont le nom et l'adresse sont
+    relus de même : l'adresse est celle du compte (décision de livraison, application de #920).
 
 ### Journal d'audit
 
@@ -713,7 +731,8 @@ Décisions de l'auteur du 2026-10-09 (revue de la ventilation) :
   administrateur ; une sauvegarde et sa restauration par l'API s'y ajoutent avec US-0440/L2
   (#569) : `make production-trial` demande une sauvegarde puis une restauration par l'API,
   la restauration suivie par la sonde de vie jusqu'à la levée de la maintenance (#948,
-  point 2).
+  point 2). L2 pose l'étape derrière la garde `WATERFALL_TRIAL_RESTORATION` ; US-0440/L2b
+  (#985), qui démarre le service de restauration, la lève.
 
 ### Stockage objet
 
@@ -765,7 +784,7 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   Une restauration interrompue reprend depuis le début et ne lève la maintenance qu'une fois
   finie (WF-ARC-0090).
 - **Le service de restauration** (auteur, 2026-10-12, #953, #954, #955), que réalise
-  US-0440/L2 :
+  US-0440/L2b (#985, coupé d'US-0440/L2 le 2026-10-13) :
   - **ce qu'il tient** : sur le modèle de l'amorçage, un service de l'image `waterfall`, sous
     la commande `waterfall-restore`, est le seul processus de la plateforme à tenir l'adresse
     du propriétaire de la base de Waterfall (`waterfall`, #701) et celle du propriétaire de la
@@ -813,7 +832,7 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     un constat avant de choisir une autre voie. Test : une sauvegarde restaurée sur une
     installation aux secrets et au domaine différents laisse le front et l'API parler à
     Keycloak, et l'administrateur de la source s'y connecte ;
-  - **sa place dans Compose**, que réalise US-0440/L2 : dans `compose.service.yaml` et
+  - **sa place dans Compose**, que réalise US-0440/L2b : dans `compose.service.yaml` et
     `compose.prod.yaml`, un service `restore` de l'image `waterfall`, sous
     `waterfall-restore`, `restart: unless-stopped`, qui tient Redis, le stockage objet, les
     deux adresses des propriétaires, le secret du client de l'amorçage et le compte de service ;
@@ -843,40 +862,47 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     vidage, et aucune exemption de la règle S603 de Ruff n'est faite. Test : une inscription
     faite pendant la sauvegarde est présente une fois exactement après la restauration, et
     l'inscription de la sauvegarde l'est aussi.
-- **Ce qu'en fait US-0440/L2** (#604, #907) :
-  - **la demande** (`startRestore`, sous `platform_restore`) nomme la sauvegarde et sa date :
-    une date qui n'est pas la sienne est une confirmation qui ne la nomme pas, 400
+- **Ce qu'en font US-0440/L2 et US-0440/L2b** (#604, #907 ; coupe du 2026-10-13, #985) : L2
+  livre la logique de la restauration, indépendante de son exécutant et éprouvée sans lui
+  contre PostgreSQL — ce qui est gardé et réinscrit, le remplacement, le refus d'une archive
+  plus récente, l'inscription de la restauration —, #907, le contrat (`getLiveness`,
+  `startRestore` et ses refus, `TASK_INTERRUPTED_BY_RESTORE`) et l'étape gardée de l'essai de
+  production ; L2b livre l'exécutant — `startRestore` servi, la maintenance, les sessions, la
+  reprise, le service de restauration et le dépôt par morceaux (#350) — qui appelle cette
+  logique :
+  - **la demande** (L2b ; `startRestore`, sous `platform_restore`) nomme la sauvegarde et sa
+    date : une date qui n'est pas la sienne est une confirmation qui ne la nomme pas, 400
     `CONFIRMATION_REQUIRED` ; une restauration déjà en file ou en cours, 409
     `STATE_FORBIDS_OPERATION`. La tâche porte la clé de l'archive : elle ne lit pas la base
     qu'elle remplace pour la trouver ;
-  - **la maintenance** est tenue hors de la base que la restauration recrée, dans Redis, sous
-    une clé de la plateforme qui nomme la tâche de restauration ; tant qu'elle y est, toute
+  - **la maintenance** (L2b) est tenue hors de la base que la restauration recrée, dans Redis,
+    sous une clé de la plateforme qui nomme la tâche de restauration ; tant qu'elle y est, toute
     opération répond 503 `COMPONENT_UNAVAILABLE` (`component` à `database`), sauf `getLiveness`,
     publique, qui dit `maintenance` puis `ok` à sa levée : c'est elle que le front interroge
     pour savoir quand la restauration a abouti (#604), `getBackgroundTask` n'étant pas servie
     pendant la maintenance ;
-  - **les sessions** : le service de restauration ferme toutes celles du fournisseur
+  - **les sessions** (L2b) : le service de restauration ferme toutes celles du fournisseur
     d'identité, puis celles du front, que Redis garde ; il les ferme de nouveau à la fin, avec
     les caches ;
-  - **ce qui est gardé** — le journal, la table `backup`, la ligne de la tâche de restauration
-    et celles des tâches des sauvegardes gardées, et les droits du rôle du service — est copié,
-    une fois, dans un schéma à part de la même base, que le remplacement ne touche pas : une
-    restauration reprise après une interruption le retrouve, et ne relit pas une base déjà à
-    demi remplacée ; il est réinscrit, puis le schéma supprimé, dans une seule transaction.
-    Une ligne gardée dont le demandeur manque à la base restaurée y revient sans demandeur. Ce
-    qui est gardé et réinscrit est l'affaire du module des sauvegardes, que le service appelle
-    autour du remplacement, et que les tests éprouvent sans lui ;
-  - **le remplacement** : le schéma de la base de Waterfall est supprimé et recréé, puis le
+  - **ce qui est gardé** (L2) — le journal, la table `backup`, la ligne de la tâche de
+    restauration et celles des tâches des sauvegardes gardées, et les droits du rôle du service
+    — est copié, une fois, dans un schéma à part de la même base, que le remplacement ne touche
+    pas : une restauration reprise après une interruption le retrouve, et ne relit pas une base
+    déjà à demi remplacée ; il est réinscrit, puis le schéma supprimé, dans une seule
+    transaction. Une ligne gardée dont le demandeur manque à la base restaurée y revient sans
+    demandeur. Ce qui est gardé et réinscrit est l'affaire du module des sauvegardes, que le
+    service appelle autour du remplacement, et que les tests éprouvent sans lui ;
+  - **le remplacement** (L2) : le schéma de la base de Waterfall est supprimé et recréé, puis le
     vidage restauré en une transaction, sans propriétaire ni droits de la source
     (`pg_restore --no-owner --no-privileges`) — le rôle du service d'une autre installation
     porte un autre nom ; les droits gardés sont rendus au rôle du service de l'installation
     après les migrations. La base du fournisseur d'identité est remplacée de même, sous son
     propriétaire ;
-  - **la reprise** : le service de restauration qui reprend une restauration interrompue lit la
-    tâche dans la clé de la maintenance quand la base n'en a pas, ou plus, la ligne ; pendant la
-    maintenance, le worker n'exécute aucune tâche ;
-  - **un vidage dont la base cesse de répondre** (#907) échoue en composant injoignable, 503,
-    et non en erreur interne : à l'échec de `pg_dump`, la tâche rejoint la base, et ne dit
+  - **la reprise** (L2b) : le service de restauration qui reprend une restauration interrompue
+    lit la tâche dans la clé de la maintenance quand la base n'en a pas, ou plus, la ligne ;
+    pendant la maintenance, le worker n'exécute aucune tâche ;
+  - **un vidage dont la base cesse de répondre** (L2, #907) échoue en composant injoignable,
+    503, et non en erreur interne : à l'échec de `pg_dump`, la tâche rejoint la base, et ne dit
     l'erreur interne que si elle répond.
 - **Reproduire une installation** est une restauration entière : la seconde installation
   devient une copie de la première, comptes et fournisseur d'identité compris (WF-ADM-0160,
@@ -961,8 +987,14 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
   (`deploy/compose/compose.service.yaml` : API, worker, planificateur, PostgreSQL, Redis,
   Keycloak, son frontal TLS et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
   (`prism proxy --errors`) entre le front et l'API — une réponse hors schéma fait échouer le
-  parcours —, et joue le projet Playwright `service` (`frontend/e2e/service/`) avec
-  `WATERFALL_API_ADDRESS`. La chaîne le joue au palier complet.
+  parcours —, et joue les parcours de `frontend/e2e/service/` avec `WATERFALL_API_ADDRESS`, en
+  quatre projets Playwright : `installation`, l'amorçage, dont le lien ne sert qu'une fois ;
+  `service`, les parcours, sur plusieurs workers ; `realm`, ceux qui changent un réglage du
+  royaume, sur un seul worker, une fois les autres finis ; `contract` enfin, le démontage de
+  `installation`, qui garde toute la course : il relit le journal du mandataire depuis le début de
+  la course, pris dans ce journal même, une fois le mandataire tu, et prouve sa fenêtre — une ligne
+  lue au moins, et le refus de l'adresse hors du contrat quand son parcours a joué. La chaîne le
+  joue au palier complet.
 - **Le relevé des exigences** : `tools/paths.toml` déclare la famille `end-to-end-service`
   (`frontend/e2e/service/**`), que `wftools.coverage` ne range pas parmi les familles du front
   (`FRONT_FAMILIES`) : une exigence qu'elle cite est prouvée par le back.
@@ -1043,11 +1075,15 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 | La lecture des comptes rétablit dans Keycloak l'identité des comptes locaux, Waterfall faisant foi (WF-ADM-0050 ; auteur, 2026-10-12, #919) | consigner le désaccord sans le réconcilier : un report resté sans réponse laisserait Keycloak et Waterfall en désaccord sans fin |
 | Le compte rendu de la lecture ne garde d'un compte de Waterfall que son identifiant, le nom relu à la consultation (auteur, 2026-10-12, #920) | effacer l'adresse des comptes rendus à l'anonymisation : une donnée personnelle copiée qu'il faudrait poursuivre partout où elle a été écrite |
 | Les tables des comptes et des rôles reçoivent les colonnes d'audit, triables et filtrables, par US-0360/L4 (auteur, 2026-10-12, #936) | les laisser sans elles : l'écart de WF-ADM-0060-A, qui promet un compte désactivé nommé dans ces colonnes, ne se constaterait nulle part en EP-03 |
+
+| Le lien « mot de passe oublié » refusé une fois le mot de passe fixé après son émission, par une pièce de l'extension (auteur, 2026-10-11, #852) | accepter le risque, borné à l'heure du lien et à un redémarrage dans cette heure : un lien employé redevient valable pour quiconque lit le courriel |
+
 | Garder le garde de Keycloak contre les connexions concurrentes d'un même compte : une seconde connexion soumise pendant que la première est vérifiée est refusée une fois, sans échec compté (#972) | `allowConcurrentRequests` : une rafale obtient bien plus que dix essais, contre WF-ADM-0140 |
 | Un service de restauration à part, de l'image `waterfall`, sur le modèle de l'amorçage, seul à tenir les adresses des propriétaires des deux bases ; le worker ordinaire reste au rôle de sauvegarde (auteur, 2026-10-12, #953). Il reçoit la restauration par un flux Redis que seul il lit, démarré en permanence avec la plateforme (coordinateur, 2026-10-12) | rendre au worker l'adresse du propriétaire, pour la seule restauration : défait #895, le worker qui exécute toute tâche pourrait réécrire les bases ou couper le déclencheur du journal ; un service lancé à la main (`run --rm`) : une restauration se demande à l'écran (WF-ADM-0160) ; le flux du worker, filtré par genre : dans un groupe, une entrée va à un seul consommateur, qui devrait la laisser à l'autre, et deux groupes recevraient chacun toutes les entrées ; la table `background_task` relue par le service : la restauration remplace la base où elle vit, et PBS-3.2 met la file dans Redis |
 | Le service de restauration vide les caches de Keycloak (`realm`, `user`, `keys`) par le client de l'amorçage, qui porte `manage-realm` (auteur, 2026-10-12, #954) | `manage-realm` au compte du service : droit trop large, l'API et le worker pourraient modifier le royaume ; un point d'entrée de l'extension Java qui ne vide que les caches, sous un rôle dédié : une pièce Java de plus à écrire, tester et tenir, pour ce que l'API d'administration fait déjà |
 | La restauration force la réapplication du royaume de la cible : comptes et mots de passe de la sauvegarde, configuration du royaume de la cible (auteur, 2026-10-12, #955) | la notice seule, EP-13 l'outillant : la reproduction d'une installation, promise par US-0440, serait inopérante, la cible ne parlant plus à Keycloak avant un geste de l'exploitant ; ne restaurer que la base de Waterfall : contraire à WF-ADM-0160, qui recrée les deux bases, et les comptes du fournisseur ne seraient pas reproduits |
 | Les parcours contre le service se jouent sur le Compose de développement ; le Compose de production est prouvé par l'essai `production-trial` (auteur, 2026-10-12, #948) | jouer les parcours sur le Compose de production : un nom public, des certificats et un amorçage par parcours, pour des images construites des mêmes Dockerfiles que la plateforme de service |
+
 
 ### Issues à ouvrir avec la conception
 
@@ -1305,7 +1341,7 @@ rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 
 ## US-0370 — Lecture des comptes du fournisseur, worker et file
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ADM-0070-A`, `WF-ARC-0090-A`
 - **opérations** : `startIdentitySync`, `getLatestIdentitySync`, `getBackgroundTask`,
   `listBackgroundTasks`
@@ -1337,7 +1373,9 @@ qu'elle se soit connectée.
 
 **Notes de réalisation.** Le worker et la file servent ensuite le marquage (EP-04), les
 imports (EP-06, EP-07, EP-09) et la sauvegarde planifiée (EP-13) : le genre d'une tâche est déjà une
-énumération du contrat (`BackgroundTaskRef.kind`).
+énumération du contrat (`BackgroundTaskRef.kind`). L'écran des comptes demande la lecture et en
+présente le compte rendu, que le suivi des tâches de la coquille annonce à son aboutissement
+(US-0370/L2b). Ses lots L1, L2 et L2b fusionnés, l'US est finie.
 
 ## US-0380 — Rôles d'habilitation et catalogue des permissions
 
@@ -1517,7 +1555,7 @@ relit.
 
 ## US-0420 — Amorçage d'une installation neuve
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : aucune — l'amorçage est une commande d'installation, non une opération de
   l'API

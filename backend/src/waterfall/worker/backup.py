@@ -49,6 +49,8 @@ COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 DATABASES = ("waterfall", "identity_provider")
 # The connection service a dump reaches its database by.
 SERVICE = "backup"
+# The event a database the backup cannot reach writes to the journal of the service.
+UNREACHED = "backup.database_unreached"
 
 logger = get_logger(__name__)
 
@@ -137,19 +139,23 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
     return Dumped(name, path, path.stat().st_size, digest(path))
 
 
-def connect(address: str) -> psycopg.Connection[TupleRow]:
-    """Connect to a database to back it up; unavailable if the connection fails (503)."""
+def connect(address: str, unreached: str = UNREACHED) -> psycopg.Connection[TupleRow]:
+    """Connect to a database; unavailable if the connection fails (503).
+
+    ``unreached`` names the event the journal of the service gets then: the backup's, or the
+    restoration's.
+    """
     conninfo = engine_url(address).set(drivername="postgresql")
     try:
         return psycopg.connect(conninfo.render_as_string(hide_password=False))
     except psycopg.OperationalError as error:
-        logger.warning("backup.database_unreached", error=type(error).__name__)
+        logger.warning(unreached, error=type(error).__name__)
         raise unavailable_database() from error
 
 
-def reached(address: str) -> None:
-    """Tell, before its dump, that a database answers; unavailable if it does not (503)."""
-    with connect(address) as connection:
+def reached(address: str, unreached: str = UNREACHED) -> None:
+    """Tell that a database answers; unavailable if it does not (503), ``unreached`` journaled."""
+    with connect(address, unreached) as connection:
         connection.execute("SELECT 1")
 
 

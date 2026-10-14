@@ -531,6 +531,7 @@ def write_report(of_task: object, **overrides: object) -> Executable:
     [
         ({"created": -1}, "ck_identity_sync_report_counts_not_negative"),
         ({"deactivated": -1}, "ck_identity_sync_report_counts_not_negative"),
+        ({"restored": -1}, "ck_identity_sync_report_restored_not_negative"),
         ({"skipped": {"email": "a@b"}}, "ck_identity_sync_report_skipped_array"),
         ({"removed": "a@b"}, "ck_identity_sync_report_removed_array"),
         ({"task_id": uuid4()}, "fk_identity_sync_report_task_id_background_task"),

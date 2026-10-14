@@ -197,4 +197,4 @@ autres en-têtes de Caddy, que la console de Keycloak et le royaume `master` ré
 connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`,
 il demande à l'API une sauvegarde puis sa restauration, qu'il suit par la sonde de vie jusqu'à
 `ok` — une étape laissée de côté tant que la plateforme ne démarre pas le service de la
-restauration (US-0440) ; puis il retire la plateforme et ses volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.
+restauration (US-0440/L2b) ; puis il retire la plateforme et ses volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.

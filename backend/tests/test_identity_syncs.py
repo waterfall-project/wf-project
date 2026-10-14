@@ -3,12 +3,15 @@
 """The reading of the accounts asked for through the API, and its report (US-0370).
 
 A reading is deposited for the worker and the request answers at once (WF-ARC-0090); its report is
-read apart. Keycloak is the realm of test, which the reading never reaches here: what the worker
-reads of Keycloak is tried against the platform (``test_keycloak_identity_sync.py``). What the
-reading does once committed — the removal of the orphans — is tried here against PostgreSQL: it
-runs once its transaction is committed, never if what registered it is rolled back.
+read apart; it names an account of Waterfall as it is shown when read, an account anonymised since
+by no name (#920). Keycloak is the realm of test, which the reading never reaches here: what the
+worker reads of Keycloak is tried against the platform (``test_keycloak_identity_sync.py``). What
+the reading does once committed — the removal of the orphans, the identities given back to the
+provider (#919) — is tried here against PostgreSQL: it runs once its transaction is committed,
+never if what registered it is rolled back, and asks the provider with no connection held.
 """
 
+import json
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
@@ -19,21 +22,28 @@ from access_rows import account, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-from support import ContractClient, bearer, nowhere
+from support import ContractClient, Logs, Watching, bearer, nowhere
 from task_handlers import deposit, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.users.interface import SyncReport, record_report
-from waterfall.platform.database import Database
-from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.core.users.interface import (
+    Skipped,
+    SkippedAccount,
+    SkippedPerson,
+    SyncReport,
+    record_report,
+)
+from waterfall.core.users.tables import IdentitySyncReport, UserAccount
+from waterfall.platform.database import Database, utc_now
+from waterfall.platform.keycloak import Keycloak, unavailable
+from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, ProviderAccount
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import BackgroundTask, Task
-from waterfall.worker.identity_sync import after_commit
+from waterfall.worker.identity_sync import IdentitySync, after_commit, write_accounts
 from waterfall.worker.runner import Worker
 
 SYNCS = "/api/v1/identity-syncs"
@@ -71,13 +81,17 @@ def person(database: Database, realm: TestRealm) -> Person:
     return make
 
 
-def reported(database: Database, queue: TaskQueue, finished_at: datetime, created: int) -> UUID:
+HUGO = SkippedPerson("kc-hugo", "Garnier", "Hugo", None, "EMAIL_MISSING")
+
+
+def reported(
+    database: Database, queue: TaskQueue, finished_at: datetime, created: int, kept: UUID
+) -> UUID:
     """Keep the report of a reading the platform scheduled, ended at ``finished_at``."""
     task_id = deposit(database, queue)
     with database.transaction() as session:
-        report = SyncReport(
-            task_id, finished_at, created, 1, 0, [("d@x.org", "LAST_ADMINISTRATOR")], ["o@x.org"]
-        )
+        skipped: list[Skipped] = [SkippedAccount(kept, "LAST_ADMINISTRATOR"), HUGO]
+        report = SyncReport(task_id, finished_at, created, 1, 0, 2, skipped, ["o@x.org"])
         record_report(session, report)
     return task_id
 
@@ -124,13 +138,18 @@ def test_a_reading_is_asked_for_under_the_permission_to_change_the_accounts(
     )
 
 
+@pytest.mark.requirement("WF-ADM-0070-A")
 def test_the_report_read_is_that_of_the_latest_reading_ended(
     api: ContractClient, database: Database, queue: TaskQueue, person: Person
 ) -> None:
+    # « Le dernier compte administrateur, retiré de l'annuaire, reste actif et la synchronisation
+    # le signale. » : named as it is shown today; a person without an address, as the provider
+    # holds her (#918).
     _, headers = person("users.read")
     assert api.get(LATEST, headers=headers).status_code == 404
-    reported(database, queue, NIGHT - timedelta(days=1), 3)
-    latest = reported(database, queue, NIGHT, 2)
+    kept = account(database, "Bernard", "Dominique", origin="directory")
+    reported(database, queue, NIGHT - timedelta(days=1), 3, kept)
+    latest = reported(database, queue, NIGHT, 2, kept)
     response = api.get(LATEST, headers=headers)
     assert response.status_code == 200, response.text
     assert response.json() == {
@@ -139,12 +158,169 @@ def test_the_report_read_is_that_of_the_latest_reading_ended(
         "created": 2,
         "updated": 1,
         "deactivated": 0,
-        "skipped": [{"email": "d@x.org", "code": "LAST_ADMINISTRATOR"}],
+        "restored": 2,
+        "skipped": [
+            {
+                "kind": "account",
+                "user_id": str(kept),
+                "subject": None,
+                "last_name": "Bernard",
+                "first_name": "Dominique",
+                "email": "dominique.bernard@example.org",
+                "code": "LAST_ADMINISTRATOR",
+            },
+            {
+                "kind": "person",
+                "user_id": None,
+                "subject": "kc-hugo",
+                "last_name": "Garnier",
+                "first_name": "Hugo",
+                "email": None,
+                "code": "EMAIL_MISSING",
+            },
+        ],
         "removed": ["o@x.org"],
     }
     # The accounts not consulted, the report does not exist for the caller.
     _, outside = person("users.write")
     assert api.get(LATEST, headers=outside).status_code == 404
+
+
+def anonymized(database: Database, user_id: UUID) -> None:
+    """Anonymise an account around the service: no name, no address, deactivated."""
+    with database.transaction() as session:
+        session.execute(
+            update(UserAccount)
+            .where(UserAccount.id == user_id)
+            .values(
+                last_name=None,
+                first_name=None,
+                email=None,
+                state="deactivated",
+                anonymized_at=utc_now(),
+            )
+        )
+
+
+@pytest.mark.requirement("WF-ADM-0060-A")
+def test_an_account_the_report_names_and_anonymized_since_is_named_by_no_name(
+    api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # « Après anonymisation d'un compte désactivé, aucun écran — journal d'audit compris — ne
+    # présente plus son nom ni son adresse » : the report kept none of them (#920).
+    _, headers = person("users.read")
+    kept = account(database, "Bernard", "Dominique", origin="directory")
+    task_id = reported(database, queue, NIGHT, 0, kept)
+    with database.transaction() as session:
+        stored = session.scalars(
+            select(IdentitySyncReport.skipped).where(IdentitySyncReport.task_id == task_id)
+        ).one()
+        assert stored[0] == {"kind": "account", "user_id": str(kept), "code": "LAST_ADMINISTRATOR"}
+    anonymized(database, kept)
+    response = api.get(LATEST, headers=headers)
+    assert response.status_code == 200, response.text
+    (named, _) = response.json()["skipped"]
+    assert named == {
+        "kind": "account",
+        "user_id": str(kept),
+        "subject": None,
+        "last_name": None,
+        "first_name": None,
+        "email": None,
+        "code": "LAST_ADMINISTRATOR",
+    }
+    assert "dominique" not in response.text.lower()
+
+
+@pytest.mark.requirement("WF-ADM-0060-A")
+def test_the_account_that_bears_the_address_of_a_person_left_is_named_as_it_reads_now(
+    api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # « Après anonymisation d'un compte désactivé, aucun écran — journal d'audit compris — ne
+    # présente plus son nom ni son adresse » : a person relayed at the address of an account is
+    # left without one (#707), and the report keeps her subject and that account's identifier, not
+    # the address, which is the account's (#920).
+    _, headers = person("users.read")
+    holder = account(database, "Bernard", "Dominique", origin="directory")
+    address = "dominique.bernard@example.org"
+    relayed = ProviderAccount(
+        "kc-7f3a",
+        "Roux",
+        "Camille",
+        "Dominique.Bernard@example.org",
+        is_federated=False,
+        is_relayed=True,
+    )
+    task_id = deposit(database, queue)
+    with database.transaction() as session:
+        written = write_accounts(session, [relayed], [], NIGHT)
+        record_report(session, SyncReport(task_id, NIGHT, 0, 0, 0, 0, written.skipped, []))
+    entry = {"kind": "person", "user_id": str(holder), "subject": "kc-7f3a"}
+    unnamed = {"last_name": None, "first_name": None, "email": None, "code": "ALREADY_EXISTS"}
+    named = {"last_name": "Bernard", "first_name": "Dominique", "email": address}
+    response = api.get(LATEST, headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["skipped"] == [{**entry, **unnamed, **named}]
+    anonymized(database, holder)
+    response = api.get(LATEST, headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["skipped"] == [{**entry, **unnamed}]
+    assert address not in response.text.lower()
+    with database.transaction() as session:
+        stored = session.scalars(
+            select(IdentitySyncReport.skipped).where(IdentitySyncReport.task_id == task_id)
+        ).one()
+    assert stored == [{**entry, **unnamed}]
+    kept = json.dumps(stored).lower()
+    assert all(personal not in kept for personal in (address, "roux", "camille"))
+
+
+class Restoring(Watching):
+    """The administration client, noting each identity given back, with the connections lent.
+
+    The realm of test does not serve the administration API: the provider takes the identity
+    back here, but refuses it to ``kc-taken``, whose address it holds for another account, and
+    does not answer for ``kc-down``.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
+        """Watch the pool of ``database``; nothing is given back yet."""
+        super().__init__(keycloak, settings, database)
+        self.given: list[tuple[str, LocalIdentity]] = []
+
+    def change_identity(self, subject: str, identity: LocalIdentity) -> bool:
+        """Note the identity given back, then take it, refuse it, or fail to answer."""
+        self._note("change_identity")
+        if subject == "kc-down":
+            raise unavailable()
+        self.given.append((subject, identity))
+        return subject != "kc-taken"
+
+
+def test_the_identity_of_a_local_account_is_given_back_as_it_is_read_with_no_connection_held(
+    database: Database, keycloak: Keycloak, realm_settings: ServiceSettings, logs: Logs
+) -> None:
+    # Read again, in a transaction of its own, and given out of any (#669, #919): a change committed
+    # since the reading is what the provider gets. One anonymised since is never given back
+    # (WF-ADM-0060), and one the provider refuses or does not take is logged, the others given.
+    for subject, last_name in (("kc-down", "Vidal"), ("kc-taken", "Roux"), ("kc-lucas", "Petit")):
+        account(database, last_name, "Lou", idp_subject=subject)
+    alix = account(database, "Moreau", "Alix", idp_subject="kc-alix")
+    anonymized(database, alix)
+    restoring = Restoring(keycloak, realm_settings, database)
+    IdentitySync(restoring).restore(database.engine, ["kc-down", "kc-alix", "kc-taken", "kc-lucas"])
+    assert restoring.given == [
+        ("kc-taken", LocalIdentity("Roux", "Lou", "lou.roux@example.org")),
+        ("kc-lucas", LocalIdentity("Petit", "Lou", "lou.petit@example.org")),
+    ]
+    assert restoring.held == [("change_identity", 0)] * 3
+    assert [record["subject"] for record in logs.named("identity_sync.identity_not_restored")] == [
+        "kc-down",
+        "kc-taken",
+    ]
+    assert [record["subject"] for record in logs.named("identity_sync.identity_restored")] == [
+        "kc-lucas"
+    ]
 
 
 class UndoneError(Exception):

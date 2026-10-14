@@ -64,14 +64,23 @@ def kept(table: Table) -> Table:
 
 
 def is_kept(connection: Connection) -> bool:
-    """Tell whether a restoration taken up has already kept what it writes back."""
-    return inspect(connection).has_schema(SCHEMA)
+    """Tell whether a restoration taken up has already kept all it writes back.
+
+    The rights of the role of the service are kept last (``keep_grants``): their table is the mark
+    that the rest is kept too.
+    """
+    return inspect(connection).has_table(GRANTS.name, schema=SCHEMA)
 
 
 def begin_keeping(connection: Connection) -> None:
-    """Make the schema of what is kept, and keep the rights of the role of the service."""
+    """Make the schema of what is kept, anew: what a keeping cut short left in it is dropped."""
+    connection.execute(DropSchema(SCHEMA, cascade=True, if_exists=True))
     connection.execute(CreateSchema(SCHEMA))
-    connection.execute(text(f"CREATE TABLE {SCHEMA}.service_grant AS {SERVICE_GRANTS}"))
+
+
+def keep_grants(connection: Connection) -> None:
+    """Keep the rights of the role of the service, last: the mark that all is kept."""
+    connection.execute(text(f"CREATE TABLE {SCHEMA}.{GRANTS.name} AS {SERVICE_GRANTS}"))
 
 
 def keep(

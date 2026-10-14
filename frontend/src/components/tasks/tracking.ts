@@ -49,6 +49,30 @@ const ENDING: Readonly<Record<TaskStatus, EndKind | undefined>> = {
   failed: "failed",
 };
 
+/**
+ * Whether the result of a task is a file to download (`getBackgroundTaskResult`), for every kind of
+ * the contract: an export's alone. Another gives its result to read where its object shows — the
+ * report of a reading of the accounts on the screen of the accounts, a backup in their list —, and
+ * the entry offers to read the screen anew, never to download it. A kind the contract adds fails the
+ * type check until it is classified here.
+ */
+const FILE_RESULT: Readonly<Record<TaskKind, boolean>> = {
+  import_analysis: false,
+  import_apply: false,
+  revision_mark: false,
+  structure_merge: false,
+  risk_occurrence: false,
+  export: true,
+  backup: false,
+  restore: false,
+  identity_sync: false,
+};
+
+/** Whether a task has succeeded with a file to download: the entry offers it. */
+export function givesFile(task: BackgroundTask): boolean {
+  return task.status === "succeeded" && task.result_url != null && FILE_RESULT[task.kind];
+}
+
 /** The command that started a task, which starts the same treatment again when run. */
 export type TaskCommand = () => Promise<Outcome<BackgroundTask>>;
 

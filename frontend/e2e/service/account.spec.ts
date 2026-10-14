@@ -7,11 +7,11 @@
  * holder; and the settings of the tables of the administration — hidden columns, widths, filters —,
  * kept by the account and found again at the reopening, each account seeing its own.
  *
- * The accounts are local accounts an administrator creates, each signing in for the first time
- * here; the role that lets them read the tables is written in the database once their first request
- * has made their account (`grantRole`), and withdrawn at the end.
+ * The accounts are local accounts the administrator of the installation creates, each signing in
+ * for the first time here; the role that lets them read the tables is given by the administrator
+ * (`Administrator.give`), and withdrawn at the end.
  */
-import { type Browser, expect, type Page, test } from "@playwright/test";
+import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
 import { openMenu, setExpanded } from "../hydration";
@@ -20,9 +20,9 @@ import {
   type Administrator,
   accountAdministrator,
   giveIdentifiers,
-  grantRole,
   gridPreferences,
   localAccount,
+  type LocalPerson,
   type Person,
   REALM,
   withdrawRoles,
@@ -46,19 +46,20 @@ const ORANGE =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO4UyECAAOcAWlG+c6hAAAAAElFTkSuQmCC";
 
 let administrator: Administrator;
-let first: Person;
-let second: Person;
+let calls: APIRequestContext;
+let first: LocalPerson;
+let second: LocalPerson;
 
 // The administrator of the file, and two local accounts, each with its password set by its link.
 test.beforeAll(async ({ browser, playwright }) => {
-  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   administrator = await accountAdministrator(browser, calls);
   first = await localAccount(browser, administrator);
   second = await localAccount(browser, administrator);
 });
 
-test.afterAll(() => {
-  administrator.done();
+test.afterAll(async () => {
+  await calls.dispose();
 });
 
 test.beforeEach(async ({ request }) => {
@@ -235,7 +236,7 @@ test("the hidden columns and the widths of the table of the accounts are found a
       const page = await workstation(browser, "fr-FR");
       pages.push(page);
       await signInAt(page, person, ACCOUNT);
-      grantRole(person.email, READER, ["users.read", "access_roles.read"]);
+      await administrator.give(person.id, READER, ["users.read", "access_roles.read"]);
     }
     const [mine, hers] = pages as [Page, Page];
 
@@ -289,7 +290,7 @@ test("the filters kept for the table of the roles are found again by an address 
   const page = await workstation(browser, "fr-FR");
   try {
     await signInAt(page, first, ACCOUNT);
-    grantRole(first.email, READER, ["users.read", "access_roles.read"]);
+    await administrator.give(first.id, READER, ["users.read", "access_roles.read"]);
     // The filters shown are kept by the account.
     await page.goto(KEPT_ROLES);
     await expect
