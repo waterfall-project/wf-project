@@ -13,12 +13,12 @@
  * Pure, and neither server nor client: the page reads, the filters write.
  */
 import type { operations } from "@/api/generated/schema";
-import { type Bounds, boundNames } from "@/components/grid/filters";
+import { type Bounds, boundNames, bounded } from "@/components/grid/filters";
 import { keptReading } from "@/components/grid/kept-address";
 import { asked, CONTRACT_ADDRESS, type GridQuery } from "@/components/grid/query";
 import { listReads } from "@/components/reference/address";
 
-import { AUDIT_FILTERS, type AuditFilters, auditQuery } from "./audit-address";
+import { AUDIT_FILTERS, type AuditFilters, auditNarrowed, auditQuery } from "./audit-address";
 
 /** The parameter of the address the kind of the roles goes by, as the contract names it. */
 export const PREDEFINED = "is_predefined";
@@ -70,4 +70,23 @@ export function rolesQuery<Sort extends NonNullable<RolesQuery["sort_by"]>>(filt
     ...(holders.max === undefined ? {} : { holder_count_max: Number(holders.max) }),
     ...auditQuery(audit),
   };
+}
+
+/**
+ * Whether the address narrows the list of the roles — its search, its kind, the bounds of its
+ * holders or its audit columns —: an empty list then says nothing of the installation, and the
+ * authors offered are read from the list unfiltered.
+ */
+export function rolesNarrowed(filters: {
+  readonly query: { readonly search: string | undefined };
+  readonly predefined: boolean | undefined;
+  readonly holders: Bounds;
+  readonly audit: AuditFilters;
+}): boolean {
+  return (
+    filters.query.search !== undefined ||
+    filters.predefined !== undefined ||
+    bounded(filters.holders) ||
+    auditNarrowed(filters.audit)
+  );
 }

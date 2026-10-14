@@ -325,6 +325,67 @@ describe("the accounts", () => {
     expect(page).toMatch(/<input[^>]*aria-invalid="true"/);
   });
 
+  it("say any refusal of the list in its place, even one that names no period, the filters kept, never an empty list", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /users": {
+        problem: {
+          status: 422,
+          code: "VALIDATION_FAILED",
+          fields: [{ pointer: "/query/search", code: "VALUE_REQUIRED" }],
+        },
+      },
+    };
+    const page = rendered(await UsersPage(searched({ search: "x" })));
+    expect(page).not.toContain('aria-label="Comptes utilisateurs" role="grid"');
+    expect(text(page)).toContain(text(CATALOGUES.fr.reference.boundsRefused));
+    expect(text(page)).toContain("Créé par Tous les auteurs");
+    expect(text(page)).not.toContain("0 comptes");
+    expect(text(page)).not.toContain(text(CATALOGUES.fr.admin.users.none));
+  });
+
+  it("name an account chosen as an author that the page does not offer by its names, deactivated since, never by its identifier [WF-ADM-0060-A]", async () => {
+    const vidal = "01926f3a-7c00-7000-8000-000000000307";
+    server.answers = {
+      ...server.answers,
+      "GET /users": {
+        problem: example("users_period_inverted") as Problem & { status: 422 },
+      },
+      "GET /users/{user_id}": "user_deactivated",
+    };
+    const page = rendered(
+      await UsersPage(
+        searched({
+          created_at_from: "2026-03-01T00:00:00Z",
+          created_at_to: "2026-01-01T00:00:00Z",
+          created_by_user_id: vidal,
+        }),
+      ),
+    );
+    expect(text(page)).toContain("Créé par Tous les auteurs Un compte La plateforme Noé Vidal");
+    expect(text(page)).not.toContain(vidal);
+    expect(
+      server.clients
+        .flatMap((client) => client.calls)
+        .filter((call) => call.route === "GET /users/{user_id}")
+        .map((call) => call.path),
+    ).toEqual([`/users/${vidal}`]);
+  });
+
+  it("read no account chosen as an author that the page offers, and leave one the API does not find chosen by its identifier", async () => {
+    const camille = "01926f3a-7c00-7000-8000-000000000301";
+    const unknown = "01926f3a-7c00-7000-8000-000000000399";
+    server.answers = { ...server.answers, "GET /users/{user_id}": NOT_FOUND };
+    const page = text(
+      rendered(
+        await UsersPage(searched({ created_by_user_id: camille, updated_by_user_id: unknown })),
+      ),
+    );
+    expect(queriesOf("GET /users/{user_id}")).toHaveLength(1);
+    expect(page).toContain("Modifié par Tous les auteurs Un compte La plateforme Camille Martin");
+    expect(page).toContain(unknown);
+  });
+
   it("present an anonymised account under the neutral label, nowhere by its name nor its address, its reactivation and its anonymisation unavailable [WF-ADM-0060-A]", async () => {
     server.answers = { ...server.answers, "GET /users": "users_anonymized" };
     const page = rendered(await UsersPage(searched({ is_active: "false" })));
@@ -550,6 +611,10 @@ describe("the access roles", () => {
     expect(rows(deactivated, "Rôles d’habilitation").slice(1, 2)).toEqual([
       "Chef de projet Prédéfini 1 La plateforme Alix Moreau",
     ]);
+    // The author offered to the filter of its column by the same name.
+    expect(text(deactivated)).toContain(
+      "Modifié par Tous les auteurs Un compte La plateforme Alix Moreau",
+    );
     server.answers = {
       ...server.answers,
       "GET /access-roles": "access_roles_updated_by_anonymized",
@@ -560,6 +625,18 @@ describe("the access roles", () => {
     ]);
     expect(anonymized).toContain("data-anonymized");
     expect(text(anonymized)).not.toMatch(/Alix|Moreau/);
+  });
+
+  it("name an account chosen as an author that no role cites by the neutral label once anonymised, never by a name it no longer has [WF-ADM-0060-A]", async () => {
+    const alix = "01926f3a-7c00-7000-8000-000000000303";
+    server.answers = { ...server.answers, "GET /users/{user_id}": "user_anonymized" };
+    const page = text(rendered(await AccessRolesPage(searched({ updated_by_user_id: alix }))));
+    // The authors of the roles offered, then the account chosen that none of them is.
+    expect(page).toContain(
+      "Modifié par Tous les auteurs Un compte La plateforme Camille Martin Compte anonymisé",
+    );
+    expect(page).not.toMatch(/Alix|Moreau/);
+    expect(page).not.toContain(alix);
   });
 
   it("ask the server for the periods and the authors of the audit columns the address names, the authors offered those of the roles unfiltered [WF-IHM-0130-A]", async () => {

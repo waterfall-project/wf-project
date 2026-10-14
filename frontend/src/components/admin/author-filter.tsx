@@ -9,7 +9,8 @@
  * them; the authors of the page of the accounts shown — and, there, those a search finds among the
  * accounts (`findAccounts`, `listUsers` searched), the contract having no list of the authors. A
  * choice only changes the address, under the names of the contract — the account, or the kind of
- * author —, back to the first page (`ChoiceFilter`).
+ * author —, back to the first page (`ChoiceFilter`). An account chosen that the page does not offer
+ * is named as the page read it (`named`), never by its identifier.
  *
  * Every prop is data — the texts are given translated —, never a function: a server component
  * hands it over (défaut n° 12 de `typescript.md`).
@@ -21,7 +22,6 @@ import { useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useRef, useState, useTransition } from "react";
 
 import { findAccounts } from "@/api/actions/users";
-import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { rejected } from "@/components/commands/rejection";
@@ -32,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import type { Author, AuthorChoice, AuthorNames } from "./audit-address";
+import type { Author, AuthorChoice, AuthorNames, NamedAuthor } from "./audit-address";
 
 /** What the filter of an author shows. */
 export interface AuthorFilterProps {
@@ -44,6 +44,11 @@ export interface AuthorFilterProps {
   readonly chosen: Author;
   /** The accounts offered, in the order the page gives them. */
   readonly offered: readonly AuthorChoice[];
+  /**
+   * The accounts the address chooses that the page does not offer, by the names it read of them: the
+   * one chosen is named so, never by its identifier (WF-ADM-0060).
+   */
+  readonly named: readonly NamedAuthor[];
   /** Whether other accounts may be found by a search of the accounts. */
   readonly searchable: boolean;
   /** The parameter of the page of a list the server pages, which a choice takes back to its first. */
@@ -56,6 +61,7 @@ export function AuthorFilter({
   names,
   chosen,
   offered,
+  named,
   searchable,
   page,
 }: AuthorFilterProps) {
@@ -70,6 +76,8 @@ export function AuthorFilter({
       .filter((account) => !offeredIds.has(account.id))
       .map((account) => ({ value: account.id, text: account.name })),
   ];
+  // The account chosen, if the page does not offer it: by its names, as everywhere it is cited.
+  const unoffered = named.find((account) => account.user_id === chosen.user);
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
       <ChoiceFilter
@@ -82,6 +90,7 @@ export function AuthorFilter({
           ...accounts,
         ]}
         chosen={chosen.user ?? chosen.kind}
+        unknown={unoffered === undefined ? undefined : naming.person(unoffered)}
         page={page}
       />
       {searchable ? (
@@ -99,7 +108,7 @@ export function AuthorFilter({
 }
 
 /** The accounts a search finds, by their identifiers and their names. */
-type Found = readonly Pick<components["schemas"]["User"], "user_id" | "first_name" | "last_name">[];
+type Found = readonly NamedAuthor[];
 
 /**
  * The search of the accounts that may be chosen as the author of a column: a text sent to the server,
@@ -146,7 +155,7 @@ function AuthorSearch({
     });
   };
   return (
-    <form onSubmit={submit} className="flex flex-wrap items-center gap-2 text-sm">
+    <form aria-label={t("find", { column })} onSubmit={submit} className="flex flex-wrap items-center gap-2 text-sm">
       <Label htmlFor={field} className="sr-only">
         {t("find", { column })}
       </Label>

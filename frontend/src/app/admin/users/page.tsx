@@ -58,6 +58,7 @@ import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
+import { readChosenAuthors } from "../chosen-authors";
 
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -146,7 +147,10 @@ export default async function UsersPage({
   // A period refused leaves the list unread, the side said at its field.
   const users =
     read.kind === "read" ? read.data : { items: [], meta: { limit: 0, offset: 0, total: 0 } };
-  const refused = read.kind === "read" ? undefined : refusedAudit(read.problem.fields ?? []);
+  // Any refusal stands for the list, a period said at its field: never an empty list.
+  const refused = read.kind === "read" ? undefined : (refusedAudit(read.problem.fields ?? []) ?? {});
+  const authors = authorsOf(users.items);
+  const named = await readChosenAuthors(audit, authors);
   return (
     <Screen density={FUNCTION_DENSITY.users} fill>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
@@ -164,8 +168,8 @@ export default async function UsersPage({
           roles={roles}
           accessRoles={accessRoles}
           active={active}
-          audit={{ ...audit, refused }}
-          authors={authorsOf(users.items)}
+          audit={{ ...audit, refused, named }}
+          authors={authors}
           editable={editable}
         />
       </PendingAddress>

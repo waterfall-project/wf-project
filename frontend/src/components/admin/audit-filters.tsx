@@ -5,7 +5,8 @@
  * (WF-IHM-0130, #936), as the address asks them (`audit-address.ts`): for the creation and for the
  * last modification, a period of local days, both included — sent as the start of the first and the
  * start of the day after the last (`PeriodFilter`, `day`), a side the API refused said at its field —,
- * and an author (`AuthorFilter`).
+ * and an author (`AuthorFilter`), an account chosen that the page does not offer named as the page
+ * read it.
  *
  * Neither server nor client: the pages render it with their filters.
  */
@@ -48,6 +49,7 @@ export function AuditFilterBar({
         names={AUTHORS[column]}
         chosen={filters.authors[column]}
         offered={authors}
+        named={filters.named ?? []}
         searchable={searchable}
         page={page}
       />

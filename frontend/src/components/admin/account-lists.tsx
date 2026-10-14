@@ -25,7 +25,7 @@ import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
-import { type Bounds, bounded, type RefusedBounds, refusedSides } from "@/components/grid/filters";
+import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid/filters";
 import { ListPages } from "@/components/grid/list-pages";
 import { OFFSET, type GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -49,7 +49,7 @@ import type { AccessRoleSort, RoleChoice, User, UserPage, UserSort } from "./adm
 import { type AuditFilters, auditNarrowed, type AuthorChoice } from "./audit-address";
 import { AuditFilterBar } from "./audit-filters";
 import { PermissionCell, RoleLabel } from "./permission-matrix";
-import { HOLDER_COUNT, PREDEFINED } from "./role-address";
+import { HOLDER_COUNT, PREDEFINED, rolesNarrowed } from "./role-address";
 import { CreateRole, RoleCommands } from "./role-commands";
 import {
   ACCESS_ROLES,
@@ -281,11 +281,7 @@ export function AccessRoleList({
   readonly editable: boolean;
 }) {
   const t = useTranslations("admin.accessRoles");
-  const narrowed =
-    query.search !== undefined ||
-    filters.predefined !== undefined ||
-    bounded(filters.holders) ||
-    auditNarrowed(filters.audit);
+  const narrowed = rolesNarrowed({ ...filters, query });
   let list: ReactNode;
   if (filters.refused !== undefined || filters.audit.refused !== undefined) {
     list = <BoundsRefused />;

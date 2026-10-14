@@ -8,8 +8,8 @@
  * `holder_count_min` and `holder_count_max`, the periods and the authors of the creation and of the
  * last modification of the roles — `created_at_from`, `updated_by_user_id`… —, a bound or a period
  * refused (422) leaving the grid unread, said at its field —, the authors offered those of the roles
- * unfiltered; the volumes of §4.6.2
- * count no roles, three of them predefined: the list holds in one page, which the contract does not
+ * unfiltered, an account chosen that none of them cites read by its names (`readChosenAuthors`);
+ * the volumes of §4.6.2 count no roles, three of them predefined: the list holds in one page, which the contract does not
  * page —; and the matrix of the permissions by function of the second level, as `listPermissions`
  * gives the catalogue, a column for each role the table retains, in its order (WF-ADM-0100). A
  * session that may modify the roles creates one in line, renames and deletes it in the table, and
@@ -34,7 +34,6 @@ import {
 } from "@/components/admin/admin-grids";
 import {
   type AuditFilters,
-  auditNarrowed,
   authorsOf,
   readAuditFilters,
   refusedAudit,
@@ -46,16 +45,11 @@ import {
   HOLDER_COUNT,
   PREDEFINED,
   ROLE_KEPT,
+  rolesNarrowed,
   rolesQuery,
 } from "@/components/admin/role-address";
 import { platformOffer } from "@/components/commands/offer";
-import {
-  type Bounds,
-  bounded,
-  readBoolean,
-  readBounds,
-  refusedBounds,
-} from "@/components/grid/filters";
+import { type Bounds, readBoolean, readBounds, refusedBounds } from "@/components/grid/filters";
 import { restoredAddress } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
@@ -65,6 +59,7 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
+import { readChosenAuthors } from "../chosen-authors";
 
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -98,11 +93,7 @@ async function readRoles(filters: {
   readonly audit: AuditFilters;
 }) {
   const client = serverClient();
-  const narrowed =
-    filters.query.search !== undefined ||
-    filters.predefined !== undefined ||
-    bounded(filters.holders) ||
-    auditNarrowed(filters.audit);
+  const narrowed = rolesNarrowed(filters);
   const [listed, permissions, unfiltered] = await Promise.all([
     readOrRefused("listAccessRoles", BOUNDS_REFUSED, () =>
       client.GET("/access-roles", { params: { query: rolesQuery(filters) } }),
@@ -153,13 +144,15 @@ export default async function AccessRolesPage({
     holders,
     audit,
   });
+  // An account chosen as an author that no role cites, read by its names.
+  const named = await readChosenAuthors(audit, authors);
   // What the list shows of its filters, a side of a bound or of a period the API refused said at its
   // field.
   const filters = {
     predefined,
     holders,
     refused: refused?.bounds,
-    audit: { ...audit, refused: refused?.periods },
+    audit: { ...audit, refused: refused?.periods, named },
     authors,
   };
   const editable = platformOffer(session?.permissions, "access_roles") !== undefined;

@@ -154,10 +154,10 @@ describe("the filter of a table on the author of an audit column", () => {
   it("finds the accounts to choose by a search of the server, deactivated ones included, and says how many it found", async () => {
     const client = serve({ "GET /users": "users_search" });
     render(accounts());
-    await userEvent.type(
-      screen.getByRole("searchbox", { name: "Chercher un compte pour « Modifié par »" }),
-      "ines roux{Enter}",
-    );
+    // Each search its own form, named by the column it finds an author for.
+    const search = screen.getByRole("form", { name: "Chercher un compte pour « Modifié par »" });
+    await userEvent.type(within(search).getByRole("searchbox", { name: "Chercher un compte pour « Modifié par »" }), "ines roux");
+    await userEvent.click(within(search).getByRole("button", { name: "Chercher" }));
     expect((await screen.findByText(/^1 compte trouvé/)).textContent).toBe(
       "1 compte trouvé, à choisir dans « Modifié par ».",
     );

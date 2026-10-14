@@ -76,7 +76,19 @@ export interface AuditFilters {
   readonly authors: Readonly<Record<Written, Author>>;
   /** The sides of each period the API refused (422); none when it read the list. */
   readonly refused?: Partial<Record<Written, PeriodRefusals>> | undefined;
+  /**
+   * The accounts the address chooses as authors that the page does not offer, read by their names
+   * (`getUser`) — a deactivated one still named, an anonymised one by the neutral label
+   * (WF-ADM-0060); one the API does not find stays chosen by its identifier.
+   */
+  readonly named?: readonly NamedAuthor[] | undefined;
 }
+
+/** An account by its identifier and its names: null once it is anonymised (WF-ADM-0060). */
+export type NamedAuthor = Pick<
+  components["schemas"]["User"],
+  "user_id" | "first_name" | "last_name"
+>;
 
 /** A kind of author the address names, if the contract knows it. */
 function kindOf(search: SearchParameters, name: string): ActorKind | undefined {
@@ -170,6 +182,21 @@ export function authorsOf(rows: readonly Audited[]): AuthorChoice[] {
     }
   }
   return [...found.values()];
+}
+
+/**
+ * The accounts the address chooses as authors of either column that are not among those offered,
+ * each once: the page reads them by their names (`NamedAuthor`).
+ */
+export function unofferedAuthors(
+  filters: AuditFilters,
+  offered: readonly AuthorChoice[],
+): string[] {
+  const offeredIds = new Set(offered.map((author) => author.id));
+  const chosen = WRITTEN.map((column) => filters.authors[column].user);
+  return [
+    ...new Set(chosen.filter((id): id is string => id !== undefined && !offeredIds.has(id))),
+  ];
 }
 
 /**
