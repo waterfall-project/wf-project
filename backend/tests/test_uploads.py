@@ -517,3 +517,14 @@ def test_the_head_of_a_file_that_is_no_archive_says_no_date() -> None:
     # and its completion is refused.
     assert archive_taken_at(b"not an archive") is None
     assert archive_taken_at(b"") is None
+
+
+def test_the_head_of_an_archive_whose_manifest_nests_too_deep_says_no_date() -> None:
+    # A manifest of 60 000 opening brackets is no manifest: no date, its completion refused.
+    member = tarfile.TarInfo(MANIFEST)
+    nested = b"[" * 60_000
+    member.size = len(nested)
+    written = io.BytesIO()
+    with tarfile.open(fileobj=written, mode="w") as tar:
+        tar.addfile(member, io.BytesIO(nested))
+    assert archive_taken_at(written.getvalue()) is None

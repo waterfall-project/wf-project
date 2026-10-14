@@ -101,7 +101,7 @@ def extracted(path: Path, folder: Path, taken_at: datetime | None = None) -> dic
                 if digest(copy) != database["sha256"] or not listed(copy):
                     raise UnprocessableError(FILE_FORMAT_UNREADABLE)
                 dumps[str(database["name"])] = copy
-    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError) as error:
+    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError, RecursionError) as error:
         raise UnprocessableError(FILE_FORMAT_UNREADABLE) from error
     return dumps
 

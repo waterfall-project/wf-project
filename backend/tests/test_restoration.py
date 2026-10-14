@@ -454,6 +454,18 @@ def test_an_archive_that_does_not_read_back_whole_is_refused_before_anything_cha
     assert (raised.value.code, dict(raised.value.params)) == ("FILE_FORMAT_UNREADABLE", {})
 
 
+def test_an_archive_whose_manifest_nests_too_deep_is_unreadable(tmp_path: Path) -> None:
+    # A manifest of 60 000 opening brackets is no manifest: refused before anything changes.
+    nested = tmp_path / MANIFEST
+    nested.write_bytes(b"[" * 60_000)
+    archive = tmp_path / "nested.tar"
+    with tarfile.open(archive, "w") as tar:
+        tar.add(nested, arcname=MANIFEST)
+    with pytest.raises(UnprocessableError) as raised:
+        extracted(archive, tmp_path)
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
+
+
 @pytest.mark.requirement("WF-OBS-0020-A")
 def test_a_dump_the_database_refuses_is_journaled_without_the_row_it_refused(
     database_url: str, tmp_path: Path

@@ -150,7 +150,7 @@ def archive_taken_at(head: bytes) -> datetime | None:
             if member is None:
                 return None
             taken_at = datetime.fromisoformat(str(json.loads(member.read())["taken_at"]))
-    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError):
+    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError, RecursionError):
         return None
     return taken_at if taken_at.tzinfo is not None else None
 
