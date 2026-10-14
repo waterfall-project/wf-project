@@ -446,9 +446,10 @@ class KeycloakAdmin:
         """Ask for the token of the client now, before what would refuse it later.
 
         The service of the restoration takes it before the database of Keycloak is replaced: that
-        of the source holds other secrets of the clients (#955).
+        of the source holds other secrets of the clients (#955). A new one, never one kept since an
+        attempt before, which the caches cleared since may refuse.
         """
-        self._service_token()
+        self._service_token(renew=True)
 
     def clear_caches(self) -> None:
         """Forget what Keycloak keeps in memory of its database: the accounts, the keys, the realm.

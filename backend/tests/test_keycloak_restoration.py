@@ -10,8 +10,10 @@ restoration, the realm applied again by ``keycloak-realm`` included, is held by
 ``make production-trial`` (#948).
 """
 
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
+from typing import Any
 
+import httpx2
 import pytest
 from pydantic import SecretStr
 from test_keycloak_authentication import (
@@ -67,3 +69,36 @@ def test_the_client_of_the_bootstrap_clears_the_caches_with_the_token_it_took_be
     installation = KeycloakAdmin(keycloak, served_settings(), client=(INSTALLATION_CLIENT, secret))
     installation.take_token()
     installation.clear_caches()
+
+
+class Recording(Keycloak):
+    """The client of the realm, which keeps the path of each request it sends."""
+
+    def __init__(self) -> None:
+        """Reach the realm of the platform, nothing asked yet."""
+        super().__init__(served_settings())
+        self.asked: list[str] = []
+
+    def send(
+        self, method: str, path: str, *, answered: Collection[int] = (), **options: Any
+    ) -> httpx2.Response:
+        """Keep the path, then send."""
+        self.asked.append(path)
+        return super().send(method, path, answered=answered, **options)
+
+
+def test_the_client_of_the_bootstrap_takes_a_new_token_each_time_it_is_asked_to() -> None:
+    # #955: the token the restoration takes before the database of Keycloak is replaced is a new
+    # one, never one kept since an attempt before, which the caches cleared since may refuse.
+    recording = Recording()
+    secret = SecretStr(required(INSTALLATION_CREDENTIAL_VARIABLE))
+    client = (INSTALLATION_CLIENT, secret)
+    try:
+        installation = KeycloakAdmin(recording, served_settings(), client=client)
+        installation.take_token()
+        installation.take_token()
+    finally:
+        recording.close()
+    assert [path for path in recording.asked if path.endswith("/token")] == [
+        f"{recording.protocol}/token"
+    ] * 2
