@@ -42,7 +42,12 @@
         schema: { type: boolean }
       - name: origins
         in: query
-        description: Restreint aux comptes de ces origines (WF-IHM-0130).
+        description: >-
+          Restreint aux comptes de ces origines (WF-IHM-0130). Le service vérifie la liste après
+          les schémas des autres paramètres : une valeur hors de `UserOrigin`, ou vide, est
+          refusée par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/origins`, une fois
+          ces schémas tenus ; tant qu'un autre paramètre est refusé par son schéma, elle n'est
+          pas nommée.
         schema:
           type: array
           items: { $ref: ../components/schemas/access.yaml#/UserOrigin }
@@ -59,7 +64,10 @@
           Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne
           des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par
           aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme
-          `org_node_id` un nœud inconnu.
+          `org_node_id` un nœud inconnu. Le service vérifie la liste comme `origins`, après les
+          schémas des autres paramètres : un identifiant mal formé, ou vide, est refusé par 422
+          `VALIDATION_FAILED`, `fields[]` désignant `/query/access_role_ids`, une fois ces
+          schémas tenus.
         schema:
           type: array
           items: { $ref: ../components/common.yaml#/Uuid }
@@ -590,7 +598,10 @@
         in: query
         description: >-
           Borne inférieure, incluse, du nombre de porteurs : restreint aux rôles portés par au
-          moins autant de comptes (WF-IHM-0130).
+          moins autant de comptes (WF-IHM-0130). Le service vérifie les deux bornes après les
+          schémas des autres paramètres : une borne qui n'est pas un entier est refusée avec
+          eux, mais une borne négative, ou inférieure à l'autre, n'est refusée, et nommée,
+          qu'une fois ces schémas tenus.
         schema: { type: integer, minimum: 0 }
       - name: holder_count_max
         in: query
