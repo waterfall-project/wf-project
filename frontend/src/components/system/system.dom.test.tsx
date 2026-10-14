@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, renderHook, screen, within } from "@testing-library/react";
+import { render, renderHook, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -28,7 +28,6 @@ import {
   SESSION_REVOKED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "./failure";
-import { RESTORATION_POLL } from "./maintenance";
 import { ScreenSkeleton } from "./screen-skeleton";
 import { SCREEN } from "@/components/shell/page-header";
 import { SystemFailure } from "./system-failure";
@@ -44,13 +43,6 @@ vi.mock("next/navigation", async (original) => ({
 
 // A whole document loaded: the sign-in page, which the test only records.
 vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
-
-// The probe that says the maintenance of a restoration: the platform serves, unless a test says not.
-const readLiveness = vi.hoisted(() =>
-  vi.fn<() => Promise<"ok" | "maintenance" | "unreachable">>(() => Promise.resolve("ok")),
-);
-
-vi.mock("@/api/actions/backups", () => ({ readLiveness }));
 
 /** Render in a language, as the shell hands its texts to a screen. */
 function inLanguage(children: ReactNode, locale: Locale = "fr") {
@@ -108,40 +100,12 @@ describe("the screen of failure", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Référence : 2894650101");
   });
 
-  it("leads a read the front held no session for to the sign-in page at once, without a click [WF-SEC-0020-A]", async () => {
+  it("leads a read the front held no session for to the sign-in page at once, without a click [WF-SEC-0020-A]", () => {
     inLanguage(<SystemFailure error={forwarded(SESSION_LOST_DIGEST)} retry={vi.fn()} />);
     const signIn = `/login?next=${encodeURIComponent("/portfolio/projects?as_of=2026-05-31")}`;
-    // Once the probe has said no restoration holds the platform.
-    await vi.waitFor(() => {
-      expect(loadDocument).toHaveBeenCalledExactlyOnceWith(signIn);
-    });
+    expect(loadDocument).toHaveBeenCalledExactlyOnceWith(signIn);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Session requise");
     expect(screen.getByRole("link", { name: "Se connecter" })).toHaveAttribute("href", signIn);
-  });
-
-  it("says a restoration under way in place of the failure, every user signed out, then the way to sign in again once it is done", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      readLiveness.mockResolvedValueOnce("maintenance").mockResolvedValueOnce("ok");
-      inLanguage(<SystemFailure error={forwarded(SESSION_LOST_DIGEST)} retry={vi.fn()} />);
-      const said = await screen.findByRole("status", {
-        name: "Restauration de la plateforme en cours",
-      });
-      expect(said).toHaveTextContent(
-        "La plateforme est en maintenance le temps de sa restauration : tous les utilisateurs ont été déconnectés",
-      );
-      // A lost session does not lead to the sign-in page while the platform answers nothing.
-      expect(loadDocument).not.toHaveBeenCalled();
-      expect(screen.queryByRole("alert")).toBeNull();
-      await act(() => vi.advanceTimersByTimeAsync(RESTORATION_POLL));
-      expect(said).toHaveTextContent("Restauration terminée");
-      expect(within(said).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
-        "href",
-        expect.stringContaining("/login?"),
-      );
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   it("offers a read the API refused for want of a session the sign-in page, and goes nowhere by itself", async () => {

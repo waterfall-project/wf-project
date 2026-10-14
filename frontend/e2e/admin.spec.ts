@@ -121,7 +121,7 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   ).toBeVisible();
 });
 
-test("asks a backup from its screen, which the tracker follows, and a restoration only once the date of its backup is confirmed [WF-ADM-0160-A]", async ({
+test("asks a backup from its screen, which the tracker follows, and offers a verified one for download through the front [WF-ADM-0150-A]", async ({
   page,
 }) => {
   await page.goto("/admin/backups");
@@ -136,17 +136,8 @@ test("asks a backup from its screen, which the tracker follows, and a restoratio
   }).toPass({ timeout: WORKING });
   await expect(entries.first()).toContainText("Sauvegarde");
 
-  // The restoration of a backup of the list asks a confirmation that names its date.
+  // A verified backup is downloaded through the route of the front, never from the API itself.
   const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
-  await newest.getByRole("button", { name: "Restaurer" }).click();
-  const dialog = page.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
-  await expect(dialog.getByRole("time").first()).toHaveAttribute(
-    "datetime",
-    "2026-06-03T01:00:00Z",
-  );
-  await expect(dialog).toContainText("La plateforme entière");
-  await dialog.getByRole("button", { name: "Annuler" }).click();
-  await expect(dialog).toHaveCount(0);
   await expect(newest.getByRole("link", { name: "Télécharger" })).toHaveAttribute(
     "href",
     "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content",

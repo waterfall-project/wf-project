@@ -13,11 +13,6 @@
  * realm signs it in again at each sign-in, and the shell offers it no menu of the account (#664).
  * In every case, the user may try again: the page is read anew from the server.
  *
- * A restoration of the platform closes every session, and the API answers nothing but its probe
- * until it is done (WF-ADM-0160, #604): the screen asks the probe first, and says the maintenance —
- * every user signed out until it ends — in place of the failure, then the way to sign in again once
- * it is done. The sign-in a lost session leads to waits for the answer of the probe.
- *
  * A client component, as every error boundary of Next is: it receives the error as Next
  * forwards it (`failure.ts`), and the texts of the provider around it.
  */
@@ -33,7 +28,6 @@ import { loadDocument } from "@/navigation/document";
 import { REALM_SIGN_OUT_ROUTE } from "@/navigation/login";
 
 import { type BoundaryError, FAILURE_TEXTS, type Failure, failureOf } from "./failure";
-import { RestorationNotice, useRestorationPhase } from "./maintenance";
 
 /** Lead to the sign-in page at once, the link shown until the document is loaded. */
 function LeadToSignIn() {
@@ -92,16 +86,8 @@ export interface SystemFailureProps {
 /** Render what went wrong, and the offer to try again. */
 export function SystemFailure({ error, retry }: SystemFailureProps) {
   const t = useTranslations("failure");
-  const phase = useRestorationPhase(undefined);
   const failure = failureOf(error);
   const reference = failure.kind === "unexpected" ? failure.reference : undefined;
-  if (phase.kind === "maintenance" || phase.kind === "done") {
-    return (
-      <main className="px-5 py-4">
-        <RestorationNotice done={phase.kind === "done"} />
-      </main>
-    );
-  }
   return (
     <main className="space-y-4 px-5 py-4">
       <div role="alert" className="space-y-2">
@@ -113,9 +99,7 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
         {reference === undefined ? null : (
           <p className="text-muted-foreground">{t("reference", { reference })}</p>
         )}
-        {failure.kind === "session_lost" && phase.kind === "asking" ? null : (
-          <FailureWayOut kind={failure.kind} />
-        )}
+        <FailureWayOut kind={failure.kind} />
       </div>
       <Button type="button" size="sm" onClick={retry}>
         <RotateCcw aria-hidden="true" />

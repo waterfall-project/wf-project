@@ -32,11 +32,11 @@
  * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
  * (`make e2e-service`), with the real authentication — no fixed token —, and the development
  * server listening on every interface, so that Keycloak reaches its back channel from its
- * container (#681). They play in five projects: the installation first, whose administrator the
+ * container (#681). They play in four projects: the installation first, whose administrator the
  * bootstrap made, and whose link serves once (US-0420); the paths, on several workers; those that
  * change a setting of the realm, which every account reads, one at a time once the others are done;
- * the restoration of the platform, which closes every session, after them, alone (US-0440); and last
- * the guard of the run, which reads the log of the proxy of the contract from the start of the run.
+ * and last the guard of the run, which reads the log of the proxy of the contract from the start of
+ * the run.
  */
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 
@@ -103,9 +103,6 @@ const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
 // The paths that change a setting of the realm for the time they run — a lifetime —, which every
 // account of the realm reads: tagged, played alone.
 const REALM_WIDE = /@realm-wide/;
-// The paths that replace the whole platform — a restoration —, which closes every session: tagged,
-// played alone, after all the others.
-const PLATFORM_WIDE = /@platform-wide/;
 // The moment the run started, which the workers inherit: the guard of the run reads the log of the
 // proxy from it (`e2e/service/contract.ts`). The last line the proxy wrote before the run, on the
 // clock of Docker that stamps its log, never the workstation's (`e2e/service/proxy-log.ts`). Kept
@@ -168,7 +165,7 @@ function serviceProjects(): Project[] {
       // of: they share no session, and play on several workers (#730).
       name: "service",
       testMatch: SERVICE_PATHS,
-      grepInvert: [REALM_WIDE, PLATFORM_WIDE],
+      grepInvert: REALM_WIDE,
       dependencies: ["installation"],
       use,
     },
@@ -179,15 +176,6 @@ function serviceProjects(): Project[] {
       testMatch: SERVICE_PATHS,
       grep: REALM_WIDE,
       dependencies: ["installation", "service"],
-      workers: 1,
-      use,
-    },
-    {
-      // A restoration replaces the whole platform and closes every session: it plays last, alone.
-      name: "restoration",
-      testMatch: SERVICE_PATHS,
-      grep: PLATFORM_WIDE,
-      dependencies: ["installation", "service", "realm"],
       workers: 1,
       use,
     },

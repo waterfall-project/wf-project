@@ -2100,7 +2100,7 @@ dans ses journaux) : sur une plateforme amorcée avec une autre, par `make servi
 donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
 (`make service-down WATERFALL_RESET_DATA=yes`).
 
-Les parcours se jouent en cinq projets Playwright. `installation` d'abord
+Les parcours se jouent en quatre projets Playwright. `installation` d'abord
 (`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
 passe de l'administrateur, se connecte, et constate son rôle, les trois rôles prédéfinis et le
 catalogue. `service` ensuite, sur plusieurs workers (#730) : chaque parcours se connecte avec un
@@ -2127,10 +2127,8 @@ autres workers attendent le verrou. Un écran de table de l'administration s'ouv
 qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
 les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
 `realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
-qui raccourcissent une durée du royaume, que lit chaque compte. `restoration` après eux, seul : les
-parcours marqués `@platform-wide`, qui restaurent la plateforme entière et en ferment toutes les
-sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage de `installation` : la garde
-du contrat de toute la course.
+qui raccourcissent une durée du royaume, que lit chaque compte. `contract` enfin, le démontage de
+`installation` : la garde du contrat de toute la course.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
 le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
