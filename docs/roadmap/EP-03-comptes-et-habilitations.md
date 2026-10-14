@@ -1025,8 +1025,12 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    étant relu à la consultation.
 13. **Colonnes d'audit des tables** (auteur, 2026-10-12, #936), portées par US-0360/L4 : sur
    `listUsers` et `listAccessRoles`, « Créé le », « Créé par », « Modifié le » et « Modifié
-   par » se trient (`sort_by`) et se filtrent (WF-IHM-0060, WF-IHM-0130) ; les exemples du
-   témoin comptent un compte ou un rôle écrit par Alix Moreau (303, désactivée).
+   par » se trient (`sort_by`) et se filtrent (WF-IHM-0060, WF-IHM-0130). L'exemple d'un
+   auteur désactivé, puis anonymisé, n'est pas le témoin, qui n'a aucune ligne de ces tables
+   écrite par Alix Moreau (303), mais deux variantes contrefactuelles déclarées où un rôle
+   est modifié par elle, avant puis après l'anonymisation de son compte
+   (`access_roles_updated_by_deactivated`, `access_roles_updated_by_anonymized` ; auteur,
+   2026-10-13, #995).
 
 ### Conformité au contrat et parcours contre le service
 

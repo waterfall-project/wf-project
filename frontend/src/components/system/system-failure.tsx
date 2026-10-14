@@ -27,18 +27,7 @@ import { Button } from "@/components/ui/button";
 import { loadDocument } from "@/navigation/document";
 import { REALM_SIGN_OUT_ROUTE } from "@/navigation/login";
 
-import { type BoundaryError, type Failure, failureOf } from "./failure";
-
-/** The texts of each failure, in the catalogue. */
-const TEXTS = {
-  unreachable: "unreachable",
-  session_lost: "signedOut",
-  signed_out: "signedOut",
-  revoked: "revoked",
-  deactivated: "deactivated",
-  not_admitted: "notAdmitted",
-  unexpected: "unexpected",
-} as const satisfies Record<Failure["kind"], string>;
+import { type BoundaryError, FAILURE_TEXTS, type Failure, failureOf } from "./failure";
 
 /** Lead to the sign-in page at once, the link shown until the document is loaded. */
 function LeadToSignIn() {
@@ -66,6 +55,28 @@ function RealmSignOut() {
   );
 }
 
+/**
+ * The way out a failure offers, if any: the sign-in page — at once for a request the front held no
+ * session for, by a link for a read the API refused for want of one, a sign-in that asks for the
+ * identifiers again for a session closed (#855) —, or the way out of the session of the realm for
+ * an account Waterfall does not admit (#664). The screen of failure and the screen "not found" offer
+ * the same (`src/app/not-found.tsx`).
+ */
+export function FailureWayOut({ kind }: { readonly kind: Failure["kind"] }) {
+  switch (kind) {
+    case "session_lost":
+      return <LeadToSignIn />;
+    case "signed_out":
+      return <SignIn />;
+    case "revoked":
+      return <SignIn reauthenticate />;
+    case "not_admitted":
+      return <RealmSignOut />;
+    default:
+      return null;
+  }
+}
+
 /** The error a boundary caught, and how to try the page again. */
 export interface SystemFailureProps {
   readonly error: BoundaryError;
@@ -82,16 +93,13 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
       <div role="alert" className="space-y-2">
         <h1 className="flex items-center gap-2 text-lg font-semibold">
           <CircleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
-          {t(`${TEXTS[failure.kind]}.title`)}
+          {t(`${FAILURE_TEXTS[failure.kind]}.title`)}
         </h1>
-        <p>{t(`${TEXTS[failure.kind]}.explanation`)}</p>
+        <p>{t(`${FAILURE_TEXTS[failure.kind]}.explanation`)}</p>
         {reference === undefined ? null : (
           <p className="text-muted-foreground">{t("reference", { reference })}</p>
         )}
-        {failure.kind === "session_lost" ? <LeadToSignIn /> : null}
-        {failure.kind === "signed_out" ? <SignIn /> : null}
-        {failure.kind === "revoked" ? <SignIn reauthenticate /> : null}
-        {failure.kind === "not_admitted" ? <RealmSignOut /> : null}
+        <FailureWayOut kind={failure.kind} />
       </div>
       <Button type="button" size="sm" onClick={retry}>
         <RotateCcw aria-hidden="true" />

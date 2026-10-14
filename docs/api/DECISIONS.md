@@ -3955,6 +3955,57 @@ manqué la fermeture ; s'il a fermé la session, c'est le rafraîchissement lui-
 minutes de jeton d'accès ; laisser `closeMySessions` accepter un jeton antérieur à la fermeture,
 qui ne sort de l'impasse que la personne qui sait se déconnecter.
 
+## Les colonnes d'audit des comptes et des rôles (EP-03/US-0360/L4, #936)
+
+Décision de l'auteur du 2026-10-12 (#936, option (a)) : les tables des comptes et des rôles
+d'habilitation présentent « Créé le », « Créé par », « Modifié le » et « Modifié par », que
+`User.audit` et `AccessRole.audit` portaient déjà, et chacune se trie et se filtre (WF-IHM-0060,
+WF-IHM-0130) ; l'écart de WF-ADM-0060-A — un compte désactivé reste nommé partout où il est cité
+— s'y constate. Les noms et les règles suivent ce que le contrat a déjà ; ce qui suit est de
+l'agent du lot, chacun avec sa raison.
+
+- **Le tri** : `sort_by` de `listUsers` et de `listAccessRoles` gagne `created_at`, `created_by`,
+  `updated_at` et `updated_by`, les noms des champs d'`Audit`. Un auteur se range comme celui du
+  journal (`sort_by=actor` de `listAuditEvents`, EP-02/L42d) : un compte par son nom affiché, le
+  prénom puis le nom, comparé dans l'ordre des points de code ; dans l'ordre croissant, un compte
+  anonymisé, qui n'a plus de nom, après les noms, et la plateforme, qui n'en a pas, après les
+  comptes. À égalité, l'ordre de la liste sans tri, puis l'identifiant (#741).
+- **Les périodes** : une par colonne de date, `created_at_from` et `created_at_to`,
+  `updated_at_from` et `updated_at_to`, deux instants, le début inclus, la fin exclue, comme la
+  période du journal et de la liste des projets. Une table qui a deux colonnes de dates ne peut
+  pas les filtrer toutes deux par `from` et `to` : chaque borne prend le nom de sa colonne, comme
+  `<colonne>_min` et `<colonne>_max` d'une colonne de nombres (EP-02/L42f), et le README étend la
+  règle des périodes à cette forme, le refus d'une période inversée désignant
+  `/query/<colonne>_to`. Exemples `users_period_inverted` et `access_roles_period_inverted`,
+  écrits à la main ; `test_mockuniverse.py` les tient à la règle, et les deux opérations à la
+  déclaration de leur 422.
+- **Les auteurs** : `created_by_user_id` et `created_by_kind`, `updated_by_user_id` et
+  `updated_by_kind`, sur le modèle de l'auteur du journal (`user_id`, `actor_kind`,
+  `AuditActorKind`) : un compte, désactivé ou anonymisé compris, ou la plateforme, un traitement
+  automatique (WF-DAT-0070). Les huit paramètres sont partagés (`parameters.yaml`), pour que les
+  deux tables ne divergent pas. Écartés : une recherche sur le nom de l'auteur, qui ne trouverait
+  pas un compte anonymisé, dont l'API ne rend aucun libellé ; une opération des auteurs à la
+  manière de `listAuditFacets`, que la conception d'EP-03 ne prévoit pas : la liste des rôles,
+  non paginée, nomme elle-même ses auteurs, et l'écran des comptes choisit un compte parmi les
+  comptes qu'il lit.
+- **Un auteur désactivé reste nommé, un anonymisé ne l'est plus** : `ActorRef.display_name` le dit
+  déjà (WF-ADM-0060), et les descriptions des deux opérations le rappellent. Le témoin n'a aucune
+  ligne de ces tables écrite par Alix Moreau, cheffe de projet sans permission sur les comptes ni
+  sur les rôles : la lui donner ferait changer les porteurs du témoin et le journal qui en est
+  engendré. Deux variantes contrefactuelles déclarées, écrites à la main comme celles du journal
+  (`audit_events_anonymized_actor`), la montrent : `access_roles_updated_by_deactivated`, une
+  installation où, habilitée alors, elle aurait modifié « Chef de projet » le 10 février 2026,
+  avant sa désactivation — « Modifié par » la nomme — ; `access_roles_updated_by_anonymized`, la
+  même après l'anonymisation de son compte, le nom de l'auteur nul. `test_mocklists.py` les tient
+  au rôle du témoin, dont seuls l'audit et le compteur diffèrent.
+- **Pas d'index** : au plus 500 comptes aux volumes du §4.6.2, et quelques rôles ; les deux tables
+  se trient en mémoire de PostgreSQL sans en avoir besoin.
+
+Exemples engendrés par `wftools.mocklists` du témoin : `users_created_by_platform`
+(`created_by_kind=platform`), `users_by_created_at` (`sort_by=created_at`) et
+`access_roles_by_updated_by` (`sort_by=updated_by`, la plateforme après Camille Martin). Le
+client est régénéré.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -51,13 +51,16 @@ describe("the session of a request", () => {
     expect(await requestSessionState()).toMatchObject({ kind: "open" });
   });
 
-  it.each(["ACCOUNT_DEACTIVATED", "ACCOUNT_NOT_ADMITTED"] as const)(
+  it.each([
+    ["ACCOUNT_DEACTIVATED", "deactivated"],
+    ["ACCOUNT_NOT_ADMITTED", "not_admitted"],
+  ] as const)(
     "tells an account refused (%s) from a session that is none: the screen says it, no sign-in leads back",
-    async (code) => {
+    async (code, kind) => {
       server.client = fakeClient({
         "GET /me": { problem: { code, status: 401 } },
       });
-      expect(await requestSessionState()).toEqual({ kind: "refused" });
+      expect(await requestSessionState()).toEqual({ kind });
       expect(await requestSession()).toBeUndefined();
       server.client = createApiClient({
         address: "http://proxy.invalid",
@@ -66,6 +69,17 @@ describe("the session of a request", () => {
       expect(await requestSessionState()).toEqual({ kind: "signed_out" });
     },
   );
+
+  it("tells a session closed, whose sign-in asks for the identifiers again, from one that expired (#855) [WF-SEC-0020-A]", async () => {
+    server.client = fakeClient({
+      "GET /me": { problem: { code: "SESSION_REVOKED", status: 401 } },
+    });
+    expect(await requestSessionState()).toEqual({ kind: "revoked" });
+    server.client = fakeClient({
+      "GET /me": { problem: { code: "SESSION_EXPIRED", status: 401 } },
+    });
+    expect(await requestSessionState()).toEqual({ kind: "signed_out" });
+  });
 
   it("lets a defect through rather than take it for an API out of reach", async () => {
     server.client = fakeClient({});
