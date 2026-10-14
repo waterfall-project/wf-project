@@ -31,7 +31,7 @@ from installations import (
 from openapi_core import OpenAPI
 from realm import TestRealm
 from sqlalchemy import Engine, insert, select
-from support import ContractClient
+from support import ContractClient, nowhere
 from task_handlers import Runs, deposit, held_run
 
 from waterfall.core.access_roles.tables import AccessRole
@@ -477,3 +477,19 @@ def test_the_realm_applied_again_is_asked_in_a_folder_and_its_answer_read(tmp_pa
     late = RealmRequests(tmp_path, patience=5, clock=lambda: next(ticks), sleep=lambda _: None)
     with pytest.raises(RealmNotAppliedError, match="did not answer"):
         late.apply("never")
+
+
+def test_a_worker_that_cannot_read_the_maintenance_after_its_lock_runs_the_task(
+    installation: Installation,
+) -> None:
+    # The maintenance read once the lock of a run is taken: a Redis out of reach says none, as for
+    # the API, and the task runs.
+    runs = Runs()
+    unreached, _ = nowhere()
+    task_id = written_task(installation.database, "identity_sync", "queued")
+    worker = Worker(installation.database, unreached, {"identity_sync": runs}, "worker-test")
+    try:
+        assert worker.run_task(task_id)
+    finally:
+        unreached.close()
+    assert runs == [task_id]

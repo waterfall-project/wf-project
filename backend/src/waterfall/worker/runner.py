@@ -23,7 +23,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic_core import to_jsonable_python
-from redis.exceptions import ResponseError
+from redis.exceptions import RedisError, ResponseError
 from sqlalchemy import ColumnElement, Integer, cast, func, select, update
 from sqlalchemy.orm import Session
 
@@ -179,6 +179,18 @@ class Worker:
             self.handle(entry)
         return bool(entries)
 
+    def halted(self) -> bool:
+        """Tell whether a maintenance began; not if Redis does not say, as the API reads it.
+
+        Read once the lock of a run is taken, for the run a maintenance began before; a Redis out
+        of reach then is no maintenance, as for the API (``waterfall.api.maintenance``).
+        """
+        try:
+            return self.restoring() is not None
+        except RedisError:
+            logger.warning("maintenance.unread", exc_info=True)
+            return False
+
     def restoring(self) -> Restoring | None:
         """Give the restoration that holds the platform in maintenance, if one does."""
         return self.maintenance.current()
@@ -204,7 +216,7 @@ class Worker:
         lock after it does leaves the task.
         """
         with self.database.transaction() as session:
-            if not lock_run(session, task_id) or self.restoring() is not None:
+            if not lock_run(session, task_id) or self.halted():
                 return False
             task = self.start(task_id)
             if task is None:
