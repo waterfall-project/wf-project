@@ -21,9 +21,10 @@ function answering(body: BodyInit, headers: Record<string, string>): void {
   });
 }
 
-/** Ask the front for the archive of a backup. */
-function download(backupId = BACKUP): Promise<Response> {
-  return GET(new Request(`http://front.invalid/admin/backups/${backupId}/content`), {
+/** Ask the front for the archive of a backup, from the screen given (`from`), or none. */
+function download(backupId = BACKUP, from?: string): Promise<Response> {
+  const query = from === undefined ? "" : `?${new URLSearchParams({ from }).toString()}`;
+  return GET(new Request(`http://front.invalid/admin/backups/${backupId}/content${query}`), {
     params: Promise.resolve({ backupId }),
   });
 }
@@ -66,6 +67,30 @@ describe("the archive of a backup", () => {
     expect(sentBackTo(await download())).toBe("/admin/backups?download_refusal=404%3ANOT_FOUND");
     server.client = unreachable();
     expect(sentBackTo(await download())).toBe("/admin/backups?download_refusal=unreachable");
+  });
+
+  it("sends the browser back to the page of the list it left from", async () => {
+    server.client = fakeClient({
+      "GET /backups/{backup_id}/content": { problem: { code: "NOT_FOUND", status: 404 } },
+    });
+    expect(sentBackTo(await download(BACKUP, "/admin/backups?offset=50"))).toBe(
+      "/admin/backups?offset=50&download_refusal=404%3ANOT_FOUND",
+    );
+  });
+
+  it("sends the browser back to the screen of the backups alone, from any other address", async () => {
+    server.client = fakeClient({
+      "GET /backups/{backup_id}/content": { problem: { code: "NOT_FOUND", status: 404 } },
+    });
+    for (const from of [
+      "https://elsewhere.invalid/admin/backups?offset=50",
+      "//elsewhere.invalid/admin/backups",
+      "/projects?offset=50",
+    ]) {
+      expect(sentBackTo(await download(BACKUP, from))).toBe(
+        "/admin/backups?download_refusal=404%3ANOT_FOUND",
+      );
+    }
   });
 
   it("sends the browser back with the unexpected error when the API names no file", async () => {

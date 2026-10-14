@@ -28,7 +28,7 @@ import {
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { backupContentHref } from "@/components/admin/backup-address";
+import { backupContentHref, backupsHref } from "@/components/admin/backup-address";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { ReferenceSection } from "@/components/reference/section";
@@ -266,12 +266,15 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
   );
 }
 
-/** The download of a verified backup, a link the route of its archive answers. */
-function DownloadBackup({ backupId }: { readonly backupId: string }) {
+/**
+ * The download of a verified backup, a link the route of its archive answers, which comes back to
+ * the page of the list given when it refuses.
+ */
+function DownloadBackup({ backupId, from }: { readonly backupId: string; readonly from: string }) {
   const t = useTranslations("admin.backups");
   return (
     <a
-      href={backupContentHref(backupId)}
+      href={backupContentHref(backupId, from)}
       className={buttonVariants({ variant: "outline", size: "sm" })}
     >
       <Download aria-hidden="true" />
@@ -334,7 +337,7 @@ export function BackupList({
               {downloadable ? (
                 <TableCell className={CELL}>
                   {backup.verification === "passed" ? (
-                    <DownloadBackup backupId={backup.backup_id} />
+                    <DownloadBackup backupId={backup.backup_id} from={backupsHref(page.offset)} />
                   ) : null}
                 </TableCell>
               ) : null}

@@ -7,16 +7,17 @@
  * as large as the platform —, as the attachment named by the base name the API gives, never sniffed
  * as another type, nor kept by a cache, as the result of a task is (`tasks/[taskId]/result`).
  *
- * The browser follows this route as a link from the screen of the backups, which it does not leave
- * when the archive comes. What the route cannot hand on — a refusal of the API, the API out of
- * reach, an answer that names no file — sends the browser back to that screen, with the refusal in
- * its address, which the screen tells. An address that names no backup asks the API nothing.
+ * The browser follows this route as a link from a page of the list of the backups (`from`), which
+ * it does not leave when the archive comes. What the route cannot hand on — a refusal of the API,
+ * the API out of reach, an answer that names no file — sends the browser back to that page, by a
+ * relative address on the screen of the backups alone, with the refusal in its address, which the
+ * screen tells. An address that names no backup asks the API nothing.
  */
 import { attachment, attachmentName } from "@/api/disposition";
 import { decode } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { BACKUPS_ROUTE, DOWNLOAD_REFUSAL } from "@/components/admin/backup-address";
-import { type ResultRefusal, saidRefusal } from "@/components/tasks/result-refusal";
+import { refusedDownloadHref } from "@/components/admin/backup-address";
+import { FROM, type ResultRefusal, saidRefusal } from "@/components/tasks/result-refusal";
 import { isIdentifier } from "@/navigation/context";
 
 /** An answer of the API that breaks the contract: the unexpected error of a bad gateway. */
@@ -29,24 +30,25 @@ const BAD_GATEWAY: ResultRefusal = {
 /** Neither the browser nor anything between keeps the archive, nor the way back of a refusal. */
 const NOT_KEPT = "private, no-store";
 
-/** The screen of the backups, saying why the archive was not handed on. */
-function back(refusal: ResultRefusal): Response {
-  const query = new URLSearchParams({ [DOWNLOAD_REFUSAL]: saidRefusal(refusal) });
-  return new Response(null, {
-    status: 303,
-    headers: { location: `${BACKUPS_ROUTE}?${query.toString()}`, "cache-control": NOT_KEPT },
-  });
-}
-
 /** Hand on the archive of a backup, read from the API, or send the browser back to say why not. */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ backupId: string }> },
 ): Promise<Response> {
   const { backupId } = await params;
   if (!isIdentifier(backupId)) {
     return new Response(null, { status: 404 });
   }
+  const from = new URL(request.url).searchParams.get(FROM);
+  // The page of the list left from, saying why the archive was not handed on.
+  const back = (refusal: ResultRefusal) =>
+    new Response(null, {
+      status: 303,
+      headers: {
+        location: refusedDownloadHref(from, saidRefusal(refusal)),
+        "cache-control": NOT_KEPT,
+      },
+    });
   let headers: Headers | undefined;
   const outcome = await decode(async () => {
     const answer = await serverClient().GET("/backups/{backup_id}/content", {

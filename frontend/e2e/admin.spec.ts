@@ -140,7 +140,7 @@ test("asks a backup from its screen, which the tracker follows, and offers a ver
   const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
   await expect(newest.getByRole("link", { name: "Télécharger" })).toHaveAttribute(
     "href",
-    "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content",
+    "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
   );
 });
 

@@ -879,7 +879,10 @@ describe("the backups", () => {
     expect(buttons(page)).toEqual(["Sauvegarder maintenant"]);
     // Downloaded by the route of the front that hands the archive on, never from the API itself.
     expect(links(page)).toHaveLength(8);
-    expect(links(page)[0]).toBe("/admin/backups/01926f3a-7c00-7000-8000-000000000907/content");
+    // It names the page of the list it leaves from, which a refusal comes back to.
+    expect(links(page)[0]).toBe(
+      "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
+    );
   });
 
   it("tell the refusal of a download the route carried back in the address", async () => {
