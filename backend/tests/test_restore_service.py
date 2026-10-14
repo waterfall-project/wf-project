@@ -137,7 +137,7 @@ def read_task(installation: Installation, task_id: str) -> BackgroundTask:
 
 @pytest.mark.requirement("WF-ADM-0160-A")
 def test_a_restoration_asked_of_the_api_is_run_by_its_service_alone_and_inscribed_last(
-    installation: Installation, take: Take, service: Service, queue: TaskQueue
+    installation: Installation, take: Take, service: Service, queue: TaskQueue, logs: Logs
 ) -> None:
     # « Une inscription faite après la sauvegarde est encore présente après la restauration, et la
     # dernière inscription est la restauration elle-même. » The task goes to the stream of the
@@ -172,6 +172,9 @@ def test_a_restoration_asked_of_the_api_is_run_by_its_service_alone_and_inscribe
     assert service.api.get("/api/v1/health").json() == {"status": "ok"}
     read = service.api.get(f"/api/v1/tasks/{task_id}", headers=service.headers)
     assert (read.status_code, read.json()["status"]) == (200, "succeeded")
+    lifted = logs.named("restore.maintenance_lifted")
+    correlation = read_task(installation, task_id).correlation_id
+    assert [(r.get("correlation_id"), r.get("task_id")) for r in lifted] == [(correlation, task_id)]
     with installation.database.transaction() as session:
         latest = AuditEntry.occurred_at.desc(), AuditEntry.id.desc()
         last = session.scalars(select(AuditEntry).order_by(*latest).limit(1)).one()
@@ -437,11 +440,16 @@ def test_a_restoration_whose_caches_were_cleared_their_answer_lost_gives_the_rea
 
 
 def test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_no_more(
-    installation: Installation, take: Take, service: Service, monkeypatch: pytest.MonkeyPatch
+    installation: Installation,
+    take: Take,
+    service: Service,
+    monkeypatch: pytest.MonkeyPatch,
+    logs: Logs,
 ) -> None:
     # The task succeeded and the restoration inscribed, committed, then the maintenance not lifted
     # — Redis out of reach, the process stopped —: the entry is left. Taken over, the restoration
-    # lifts the maintenance and runs nothing again; the journal names it once.
+    # lifts the maintenance and runs nothing again; the journal names it once. The lifting is
+    # logged under the correlation of the restoration, and of its task.
     lift = service.restorer.maintenance.lift
     lifts: list[int] = []
 
@@ -462,7 +470,12 @@ def test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_
     assert service.maintenance.current() is None
     assert len(lifts) == 2
     assert service.provider.steps.count("keep_for_restoration") == 1
-    assert read_task(installation, answer.json()["task_id"]).status == "succeeded"
+    task = read_task(installation, answer.json()["task_id"])
+    assert task.status == "succeeded"
+    lifted = logs.named("restore.maintenance_lifted")
+    assert [(r.get("correlation_id"), r.get("task_id")) for r in lifted] == [
+        (task.correlation_id, str(task.id))
+    ]
     with installation.database.transaction() as session:
         restored = session.scalars(select(AuditEntry).where(AuditEntry.action == "restore")).all()
     assert len(restored) == 1

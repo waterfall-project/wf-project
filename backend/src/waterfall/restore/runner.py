@@ -106,9 +106,14 @@ class Restorer(Worker):
                 logger.info("task.started", attempt=task.attempt)
                 self.execute(session, task)
         if self.succeeded:
-            self.maintenance.lift()
-            logger.info("restore.maintenance_lifted", task_id=str(task_id))
+            self.lift(task_id, task.correlation_id)
         return True
+
+    def lift(self, task_id: UUID, correlation_id: str) -> None:
+        """Lift the maintenance of a restoration, and say it under its correlation (WF-OBS-0020)."""
+        self.maintenance.lift()
+        with logging_context(correlation_id=correlation_id, task_id=str(task_id)):
+            logger.info("restore.maintenance_lifted")
 
     def start(self, task_id: UUID) -> Task | None:
         """Start one more attempt of a restoration: counted in the maintenance once it holds one.
@@ -119,8 +124,7 @@ class Restorer(Worker):
         restoring = self.restoring()
         if restoring is not None and restoring.task_id == task_id:
             if self.succeeded_already(task_id):
-                self.maintenance.lift()
-                logger.info("restore.maintenance_lifted", task_id=str(task_id))
+                self.lift(task_id, restoring.correlation_id)
                 return None
             return self.resume(restoring)
         return super().start(task_id)
