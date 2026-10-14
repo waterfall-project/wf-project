@@ -46,6 +46,8 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_backup_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

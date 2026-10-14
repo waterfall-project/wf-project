@@ -844,6 +844,7 @@ describe("the backups", () => {
   });
 
   it("present each backup with its date, its size and its verification [WF-ADM-0150-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_auditor" };
     const page = rendered(await BackupsPage(searched()));
     const backups = rows(page, "Sauvegardes");
     expect(backups).toHaveLength(9);
@@ -856,13 +857,45 @@ describe("the backups", () => {
     expect(text(page)).toContain("8 sauvegardes");
   });
 
-  it("present their schedule and retention, and start neither a backup nor a restoration", async () => {
+  it("present their schedule and retention, and to a session that may not modify them, no command", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_auditor" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
       "Planification État Active Fréquence Quotidienne Heure 01:00 UTC Rétention 7 sauvegardes conservées",
     );
+    expect(rows(page, "Sauvegardes")[0]).toBe(
+      "Date Taille Vérification Déclenchement Conservation",
+    );
     expect(buttons(page)).toEqual([]);
     expect(links(page)).toEqual([]);
+  });
+
+  it("offer an administrator to back up now, to download or restore each verified backup, and to deposit one of another installation [WF-ADM-0150-A]", async () => {
+    shown.path = "/admin/backups";
+    const page = rendered(await BackupsPage(searched()));
+    const backups = rows(page, "Sauvegardes");
+    expect(backups[0]).toBe("Date Taille Vérification Déclenchement Conservation Commandes");
+    expect(backups[1]).toBe("1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer");
+    expect(buttons(page)).toEqual([
+      "Sauvegarder maintenant",
+      ...Array<string>(8).fill("Restaurer"),
+      "Déposer",
+    ]);
+    // Downloaded by the route of the front that hands the archive on, never from the API itself.
+    expect(links(page)).toHaveLength(8);
+    expect(links(page)[0]).toBe("/admin/backups/01926f3a-7c00-7000-8000-000000000907/content");
+    expect(text(page)).toContain(
+      "Restaurer une sauvegarde d’une autre installation Déposez l’archive d’une sauvegarde",
+    );
+  });
+
+  it("tell the refusal of a download the route carried back in the address", async () => {
+    shown.path = "/admin/backups";
+    const page = rendered(await BackupsPage(searched({ download_refusal: "404:NOT_FOUND" })));
+    expect(page).toContain('role="alert"');
+    expect(text(page)).toContain(
+      "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès. Fermer l’avis",
+    );
   });
 
   it("present the external copy of the scheduled backups, the location by the name the installation declares", async () => {
@@ -884,7 +917,7 @@ describe("the backups", () => {
   it("say there is none yet, once", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_empty" };
     const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toMatch(/Sauvegardes Aucune sauvegarde\.$/);
+    expect(text(page)).toContain("Sauvegardes Aucune sauvegarde. Restaurer une sauvegarde");
     expect(page).not.toContain('<table aria-label="Sauvegardes"');
   });
 

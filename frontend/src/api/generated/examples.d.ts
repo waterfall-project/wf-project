@@ -242,6 +242,9 @@ export interface Examples {
   "POST /access-roles": {
     201: "access_role_created";
   };
+  "POST /backups": {
+    202: "task_backup_queued";
+  };
   "POST /chunked-uploads": {
     201: "chunked_upload";
   };

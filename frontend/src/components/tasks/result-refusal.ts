@@ -43,31 +43,26 @@ export function resultHref(taskId: string, from: string): string {
 export function refusedHref(from: string | null, taskId: string, refusal: ResultRefusal): string {
   const target = new URL(returnTarget(from), "http://front.invalid");
   target.searchParams.set(REFUSED_TASK, taskId);
-  target.searchParams.set(
-    REFUSAL,
-    refusal.kind === "unreachable"
-      ? "unreachable"
-      : `${String(refusal.problem.status)}:${refusal.problem.code}`,
-  );
+  target.searchParams.set(REFUSAL, saidRefusal(refusal));
   return `${target.pathname}${target.search}`;
 }
 
+/** A refusal as an address says it: `<status>:<code>`, or `unreachable`. */
+export function saidRefusal(refusal: ResultRefusal): string {
+  return refusal.kind === "unreachable"
+    ? "unreachable"
+    : `${String(refusal.problem.status)}:${refusal.problem.code}`;
+}
+
 /**
- * The refusal an address carries, and the task it is about; none when it carries none it can
- * stand for. A code the catalogue does not know is the unexpected error, as the decoder makes it.
+ * The refusal an address said (`saidRefusal`); none when it says none it can stand for. A code the
+ * catalogue does not know is the unexpected error, as the decoder makes it.
  */
-export function readRefusal(
-  search: URLSearchParams,
-): { readonly taskId: string; readonly refusal: ResultRefusal } | undefined {
-  const taskId = search.get(REFUSED_TASK);
-  const said = search.get(REFUSAL);
-  if (taskId === null || !/^[\w-]+$/.test(taskId) || said === null) {
-    return undefined;
-  }
+export function heardRefusal(said: string | null): ResultRefusal | undefined {
   if (said === "unreachable") {
-    return { taskId, refusal: { kind: "unreachable" } };
+    return { kind: "unreachable" };
   }
-  const [, status = "", code = ""] = /^(\d{3}):([A-Z_]+)$/.exec(said) ?? [];
+  const [, status = "", code = ""] = /^(\d{3}):([A-Z_]+)$/.exec(said ?? "") ?? [];
   if (status === "") {
     return undefined;
   }
@@ -76,14 +71,22 @@ export function readRefusal(
     code: known ? (code as ErrorCode) : "INTERNAL_ERROR",
     status: Number(status),
   } as const;
-  return {
-    taskId,
-    refusal: {
-      kind: kindOf(problem.status),
-      problem,
-      conflictingObjectId: null,
-    },
-  };
+  return { kind: kindOf(problem.status), problem, conflictingObjectId: null };
+}
+
+/**
+ * The refusal an address carries, and the task it is about; none when it carries none it can
+ * stand for.
+ */
+export function readRefusal(
+  search: URLSearchParams,
+): { readonly taskId: string; readonly refusal: ResultRefusal } | undefined {
+  const taskId = search.get(REFUSED_TASK);
+  const refusal = heardRefusal(search.get(REFUSAL));
+  if (taskId === null || !/^[\w-]+$/.test(taskId) || refusal === undefined) {
+    return undefined;
+  }
+  return { taskId, refusal };
 }
 
 /** The address without the refusal it carried. */
