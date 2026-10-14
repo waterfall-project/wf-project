@@ -155,7 +155,11 @@ function AuthorSearch({
     });
   };
   return (
-    <form aria-label={t("find", { column })} onSubmit={submit} className="flex flex-wrap items-center gap-2 text-sm">
+    <form
+      aria-label={t("find", { column })}
+      onSubmit={submit}
+      className="flex flex-wrap items-center gap-2 text-sm"
+    >
       <Label htmlFor={field} className="sr-only">
         {t("find", { column })}
       </Label>

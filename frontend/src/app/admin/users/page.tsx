@@ -148,7 +148,8 @@ export default async function UsersPage({
   const users =
     read.kind === "read" ? read.data : { items: [], meta: { limit: 0, offset: 0, total: 0 } };
   // Any refusal stands for the list, a period said at its field: never an empty list.
-  const refused = read.kind === "read" ? undefined : (refusedAudit(read.problem.fields ?? []) ?? {});
+  const refused =
+    read.kind === "read" ? undefined : (refusedAudit(read.problem.fields ?? []) ?? {});
   const authors = authorsOf(users.items);
   const named = await readChosenAuthors(audit, authors);
   return (

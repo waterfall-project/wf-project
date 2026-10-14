@@ -194,9 +194,7 @@ export function unofferedAuthors(
 ): string[] {
   const offeredIds = new Set(offered.map((author) => author.id));
   const chosen = WRITTEN.map((column) => filters.authors[column].user);
-  return [
-    ...new Set(chosen.filter((id): id is string => id !== undefined && !offeredIds.has(id))),
-  ];
+  return [...new Set(chosen.filter((id): id is string => id !== undefined && !offeredIds.has(id)))];
 }
 
 /**
