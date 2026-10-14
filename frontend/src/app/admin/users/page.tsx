@@ -4,10 +4,13 @@
  * The accounts of the installation (FBS-1.1, US-0250), outside any project: a page of the list the
  * server pages, deactivated accounts included — they stay listed, and may be reactivated
  * (WF-ADM-0060) —, each with its access roles and the node it is attached to, named by the server;
- * a dense grid (#514), sorted, searched — on the names and the address —, filtered by origin, by node
- * and by access role, and paged by the server, as the address asks under the names of the contract
- * (`sort_by`, `sort_order`, `search`, `origins`, `org_node_id`, `access_role_ids`, `is_active`,
- * `include_inactive`, `offset`), the nodes offered in the order of the tree, the roles as
+ * a dense grid (#514), sorted, searched — on the names and the address —, filtered by origin, by node,
+ * by access role, by state and on its audit columns, and paged by the server, as the address asks
+ * under the names of the contract (`sort_by`, `sort_order`, `search`, `origins`, `org_node_id`,
+ * `access_role_ids`, `is_active`, `include_inactive`, the periods and the authors of the creation and
+ * of the last modification — `created_at_from`, `updated_by_user_id`… —, `offset`), a period the API
+ * refuses (422) leaving the grid unread and said at its field, the authors offered those of the page,
+ * others found by a search of the accounts; the nodes offered in the order of the tree, the roles as
  * `listAccessRoles` gives them — none to a session that may not read them; the
  * deactivated accounts listed unless the address says `include_inactive=false`. Every figure as the
  * API gives it: the front sorts, filters and pages nothing. An address that says nothing of the
@@ -26,11 +29,12 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { readOrFail, readUnlessRefused } from "@/api/problem";
+import { readOrRefused, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
 import { IdentitySync } from "@/components/admin/identity-sync";
 import { USER_GRID_KEY, USER_SORTS } from "@/components/admin/admin-grids";
+import { authorsOf, readAuditFilters, refusedAudit } from "@/components/admin/audit-address";
 import {
   ACCESS_ROLES,
   ORG_NODE,
@@ -92,6 +96,9 @@ async function readRoles() {
   return (roles ?? []).map((role) => ({ id: role.access_role_id, label: role.label }));
 }
 
+/** The refusal of a period the server cannot apply — its end before its start (422). */
+const PERIOD_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
+
 /** Render the accounts of the page the address asks for. */
 export default async function UsersPage({
   searchParams,
@@ -112,6 +119,7 @@ export default async function UsersPage({
   const origins = readValues(search, ORIGINS, USER_ORIGINS);
   const orgNode = identifierOf(search, ORG_NODE);
   const active = readAccountState(search);
+  const audit = readAuditFilters(search);
   const editable = platformOffer(session?.permissions, "users") !== undefined;
   const offset = offsetOf(search.get(OFFSET_PARAMETER));
   // The roles the address names among those the server gives: an identifier of none is not asked.
@@ -121,11 +129,11 @@ export default async function UsersPage({
     ACCESS_ROLES,
     roles.map((role) => role.id),
   );
-  const [users, nodes, report] = await Promise.all([
-    readOrFail("listUsers", () =>
+  const [read, nodes, report] = await Promise.all([
+    readOrRefused("listUsers", PERIOD_REFUSED, () =>
       serverClient().GET("/users", {
         params: {
-          query: usersQuery({ query, origins, orgNode, accessRoles, active, offset }),
+          query: usersQuery({ query, origins, orgNode, accessRoles, active, audit, offset }),
         },
       }),
     ),
@@ -135,6 +143,10 @@ export default async function UsersPage({
       serverClient().GET("/identity-syncs/latest"),
     ),
   ]);
+  // A period refused leaves the list unread, the side said at its field.
+  const users =
+    read.kind === "read" ? read.data : { items: [], meta: { limit: 0, offset: 0, total: 0 } };
+  const refused = read.kind === "read" ? undefined : refusedAudit(read.problem.fields ?? []);
   return (
     <Screen density={FUNCTION_DENSITY.users} fill>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
@@ -152,6 +164,8 @@ export default async function UsersPage({
           roles={roles}
           accessRoles={accessRoles}
           active={active}
+          audit={{ ...audit, refused }}
+          authors={authorsOf(users.items)}
           editable={editable}
         />
       </PendingAddress>

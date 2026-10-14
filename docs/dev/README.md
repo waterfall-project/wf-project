@@ -967,7 +967,21 @@ niveau, ou d'une même nature hors fonction, groupées sous un en-tête de group
 (`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
 qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
 accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
-aucune commande. La recherche et les filtres de la table des rôles sont gardés avec les réglages de
+aucune commande. Les deux tables finissent sur leurs colonnes d'audit (#936, `audit-columns.tsx`) :
+« Créé le », « Créé par », « Modifié le », « Modifié par », chacune triée par le serveur sous le nom
+de son champ (`created_at`, `created_by`…), un instant en heure locale (`LocalTime`), un auteur par
+le nom que la ligne garde du compte — désactivé depuis, toujours nommé ; anonymisé, le libellé
+neutre — ou la plateforme par son propre libellé (`ActorCell`). Chacune se filtre (`audit-address.ts`,
+`audit-filters.tsx`) : une période de jours locaux par colonne de dates (`PeriodFilter` de forme
+`day`, sous `created_at_from` et `created_at_to`, `updated_at_from` et `updated_at_to`), une fin
+refusée dite à son champ, la liste non lue ; un auteur par colonne d'auteurs (`AuthorFilter`), un
+seul choix qui écrit un compte (`created_by_user_id`) ou une sorte d'auteur — un compte quel qu'il
+soit, ou la plateforme (`created_by_kind`) —, chaque choix levant le paramètre des autres (`name`
+d'un `Choice` de `ChoiceFilter`). Le contrat n'a pas de liste des auteurs : les rôles offrent ceux de
+la liste sans filtre, relue à part quand la grille la restreint ; les comptes, ceux de la page
+montrée, et ceux qu'une recherche des comptes trouve (`findAccounts`, `listUsers` cherché, vingt au
+plus). Ces filtres sont gardés avec les réglages des deux grilles, comme les autres. La recherche et
+les filtres de la table des rôles sont gardés avec les réglages de
 sa grille (`GridConfig.filters`, `kept-filters.ts`, sous `filters` de `GridPreferences`, tels que
 l'adresse les écrit) : enregistrés dès que la page en montre d'autres que ceux gardés — une lecture
 levée comprise —, et retrouvés seulement sur une adresse qui ne dit rien de la grille, ni tri, ni
@@ -989,7 +1003,8 @@ permissions dans l'ordre du catalogue, les autres cases du rôle attendant la r�
 matrice lisent une seule source du rôle répondu le plus récent par sa `lock_version`
 (`RoleAnswers`, `role-answers.tsx`) : un renommage puis une case cochée avant la relecture, ou
 l'inverse, part de la version répondue, et une relecture plus ancienne que la réponse ne la défait
-pas. Ce que fait une commande de la table se dit dans sa région, nommée « Commandes des rôles
+pas ; l'en-tête de la colonne d'un rôle renommé et le nom de chacune de ses cases prennent eux aussi
+le libellé répondu (`RoleLabel`, `PermissionCell`), sans attendre la relecture (#976). Ce que fait une commande de la table se dit dans sa région, nommée « Commandes des rôles
 d'habilitation » ; un refus, par le catalogue des codes d'erreur au-dessus de la table ou de la
 matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier administrateur
 (`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,

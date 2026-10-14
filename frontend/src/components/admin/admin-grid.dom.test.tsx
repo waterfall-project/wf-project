@@ -16,9 +16,11 @@ import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { refusedBounds } from "@/components/grid/filters";
+import { NO_AUDIT } from "@/test/accounts";
 import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
 
 import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
+import { type AuditFilters, authorsOf } from "./audit-address";
 import { ROLE_KEPT } from "./role-address";
 import {
   ACCESS_ROLE_SORTS,
@@ -86,6 +88,7 @@ function userList(
     orgNode?: string;
     accessRoles?: readonly string[];
     active?: boolean;
+    audit?: AuditFilters;
     editable?: boolean;
   } = {},
 ) {
@@ -101,6 +104,8 @@ function userList(
       roles={roleChoices}
       accessRoles={filters.accessRoles ?? []}
       active={filters.active}
+      audit={filters.audit ?? NO_AUDIT}
+      authors={authorsOf(shown.items)}
       editable={filters.editable ?? false}
     />,
   );
@@ -110,6 +115,8 @@ function userList(
 const NO_ROLE_FILTER: RoleFilters = {
   predefined: undefined,
   holders: { min: undefined, max: undefined },
+  audit: NO_AUDIT,
+  authors: authorsOf(roles),
 };
 
 /** The list of the access roles, as the address asks it. */
@@ -185,9 +192,15 @@ describe("the grid of the accounts", () => {
   it("presents each account with its origin, its roles and its node as the server names them, and says in its totals how many the server retained", () => {
     render(userList());
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    expect(within(grid).getByRole("row", { name: /^Moreau/ }).textContent).toBe(
-      "MoreauAlixalix.moreau@example.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé",
+    const moreau = within(grid).getByRole("row", { name: /^Moreau/ });
+    // Its audit columns after its state, each instant in the local time of the workstation.
+    expect(moreau.textContent).toMatch(
+      /^MoreauAlixalix\.moreau@example\.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
+    expect([...moreau.querySelectorAll("time")].map((time) => time.dateTime)).toEqual([
+      "2026-01-12T10:00:00Z",
+      "2026-03-02T16:20:00Z",
+    ]);
     expect(grid.querySelector("tfoot tr")?.textContent).toBe("7 comptes");
     // The header of every column is grey, as that of every table (#508).
     expect(grid.querySelector("thead th")?.className).toContain("bg-muted");
@@ -342,7 +355,7 @@ describe("an anonymised account", () => {
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
     const row = within(grid).getAllByRole("row")[1];
     expect(row).toHaveTextContent(
-      /^Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé$/,
+      /^Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
     expect(grid).not.toHaveTextContent(/Alix|Moreau|alix\.moreau/);
   });
@@ -690,7 +703,7 @@ describe("the grid of the access roles", () => {
       roleList(
         false,
         NO_QUERY,
-        { predefined: undefined, holders: { min: "2", max: "1" }, refused },
+        { ...NO_ROLE_FILTER, holders: { min: "2", max: "1" }, refused },
         [],
       ),
     );
