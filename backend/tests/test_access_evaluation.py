@@ -406,6 +406,9 @@ ASKED: dict[str, tuple[str, ...]] = {
     "startRestore": ("platform_restore",),
     "getBackup": ("backups.read",),
     "downloadBackup": ("backups.read", "backups.write"),
+    "openChunkedUpload": ("platform_restore",),
+    "uploadChunk": ("platform_restore",),
+    "completeChunkedUpload": ("platform_restore",),
 }
 
 

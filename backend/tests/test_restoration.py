@@ -186,7 +186,7 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
     # It does not prove « … et la dernière inscription est la restauration elle-même. » of
     # WF-ADM-0160-A, which US-0440/L2b proves with the service that runs the restoration (#985).
     with logging_context(correlation_id=REQUEST), installation.database.transaction() as session:
-        inscribe_restoration(session, taken.id, None, utc_now())
+        inscribe_restoration(session, AuditObject("backup", taken.id, None), None, utc_now())
     with installation.database.transaction() as session:
         latest = AuditEntry.occurred_at.desc(), AuditEntry.id.desc()
         last = session.scalars(select(AuditEntry).order_by(*latest).limit(1)).one()
@@ -452,6 +452,31 @@ def test_an_archive_that_does_not_read_back_whole_is_refused_before_anything_cha
     with pytest.raises(UnprocessableError) as raised:
         extracted(archive, tmp_path)
     assert (raised.value.code, dict(raised.value.params)) == ("FILE_FORMAT_UNREADABLE", {})
+
+
+def test_a_compressed_archive_is_unreadable(tmp_path: Path) -> None:
+    # A backup is an archive as the worker writes it, uncompressed: one compressed is not read,
+    # whatever its manifest says — here a newer version, which it would refuse otherwise.
+    manifest = tmp_path / MANIFEST
+    manifest.write_text(json.dumps({"application_version": "999.0.0", "databases": []}))
+    archive = tmp_path / "compressed.tar.gz"
+    with tarfile.open(archive, "w:gz") as tar:
+        tar.add(manifest, arcname=MANIFEST)
+    with pytest.raises(UnprocessableError) as raised:
+        extracted(archive, tmp_path)
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
+
+
+def test_an_archive_whose_manifest_nests_too_deep_is_unreadable(tmp_path: Path) -> None:
+    # A manifest of 60 000 opening brackets is no manifest: refused before anything changes.
+    nested = tmp_path / MANIFEST
+    nested.write_bytes(b"[" * 60_000)
+    archive = tmp_path / "nested.tar"
+    with tarfile.open(archive, "w") as tar:
+        tar.add(nested, arcname=MANIFEST)
+    with pytest.raises(UnprocessableError) as raised:
+        extracted(archive, tmp_path)
+    assert raised.value.code == "FILE_FORMAT_UNREADABLE"
 
 
 @pytest.mark.requirement("WF-OBS-0020-A")

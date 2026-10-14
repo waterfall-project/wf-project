@@ -46,7 +46,7 @@ from waterfall.core.users.interface import (
     inscribe_password_link,
     set_account_activation,
 )
-from waterfall.platform.audit import Act, AuditActor, AuditEntry
+from waterfall.platform.audit import Act, AuditActor, AuditEntry, AuditObject
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak_admin import ProviderAccount
 from waterfall.platform.logs import logging_context
@@ -157,7 +157,7 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
             add_backup(session, taken, Act(requested_by, TAKEN_AT))
     with logging_context(correlation_id=CORRELATION), database.transaction() as session:
         named = AuditActor(author, "Camille Martin")
-        inscribe_restoration(session, uuid4(), named, utc_now())
+        inscribe_restoration(session, AuditObject("backup", uuid4(), None), named, utc_now())
     return author
 
 

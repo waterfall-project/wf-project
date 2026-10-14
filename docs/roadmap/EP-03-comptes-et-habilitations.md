@@ -762,20 +762,27 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   passe pas par une action serveur, dont la taille de corps est bornée : il se fait par
   morceaux, chacun sous la borne, qui s'assemblent sur le stockage objet — une modification
   du contrat (ci-dessous). Réalisé par US-0440/L2c (#1011, coupé d'US-0440/L2b le
-  2026-10-14) : la table `file_upload` (`waterfall.platform.uploads`, sa migration) tient le
+  2026-10-14) : la table `file_upload` (`waterfall.platform.uploads`, migration 0017) tient le
   dépôt — usage, nom du fichier, taille, découpage, clé de l'objet, identifiant du dépôt en
   plusieurs parties du stockage tant qu'il est ouvert, auteur, échéance de vingt-quatre heures ;
   les morceaux reçus sont ceux que le stockage dit tenir. Le serveur découpe le fichier en
   morceaux de 5 à 10 Mio, au plus 10 000 ; chaque morceau est écrit sur le stockage avant la
   réponse, et l'achèvement les assemble, puis lit la date de la sauvegarde dans le manifeste, en
-  tête de l'archive, que `startRestore` confronte à la date confirmée ; une archive dont la tête
-  ne dit pas de date est refusée par la tâche, qui la lit entière, avant la maintenance. Le
-  stockage est appelé hors de toute transaction. Un dépôt expiré ou achevé ne reçoit plus rien ;
+  tête de l'archive, que `completeChunkedUpload` rend (`FileUpload.backup_taken_at`, #1006)
+  pour que l'écran la nomme, et que `startRestore` confronte à la date confirmée. Un dépôt dont
+  la date ne se lit pas n'est jamais restaurable : l'achèvement refuse une archive dont la tête
+  ne dit pas de date avec son fuseau — manifeste absent, qui n'est pas le premier membre ou que
+  les 64 premiers Kio ne tiennent pas — (422 `FILE_FORMAT_UNREADABLE`), le dépôt restant
+  inachevé ; `startRestore` refuse un dépôt sans date comme une confirmation qui ne la nomme pas
+  (400) ; la tâche porte la date confirmée, que le manifeste lu en entier doit dire, sinon elle
+  échoue avant la maintenance (`FILE_FORMAT_UNREADABLE`). `startRestore` qui nomme un dépôt ne
+  demande que
+  `platform_restore` : un dépôt n'est pas une sauvegarde de la liste. Le
+  stockage est appelé hors de toute transaction ; un achèvement coupé après l'assemblage (503) se
+  redemande : l'objet assemblé, de la taille du dépôt, tient lieu des morceaux. Un dépôt expiré ou achevé ne reçoit plus rien ;
   la purge des dépôts expirés et de l'objet restauré reste à EP-06, avec celle des fichiers
   d'import (WF-DAT-0120, écart d'US-0440). La restauration d'un dépôt s'inscrit au journal sur
-  le dépôt (`external_backup_upload`, nommé par son fichier). Jusque-là, les opérations du dépôt
-  restent au contrat sans être servies, et `startRestore` qui nomme un dépôt ne le trouve pas
-  (404).
+  le dépôt (`external_backup_upload`, nommé par son fichier).
 - **La restauration** est une tâche `restore`, demandée avec la date de la sauvegarde confirmée,
   qu'exécute le service de restauration, et lui seul (ci-dessous ; auteur, 2026-10-12, #953) :
   elle refuse une archive d'une version plus récente que l'installation ; met la plateforme en
@@ -899,6 +906,11 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
     journal d'audit ; sans quoi la liste perdrait les sauvegardes prises après celle qu'on
     restaure, dont les archives restent dans le compartiment. Test : deux sauvegardes,
     restaurer la première ; les deux restent listées et téléchargeables ;
+  - **les dépôts** (US-0440/L2c, #1011) : la table `file_upload` est relue, puis remplace celle
+    de la source, dont les dépôts nommeraient des objets d'une autre installation ; le dépôt
+    restauré garde sa ligne, par laquelle la purge d'EP-06 retrouve son objet. Un auteur que la
+    base restaurée n'a pas est effacé (`uploaded_by` nul). Test : un dépôt de la source n'est
+    plus là après la restauration, le dépôt restauré l'est, sans auteur ;
   - **le journal par identifiant** (#894) : le vidage n'est pas instantané au regard de la date
     de la sauvegarde, et une inscription faite pendant lui serait, par la date, réinscrite en
     double ou perdue. Le journal est réinscrit par identifiant, pour les inscriptions absentes
@@ -913,7 +925,7 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   `startRestore` et ses refus, `TASK_INTERRUPTED_BY_RESTORE`) et l'étape gardée de l'essai de
   production ; L2b livre l'exécutant — `startRestore` servi, la maintenance, les sessions, la
   reprise, le service de restauration — qui appelle cette logique ; le dépôt par morceaux
-  (#350), coupé de L2b le 2026-10-14, passe à US-0440/L2c (#1011, ci-dessus) :
+  (#350), coupé de L2b le 2026-10-14, est livré par US-0440/L2c (#1011, ci-dessus) :
   - **la demande** (L2b ; `startRestore`, sous `platform_restore`) nomme la sauvegarde et sa
     date : une date qui n'est pas la sienne est une confirmation qui ne la nomme pas, 400
     `CONFIRMATION_REQUIRED` ; une restauration déjà en file ou en cours, 409
@@ -1019,7 +1031,9 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    code `TASK_INTERRUPTED_BY_RESTORE` dit l'échec d'une tâche restaurée en file ou en cours
    (#892).
 10. **Dépôt par morceaux** (#350) : un dépôt s'ouvre, reçoit ses morceaux et se termine, pour
-   une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme.
+   une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme. Le dépôt
+   achevé rend la date que dit le manifeste de la sauvegarde (`FileUpload.backup_taken_at`,
+   #1006), que la confirmation de la restauration nomme.
 11. **Préférences d'affichage** (auteur, 2026-10-11, #874) : relues avec le compte à chaque
    requête de son titulaire et dans la liste des comptes, elles ont une taille bornée au
    contrat, que les modèles engendrés appliquent au service, refus par 422 :

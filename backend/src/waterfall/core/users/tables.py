@@ -31,6 +31,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from waterfall.platform.database import CODE_POINTS, EVERY_LETTER, Base, UtcDateTime
 from waterfall.platform.installation import AVATAR_MAX_BYTES
 from waterfall.platform.tasks import BackgroundTask
+from waterfall.platform.uploads import FileUpload
 
 ORIGINS = ("local", "directory", "identity_provider")
 STATES = ("active", "deactivated")
@@ -151,8 +152,12 @@ class IdentitySyncReport(Base):
     removed: Mapped[list[str]] = mapped_column(JSONB)
 
 
-# The requester of a background task is an account (WF-DAT-0090): the platform knows no table of the
-# core, and the reference is declared with the accounts, in each process that has them.
+# The requester of a background task, like the one who opened a deposit, is an account
+# (WF-DAT-0090): the platform knows no table of the core, and the reference is declared with the
+# accounts, in each process that has them.
 Base.metadata.tables[BackgroundTask.__tablename__].append_constraint(
     ForeignKeyConstraint(["requested_by"], [UserAccount.id], ondelete="RESTRICT")
+)
+Base.metadata.tables[FileUpload.__tablename__].append_constraint(
+    ForeignKeyConstraint(["uploaded_by"], [UserAccount.id], ondelete="RESTRICT")
 )

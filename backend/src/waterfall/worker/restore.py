@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import tarfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -70,17 +71,22 @@ def release(version: str) -> tuple[int, ...]:
     return tuple(int(number) for number in numbers[:3])
 
 
-def extracted(path: Path, folder: Path) -> dict[str, Path]:
+def extracted(path: Path, folder: Path, taken_at: datetime | None = None) -> dict[str, Path]:
     """Read an archive: its manifest, a version no newer than the installed one, each dump checked.
 
     A newer version is refused (422, ``BACKUP_FROM_NEWER_VERSION``); an archive that does not read
     back whole — a database of the platform lacking, a dump missing, unlike its digest, or that
-    ``pg_restore`` does not list — as unreadable (422), before any database is touched. Nothing of
-    the archive is extracted but under a name chosen here.
+    ``pg_restore`` does not list — as unreadable (422), before any database is touched; so is one
+    whose manifest does not say ``taken_at``, the date confirmed, when it is given, and one
+    compressed: the worker writes none. Nothing of the archive is extracted but under a name chosen
+    here.
     """
     try:
-        with tarfile.open(path) as tar:
+        with tarfile.open(path, mode="r:") as tar:
             manifest = json.loads(_member(tar, MANIFEST).read())
+            said = None if taken_at is None else datetime.fromisoformat(str(manifest["taken_at"]))
+            if said != taken_at:
+                raise UnprocessableError(FILE_FORMAT_UNREADABLE)
             version = str(manifest["application_version"])
             if release(version) > release(__version__):
                 params = {"backup_version": version, "installed_version": __version__}
@@ -96,7 +102,7 @@ def extracted(path: Path, folder: Path) -> dict[str, Path]:
                 if digest(copy) != database["sha256"] or not listed(copy):
                     raise UnprocessableError(FILE_FORMAT_UNREADABLE)
                 dumps[str(database["name"])] = copy
-    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError) as error:
+    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError, RecursionError) as error:
         raise UnprocessableError(FILE_FORMAT_UNREADABLE) from error
     return dumps
 

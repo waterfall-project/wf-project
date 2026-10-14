@@ -137,7 +137,12 @@
     description: >-
       Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur
       le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` :
-      son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`). Refusé
+      son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`), et son
+      `backup_taken_at` la date que dit le manifeste de la sauvegarde, que la confirmation de la
+      restauration nomme (`acknowledged_backup_taken_at`). Refusé
+      par 422, `FILE_FORMAT_UNREADABLE`, quand le fichier assemblé n'est pas une archive dont le
+      manifeste, son premier membre, dit la date de la sauvegarde : un dépôt dont la date ne se
+      lit pas n'est jamais restaurable, et reste inachevé. Refusé
       par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts`
       dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà
       terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme
@@ -164,6 +169,15 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               missing_part: { $ref: ../../../fixtures/api/chunked_upload_incomplete.json }
+      '422':
+        description: >-
+          Le fichier assemblé n'est pas une archive de sauvegarde dont le manifeste, son premier
+          membre, dit la date, avec son fuseau : `FILE_FORMAT_UNREADABLE`, sans paramètre.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unreadable: { $ref: ../../../fixtures/api/chunked_upload_unreadable.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports:

@@ -31,7 +31,7 @@ from psycopg.rows import TupleRow
 from sqlalchemy.orm import Session
 
 from waterfall import __version__
-from waterfall.core.backups.interface import TakenBackup, add_backup
+from waterfall.core.backups.interface import MANIFEST, TakenBackup, add_backup
 from waterfall.platform.audit import Act
 from waterfall.platform.database import engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
@@ -42,7 +42,6 @@ from waterfall.platform.tasks import Task
 
 # The form of the archive, which a restoration reads (US-0440/L2).
 ARCHIVE_FORMAT = 1
-MANIFEST = "manifest.json"
 CHUNK = 1 << 20
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 # The databases of the platform, by their name in the archive: Waterfall's, the identity provider's.
