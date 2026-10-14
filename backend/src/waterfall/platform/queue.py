@@ -5,7 +5,8 @@
 An entry carries the identifier of a task, which lives in the database: Redis keeps nothing
 durable. An entry read stays pending until acknowledged; a worker that stops leaves it pending, and
 another claims it once idle long enough (``XAUTOCLAIM``). An entry acknowledged is deleted: the
-stream names only what may still have to run.
+stream names only what may still have to run. The restorations have a stream of their own, beside
+that of the worker, which the service of the restoration alone reads (#953).
 """
 
 from collections.abc import Iterable, Mapping
@@ -18,6 +19,8 @@ from redis import Redis
 from redis.exceptions import ResponseError
 
 STREAM = "waterfall:tasks"
+# What follows the name of the stream of the tasks in that of the stream of the restorations.
+RESTORES = ":restores"
 GROUP = "workers"
 FIELD = "task_id"
 # How long a deposit waits for Redis, in seconds, when a request or the schedule makes it: a deposit
@@ -68,6 +71,10 @@ class TaskQueue:
             address, decode_responses=True, socket_timeout=timeout, socket_connect_timeout=timeout
         )
         return cls(client, stream)
+
+    def restores(self) -> "TaskQueue":
+        """Give the stream of the restorations of this queue, in its Redis (#953)."""
+        return TaskQueue(self.client, self.stream + RESTORES)
 
     def deposit(self, task_id: UUID) -> None:
         """Put a task at the end of the queue."""

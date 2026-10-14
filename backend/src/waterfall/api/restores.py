@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The restoration of the platform (FBS-1.4, WF-ADM-0160): asked for here, done by the worker.
+"""The restoration of the platform (FBS-1.4, WF-ADM-0160): asked for here, done by its service.
 
-The request names the backup and the date its confirmation states; the worker replaces both
-databases whole — nothing partial is offered — under a maintenance that the probe of liveness says
-(#604). The task carries the key of the archive, so that it never reads, to find it, the database
-it replaces. One restoration at a time: a second one, while the first is queued or running, is
-refused.
+The request names the backup and the date its confirmation states; the service of the restoration
+replaces both databases whole — nothing partial is offered — under a maintenance that the probe of
+liveness says (#604). The task is deposited, once its transaction is committed, in the stream of
+the restorations, which that service alone reads, never in the worker's (#953). It carries the key
+of the archive, so that it never reads, to find it, the database it replaces. One restoration at a
+time: a second one, while the first is queued or running, is refused.
 """
 
 from typing import Annotated
@@ -44,7 +45,7 @@ def post_restore(
     session: Transaction,
     services: ServicesOf,
 ) -> BackgroundTaskRef:
-    """Deposit the restoration of a backup whose date the confirmation states, for the worker.
+    """Deposit the restoration of a backup whose date the confirmation states, for its service.
 
     A backup copied out of the platform is deposited by chunks first (#350), which this lot does
     not serve yet: its identifier names no deposit (404).
@@ -59,5 +60,6 @@ def post_restore(
     if pending_task(session, "restore") is not None:
         raise ConflictError(STATE_FORBIDS_OPERATION)
     payload = {"backup_id": str(backup.backup_id), "object_key": backup.object_key}
-    task_id = submit(session, services.queue, "restore", account.user_id, payload)
+    restores = services.queue.restores()
+    task_id = submit(session, restores, "restore", account.user_id, payload)
     return task_ref(session.get_one(BackgroundTask, task_id))

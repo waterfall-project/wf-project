@@ -3,12 +3,13 @@
 """The maintenance of a restoration, kept out of the database the restoration makes again (#604).
 
 While a restoration replaces the databases, the platform is in maintenance: the API answers every
-operation but its probe of liveness with 503, and a worker runs no task but the restoration. The
-state lives in Redis, under a key of the platform that describes the task of the restoration: a
-worker that takes up a restoration whose row the database no longer holds — replaced, or not yet
-written back — reads the task there (WF-ARC-0090). The key is that of the stream of the tasks, with
-a suffix: the worker and the API that share a queue share its maintenance. The sessions of the
-front, which Redis keeps under keys of its own, are closed by deleting them.
+operation but its probe of liveness with 503, and the worker runs no task. The state lives in Redis,
+under a key of the platform that describes the task of the restoration: the service of the
+restoration sets it before it touches a database, reads it to take up a restoration whose row the
+database no longer holds — replaced, or not yet written back — (WF-ARC-0090), and removes it last.
+The key is that of the stream of the tasks of the worker, with a suffix: the worker, the API and the
+service of the restoration that share a Redis share its maintenance. The sessions of the front,
+which Redis keeps under keys of its own, are closed by deleting them.
 """
 
 import json
@@ -48,7 +49,7 @@ class Restoring:
 
 
 class Maintenance:
-    """The maintenance of the platform, as the worker sets it and lifts it and the API reads it."""
+    """The maintenance of the platform, as the service of the restoration sets and lifts it."""
 
     def __init__(self, client: Redis, key: str, sessions: str = FRONT_SESSIONS) -> None:
         self.client = client

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The API and the worker start, and carry the same version (WF-ARC-0010)."""
+"""The API, the worker and the service of the restoration start, with one version (WF-ARC-0010)."""
 
 import subprocess
 import tomllib
@@ -20,16 +20,23 @@ def run(script: str) -> str:
     return result.stdout.strip()
 
 
-def test_the_api_the_worker_and_the_migration_command_are_the_entry_points() -> None:
+def test_the_api_the_worker_the_migrations_and_the_restoration_are_the_entry_points() -> None:
     scripts = {
         entry.name
         for entry in entry_points(group="console_scripts")
         if entry.value.startswith("waterfall.")
     }
-    assert scripts == {"waterfall-api", "waterfall-worker", "waterfall-migrate"}
+    assert scripts == {
+        "waterfall-api",
+        "waterfall-worker",
+        "waterfall-migrate",
+        "waterfall-restore",
+    }
 
 
-@pytest.mark.parametrize("script", ["waterfall-api", "waterfall-worker", "waterfall-migrate"])
+@pytest.mark.parametrize(
+    "script", ["waterfall-api", "waterfall-worker", "waterfall-migrate", "waterfall-restore"]
+)
 def test_each_command_states_the_version_of_the_package(script: str) -> None:
     assert run(script) == f"{script} {waterfall.__version__}"
 

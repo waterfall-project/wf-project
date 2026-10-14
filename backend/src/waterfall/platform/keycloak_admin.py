@@ -5,15 +5,16 @@
 Through it the service reads where an account comes from, creates a local account, changes its
 identity and removes one whose creation Waterfall could not complete, closes the sessions of an
 account (WF-ADM-0070, WF-SEC-0020), and gives it the language its holder chose, that of its mails
-(WF-INTF-0160). The worker has the directories the realm federates synchronised, then reads the
-accounts of the realm by pages (WF-ADM-0070). The
-link that sets the password of a local account is made by the extension of Waterfall, which also
-mails it as the invitation of the account: never by ``execute-actions-email``, whose links would
-escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an address and, as the
-client of the bootstrap, gives the realm the language of the installation (#873) and asks the
-extension for the link of the installation, valid until it is used and only for an account without
-a password (WF-EXP-0020, #652, #884). The token of the client is kept until shortly before it
-expires.
+(WF-INTF-0160). The service of the restoration closes every session of the realm, and, as the client
+of the bootstrap, clears its caches once its database is replaced (WF-ADM-0160, #954). The worker
+has the directories the realm federates synchronised, then reads the accounts of the realm by pages
+(WF-ADM-0070). The link that sets the password of a local account is made by the extension of
+Waterfall, which also mails it as the invitation of the account: never by ``execute-actions-email``,
+whose links would escape its nonce (#651, WF-ADM-0140). The bootstrap finds the account of an
+address and, as the client of the bootstrap, gives the realm the language of the installation (#873)
+and asks the extension for the link of the installation, valid until it is used and only for an
+account without a password (WF-EXP-0020, #652, #884). The token of the client is kept until shortly
+before it expires.
 
 Only Keycloak itself answers this API: what is here is tried against the Keycloak of the service
 platform, whose tests measure it (``make test-keycloak``); the measure of the back, which runs no
@@ -433,20 +434,33 @@ class KeycloakAdmin:
             expect(response, HTTPStatus.NO_CONTENT)
 
     def close_every_session(self) -> None:
-        """Close every session of the realm, whoever holds it: a restoration begins (WF-ADM-0160).
+        """Close every session of the realm, whoever holds it: a restoration (WF-ADM-0160).
 
-        The realm refuses, from then on, the tokens issued before; the service account asks for a
-        new one at its next request.
+        Asked as the service account, which ``manage-users`` lets do it. The realm refuses, from
+        then on, the tokens issued before; the service account asks for a new one at its next
+        request.
         """
         expect(self._as_service("POST", f"{self._admin}/logout-all"), HTTPStatus.OK)
 
-    def clear_caches(self) -> None:
-        """Forget what Keycloak keeps in memory of its database: realm, accounts and keys.
+    def take_token(self) -> None:
+        """Ask for the token of the client now, before what would refuse it later.
 
-        A restoration that has replaced the database of Keycloak asks for it (WF-ADM-0160): the
-        token of the service account is read against the realm still in memory.
+        The service of the restoration takes it before the database of Keycloak is replaced: that
+        of the source holds other secrets of the clients (#955).
         """
-        for cache in ("realm", "user", "keys"):
+        self._service_token()
+
+    def clear_caches(self) -> None:
+        """Forget what Keycloak keeps in memory of its database: the accounts, the keys, the realm.
+
+        Asked as the client of the bootstrap, which ``manage-realm`` lets do it (#954), once the
+        restoration has replaced the database of Keycloak (WF-ADM-0160), with the token taken
+        before: until its realm is forgotten, Keycloak serves the realm of the installation from
+        memory, and reads the token against it. The realm is forgotten last: the token, signed by
+        keys the database restored no longer holds, is refused after it (#991). Asked of the realm
+        ``waterfall``, it forgets every realm, ``master`` with it: the cache of the realms is one.
+        """
+        for cache in ("user", "keys", "realm"):
             response = self._as_service("POST", f"{self._admin}/clear-{cache}-cache")
             expect(response, HTTPStatus.NO_CONTENT)
 

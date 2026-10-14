@@ -8,21 +8,23 @@ database as it was, but for that attempt: a worker that claims its entry finds t
 runs the task again from the start; while the task runs, the entry is left (WF-ARC-0090). A task
 whose attempts are spent, or that no handler runs, fails without running.
 
-While a restoration holds the platform in maintenance, a worker runs that restoration alone, and
-counts its attempts in the maintenance: the database it replaces may no longer hold its row
-(WF-ADM-0160). The other entries are left to the end of the maintenance.
+While a restoration holds the platform in maintenance, the worker runs no task: the entries it reads
+are left, unacknowledged, and it claims them again once idle, after the maintenance (WF-ADM-0160).
+It never runs a restoration, which the service of the restoration takes from a stream of its own
+(#953), nor deposits one again; that service waits for the run of each task the worker started
+before the maintenance to end, by its lock (``await_run``), before it keeps anything.
 """
 
 import socket
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
 from pydantic_core import to_jsonable_python
 from redis.exceptions import ResponseError
-from sqlalchemy import Integer, cast, func, select, update
+from sqlalchemy import ColumnElement, Integer, cast, func, select, update
 from sqlalchemy.orm import Session
 
 from waterfall.platform.database import Database, utc_now
@@ -68,11 +70,19 @@ def field_problem(field: FieldError) -> dict[str, Any]:
     return described
 
 
+def _run_key(task_id: UUID) -> tuple[ColumnElement[int], ColumnElement[int]]:
+    key = int.from_bytes(task_id.bytes[-4:], "big", signed=True)
+    return cast(RUN_LOCK, Integer), cast(key, Integer)
+
+
 def lock_run(session: Session, task_id: UUID) -> bool:
     """Take the lock of the run of a task until the transaction ends; ``False`` if it is held."""
-    key = int.from_bytes(task_id.bytes[-4:], "big", signed=True)
-    locked = func.pg_try_advisory_xact_lock(cast(RUN_LOCK, Integer), cast(key, Integer))
-    return session.scalar(select(locked)) is True
+    return session.scalar(select(func.pg_try_advisory_xact_lock(*_run_key(task_id)))) is True
+
+
+def await_run(session: Session, task_id: UUID) -> None:
+    """Wait until no worker runs a task, by the lock of its run, held until the transaction ends."""
+    session.execute(select(func.pg_advisory_xact_lock(*_run_key(task_id))))
 
 
 def end(
@@ -176,10 +186,9 @@ class Worker:
     def handle(self, entry: Entry) -> None:
         """Run the task of an entry, and acknowledge it unless the task runs elsewhere.
 
-        In maintenance, the entry of another task than the restoration is left, unacknowledged.
+        In maintenance, the entry is left, unacknowledged.
         """
-        restoring = self.restoring()
-        if restoring is not None and entry.task_id != restoring.task_id:
+        if self.restoring() is not None:
             return
         if entry.task_id is None:
             logger.warning("queue.entry_unreadable", entry_id=entry.entry_id)
@@ -188,9 +197,14 @@ class Worker:
         self.queue.acknowledge(entry.entry_id)
 
     def run_task(self, task_id: UUID) -> bool:
-        """Run a task, under its lock; ``False`` if another worker holds the lock."""
+        """Run a task, under its lock; ``False`` if another worker holds the lock.
+
+        Or if a maintenance began meanwhile: the service of the restoration, once it holds it,
+        waits for the lock of each pending task before it keeps anything; a worker that takes the
+        lock after it does leaves the task.
+        """
         with self.database.transaction() as session:
-            if not lock_run(session, task_id):
+            if not lock_run(session, task_id) or self.restoring() is not None:
                 return False
             task = self.start(task_id)
             if task is None:
@@ -202,9 +216,6 @@ class Worker:
 
     def start(self, task_id: UUID) -> Task | None:
         """Start one more attempt of a task, committed, or end it if it may not run."""
-        restoring = self.restoring()
-        if restoring is not None and restoring.task_id == task_id:
-            return self.resume(restoring)
         with self.database.transaction() as session:
             row = session.get(BackgroundTask, task_id, with_for_update=True)
             if row is None or row.status in FINISHED:
@@ -221,28 +232,6 @@ class Worker:
                 return None
             row.status, row.attempts, row.started_at = "running", attempt, utc_now()
             return task
-
-    def resume(self, restoring: Restoring) -> Task | None:
-        """Take up the restoration of a maintenance, its attempt counted there; ``None`` if spent.
-
-        A restoration whose attempts are spent leaves the platform in maintenance: the database it
-        was replacing is in no state to serve, which an operator must look at.
-        """
-        attempt = restoring.attempts + 1
-        task = Task(
-            restoring.task_id,
-            "restore",
-            restoring.payload,
-            restoring.requested_by,
-            restoring.correlation_id,
-            attempt,
-        )
-        if restoring.attempts >= MAX_ATTEMPTS:
-            with logging_context(**context_of(task)):
-                logger.error("task.failed", reason="attempts_spent", attempts=restoring.attempts)
-            return None
-        self.maintenance.hold(replace(restoring, attempts=attempt))
-        return task
 
     def execute(self, session: Session, task: Task) -> None:
         """Run the handler of a task and end the task; a failed handler's work is undone.
@@ -265,6 +254,10 @@ class Worker:
             end(session, task.task_id, result=result)
             logger.info("task.succeeded")
 
+    def kinds(self) -> ColumnElement[bool]:
+        """Say which tasks this consumer deposits again: all but the restorations (#953)."""
+        return BackgroundTask.kind != "restore"
+
     def redeposit(self) -> None:
         """Deposit again the pending tasks the stream no longer names, but those that run.
 
@@ -275,7 +268,7 @@ class Worker:
         with self.database.transaction() as session:
             pending = session.execute(
                 select(BackgroundTask.id, BackgroundTask.status).where(
-                    BackgroundTask.status.in_(PENDING)
+                    BackgroundTask.status.in_(PENDING), self.kinds()
                 )
             ).all()
             named = self.queue.waiting()
