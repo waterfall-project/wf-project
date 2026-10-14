@@ -173,3 +173,8 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
   projets sans lien ; une fois `listProjects` servi, un 404 fautif effacerait en silence tous
   les liens vers les projets. EP-04, qui sert `listProjects`, retire cette tolérance. Reporté
   d'EP-03 le 2026-10-12.
+- #1004 [EP-03] avec une session, l'accueil rend « Introuvable » — relevé par EP-03/L1
+  (#1001) : l'accueil lit `listProjects` et `getReferenceReadiness`, que le service d'EP-03 ne
+  sert pas, et le 404 de ces lectures rend « Introuvable » dans la coquille. EP-04, qui sert
+  `listProjects`, rend l'accueil, et un parcours contre le service l'affirme connecté. Reporté
+  d'EP-03 le 2026-10-14.
