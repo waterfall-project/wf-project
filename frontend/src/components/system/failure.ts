@@ -114,3 +114,17 @@ export function failureOf(error: BoundaryError): Failure {
   }
   return { kind: "unexpected", reference: referenceOf(error.digest) };
 }
+
+/**
+ * The texts of each failure in the catalogue, under `failure`: the one table the screen of failure
+ * and the screen "not found" read, the latter for a session the API refuses (`src/app/not-found.tsx`).
+ */
+export const FAILURE_TEXTS = {
+  unreachable: "unreachable",
+  session_lost: "signedOut",
+  signed_out: "signedOut",
+  revoked: "revoked",
+  deactivated: "deactivated",
+  not_admitted: "notAdmitted",
+  unexpected: "unexpected",
+} as const satisfies Record<Failure["kind"], string>;
