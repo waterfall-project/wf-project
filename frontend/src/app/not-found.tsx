@@ -7,13 +7,15 @@
  * names, which says nothing of the object. Telling them apart would reveal that the object
  * exists (WF-ADM-0110). A link leads back home.
  *
- * Without a session — the API refusing the account of the request for want of one (`getMe`
- * answered 401) —, nothing is "not found": the API answers 404, before any session, an operation
- * it does not serve yet, and the screen, whatever it reads, asks for a session. The screen says so,
- * as the screen of failure says a read refused for want of a session, and offers the sign-in page,
- * which comes back to the address shown (US-0350, WF-SEC-0020, #1000); it goes nowhere by itself,
- * the request having left without a session, which a sign-in the realm refused would loop on
- * (`src/session/tokens.ts`). Every address alike, without a session: nothing is revealed.
+ * The API refusing the session of the request (`getMe` answered 401), nothing is "not found": the
+ * API answers 404, before any session, an operation it does not serve yet, and the screen, whatever
+ * it reads, wants a session it cannot have. The screen says why, as the screen of failure says a
+ * read the API refused, from the same table (`FAILURE_TEXTS`) and with the same way out
+ * (`FailureWayOut`): without a session, the sign-in page, which comes back to the address shown
+ * (US-0350, WF-SEC-0020, #1000); the session closed, a sign-in that asks for the identifiers again
+ * (#855); the account deactivated, nothing; not admitted, the way out of the session of the realm
+ * (#664). It goes nowhere by itself, the request having left without a session, which a sign-in the
+ * realm refused would loop on (`src/session/tokens.ts`). Every address alike: nothing is revealed.
  *
  * It answers with the status 200, not 404: every segment that reads the API has its
  * `loading.tsx`, so the response streams, its status is sent with the skeleton before the
@@ -26,11 +28,12 @@ import { House, LockKeyhole, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { SignIn } from "@/components/commands/outcome-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { FAILURE_TEXTS } from "@/components/system/failure";
+import { FailureWayOut } from "@/components/system/system-failure";
 import { buttonVariants } from "@/components/ui/button";
 import { HOME } from "@/navigation/home";
-import { requestSessionState } from "@/session/request";
+import { requestSessionState, type SessionState } from "@/session/request";
 
 /** The address leads to nothing the user may consult, and back home. */
 function NothingHere() {
@@ -49,19 +52,30 @@ function NothingHere() {
   );
 }
 
-/** The screen asks for a session, and the sign-in page comes back to it. */
-function SessionRequired() {
-  const t = useTranslations("failure.signedOut");
+/** A session the API refuses: the four refusals of `SessionState`, failures of the screen alike. */
+type SessionRefusal = Exclude<SessionState["kind"], "open" | "unreadable">;
+
+/** The screen says why the API refuses the session, and offers the way out the refusal has. */
+function SessionRefused({ kind }: { readonly kind: SessionRefusal }) {
+  const t = useTranslations("failure");
   return (
     <Screen>
-      <PageHeader title={t("title")} icon={LockKeyhole} subtitle={t("explanation")} />
-      <SignIn />
+      <PageHeader
+        title={t(`${FAILURE_TEXTS[kind]}.title`)}
+        icon={LockKeyhole}
+        subtitle={t(`${FAILURE_TEXTS[kind]}.explanation`)}
+      />
+      <FailureWayOut kind={kind} />
     </Screen>
   );
 }
 
-/** Render the screen "not found", or, without a session, the screen that asks for one. */
+/** Render the screen "not found", or, the session refused, the screen that says why. */
 export default async function NotFound() {
   const state = await requestSessionState();
-  return state.kind === "signed_out" ? <SessionRequired /> : <NothingHere />;
+  return state.kind === "open" || state.kind === "unreadable" ? (
+    <NothingHere />
+  ) : (
+    <SessionRefused kind={state.kind} />
+  );
 }

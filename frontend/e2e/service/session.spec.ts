@@ -9,7 +9,8 @@
  * Each path signs in as a local account of its own, which the administrator of the installation
  * creates (`realm.ts`, #730): a path closes the sessions of its account, never those of another
  * path's. The account holds no role: `/account`, which reads the account alone (`getMe`), is the
- * screen it signs in to.
+ * screen it signs in to — but for the path of #1000, which signs in from the home, a session asked
+ * for there.
  */
 import {
   type APIRequestContext,
@@ -65,6 +66,8 @@ test.beforeEach(async ({ request }) => {
 });
 
 const ACCOUNT = "/account";
+// The home with a query, which the sign-in comes back to whole (#1000).
+const HOME_SHOWN = "/?is_contributor=false";
 // The cookie of the session of the front, its opaque identifier alone (`src/session/tokens.ts`).
 const SESSION_COOKIE = "__Host-wf_session";
 // A token of the realm, whatever its kind: three parts in base64url, the first two JSON objects.
@@ -99,20 +102,25 @@ test("signing in through the realm and out again, the bodies the service answers
   await expect(again.getByRole("heading", { level: 1 })).toHaveText("Session requise");
 });
 
-test("without a session, the home asks for one — never « not found » — and its sign-in leads to the sign-in page of the realm, then back home signed in (#1000) [WF-SEC-0020-A]", async ({
+test("without a session, the home asks for one — never « not found » — and its sign-in leads to the sign-in page of the realm, then back to the home and its query, signed in (#1000) [WF-SEC-0020-A]", async ({
   page,
   context,
   browser,
 }) => {
   const person = await ownAccount(browser);
+  // A precondition: the path starts without a session.
   expect((await context.cookies()).map(({ name }) => name)).not.toContain(SESSION_COOKIE);
-  await page.goto("/");
+  await page.goto(HOME_SHOWN);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Session requise");
   // A plain link, which loads its document: no hydration to wait for.
   await page.getByRole("link", { name: "Se connecter" }).click();
   await giveIdentifiers(page, person);
-  await expect(page).toHaveURL("/");
+  // Back to the very address shown, its query included.
+  await expect(page).toHaveURL(HOME_SHOWN);
   await expect(accountButton(page, person)).toBeVisible();
+  // Signed in, the home renders « not found » as long as the operations it reads are not served
+  // (listProjects, getReferenceReadiness: #1004, postponed to EP-04); it no longer asks for a
+  // session.
   await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Session requise");
 });
 

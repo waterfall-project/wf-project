@@ -70,11 +70,37 @@ describe("the screen not found", () => {
     expect(html).not.toContain("Retour à l’accueil");
   });
 
-  it("does not ask an account the API refuses to sign in, which would loop: it is not found", async () => {
-    const html = await notFound({ problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } });
-    expect(text(html)).toContain("Introuvable");
-    expect(html).not.toContain("/login");
+  it("for a session closed, says so and offers a sign-in that asks for the identifiers again (#855) [WF-SEC-0020-A]", async () => {
+    const html = await notFound({ problem: { code: "SESSION_REVOKED", status: 401 } });
+    expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true".*<\/svg>Session fermée<\/h1>/);
+    expect(text(html)).toContain("saisissant à nouveau vos identifiants");
+    expect(html).toContain(
+      `href="/login?next=${encodeURIComponent("/?states=active")}&amp;reauthenticate=1"`,
+    );
+    expect(html).not.toContain("Introuvable");
   });
+
+  it("for a session expired, asks for one without asking for the identifiers again (#855) [WF-SEC-0020-A]", async () => {
+    const html = await notFound({ problem: { code: "SESSION_EXPIRED", status: 401 } });
+    expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true".*<\/svg>Session requise<\/h1>/);
+    expect(html).toContain(`href="/login?next=${encodeURIComponent("/?states=active")}"`);
+    expect(html).not.toContain("reauthenticate");
+  });
+
+  it.each([
+    ["ACCOUNT_DEACTIVATED", "Compte désactivé", false],
+    ["ACCOUNT_NOT_ADMITTED", "Compte non admis", true],
+  ] as const)(
+    "for an account the API refuses (%s), says which, never « not found », and does not lead to the sign-in page, which would loop (#664)",
+    async (code, title, signsOut) => {
+      const html = await notFound({ problem: { code, status: 401 } });
+      expect(html).toMatch(new RegExp(`<h1[^>]*><svg[^>]*aria-hidden="true".*</svg>${title}</h1>`));
+      expect(html).not.toContain("Introuvable");
+      expect(html).not.toContain("/login");
+      // The way out of the session of the realm, for the account not admitted alone.
+      expect(html.includes('href="/auth/sign-out"')).toBe(signsOut);
+    },
+  );
 });
 
 describe("the screen of failure of the root layout", () => {
