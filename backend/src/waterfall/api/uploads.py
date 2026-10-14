@@ -164,7 +164,7 @@ def post_completion(chunked_upload_id: UUID, services: ServicesOf) -> FileUpload
 
     Refused while a part lacks (409, ``params.missing_parts``), nothing assembled; a deposit
     completed, expired or unknown is not found (404). The date of the backup is read from the head
-    of the file assembled, which the restoration confirms.
+    of the file assembled, and given, so that the confirmation of the restoration names it (#1006).
     """
     with services.database.transaction() as session:
         row = open_upload(session, chunked_upload_id, utc_now())
@@ -193,5 +193,6 @@ def post_completion(chunked_upload_id: UUID, services: ServicesOf) -> FileUpload
                 "size_bytes": completed.size_bytes,
                 "uploaded_at": completed.completed_at,
                 "expires_at": completed.expires_at,
+                "backup_taken_at": completed.backup_taken_at,
             }
         )

@@ -70,8 +70,8 @@ def iso(at: datetime) -> str:
     return at.isoformat().replace("+00:00", "Z")
 
 
-def deposited(api: ContractClient, headers: dict[str, str], content: bytes) -> str:
-    """Deposit a file by parts, as the front does, and complete it; give the deposit."""
+def deposited(api: ContractClient, headers: dict[str, str], content: bytes) -> dict[str, object]:
+    """Deposit a file by parts, as the front does, and complete it; give the deposit completed."""
     opened = api.post(
         DEPOSITS, json={"filename": "copie.tar", "size_bytes": len(content)}, headers=headers
     )
@@ -89,7 +89,7 @@ def deposited(api: ContractClient, headers: dict[str, str], content: bytes) -> s
         assert sent.status_code == 200
     completed = api.post(f"{DEPOSITS}/{deposit['chunked_upload_id']}/completion", headers=headers)
     assert completed.status_code == 201
-    return str(completed.json()["upload_id"])
+    return completed.json()
 
 
 def test_a_file_is_cut_into_the_fewest_parts_the_bounds_let() -> None:
@@ -159,6 +159,8 @@ def test_parts_received_in_any_order_are_assembled_into_the_file_deposited(
     completed = installation_api.post(f"{deposit}/completion", headers=headers)
     assert completed.status_code == 201
     assert completed.json()["purpose"] == "external_backup"
+    # The head of a file that is no archive says no date (#1006).
+    assert completed.json()["backup_taken_at"] is None
     assert installation_api.post(f"{deposit}/completion", headers=headers).status_code == 404
     gone = installation_api.request(
         "PUT", f"{deposit}/parts/1", content=b"the rest", headers=octets
@@ -221,6 +223,7 @@ def target(
     own.client.delete(own.stream, own.stream + RESTORES_SUFFIX, own.stream + SUFFIX)
 
 
+@pytest.mark.requirement("WF-ADM-0160-A")
 def test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it_a_copy(
     installation: Installation,
     target: Target,
@@ -231,7 +234,9 @@ def test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it
     # Proper to US-0440: « une sauvegarde prise sur une installation, téléchargée, puis déposée
     # sur une autre installation de même version ou plus récente et restaurée, y rend les
     # comptes, les rôles et les réglages de la première, et l'administrateur de la première s'y
-    # connecte ». The confirmation names the date of the backup, read from its archive.
+    # connecte ». « La confirmation nomme la date de la sauvegarde. » of WF-ADM-0160-A: the
+    # deposit completed gives the date its manifest says (#1006), the one the confirmation names.
+    # The restorer of the target may not read the backups: a deposit is none of the list.
     settled(installation, language="en")
     source = f"subject-{uuid4()}"
     administration = role(installation.database, "Administration de la source")
@@ -244,8 +249,10 @@ def test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it
     )
     assert copied.status_code == 200
     settled(target.installation)
-    headers = restorer_headers(target.installation, realm)
-    upload_id = deposited(target.api, headers, copied.content)
+    headers = restorer_headers(target.installation, realm, ("platform_restore",), "Dominique")
+    completed = deposited(target.api, headers, copied.content)
+    assert completed["backup_taken_at"] == iso(backup.taken_at)
+    upload_id = str(completed["upload_id"])
     asked = {"external_backup_upload_id": upload_id, "confirmed": True}
     late = {**asked, "acknowledged_backup_taken_at": iso(backup.taken_at + timedelta(seconds=1))}
     refused = target.api.post(RESTORES, json=late, headers=headers)

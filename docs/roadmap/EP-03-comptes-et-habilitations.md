@@ -768,7 +768,9 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   les morceaux reçus sont ceux que le stockage dit tenir. Le serveur découpe le fichier en
   morceaux de 5 à 10 Mio, au plus 10 000 ; chaque morceau est écrit sur le stockage avant la
   réponse, et l'achèvement les assemble, puis lit la date de la sauvegarde dans le manifeste, en
-  tête de l'archive, que `startRestore` confronte à la date confirmée ; une archive dont la tête ne dit pas de date est refusée par la tâche, qui la
+  tête de l'archive, que `completeChunkedUpload` rend (`FileUpload.backup_taken_at`, nulle si
+  la tête n'en dit pas, #1006) pour que l'écran la nomme, et que `startRestore` confronte à la
+  date confirmée ; une archive dont la tête ne dit pas de date est refusée par la tâche, qui la
   lit entière, avant la maintenance. `startRestore` qui nomme un dépôt ne demande que
   `platform_restore` : un dépôt n'est pas une sauvegarde de la liste. Le
   stockage est appelé hors de toute transaction. Un dépôt expiré ou achevé ne reçoit plus rien ;
@@ -1018,7 +1020,9 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
    code `TASK_INTERRUPTED_BY_RESTORE` dit l'échec d'une tâche restaurée en file ou en cours
    (#892).
 10. **Dépôt par morceaux** (#350) : un dépôt s'ouvre, reçoit ses morceaux et se termine, pour
-   une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme.
+   une sauvegarde venue d'ailleurs ; le dépôt d'un fichier d'import garde sa forme. Le dépôt
+   achevé rend la date que dit le manifeste de la sauvegarde (`FileUpload.backup_taken_at`,
+   #1006), que la confirmation de la restauration nomme.
 11. **Préférences d'affichage** (auteur, 2026-10-11, #874) : relues avec le compte à chaque
    requête de son titulaire et dans la liste des comptes, elles ont une taille bornée au
    contrat, que les modèles engendrés appliquent au service, refus par 422 :
