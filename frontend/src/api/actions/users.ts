@@ -7,14 +7,16 @@
  * (`src/api/problem.ts`); and the link by which the holder of a local account sets its password,
  * handed to who asked it (WF-ADM-0140). Every write answered reads the page anew: the accounts as the server retains them, and the permissions of
  * the session, which an attribution of its own roles may have changed (WF-ADM-0110). The link reads
- * nothing anew: it changes nothing the page shows.
+ * nothing anew: it changes nothing the page shows. Nor does the reading of the accounts of the
+ * identity provider, asked of the worker (WF-ADM-0070, WF-ARC-0090): it gives a background task
+ * back at once, which the tracker of the shell follows to its end.
  */
 "use server";
 
 import { refresh } from "next/cache";
 
 import type { components } from "@/api/generated/schema";
-import { decode, type Outcome } from "@/api/problem";
+import { type BackgroundTask, decode, decodeTask, type Outcome } from "@/api/problem";
 import { serverClient } from "@/api/server";
 
 type Schemas = components["schemas"];
@@ -110,4 +112,12 @@ export async function createPasswordSetupLink(
       params: { path: { user_id: userId } },
     }),
   );
+}
+
+/**
+ * Ask the worker to read the accounts of the identity provider (WF-ADM-0070): queued at once, the
+ * task given back for the tracker to follow (WF-ARC-0090). Nothing of the page has changed yet.
+ */
+export async function startIdentitySync(): Promise<Outcome<BackgroundTask>> {
+  return decodeTask(() => serverClient().POST("/identity-syncs"));
 }

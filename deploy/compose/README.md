@@ -194,5 +194,7 @@ déplacent les ports publiés ; un port HTTPS autre que 443 entre dans l'adresse
 `waterfall.localhost`, il démarre la plateforme, l'amorce, vérifie la sonde de vie de l'API, que
 HTTP renvoie à la même page sur l'adresse publiée, port compris, que HTTPS répond avec HSTS et les
 autres en-têtes de Caddy, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se
-connecte par le front et Keycloak et que le front le nomme ; puis il retire la plateforme et ses
-volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.
+connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`,
+il demande à l'API une sauvegarde puis sa restauration, qu'il suit par la sonde de vie jusqu'à
+`ok` — une étape laissée de côté tant que la plateforme ne démarre pas le service de la
+restauration (US-0440/L2b) ; puis il retire la plateforme et ses volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.

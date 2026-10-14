@@ -1029,7 +1029,18 @@ de l'anonymisation, au-dessus de la table, sur la lecture d'où il est parti (`R
 d'un nom, à sa cellule. La recherche et les
 filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
 table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
-se présente. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
+WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
+(`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
+désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
+retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un compte
+nommé tel qu'il se lit à la consultation, sous le libellé neutre s'il est anonymisé depuis
+(`useAccountNaming`, `AnonymizedName`) ; une personne du fournisseur par son nom et son identifiant
+chez lui (#918) ; celle dont un compte porte l'adresse (`ALREADY_EXISTS`) par son identifiant et ce
+compte, tel qu'il se lit, ou par son seul identifiant quand aucun ne la portait plus (#920). À une
+session qui porte `users.write`, « Lire les comptes » (`startIdentitySync`) rend la main dès la
+tâche en file et la confie au suivi, qui l'annonce achevée et offre de relire l'écran, sans jamais
+le relire de lui-même. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
 mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
 les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
@@ -1118,8 +1129,8 @@ avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tou
 `ListPages` de `components/grid/list-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
-l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
-a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
+l'arborescence au niveau demandé —, et le suivi n'offre de télécharger que le résultat d'un export
+réussi (`givesFile` de `tracking.ts`), celui des autres tâches se lisant sur leur écran : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
 entier en mémoire et hors de la file des actions serveur, à la route `/tasks/[taskId]/result`, que
 le navigateur suit comme un lien, sans `download` : un type que le contrat déclare pour sa nature,
 et la pièce jointe nommée du nom de base que le contrat promet (`Content-Disposition`,
@@ -1472,7 +1483,7 @@ commande.
 | `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
 | `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
 | `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
-| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme, puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948) — laissées de côté tant que la chaîne ne démarre pas le service de la restauration (US-0440/L2b, #985) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
 | `make check-production` | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
@@ -1954,7 +1965,7 @@ compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucke
 supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
 Debian et d'Ubuntu, d'une version au moins égale à celle du serveur. Elles vident les bases comme
 le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_role`
-(`backend/tests/test_backups.py`) crée pour la session, membre de `pg_read_all_data` (#895).
+(`backend/tests/conftest.py`) crée pour la session, membre de `pg_read_all_data` (#895).
 
 - **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
   reçoit pas les arguments qu'il demande — et pose la variable.

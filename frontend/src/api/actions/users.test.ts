@@ -17,6 +17,7 @@ import {
   createUser,
   setUserAccessRoles,
   setUserActivation,
+  startIdentitySync,
   updateUser,
 } from "./users";
 
@@ -169,5 +170,27 @@ describe("the server actions of the accounts", () => {
       [`/users/${NOE}/anonymization`, { lock_version: 1 }],
     ]);
     expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("ask a reading of the accounts, which gives its task back queued and reads nothing anew; a refusal told [WF-ARC-0090-A]", async () => {
+    const client = serve({
+      "POST /identity-syncs": [
+        { example: "identity_sync_queued", status: 202 },
+        { problem: { code: "PERMISSION_MISSING", status: 403 } },
+      ],
+    });
+    expect(await startIdentitySync()).toMatchObject({
+      kind: "done",
+      data: { kind: "identity_sync", status: "queued", result_url: null },
+    });
+    expect(await startIdentitySync()).toMatchObject({
+      kind: "refused",
+      problem: { code: "PERMISSION_MISSING", status: 403 },
+    });
+    expect(client.calls.map(({ route, body }) => [route, body])).toEqual([
+      ["POST /identity-syncs", undefined],
+      ["POST /identity-syncs", undefined],
+    ]);
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

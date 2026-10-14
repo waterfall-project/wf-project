@@ -118,10 +118,12 @@ class UserAccount(Base):
 class IdentitySyncReport(Base):
     """What a reading of the accounts of the provider did, by the task that read (WF-ADM-0070).
 
-    The accounts it created, changed and deactivated, those it left as they were with the code of
-    why, and the addresses of the local accounts it removes from the provider (#811): removed, or
-    to be removed — the removal follows the commit of the reading; one that fails is logged, and
-    the next reading names the address again.
+    The accounts it created, changed and deactivated, the local ones whose identity it gives the
+    provider back (#919), what it left as it was with the code of why — an account of Waterfall by
+    its identifier alone, a person of the provider as it holds her (#918, #920) —, and the addresses
+    of the local accounts it removes from the provider (#811). What is given back or removed is, or
+    is to be — it follows the commit of the reading; one that fails is logged, and the next reading
+    tells it again.
     """
 
     __tablename__ = "identity_sync_report"
@@ -129,6 +131,7 @@ class IdentitySyncReport(Base):
         CheckConstraint(
             "created >= 0 AND updated >= 0 AND deactivated >= 0", name="counts_not_negative"
         ),
+        CheckConstraint("restored >= 0", name="restored_not_negative"),
         CheckConstraint("jsonb_typeof(skipped) = 'array'", name="skipped_array"),
         CheckConstraint("jsonb_typeof(removed) = 'array'", name="removed_array"),
     )
@@ -142,7 +145,9 @@ class IdentitySyncReport(Base):
     created: Mapped[int] = mapped_column(Integer)
     updated: Mapped[int] = mapped_column(Integer)
     deactivated: Mapped[int] = mapped_column(Integer)
-    skipped: Mapped[list[dict[str, str]]] = mapped_column(JSONB)
+    # Added after the others (0015): a report kept before says none.
+    restored: Mapped[int] = mapped_column(Integer, server_default="0")
+    skipped: Mapped[list[dict[str, str | None]]] = mapped_column(JSONB)
     removed: Mapped[list[str]] = mapped_column(JSONB)
 
 

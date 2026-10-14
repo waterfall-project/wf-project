@@ -13,7 +13,7 @@ writer to come is tried as these are.
 import ast
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account
@@ -31,7 +31,7 @@ from waterfall.core.access_roles.interface import (
     set_access_roles,
     update_role,
 )
-from waterfall.core.backups.interface import TakenBackup, add_backup
+from waterfall.core.backups.interface import TakenBackup, add_backup, inscribe_restoration
 from waterfall.core.users.interface import (
     HeldAccount,
     Identity,
@@ -46,7 +46,7 @@ from waterfall.core.users.interface import (
     inscribe_password_link,
     set_account_activation,
 )
-from waterfall.platform.audit import Act, AuditEntry
+from waterfall.platform.audit import Act, AuditActor, AuditEntry
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak_admin import ProviderAccount
 from waterfall.platform.logs import logging_context
@@ -144,7 +144,7 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
             attached = add_account_of_provider(session, lea, platform.at)
         assert not isinstance(attached, NotAdmitted)
         with database.transaction() as session:
-            held = HeldAccount(attached.user_id, "kc-lea-2", "kc-lea@example.org")
+            held = HeldAccount(attached.user_id, "kc-lea-2")
             assert deactivate_unheld(session, held, platform.at)
         with database.transaction() as session:
             delete_role(session, pilot.access_role_id, act)
@@ -155,6 +155,9 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
         )
         with logging_context(correlation_id=CORRELATION), database.transaction() as session:
             add_backup(session, taken, Act(requested_by, TAKEN_AT))
+    with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+        named = AuditActor(author, "Camille Martin")
+        inscribe_restoration(session, uuid4(), named, utc_now())
     return author
 
 
@@ -206,6 +209,7 @@ def test_each_writer_of_the_journal_inscribes_parameters_the_contract_reads(
         "user_reactivate",
         "user_anonymize",
         "backup",
+        "restore",
     }
     # The attachment of a person of the directory to the account of her address says so (#707).
     assert ("user_update", {"fields": ["first_name"], "attached": True}) in written

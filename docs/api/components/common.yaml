@@ -282,6 +282,9 @@ ErrorCode:
     # WF-REF-0040).
     - UNKNOWN_COST_TYPE
     - UNKNOWN_RESOURCE_ROLE
+    # Une personne du fournisseur d'identité, ou un compte qu'il tient, sans adresse : la lecture
+    # des comptes la laisse telle quelle et le dit (`IdentitySyncReport.skipped`, #918).
+    - EMAIL_MISSING
     # Motifs par champ des écritures d'un compte (`createUser`, `updateUser`,
     # `setUserAccessRoles`) : un rôle d'habilitation ou un nœud d'organisation que le serveur n'a
     # pas, et une valeur différente de celle du compte pour un champ d'identité d'un compte qui
@@ -301,6 +304,10 @@ ErrorCode:
     # refuse avant la maintenance (`startRestore`, WF-ADM-0160) : le motif de l'échec de la tâche
     # (`BackgroundTaskRef.problem`), `params.backup_version` et `params.installed_version`.
     - BACKUP_FROM_NEWER_VERSION
+    # Une tâche que la restauration a trouvée en file ou en cours dans la base restaurée : elle
+    # échoue sans reprendre, pour qu'une sauvegarde en cours au moment du vidage ne se relance pas
+    # et n'écrase pas son archive (`startRestore`, #892) ; le motif de l'échec de la tâche.
+    - TASK_INTERRUPTED_BY_RESTORE
     # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
     # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED

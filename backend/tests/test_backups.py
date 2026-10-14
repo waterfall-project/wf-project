@@ -26,7 +26,7 @@ from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import ProgrammingError
-from support import ContractClient, bearer
+from support import ContractClient, as_backup, bearer
 from task_handlers import REQUEST, deposit, task
 
 from waterfall import __version__
@@ -35,6 +35,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.backups.interface import TakenBackup, add_backup
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
+from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
@@ -69,36 +70,6 @@ def provider_url(database_url: str) -> Iterator[str]:
     with server.connect() as connection:
         connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
     server.dispose()
-
-
-@pytest.fixture(scope="session")
-def backup_role(database_url: str) -> Iterator[tuple[str, str]]:
-    """Create, for this run, a role of the backup as the platform does (#895): its name, password.
-
-    A member of ``pg_read_all_data``, which reads every table of every database of the server and
-    can neither write nor turn a trigger off; it owns nothing.
-    """
-    name, password = f"waterfall_test_backup_{uuid4().hex}", uuid4().hex
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
-    with server.connect() as connection:
-        connection.execute(
-            text(f"CREATE ROLE \"{name}\" LOGIN PASSWORD '{password}' IN ROLE pg_read_all_data")
-        )
-    yield name, password
-    with server.connect() as connection:
-        connection.execute(
-            text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = :name"),
-            {"name": name},
-        )
-        connection.execute(text(f'DROP ROLE "{name}"'))
-    server.dispose()
-
-
-def as_backup(address: str, role: tuple[str, str]) -> str:
-    """Give the address of a database as the role of the backup reaches it."""
-    name, password = role
-    url = engine_url(address).set(username=name, password=password)
-    return url.render_as_string(hide_password=False)
 
 
 @pytest.fixture
@@ -381,6 +352,19 @@ def test_a_backup_of_a_database_out_of_reach_fails_and_records_nothing(
     )
     with database.transaction() as session:
         assert session.execute(text("SELECT count(*) FROM backup")).scalar_one() == 0
+
+
+def test_a_dump_whose_database_stops_answering_fails_as_the_database_unavailable(
+    tmp_path: Path,
+) -> None:
+    # #907: the database answered before its dump, then stopped answering; pg_dump fails, and the
+    # dump reaches the database again to tell an outage from an internal error.
+    with pytest.raises(UnavailableError) as raised:
+        dump("waterfall", UNREACHABLE, tmp_path)
+    assert (raised.value.code, dict(raised.value.params)) == (
+        "COMPONENT_UNAVAILABLE",
+        {"component": "database"},
+    )
 
 
 def test_a_backup_the_object_storage_does_not_take_fails_as_its_storage_unavailable(

@@ -1,0 +1,8 @@
+{
+  "summary": "Une seconde restauration demandée pendant que la première est en file : refusée, une seule restauration à la fois (WF-ADM-0160).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001054"
+  }
+}

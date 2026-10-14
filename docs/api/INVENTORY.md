@@ -15,7 +15,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/health` | Sonde de vivacité | — |
+| GET | `/health` | Sonde de vivacité, et la maintenance d'une restauration | WF-ADM-0160 |
 | GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-EXP-0020, WF-INTF-0160 |
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
 | GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
@@ -51,7 +51,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | PUT | `/users/{user_id}/access-roles` | Attribuer les rôles d'habilitation d'un compte | WF-ADM-0090, WF-ADM-0120, WF-SEC-0020 |
 | POST | `/users/{user_id}/password-link` | Obtenir le lien de fixation du mot de passe d'un compte | WF-ADM-0100, WF-ADM-0140, WF-CMP-0030, WF-EXP-0020, WF-SEC-0030 |
 | GET | `/users/{user_id}/avatar` | Avatar d'un compte | WF-ADM-0080 |
-| POST | `/identity-syncs` | Lire les comptes du fournisseur d'identité | WF-ADM-0070, WF-ADM-0180, WF-ARC-0090 |
+| POST | `/identity-syncs` | Lire les comptes du fournisseur d'identité | WF-ADM-0050, WF-ADM-0070, WF-ADM-0180, WF-ARC-0090 |
 | GET | `/identity-syncs/latest` | Compte rendu de la dernière lecture des comptes | WF-ADM-0070 |
 | GET | `/permissions` | Catalogue des permissions | WF-ADM-0100 |
 | GET | `/access-roles` | Rôles d'habilitation | WF-ADM-0010, WF-ADM-0060, WF-ADM-0090, WF-DAT-0070, WF-IHM-0060, WF-IHM-0130 |

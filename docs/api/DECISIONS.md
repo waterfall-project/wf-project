@@ -3832,6 +3832,37 @@ bases entières, comptes et réglages du fournisseur d'identité compris, et son
 pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
 plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
 
+## La restauration et sa maintenance (EP-03/US-0440/L2, #604, #892)
+
+Décision de l'auteur du 2026-10-10 (#604) : `getLiveness`, publique, dit la maintenance d'une
+restauration (`status` à `maintenance`) et sa levée (`ok`), et le front l'interroge pour savoir
+quand la restauration a abouti. L'état de maintenance ne dépend pas de la base que la
+restauration recrée, où vit la tâche ; `getBackgroundTask` n'est pas servie pendant la
+maintenance, et toute opération autre que la sonde répond 503 `COMPONENT_UNAVAILABLE`,
+`component` à `database`. La sonde reste à 200 en maintenance : la plateforme est vivante, et un
+orchestrateur qui la redémarrerait interromprait la restauration. Écarté : `getBackgroundTask`
+servie pendant la maintenance, sa ligne réécrite dans la base restaurée, qui ferait lire à l'API la
+base qu'on remplace.
+
+`startRestore` déclare ce qu'elle refuse : une date confirmée qui n'est pas celle de la sauvegarde
+désignée est une confirmation qui ne la nomme pas, 400 `CONFIRMATION_REQUIRED` (WF-ADM-0160 : « La
+confirmation nomme la date de la sauvegarde ») ; une sauvegarde ou un dépôt inconnus, 404 ; une
+restauration déjà en file ou en cours, 409 `STATE_FORBIDS_OPERATION`. Écarté : un 422 par champ
+sur `acknowledged_backup_taken_at`, qui dirait la valeur invalide quand c'est la confirmation qui
+manque.
+
+Décision de l'auteur du 2026-10-12 (#892) : une tâche que la restauration trouve en file ou en
+cours dans la base restaurée échoue par `TASK_INTERRUPTED_BY_RESTORE` (409), code propre, sans
+reprendre ; exemple `task_interrupted_by_restore`, variante contrefactuelle.
+
+Décisions de l'auteur du 2026-10-12 (#953, #954, #955) : la restauration est exécutée par un
+service à part, seul à tenir l'adresse du propriétaire des bases et le client d'administration
+du fournisseur d'identité, et non par le worker ; le contrat n'en change pas — `startRestore`
+dépose toujours une tâche `restore`, que la sonde de vie suit. Après le remplacement des bases, le
+royaume de l'installation qui restaure est réappliqué : la description de `startRestore` dit que
+ses clients et ses adresses restent ceux de la cible, ses comptes et leurs mots de passe ceux de
+la sauvegarde (#955).
+
 ## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
 
 `IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,
@@ -3851,6 +3882,52 @@ compte laissé tel quel.
 `startIdentitySync` est sous `users.write`, comme toute écriture des comptes ;
 `getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
 compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
+
+## Le compte rendu de la lecture des comptes, sans donnée d'un compte (EP-03/US-0370/L2b, #918, #919, #920)
+
+Décisions de l'auteur du 2026-10-12. Une entrée de `IdentitySyncReport.skipped`
+(`IdentitySyncSkipped`) dit par `kind` ce qu'elle désigne :
+
+- **un compte de Waterfall** (`account`) — le dernier administrateur gardé, un compte dont la
+  nouvelle adresse est portée par un autre, dont le nouveau nom ne se garde pas ou dont le
+  fournisseur ne tient plus d'adresse — n'est gardé dans le compte rendu que par son
+  identifiant : le compte rendu n'en copie ni le nom ni l'adresse, que l'anonymisation devrait
+  sinon poursuivre dans chaque compte rendu (#920). Son nom, son prénom et son adresse sont lus à
+  la consultation, nuls pour un compte anonymisé depuis, que le front présente sous le libellé
+  neutre ;
+- **une personne du fournisseur** sans compte (`person`) est nommée par son identifiant chez lui,
+  `subject`, son nom, son prénom et son adresse, nulle s'il n'en tient pas : `EMAIL_MISSING`
+  entre au catalogue pour elle (#918) — une personne sans adresse, que Waterfall ne sait pas
+  reconnaître, n'est plus ignorée en silence. Sauf celle qu'un compte de Waterfall prive de son
+  adresse (`ALREADY_EXISTS`, une personne relayée par un fournisseur externe, #707) : cette
+  adresse est celle du compte, que le compte rendu ne copie pas plus que son nom, et
+  l'anonymisation du compte l'y laisserait. L'entrée garde l'identifiant de la personne chez le
+  fournisseur, `subject`, et celui du compte qui porte l'adresse, `user_id` — nul si aucun ne la
+  portait plus quand elle a été écartée —, rien de personnel ; son nom, son prénom et son adresse
+  sont ceux du compte, lus à la consultation comme pour une entrée `account`, nuls s'il est
+  anonymisé depuis (décision de livraison, application de #920). `account` porte donc `user_id`
+  et jamais `subject` ; `person` porte toujours `subject`, et `user_id` pour `ALREADY_EXISTS`
+  seulement. Écartées : le nom que le fournisseur tient de la personne, gardé à côté de
+  l'identifiant du compte — deux identités dans une entrée, que l'écran ne distinguerait que par
+  son motif ; une entrée `account` désignant le compte porteur — elle dirait laissé tel quel un
+  compte que la lecture n'a pas touché.
+
+Une seule forme, fermée — `additionalProperties: false`, chaque propriété exigée, nulle quand elle
+ne vaut pas pour la nature de l'entrée —, comme `ActorRef` dit par `kind` un compte ou la
+plateforme. Écartées : l'adresse rendue facultative dans la forme `{email, code}` — une entrée
+sans adresse ne désignerait plus personne, et l'adresse d'un compte de Waterfall resterait
+copiée ; deux formes réunies par `oneOf` — le contrat n'en compose aucune de deux objets, que le
+client du service et ses tests ne lisent pas (`AmbiguousCompositionError`) ; une liste à part pour
+les personnes sans adresse — une seconde forme pour un même signalement.
+
+`restored` compte les comptes locaux dont la lecture rétablit l'identité dans le fournisseur : le
+nom, le prénom ou l'adresse que Keycloak en tient diffèrent de ceux de Waterfall, qui en fait foi
+(WF-ADM-0050) — un report d'`updateUser` resté sans réponse, ou une modification faite dans la
+console du fournisseur (#919). L'adresse s'y compare sans égard à la casse, que le fournisseur ne
+garde pas. Comme `removed`, le compte suit la validation de la lecture : rétabli, ou à rétablir.
+Un compteur plutôt que la liste des comptes : l'écran ne nomme pas plus les comptes rétablis que
+les comptes mis à jour, et le journal de la plateforme dit chacun. Écarté : les compter dans
+`updated`, qui dit les comptes que la lecture change dans Waterfall.
 
 ## La session révoquée (EP-03/US-0350/L5c, #855)
 
