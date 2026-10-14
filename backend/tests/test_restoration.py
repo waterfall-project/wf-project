@@ -186,7 +186,7 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
     # It does not prove « … et la dernière inscription est la restauration elle-même. » of
     # WF-ADM-0160-A, which US-0440/L2b proves with the service that runs the restoration (#985).
     with logging_context(correlation_id=REQUEST), installation.database.transaction() as session:
-        inscribe_restoration(session, AuditObject("backup", taken.id, None), None, utc_now())
+        inscribe_restoration(session, taken.id, None, utc_now())
     with installation.database.transaction() as session:
         latest = AuditEntry.occurred_at.desc(), AuditEntry.id.desc()
         last = session.scalars(select(AuditEntry).order_by(*latest).limit(1)).one()

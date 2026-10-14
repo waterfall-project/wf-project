@@ -62,9 +62,6 @@ DATA = {
     "IdentitySyncSkipped.first_name": "a name",
     "IdentitySyncSkipped.email": "an address",
     "IdentitySyncReport.removed": "addresses",
-    # The name of a file deposited, as the person chose it (#350).
-    "ChunkedUpload.filename": "a name of a file",
-    "FileUpload.filename": "a name of a file",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values. Any other

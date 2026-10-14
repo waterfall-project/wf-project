@@ -32,7 +32,6 @@ from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.installation import Installation
 from waterfall.platform.tasks import BackgroundTask
-from waterfall.platform.uploads import FileUpload
 
 # The last revision of the chain, which a migrated database says it has applied.
 HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
@@ -217,7 +216,6 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         BackgroundTask.__tablename__,
         Backup.__tablename__,
         IdentitySyncReport.__tablename__,
-        FileUpload.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -296,9 +294,6 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "backup": {"SELECT", "INSERT"},
     # The report of a reading of the accounts, kept and read; neither changed nor deleted.
     "identity_sync_report": {"SELECT", "INSERT"},
-    # A deposit opened, read and completed; deleted by none until the purge of the files in
-    # transit (WF-DAT-0120, EP-06).
-    "file_upload": {"SELECT", "INSERT", "UPDATE"},
 }
 
 

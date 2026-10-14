@@ -28,7 +28,6 @@ from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
 from waterfall.platform.tasks import BackgroundTask
-from waterfall.platform.uploads import FileUpload
 
 ANONYMIZED = datetime(2026, 10, 8, 9, 30, tzinfo=UTC)
 # An anonymised account as the database holds it: deactivated, without its names nor its address.
@@ -546,50 +545,3 @@ def test_the_database_refuses_a_report_of_a_reading_that_breaks_a_rule(
     with database.engine.begin() as connection:
         connection.execute(write_task(id=task_id, kind="identity_sync"))
     assert refusal(database, write_report(task_id, **overrides)) == constraint
-
-
-def write_upload(by: object, **overrides: object) -> Executable:
-    """Give the insertion of a deposit by parts, open, with the changes asked for."""
-    columns: dict[str, object] = {
-        "id": uuid4(),
-        "purpose": "external_backup",
-        "filename": "copie.tar",
-        "size_bytes": 1,
-        "part_size_bytes": 5 * 1024**2,
-        "part_count": 1,
-        "object_key": f"uploads/{uuid4()}",
-        "deposit": "opened",
-        "uploaded_by": by,
-        "created_at": ENDED,
-        "expires_at": ENDED,
-    }
-    return insert(FileUpload).values(**{**columns, **overrides})
-
-
-@pytest.mark.requirement("WF-DAT-0090-A")
-@pytest.mark.parametrize(
-    ("overrides", "constraint"),
-    [
-        ({"purpose": "avatar"}, "ck_file_upload_purpose_known"),
-        ({"filename": ""}, "ck_file_upload_filename_length"),
-        ({"filename": "x" * 256}, "ck_file_upload_filename_length"),
-        ({"size_bytes": 0}, "ck_file_upload_size_bytes_positive"),
-        ({"part_size_bytes": 5 * 1024**2 - 1}, "ck_file_upload_part_size_bound"),
-        ({"part_size_bytes": 10 * 1024**2 + 1}, "ck_file_upload_part_size_bound"),
-        ({"part_count": 0}, "ck_file_upload_part_count_bound"),
-        ({"part_count": 10_001}, "ck_file_upload_part_count_bound"),
-        ({"deposit": None}, "ck_file_upload_open_or_completed"),
-        ({"completed_at": ENDED}, "ck_file_upload_open_or_completed"),
-        ({"uploaded_by": uuid4()}, "fk_file_upload_uploaded_by_user_account"),
-        ({"object_key": "uploads/taken"}, "uq_file_upload_object_key"),
-    ],
-    ids=lambda value: value if isinstance(value, str) else "",
-)
-def test_the_database_refuses_a_deposit_that_breaks_a_rule(
-    database: Database, overrides: dict[str, object], constraint: str
-) -> None:
-    account = raw_account()
-    with database.engine.begin() as connection:
-        connection.execute(insert(UserAccount).values(**account))
-        connection.execute(write_upload(account["id"], object_key="uploads/taken"))
-    assert refusal(database, write_upload(account["id"], **overrides)) == constraint

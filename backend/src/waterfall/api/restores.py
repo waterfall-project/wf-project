@@ -7,8 +7,7 @@ replaces both databases whole — nothing partial is offered — under a mainten
 liveness says (#604). The task is deposited, once its transaction is committed, in the stream of
 the restorations, which that service alone reads, never in the worker's (#953). It carries the key
 of the archive, so that it never reads, to find it, the database it replaces. One restoration at a
-time: a second one, while the first is queued or running, is refused. A backup copied out of a
-platform is restored from its deposit (#350), whose date is the one its manifest says.
+time: a second one, while the first is queued or running, is refused.
 """
 
 from typing import Annotated
@@ -21,23 +20,13 @@ from waterfall.api.contract.models import BackgroundTaskRef, RestoreRequest
 from waterfall.api.evaluation import Requires
 from waterfall.api.tasks import task_ref
 from waterfall.core.backups.interface import NOT_FOUND, read_backup
-from waterfall.platform.database import utc_now
-from waterfall.platform.errors import (
-    BadRequestError,
-    ConflictError,
-    FieldError,
-    NotFoundError,
-    UnprocessableError,
-)
+from waterfall.platform.errors import BadRequestError, ConflictError, NotFoundError
 from waterfall.platform.tasks import BackgroundTask, pending_task, submit
-from waterfall.platform.uploads import EXTERNAL_BACKUP, completed_upload
 
 router = APIRouter(tags=["platform"])
 
 CONFIRMATION_REQUIRED = "CONFIRMATION_REQUIRED"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 RESTORE = [Depends(Requires("platform_restore"))]
 # The key of the advisory lock under which a request looks for a pending restoration, then deposits.
 RESTORE_LOCK = 3_700_160
@@ -58,35 +47,19 @@ def post_restore(
 ) -> BackgroundTaskRef:
     """Deposit the restoration of a backup whose date the confirmation states, for its service.
 
-    A backup of the list, or one copied out of a platform and deposited here (#350): a deposit
-    unknown, not completed or expired is not found (404), one made for an import is refused (422).
-    The date of a deposit is the one its manifest says; a deposit whose manifest says none is
-    refused by the task, which reads it, before the maintenance.
+    A backup copied out of the platform is deposited by chunks first (#350), which this lot does
+    not serve yet: its identifier names no deposit (404).
     """
     asked = request.root
-    if asked.backup_id is not None:
-        backup = read_backup(session, asked.backup_id.root)
-        taken_at = backup.taken_at
-        payload = {"backup_id": str(backup.backup_id), "object_key": backup.object_key}
-    else:
-        upload_id = asked.external_backup_upload_id.root
-        upload = completed_upload(session, upload_id, utc_now())
-        if upload is None:
-            raise NotFoundError(NOT_FOUND)
-        if upload.purpose != EXTERNAL_BACKUP:
-            mismatch = FieldError("/external_backup_upload_id", UPLOAD_PURPOSE_MISMATCH)
-            raise UnprocessableError(VALIDATION_FAILED, fields=(mismatch,))
-        taken_at = upload.backup_taken_at
-        payload = {
-            "upload_id": str(upload.id),
-            "filename": upload.filename,
-            "object_key": upload.object_key,
-        }
-    if taken_at is not None and taken_at != asked.acknowledged_backup_taken_at.root:
+    if asked.backup_id is None:
+        raise NotFoundError(NOT_FOUND)
+    backup = read_backup(session, asked.backup_id.root)
+    if backup.taken_at != asked.acknowledged_backup_taken_at.root:
         raise BadRequestError(CONFIRMATION_REQUIRED)
     session.execute(select(func.pg_advisory_xact_lock(RESTORE_LOCK)))
     if pending_task(session, "restore") is not None:
         raise ConflictError(STATE_FORBIDS_OPERATION)
+    payload = {"backup_id": str(backup.backup_id), "object_key": backup.object_key}
     restores = services.queue.restores()
     task_id = submit(session, restores, "restore", account.user_id, payload)
     return task_ref(session.get_one(BackgroundTask, task_id))
