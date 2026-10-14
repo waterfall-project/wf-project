@@ -92,6 +92,7 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         "api",
         "worker",
         "scheduler",
+        "restore",
         "postgres",
         "redis",
         "storage",
@@ -107,6 +108,7 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         "caddy-config",
         "postgres-data",
         "storage-data",
+        "realm-requests",
     }
     for name, kept in {
         "postgres": "/var/lib/postgresql/data",
@@ -249,7 +251,7 @@ def test_the_worker_backs_up_as_the_role_of_the_backup_and_the_owner_migrates_al
     for name, service in services().items():
         held = [str(value) for value in dict(service.get("environment", {})).values()]
         if any(value.startswith(owner) for value in held):
-            assert name in {"migrate", "install"}, name
+            assert name in {"migrate", "install", "restore"}, name
     for name in ("api", "worker", "scheduler"):
         assert environment(name)["WATERFALL_DATABASE_URL"].startswith(
             "postgresql://waterfall_service:"
@@ -310,7 +312,7 @@ def test_the_bootstrap_is_a_service_of_its_own_never_started_by_up() -> None:
         "postgres": healthy,
         "migrate": done,
         "keycloak": healthy,
-        "keycloak-realm": done,
+        "keycloak-realm": healthy,
     }
     holders = [
         name
@@ -318,7 +320,37 @@ def test_the_bootstrap_is_a_service_of_its_own_never_started_by_up() -> None:
         if "WATERFALL_INSTALLATION_CLIENT_SECRET" in dict(service.get("environment", {}))
         and name != "keycloak-realm"
     ]
-    assert holders == ["install"]
+    assert holders == ["restore", "install"]
+
+
+def test_the_restoration_has_a_service_of_its_own_always_started_and_the_realm_its_own() -> None:
+    # #953, #955: a service of the image waterfall, always started, that holds the owners of both
+    # databases and the client of the bootstrap, opens no port, and shares with keycloak-realm
+    # alone the folder where it asks for the realm applied again; keycloak-realm stays, on the
+    # database of Keycloak, where it makes its temporary administrator (#991).
+    restore = services()["restore"]
+    assert restore["command"] == ["waterfall-restore"]
+    assert restore["restart"] == "unless-stopped"
+    assert "profiles" not in restore
+    assert "ports" not in restore
+    held = environment("restore")
+    assert held["WATERFALL_DATABASE_URL"].startswith("postgresql://waterfall:")
+    assert held["WATERFALL_KEYCLOAK_DATABASE_URL"].startswith("postgresql://keycloak:")
+    assert held["WATERFALL_INSTALLATION_CLIENT_SECRET"] == required(
+        "WATERFALL_INSTALLATION_CLIENT_SECRET"
+    )
+    realm = services()["keycloak-realm"]
+    assert realm["entrypoint"][0] == "/opt/keycloak/bin/realm-service"
+    assert realm["restart"] == "unless-stopped"
+    assert "healthcheck" in realm
+    assert {"KC_DB_URL", "KC_DB_USERNAME", "KC_DB_PASSWORD"} <= set(environment("keycloak-realm"))
+    sharing = sorted(
+        name
+        for name, service in services().items()
+        if any(str(volume).startswith("realm-requests:") for volume in service.get("volumes", []))
+    )
+    assert sharing == ["keycloak-realm", "restore"]
+    assert compose()["volumes"]["realm-requests"]["driver_opts"]["type"] == "tmpfs"
 
 
 def test_a_local_name_makes_the_front_trust_the_authority_of_caddy() -> None:
@@ -343,6 +375,12 @@ def test_the_chain_tries_the_platform_in_the_full_tier_and_on_the_images_publish
         "run": "make production-trial",
     }
     assert set(job["env"]) == set(trial["jobs"]["trial"]["env"])
+    # #948: the backup and its restoration by the API are part of the trial, in both.
+    assert (
+        job["env"][restoration_trial.GUARD]
+        == trial["jobs"]["trial"]["env"][restoration_trial.GUARD]
+        == "1"
+    )
 
 
 def test_a_change_of_the_platform_or_of_its_trial_wakes_the_production_family() -> None:

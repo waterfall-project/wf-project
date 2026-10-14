@@ -28,6 +28,7 @@ dependencies = [
 waterfall-api = "waterfall.bootstrap:main"
 waterfall-worker = "waterfall.worker.main:main"
 waterfall-migrate = "waterfall.migrations.runner:main"
+waterfall-restore = "waterfall.restore.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]
@@ -98,9 +99,9 @@ reportUnnecessaryTypeIgnoreComment = "error"
 root_package = "waterfall"
 
 [[tool.importlinter.contracts]]
-name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them; the bootstrap, which applies the migrations, is imported by none"
+name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them; the bootstrap and the service of the restoration, which apply the migrations, are imported by none"
 type = "layers"
-layers = ["waterfall.bootstrap", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
+layers = ["waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

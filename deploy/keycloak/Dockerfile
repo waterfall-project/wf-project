@@ -4,8 +4,9 @@
 
 # The image `keycloak`, which the chain publishes (US-0430) and the service platform builds
 # (US-0350): Keycloak 26 built for PostgreSQL, under /auth, with the extension of Waterfall and its
-# themes; the realm, and keycloak-config-cli to apply it. One image, two commands: Keycloak by
-# default, `apply-realm` to apply the realm. No secret is in it (WF-SEC-0010): the database, the
+# themes; the realm, and keycloak-config-cli to apply it. One image, three commands: Keycloak by
+# default, `apply-realm` to apply the realm, and `realm-service`, which applies it, then stays and
+# applies it again over a database the service of the restoration has restored (#955). No secret is in it (WF-SEC-0010): the database, the
 # administrator and the secrets of the clients come at run time. What the development platform adds
 # to the realm — its directory, its external provider, their test accounts — never enters it
 # (.dockerignore). Every image is pinned by the digest of its index; raise the version of Keycloak
@@ -34,6 +35,7 @@ RUN /opt/keycloak/bin/kc.sh build --db=postgres --health-enabled=true --http-rel
 COPY --from=realm-applier /app/keycloak-config-cli.jar /opt/keycloak-config-cli/keycloak-config-cli.jar
 COPY realm/ /opt/keycloak/realm/
 COPY apply-realm.sh /opt/keycloak/bin/apply-realm
+COPY realm-service.sh /opt/keycloak/bin/realm-service
 USER 1000
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
 CMD ["start", "--optimized"]

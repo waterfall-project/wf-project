@@ -22,9 +22,9 @@ come from the environment, as the chain gives them; no file holds them. Then it 
 - the first administrator sets their password by the link, signs in through the front, at the root
   of the domain, and Keycloak under ``/auth``, and the front opens the session: its cookie set, a
   page of the front that names them;
-- asked for by ``WATERFALL_TRIAL_RESTORATION=1``, a backup and its restoration by the API, the
-  restoration followed by the liveness probe to its end (``wftools.restoration_trial``, US-0440,
-  #948): left out until the chain starts the service of the restoration.
+- asked for by ``WATERFALL_TRIAL_RESTORATION=1``, as the chain does, a backup and its restoration by
+  the API, which the service of the restoration runs, followed by the liveness probe to its end
+  (``wftools.restoration_trial``, US-0440, #948).
 
 Every request reaches the platform at the loopback, under the name of the domain, which no resolver
 is asked for. The platform is removed at the end, its volumes with it, whatever the outcome; what

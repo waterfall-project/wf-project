@@ -18,6 +18,7 @@ PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 LAYOUT = {
     "bootstrap.py": "",
+    "restore/__init__.py": "",
     "api/__init__.py": "",
     "worker/__init__.py": "",
     "migrations/__init__.py": "",
@@ -132,6 +133,24 @@ def test_nothing_imports_the_bootstrap(sample: Path, module: str) -> None:
     result = lint(sample, module, "import sample.bootstrap\n")
     assert result.returncode == 1
     assert f"sample.{module.removesuffix('.__init__')} -> sample.bootstrap" in result.stdout
+
+
+def test_the_service_of_the_restoration_may_apply_the_migrations_and_run_as_the_worker(
+    sample: Path,
+) -> None:
+    # The restoration applies the migrations and runs as the worker does (#953).
+    imports = (
+        "import sample.migrations\nimport sample.worker\nimport sample.core.accounts.interface\n"
+    )
+    result = lint(sample, "restore.__init__", imports)
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize("module", ["worker.__init__", "api.__init__", "core.projects.tables"])
+def test_nothing_imports_the_service_of_the_restoration(sample: Path, module: str) -> None:
+    result = lint(sample, module, "import sample.restore\n")
+    assert result.returncode == 1
+    assert f"sample.{module.removesuffix('.__init__')} -> sample.restore" in result.stdout
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

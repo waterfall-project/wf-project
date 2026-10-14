@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from installations import Installation, Take, installed, taker
 from openapi_core import Config, OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, delete, text
@@ -32,7 +33,8 @@ from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
+from waterfall.platform.maintenance import SUFFIX, Maintenance
+from waterfall.platform.queue import RESTORES, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_service_settings
 from waterfall.platform.storage import Bucket
 
@@ -279,11 +281,12 @@ def redis_url() -> str:
 def queue(redis_url: str) -> Iterator[TaskQueue]:
     """Give a queue of tasks on the Redis of the tests, in a stream of its own, deleted after.
 
-    It waits for Redis as the worker's does, which the tests run on it.
+    It waits for Redis as the worker's does, which the tests run on it. The stream of the
+    restorations and the maintenance beside it are deleted with it.
     """
     opened = TaskQueue.connect(redis_url, f"waterfall:test:{uuid4().hex}", timeout=WORKER_TIMEOUT)
     yield opened
-    opened.client.delete(opened.stream)
+    opened.client.delete(opened.stream, opened.stream + RESTORES, opened.stream + SUFFIX)
     opened.close()
 
 
@@ -330,3 +333,37 @@ def backups_bucket() -> Iterator[Bucket]:
     for listed in bucket.client.list_objects_v2(Bucket=name).get("Contents", []):
         bucket.client.delete_object(Bucket=name, Key=listed.get("Key", ""))
     bucket.client.delete_bucket(Bucket=name)
+
+
+@pytest.fixture
+def installation(
+    database_url: str, backup_role: tuple[str, str], backups_bucket: Bucket
+) -> Iterator[Installation]:
+    """Give an installation of its own, dropped after the test (``installations``)."""
+    yield from installed(database_url, backup_role, backups_bucket)
+
+
+@pytest.fixture
+def take(installation: Installation, queue: TaskQueue) -> Take:
+    """Give a taker of backups: a backup deposited as a request does, then run by a worker."""
+    return taker(installation, queue)
+
+
+@pytest.fixture
+def installation_api(
+    installation: Installation,
+    queue: TaskQueue,
+    contract: OpenAPI,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+) -> ContractClient:
+    """Serve the API on an installation, as the role of the service, the maintenance beside it."""
+    services = Services(
+        installation.database,
+        keycloak,
+        KeycloakAdmin(keycloak, realm_settings),
+        queue,
+        installation.bucket,
+        Maintenance.of(queue),
+    )
+    return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)

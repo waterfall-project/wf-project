@@ -138,6 +138,24 @@ class InstallationSettings(KeycloakSettings):
     default_language: Literal["fr", "en"]
 
 
+class RestoreSettings(ServiceSettings):
+    """What the service of the restoration reads, ``waterfall-restore`` (WF-ADM-0160, #953).
+
+    The only process of the platform that holds the owners of both databases: ``database_url``
+    designates the owner of the tables of Waterfall, who replaces them and applies the migrations,
+    and ``keycloak_database_url`` the owner of the database of the identity provider (#701).
+    ``installation_client_secret`` is the secret of the client of the bootstrap, whose account
+    clears the caches of the realm (``manage-realm``, #954); ``service_client_secret``, that of the
+    service account, which closes the sessions. ``realm_requests`` is the folder it shares with the
+    service ``keycloak-realm`` alone, where it asks for the realm of the installation to be applied
+    again over the database restored, and reads the answer (#955).
+    """
+
+    keycloak_database_url: SecretStr = Field(min_length=1)
+    installation_client_secret: SecretStr = Field(min_length=1)
+    realm_requests: str = Field(min_length=1)
+
+
 def load_settings() -> Settings:
     """Read the settings from the environment, or raise a ``SettingsError`` that names each fault.
 
@@ -154,6 +172,11 @@ def load_service_settings() -> ServiceSettings:
 def load_worker_settings() -> WorkerSettings:
     """Read the settings of the worker, as ``load_settings`` does."""
     return _load(WorkerSettings)
+
+
+def load_restore_settings() -> RestoreSettings:
+    """Read the settings of the service of the restoration, as ``load_settings`` does."""
+    return _load(RestoreSettings)
 
 
 def load_installation_settings() -> InstallationSettings:

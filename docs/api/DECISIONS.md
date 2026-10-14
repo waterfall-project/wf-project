@@ -3853,7 +3853,12 @@ manque.
 
 Décision de l'auteur du 2026-10-12 (#892) : une tâche que la restauration trouve en file ou en
 cours dans la base restaurée échoue par `TASK_INTERRUPTED_BY_RESTORE` (409), code propre, sans
-reprendre ; exemple `task_interrupted_by_restore`, variante contrefactuelle.
+reprendre ; exemple `task_interrupted_by_restore`, variante contrefactuelle. Décision de l'auteur du
+2026-10-13 (#987) : les tâches que la restauration garde — la sienne et celles des sauvegardes, que
+la liste garde (#893) — reprennent l'état gardé, plus récent que la sauvegarde, et seules les autres
+tâches restaurées en file ou en cours échouent ainsi ; l'exemple, qui figeait une sauvegarde
+interrompue, devient une lecture des comptes en file. Écarté : faire échouer la tâche d'une
+sauvegarde que la liste tient vérifiée, un succès présenté comme un échec (WF-EXP-0040).
 
 Décisions de l'auteur du 2026-10-12 (#953, #954, #955) : la restauration est exécutée par un
 service à part, seul à tenir l'adresse du propriétaire des bases et le client d'administration

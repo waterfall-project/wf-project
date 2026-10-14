@@ -3,12 +3,13 @@
 
 # The image `waterfall`, which the chain publishes (US-0430) and the service platform builds: the
 # API (`waterfall-api`, the default command), the worker (`waterfall-worker`), its schedule
-# (`waterfall-worker enqueue <kind>`) and the migrations (`waterfall-migrate`) are commands of one
-# distribution, so one image runs them all (WF-ARC-0010). No secret is in it (WF-SEC-0010): each
+# (`waterfall-worker enqueue <kind>`), the migrations (`waterfall-migrate`) and the service of the
+# restoration (`waterfall-restore`) are commands of one distribution, so one image runs them all
+# (WF-ARC-0010). No secret is in it (WF-SEC-0010): each
 # command reads its settings from the environment of the container, and stops naming the one that
 # lacks. The base image is pinned by digest: a tag can be moved, a digest cannot. It is Debian's
-# trixie, whose PostgreSQL client, 17, dumps and lists the server of the platform, 16: pg_dump reads
-# no server more recent than itself, and bookworm's is 15.
+# trixie; the client of PostgreSQL comes from the repository of the PostgreSQL project (PGDG), in
+# the major version of the server of the platform, 16 (#982).
 FROM python:3.13-slim-trixie@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f AS python
 
 ENV PYTHONUNBUFFERED=1
@@ -37,9 +38,18 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     WATERFALL_HOST=0.0.0.0
 
 # pg_dump and pg_restore, with which the worker backs up the two databases and verifies the archive
-# (WF-ADM-0150): the client of the major version 17, the latest of its minor releases.
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends "postgresql-client-17=17.*" \
+# (WF-ADM-0150), and the service of the restoration restores them (WF-ADM-0160): the client of the
+# major version of the server, 16, the latest of its minor releases. Not Debian's, 17: pg_restore 17
+# sets transaction_timeout, which a server 16 refuses, and no restoration would end (#982). The key
+# of the repository is pinned by its digest; its fingerprint is
+# B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8.
+RUN python -c "import urllib.request; urllib.request.urlretrieve('https://www.postgresql.org/media/keys/ACCC4CF8.asc', '/usr/share/keyrings/pgdg.asc')" \
+    && echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  /usr/share/keyrings/pgdg.asc" > /tmp/pgdg.sha256 \
+    && sha256sum --check --strict /tmp/pgdg.sha256 \
+    && rm /tmp/pgdg.sha256 \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends "postgresql-client-16=16.*" \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/.venv /app/.venv

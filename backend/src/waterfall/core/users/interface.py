@@ -13,7 +13,8 @@ each one carries and the condition the deactivation of the last administrator la
 WF-IHM-0090); a local account created, and the identity of an account changed (``identity``); an
 account deactivated or reactivated, and an account locked at the version read for a write of the
 roles it holds, which notes the change (``states``); a deactivated account anonymised, for good
-(``states``, WF-ADM-0060); the moment its sessions were last closed — by its holder, or by its
+(``states``, WF-ADM-0060), and anonymised again after a restoration that named it again (#988);
+the moment its sessions were last closed — by its holder, or by its
 deactivation —, which refuses a token whose sign-in comes before it (#668, #835); what its holder
 sets alone, its preferences and its avatar (``personal``, WF-ADM-0040, WF-ADM-0080); and the
 administrator the bootstrap created (WF-EXP-0020). An anonymised account has no name nor address:
@@ -98,7 +99,12 @@ from waterfall.core.users.provider import (
     record_report,
     unheld_accounts,
 )
-from waterfall.core.users.states import anonymize, check_anonymization, set_state
+from waterfall.core.users.states import (
+    anonymize,
+    anonymize_again,
+    check_anonymization,
+    set_state,
+)
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.errors import ConflictError, NotFoundError
@@ -135,6 +141,7 @@ __all__ = [
     "address_holder",
     "address_taken",
     "anonymize_account",
+    "anonymize_again",
     "author_order",
     "change_account",
     "change_preferences",

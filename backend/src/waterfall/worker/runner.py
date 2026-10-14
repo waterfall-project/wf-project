@@ -7,6 +7,12 @@ task; the attempt that starts is committed before, apart. A worker stopped durin
 database as it was, but for that attempt: a worker that claims its entry finds the lock free, and
 runs the task again from the start; while the task runs, the entry is left (WF-ARC-0090). A task
 whose attempts are spent, or that no handler runs, fails without running.
+
+While a restoration holds the platform in maintenance, the worker runs no task: the entries it reads
+are left, unacknowledged, and it claims them again once idle, after the maintenance (WF-ADM-0160).
+It never runs a restoration, which the service of the restoration takes from a stream of its own
+(#953), nor deposits one again; that service waits for the run of each task the worker started
+before the maintenance to end, by its lock (``await_run``), before it keeps anything.
 """
 
 import socket
@@ -17,13 +23,14 @@ from typing import Any
 from uuid import UUID
 
 from pydantic_core import to_jsonable_python
-from redis.exceptions import ResponseError
-from sqlalchemy import Integer, cast, func, select, update
+from redis.exceptions import RedisError, ResponseError
+from sqlalchemy import ColumnElement, Integer, cast, func, select, update
 from sqlalchemy.orm import Session
 
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import FieldError, ServiceError
 from waterfall.platform.logs import PLATFORM, get_logger, logging_context
+from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.queue import SWEEP_START, Entry, TaskQueue
 from waterfall.platform.tasks import FINISHED, PENDING, BackgroundTask, Task, TaskHandler
 
@@ -63,11 +70,19 @@ def field_problem(field: FieldError) -> dict[str, Any]:
     return described
 
 
+def _run_key(task_id: UUID) -> tuple[ColumnElement[int], ColumnElement[int]]:
+    key = int.from_bytes(task_id.bytes[-4:], "big", signed=True)
+    return cast(RUN_LOCK, Integer), cast(key, Integer)
+
+
 def lock_run(session: Session, task_id: UUID) -> bool:
     """Take the lock of the run of a task until the transaction ends; ``False`` if it is held."""
-    key = int.from_bytes(task_id.bytes[-4:], "big", signed=True)
-    locked = func.pg_try_advisory_xact_lock(cast(RUN_LOCK, Integer), cast(key, Integer))
-    return session.scalar(select(locked)) is True
+    return session.scalar(select(func.pg_try_advisory_xact_lock(*_run_key(task_id)))) is True
+
+
+def await_run(session: Session, task_id: UUID) -> None:
+    """Wait until no worker runs a task, by the lock of its run, held until the transaction ends."""
+    session.execute(select(func.pg_advisory_xact_lock(*_run_key(task_id))))
 
 
 def end(
@@ -126,6 +141,7 @@ class Worker:
         self.handlers = handlers
         self.consumer = consumer or socket.gethostname()
         self.timing = timing or Timing()
+        self.maintenance = Maintenance.of(queue)
         # Where the next look for the entries left pending starts: each look goes on from the last.
         self.sweep = SWEEP_START
 
@@ -163,8 +179,29 @@ class Worker:
             self.handle(entry)
         return bool(entries)
 
+    def halted(self) -> bool:
+        """Tell whether a maintenance began; not if Redis does not say, as the API reads it.
+
+        Read once the lock of a run is taken, for the run a maintenance began before; a Redis out
+        of reach then is no maintenance, as for the API (``waterfall.api.maintenance``).
+        """
+        try:
+            return self.restoring() is not None
+        except RedisError:
+            logger.warning("maintenance.unread", exc_info=True)
+            return False
+
+    def restoring(self) -> Restoring | None:
+        """Give the restoration that holds the platform in maintenance, if one does."""
+        return self.maintenance.current()
+
     def handle(self, entry: Entry) -> None:
-        """Run the task of an entry, and acknowledge it unless the task runs elsewhere."""
+        """Run the task of an entry, and acknowledge it unless the task runs elsewhere.
+
+        In maintenance, the entry is left, unacknowledged.
+        """
+        if self.restoring() is not None:
+            return
         if entry.task_id is None:
             logger.warning("queue.entry_unreadable", entry_id=entry.entry_id)
         elif not self.run_task(entry.task_id):
@@ -172,9 +209,14 @@ class Worker:
         self.queue.acknowledge(entry.entry_id)
 
     def run_task(self, task_id: UUID) -> bool:
-        """Run a task, under its lock; ``False`` if another worker holds the lock."""
+        """Run a task, under its lock; ``False`` if another worker holds the lock.
+
+        Or if a maintenance began meanwhile: the service of the restoration, once it holds it,
+        waits for the lock of each pending task before it keeps anything; a worker that takes the
+        lock after it does leaves the task.
+        """
         with self.database.transaction() as session:
-            if not lock_run(session, task_id):
+            if not lock_run(session, task_id) or self.halted():
                 return False
             task = self.start(task_id)
             if task is None:
@@ -224,12 +266,21 @@ class Worker:
             end(session, task.task_id, result=result)
             logger.info("task.succeeded")
 
+    def kinds(self) -> ColumnElement[bool]:
+        """Say which tasks this consumer deposits again: all but the restorations (#953)."""
+        return BackgroundTask.kind != "restore"
+
     def redeposit(self) -> None:
-        """Deposit again the pending tasks the stream no longer names, but those that run."""
+        """Deposit again the pending tasks the stream no longer names, but those that run.
+
+        Not in maintenance: the database is being replaced.
+        """
+        if self.restoring() is not None:
+            return
         with self.database.transaction() as session:
             pending = session.execute(
                 select(BackgroundTask.id, BackgroundTask.status).where(
-                    BackgroundTask.status.in_(PENDING)
+                    BackgroundTask.status.in_(PENDING), self.kinds()
                 )
             ).all()
             named = self.queue.waiting()

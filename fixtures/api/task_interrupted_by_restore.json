@@ -1,8 +1,8 @@
 {
-  "summary": "Variante contrefactuelle déclarée : la plateforme restaurée à 14 h 08 depuis un vidage pris pendant une sauvegarde du 2 juin 2026 à 1 h, encore en cours dans ce vidage ; la restauration la trouve en cours dans la base restaurée et la fait échouer, sans la relancer ni écraser son archive (WF-ADM-0160, #892).",
+  "summary": "Variante contrefactuelle déclarée : la plateforme restaurée à 14 h 08 depuis une sauvegarde du 2 juin 2026 à 1 h, dont le vidage tient une lecture des comptes encore en file ; la restauration la trouve en file dans la base restaurée et la fait échouer, sans la relancer (WF-ADM-0160, #892). Une tâche que la restauration garde — la sienne, celles des sauvegardes — reprend l'état gardé, et n'échoue pas ainsi (#987).",
   "value": {
     "task_id": "01926f3a-7c00-7000-8000-000000000938",
-    "kind": "backup",
+    "kind": "identity_sync",
     "status": "failed",
     "progress": 0,
     "submitted_at": "2026-06-02T01:00:00Z",
