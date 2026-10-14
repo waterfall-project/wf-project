@@ -6,11 +6,13 @@ A role is never removed: its deletion marks it, and a role so marked is read by 
 neither listed, nor read, nor changed, nor deleted again —, while its row stays for the journal of
 audit and the past attributions that cite it (WF-DAT-0080, WF-ADM-0090). Every creation, change
 and deletion is inscribed in the journal, in its transaction (WF-SEC-0030). The author of a write
-is an account, or ``None`` for the platform (WF-DAT-0070); the moment is an argument.
+is an account, or ``None`` for the platform (WF-DAT-0070); the moment is an argument. The columns
+of audit of the table of the roles are filtered and sorted as its other columns (#936), an author
+by its name, which the module of the accounts gives (``author_order``).
 """
 
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, cast
 from uuid import UUID
@@ -30,7 +32,7 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy.orm import Session
 
 from waterfall.core.access_roles.administrators import guard_last_administrator
 from waterfall.core.access_roles.tables import (
@@ -42,10 +44,12 @@ from waterfall.core.access_roles.tables import (
 from waterfall.core.users.interface import (
     AccountExpression,
     Author,
+    author_order,
     inscribed_actor,
     read_author,
 )
 from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
+from waterfall.platform.audit_columns import AuditColumnFilters, AuditColumns, audit_criteria
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     ConflictError,
@@ -61,7 +65,19 @@ STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ACCESS_ROLE_IN_USE = "ACCESS_ROLE_IN_USE"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 
-type SortColumn = Literal["label", "is_predefined", "holder_count"]
+type SortColumn = Literal[
+    "label",
+    "is_predefined",
+    "holder_count",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
+]
+
+AUDIT = AuditColumns(
+    AccessRole.created_at, AccessRole.created_by, AccessRole.updated_at, AccessRole.updated_by
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +113,7 @@ class RoleFilters:
     is_predefined: bool | None = None
     holder_count_min: int | None = None
     holder_count_max: int | None = None
+    audit: AuditColumnFilters = field(default_factory=AuditColumnFilters)
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,14 +175,19 @@ def list_roles(session: Session, filters: RoleFilters, sort: RoleSort) -> list[R
         query = query.where(holder_count >= filters.holder_count_min)
     if filters.holder_count_max is not None:
         query = query.where(holder_count <= filters.holder_count_max)
+    query = query.where(*audit_criteria(AUDIT, filters.audit))
     # The predefined before the composed in the ascending order: true sorts after false.
-    keys: dict[SortColumn, ColumnElement[Any] | InstrumentedAttribute[Any]] = {
-        "label": AccessRole.label,
-        "is_predefined": ~AccessRole.is_predefined,
-        "holder_count": holder_count,
+    keys: dict[SortColumn, tuple[SQLColumnExpression[Any], ...]] = {
+        "label": (AccessRole.label,),
+        "is_predefined": (~AccessRole.is_predefined,),
+        "holder_count": (holder_count,),
+        "created_at": (AccessRole.created_at,),
+        "created_by": author_order(AccessRole.created_by),
+        "updated_at": (AccessRole.updated_at,),
+        "updated_by": author_order(AccessRole.updated_by),
     }
-    key = keys[sort.column]
-    order = (key.desc() if sort.descending else key, AccessRole.label, AccessRole.id)
+    asked = [key.desc() if sort.descending else key for key in keys[sort.column]]
+    order = (*asked, AccessRole.label, AccessRole.id)
     return _views(session, session.execute(query.order_by(*order)).all())
 
 

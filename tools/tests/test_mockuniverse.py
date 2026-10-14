@@ -654,15 +654,18 @@ def test_the_coverage_of_the_portfolio_counts_that_of_the_witness() -> None:
 def test_every_inverted_period_is_refused_by_one_rule() -> None:
     # One rule for every period of the contract (docs/api/README.md): 422, `/query/to` by
     # VALUE_OUT_OF_RANGE, `params.minimum` the start given — a date or an instant, as `from` is.
+    # A table with several columns of dates names the end by its column (#936).
     # A bound of the portfolio sent alone is completed by the default period, and the refusal
     # names the bound sent, `params` the bound completed (#560).
     found = sorted(mockwitness.FIXTURES.glob("*_period_inverted.json"))
     expected = {
+        "access_roles": ("/query/updated_at_to", "minimum", datetime),
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
+        "users": ("/query/created_at_to", "minimum", datetime),
     }
     assert {path.name.removesuffix("_period_inverted.json") for path in found} == set(expected)
     for path in found:
@@ -723,9 +726,11 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "getPortfolioProjects",
         "getPortfolioRisks",
         "getPortfolioValue",
+        "listAccessRoles",
         "listActualCosts",
         "listAuditEvents",
         "listProjects",
+        "listUsers",
     ]
     for name, text in taking.items():
         refused = text.split("\n      '422':", 1)

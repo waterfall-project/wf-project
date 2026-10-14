@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """What the accounts offer to the other modules and to the API.
 
-The label of an account; the author of a row, named as it is shown; which accounts are active;
+The label of an account; the author of a row, named as it is shown, and sorted so (``author_order``,
+#936); which accounts are active;
 the account the identity provider knows by a subject, as the account itself reads it; the account
 of a person the provider knows and Waterfall not yet, created without any role or attached by her
 address (WF-ADM-0180, #707), and the reading of the accounts of the provider and its report
@@ -65,6 +66,7 @@ from waterfall.core.users.listing import (
     AccountFilters,
     AccountSort,
     Page,
+    author_order,
     find_accounts,
 )
 from waterfall.core.users.password_link import inscribe_link, lock_link_holder, not_local
@@ -133,6 +135,7 @@ __all__ = [
     "address_holder",
     "address_taken",
     "anonymize_account",
+    "author_order",
     "change_account",
     "change_preferences",
     "check_account_anonymization",

@@ -324,8 +324,11 @@ paths = [
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",
+    "fixtures/api/users_created_by_platform.json",
+    "fixtures/api/users_by_created_at.json",
     "fixtures/api/access_roles_composed.json",
     "fixtures/api/access_roles_unheld.json",
+    "fixtures/api/access_roles_by_updated_by.json",
     "fixtures/api/work_breakdown_search.json",
     "fixtures/api/work_breakdown_work_packages.json",
 ]

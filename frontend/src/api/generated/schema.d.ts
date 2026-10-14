@@ -258,7 +258,7 @@ export interface paths {
         /**
          * Comptes utilisateurs
          * @description Les comptes de l'installation, avec leur état et leur rattachement à l'organisation (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060). Chaque compte porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090) : la désactivation du dernier compte qui porte les permissions d'administration est indisponible (WF-ADM-0120), ce que la liste, paginée, ne laisserait pas déduire.
-         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom et l'adresse, et sur le prénom suivi du nom, tels que la table les montre ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les comptes retenus. Un tri à égalité se départage par l'ordre de la liste sans tri — le nom puis le prénom —, puis par l'identifiant du compte, dans l'ordre croissant, pour que deux pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060, #741).
+         *     Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le prénom et l'adresse, et sur le prénom suivi du nom, tels que la table les montre ; l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par `include_inactive` — ; les colonnes d'audit (WF-DAT-0070) par une période chacune (`created_at_from`, `created_at_to`, `updated_at_from`, `updated_at_to`) et par leur auteur, un compte ou la plateforme (`created_by_user_id`, `created_by_kind`, `updated_by_user_id`, `updated_by_kind`) ; `meta.total` compte les comptes retenus. Un auteur désactivé reste nommé dans les colonnes d'audit (WF-ADM-0060) ; un auteur anonymisé n'y a plus de nom (`ActorRef.display_name` nul), que le front présente sous le libellé neutre de son catalogue. Un tri à égalité se départage par l'ordre de la liste sans tri — le nom puis le prénom —, puis par l'identifiant du compte, dans l'ordre croissant, pour que deux pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060, #741).
          */
         get: operations["listUsers"];
         put?: never;
@@ -466,7 +466,7 @@ export interface paths {
         };
         /**
          * Rôles d'habilitation
-         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés compris. Les rôles supprimés (`deleteAccessRole`) n'y figurent plus. Un tri à égalité se départage par l'ordre de la liste sans tri — le libellé —, puis par l'identifiant du rôle, dans l'ordre croissant, pour que deux lectures successives rendent le même ordre (WF-IHM-0060, #741).
+         * @description Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010, WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes incluses (`holder_count_min`, `holder_count_max`), les colonnes d'audit (WF-DAT-0070) par une période chacune (`created_at_from`, `created_at_to`, `updated_at_from`, `updated_at_to`) et par leur auteur, un compte ou la plateforme (`created_by_user_id`, `created_by_kind`, `updated_by_user_id`, `updated_by_kind`) ; les filtres se combinent. Un auteur désactivé reste nommé dans les colonnes d'audit (WF-ADM-0060) ; un auteur anonymisé n'y a plus de nom (`ActorRef.display_name` nul), que le front présente sous le libellé neutre de son catalogue. Le nombre de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés compris. Les rôles supprimés (`deleteAccessRole`) n'y figurent plus. Un tri à égalité se départage par l'ordre de la liste sans tri — le libellé —, puis par l'identifiant du rôle, dans l'ordre croissant, pour que deux lectures successives rendent le même ordre (WF-IHM-0060, #741).
          */
         get: operations["listAccessRoles"];
         put?: never;
@@ -2890,6 +2890,11 @@ export interface components {
             permissions: components["schemas"]["PermissionCode"][];
         };
         /**
+         * @description L'auteur d'une inscription, un compte ou la plateforme, comme `ActorRef.kind` le dit : nommé pour filtrer le journal.
+         * @enum {string}
+         */
+        AuditActorKind: "user" | "platform";
+        /**
          * @description Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, l'anonymiser, par `anonymizeUser` (WF-ADM-0060), et lui attribuer ses rôles d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte `anonymize` s'il est désactivé, comme `reactivate` qu'elle suit — disponible tant qu'il n'est pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante —, et toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2, WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est disponible, hors `reactivate` et `anonymize` d'un compte anonymisé.
          * @enum {string}
          */
@@ -3101,11 +3106,6 @@ export interface components {
             /** @constant */
             confirmed: true;
         } & (unknown | unknown);
-        /**
-         * @description L'auteur d'une inscription, un compte ou la plateforme, comme `ActorRef.kind` le dit : nommé pour filtrer le journal.
-         * @enum {string}
-         */
-        AuditActorKind: "user" | "platform";
         /**
          * @description Ce qu'une inscription du journal d'audit consigne : chacune des actions irréversibles ou structurantes que WF-SEC-0030 énumère, dans son ordre — le marquage d'une révision, la désignation de la révision de référence, la contractualisation d'un avenant, qui fusionne son différentiel (`amendment_merge`, WF-REV-0050), la déclaration d'un risque survenu, la sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une ligne de coût, l'application d'un import, la création et la modification des comptes — dont leur désactivation et leur réactivation, leur anonymisation (`user_anonymize`, WF-ADM-0060), et le lien qui fixe un mot de passe, sans son jeton (WF-ADM-0140) —, la création, la modification et la suppression des rôles, l'attribution des rôles aux comptes, la sauvegarde et la restauration. Une action nouvelle est une modification du contrat.
          * @enum {string}
@@ -5003,6 +5003,22 @@ export interface components {
         TaskId: components["schemas"]["Uuid"];
         /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
         IncludeInactive: boolean;
+        /** @description Début, inclus, de la période de création : restreint aux lignes créées à cet instant ou après lui (`audit.created_at`, WF-IHM-0130). */
+        CreatedAtFrom: components["schemas"]["Timestamp"];
+        /** @description Fin, exclue, de la période de création : restreint aux lignes créées avant cet instant (WF-IHM-0130). Antérieure à `created_at_from`, elle est refusée par 422, `fields[]` désignant `/query/created_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; égale, la période est vide. */
+        CreatedAtTo: components["schemas"]["Timestamp"];
+        /** @description Restreint aux lignes créées par ce compte (`audit.created_by.user_id`), désactivé ou anonymisé compris : ses actes lui restent attribués (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne retient rien. */
+        CreatedByUserId: components["schemas"]["Uuid"];
+        /** @description Restreint aux lignes créées par un compte (`user`) ou par la plateforme (`platform`), un traitement automatique (`audit.created_by.kind`, WF-DAT-0070) ; absent, les deux. */
+        CreatedByKind: components["schemas"]["AuditActorKind"];
+        /** @description Début, inclus, de la période de dernière modification : restreint aux lignes modifiées en dernier à cet instant ou après lui (`audit.updated_at`, WF-IHM-0130). */
+        UpdatedAtFrom: components["schemas"]["Timestamp"];
+        /** @description Fin, exclue, de la période de dernière modification : restreint aux lignes modifiées en dernier avant cet instant (WF-IHM-0130). Antérieure à `updated_at_from`, elle est refusée par 422, `fields[]` désignant `/query/updated_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; égale, la période est vide. */
+        UpdatedAtTo: components["schemas"]["Timestamp"];
+        /** @description Restreint aux lignes modifiées en dernier par ce compte (`audit.updated_by.user_id`), désactivé ou anonymisé compris (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne retient rien. */
+        UpdatedByUserId: components["schemas"]["Uuid"];
+        /** @description Restreint aux lignes modifiées en dernier par un compte (`user`) ou par la plateforme (`platform`) (`audit.updated_by.kind`, WF-DAT-0070) ; absent, les deux. */
+        UpdatedByKind: components["schemas"]["AuditActorKind"];
         /** @description Sens du tri demandé par `sort_by`. */
         SortOrder: components["schemas"]["SortOrder"];
         UserId: components["schemas"]["Uuid"];
@@ -5399,8 +5415,24 @@ export interface operations {
                 org_node_id?: components["schemas"]["Uuid"];
                 /** @description Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme `org_node_id` un nœud inconnu. Le service vérifie la liste comme `origins`, après les schémas des autres paramètres : un identifiant mal formé, ou vide, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/access_role_ids`, une fois ces schémas tenus. */
                 access_role_ids?: components["schemas"]["Uuid"][];
-                /** @description Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son libellé, un compte sans rattachement après les autres dans l'ordre croissant — et l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se comparent dans l'ordre des points de code Unicode, et deux comptes à égalité se rangent par le nom puis le prénom, puis par leur identifiant, dans l'ordre croissant. */
-                sort_by?: "last_name" | "first_name" | "email" | "origin" | "access_roles" | "org_node" | "is_active";
+                /** @description Début, inclus, de la période de création : restreint aux lignes créées à cet instant ou après lui (`audit.created_at`, WF-IHM-0130). */
+                created_at_from?: components["parameters"]["CreatedAtFrom"];
+                /** @description Fin, exclue, de la période de création : restreint aux lignes créées avant cet instant (WF-IHM-0130). Antérieure à `created_at_from`, elle est refusée par 422, `fields[]` désignant `/query/created_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; égale, la période est vide. */
+                created_at_to?: components["parameters"]["CreatedAtTo"];
+                /** @description Restreint aux lignes créées par ce compte (`audit.created_by.user_id`), désactivé ou anonymisé compris : ses actes lui restent attribués (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne retient rien. */
+                created_by_user_id?: components["parameters"]["CreatedByUserId"];
+                /** @description Restreint aux lignes créées par un compte (`user`) ou par la plateforme (`platform`), un traitement automatique (`audit.created_by.kind`, WF-DAT-0070) ; absent, les deux. */
+                created_by_kind?: components["parameters"]["CreatedByKind"];
+                /** @description Début, inclus, de la période de dernière modification : restreint aux lignes modifiées en dernier à cet instant ou après lui (`audit.updated_at`, WF-IHM-0130). */
+                updated_at_from?: components["parameters"]["UpdatedAtFrom"];
+                /** @description Fin, exclue, de la période de dernière modification : restreint aux lignes modifiées en dernier avant cet instant (WF-IHM-0130). Antérieure à `updated_at_from`, elle est refusée par 422, `fields[]` désignant `/query/updated_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; égale, la période est vide. */
+                updated_at_to?: components["parameters"]["UpdatedAtTo"];
+                /** @description Restreint aux lignes modifiées en dernier par ce compte (`audit.updated_by.user_id`), désactivé ou anonymisé compris (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne retient rien. */
+                updated_by_user_id?: components["parameters"]["UpdatedByUserId"];
+                /** @description Restreint aux lignes modifiées en dernier par un compte (`user`) ou par la plateforme (`platform`) (`audit.updated_by.kind`, WF-DAT-0070) ; absent, les deux. */
+                updated_by_kind?: components["parameters"]["UpdatedByKind"];
+                /** @description Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son libellé, un compte sans rattachement après les autres dans l'ordre croissant — et l'état, les comptes désactivés après les actifs dans l'ordre croissant ; puis les colonnes d'audit (WF-DAT-0070) : les dates de création et de dernière modification, et leurs auteurs, comme le journal d'audit trie le sien — par le nom affiché du compte, le prénom puis le nom, dans l'ordre croissant un compte anonymisé, qui n'en a plus, après les noms, et la plateforme, qui n'en a pas, après les comptes. Les textes se comparent dans l'ordre des points de code Unicode, et deux comptes à égalité se rangent par le nom puis le prénom, puis par leur identifiant, dans l'ordre croissant. */
+                sort_by?: "last_name" | "first_name" | "email" | "origin" | "access_roles" | "org_node" | "is_active" | "created_at" | "created_by" | "updated_at" | "updated_by";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
             };
@@ -5424,7 +5456,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED`, `fields[]` désignant chaque paramètre refusé par son schéma : une valeur hors de son schéma ; un instant mal formé, `/query/<colonne>_from` ou `/query/<colonne>_to` par `DATE_INVALID`. Une incohérence entre paramètres, une fois les schémas tenus : une période dont la fin précède le début, à sa fin (`/query/created_at_to`, `/query/updated_at_to`) par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat. Aucune liste vide ne tient lieu de refus. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -5823,8 +5863,24 @@ export interface operations {
                 holder_count_min?: number;
                 /** @description Borne supérieure, incluse, du nombre de porteurs : restreint aux rôles portés par au plus autant de comptes — à 0, les rôles que personne ne porte (WF-IHM-0130). Inférieure à `holder_count_min`, elle est refusée par 422. */
                 holder_count_max?: number;
-                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de porteurs ; deux rôles à égalité se rangent par leur libellé, puis par leur identifiant, dans l'ordre croissant. */
-                sort_by?: "label" | "is_predefined" | "holder_count";
+                /** @description Début, inclus, de la période de création : restreint aux lignes créées à cet instant ou après lui (`audit.created_at`, WF-IHM-0130). */
+                created_at_from?: components["parameters"]["CreatedAtFrom"];
+                /** @description Fin, exclue, de la période de création : restreint aux lignes créées avant cet instant (WF-IHM-0130). Antérieure à `created_at_from`, elle est refusée par 422, `fields[]` désignant `/query/created_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; égale, la période est vide. */
+                created_at_to?: components["parameters"]["CreatedAtTo"];
+                /** @description Restreint aux lignes créées par ce compte (`audit.created_by.user_id`), désactivé ou anonymisé compris : ses actes lui restent attribués (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne retient rien. */
+                created_by_user_id?: components["parameters"]["CreatedByUserId"];
+                /** @description Restreint aux lignes créées par un compte (`user`) ou par la plateforme (`platform`), un traitement automatique (`audit.created_by.kind`, WF-DAT-0070) ; absent, les deux. */
+                created_by_kind?: components["parameters"]["CreatedByKind"];
+                /** @description Début, inclus, de la période de dernière modification : restreint aux lignes modifiées en dernier à cet instant ou après lui (`audit.updated_at`, WF-IHM-0130). */
+                updated_at_from?: components["parameters"]["UpdatedAtFrom"];
+                /** @description Fin, exclue, de la période de dernière modification : restreint aux lignes modifiées en dernier avant cet instant (WF-IHM-0130). Antérieure à `updated_at_from`, elle est refusée par 422, `fields[]` désignant `/query/updated_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; égale, la période est vide. */
+                updated_at_to?: components["parameters"]["UpdatedAtTo"];
+                /** @description Restreint aux lignes modifiées en dernier par ce compte (`audit.updated_by.user_id`), désactivé ou anonymisé compris (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne retient rien. */
+                updated_by_user_id?: components["parameters"]["UpdatedByUserId"];
+                /** @description Restreint aux lignes modifiées en dernier par un compte (`user`) ou par la plateforme (`platform`) (`audit.updated_by.kind`, WF-DAT-0070) ; absent, les deux. */
+                updated_by_kind?: components["parameters"]["UpdatedByKind"];
+                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de porteurs ; puis les colonnes d'audit (WF-DAT-0070) : les dates de création et de dernière modification, et leurs auteurs, comme ceux de `listUsers` — par le nom affiché du compte, comparé dans l'ordre des points de code Unicode, dans l'ordre croissant un compte anonymisé après les noms, et la plateforme après les comptes. Deux rôles à égalité se rangent par leur libellé, puis par leur identifiant, dans l'ordre croissant. */
+                sort_by?: "label" | "is_predefined" | "holder_count" | "created_at" | "created_by" | "updated_at" | "updated_by";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
             };
@@ -5845,7 +5901,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            /** @description Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. Un instant mal formé, `/query/<colonne>_from` ou `/query/<colonne>_to` par `DATE_INVALID` ; une période dont la fin précède le début, à sa fin (`/query/created_at_to`, `/query/updated_at_to`) par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du contrat. `fields[]` désigne chaque paramètre refusé par son schéma, et une incohérence entre paramètres une fois les schémas tenus. */
             422: {
                 headers: {
                     [name: string]: unknown;
