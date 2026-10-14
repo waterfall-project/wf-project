@@ -30,6 +30,7 @@ import {
   closeInTheRealm,
   closeSessionsMissedByTheRealm,
   expectSignInPage,
+  giveIdentifiers,
   localAccount,
   type Person,
   reauthenticate,
@@ -96,6 +97,23 @@ test("signing in through the realm and out again, the bodies the service answers
   const again = await context.newPage();
   await again.goto(ACCOUNT);
   await expect(again.getByRole("heading", { level: 1 })).toHaveText("Session requise");
+});
+
+test("without a session, the home asks for one — never « not found » — and its sign-in leads to the sign-in page of the realm, then back home signed in (#1000) [WF-SEC-0020-A]", async ({
+  page,
+  context,
+  browser,
+}) => {
+  const person = await ownAccount(browser);
+  expect((await context.cookies()).map(({ name }) => name)).not.toContain(SESSION_COOKIE);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Session requise");
+  // A plain link, which loads its document: no hydration to wait for.
+  await page.getByRole("link", { name: "Se connecter" }).click();
+  await giveIdentifiers(page, person);
+  await expect(page).toHaveURL("/");
+  await expect(accountButton(page, person)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Session requise");
 });
 
 test("the browser holds none of the tokens the front obtains [WF-ARC-0030-A]", async ({
