@@ -277,8 +277,8 @@
       `restore`) met ensuite la plateforme en maintenance : toutes les sessions
       sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration
       — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la
-      tâche ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration
-      interrompue reprend depuis le début (WF-ARC-0090). Pendant la maintenance, la tâche n'est
+      maintenance n'est levée qu'une fois la tâche passée à `succeeded` et la restauration
+      inscrite, et une restauration interrompue reprend depuis le début (WF-ARC-0090). Pendant la maintenance, la tâche n'est
       pas lisible : `getLiveness` dit la maintenance et sa levée (#604). La confirmation nomme la
       date de la sauvegarde : `acknowledged_backup_taken_at` est celle de la sauvegarde désignée,
       et une autre date est une confirmation qui ne la nomme pas, refusée par 400
