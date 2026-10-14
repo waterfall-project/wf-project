@@ -221,6 +221,10 @@ class RefusedError(RuntimeError):
     """Keycloak refuses a client: it serves the realm of the backup, whose secrets are others."""
 
 
+class AnswerLostError(RuntimeError):
+    """Keycloak has done what it was asked, and its answer is lost on the way."""
+
+
 @dataclass
 class Provider:
     """Stands for Keycloak: keeps what the restoration asks of it, in its order, in ``steps``.
@@ -228,12 +232,15 @@ class Provider:
     ``failing`` realms applied again fail before one succeeds, as ``keycloak-realm`` does. Once its
     caches are cleared, Keycloak serves the realm of the backup: its service account and the
     client of the bootstrap are refused until the realm of the installation is applied again.
+    ``answer_lost``, the caches are cleared once and their answer lost: the realm of the backup is
+    served, and the restoration is told it failed.
     """
 
     steps: list[str]
     failing: int = 0
     removed: list[str] = field(default_factory=list[str])
     serving_backup: bool = False
+    answer_lost: bool = False
 
     def close_sessions(self) -> None:
         """Keep the closing of every session."""
@@ -249,6 +256,10 @@ class Provider:
         """Keep the caches cleared: from then on, the realm of the backup is served."""
         self.steps.append("clear_caches")
         self.serving_backup = True
+        if self.answer_lost:
+            self.answer_lost = False
+            message = "the answer of Keycloak is lost"
+            raise AnswerLostError(message)
 
     def apply_realm(self, name: str) -> None:
         """Keep the realm applied again, or fail ``failing`` times."""

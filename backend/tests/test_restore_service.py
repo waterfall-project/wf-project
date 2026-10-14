@@ -413,6 +413,29 @@ def test_a_restoration_interrupted_once_the_caches_are_cleared_gives_the_realm_b
     assert service.api.get("/api/v1/health").json() == {"status": "ok"}
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_restoration_whose_caches_were_cleared_their_answer_lost_gives_the_realm_back_first(
+    installation: Installation, take: Take, service: Service
+) -> None:
+    # The caches of Keycloak cleared, their answer lost: Keycloak serves the realm of the backup,
+    # and the restoration is interrupted. The mark that it asked for them is kept before it asks:
+    # taken up, it has the realm of the installation applied again first, before anything that
+    # the realm of the backup would refuse, and lifts the maintenance at its end.
+    service.provider.answer_lost = True
+    take()
+    backup = taken(installation)
+    service.api.post(RESTORES, json=asked(backup), headers=service.headers)
+    assert service.restorer.step()
+    held = service.maintenance.current()
+    assert held is not None
+    assert held.caches_cleared
+    assert service.provider.serving_backup
+    del service.provider.steps[:]
+    assert service.restorer.step()
+    assert service.provider.steps[:3] == ["apply_realm", "close_sessions", "keep_for_restoration"]
+    assert service.maintenance.current() is None
+
+
 def test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_no_more(
     installation: Installation, take: Take, service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:
