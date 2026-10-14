@@ -3626,10 +3626,12 @@ adresse signée du stockage objet, où le navigateur parlerait au stockage, hors
 §4.3.2 ; un gestionnaire de route qui relaie l'API, écarté par EP-02 (WF-ARC-0020). Écarté
 aussi : une opération d'abandon, l'expiration (24 heures, comme un fichier d'import) suffit.
 *Complété par EP-03/US-0440/L2c (#1006)* : le `FileUpload` que rend `completeChunkedUpload` porte
-`backup_taken_at`, la date que dit le manifeste, en tête de l'archive, lue à l'achèvement, nulle
-s'il n'en dit pas ; c'est la date que la confirmation de `startRestore` doit nommer, et l'écran ne
-la connaîtrait sinon qu'en lisant l'archive dans le navigateur, une seconde lecture du manifeste,
-fragile, que le service fait déjà (écarté). Le champ n'existe que pour `external_backup`.
+`backup_taken_at`, la date que dit le manifeste, en tête de l'archive, lue à l'achèvement ; une
+archive dont la tête n'en dit pas est refusée là (422 `FILE_FORMAT_UNREADABLE`, le dépôt reste
+inachevé) : un dépôt sans date serait restaurable sous n'importe quelle date confirmée. C'est la
+date que la confirmation de `startRestore` doit nommer, et l'écran ne la connaîtrait sinon qu'en
+lisant l'archive dans le navigateur, une seconde lecture du manifeste, fragile, que le service fait
+déjà (écarté). Le champ n'existe que pour `external_backup`.
 
 ## Les comptes non admis, les adresses et le 503 des opérations gardées (EP-03, #664, #665, #666)
 

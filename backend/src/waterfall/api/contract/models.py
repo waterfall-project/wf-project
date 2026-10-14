@@ -3654,7 +3654,7 @@ class FileUpload(ContractModel):
     backup_taken_at: Annotated[
         Timestamp | None,
         Field(
-            description="La date de la sauvegarde déposée, que son manifeste dit en tête de l'archive, lue à l'achèvement (`completeChunkedUpload`) ; nulle si la tête de l'archive n'en dit pas. La confirmation de la restauration la nomme (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160). Présente pour un dépôt dont `purpose` est `external_backup` seulement (#1006)."
+            description="La date de la sauvegarde déposée, que son manifeste dit en tête de l'archive, lue à l'achèvement (`completeChunkedUpload`), qui refuse une archive qui n'en dit pas. La confirmation de la restauration la nomme (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160). Présente pour un dépôt dont `purpose` est `external_backup` seulement (#1006)."
         ),
     ] = None
 
