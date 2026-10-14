@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 
 from waterfall.core.backups.interface import (
     NOT_FOUND,
+    confirmed_taken_at,
     inscribe_restoration,
     keep_for_restoration,
     restored_object,
@@ -101,7 +102,7 @@ class RestoreTask:
                 self.bucket.download(task.payload["object_key"], archive)
             except MissingObjectError:
                 raise NotFoundError(NOT_FOUND) from None
-            dumps = extracted(archive, folder)
+            dumps = extracted(archive, folder, confirmed_taken_at(task.payload))
             owner = create_database_engine(self.databases["waterfall"])
             try:
                 taken_up = self.taken_up(task)

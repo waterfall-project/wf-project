@@ -70,8 +70,10 @@ def post_restore(
     the list, for a caller who may not read the backups, is not found (404), before it is read; a
     deposit unknown, not completed or expired is not found either, one made for an import is
     refused (422).
-    The date of a deposit is the one its manifest says; a deposit whose manifest says none is
-    refused by the task, which reads it, before the maintenance.
+    The date of a deposit is the one its manifest says, read at its completion, which refuses a
+    deposit whose manifest says none; one without a date is one no confirmation names (400). The
+    task carries the date confirmed, which the manifest read whole must say, before the
+    maintenance.
     """
     asked = request.root
     if asked.backup_id is not None:
@@ -92,8 +94,9 @@ def post_restore(
             "upload_id": str(upload.id),
             "filename": upload.filename,
             "object_key": upload.object_key,
+            "backup_taken_at": asked.acknowledged_backup_taken_at.root.isoformat(),
         }
-    if taken_at is not None and taken_at != asked.acknowledged_backup_taken_at.root:
+    if taken_at is None or taken_at != asked.acknowledged_backup_taken_at.root:
         raise BadRequestError(CONFIRMATION_REQUIRED)
     session.execute(select(func.pg_advisory_xact_lock(RESTORE_LOCK)))
     if pending_task(session, "restore") is not None:

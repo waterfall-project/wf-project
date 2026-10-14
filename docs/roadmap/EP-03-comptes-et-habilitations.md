@@ -768,10 +768,15 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
   les morceaux reçus sont ceux que le stockage dit tenir. Le serveur découpe le fichier en
   morceaux de 5 à 10 Mio, au plus 10 000 ; chaque morceau est écrit sur le stockage avant la
   réponse, et l'achèvement les assemble, puis lit la date de la sauvegarde dans le manifeste, en
-  tête de l'archive, que `completeChunkedUpload` rend (`FileUpload.backup_taken_at`, nulle si
-  la tête n'en dit pas, #1006) pour que l'écran la nomme, et que `startRestore` confronte à la
-  date confirmée ; une archive dont la tête ne dit pas de date est refusée par la tâche, qui la
-  lit entière, avant la maintenance. `startRestore` qui nomme un dépôt ne demande que
+  tête de l'archive, que `completeChunkedUpload` rend (`FileUpload.backup_taken_at`, #1006)
+  pour que l'écran la nomme, et que `startRestore` confronte à la date confirmée. Un dépôt dont
+  la date ne se lit pas n'est jamais restaurable : l'achèvement refuse une archive dont la tête
+  ne dit pas de date avec son fuseau — manifeste absent, qui n'est pas le premier membre ou que
+  les 64 premiers Kio ne tiennent pas — (422 `FILE_FORMAT_UNREADABLE`), le dépôt restant
+  inachevé ; `startRestore` refuse un dépôt sans date comme une confirmation qui ne la nomme pas
+  (400) ; la tâche porte la date confirmée, que le manifeste lu en entier doit dire, sinon elle
+  échoue avant la maintenance (`FILE_FORMAT_UNREADABLE`). `startRestore` qui nomme un dépôt ne
+  demande que
   `platform_restore` : un dépôt n'est pas une sauvegarde de la liste. Le
   stockage est appelé hors de toute transaction. Un dépôt expiré ou achevé ne reçoit plus rien ;
   la purge des dépôts expirés et de l'objet restauré reste à EP-06, avec celle des fichiers

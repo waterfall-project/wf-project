@@ -48,6 +48,7 @@ from waterfall.platform.uploads import (
 router = APIRouter(tags=["exchanges"])
 
 RESTORE = [Depends(Requires("platform_restore"))]
+FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
 NOT_FOUND = "NOT_FOUND"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
@@ -164,7 +165,9 @@ def post_completion(chunked_upload_id: UUID, services: ServicesOf) -> FileUpload
 
     Refused while a part lacks (409, ``params.missing_parts``), nothing assembled; a deposit
     completed, expired or unknown is not found (404). The date of the backup is read from the head
-    of the file assembled, and given, so that the confirmation of the restoration names it (#1006).
+    of the file assembled, and given, so that the confirmation of the restoration names it (#1006):
+    a file whose head says none is refused (422, ``FILE_FORMAT_UNREADABLE``), the deposit left
+    uncompleted, which no restoration names.
     """
     with services.database.transaction() as session:
         row = open_upload(session, chunked_upload_id, utc_now())
@@ -181,6 +184,8 @@ def post_completion(chunked_upload_id: UUID, services: ServicesOf) -> FileUpload
     except MissingObjectError:
         # Completed meanwhile by another request, which the storage has assembled already.
         raise NotFoundError(NOT_FOUND) from None
+    if taken_at is None:
+        raise UnprocessableError(FILE_FORMAT_UNREADABLE)
     with services.database.transaction() as session:
         completed = complete_upload(session, chunked_upload_id, utc_now(), taken_at)
         if completed is None:

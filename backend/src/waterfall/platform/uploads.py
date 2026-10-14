@@ -60,7 +60,8 @@ class FileUpload(Base):
     # The key of the object on the storage, and the identifier of its deposit in parts while open.
     object_key: Mapped[str] = mapped_column(Text, unique=True)
     deposit: Mapped[str | None] = mapped_column(Text)
-    # The date the manifest of a backup deposited says, read once it is completed; null if unread.
+    # The date the manifest of a backup deposited says, read once it is completed: a deposit whose
+    # date does not read is not completed.
     backup_taken_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     uploaded_by: Mapped[UUID] = mapped_column(index=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
@@ -145,7 +146,7 @@ def completed_upload(session: Session, upload_id: UUID, at: datetime) -> FileUpl
 
 
 def complete_upload(
-    session: Session, upload_id: UUID, at: datetime, backup_taken_at: datetime | None
+    session: Session, upload_id: UUID, at: datetime, backup_taken_at: datetime
 ) -> FileUpload | None:
     """Say a deposit completed at ``at``, with the date its backup says; ``None`` if not open.
 

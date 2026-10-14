@@ -166,6 +166,15 @@ def restored_object(payload: Mapping[str, Any]) -> AuditObject:
     return AuditObject("external_backup_upload", upload_id, str(payload["filename"]))
 
 
+def confirmed_taken_at(payload: Mapping[str, Any]) -> datetime | None:
+    """Give the date the restoration of a deposit was confirmed by, which its manifest must say.
+
+    ``None`` for a backup of the list, whose date is the one its row says.
+    """
+    said = payload.get("backup_taken_at")
+    return None if said is None else datetime.fromisoformat(str(said))
+
+
 def inscribe_restoration(
     session: Session, restored: AuditObject, actor: AuditActor | None, at: datetime
 ) -> None:

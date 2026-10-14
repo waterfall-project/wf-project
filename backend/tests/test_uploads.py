@@ -8,24 +8,29 @@ and restored there by the service of the restoration makes it a copy of the firs
 """
 
 import hashlib
+import io
+import json
+import tarfile
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
+from httpx2 import Response
 from installations import Installation, Provider, Take, installed, restorer_headers
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
 from support import ContractClient, bearer
 
+from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.tables import AccessRole
-from waterfall.core.backups.interface import archive_taken_at
+from waterfall.core.backups.interface import MANIFEST, archive_taken_at
 from waterfall.core.backups.tables import Backup
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import upgrade
@@ -39,6 +44,7 @@ from waterfall.platform.maintenance import SUFFIX, Maintenance
 from waterfall.platform.queue import RESTORES as RESTORES_SUFFIX
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings
+from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import LARGEST_PART, MOST_PARTS, SMALLEST_PART, FileUpload, cut
 from waterfall.restore.runner import Restorer
 from waterfall.restore.task import RestoreTask
@@ -47,6 +53,7 @@ from waterfall.worker.runner import Timing
 DEPOSITS = "/api/v1/chunked-uploads"
 RESTORES = "/api/v1/restores"
 GIBIBYTE = 1024**3
+TAKEN_AT = datetime(2026, 6, 2, 1, tzinfo=UTC)
 
 
 def settled(installation: Installation, language: str = "fr", bound: int = 20 * GIBIBYTE) -> None:
@@ -70,8 +77,45 @@ def iso(at: datetime) -> str:
     return at.isoformat().replace("+00:00", "Z")
 
 
-def deposited(api: ContractClient, headers: dict[str, str], content: bytes) -> dict[str, object]:
-    """Deposit a file by parts, as the front does, and complete it; give the deposit completed."""
+def manifest_of(taken_at: str, **more: object) -> dict[str, object]:
+    """Write the manifest of a backup of this version taken at ``taken_at``, saying ``more``."""
+    return {"application_version": __version__, "taken_at": taken_at, "databases": [], **more}
+
+
+def backup_archive(manifest: dict[str, object], *, first: bool = True) -> bytes:
+    """Write an archive whose manifest says ``manifest``: its first member, or its second."""
+    members = [(MANIFEST, json.dumps(manifest).encode()), ("waterfall.dump", b"not a dump")]
+    written = io.BytesIO()
+    with tarfile.open(fileobj=written, mode="w") as tar:
+        for name, content in members if first else reversed(members):
+            member = tarfile.TarInfo(name)
+            member.size = len(content)
+            tar.addfile(member, io.BytesIO(content))
+    return written.getvalue()
+
+
+def redated(archive: bytes, taken_at: str) -> bytes:
+    """Write an archive again, each member as it was but the manifest, which says ``taken_at``."""
+    written = io.BytesIO()
+    with (
+        tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as read,
+        tarfile.open(fileobj=written, mode="w") as tar,
+    ):
+        for member in read.getmembers():
+            content = read.extractfile(member)
+            assert content is not None
+            said = content.read()
+            if member.name == MANIFEST:
+                said = json.dumps({**json.loads(said), "taken_at": taken_at}).encode()
+                member.size = len(said)
+            tar.addfile(member, io.BytesIO(said))
+    return written.getvalue()
+
+
+def completion(
+    api: ContractClient, headers: dict[str, str], content: bytes
+) -> tuple[str, Response]:
+    """Deposit a file by parts, as the front does, and ask for its completion; give its answer."""
     opened = api.post(
         DEPOSITS, json={"filename": "copie.tar", "size_bytes": len(content)}, headers=headers
     )
@@ -87,7 +131,13 @@ def deposited(api: ContractClient, headers: dict[str, str], content: bytes) -> d
             headers={**headers, "Content-Type": "application/octet-stream"},
         )
         assert sent.status_code == 200
-    completed = api.post(f"{DEPOSITS}/{deposit['chunked_upload_id']}/completion", headers=headers)
+    upload_id = deposit["chunked_upload_id"]
+    return upload_id, api.post(f"{DEPOSITS}/{upload_id}/completion", headers=headers)
+
+
+def deposited(api: ContractClient, headers: dict[str, str], content: bytes) -> dict[str, object]:
+    """Deposit a file by parts, as the front does, and complete it; give the deposit completed."""
+    _, completed = completion(api, headers, content)
     assert completed.status_code == 201
     return completed.json()
 
@@ -127,7 +177,8 @@ def test_parts_received_in_any_order_are_assembled_into_the_file_deposited(
     # lacking refuses the completion, naming it; completed, the deposit receives nothing more.
     settled(installation)
     headers = restorer_headers(installation, realm)
-    content = bytes(range(256)) * (SMALLEST_PART // 256) + b"the rest"
+    head = backup_archive(manifest_of(iso(TAKEN_AT)))
+    content = head + bytes(range(256)) * ((SMALLEST_PART - len(head)) // 256) + b"the rest"
     opened = installation_api.post(
         DEPOSITS, json={"filename": "copie.tar", "size_bytes": len(content)}, headers=headers
     ).json()
@@ -159,8 +210,8 @@ def test_parts_received_in_any_order_are_assembled_into_the_file_deposited(
     completed = installation_api.post(f"{deposit}/completion", headers=headers)
     assert completed.status_code == 201
     assert completed.json()["purpose"] == "external_backup"
-    # The head of a file that is no archive says no date (#1006).
-    assert completed.json()["backup_taken_at"] is None
+    # The date the manifest says, at the head of the archive (#1006).
+    assert completed.json()["backup_taken_at"] == iso(TAKEN_AT)
     assert installation_api.post(f"{deposit}/completion", headers=headers).status_code == 404
     gone = installation_api.request(
         "PUT", f"{deposit}/parts/1", content=b"the rest", headers=octets
@@ -170,6 +221,41 @@ def test_parts_received_in_any_order_are_assembled_into_the_file_deposited(
         key = session.get_one(FileUpload, UUID(opened["chunked_upload_id"])).object_key
     stored = installation.bucket.client.get_object(Bucket=installation.bucket.name, Key=key)
     assert hashlib.sha256(stored["Body"].read()).digest() == hashlib.sha256(content).digest()
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+@pytest.mark.parametrize(
+    "content",
+    [
+        backup_archive(manifest_of(iso(TAKEN_AT)), first=False),
+        backup_archive(manifest_of("2026-06-02T01:00:00")),
+        backup_archive(manifest_of(iso(TAKEN_AT), padding="x" * (64 * 1024))),
+    ],
+    ids=["second", "without-time-zone", "beyond-the-head"],
+)
+def test_a_deposit_whose_date_does_not_read_is_refused_and_never_restored(
+    content: bytes, installation: Installation, installation_api: ContractClient, realm: TestRealm
+) -> None:
+    # « La confirmation nomme la date de la sauvegarde. » of WF-ADM-0160-A: an archive whose
+    # manifest is not its first member, whose head does not hold it whole, or whose date says no
+    # time zone has no date a confirmation could name. Its completion is refused (422), the deposit
+    # left uncompleted, which no restoration names: nothing is queued.
+    settled(installation)
+    headers = restorer_headers(installation, realm)
+    upload_id, refused = completion(installation_api, headers, content)
+    assert (refused.status_code, refused.json()["code"]) == (422, "FILE_FORMAT_UNREADABLE")
+    asked = {
+        "external_backup_upload_id": upload_id,
+        "confirmed": True,
+        "acknowledged_backup_taken_at": iso(TAKEN_AT),
+    }
+    assert installation_api.post(RESTORES, json=asked, headers=headers).status_code == 404
+    with installation.database.transaction() as session:
+        assert session.get_one(FileUpload, UUID(upload_id)).completed_at is None
+        assert (
+            session.scalars(select(BackgroundTask).where(BackgroundTask.kind == "restore")).all()
+            == []
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -284,32 +370,81 @@ def test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it
     assert signed_in.status_code == 200
 
 
-def test_a_restoration_refuses_a_deposit_unknown_or_made_for_an_import(
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_restoration_whose_whole_manifest_says_another_date_fails_before_the_maintenance(
+    installation: Installation,
+    target: Target,
+    take: Take,
+    realm: TestRealm,
+    installation_api: ContractClient,
+) -> None:
+    # « La confirmation nomme la date de la sauvegarde. » of WF-ADM-0160-A: the task reads the
+    # manifest whole, and refuses an archive whose date is not the one confirmed — replaced on the
+    # storage since its completion — before the maintenance, nothing replaced.
+    settled(installation)
+    source = f"subject-{uuid4()}"
+    account(installation.database, "Source", "Alix", idp_subject=source)
+    take()
+    with installation.database.transaction() as session:
+        backup = session.scalars(select(Backup)).one()
+    copied = installation_api.get(
+        f"/api/v1/backups/{backup.id}/content", headers=restorer_headers(installation, realm)
+    ).content
+    settled(target.installation)
+    headers = restorer_headers(target.installation, realm, ("platform_restore",), "Dominique")
+    upload_id = str(deposited(target.api, headers, copied)["upload_id"])
+    with target.installation.database.transaction() as session:
+        key = session.get_one(FileUpload, UUID(upload_id)).object_key
+    later = redated(copied, iso(backup.taken_at + timedelta(seconds=1)))
+    bucket = target.installation.bucket
+    bucket.client.put_object(Bucket=bucket.name, Key=key, Body=later)
+    asked = {
+        "external_backup_upload_id": upload_id,
+        "confirmed": True,
+        "acknowledged_backup_taken_at": iso(backup.taken_at),
+    }
+    assert target.api.post(RESTORES, json=asked, headers=headers).status_code == 202
+    restorer = target.restorer()
+    try:
+        assert restorer.step()
+    finally:
+        restorer.database.dispose()
+    with target.installation.database.transaction() as session:
+        task = session.scalars(select(BackgroundTask).where(BackgroundTask.kind == "restore")).one()
+        accounts = set(session.scalars(select(UserAccount.idp_subject)))
+    assert (task.status, (task.problem or {}).get("code")) == ("failed", "FILE_FORMAT_UNREADABLE")
+    assert source not in accounts
+    assert Maintenance.of(target.queue).current() is None
+
+
+def test_a_restoration_refuses_a_deposit_unknown_without_date_or_made_for_an_import(
     installation: Installation, installation_api: ContractClient, realm: TestRealm
 ) -> None:
     # A deposit unknown, or not completed, is not found (404); one made for an import is refused
-    # (422, UPLOAD_PURPOSE_MISMATCH), the field that names it in fault.
+    # (422, UPLOAD_PURPOSE_MISMATCH), the field that names it in fault. A deposit completed whose
+    # date is not known — which its completion refuses — is one no confirmation names (400).
     headers = restorer_headers(installation, realm)
     with installation.database.transaction() as session:
         held_by = session.scalars(select(UserAccount.id)).one()
-    imported = uuid4()
+    imported, undated = uuid4(), uuid4()
     owner = create_database_engine(installation.owner["waterfall"])
     with owner.begin() as connection:
-        connection.execute(
-            insert(FileUpload).values(
-                id=imported,
-                purpose="import",
-                filename="planning.xml",
-                size_bytes=1,
-                part_size_bytes=SMALLEST_PART,
-                part_count=1,
-                object_key=f"uploads/{imported}",
-                uploaded_by=held_by,
-                created_at=utc_now(),
-                expires_at=utc_now() + timedelta(hours=1),
-                completed_at=utc_now(),
+        for upload_id, purpose in ((imported, "import"), (undated, "external_backup")):
+            connection.execute(
+                insert(FileUpload).values(
+                    id=upload_id,
+                    purpose=purpose,
+                    filename="planning.xml",
+                    size_bytes=1,
+                    part_size_bytes=SMALLEST_PART,
+                    part_count=1,
+                    object_key=f"uploads/{upload_id}",
+                    uploaded_by=held_by,
+                    created_at=utc_now(),
+                    expires_at=utc_now() + timedelta(hours=1),
+                    completed_at=utc_now(),
+                )
             )
-        )
     owner.dispose()
     asked = {"confirmed": True, "acknowledged_backup_taken_at": iso(utc_now())}
     unknown = {**asked, "external_backup_upload_id": str(uuid4())}
@@ -320,10 +455,13 @@ def test_a_restoration_refuses_a_deposit_unknown_or_made_for_an_import(
     assert refused.json()["fields"] == [
         {"pointer": "/external_backup_upload_id", "code": "UPLOAD_PURPOSE_MISMATCH"}
     ]
+    without = {**asked, "external_backup_upload_id": str(undated)}
+    unnamed = installation_api.post(RESTORES, json=without, headers=headers)
+    assert (unnamed.status_code, unnamed.json()["code"]) == (400, "CONFIRMATION_REQUIRED")
 
 
 def test_the_head_of_a_file_that_is_no_archive_says_no_date() -> None:
     # The date a deposit is confirmed by is read from its manifest; a file without one says none,
-    # and the task, which reads it whole, refuses it before the maintenance.
+    # and its completion is refused.
     assert archive_taken_at(b"not an archive") is None
     assert archive_taken_at(b"") is None
