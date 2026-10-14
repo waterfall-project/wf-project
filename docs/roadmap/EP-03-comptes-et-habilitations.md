@@ -1269,7 +1269,7 @@ a fait éprouver par US-0370/L2. Ses lots L1 à L5c fusionnés, l'US est finie.
 
 ## US-0360 — Comptes : la table des comptes et l'affectation des rôles
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ADM-0050-A`, `WF-ADM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`,
   `setUserAccessRoles`, `listAccessRoles`
@@ -1338,7 +1338,9 @@ Vérif est constaté par US-0370. La désactivation révoque les sessions du com
 fournisseur (WF-SEC-0020). L'ordre des colonnes et la forme de la saisie en ligne sont ceux
 que #379 consigne. Les règles de l'affectation — union des permissions, application
 immédiate, dernier administrateur — sont celles d'US-0380, dont les critères les constatent ;
-cette US porte la table qui les exerce.
+cette US porte la table qui les exerce. Ses lots L1 à L3b fusionnés, L4 et L4b — les colonnes
+d'audit des deux tables, contrat et service puis écran, où se constate l'écart de `WF-ADM-0060-A`
+(#936) — la terminent.
 
 **Hors périmètre.** La colonne du
 rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.

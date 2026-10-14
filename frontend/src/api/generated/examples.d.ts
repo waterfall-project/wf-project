@@ -206,6 +206,9 @@ export interface Examples {
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
   };
+  "GET /users/{user_id}": {
+    200: "user_anonymized" | "user_deactivated";
+  };
   "PATCH /access-roles/{access_role_id}": {
     200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
   };

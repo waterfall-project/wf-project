@@ -9,8 +9,9 @@
  * ones alone, or the deactivated ones alone; none, every account, the deactivated ones listed by
  * default (WF-ADM-0060), the page always asking `include_inactive=true`. An address of before, which
  * hid the deactivated accounts by `include_inactive=false`, reads as the active ones alone, which it
- * showed (`readAccountState`). A filter chosen only changes the address, back to the first page, and
- * the page reads anew: the server filters, never the front (WF-ARC-0020).
+ * showed (`readAccountState`); and the periods and the authors of the audit columns
+ * (`audit-address.ts`). A filter chosen only changes the address, back to the first page, and the
+ * page reads anew: the server filters, never the front (WF-ARC-0020).
  *
  * The search and the filters are kept with the settings of the grid, and found again when the
  * address says nothing of the table (`USER_KEPT`, WF-IHM-0060); the page, never.
@@ -23,6 +24,8 @@ import { CONTRACT_ADDRESS, type GridQuery, pagedList } from "@/components/grid/q
 import { listReads } from "@/components/reference/address";
 import type { SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
+
+import { AUDIT_FILTERS, type AuditFilters, auditQuery } from "./audit-address";
 
 /** The origin of an account, as the contract names it. */
 export type UserOrigin = components["schemas"]["UserOrigin"];
@@ -88,7 +91,13 @@ export const EMAIL_LENGTH = 254;
  * grid keeps with its settings — an address of before that hid the deactivated accounts is read, never
  * kept.
  */
-export const USER_FILTERS: readonly string[] = [ORIGINS, ORG_NODE, ACCESS_ROLES, IS_ACTIVE];
+export const USER_FILTERS: readonly string[] = [
+  ORIGINS,
+  ORG_NODE,
+  ACCESS_ROLES,
+  IS_ACTIVE,
+  ...AUDIT_FILTERS,
+];
 
 /**
  * What the table of the accounts reads of the address and keeps with its settings — its search and
@@ -104,6 +113,7 @@ export const USERS_LIST: PagedList = pagedList(
   ACCESS_ROLES,
   IS_ACTIVE,
   INCLUDE_INACTIVE,
+  ...AUDIT_FILTERS,
 );
 
 /**
@@ -128,9 +138,11 @@ export function usersQuery<Sort extends NonNullable<UsersQuery["sort_by"]>>(aske
   readonly accessRoles: readonly string[];
   /** The state the accounts are restricted to: active, deactivated; none, every account. */
   readonly active: boolean | undefined;
+  /** The periods and the authors of their creation and of their last modification. */
+  readonly audit: AuditFilters;
   readonly offset: number | undefined;
 }): UsersQuery {
-  const { query, origins, orgNode, accessRoles, active, offset } = asked;
+  const { query, origins, orgNode, accessRoles, active, audit, offset } = asked;
   return {
     // Every account unless a state is chosen, which prevails: the contract hides the deactivated
     // ones by default.
@@ -141,6 +153,7 @@ export function usersQuery<Sort extends NonNullable<UsersQuery["sort_by"]>>(aske
     ...(orgNode === undefined ? {} : { org_node_id: orgNode }),
     ...(accessRoles.length === 0 ? {} : { access_role_ids: [...accessRoles] }),
     ...(active === undefined ? {} : { is_active: active }),
+    ...auditQuery(audit),
     ...(query.sort === undefined
       ? {}
       : { sort_by: query.sort.column, sort_order: query.sort.order }),

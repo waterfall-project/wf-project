@@ -10,6 +10,7 @@ import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { NO_AUDIT } from "@/test/accounts";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { AccessRoleList, PermissionMatrix } from "./account-lists";
@@ -45,7 +46,12 @@ function table(shown: readonly Schemas["AccessRole"][] = roles): ReactNode {
       roles={shown}
       query={{ sort: undefined, search: undefined }}
       preferences={undefined}
-      filters={{ predefined: undefined, holders: { min: undefined, max: undefined } }}
+      filters={{
+        predefined: undefined,
+        holders: { min: undefined, max: undefined },
+        audit: NO_AUDIT,
+        authors: [],
+      }}
       editable
     />
   );
@@ -137,6 +143,18 @@ describe("the creation of a role in line", () => {
   });
 });
 
+/** The table and the matrix of the roles, sharing the roles answered, as the page renders them. */
+function tableAndMatrix(shown: readonly Schemas["Permission"][]) {
+  return (
+    <RoleAnswers>
+      {table()}
+      <MatrixWrites order={permissions.map(({ code }) => code)} roles={roles}>
+        <PermissionMatrix permissions={shown} roles={roles} editable />
+      </MatrixWrites>
+    </RoleAnswers>
+  );
+}
+
 describe("the renaming of a role in its cell", () => {
   it("shows the label the server answered, before the page is read anew and over the role read older", async () => {
     const client = serve({ [WRITTEN]: "access_role_renamed" });
@@ -163,24 +181,15 @@ describe("the renaming of a role in its cell", () => {
     const client = serve({ [WRITTEN]: ["access_role_renamed", "access_role_updated"] });
     const order = permissions.map(({ code }) => code);
     const shown = permissions.filter(({ code }) => code === "planning.write");
-    render(
-      inFrench(
-        <RoleAnswers>
-          {table()}
-          <MatrixWrites order={order} roles={roles}>
-            <PermissionMatrix permissions={shown} roles={roles} editable />
-          </MatrixWrites>
-        </RoleAnswers>,
-      ),
-    );
+    render(inFrench(tableAndMatrix(shown)));
     labelCell("Manager").focus();
     await userEvent.keyboard("Resp{Enter}");
     await waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce();
     });
     await userEvent.click(
-      screen.getByRole("checkbox", {
-        name: "« Modifier la planification » pour « Manager »",
+      await screen.findByRole("checkbox", {
+        name: "« Modifier la planification » pour « Responsable d'équipe »",
       }),
     );
     await waitFor(() => {
@@ -194,5 +203,25 @@ describe("the renaming of a role in its cell", () => {
       ),
       lock_version: renamed.lock_version,
     });
+  });
+  it("names the column of a role renamed and each of its cells in the matrix by the label the server answered, before the page is read anew (#976) [WF-ADM-0010-A]", async () => {
+    serve({ [WRITTEN]: "access_role_renamed" });
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    labelCell("Manager").focus();
+    await userEvent.keyboard("Resp{Enter}");
+    const matrix = screen.getByRole("table", { name: "Permissions par fonction" });
+    expect(
+      await within(matrix).findByRole("columnheader", { name: "Responsable d'équipe" }),
+    ).toBeInTheDocument();
+    expect(within(matrix).queryByRole("columnheader", { name: "Manager" })).toBeNull();
+    expect(
+      within(matrix).getByRole("checkbox", {
+        name: "« Modifier la planification » pour « Responsable d'équipe »",
+      }),
+    ).toBeInTheDocument();
+    expect(within(matrix).queryByRole("checkbox", { name: /Manager/ })).toBeNull();
+    // The page not yet read anew: the answer of the renaming alone names the role so.
+    expect(refresh).toHaveBeenCalledOnce();
   });
 });
