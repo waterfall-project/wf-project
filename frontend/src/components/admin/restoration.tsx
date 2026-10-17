@@ -75,7 +75,7 @@ function Followed({
       onFailed(phase.problem);
     }
   }, [phase, onFailed]);
-  return <RestorationNotice done={phase.kind === "done"} />;
+  return <RestorationNotice phase={phase} />;
 }
 
 /**

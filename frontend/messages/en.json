@@ -2418,6 +2418,7 @@
   },
   "maintenance": {
     "title": "Restoration of the platform under way",
+    "pending": "The restoration is waiting: the platform is about to go under maintenance, and every user will then be signed out until it is done.",
     "maintenance": "The platform is under maintenance while it is restored: every user has been signed out, and can sign in again once the restoration is done.",
     "doneTitle": "Restoration done",
     "done": "The platform has been restored. Sign in again to go on."

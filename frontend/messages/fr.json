@@ -2418,6 +2418,7 @@
   },
   "maintenance": {
     "title": "Restauration de la plateforme en cours",
+    "pending": "La restauration est en attente : la plateforme va passer en maintenance, et tous les utilisateurs seront alors déconnectés jusqu’à ce qu’elle soit terminée.",
     "maintenance": "La plateforme est en maintenance le temps de sa restauration : tous les utilisateurs ont été déconnectés, et pourront se reconnecter une fois la restauration terminée.",
     "doneTitle": "Restauration terminée",
     "done": "La plateforme a été restaurée. Reconnectez-vous pour continuer."

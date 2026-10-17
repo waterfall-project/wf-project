@@ -98,7 +98,7 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
   if (phase.kind === "maintenance" || phase.kind === "done") {
     return (
       <main className="px-5 py-4">
-        <RestorationNotice done={phase.kind === "done"} />
+        <RestorationNotice phase={phase} />
       </main>
     );
   }

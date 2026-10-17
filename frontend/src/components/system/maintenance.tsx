@@ -5,8 +5,9 @@
  * restoration closes every session, and the API answers nothing but its probe (`getLiveness`) until
  * it is done. The screen that asked it follows its task while the platform still serves, then the
  * probe; any other screen — the screen of failure, which whoever meets the maintenance sees — the
- * probe alone. Said in place of the screen: the platform under maintenance and every user signed
- * out, then the restoration done and the way to sign in again.
+ * probe alone. Said in place of the screen: the restoration waiting, the platform about to go under
+ * maintenance; then the platform under maintenance and every user signed out; then the restoration
+ * done and the way to sign in again.
  */
 "use client";
 
@@ -117,11 +118,14 @@ export function useRestorationPhase(taskId: string | undefined): RestorationPhas
 }
 
 /**
- * The screen of a restoration under way, or done: that the platform is under maintenance and every
- * user signed out until it ends; then that it is done, and the way to sign in again.
+ * The screen of a restoration, by where it stands: asked but not begun — the task waits, the
+ * platform still serves, no session closed yet —, that the platform is about to go under
+ * maintenance; under maintenance, that every user is signed out until it ends; done, that it is,
+ * and the way to sign in again.
  */
-export function RestorationNotice({ done }: { readonly done: boolean }) {
+export function RestorationNotice({ phase }: { readonly phase: RestorationPhase }) {
   const t = useTranslations("maintenance");
+  const done = phase.kind === "done";
   return (
     <section role="status" aria-label={t("title")} className="max-w-prose space-y-2 text-sm">
       <h1 className="flex items-center gap-2 text-lg font-semibold">
@@ -140,7 +144,7 @@ export function RestorationNotice({ done }: { readonly done: boolean }) {
       ) : (
         <p className="flex items-start gap-1.5">
           <LoaderCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin" />
-          {t("maintenance")}
+          {phase.kind === "maintenance" ? t("maintenance") : t("pending")}
         </p>
       )}
     </section>

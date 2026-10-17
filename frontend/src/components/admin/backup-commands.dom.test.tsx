@@ -148,7 +148,7 @@ describe("the restoration of the platform", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("replaces the screen by that of the maintenance, every user signed out, until it is done, then offers to sign in again — pendant une restauration, les utilisateurs sont déconnectés, et l’écran le dit", async () => {
+  it("replaces the screen by that of the restoration waiting, then of the maintenance, every user signed out, until it is done, then offers to sign in again — pendant une restauration, les utilisateurs sont déconnectés, et l’écran le dit", async () => {
     const client = serve(
       {
         [RESTORE]: { status: 202, example: "task_restore_queued" },
@@ -171,14 +171,21 @@ describe("the restoration of the platform", () => {
       acknowledged_backup_taken_at: TAKEN_AT,
       confirmed: true,
     });
-    // The page gives way at once: the platform still serves, the task waits.
+    // The page gives way at once: the platform still serves, the task waits, no one is signed out.
     const status = screen.getByRole("status", { name: "Restauration de la plateforme en cours" });
-    expect(status).toHaveTextContent("tous les utilisateurs ont été déconnectés");
+    expect(status).toHaveTextContent("La restauration est en attente");
+    expect(status).toHaveTextContent("la plateforme va passer en maintenance");
+    expect(status).not.toHaveTextContent("ont été déconnectés");
     expect(screen.queryByRole("button", { name: "Sauvegarder maintenant" })).toBeNull();
     await tick();
     expect(client.calls.filter(({ route }) => route === TASK)).toHaveLength(2);
+    expect(screen.getByRole("status")).not.toHaveTextContent("ont été déconnectés");
     await tick();
+    // The probe says the maintenance: now every user is signed out.
     expect(screen.getByRole("status")).toHaveTextContent("Restauration de la plateforme en cours");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "tous les utilisateurs ont été déconnectés",
+    );
     // Under maintenance, the task is no longer read: the probe alone says the end.
     expect(client.calls.filter(({ route }) => route === TASK)).toHaveLength(2);
     await tick();
