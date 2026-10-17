@@ -951,6 +951,7 @@ describe("the backups", () => {
     server.answers = { ...server.answers, "GET /backups": "backups_empty" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain("Sauvegardes Aucune sauvegarde. Restaurer une sauvegarde");
+    expect(text(page).split("Aucune sauvegarde").length - 1).toBe(1);
     expect(page).not.toContain('<table aria-label="Sauvegardes"');
   });
 
