@@ -1,59 +1,100 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The server actions of the session (`openSession`, `closeSession`, `requestPasswordReset`,
- * `confirmPasswordReset`): the sign-in page and the menu of the account ask the server of
- * Next, which calls the API (§4.3.1), and get back the outcome the one decoder makes of its
- * answer (`src/api/problem.ts`) — never the answer itself: the session the API opens carries
- * nothing the browser needs.
+ * The server action of the session (`closeMySessions`): the menu of the account asks the
+ * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder
+ * makes of its answer (`src/api/problem.ts`).
  *
- * The API judges the credentials and the new password: the front checks no rule of either
- * (WF-ADM-0140), and a refusal is a code of the catalogue. The fake back grants the session the
- * whole mock-up starts from; EP-03, which opens real ones, carries the cookie of the session
- * between the browser and the API.
+ * Waterfall asks for no password: the identity provider authenticates (WF-ADM-0140), and the
+ * fake back grants the session the whole mock-up starts from.
  */
 "use server";
 
-import type { components } from "@/api/generated/schema";
-import { decode, type Settled, settled } from "@/api/problem";
-import { serverClient } from "@/api/server";
+import { decodeOrLost, type Settled, settled } from "@/api/problem";
+import { isMockAuthentication, serverClient } from "@/api/server";
+import { HOME } from "@/navigation/home";
+import { asksIdentifiers, LOGIN_ROUTE, loginHref, signOutHref } from "@/navigation/login";
+import { identityProvider } from "@/session/provider";
+import { StoreUnreachable } from "@/session/store";
+import { armRequestSignOut, closeRequestSessions } from "@/session/tokens";
 
-type LocalCredentials = components["schemas"]["LocalCredentials"];
+/** A sign-out done: the browser loads the document at the address it gives. */
+export interface SignedOff {
+  readonly kind: "left";
+  readonly address: string;
+}
 
-/**
- * Open a session with the address and the password of a local account, or of an account of the
- * directory, which the API asks (WF-ADM-0180). A 401 is the credentials refused, not a session
- * to open: the sign-in page says it as a refusal, and does not lead to itself.
- */
-export async function signIn(credentials: LocalCredentials): Promise<Settled> {
-  const outcome = await decode(() => serverClient().POST("/session", { body: credentials }));
-  return outcome.kind === "signed_out" ? { ...outcome, kind: "refused" } : settled(outcome);
+/** What the sessions of the front give the sign-out, the service out of reach without Redis. */
+async function inStore(work: () => Promise<SignedOff>): Promise<Settled | SignedOff> {
+  try {
+    return await work();
+  } catch (error) {
+    if (!(error instanceof StoreUnreachable)) {
+      throw error;
+    }
+    return { kind: "unreachable" };
+  }
+}
+
+/** The silent sign-in that closes every workstation, armed for the cookie of this browser. */
+async function armedSignOut(): Promise<SignedOff> {
+  const ticket = await armRequestSignOut();
+  return { kind: "left", address: ticket === undefined ? LOGIN_ROUTE : signOutHref(ticket) };
 }
 
 /**
- * Close the session (WF-SEC-0020). Without one (401), there is none to close: the user is signed
- * out all the same.
+ * Forget the sessions the front keeps of the account, then sign out where the answer of the API
+ * leads.
  */
-export async function signOut(): Promise<Settled> {
-  const outcome = settled(await decode(() => serverClient().DELETE("/session")));
-  return outcome.kind === "signed_out" ? settled({ kind: "done", data: null }) : outcome;
+async function forgottenSignOut(notAdmitted: boolean, revoked: boolean): Promise<SignedOff> {
+  await closeRequestSessions();
+  if (notAdmitted) {
+    return { kind: "left", address: identityProvider().signOutAddress().href };
+  }
+  return { kind: "left", address: revoked ? loginHref(HOME, true) : LOGIN_ROUTE };
 }
 
 /**
- * Ask for a link that sets a new password, sent to an address (WF-ADM-0140). The answer does not
- * say whether an account has that address, and neither does the screen.
+ * Close the sessions of the account, on all its workstations (WF-SEC-0020): the API has Keycloak
+ * close them, and the front forgets those it keeps, without waiting for the back channel; the
+ * browser then loads the sign-in, which forgets the cookie (#724). Without one (401), or the
+ * account deactivated (401 `ACCOUNT_DEACTIVATED`), whose sessions are closed already, there is none
+ * to close: the user is signed out all the same. A token of a sign-in that precedes the closing
+ * of the sessions (401 `SESSION_REVOKED`) leads to a sign-in that asks for the identifiers again:
+ * the session of the realm, whose closing was missed, would sign the user in again without them,
+ * to the same refusal (#855). An account Waterfall does not admit (401
+ * `ACCOUNT_NOT_ADMITTED`) holds a session of the realm the API does not close: the browser ends it
+ * at the realm. The API out of reach, nothing is closed, and the screen says so; Redis out of
+ * reach once the API has closed them, the screen says the service out of reach, and the sessions of
+ * the account at the realm are closed all the same.
+ *
+ * When the session of the front the cookie names lives no more, the request does not leave, and
+ * Keycloak may still hold the session of this browser, which would sign the user in again
+ * without asking: the browser goes through a silent sign-in, whose token closes the sessions of
+ * the account on all its workstations (#689). Only this action arms it, under a ticket of one use
+ * bound to the cookie of the request (`armRequestSignOut`), that `/login` takes only from the
+ * browser holding that same cookie (`signOutHref`). The identifier of the action is public, and
+ * anyone may call it from a server of their own, with a cookie of their own: the ticket they get
+ * is bound to that cookie, and a victim led to it signs in like any other, nothing closed. Redis
+ * out of reach, nothing is armed, and the screen says the service out of reach.
  */
-export async function askPasswordReset(email: string): Promise<Settled> {
-  return settled(
-    await decode(() => serverClient().POST("/session/password-reset", { body: { email } })),
-  );
-}
-
-/** Set a new password with the token of the link the user received (WF-ADM-0140). */
-export async function resetPassword(token: string, password: string): Promise<Settled> {
-  return settled(
-    await decode(() =>
-      serverClient().POST("/session/password-reset/confirm", { body: { token, password } }),
-    ),
-  );
+export async function signOut(): Promise<Settled | SignedOff> {
+  const outcome = await decodeOrLost(() => serverClient().DELETE("/me/sessions"));
+  if (outcome.kind === "lost") {
+    return inStore(armedSignOut);
+  }
+  const refused = outcome.kind === "refused" ? outcome.problem.code : undefined;
+  const closed =
+    outcome.kind === "done" ||
+    outcome.kind === "signed_out" ||
+    refused === "ACCOUNT_DEACTIVATED" ||
+    refused === "ACCOUNT_NOT_ADMITTED";
+  if (!closed) {
+    return settled(outcome);
+  }
+  if (isMockAuthentication()) {
+    return { kind: "left", address: LOGIN_ROUTE };
+  }
+  const revoked = outcome.kind === "signed_out" && asksIdentifiers(outcome.problem.code);
+  return inStore(() => forgottenSignOut(refused === "ACCOUNT_NOT_ADMITTED", revoked));
 }

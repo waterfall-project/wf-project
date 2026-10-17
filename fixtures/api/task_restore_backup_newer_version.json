@@ -1,0 +1,20 @@
+{
+  "summary": "La restauration demandée à 14 h 07 sur une sauvegarde prise par la version 1.1.0 de l'application, quand l'installation est en 1.0.0 : la tâche refuse l'archive à 14 h 08, avant de mettre la plateforme en maintenance, et échoue sans qu'aucune session ne soit fermée ni rien écrit (WF-ADM-0160).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000936",
+    "kind": "restore",
+    "status": "failed",
+    "progress": 0,
+    "submitted_at": "2026-06-03T14:07:00Z",
+    "finished_at": "2026-06-03T14:08:00Z",
+    "problem": {
+      "code": "BACKUP_FROM_NEWER_VERSION",
+      "status": 422,
+      "params": {
+        "backup_version": "1.1.0",
+        "installed_version": "1.0.0"
+      }
+    },
+    "result_url": null
+  }
+}

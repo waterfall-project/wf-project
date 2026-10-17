@@ -6,6 +6,10 @@
  * address (`result-refusal.ts`) read. A module of its own, which reads nothing of the server: the
  * decoder imports the client of the API, which a browser never loads.
  */
+import type { components } from "@/api/generated/schema";
+
+/** A code of the contract, which names a refusal. */
+type ErrorCode = components["schemas"]["ErrorCode"];
 
 /** What a refusal of the API asks of the screen, by the status that carries it. */
 export type ProblemKind = "refused" | "stale" | "conflict" | "signed_out";
@@ -17,7 +21,26 @@ const KIND_BY_STATUS: Readonly<Record<number, ProblemKind>> = {
   412: "stale",
 };
 
-/** What a refusal of a status asks of the screen: `refused` for any status but these. */
-export function kindOf(status: number): ProblemKind {
-  return KIND_BY_STATUS[status] ?? "refused";
+/** The 401 that refuse the account itself, whatever its session: deactivated, or not admitted. */
+const ACCOUNT_REFUSALS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
+  "ACCOUNT_DEACTIVATED",
+  "ACCOUNT_NOT_ADMITTED",
+]);
+
+/**
+ * Whether a 401 refuses the account itself rather than its session — deactivated
+ * (`ACCOUNT_DEACTIVATED`), or one Waterfall does not admit (`ACCOUNT_NOT_ADMITTED`, #664): leading
+ * it back to the sign-in page would loop, the identity provider signing it in again to the same
+ * refusal. The screen says it instead.
+ */
+export function isAccountRefusal(status: number, code: unknown): boolean {
+  return status === 401 && [...ACCOUNT_REFUSALS].some((refusal) => refusal === code);
+}
+
+/**
+ * What a refusal of a status asks of the screen: `refused` for any status but these — and for a
+ * 401 that refuses the account, which is no session to open again (`isAccountRefusal`).
+ */
+export function kindOf(status: number, code?: string): ProblemKind {
+  return isAccountRefusal(status, code) ? "refused" : (KIND_BY_STATUS[status] ?? "refused");
 }

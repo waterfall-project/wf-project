@@ -44,10 +44,8 @@ function queryOf(end: string): URLSearchParams | undefined {
 }
 
 /** The markup of the estimate of the witness revision for the session given. */
-async function estimatePage(
-  session: "session" | "session_estimator" | "session_manager",
-): Promise<string> {
-  server.answers = { ...server.answers, "GET /session": session };
+async function estimatePage(session: "me" | "me_estimator" | "me_manager"): Promise<string> {
+  server.answers = { ...server.answers, "GET /me": session };
   const page = await EstimatePage({
     params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
     searchParams: Promise.resolve({}),
@@ -60,7 +58,7 @@ async function estimatePage(
 }
 
 /** Read the estimate of the witness revision for the session given; its grid as handed. */
-async function estimateFor(session: "session" | "session_estimator") {
+async function estimateFor(session: "me" | "me_estimator") {
   await estimatePage(session);
   return grids.estimate.at(-1);
 }
@@ -84,7 +82,7 @@ beforeEach(() => {
 
 describe("the reference data the estimate is entered from", () => {
   it("asks the deactivated categories and roles with the permissions of the reference that keep them", async () => {
-    const grid = await estimateFor("session");
+    const grid = await estimateFor("me");
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
     expect(queryOf("/resource-roles")?.get("include_inactive")).toBe("true");
     expect(grid?.reference.roles?.some(({ active }) => !active)).toBe(true);
@@ -93,7 +91,7 @@ describe("the reference data the estimate is entered from", () => {
   it("asks only the active ones of a part of the reference the session may not read, and still enters the estimate on them (#351)", async () => {
     // The estimator reads the cost settings, not the resource settings: the contract would refuse
     // him the deactivated roles (403), and he enters on the active ones.
-    const grid = await estimateFor("session_estimator");
+    const grid = await estimateFor("me_estimator");
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
     expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
     expect(grid?.reference.roles).toBeDefined();
@@ -103,7 +101,7 @@ describe("the reference data the estimate is entered from", () => {
 
 describe("the way from the estimate to the imports and exports (#521)", () => {
   it("leads a costing engineer who does not read the planning to the screen of the imports, the import of an estimate listed", async () => {
-    const page = await estimatePage("session_estimator");
+    const page = await estimatePage("me_estimator");
     expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/exchanges"`);
     expect(page).toContain("Imports and exports");
   });
@@ -114,12 +112,12 @@ describe("the way from the estimate to the imports and exports (#521)", () => {
       ...server.answers,
       "GET /projects/{project_id}": "project_pricing_estimator",
     };
-    expect(await estimatePage("session_estimator")).toContain("/exchanges");
+    expect(await estimatePage("me_estimator")).toContain("/exchanges");
   });
 
   it("offers no way there when the project lists no import of an estimate", async () => {
     // A manager reads the estimate, and may import nothing: the project lists him no command.
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
-    expect(await estimatePage("session_manager")).not.toContain("/exchanges");
+    expect(await estimatePage("me_manager")).not.toContain("/exchanges");
   });
 });

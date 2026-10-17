@@ -43,6 +43,24 @@ de `next build`, que `make build-front` lance au palier rapide, sans API joignab
 et `make e2e` au palier complet.
 `make client-up-to-date`.
 
+### Une action serveur en tête d'un module des actions, rien pour le mode brouillon
+
+Une action serveur ne s'écrit qu'en tête d'un module de `src/api/actions/`, qui s'ouvre sur
+`"use server"` ; jamais en ligne, dans une fonction. Ni `"use cache"`, sous aucune de ses
+formes, ni le mode brouillon : aucun `draftMode`, aucun routeur de pages (`pages/`,
+`src/pages/`), dont les gestionnaires y entrent par `setDraftMode`, `setPreviewData` ou
+`clearPreviewData`.
+
+*Pourquoi* : l'image de production est construite une fois et publiée, et `next build` y écrit
+ses propres clés — celle des fermetures des actions serveur, celles du mode brouillon —, que lit
+quiconque tire l'image (US-0430, WF-SEC-0010). La clé des actions ne protège rien tant que Next
+n'a aucune fermeture à chiffrer (#825) ; celles du mode brouillon y feraient entrer qui veut,
+si le front en avait un. `previewModeId` laisse en outre contourner le cache des pages
+prérendues, sans objet tant qu'aucune ne porte autre chose que du public, ce que tient
+`make prerendered-front`.
+*Contrôle* : `src/next-config.test.ts` (`make test-front`), qui lit chaque source du build hors
+des commentaires.
+
 ### Le front affiche, il ne calcule pas
 
 Une date, un montant, un indice, un total s'affichent tels que l'API les rend. Le front ne
@@ -241,7 +259,9 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
 17. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
     sa première visite ; atteinte par un clic, elle est attendue cinq secondes par une
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
-    d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`). Aucun outil
+    d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`), et celles
+    qu'atteint une redirection ou Keycloak, qui ne répondent pas une page sans session
+    (`compileAnswered`). Aucun outil
     ne le tient : la revue le cherche.
 18. **Contexte de la coquille changé pendant qu'une page attend d'être révélée.** La coquille
     est au-dessus de chaque page, dont `loading.tsx` fait une frontière `Suspense`. Le serveur

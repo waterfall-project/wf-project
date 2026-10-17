@@ -10,13 +10,15 @@ Playwright — cites it between brackets in its title: ``it("… [WF-QUA-0050-A]
 citations are read from the test files themselves, without running them: removing a test
 makes its requirement uncovered at once, and a failing test is the tests' own business.
 
-Each citation belongs to the family of its file — front, end-to-end, back or tools, as
-``tools/paths.toml`` declares them — and the report says, for every requirement, which
-families cite it. The front's tests cite requirements that other epics close, by the Vérif
-sentence they try (#333); such a requirement is not proven until the family that closes it
-cites it too. The roadmap says which epic closes each requirement, and the front matter of
-each epic its families: one cited by the front's families alone, and closed by an epic that
-is not the front's alone, is listed apart and does not count as covered.
+Each citation belongs to the family of its file — end-to-end against the service, end-to-end,
+front, back or tools, as ``tools/paths.toml`` declares them — and the report says, for every
+requirement, which families cite it. The front's tests cite requirements that other epics close,
+by the Vérif sentence they try (#333); such a requirement is not proven until the family that
+closes it cites it too. A path played against the real service traverses the back: it proves
+what the back closes, as the back's own tests do (US-0340). The roadmap says which epic closes
+each requirement, and the front matter of each epic its families: one cited by the front's
+families alone, and closed by an epic that is not the front's alone, is listed apart and does
+not count as covered.
 
 The report lists every F0 requirement of the document with the tests that cover it, and is
 added to the summary of the chain's job when it runs there. A citation of an unknown
@@ -44,7 +46,10 @@ ACCEPTANCE = "Vérifiée en recette"
 """What opens the Vérif field of a requirement an acceptance report covers (WF-QUA-0010)."""
 
 FRONT_FAMILIES = frozenset({"front", "end-to-end"})
-"""The families of ``tools/paths.toml`` whose tests run the front, against a fake back."""
+"""The families of ``tools/paths.toml`` whose tests run the front, against a fake back.
+
+``end-to-end-service`` is not one of them: its paths run against the real service.
+"""
 
 _TITLE_CITATION = re.compile(r"\[(WF-[A-Z]+-\d{4}-[A-Z])\]")
 _TYPESCRIPT = frozenset({".ts", ".tsx"})

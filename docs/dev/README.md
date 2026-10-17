@@ -18,6 +18,7 @@ y ajoute la section qu'elle établit, et une section encore vide nomme celle qui
 | `fixtures/` | le relevé engendré des exemples chiffrés des Vérif, et les fixtures qui s'y rattachent | — |
 | `tools/` | les outils du dépôt, un seul paquet Python, `wftools`, et leurs tests | PBS-5.2 |
 | `deploy/compose/`, `deploy/helm/` | l'empaquetage : Compose, puis le chart Helm en EP-13 | PBS-5.1 |
+| `deploy/keycloak/` | l'image de Keycloak : l'extension Java (`extension/`), les thèmes, le royaume `waterfall` (`realm/`), et ce que la plateforme de développement lui ajoute (`development/`) | PBS-5.4 |
 | `.github/workflows/` | la chaîne | PBS-5.2 |
 | `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap | — |
 | `docs/dev/` | ce guide, et les règles de codage par langage | — |
@@ -32,6 +33,13 @@ chaque chose est là (`docs/roadmap/EP-01-socle-de-developpement.md`, « Concept
 Le back est un seul paquet, `waterfall`, et deux processus : `waterfall-api` et
 `waterfall-worker`, deux points d'entrée d'une même distribution. Ils portent donc la même
 version par construction, celle de `backend/pyproject.toml` (WF-ARC-0010).
+Une troisième commande de la même distribution, `waterfall-migrate`, applique les migrations de
+la base (voir « Migrations ») et s'arrête : ce n'est pas un processus du service, mais elle
+porte la même version et se lance avec la même image.
+Une quatrième, `waterfall-restore`, est le service de la restauration (US-0440, #953) : seul
+lecteur du flux des restaurations, seul à tenir les propriétaires des deux bases, il applique les
+migrations comme l'amorçage, et son module, `waterfall.restore`, est comme lui au sommet des
+couches, importé par aucun.
 
 Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son bloc FBS de
 second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
@@ -39,10 +47,51 @@ module `interface`, et rien d'autre : ses tables et son accès aux données lui 
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
+Ce qui n'est pas une fonction du métier — réglages et secrets, journaux, corrélation, exceptions
+typées — vit dans `waterfall.platform`, sous le noyau : le noyau, l'API et le worker l'importent,
+il n'importe aucun d'eux, et aucun de ses modules ne connaît une table du noyau. Le contrat de
+couches de `backend/pyproject.toml` le garde.
+
 *Contrôle* : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
 un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`). Une requête
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
 imports : elle relève des règles SQL d'EP-03 et de la revue.
+
+**Les tâches de fond** (WF-ARC-0090). Une tâche vit dans la table `background_task`
+(`waterfall.platform.tasks`), qui fait foi ; le flux Redis (`waterfall.platform.queue`) n'en porte
+que l'identifiant. Une route la dépose par `submit(session, queue, genre, demandeur)`, dans sa
+transaction, sous la corrélation de la requête : le dépôt dans le flux suit la validation, et une
+tâche dont le dépôt s'est perdu reste `queued`, que le worker redépose au démarrage puis
+périodiquement. Le worker (`waterfall.worker.runner`) exécute la tâche dans une seule transaction,
+sous un verrou consultatif qui lui est propre, par le traitement de son genre — une fonction
+`(session, tâche)` que `handlers(réglages)` (`waterfall.worker.main`) enregistre, et qui refuse par une
+exception typée du noyau, dont le code devient le motif de l'échec. Arrêté pendant une tâche, il
+ne laisse rien de son travail : un autre la reprend depuis le début, et elle échoue après trois
+tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Une
+restauration (`restore`) n'est jamais celle du worker : `startRestore` la dépose dans un second
+flux, `waterfall:tasks:restores`, que le service de la restauration lit seul, dans son groupe de
+consommateurs ; il pose la maintenance, une clé de Redis à côté du flux du worker que l'API lit
+(503 sauf la sonde de vie), et le worker n'exécute rien tant qu'elle y est (EP-03, « Sauvegarde et
+restauration »). Les
+tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en dépose pas une
+quand une tâche du même genre est en file ou en cours : le service `scheduler` de Compose
+l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par défaut.
+Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
+`TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, une seconde, pour qu'un Redis muet ne
+retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
+erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
+dite dans ses journaux par `worker.failed`, secrets masqués.
+
+Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
+`dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la
+validation des paramètres et du corps, après sa lecture : un corps illisible est refusé d'abord
+(400). La permission de consulter vient la première — sans elle, l'objet n'existe pas pour
+l'appelant, 404 `NOT_FOUND` ; sans une autre, 403 `PERMISSION_MISSING`, `params.missing_permission` la
+nommant (WF-ADM-0110). L'évaluation elle-même, `require(actor, permission)`, est celle du module
+`waterfall.core.access_roles`, que les EPIC suivants complètent (la qualité de contributeur en
+EP-04). *Contrôle* : `backend/tests/test_access_evaluation.py` liste les permissions de chaque
+opération servie et vérifie que le contrat déclare le refus qu'elles peuvent donner — une route
+nouvelle s'y ajoute.
 
 ## Le front
 
@@ -119,13 +168,29 @@ au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table
 qui a son écran. Chaque route
 de la table a sa page, ce que `frontend/src/app/[...path]/page.test.tsx` vérifie ; toute autre
 adresse mène, par `frontend/src/app/[...path]/page.tsx`, à l'écran « introuvable ». Les pages du compte
-(`/account`, `/account/password`, `/account/avatar`, `frontend/src/navigation/account.ts`)
+(`/account`, `/account/avatar`, `frontend/src/navigation/account.ts`)
 ont leurs écrans (US-0320) : les informations du compte et ses préférences d'affichage — la
-langue et le mode, les mêmes champs que le menu du compte écrit, enregistrés ensemble —, le
-changement du mot de passe, offert au seul compte local, et l'avatar. L'image de l'avatar,
+langue et le mode, les mêmes champs que le menu du compte écrit, enregistrés ensemble — et
+l'avatar. Aucun écran de Waterfall ne demande, n'affiche ni ne change un mot de passe : le
+fournisseur d'identité les tient (WF-ADM-0140), et l'écran du compte mène un compte local à sa page
+du compte du royaume (`realmAccountPage`, `src/session/settings.ts`), dans un autre onglet ; un compte
+de l'annuaire ou d'un fournisseur externe n'y a pas de mot de passe, ni le faux back de royaume. Il
+n'envoie la langue que si elle a changé : l'API la reporte au fournisseur d'identité, et un changement
+du seul mode n'attend pas Keycloak (#877). L'image de l'avatar,
 servie par l'API seule, est lue par le serveur de Next en rendant la page et écrite dans la
 page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
 l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
+
+Un nom de compte ne s'affiche que par `useAccountNaming`
+(`frontend/src/components/account/account-name.ts`) : `person` pour un compte par ses prénom et
+nom, `kept` pour le nom qu'une réponse a gardé de lui — l'auteur et l'objet d'une inscription du
+journal, l'auteur d'une transition, les colonnes d'audit d'un objet. L'API rend nuls les noms
+d'un compte anonymisé, sans phrase à leur place (WF-ADM-0060, WF-ARC-0110) : un nom nul se dit
+par le libellé neutre du catalogue (`accountName.anonymized`, « Compte anonymisé »), jamais par
+un vide ni par l'identifiant du compte. Dans une cellule, ce libellé a un seul rendu,
+`AnonymizedName` (`KeptName` pour un nom gardé qui peut être nul, dans `anonymized-name.tsx`),
+grisé et marqué `data-anonymized` ; une option de `<select>`, qui ne porte que du texte, prend
+`kept(null)`.
 
 La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
 latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
@@ -141,21 +206,141 @@ de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à 
 projet. Le menu du compte (`account-menu.tsx`) porte les préférences d'affichage — langue et
 mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le parcours au
 clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconnexion
-(`closeSession`, un 401 valant session déjà close) oublie ce que le navigateur gardait de la
-session — le témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi
-— puis charge la page de connexion en document entier. L'entrée — la connexion, `/login`, et
-le mot de passe oublié, `/login/reset` — est hors de la coquille : ni barre latérale, ni barre,
-ni tâches (`shell-frame.tsx`, `isOutsideShell`), le logo au-dessus d'une carte. La page de
-connexion présente les fournisseurs de `listAuthProviders` : le compte local toujours, que
-l'annuaire partage quand il est activé, et le fournisseur d'identité activé par un lien vers
-son `start_url`. La session ouverte, le navigateur charge en document entier l'écran visé
-(`returnTarget(next)`, `frontend/src/navigation/document.ts`) — sans lui, l'accueil — : le layout relit la session, et
-le suivi reprend les tâches qu'une session perdue avait interrompues.
-Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
-illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans
-menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur écran étroit, c'est
-une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que si elle est
-rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au déclencheur.
+(`closeMySessions`, qui ferme toutes les sessions du compte ; un 401 valant session déjà close,
+le compte désactivé ou non admis compris) oublie ce que le navigateur gardait de la session — le
+témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi — puis charge en
+document entier l'adresse que rend l'action : `/login`, d'ordinaire. `/login?next=…` est un
+gestionnaire de route (`src/app/login/route.ts`), non une page : Waterfall n'a ni formulaire de
+connexion, ni liste de fournisseurs, ni mot de passe oublié, le fournisseur d'identité tenant ses
+écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui accorde la session, il mène droit à l'écran
+visé (`returnTarget(next)`, `frontend/src/navigation/login.ts`) — sans lui, ou hors du front,
+l'accueil — : le layout relit la session, et le suivi reprend les tâches qu'une session perdue avait
+interrompues. Hors de ce mode, il démarre le flux du code d'autorisation du royaume `waterfall`
+(US-0350) — voir « La session du front » ci-dessous. La session est `getMe`
+(`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses permissions. Un
+401 `ACCOUNT_DEACTIVATED` ou `ACCOUNT_NOT_ADMITTED` n'est pas une session absente : l'écran le dit
+(la panne `failure.deactivated` ou `failure.notAdmitted`, le refus d'une action), et ne renvoie pas
+à la connexion, qui bouclerait (#664). Sans compte (401), il n'y a ni menu du compte ni barre
+latérale ; quand la session est illisible, la barre latérale est rendue avec l'écran d'état seul,
+son bloc ouvert, et sans menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur
+écran étroit, c'est une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que
+si elle est rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au
+déclencheur.
+
+**La session du front** (US-0350, `frontend/src/session/`). Le navigateur ne détient aucun jeton
+(WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
+`__Host-wf_session` porte seul (`HttpOnly`, `Secure`, `Path=/`, sans `Domain`, `SameSite=Lax`,
+sans échéance) : son préfixe empêche un sous-domaine voisin d'en poser un à lui, que `/login` lirait
+le premier (#887) ; le navigateur le prend aussi de `http://localhost` ou `http://127.0.0.1`, où
+tournent les parcours et le poste, comme tout témoin `Secure`. `/login?next=…`
+tire un `state`, un nonce et un vérificateur PKCE (S256), les garde dans Redis avec l'écran visé
+— déjà passé par `returnTarget` — quinze minutes au plus, donne au navigateur un témoin lié à ce
+`state` (`wf_sign_in_<state>`, limité à `/auth/callback`, quinze minutes), et l'envoie à la page
+de connexion de Keycloak. `/auth/callback` exige ce témoin — un retour porté à un autre
+navigateur n'y ouvre aucune session et recommence la connexion, sans toucher à la demande (RFC
+9700, §4.7) —, reprend la demande par son `state`, une seule fois, échange le code, vérifie le
+nonce du jeton d'identité, ouvre la session — ses jetons dans Redis pour la durée que Keycloak
+donne à sa session, `refresh_expires_in` — et mène à l'écran visé, son adresse entière ; un
+`state` inconnu, déjà employé ou trop vieux recommence la connexion ; une connexion que le
+royaume refuse — une erreur au retour, un code refusé, un nonce faux — mène à l'accueil sans
+session, jamais à `/login`, que la session de Keycloak bouclerait. Keycloak ou Redis injoignable,
+ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à `/login/unavailable` en
+oubliant le témoin `__Host-wf_session` — la page relirait sinon Redis pour lui —, qui
+dit le service injoignable et offre de recommencer vers l'écran visé, jamais à une erreur 500 nue
+(#687). `/login` efface aussi le témoin `__Host-wf_session` : la déconnexion y mène sans y toucher (#724).
+`serverClient()` est le seul endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à
+chaque requête, il lit la session du témoin et rafraîchit un jeton d'accès qui expire dans moins
+de trente secondes, sous un verrou Redis par session qui vit deux fois le délai d'une requête au
+royaume (`REFRESH_TIMEOUT`, cinq secondes), pour que deux requêtes ne présentent jamais le même
+jeton de rafraîchissement. Un rafraîchissement qui échoue une fois parti — refusé, sans réponse
+dans ce délai, la connexion coupée pendant la réponse, un mandataire qui répond à sa place — ferme
+la session : Keycloak a pu prendre le jeton, qui n'est jamais présenté deux fois (#687). Seule une
+requête qui n'a pu partir (Keycloak injoignable : connexion refusée, hôte
+inconnu ou hors d'atteinte, certificat refusé) ne la ferme pas : le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable
+(`Unreachable`), que l'écran dit comme tel. Redis injoignable pendant une requête ordinaire l'est
+de même, un composant de la plateforme hors d'atteinte (WF-EXP-0040) : `requestBearer` change le
+`StoreUnreachable` du magasin en `Unreachable`, et l'écran dit le service injoignable, jamais une
+erreur inattendue (#861). Quand la session que nomme le témoin ne vit plus, la
+requête ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran
+de panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
+d'y mener par un lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API
+(`SignedOut`), comme le refus d'un jeton vivant, offre la connexion par un lien sans y mener seul :
+une connexion refusée revient sans témoin, et y mener bouclerait. Sur un 401 `SESSION_REVOKED`
+seulement — un jeton d'une connexion antérieure à la fermeture des sessions du compte —, ce lien,
+l'écran de panne (`failure.revoked`) comme l'avis d'une action, mène à
+`/login?next=…&reauthenticate=1`, que `/login` envoie au royaume avec `prompt=login` : Keycloak,
+dont la session a pu survivre à une fermeture manquée, redemande les identifiants et renouvelle
+`auth_time` ; un `SESSION_EXPIRED` ne les redemande pas (#855). La déconnexion (`signOut`) ferme
+les sessions du compte par `closeMySessions`, puis efface celles que le front garde de ce compte,
+sans attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
+`/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
+témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
+`/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
+navigateur va au point de déconnexion du royaume. La coquille ne lui offre ni barre ni menu du
+compte : la panne `failure.notAdmitted` offre « Se déconnecter », un lien vers `/auth/sign-out`,
+qui mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité, demande de
+confirmer, puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne vit plus,
+la requête ne part pas, et le navigateur passe par une connexion silencieuse
+(`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
+hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `__Host-wf_session` de la
+requête, sans toucher au témoin (`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend, une
+seule fois, que si le témoin du navigateur porte ce même identifiant (`takeSignOut`). Un ticket
+inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une navigation de premier niveau
+envoie avec le témoin `SameSite=Lax` —, ou lié à un autre témoin, ou un navigateur sans témoin,
+font une connexion ordinaire, qui ne ferme rien et laisse le ticket : l'identifiant de l'action est
+public, et un tiers qui l'appelle depuis son serveur, avec un témoin à lui, obtient un ticket qui ne
+déconnecte que ce témoin. Son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
+qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
+Keycloak non plus, il n'y a plus de poste à fermer (#689). Un jeton que l'API refuse alors par
+`SESSION_REVOKED` — la session de Keycloak a survécu à une fermeture manquée — mène, comme le refus
+de `closeMySessions` par ce code dans `signOut`, à `/login?…&reauthenticate=1`, qui redemande les
+identifiants : jamais une nouvelle connexion silencieuse, qui ramènerait le même refus (#855). Un clic sur un lien du front attend les
+écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
+appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
+référentiel, l'enregistrement des préférences, l'envoi ou le retrait de l'avatar, la demande d'un
+export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
+`useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
+navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
+appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
+la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
+l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus que sur la
+lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle libère ses
+écritures, dont le refus n'est plus dit par la liste, ni au retour sur cette lecture, dont les clics
+ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
+(`useHeldCommand(generation)`) ; encore en route et refusées ensuite, l'avis de la barre les dit,
+comme celles d'un écran quitté (ci-dessous). Tout refus retient le clic, même dit ailleurs que sur l'écran
+quitté : la relance d'une tâche refusée retient la navigation, bien que son refus soit dit dans le
+panneau des tâches de la coquille, qui survit à l'écran — une règle sans exception plutôt qu'une
+écriture à juger une à une. Le clic se
+juge par son geste, qui commence quand le pointeur descend ou qu'une touche est pressée : il attend
+les écritures encore en cours et celles parties depuis le début du geste, même déjà répondues — la
+cellule validée quand le pointeur descend sur le lien, dont la session perdue répond avant le clic,
+retient ce clic. Seul le dernier clic retenu est refait ; un écran quitté libère ses écritures, qui
+ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation programmatique
+(`router.push`), « Précédent » et « Suivant » du navigateur, un lien qui ouvre ailleurs —
+autre onglet, touche de modification, téléchargement, autre site. Une écriture encore en route quand
+son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
+survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `leftRefusals` de
+`held-writes.ts`, #863) ; une écriture refusée avant le départ de son écran y a été dite, et ne
+l'est pas deux fois.
+Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion, désactivation, retrait
+des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du front et non une
+opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume et efface les
+sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts` (`openid-client`, `jose`) et
+`src/session/store.ts` (`@redis/client`) atteignent Keycloak et Redis, chacun les siennes seulement
+: ESLint refuse ces bibliothèques ailleurs, et chacun des deux modules celles de l'autre
+(`src/api/network-guard.test.ts`).
+
+Le front, hors du mode `mock`, lit : `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse de Keycloak pour le
+navigateur, dont relève l'émetteur des jetons (`https://<hôte>/auth`) ;
+`WATERFALL_KEYCLOAK_BACKCHANNEL`, celle par laquelle le serveur de Next l'atteint, la même par
+défaut ; `WATERFALL_FRONT_ADDRESS`, l'adresse du front, sous laquelle est l'adresse de retour ;
+`WATERFALL_FRONT_CLIENT_SECRET`, le secret du client `waterfall-front` ; `WATERFALL_REDIS_URL`,
+le Redis des sessions. Une variable qui manque fait échouer la première connexion, en la nommant ;
+`next build` et le mode `mock` n'en lisent aucune. `openid-client` refuse toute adresse de
+Keycloak qui n'est pas en HTTPS, celle de la page de connexion comprise : sur la plateforme de
+service, Keycloak est servi en HTTPS par un frontal à autorité locale, à laquelle le front se fie
+par `NODE_EXTRA_CA_CERTS` (« Commandes », #680).
 
 Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
@@ -167,8 +352,9 @@ toute autre réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe pass
 le `code` de l'enveloppe quand le statut ne dit pas lequel —, et suit la même règle pour le
 reste. L'écran de panne (`error.tsx` dans la coquille, `global-error.tsx` quand le layout
 racine échoue) ne reçoit en production que le `digest` de l'erreur levée côté serveur :
-`Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme tel, `SignedOut` (un 401)
-`SESSION_REQUIRED_DIGEST`, qui mène à la connexion (`loginHref`), `UnexpectedAnswer`
+`Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme tel, `SessionLost`
+`SESSION_LOST_DIGEST`, qui mène à la connexion sans clic, `SignedOut` (un 401)
+`SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `UnexpectedAnswer`
 l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour
 qu'aucune valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affiche
 en référence sans le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la
@@ -413,8 +599,11 @@ aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre tro
 plancher fait défiler la page. Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
-et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page ni ses filtres, qui
-vivent dans l'adresse (règle validée par l'auteur le 2026-10-09). Une colonne ou une largeur
+et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
+l'auteur le 2026-10-09). Ses filtres, une grille qui les déclare (`GridConfig.filters`) les garde en
+préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmation de l'auteur à
+venir) : ils sont retrouvés à l'ouverture d'une adresse qui ne dit rien de la grille ; la page et
+les filtres d'une adresse qui les dit vivent dans l'adresse. Une autre grille ne garde aucun filtre. Une colonne ou une largeur
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
 quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
 porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
@@ -626,8 +815,8 @@ d'après la ligne qui le connaît, ou la version périmée (412), avec l'offre d
 au-dessus de la liste (`Reactivations`), qu'une cellule de grille n'a pas la place de dire, jusqu'à
 ce qu'on ferme son avis — un refus arrivé pendant qu'un autre est dit s'ajoute à lui, sans le
 remplacer, sauf celui de la même commande sur le même objet, qui prend sa place ; un succès après lui
-ne l'efface pas, et le focus revient à la cellule active
-de la grille, ou à la liste —, et seulement tant que la liste se lit comme au moment de la commande :
+ne l'efface pas, et le focus revient au contrôle qui a écrit quand le refus en nomme un (`back`,
+une case de la matrice des permissions), sinon à la cellule active de la grille, ou à la liste —, et seulement tant que la liste se lit comme au moment de la commande :
 les paramètres qu'elle lit (`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Dans
 une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la presse
 (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back ignorant les filtres, les pages et
@@ -759,7 +948,8 @@ refus par champ — un parent ou un nœud désactivé entre-temps, `INACTIVE_REF
 faux back ne garde rien (`MockupNotice`).
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
-`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
+`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule hors
+celui des rôles, branché sur le service (plus bas) : les
 comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
 serveur, sur la grille dense (#514, `admin-grids.tsx`), triés sur chaque colonne, cherchés,
 filtrés par origine (`origins`, `ValuesFilter`), par nœud d'organisation (`org_node_id`, offert
@@ -780,31 +970,102 @@ contrat. Les rôles d'habilitation sont sur la grille dense eux aussi
 `holder_count_max`, `RangeFilter` de forme `count`, un entier depuis zéro ; une borne refusée dite
 à son champ, la liste non lue) —, sans pagination — le
 §4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, et la matrice
-des permissions montre tous les rôles quelle que soit la demande de la grille — une ligne par
+des permissions montre les rôles que la table retient, dans son ordre (US-0380) — une ligne par
 permission dans l'ordre du catalogue, les permissions consécutives d'une même fonction de second
 niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
 (`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
 qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
 accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
-aucune commande. Seule exception, décidée par l'auteur le 2026-10-08 (#379, #515) : des boutons
-seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
-`users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
-en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
-« Attribuer les rôles » tels que le compte les liste (`User.available_commands`) — une commande
-absente n'est pas présentée, une indisponible l'est avec sa condition — ; aucune suppression
-(WF-ADM-0060) ; à une session qui porte
-`access_roles.write`, l'écran des rôles offre « Créer un rôle » et, sur chaque rôle, « Modifier »
-et « Supprimer » — une suppression logique (#456) —, indisponible, `aria-disabled` et décrite par
-sa condition, tant qu'un compte porte le rôle, comme le serveur la refuserait (`deleteAccessRole`,
-409, WF-ADM-0090), et la désactivation du dernier compte actif qui porte les permissions de
-modifier les comptes et les rôles, `last_administrator` manquante (WF-ADM-0120, #540) — le front ne
-pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste disponible,
-le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui retireraient
-ces permissions — un refus dit comme tout autre. Un
-clic sur une commande disponible dit, dans une région annoncée rendue dès le départ, hors de la
-section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
-condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
-aucun bouton. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+aucune commande. Les deux tables finissent sur leurs colonnes d'audit (#936, `audit-columns.tsx`) :
+« Créé le », « Créé par », « Modifié le », « Modifié par », chacune triée par le serveur sous le nom
+de son champ (`created_at`, `created_by`…), un instant en heure locale (`LocalTime`), un auteur par
+le nom que la ligne garde du compte — désactivé depuis, toujours nommé ; anonymisé, le libellé
+neutre — ou la plateforme par son propre libellé (`ActorCell`). Chacune se filtre (`audit-address.ts`,
+`audit-filters.tsx`) : une période de jours locaux par colonne de dates (`PeriodFilter` de forme
+`day`, sous `created_at_from` et `created_at_to`, `updated_at_from` et `updated_at_to`), une fin
+refusée dite à son champ, la liste non lue ; un auteur par colonne d'auteurs (`AuthorFilter`), un
+seul choix qui écrit un compte (`created_by_user_id`) ou une sorte d'auteur — un compte quel qu'il
+soit, ou la plateforme (`created_by_kind`) —, chaque choix levant le paramètre des autres (`name`
+d'un `Choice` de `ChoiceFilter`). Le contrat n'a pas de liste des auteurs : les rôles offrent ceux de
+la liste sans filtre, relue à part quand la grille la restreint ; les comptes, ceux de la page
+montrée, et ceux qu'une recherche des comptes trouve (`findAccounts`, `listUsers` cherché, vingt au
+plus). Ces filtres sont gardés avec les réglages des deux grilles, comme les autres. La recherche et
+les filtres de la table des rôles sont gardés avec les réglages de
+sa grille (`GridConfig.filters`, `kept-filters.ts`, sous `filters` de `GridPreferences`, tels que
+l'adresse les écrit) : enregistrés dès que la page en montre d'autres que ceux gardés — une lecture
+levée comprise —, et retrouvés seulement sur une adresse qui ne dit rien de la grille, ni tri, ni
+recherche, ni filtre, que la page, sur le serveur et avant toute lecture, redirige vers celle des
+filtres gardés (`restoredAddress`, `kept-address.ts`), comme elle prend le tri gardé quand l'adresse
+n'en dit rien — d'où qu'on vienne, le lien de la barre latérale suivi depuis l'écran compris. La
+levée du dernier filtre se dit dans l'adresse, la recherche écrite vide (`search=`, `spokenHref`, que
+pose le `PendingAddress` d'un écran qui nomme ce que garde sa grille), comme un tri levé écrit
+`sort_by` vide : la préférence se vide, et la page ne retrouve pas les filtres gardés (#836). L'écran des rôles est branché sur le
+service (US-0380/L2, #380) : à une session qui porte `access_roles.write`, la table crée un rôle en
+ligne, par son seul libellé (`role-commands.tsx`), le renomme dans sa cellule — la saisie de la
+grille, écrite par `updateAccessRole` avec les permissions du rôle — et le supprime depuis sa ligne,
+après une confirmation qui nomme le rôle et dit la suppression définitive (`AlertDialog`, hors de la
+grille, Échap l'abandonnant) — une suppression logique (#456), que rien ne restaure, un rôle prédéfini
+compris —, indisponible, `aria-disabled` et décrite par sa condition, tant qu'un compte porte le rôle
+(`ACCESS_ROLE_IN_USE`, WF-ADM-0090) ; la matrice est le lieu de la modification des permissions, une
+case à cocher par permission et par rôle (`permission-matrix.tsx`), qui écrit le rôle entier, ses
+permissions dans l'ordre du catalogue, les autres cases du rôle attendant la réponse. La table et la
+matrice lisent une seule source du rôle répondu le plus récent par sa `lock_version`
+(`RoleAnswers`, `role-answers.tsx`) : un renommage puis une case cochée avant la relecture, ou
+l'inverse, part de la version répondue, et une relecture plus ancienne que la réponse ne la défait
+pas ; l'en-tête de la colonne d'un rôle renommé et le nom de chacune de ses cases prennent eux aussi
+le libellé répondu (`RoleLabel`, `PermissionCell`), sans attendre la relecture (#976). Ce que fait
+une commande de la table se dit dans sa région, nommée « Commandes des rôles
+d'habilitation » ; un refus, par le catalogue des codes d'erreur au-dessus de la table ou de la
+matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier administrateur
+(`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,
+à la case qui a écrit ; un libellé refusé par le serveur, ou blanc, refusé sans appel comme la saisie
+de la grille (`parsedEntry`), se dit à son champ ; toute écriture répondue relit la page.
+Pour les comptes (US-0360, #379), la table est sa propre saisie, à une session qui porte
+`users.write` (`platformOffer`) : le nom et le prénom d'un compte local dans leurs cellules
+(`updateUser`), ceux d'un compte de l'annuaire ou d'un fournisseur restant en lecture (WF-ADM-0050) ;
+l'état sur un interrupteur, son mot à côté (`setUserActivation`) ; les rôles dans une liste à choix
+multiple des rôles de l'installation, quel que soit le rattachement (`setUserAccessRoles`,
+`user-cells.tsx`) — chacun tel que le compte liste sa commande (`User.available_commands`) : une
+commande absente n'est pas présentée, une indisponible l'est avec sa condition, et un clic la dit
+sans la lancer. La désactivation du dernier compte actif qui porte les permissions de modifier les
+comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
+ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
+disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
+retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
+(`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où il
+cesse de valoir, jamais relu ; indisponible pour un compte désactivé (`is_active_account`), absent
+d'un compte qui n'est pas local ou qui est anonymisé. « Créer un compte local », en tête de la table, ouvre le dialogue du
+nom, du prénom et de l'adresse (`user-dialogs.tsx`) : un champ blanc est refusé à son champ sans
+appel, l'adresse déjà portée dite à son champ ; quand aucune invitation n'est partie
+(`invitation_sent` faux), le compte créé le dit et offre aussitôt son lien de fixation (#816). La
+colonne « Anonymisation » porte la commande `anonymize` d'un compte désactivé (`anonymizeUser`),
+après une confirmation qui nomme le compte et dit l'action irréversible (`AlertDialog`, comme la
+suppression d'un rôle) ; un compte anonymisé est nommé par le libellé neutre du catalogue, et ses nom
+et prénom ne se saisissent pas, son origine fût-elle locale (WF-ADM-0060). Aucune suppression
+(WF-ADM-0060). Comme pour les rôles, une seule source du compte répondu le plus récent par sa
+`lock_version` (`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit
+sa cellule, part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi
+pendant qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle
+a répondue, et l'interrupteur, les rôles et l'anonymisation de la ligne se marquent occupés et
+indisponibles (`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route — l'anonymisation
+aussi tant qu'une réactivation demandée n'a pas répondu. Ce que fait une écriture — un renommage
+compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur, des rôles ou
+de l'anonymisation, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui
+d'un nom, à sa cellule. La recherche et les
+filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
+table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
+se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
+WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
+(`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
+désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
+retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un compte
+nommé tel qu'il se lit à la consultation, sous le libellé neutre s'il est anonymisé depuis
+(`useAccountNaming`, `AnonymizedName`) ; une personne du fournisseur par son nom et son identifiant
+chez lui (#918) ; celle dont un compte porte l'adresse (`ALREADY_EXISTS`) par son identifiant et ce
+compte, tel qu'il se lit, ou par son seul identifiant quand aucun ne la portait plus (#920). À une
+session qui porte `users.write`, « Lire les comptes » (`startIdentitySync`) rend la main dès la
+tâche en file et la confie au suivi, qui l'annonce achevée et offre de relire l'écran, sans jamais
+le relire de lui-même. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
 mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
 les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
@@ -820,7 +1081,11 @@ toute fonction par sa permission de consulter, et `WritableFunction` celles qui 
 permission de modifier, seules que `platformOffer` accepte. L'écran est gardé par `audit_log.read`,
 introuvable sans elle comme une adresse qui ne mène nulle part (WF-ADM-0110). Il présente une page
 des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`audit-columns.tsx`,
-préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action, la nature et
+préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
+ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
+des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
+aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
+de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
 le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
@@ -846,7 +1111,8 @@ actions dans un menu, la nature de l'objet, l'objet dont l'adresse demande l'his
 levé, et la corrélation, saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans
 qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le projet et
 l'objet sont des liens là où la session peut les consulter — un projet qu'elle peut ouvrir
-(`listProjects`, tous états) — : le projet, une révision d'un tel projet, et un objet qui vit dans
+(`listProjects`, tous états ; aucun quand l'API ne trouve pas la liste des projets, que le service
+ne sert qu'à partir d'EP-04, une tolérance du 404 que #962 retire alors) — : le projet, une révision d'un tel projet, et un objet qui vit dans
 une révision, vers son écran propre dans celle que l'inscription nomme (`AuditObject.revision`) —
 un risque vers les risques de la révision, son détail ouvert (`risk`), l'import d'un planning, d'un
 devis ou d'un reste à engager vers ses échanges, son compte rendu montré (`import`), le
@@ -888,8 +1154,8 @@ avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tou
 `ListPages` de `components/grid/list-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
-l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
-a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
+l'arborescence au niveau demandé —, et le suivi n'offre de télécharger que le résultat d'un export
+réussi (`givesFile` de `tracking.ts`), celui des autres tâches se lisant sur leur écran : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
 entier en mémoire et hors de la file des actions serveur, à la route `/tasks/[taskId]/result`, que
 le navigateur suit comme un lien, sans `download` : un type que le contrat déclare pour sa nature,
 et la pièce jointe nommée du nom de base que le contrat promet (`Content-Disposition`,
@@ -1107,8 +1373,9 @@ garde avant d'entrer. Le cas transitif — un module sans directive qui importe
 `server.ts` importent `server-only`, le filet de `next build`, que `make build-front` lance au
 palier rapide, sans API joignable : une page qui lirait l'API à la construction, pré-rendue
 au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, la mesure du
-§4.6.2 le construit (`make e2e-measure`, et `make e2e` sur un poste). `make typecheck-front`,
-`make test-front` ;
+§4.6.2 le construit (`make e2e-measure`, et `make e2e` sur un poste). Après l'une ou l'autre
+construction, `make prerendered-front` affirme qu'elle n'a prérendu aucune page (« Chaîne »).
+`make typecheck-front`, `make test-front` ;
 `make lint-docker` (hadolint).
 
 ## Le faux back
@@ -1182,8 +1449,17 @@ identifiant, son index ou son numéro trouvés par son libellé —, jamais un n
 sauf là où le numéro est ce que le test éprouve (#400).
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
-serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde
-celle dont part la maquette (EP-02). Rien d'autre ne change.
+serveur, `/api/v1`, que prism ignorerait, et aucune sécurité exigée (`security`
+retiré) — le faux back accorde la session dont part la maquette (EP-02), et Prism n'exige donc pas le
+jeton. Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
+en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
+(`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
+navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si
+`WATERFALL_E2E=1` : le harnais Playwright construit et démarre le front de production pour la
+mesure, et pose les deux variables à ses serveurs (`playwright.config.ts`) ; `make dev` pose
+`WATERFALL_AUTH=mock` au front (`compose.dev.yaml`), `make build-front` n'en a pas besoin. Contre
+une API que l'environnement nomme (`WATERFALL_API_ADDRESS`), le harnais ne pose ni l'une ni
+l'autre.
 
 - `make mock` : le faux back seul, sur `http://localhost:4010`.
 - `make dev` : le front (`http://localhost:3000`) contre le faux back, par
@@ -1218,8 +1494,78 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap` |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production` |
 | `make changes BASE=…` | les familles qu'une modification touche |
+| `make service-install` | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite |
+| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal |
+| `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
+| `make e2e-service` | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` |
+| `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
+| `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
+| `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
+| `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service` |
+| `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
+| `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
+| `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
+| `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
+| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948), que la chaîne demande (`production.yml`, `images.yml`) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make check-production` | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites |
+
+La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
+
+| Variable | Ce qu'elle protège |
+|---|---|
+| `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
+| `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
+| `WATERFALL_BACKUP_DATABASE_PASSWORD` | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement |
+| `WATERFALL_REDIS_PASSWORD` | Redis |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
+| `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
+| `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
+| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
+| `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
+| `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
+| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652), et qui donne au royaume la langue de l'installation (`manage-realm`, #873) : ni l'API ni le worker ne le tiennent |
+
+Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
+exemple. Keycloak répond en HTTPS sur `https://localhost:8443/auth`, sa console d'administration
+sous `/auth/admin`, par un frontal Caddy (`deploy/compose/Caddyfile.service`) que le navigateur
+et le serveur de Next joignent tous deux, et qui le sert aussi sur `https://127.0.0.1:8443/auth`,
+une seconde adresse pour les tests de la plateforme (#680) ; son adresse,
+`WATERFALL_KEYCLOAK_ADDRESS`, est `https://localhost:<port>/auth` : le frontal ne sert que les
+hôtes `localhost` et `127.0.0.1`, et seul le port se déplace, par `WATERFALL_KEYCLOAK_PORT` :
+le Makefile et Compose la déduisent de lui, et ne lisent aucune adresse exportée (#735).
+Les certificats viennent de l'autorité propre de Caddy (`tls internal`) : sa racine, gardée
+dans le volume du frontal, est copiée à chaque démarrage dans
+`deploy/compose/.authority/root.crt` ; le front s'y fie par `NODE_EXTRA_CA_CERTS`, qui l'ajoute
+aux autorités qu'il connaît, les tests de `make test-keycloak` par `SSL_CERT_FILE`, qui en fait
+leur seule autorité, un navigateur en l'important, ou en acceptant l'avertissement. uv lit aussi
+`SSL_CERT_FILE` : `make test-keycloak` synchronise l'environnement du back sans elle, puis lance
+les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner sans
+cache, uv ne se fierait plus à GitHub pour télécharger Python ou les paquets (#737). L'API, dans
+le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce
+lien relève d'EP-13 (WF-SEC-0010).
+Redis est publié sur `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), pour un front lancé sur le poste
+(#681), qui l'atteint par `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifie la
+fermeture des sessions à ce front par le canal de retour, à l'adresse
+`WATERFALL_FRONT_BACKCHANNEL` (`http://host.docker.internal:3000` par défaut, l'hôte vu de son
+conteneur), distincte de `WATERFALL_FRONT_ADDRESS`, celle du navigateur : le front écoute alors
+sur toutes les interfaces du poste, pas sur la seule boucle locale. Les deux adresses s'écrivent
+dans le royaume quand il s'applique, et `make e2e-service` les remplace par celles du front de ses
+parcours, jusqu'au `service-up` suivant. Mailpit
+montre les courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire
+OpenLDAP de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes
+et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`. Il
+ajoute aussi `waterfall-test`, un client public qui accepte un mot de passe hors de la page du
+royaume, pour les jetons dont les tests de la plateforme ont besoin : `admin-cli`, que Keycloak
+crée dans chaque royaume, n'en accepte plus (#644), et ses jetons ne sont pas pour l'API, faute de
+l'audience `waterfall-api`. Ces fichiers s'appliquent après le royaume, sous un état distant à eux
+(`--import.cache.key=development`, service `keycloak-realm`) : keycloak-config-cli supprime les
+clients que son état nomme et que les fichiers qu'il applique ne déclarent pas, et sans cela le
+client de test emporterait ceux du royaume.
+L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
+personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
+supprime avec elles.
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
@@ -1242,8 +1588,97 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification. Le
   front en a deux, qui tournent côte à côte (#492) : `front.yml`, tout sauf les parcours de
   bout en bout (`make check-front-code`), et `e2e.yml`, les parcours et la mesure du §4.6.2,
-  au palier complet seulement (`make e2e`, `make e2e-measure`) ; sur un poste,
-  `make check-front` enchaîne les deux moitiés, `check-front-code` puis `check-front-e2e`.
+  au palier complet seulement (`make e2e`, `make e2e-measure`, puis `make prerendered-front`
+  sur la construction de la mesure) ; sur un poste, `make check-front` enchaîne les deux
+  moitiés, `check-front-code` puis `check-front-e2e`.
+  `keycloak.yml` construit l'image de Keycloak et l'éprouve sur la plateforme de service, son
+  royaume appliqué (`make check-keycloak`), aux deux paliers : la famille `keycloak` se
+  réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur
+  ses tests, sur tout le code du back, dont ses tests servent l'API, et sur le contrat, auquel
+  ils confrontent ses réponses (#671) ; en échec, le travail imprime les journaux de Keycloak
+  (`make service-logs`). `service.yml` joue les parcours contre le vrai service, au palier
+  complet seulement (`make check-service`, soit `make e2e-service`) : la famille `service` se
+  réveille sur le front, le back, le contrat et les fichiers de la plateforme. Il tourne sur le
+  runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
+  que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
+  installe avec ses paquets système (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
+  `front-image.yml` construit et démarre l'image de production du front, que `images.yml` ne
+  publie qu'après la fusion, aux deux paliers (`make check-front-image`) : la famille
+  `front-image` se réveille sur ce qui la fait — `frontend/Dockerfile` et son `.dockerignore`,
+  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, et ce que son serveur
+  vérifie au démarrage, `src/instrumentation.ts`, `src/startup.ts`, `src/session/settings.ts`,
+  `src/api/server.ts` —, et non sur le
+  code du front, que la famille `front` construit déjà ; elle coûte une construction d'environ
+  une minute et demie. Ce qui est prérendu, c'est le code des pages qui le décide — un
+  `layout.tsx` qui cesserait de lire les cookies, une page qui ne lirait aucune valeur de la
+  requête — : la famille `front` l'affirme donc elle-même, sans Docker, sur le manifeste de sa
+  propre construction (`make prerendered-front`), après `make build-front` au palier rapide et
+  après la construction de la mesure au palier complet ; cette construction prérend comme celle
+  de l'image, dont la sortie autonome (`WATERFALL_STANDALONE=1`) ne change que l'empaquetage.
+  La famille `front-image` affirme que `/` répond avec les réglages du service `front` de
+  `compose.prod.yaml`, des valeurs de remplacement pour ses secrets ; que le front, démarré sans
+  l'une des variables dont il ne se passe pas, s'arrête en la nommant dans ses journaux (#825) ;
+  que le faux back de la maquette (`WATERFALL_AUTH=mock`) est refusé sans `WATERFALL_E2E` — le
+  serveur s'arrête au démarrage, et dit pourquoi —, et que `next build` n'a prérendu
+  (`.next/prerender-manifest.json`) que `/_global-error` et `/icon.svg` : aucune page qui lirait
+  l'environnement n'est figée à la construction.
+
+Hors des pull requests, `images.yml` publie les images (US-0430) : à chaque poussée sur `main` ou
+sur une branche `epic/**` — à chaque fusion, que la file a déjà éprouvée —, il construit `front`,
+`waterfall` (l'API, le worker, sa planification et les migrations, commandes d'une même
+distribution) et `keycloak` (l'extension, les thèmes et le royaume, sans rien de
+`deploy/keycloak/development/`), et les pousse sur `ghcr.io/waterfall-project/…` (`make images
+PUSH=yes`). Son seul travail demande `packages: write` ; le jeton ne va qu'à la connexion au
+registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010) :
+`tools/tests/test_images.py` le garde, avec les déclencheurs et les étiquettes.
+
+- **Les trois d'abord.** Les trois images sont construites avant toute poussée, et rien n'est
+  poussé si l'une échoue ; puis toutes les étiquettes du commit, et seulement ensuite celles qui
+  bougent — la branche, la version —, pour qu'une étiquette mobile ne désigne jamais des images
+  de deux commits.
+- **L'étiquette de version est immuable.** Elle ne se pose que depuis `main`, une seule fois, et
+  pour les trois images ensemble, qui viennent alors d'un même commit : avant de la poser,
+  l'outil demande au registre, image par image, s'il a déjà `<image>:<version>`
+  (`docker buildx imagetools inspect`). S'il ne l'a pour aucune, les trois la prennent ; s'il
+  l'a pour les trois, aucune ne la reprend, et les étiquettes du commit et de la branche se
+  publient seules : une fusion dans `main` qui ne monte pas la version ne la republie donc pas,
+  et c'est en montant `version` de `backend/pyproject.toml` (et du front) qu'une publication en
+  pose une nouvelle. Tout autre cas — le registre l'a pour certaines seulement, après une
+  publication interrompue, ou ne répond pas clairement qu'il ne l'a pas, comme le `403` de ghcr
+  pour un paquet absent ou illisible — ne la pose sur aucune : l'outil publie les étiquettes du
+  commit et de la branche, puis échoue en nommant chaque image et ce que le registre en a dit ;
+  la version se règle alors à la main, ou en la montant. Une branche d'EPIC, qui porte la même
+  version, ne la pose jamais ; le label `org.opencontainers.image.version` d'une image qui ne
+  prend pas l'étiquette de version le dit (`0.1.0+epic-EP-03` hors de `main`, `0.1.0+main` sur
+  `main` une fois la version publiée). Chaque image porte aussi son propre `title` et son `url`,
+  qui remplacent ceux de son image de base.
+- **Ce qui refuse une poussée.** Une branche autre que `main` ou `epic/…` ; un dépôt dont le
+  commit n'est pas celui que nomme `IMAGE_COMMIT`, ou qui n'est pas propre dans les contextes des
+  images (`git status --porcelain -- frontend backend deploy/keycloak`) ; une image construite
+  dont le système de fichiers (`docker export`) contient une valeur de développement connue — la
+  marque `development-only`, que portent toutes celles de `deploy/keycloak/development/`, et les
+  secrets de poste de `.github/workflows/keycloak.yml`. L'outil nomme alors la valeur trouvée,
+  jamais la valeur elle-même. La fouille lit l'archive du conteneur telle quelle : une valeur
+  dans un fichier compressé lui échappe.
+- **La dernière fusion gagne.** Une publication attend celle de la fusion précédente sur sa
+  branche, sans l'annuler ; mais GitHub ne garde qu'une exécution en attente par groupe, et une
+  troisième fusion annule celle qui attend : l'étiquette de la branche finit sur la dernière, et
+  un commit intermédiaire peut ne pas avoir d'image.
+- **La plateforme de production sur les images publiées.** Le travail `trial` d'`images.yml`, après
+  la publication, tire du registre les images du commit, par son empreinte, et y joue
+  `make production-trial` (`packages: read` pour les tirer) : la plateforme de production démarre,
+  s'amorce, et laisse entrer son premier administrateur (WF-ARC-0050). Un échec y dit qu'une image
+  publiée ne fait pas une plateforme ; il ne défait pas la publication.
+
+La famille `production` (`production.yml`) fait le même essai avant la fusion, au palier complet
+seulement, dans la file : `make check-production` construit les trois images comme `images.yml`,
+sans les pousser, puis démarre la plateforme sur elles. Elle se réveille sur les fichiers de la
+plateforme de production — `compose.prod.yaml`, `compose.prod.local.yaml`, `Caddyfile.prod`,
+`production.env.example` —, sur ceux qu'elle monte de `deploy/compose/`, et sur l'essai lui-même,
+`tools/src/wftools/production.py` ; un changement de ce
+dont les images sont faites n'est éprouvé ainsi qu'après la fusion, par `images.yml`. Elle coûte la
+construction des trois images, celle de Keycloak et de son extension surtout, puis le démarrage de
+Keycloak et l'application de son royaume.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
@@ -1285,19 +1720,22 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   serveurs. Ce choix se revoit quand les parcours s'allongent : les durées par fichier se
   lisent dans le journal de chaque morceau.
 
-Le back suivra le même modèle dès qu'EP-03 lui donne une base et des parcours (#492, levier 5),
-et `back.yml` s'écrira ainsi :
+Le back suit le même modèle (#492, levier 5) :
 
-- PostgreSQL tourne en service du travail (`services:`), dans l'image de la version que vise
-  la plateforme, épinglée par son empreinte, avec sa sonde de santé : les tests d'intégration
-  le joignent sur `localhost`, sans Compose ;
-- les tests se répartissent sur les cœurs du runner (`pytest -n auto`, pytest-xdist), chaque
-  processus sur sa propre base, créée à son démarrage ;
-- la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples,
-  comme aujourd'hui (`full-else` du Makefile) ;
-- les parcours de bout en bout contre le vrai service — les mêmes, `WATERFALL_API_ADDRESS`
-  posée — sont répartis par la même matrice qu'`e2e.yml`, le service et sa base démarrés dans
-  chaque morceau.
+- PostgreSQL tourne en service du travail (`services:` de `back.yml`), dans l'image de la
+  version que vise la plateforme — celle de `compose.service.yaml` —, épinglée par son
+  empreinte, avec sa sonde de santé : les tests d'intégration le joignent sur `localhost`, sans
+  Compose, par `WATERFALL_TEST_DATABASE_URL` ; l'empreinte est écrite dans `back.yml` et dans
+  `compose.service.yaml`, et `tests/test_platform_images.py` échoue si elles divergent ;
+- la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples
+  (`full-else` du Makefile).
+
+Reste à écrire, quand la durée l'exige :
+
+- les tests se répartissent sur les cœurs du runner (`pytest -n auto`, pytest-xdist) : chaque
+  processus crée déjà sa propre base, de nom unique (`database_url`, `tests/conftest.py`) ;
+- les parcours contre le vrai service (`service.yml`), qu'un seul runner joue tant qu'ils sont
+  courts, se répartissent comme ceux d'`e2e.yml`, la plateforme démarrée dans chaque morceau.
 
 Règles des workflows :
 
@@ -1459,17 +1897,22 @@ avec sa raison.
 
 ## Règles de codage
 
-Comment s'écrit chaque langage : [Python](python.md), pour le back et les outils, et
-[TypeScript](typescript.md), pour le front. Chacun nomme d'abord les jeux de règles des
-outils, par renvoi, puis les règles de conception qu'aucun outil ne contrôle, chacune avec
-sa raison, et finit par les défauts déjà rencontrés, que la revue cherche nommément. Les
-règles d'écriture du SQL et des migrations viennent avec EP-03, en troisième fichier.
+Comment s'écrit chaque langage : [Python](python.md), pour le back et les outils,
+[TypeScript](typescript.md), pour le front, et [Java](java.md), pour l'extension Keycloak.
+Chacun nomme d'abord les jeux de règles des outils, par renvoi, puis les règles de conception
+qu'aucun outil ne contrôle, chacune avec sa raison, et finit par les défauts déjà rencontrés,
+que la revue cherche nommément. Le
+SQL et les migrations ont le leur : [SQL](sql.md), pour les tables, les types, les contraintes,
+les migrations et les verrous.
 
 ## Tests
 
 - **Un test qui cite son exigence** — voir ci-dessous.
 - **Un test qui reprend un exemple chiffré** — voir ci-dessous.
 - **Un parcours de bout en bout** — voir ci-dessous.
+- **Un test contre PostgreSQL** — voir ci-dessous.
+- **Un test contre Redis** — voir ci-dessous.
+- **Un test contre le stockage objet** — voir ci-dessous.
 
 Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
 retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
@@ -1495,17 +1938,94 @@ couvre aucune exigence — un outil, un détail de réalisation — n'en cite au
 *Contrôles* : `make requirements` lit les citations dans les fichiers de test, sans les
 lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
 famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
+bout en bout contre le service (`frontend/e2e/service/**`, qui prime sur les autres parcours),
 bout en bout (`frontend/e2e/**`, qui prime sur le reste de `frontend/`), front, back,
-outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
+keycloak (les tests JUnit de l'extension, qui ne citent aucune exigence), outils — dans le résumé
+du travail de la chaîne ; une citation d'un identifiant inconnu, ou
 d'un indice de révision que le document a dépassé, le fait échouer. Les tests du front
 citent des exigences que d'autres EPIC clôturent, par la phrase du Vérif qu'ils éprouvent ;
 une exigence que seuls le front et le bout en bout citent, et qu'un EPIC clôt sans avoir
 `front` pour seule famille — d'après la table « Exigences réalisées » de la roadmap et le
 champ `famille` de son front matter —, est comptée à part, « couverte par le front seul »,
-et ne compte pas comme couverte. `make requirements-release` échoue en plus sur toute exigence F0
+et ne compte pas comme couverte. Un parcours joué contre le service, lui, traverse le back : il
+prouve ce que le back clôt, comme ses propres tests (US-0340). `make requirements-release` échoue en plus sur toute exigence F0
 non couverte, ou couverte par le front seul, en la nommant : c'est la commande de la
 publication d'une version. Une exigence dont le Vérif s'ouvre par « Vérifiée en recette »
 attend un procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.
+
+### Un test contre PostgreSQL
+
+Un test d'intégration du back joint la vraie base, PostgreSQL, jamais une autre à sa place
+(`python.md`, « Les tests »). La variable `WATERFALL_TEST_DATABASE_URL` désigne un serveur et un
+rôle qui peut créer des bases et des rôles, un superutilisateur
+(`postgresql://rôle@hôte:5432/postgres`) : à chaque session de tests, la fixture `database_url`
+(`backend/tests/conftest.py`) y crée une base de nom unique, y applique les migrations, et la
+supprime à la fin, avec le rôle du service que les migrations lui ont créé. La fixture
+`database` rend cette base telle que le service la voit — par un rôle de connexion membre du
+rôle du service de cette base, créé pour la session (sql.md, « Le rôle du service ») —, et en
+supprime après chaque test les lignes de toutes les tables que la `Base` déclare, en
+propriétaire, journal d'audit compris, que son déclencheur ne protège pas d'un superutilisateur
+qui coupe les déclencheurs — sauf celles qu'une migration écrit, le catalogue des permissions,
+que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend une session que le
+test défait.
+
+- **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
+- **Sur un poste**, deux façons : `make service-up` (avec les secrets de la plateforme dans
+  l'environnement, « Commandes »), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable
+  vaut alors
+  `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` — ; ou un serveur local,
+  créé pour l'occasion (`initdb -E UTF8`, `pg_ctl start`) et supprimé ensuite.
+- **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas
+  en silence. Les tests d'`examples/`, sockets fermées, n'en ont pas besoin.
+- Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
+  sur sa connexion : l'environnement d'Alembic, lui, n'est pas rentrant, et se joue dans un
+  processus à la fois.
+
+### Un test contre le stockage objet
+
+Une sauvegarde se teste contre un vrai stockage objet, Garage, l'image de la plateforme de service
+(PBS-3.3) : la variable `WATERFALL_TEST_STORAGE_URL` le désigne avec une clé qui peut créer un
+compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucket`
+(`backend/tests/conftest.py`) y crée un compartiment pour la session de tests, et le vide puis le
+supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
+Debian et d'Ubuntu, d'une version au moins égale à celle du serveur. Elles vident les bases comme
+le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_role`
+(`backend/tests/conftest.py`) crée pour la session, membre de `pg_read_all_data` (#895).
+
+- **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
+  reçoit pas les arguments qu'il demande — et pose la variable.
+- **Sur un poste**, un Garage jetable suffit, avec les réglages de la plateforme :
+  `docker run -d --rm --name wf-test-storage -p 127.0.0.1:3900:3900 -v "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro" -e GARAGE_RPC_SECRET=<64 chiffres hexadécimaux> -e GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001 -e GARAGE_DEFAULT_SECRET_KEY=<secret> dxflrs/garage:v2.4.1 /garage server --single-node --default-access-key`.
+- **Sans la variable**, un test qui a besoin du stockage **échoue** en le disant.
+
+### Un test contre Redis
+
+La session du front et la file des tâches du back se testent contre un vrai Redis, jamais un
+double : la variable `WATERFALL_TEST_REDIS_URL` le désigne (`redis://127.0.0.1:6379/0`), une base
+que les tests sont seuls à employer. Côté front, `withTestRedis()` (`frontend/src/test/session.ts`)
+y pointe le magasin des sessions pour la durée d'un fichier de test ; chaque clé est tirée au
+hasard : les fichiers qui tournent ensemble ne se rencontrent pas, et les clés expirent
+d'elles-mêmes. Côté back, la fixture `queue` (`backend/tests/conftest.py`) ouvre la file sur un flux
+à elle, supprimé après le test, et `platform_queue` sur celui de toute installation, que les
+commandes de la plateforme emploient, vidé avant et après. Aucun test ne vide le serveur.
+
+- **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
+  variable.
+- **Sur un poste**, un Redis jetable suffit :
+  `docker run -d --rm --name wf-test-redis -p 127.0.0.1:6379:6379 redis:7-alpine`.
+- **Sans la variable**, un test qui a besoin de Redis **échoue** en le disant, et ne passe pas en
+  silence.
+
+Keycloak, lui, n'est pas dans les tests du front : `frontend/src/test/identity-provider.ts` répond
+au serveur de Next comme le royaume `waterfall` — code à usage unique pour son vérificateur, jeton
+de rafraîchissement tourné à chaque emploi et refusé au second, jetons signés d'une clé à lui.
+`make test-keycloak` prouve contre le vrai royaume l'échange du code avec son vérificateur, le
+refus d'un jeton de rafraîchissement déjà employé et la fermeture des sessions d'un compte ; le
+jeton de déconnexion que Keycloak poste au front, le parcours contre le service d'US-0340
+(`frontend/e2e/service/session.spec.ts`) ; `refresh_expires_in`, les deux heures d'une session
+inactive, et ce qu'US-0350 demande d'autre au royaume — chaque nature de compte, le mot de passe,
+le verrouillage, le lien —, `backend/tests/test_keycloak_sign_in.py` ; le retour à l'écran visé,
+les parcours contre le service d'US-0350/L5b (#849).
 
 ### Un parcours de bout en bout
 
@@ -1542,9 +2062,132 @@ du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port d�
 `E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
 port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
-chacun des runners de la chaîne (« Chaîne »). À partir d'EP-03, les mêmes parcours se jouent
-contre le vrai service en posant `WATERFALL_API_ADDRESS` : le harnais ne démarre alors aucun
-faux back.
+chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
+(`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
+des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
+contre l'API qu'elle nomme et ne démarre aucun faux back.
+
+`make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
+(`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la
+plateforme de service (`make service-up`), son royaume appliqué avec l'adresse du front des
+parcours, `http://127.0.0.1:3100` (`WATERFALL_FRONT_ADDRESS`, que suit `E2E_FRONT_PORT`), et
+celle par laquelle Keycloak le joint depuis son conteneur, `http://host.docker.internal:3100`
+(`WATERFALL_FRONT_BACKCHANNEL`), quelles que soient celles que l'environnement exporte ; puis
+Prism en mandataire entre le front et l'API
+(`prism proxy --errors`, service `contract-proxy`, sur `127.0.0.1:4210`, que déplace
+`WATERFALL_PROXY_PORT`), qui sert la variante du faux back écrite dans
+`docs/api/waterfall.proxy.json` : une réponse hors de son schéma devient une erreur 500
+(`VIOLATIONS`), une adresse hors du contrat un 404 (`NO_PATH_MATCHED_ERROR`), une requête hors
+du contrat un 422, et Prism écrit chacune à son journal sous sa requête. Prism n'y exige aucun
+jeton : le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin
+Playwright avec, dans son environnement — jamais en ligne de commande, où le mot de passe de
+Redis se lirait —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire),
+`E2E_CONTRACT_PROXY` (son conteneur), `E2E_SERVICE_DATABASE` (celui de PostgreSQL),
+`WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
+`WATERFALL_REDIS_URL` (le Redis de la plateforme) et `NODE_EXTRA_CA_CERTS` (la racine de
+l'autorité du frontal de Keycloak) ; le secret du client du front, et celui de l'administrateur
+de Keycloak, viennent de l'environnement. La plateforme reste démarrée : `make service-down`
+l'arrête. Avant Playwright, il amorce la plateforme (`waterfall-api install`, service `install`,
+US-0420) : le premier administrateur, `administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), porte le
+rôle « Administrateur », et le lien qui fixe son mot de passe, valable jusqu'à son emploi, est
+dans `E2E_INSTALLATION_LINK` — vide dès qu'un parcours l'a employé, l'administrateur se
+connectant ensuite avec le mot de passe constant des parcours (`LOCAL_PASSWORD`,
+`frontend/e2e/service/realm.ts`). Une précondition :
+`E2E_ADMIN_EMAIL` doit être l'adresse avec laquelle la plateforme a été amorcée la première fois.
+Une relance n'installe rien de nouveau et ignore une autre adresse (`installation.admin_email_ignored`
+dans ses journaux) : sur une plateforme amorcée avec une autre, par `make service-install` et un autre
+`WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut alors
+donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
+(`make service-down WATERFALL_RESET_DATA=yes`).
+
+Les parcours se jouent en cinq projets Playwright. `installation` d'abord
+(`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
+passe de l'administrateur, se connecte, et constate son rôle, les trois rôles prédéfinis et le
+catalogue. `service` ensuite, sur plusieurs workers (#730) : chaque parcours se connecte avec un
+compte local à lui, que l'administrateur crée par l'API (`createUser`, `createPasswordSetupLink`) et
+dont il fixe le mot de passe par le lien rendu, ou avec un compte dont aucun autre parcours ne ferme
+les sessions — l'administrateur lui-même, pour les écrans des comptes et des rôles et pour le
+journal d'audit (`accounts.spec.ts`, `roles.spec.ts`, `audit.spec.ts`). L'administrateur donne leurs
+rôles aux comptes locaux par l'API ; la personne de l'annuaire de test,
+`dominique.annuaire@waterfall.test`, et celle du fournisseur externe, `camille.externe`
+(`deploy/keycloak/development/`), que l'API admet sans rôle à leur première requête (WF-ADM-0180) et
+que seul `sign-in.spec.ts` emploie, reçoivent le leur par une écriture dans la base de la plateforme
+(`grantRole`), une fois admises. Aucun parcours ne donne à un autre compte que l'administrateur les
+deux permissions d'administration — `give` le refuse —, et aucun ne renomme ni ne change un rôle
+prédéfini : les refus `LAST_ADMINISTRATOR` de l'écran des rôles et de celui des comptes en dépendent
+(`roles.spec.ts`). Le jeton de l'administrateur, qui vit cinq minutes, se redemande quand il en a
+plus de quatre.
+
+Tous les workers connectent l'administrateur, et le royaume refuse les identifiants d'un compte
+qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_temporarily_disabled`, sans
+échec compté) : une connexion attend son tour (`oneAtATime`, `realm.ts`), sous un verrou — un
+répertoire du dossier temporaire du système, nommé d'après la course et le compte —, qu'elle tient
+jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deçà des trente que les
+autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse
+qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
+les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
+`realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
+qui raccourcissent une durée du royaume, que lit chaque compte. `restoration` après eux, seul : les
+parcours marqués `@platform-wide`, qui restaurent la plateforme entière et en ferment toutes les
+sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage de `installation` : la garde
+du contrat de toute la course.
+
+Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
+le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
+royaume —, et à l'écoute de toutes les interfaces du poste, d'où Keycloak joint son canal de
+retour (#681) ; le navigateur accepte le certificat du frontal de Keycloak
+(`ignoreHTTPSErrors`), que le serveur de Next tient de `NODE_EXTRA_CA_CERTS`. Ces requêtes vers
+l'API, le serveur de Next les fait, hors de la vue du navigateur, et un écran peut survivre à
+l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheContract()`
+(`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire et échoue sur
+toute ligne où Prism écrit `Request terminated with error:` — ses propres erreurs comme celles du
+mandataire, corps illisible ou API injoignable (WF-ARC-0060). Prism écrit sa ligne une fois la
+réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : chaque worker
+lit chaque ligne une fois — par `docker logs --since`, à partir du moment où il s'était arrêté, et
+du début de son premier fichier — ; un parcours échoue sur les erreurs écrites jusqu'à sa fin, une
+erreur plus tardive fait échouer le suivant du worker. Le journal ne dit pas quel worker a demandé
+quoi : une erreur fait échouer le parcours de chaque worker qui la lit, celui qui l'a causée parmi
+eux. Le projet `contract` (`contract.teardown.ts`) relit enfin tout le journal de la course, depuis
+son début (`E2E_SERVICE_STARTED`, que pose `playwright.config.ts`), une fois le mandataire tu —
+rien d'autre que le contrôle de santé pendant deux secondes, la dernière ligne d'une réponse, qui
+ne nomme pas sa requête, n'en étant que si elle suit celle de la réponse d'un contrôle (#735) — :
+les erreurs d'après le dernier parcours d'un worker le font échouer, et celles qu'un parcours a
+déjà dites, de nouveau. Ce début est la dernière ligne que le mandataire a écrite avant la course
+(`docker logs --timestamps --tail 1`, `frontend/e2e/service/proxy-log.ts`), et chaque moment que les
+parcours comparent est celui que Docker a donné à une ligne, jamais l'horloge du poste, qu'une
+machine virtuelle laisse dériver de la sienne ; la garde prouve sa fenêtre : une ligne lue au moins
+— le contrôle de santé en écrit une toutes les deux secondes —, et le refus de l'adresse hors du
+contrat quand son parcours a joué. Un parcours le montre (`contract.spec.ts`) : une adresse hors du
+contrat (`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut
+que l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
+`sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
+aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
+tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
+(#726). Les parcours de la connexion s'y jouent (US-0350) : se connecter, se déconnecter sur tous
+ses postes, la session du front perdue comprise, aucun jeton dans le navigateur, la fermeture des
+sessions par le royaume (`session.spec.ts`) ; chaque sorte de compte qui agit selon ses rôles, la
+session inactive qui ramène à la connexion puis à l'écran visé, le compte non admis
+(`sign-in.spec.ts`) ; le compte local créé, son lien de fixation, les règles du mot de passe et le
+verrouillage (`password.spec.ts`) ; la langue décidée par le navigateur jusqu'à ce que le compte en
+choisisse une, puis retrouvée d'un poste à l'autre, appliquée sans reconnexion, l'avatar déposé,
+remplacé et retiré, les colonnes masquées, les largeurs et les filtres des tables retrouvés à la
+réouverture, chaque compte voyant les siens (`account.spec.ts`, US-0400) — ces réglages lus dans la
+base (`gridPreferences`), où le front les écrit après une pause ; une attribution de rôle faite par
+le service, que le journal d'audit, filtré sur son auteur et son action, présente à chaque lecteur
+dans sa langue (`audit.spec.ts`) ; l'amorçage (`installation.setup.ts`), l'écran des comptes
+(`accounts.spec.ts`) et celui des rôles (`roles.spec.ts`). Ils règlent le royaume par son API
+d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une
+durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
+et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
+
+Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
+du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
+réponse `application/octet-stream` devient U+FFFD (#973, #1025). Les parcours n'éprouvent donc ni
+le téléchargement ni le dépôt d'une archive octet pour octet : `backups.spec.ts` ne vérifie de
+l'archive téléchargée que son nom et sa taille non nulle, et restaure la sauvegarde de la liste,
+non un dépôt. La restauration d'un dépôt est prouvée par les tests du service
+(`backend/tests/test_uploads.py`). Le passage des opérations binaires hors de Prism est reporté à
+EP-13.
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
@@ -1601,7 +2244,9 @@ démarre que le faux back et le front construit — le harnais n'en réutilise a
 l'échec d'un parcours n'empêche plus. Sur un poste, `make e2e` la joue après les parcours, et
 `make e2e-measure` seule. `E2E_PART` dit au harnais ce qu'il joue : `paths`, les parcours sans
 la mesure ni la construction du front, que `make e2e SHARD=i/N` pose ; `measure`, la mesure
-seule, sans le serveur de développement, que pose `make e2e-measure` ; absente, le tout. Sans
+seule, sans le serveur de développement, que pose `make e2e-measure` ; `service`, les parcours
+contre le service seuls, que pose `make e2e-service` et qui exige `WATERFALL_API_ADDRESS` ;
+absente, le tout, sans les parcours contre le service. Sans
 elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
 entraînerait tous dans chaque morceau.
 
@@ -1619,7 +2264,12 @@ La spécification ne demande que la couverture des exigences ; la couverture du 
 règle du dépôt, qui trouve ce que la première ne voit pas — un chemin d'erreur jamais
 exécuté, du code mort. Le back et le front doivent chacun couvrir **90 % des lignes et 85 %
 des branches** : les branches comptent, parce qu'un `if` sans son `else` couvre toutes ses
-lignes et la moitié des cas. Le code engendré en est exclu. Aucune ligne ne s'exclut de la
+lignes et la moitié des cas. Le code engendré en est exclu. Le client de l'API d'administration
+de Keycloak (`waterfall.platform.keycloak_admin`), que seul Keycloak sert, la lecture des
+comptes du worker (`waterfall.worker.identity_sync`), qui le demande à chaque pas, et l'amorçage
+(`waterfall.bootstrap`), qui crée en lui le premier administrateur, sont mesurés par
+`make test-keycloak`, aux mêmes seuils (`backend/coverage-keycloak.toml`), et écartés par leur chemin
+de la mesure du back, `make coverage-back`, qui mesure tout le reste du back. Aucune ligne ne s'exclut de la
 mesure par un commentaire ; une exclusion s'écrit dans la configuration, avec sa raison
 (`[tool.coverage.report]` de `backend/pyproject.toml`, `coverage` de
 `frontend/vitest.config.ts`). Un test qui passe sur des lignes sans rien vérifier est un
@@ -1694,13 +2344,118 @@ ses paramètres, jamais une phrase.
   l'erreur inattendue avec sa référence, celle-ci gardée seulement si elle a la forme d'un
   `correlation_id` du contrat. La connexion
   est `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
-  `frontend/src/navigation/login.ts`) : la page de connexion (US-0320), la session rouverte,
+  `frontend/src/navigation/login.ts`) : la route de connexion (US-0320), la session rouverte,
   mène à `returnTarget(next)`, qui ne suit qu'un chemin du front — ni `//hôte`, ni une
-  adresse d'un autre site — et ramène sinon à l'accueil.
+  adresse d'un autre site — et ramène sinon à l'accueil. Un 401 `ACCOUNT_DEACTIVATED` n'y mène
+  pas, il bouclerait : `kindOf` le range en `refused`, et une lecture lève `AccountDeactivated`.
 
   *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
   qu'une action serveur passe par `decode`, et qu'un rejet passe par `rejected`, la revue.
-- **Ajouter un code côté service** — *à écrire*, EP-03, qui crée le service.
+- **Ajouter un code côté service** — le code existe d'abord au contrat (`ErrorCode`), puis dans
+  les modèles du service que `make generate-server-models` en engendre
+  (`backend/src/waterfall/api/contract/models.py`, versionnés ; `make server-models-up-to-date`,
+  dans `make check-contract`, échoue s'ils ne sont plus ceux du contrat). Une adresse y est un
+  simple texte (`--type-mappings email=string`) : le service la rend telle qu'il la tient, et les
+  modèles ne valident pas les adresses ; le noyau les valide selon la règle du contrat (#665,
+  `is_address` de `waterfall.core.users.identity`). Le noyau lève ensuite
+  l'exception de `waterfall.platform.errors` qui porte le statut du contrat — `NotFoundError`
+  404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
+  `UnprocessableError` 422, `UnavailableError` 503… — avec le code, en chaîne, et ses paramètres ;
+  un refus par champ se dit par des `FieldError(pointer, code, params)`, le pointeur étant celui
+  du contrat (`/label` dans le corps, `/query/from` dans la requête) ; une clé envoyée par le
+  client s'y échappe comme RFC 6901 le veut, `~` en `~0` et `/` en `~1` (`json_pointer` de
+  `waterfall.platform.errors`, #750). Il ne construit jamais
+  de `Problem` ni de réponse : un seul gestionnaire (`waterfall.api.problems`) rend toute
+  erreur dans l'enveloppe, avec l'identifiant de corrélation de la requête, dans le corps et
+  dans l'en-tête `X-Correlation-ID`. Le gestionnaire range de même, sans que la route y pense :
+  une requête illisible (corps absent, `null`, qui n'est pas du JSON ou pas un objet, en-tête
+  ou témoin illisible) en 400 `MALFORMED_REQUEST` ; une valeur refusée en 422
+  `VALIDATION_FAILED`, un champ par faute — un `model_validator` sur un corps lisible en est
+  une, au pointeur `""` — (`VALUE_REQUIRED` pour une valeur vide quand une au moins est
+  demandée, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` avec `minimum` ou `maximum` pour une borne
+  incluse, `NUMBER_INVALID`, `DATE_INVALID`, sinon `VALIDATION_FAILED` : une borne exclusive,
+  une longueur minimale dépassée par une valeur non vide) ; un identifiant du chemin qui n'est
+  pas un UUID en 404 `NOT_FOUND`, comme un objet inexistant ou invisible, tandis qu'un autre
+  paramètre de chemin refusé est un 422 par champ, au pointeur `/path/<nom>`
+  (`docs/api/DECISIONS.md`, « Session et erreurs ») ; une route inconnue, ou une méthode que la
+  route ne sert pas, en 404, sans redirection d'une barre finale ; toute exception inattendue
+  en 500 `INTERNAL_ERROR`, attrapée par `CorrelationMiddleware` : journalisée une fois avec sa
+  trace, sa corrélation et l'auteur de la requête, sans rien en rendre.
+  Un code que le contrat ne connaît pas est un défaut : le gestionnaire le rend en 500.
+  Un texte reçu qui contient le caractère NUL, que PostgreSQL refuse dans une colonne comme dans
+  un `jsonb`, est une valeur refusée — 422 `VALIDATION_FAILED` au pointeur du champ —, jamais un
+  500 de la base (#743) : chaque modèle engendré hérite de `ContractModel`
+  (`waterfall.api.contract.base`, que `[tool.datamodel-codegen]` de `backend/pyproject.toml`
+  donne au générateur), qui cherche le NUL dans chacun de ses champs, élément d'une liste, clé ou
+  valeur d'un objet compris ; un paramètre de requête ou de chemin en texte se type `Text`, du
+  même module.
+
+  *Contrôles* : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
+  `test_access_roles_guard.py` pour le NUL) ; que tout paramètre en texte est un `Text`, que le
+  code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
+  réponses des tests d'API contre le contrat.
+- **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
+  (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :
+  une réponse hors schéma fait échouer le test. Les journaux sont ceux de structlog en JSON
+  (`waterfall.platform.logs`) : un enregistrement porte `level`, `timestamp`, `actor` et, dans
+  une requête, `correlation_id` ; tout champ dont le nom contient `password`, `token`,
+  `secret`, `authorization` ou `cookie` en est retiré. La valeur de chaque secret des
+  réglages (`Settings.secret_values()`, mot de passe d'une URL compris) est de plus remplacée par
+  `***` dans tout le texte rendu d'un enregistrement — message, trace, `repr` —, y compris ceux
+  des bibliothèques. La limite : un secret que les réglages ne connaissent pas (un jeton de
+  session, un mot de passe reçu dans une requête) n'est ni retiré sous un autre nom ni masqué
+  par sa valeur : on ne le journalise pas, ni ne le met dans le message d'une exception. Une
+  forme décodée du mot de passe d'une URL n'est retenue que si elle fait au moins quatre
+  caractères, faute de quoi elle masquerait tout texte qui la contient ; l'URL entière et la
+  forme encodée restent masquées dans tous les cas.
+
+- **Accéder aux données d'un module** — les tables d'un module sont des classes sur la `Base` de
+  `waterfall.platform.database`, dans son `tables.py`, privé ; son accès aux données, des
+  fonctions de son module qui prennent une `Session`, privé lui aussi ; l'`interface` n'offre aux
+  autres que ce qu'elle déclare, en objets simples et non en lignes de la table. Une écriture
+  reçoit en argument qui écrit et à quel moment (`Stamp(author, at)`, l'auteur étant `None` pour
+  la plateforme) : le noyau ne lit pas l'horloge. Un identifiant se tire de `new_id()`
+  (`waterfall.platform.identifiers`), un instant de `UtcDateTime`, qui refuse un instant sans
+  fuseau. Une requête, une transaction : `Database.transaction()` la valide à la fin du bloc et
+  la défait si une exception le traverse, la réponse étant construite avant. Une modification qui
+  porte un `lock_version` le teste dans l'écriture même et lève `PreconditionFailedError` si la
+  version n'est plus la bonne.
+
+  *Contrôles* : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
+  les frontières ; que l'écriture teste son `lock_version` dans la requête, la revue.
+
+- **Connaître l'appelant** — une route gardée prend `Caller` et, si elle lit ou écrit la base,
+  `Transaction` (`waterfall.api.authentication`) : la première valide le jeton d'accès par les
+  clés du royaume (`waterfall.platform.keycloak`) et lit le compte par `idp_subject` à chaque
+  requête, la seconde ouvre la transaction de la requête, validée quand la route a construit sa
+  réponse et avant qu'elle parte. Aucun appel à Keycloak ne se fait dans une transaction (#669) :
+  l'appelant est lu, puis au besoin admis, et ses permissions lues (`Acting`), chacun dans une
+  transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser`,
+  `setUserActivation` et `setUserAccessRoles`, qui ferment les sessions d'un compte désactivé ou
+  privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
+  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait,
+  `updateMyPreferences`, qui donne la langue choisie au compte chez Keycloak avant de l'écrire et
+  n'écrit rien tant qu'il ne répond pas — ne prend pas `Transaction`, mais ouvre les siennes avant
+  et après l'appel. Un jeton absent ou invalide est
+  un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, un jeton dont la
+  connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
+  tombe dans sa seconde, un 401 `SESSION_REVOKED` — `closeMySessions`, la désactivation et le
+  retrait de tous les rôles en notent l'heure, `sessions_closed_at`, avant d'appeler Keycloak
+  (#668, #835, #855) —, un compte désactivé un 401
+  `ACCOUNT_DEACTIVATED` ; un compte que Waterfall ne connaît pas encore est créé sans rôle s'il
+  vient de l'annuaire ou d'un fournisseur externe, refusé sinon par un 401
+  `ACCOUNT_NOT_ADMITTED` (#664), sa cause écrite au seul journal. L'appelant devient l'auteur
+  (`actor`) de chaque journal de la requête. L'API lit `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse
+  du navigateur, qui nomme l'émetteur des jetons, `WATERFALL_KEYCLOAK_BACKCHANNEL`, celle où elle
+  joint Keycloak si elle en a une autre, et le secret `WATERFALL_SERVICE_CLIENT_SECRET`. Un test
+  signe ses jetons par des clés qu'il engendre et sert comme le royaume sert les siennes
+  (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak
+  (`waterfall.platform.keycloak_admin`) s'éprouve contre la plateforme (`make test-keycloak`).
+
+  *Contrôles* : `make test-back` (`tests/test_api_authentication.py`, qui compte aussi les
+  connexions prises pendant l'appel à Keycloak, `Watching` de `tests/support.py`),
+  `make test-keycloak` (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne
+  `Caller`, la revue.
 
 ## Clés de traduction
 
@@ -1898,7 +2653,63 @@ densité de sa fonction, et qu'un composant copié n'entre qu'avec l'écran qui 
 
 ## Migrations
 
-*À écrire* — EP-03, avec la première table et les règles de codage du SQL.
+Le schéma de la base est l'histoire de ses migrations : Alembic, dans
+`backend/src/waterfall/migrations/` (`versions/0001_….py`, `0002_….py`…), une chaîne de
+révisions numérotées, **écrites à la main** et relues comme le code. Les règles — nommage, types,
+contraintes, deux temps, verrous — sont dans [sql.md](sql.md) ; cette section dit comment s'en
+écrit une.
+
+**Écrire une migration.**
+
+1. Déclarer la table ou la colonne dans les tables du module qui la possède
+   (`waterfall/core/<module>/tables.py`), sur la `Base` de `waterfall.platform.database` : sa
+   `MetaData` porte la convention de nommage des contraintes, déclarée une fois. Ne la décrire
+   nulle part ailleurs.
+2. Créer le fichier de la révision, avec le numéro suivant :
+   `cd backend && uv run alembic revision --rev-id 0002 -m "ce qui change"`. L'environnement
+   d'Alembic (`waterfall/migrations/env.py`) lit `WATERFALL_DATABASE_URL`, comme le service ;
+   aucune base n'est nécessaire pour créer le fichier vide.
+3. Écrire `upgrade()` et `downgrade()` à la main avec `op.create_table`, `op.add_column`… : les
+   contraintes se déclarent **sans nom**, sauf la partie `<nom>` d'une contrainte de vérification
+   et un index d'expression (sql.md, « Nommage »). Un brouillon d'autogénération se relit ligne à
+   ligne ; il n'est jamais validé tel quel. Le fichier créé est un gabarit : `ruff check --fix` et
+   `ruff format` (dans `backend/`) le mettent aux règles du dépôt. Une table nouvelle accorde ses
+   droits au rôle du service dans la même migration, le rôle nommé par la base où elle s'applique
+   (`format('GRANT … ON <table> TO %I', current_database() || '_service')`, dans un bloc `DO` ; un
+   nom de base de 55 octets au plus), et les déclare, avec leur raison, dans `SERVICE_RIGHTS`
+   (`tests/test_migrations.py`) (sql.md, « Le rôle du service ») : sans eux, l'API ne la lit pas,
+   et les tests du service non plus ; sans leur déclaration, le test des droits échoue.
+4. Ajouter ou ajuster le test : le test de `tests/test_migrations.py` qui compare une base migrée
+   à une base créée par les tables du code (contraintes, index, colonnes et défauts, lus dans le
+   catalogue de PostgreSQL) échoue tant que les deux ne disent pas la même chose, et
+   un test de `tests/test_database_constraints.py` éprouve chaque contrainte nouvelle.
+5. Appliquer : `make migrate` sur la base de `WATERFALL_DATABASE_URL`, ou
+   `make service-up`, dont le service `migrate` applique les migrations avant l'API.
+
+**Appliquer.** `waterfall-migrate` (le service `migrate` de `compose.service.yaml`, ou
+`make migrate`) applique, dans l'ordre, les révisions que la base n'a pas encore ; Alembic note
+la dernière dans la table `alembic_version`. Une migration déjà appliquée ne se rejoue pas
+(WF-DAT-0140), et deux instances qui démarrent ensemble n'appliquent pas la même deux fois : un
+verrou consultatif les met à la queue. La commande s'arrête, avec le nom de la variable, si
+`WATERFALL_DATABASE_URL` manque (WF-SEC-0010).
+
+**Une seule tête.** Deux migrations qui partent du même parent forment deux têtes : la seconde à
+être fusionnée se rebase sur la première et prend le numéro suivant. Le test de la chaîne échoue
+sur deux têtes.
+
+**Les lignes que la migration écrit.** Le catalogue des permissions, par exemple, est une
+migration de données, séparée de celle du schéma. Les lignes de l'installation, elles, sont
+celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
+
+**Taille d'un lot.** Les migrations sont écrites à la main : elles comptent dans la taille d'un
+lot, et seules les révisions qu'un outil engendre seul seraient déclarées dans
+`tools/paths.toml`.
+
+*Contrôles* : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
+appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
+vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
+contre PostgreSQL (voir « Tests ») ; la compatibilité
+avec le code voisin, la revue.
 
 ## Agents
 

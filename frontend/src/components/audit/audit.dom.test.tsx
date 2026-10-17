@@ -48,7 +48,7 @@ const CURRENT = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-00000000
 
 /** The permissions of a session the contract gives as its example. */
 function permissionsOf(name: string): readonly components["schemas"]["PermissionCode"][] {
-  return (example(name) as components["schemas"]["Session"]).permissions;
+  return (example(name) as components["schemas"]["UserSelf"]).permissions;
 }
 const second = example("audit_events_page") as Journal;
 const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined };
@@ -79,7 +79,7 @@ function journal({
   shown = witness,
   query = NEWEST,
   openable = [PROJECT],
-  session = "session",
+  session = "me",
   filters = filtersOf(page.search),
   named = NAMED,
   users = AUTHORS,
@@ -323,7 +323,7 @@ describe("the grid of the journal", () => {
     // An estimator reads neither the risks nor the planning, of which the exchanges are a leaf,
     // but reads the revisions and the estimate: the risk and the import lead to the revision,
     // which leads to the estimate; the amendment, to the screen of the revisions.
-    const { rerender } = render(journal({ shown: applied, session: "session_estimator" }));
+    const { rerender } = render(journal({ shown: applied, session: "me_estimator" }));
     expect(
       within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
     ).toHaveAttribute("href", CURRENT);
@@ -337,7 +337,7 @@ describe("the grid of the journal", () => {
       `/projects/${PROJECT}/revisions?revision_id=01926f3a-7c00-7000-8000-000000000101`,
     );
     // An auditor reads no function of a revision: none of its objects is a link.
-    rerender(journal({ shown: applied, session: "session_auditor" }));
+    rerender(journal({ shown: applied, session: "me_auditor" }));
     for (const name of [
       "Retard de livraison des armoires",
       "devis-poste-de-commande.xlsx",
@@ -677,5 +677,89 @@ describe("the filters of the journal", () => {
   it("offer no filter of authors when no account may be chosen and none is", () => {
     render(journal({ users: [] }));
     expect(screen.queryByRole("combobox", { name: "Auteur" })).toBeNull();
+  });
+});
+
+describe("an anonymised account in the journal", () => {
+  const ALIX = "01926f3a-7c00-7000-8000-000000000303";
+  const designated = example("audit_events_anonymized_object") as Journal;
+  const authored = example("audit_events_anonymized_actor") as Journal;
+  const authors = (example("audit_facets_anonymized") as components["schemas"]["AuditFacets"])
+    .actors;
+  const zone = process.env.TZ;
+
+  afterEach(() => {
+    if (zone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = zone;
+    }
+  });
+
+  it("names it as the object of its inscriptions by the neutral label alone, every inscription kept with its date and its action [WF-SEC-0030-A]", () => {
+    process.env.TZ = "Europe/Paris";
+    page.search = `object_kind=user&object_id=${ALIX}`;
+    render(
+      journal({ shown: designated, named: { ...NAMED, object: { label: null, kind: "user" } } }),
+    );
+    const rows = within(grid()).getAllByRole("row").slice(1, -1);
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "3 juin 2026, 16:05Camille MartinAnonymisation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000040",
+      "2 mars 2026, 17:20Camille MartinDésactivation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000020",
+      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCréé dans WaterfallCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000014",
+    ]);
+    expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
+    expect(
+      within(grid()).getAllByRole("link", { name: "Histoire de « Compte anonymisé »" }),
+    ).toHaveLength(3);
+    expect(
+      screen.getByRole("link", { name: "Lever le filtre sur « Compte anonymisé »" }),
+    ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Alix|Moreau/);
+  });
+
+  it("names it as the author of its inscriptions, and among the authors to choose, by the neutral label alone [WF-ADM-0060-A]", () => {
+    page.search = `user_id=${ALIX}`;
+    render(
+      journal({
+        shown: authored,
+        users: authors.map((actor) => ({ id: actor.user_id, name: actor.display_name })),
+      }),
+    );
+    const row = within(grid()).getAllByRole("row")[1];
+    expect(row?.textContent).toMatch(/^.+Compte anonymiséApplication d’un import/);
+    const author = screen.getByRole("combobox", { name: "Auteur" });
+    expect(author).toHaveValue(ALIX);
+    expect(within(author).getByRole("option", { selected: true })).toHaveTextContent(
+      "Compte anonymisé",
+    );
+    expect(document.body).not.toHaveTextContent(/Alix|Moreau/);
+  });
+
+  it("renders the neutral label alike as the author and as the object of an inscription [WF-ADM-0060-A]", () => {
+    /** The neutral label in the column of a header, in the first row of a journal shown. */
+    const neutralIn = (shown: Journal, header: string): string | undefined => {
+      const { unmount } = render(journal({ shown }));
+      const at = within(grid())
+        .getAllByRole("columnheader")
+        .findIndex((cell) => cell.textContent.startsWith(header));
+      const [, first] = within(grid()).getAllByRole("row");
+      const neutral = first?.children.item(at)?.querySelector("[data-anonymized]")?.outerHTML;
+      unmount();
+      return neutral;
+    };
+    const author = neutralIn(authored, "Auteur");
+    const object = neutralIn(designated, "Objet");
+    expect(author).toMatch(/>Compte anonymisé</);
+    expect(object).toBe(author);
+  });
+
+  it("keeps an anonymised author no choice offers under the neutral label, to be cleared [WF-ADM-0060-A]", () => {
+    page.search = `user_id=${ALIX}`;
+    render(journal({ shown: authored, users: [], named: { ...NAMED, user: null } }));
+    const author = screen.getByRole("combobox", { name: "Auteur" });
+    expect(within(author).getByRole("option", { selected: true })).toHaveTextContent(
+      "Compte anonymisé",
+    );
   });
 });

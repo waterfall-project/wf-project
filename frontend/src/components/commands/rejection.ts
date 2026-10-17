@@ -10,16 +10,20 @@
  *   which passes for out of reach too — the one limit of the rule;
  * - any other rejection is classed by its `digest`, the one thing of an error thrown on the server
  *   Next forwards: the API out of reach (`UNREACHABLE_DIGEST`), a session lost
- *   (`SESSION_REQUIRED_DIGEST`), which leads to the sign-in page, or the unexpected error
- *   (`INTERNAL_ERROR`, WF-ARC-0110) with its reference — the correlation identifier of the API, or
- *   the digest Next computed —, kept only when it has the form the contract gives a
- *   `correlation_id`: the notice shows it as the screen of failure does (WF-OBS-0020).
+ *   (`SESSION_LOST_DIGEST`, `SESSION_REQUIRED_DIGEST`) or closed (`SESSION_REVOKED_DIGEST`), which
+ *   the notice says before it leads to the sign-in page — never at once: the write is told as not
+ *   applied; the sign-in asks for the identifiers again for a session closed —, an account
+ *   deactivated or not admitted (`ACCOUNT_DEACTIVATED_DIGEST`, `ACCOUNT_NOT_ADMITTED_DIGEST`),
+ *   which it does not — signing in again would loop —, or the unexpected error (`INTERNAL_ERROR`, WF-ARC-0110)
+ *   with its reference — the correlation identifier of the API, or the digest Next computed —,
+ *   kept only when it has the form the contract gives a `correlation_id`: the notice shows it as
+ *   the screen of failure does (WF-OBS-0020).
  *
  * Never "unreachable" for a defect: a user told to try again in a moment would try for ever.
  * Pure, and free of the client of the API: a client component calls it.
  */
 import type { Outcome } from "@/api/problem";
-import { type BoundaryError, failureOf } from "@/components/system/failure";
+import { type BoundaryError, type Failure, failureOf } from "@/components/system/failure";
 
 /** The form the contract gives a correlation identifier (`Problem.correlation_id`). */
 const CORRELATION = /^[A-Za-z0-9._-]{1,64}$/;
@@ -33,6 +37,34 @@ function asBoundaryError(error: unknown): BoundaryError {
   });
 }
 
+/** A refusal of the account that says so, not a session lost: no link to the sign-in page. */
+function accountRefused(code: "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED"): Outcome<never> {
+  return { kind: "refused", problem: { code, status: 401 }, conflictingObjectId: null };
+}
+
+/**
+ * The outcome of a loss the screen of failure tells apart: out of reach, signed out, the session
+ * closed, the account deactivated or not admitted.
+ */
+function outcomeOfLoss(kind: Exclude<Failure["kind"], "unexpected">): Outcome<never> {
+  switch (kind) {
+    case "unreachable":
+      return { kind: "unreachable" };
+    case "session_lost":
+    case "signed_out":
+    case "revoked":
+      return {
+        kind: "signed_out",
+        problem: { code: kind === "revoked" ? "SESSION_REVOKED" : "SESSION_REQUIRED", status: 401 },
+        conflictingObjectId: null,
+      };
+    case "deactivated":
+      return accountRefused("ACCOUNT_DEACTIVATED");
+    case "not_admitted":
+      return accountRefused("ACCOUNT_NOT_ADMITTED");
+  }
+}
+
 /** The outcome a rejected server action stands for. */
 export function rejected(error: unknown): Outcome<never> {
   if (error instanceof TypeError) {
@@ -40,13 +72,7 @@ export function rejected(error: unknown): Outcome<never> {
   }
   const failure = failureOf(asBoundaryError(error));
   if (failure.kind !== "unexpected") {
-    return failure.kind === "unreachable"
-      ? { kind: "unreachable" }
-      : {
-          kind: "signed_out",
-          problem: { code: "SESSION_REQUIRED", status: 401 },
-          conflictingObjectId: null,
-        };
+    return outcomeOfLoss(failure.kind);
   }
   const { reference } = failure;
   return {

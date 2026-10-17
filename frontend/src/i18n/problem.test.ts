@@ -35,6 +35,26 @@ describe("the sentence of a refusal", () => {
     }
   });
 
+  it.each([
+    [
+      "session_revoked",
+      "fr",
+      "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles ; reconnectez-vous en saisissant à nouveau vos identifiants.",
+    ],
+    [
+      "session_revoked",
+      "en",
+      "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles; sign in again with your credentials.",
+    ],
+    ["session_expired", "fr", "Votre session a expiré ; reconnectez-vous."],
+    ["session_expired", "en", "Your session has expired; please sign in again."],
+  ] as const)(
+    "says a session closed — whose sign-in asks for the identifiers again — apart from one expired (#855): %s, %s",
+    (name, locale, sentence) => {
+      expect(say(example(name) as ProblemText, locale)).toBe(sentence);
+    },
+  );
+
   it("names the missing permission by its label", () => {
     const problem: ProblemText = {
       code: "PERMISSION_MISSING",

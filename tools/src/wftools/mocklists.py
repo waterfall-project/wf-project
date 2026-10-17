@@ -19,9 +19,12 @@ which the generator writes (``work_breakdown``), read as their screens ask them:
 - ``users_by_access_role.json``, ``listUsers`` restricted to the accounts that hold one of two
   roles; ``users_search.json``, a search that finds an account by its displayed name, without
   its accent;
-  ``users_inactive.json``, the accounts deactivated alone;
+  ``users_inactive.json``, the accounts deactivated alone; ``users_created_by_platform.json``,
+  those the platform created; ``users_by_created_at.json``, sorted by the moment of their
+  creation (#936);
 - ``access_roles_composed.json``, ``listAccessRoles`` restricted to the roles composed since the
   installation; ``access_roles_unheld.json``, to those no account holds, an upper bound of none;
+  ``access_roles_by_updated_by.json``, sorted by the author of their last change (#936);
 - ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: an order item, without what it
   holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item.
 
@@ -279,6 +282,43 @@ def of_nature(roles: Iterable[JsonObject], *, predefined: bool) -> list[JsonObje
     return [each for each in roles if each["is_predefined"] is predefined]
 
 
+def written_by(rows: Iterable[JsonObject], column: str, kind: str) -> list[JsonObject]:
+    """Return the rows an account, or the platform, wrote (`created_by_kind`, `updated_by_kind`).
+
+    ``column`` is the author of the audit, `created_by` or `updated_by`; ``kind`` its kind.
+    """
+    return [each for each in rows if _author(each, column)["kind"] == kind]
+
+
+def written_at(column: str) -> Key:
+    """Return the key of a date of the audit, `created_at` or `updated_at`: its instant."""
+    return lambda row: cast("str", cast("JsonObject", row["audit"])[column])
+
+
+def author_name(column: str) -> Key:
+    """Return the key of an author of the audit, `created_by` or `updated_by`: its name.
+
+    An account by its displayed name; the platform, which has none, after the accounts in the
+    ascending order. The examples have no author anonymised, which would come between them: one is
+    refused rather than sorted among the platform.
+    """
+
+    def name(row: JsonObject) -> JsonValue:
+        author = _author(row, column)
+        if author["kind"] == "platform":
+            return None
+        if author["display_name"] is None:
+            message = f"an author anonymised is not sorted here: {author['user_id']}"
+            raise ValueError(message)
+        return author["display_name"]
+
+    return name
+
+
+def _author(row: JsonObject, column: str) -> JsonObject:
+    return cast("JsonObject", cast("JsonObject", row["audit"])[column])
+
+
 def held_within(
     roles: Iterable[JsonObject], minimum: int | None, maximum: int | None
 ) -> list[JsonObject]:
@@ -398,6 +438,11 @@ def administration() -> dict[str, JsonObject]:
     found = searched_users(users, SEARCHED_ACCOUNT)
     composed = of_nature(roles, predefined=False)
     unheld = held_within(roles, None, 0)
+    by_platform = written_by(users, "created_by", "platform")
+    by_creation = ordered(users, written_at("created_at"))
+    by_changer = ordered(roles, author_name("updated_by"))
+    changers = written_by(by_changer, "updated_by", "user")
+    platform = written_by(by_changer, "updated_by", "platform")
     asked = mocktext.listed([f"« {named[role]} »" for role in HELD_ROLES])
     return {
         "users_by_access_role.json": _example(
@@ -409,7 +454,7 @@ def administration() -> dict[str, JsonObject]:
         ),
         "users_search.json": _example(
             f"Les comptes cherchés par « {SEARCHED_ACCOUNT} », désactivés compris "
-            f"(include_inactive=true) : {_accounts(found)}, trouvée par son nom affiché, le "
+            f"(include_inactive=true) : {_accounts(found)}, trouvée par le "
             f"prénom suivi du nom, qu'aucune colonne ne porte entier — la recherche ignore la "
             f"casse et les accents (WF-IHM-0130).",
             user_page(found),
@@ -419,6 +464,21 @@ def administration() -> dict[str, JsonObject]:
             f"{_accounts(deactivated)} ; les comptes actifs sont écartés (WF-ADM-0060, "
             f"WF-IHM-0130).",
             user_page(deactivated),
+        ),
+        "users_created_by_platform.json": _example(
+            f"Les comptes que la plateforme a créés (created_by_kind=platform), désactivés "
+            f"compris (include_inactive=true) : {_accounts(by_platform)} — à l'installation, par "
+            f"la lecture de l'annuaire ou à la première connexion par le fournisseur d'identité "
+            f"—, dans l'ordre sans tri ; ceux qu'un compte a créés sont écartés (WF-DAT-0070, "
+            f"WF-IHM-0130).",
+            user_page(by_platform),
+        ),
+        "users_by_created_at.json": _example(
+            f"Les comptes triés par date de création, croissante (sort_by=created_at), "
+            f"désactivés compris (include_inactive=true) : {_accounts(by_creation)} ; deux "
+            f"comptes créés au même instant dans l'ordre sans tri, par nom (WF-IHM-0060, "
+            f"WF-DAT-0070).",
+            user_page(by_creation),
         ),
         "access_roles_composed.json": _example(
             f"Les rôles d'habilitation composés depuis l'installation (is_predefined=false) : "
@@ -431,6 +491,14 @@ def administration() -> dict[str, JsonObject]:
             f"incluse) : {_labels(unheld)} ; ceux qu'un compte au moins porte sont écartés "
             f"(WF-IHM-0130).",
             cast("JsonValue", unheld),
+        ),
+        "access_roles_by_updated_by.json": _example(
+            f"Les rôles d'habilitation triés par l'auteur de leur dernière modification, "
+            f"croissant (sort_by=updated_by) : {_labels(changers)}, modifiés par Camille "
+            f"Martin, puis {_labels(platform)}, tels que la plateforme les a livrés, qui n'a "
+            f"pas de nom et vient après les comptes ; à auteur égal, par libellé (WF-IHM-0060, "
+            f"WF-DAT-0070).",
+            cast("JsonValue", by_changer),
         ),
     }
 

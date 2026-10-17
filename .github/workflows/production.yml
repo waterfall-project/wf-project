@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The production platform (US-0430), in the full tier only: the three images built as images.yml
+# publishes them, never pushed, then deploy/compose/compose.prod.yaml started on them under a local
+# name, bootstrapped, its API's liveness and the sign-in of its first administrator held
+# (make check-production). images.yml holds it again after each merge, on the images it published.
+name: production
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  trial:
+    runs-on: ubuntu-24.04
+    # The three images — Keycloak's with its extension compiled and tested —, then the platform:
+    # Keycloak and the application of its realm are the longest of it.
+    timeout-minutes: 30
+    env:
+      # The platform lives for the job and is reachable from the runner alone: values of the chain,
+      # visible, named as such. Those written in a URL hold letters and digits alone.
+      WATERFALL_POSTGRES_ADMIN_PASSWORD: chain-only-postgres-admin
+      WATERFALL_POSTGRES_PASSWORD: chainonlypostgres
+      WATERFALL_SERVICE_DATABASE_PASSWORD: chainonlyservice
+      WATERFALL_BACKUP_DATABASE_PASSWORD: chainonlybackup
+      WATERFALL_REDIS_PASSWORD: chainonlyredis
+      WATERFALL_KEYCLOAK_DATABASE_PASSWORD: chain-only-keycloak-database
+      WATERFALL_KEYCLOAK_ADMIN_PASSWORD: chain-only-keycloak-admin
+      WATERFALL_FRONT_CLIENT_SECRET: chain-only-front-client
+      WATERFALL_SERVICE_CLIENT_SECRET: chain-only-service-client
+      WATERFALL_INSTALLATION_CLIENT_SECRET: chain-only-installation-client
+      # 32 bytes in base64, as the server of Next asks.
+      WATERFALL_SERVER_ACTIONS_KEY: Y2hhaW4tb25seS1zZXJ2ZXItYWN0aW9ucy1rZXktMzI=
+      WATERFALL_STORAGE_SECRET: chain-only-storage-secret
+      # Garage wants the secret of its RPC in 64 hexadecimal digits.
+      WATERFALL_STORAGE_RPC_SECRET: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
+      # The trial backs the platform up, then restores it, by its API (US-0440, #948).
+      WATERFALL_TRIAL_RESTORATION: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      - run: make check-production
+        env:
+          TIER: full

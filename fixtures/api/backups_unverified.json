@@ -1,0 +1,39 @@
+{
+  "summary": "Les sauvegardes de la plateforme le 3 juin 2026 à 14 h 05, de la plus récente : une sauvegarde manuelle demandée à 14 h, dont l'archive est encore en vérification ; la planifiée de la nuit, dont l'archive a échoué à sa vérification ; et celle de la nuit précédente, vérifiée. Seule cette dernière se télécharge (WF-ADM-0150).",
+  "value": {
+    "items": [
+      {
+        "backup_id": "01926f3a-7c00-7000-8000-000000000909",
+        "taken_at": "2026-06-03T14:00:00Z",
+        "size_bytes": 1314914304,
+        "verification": "pending",
+        "is_retained": false,
+        "scope": "database",
+        "origin": "manual"
+      },
+      {
+        "backup_id": "01926f3a-7c00-7000-8000-000000000908",
+        "taken_at": "2026-06-03T01:00:00Z",
+        "size_bytes": 1313656012,
+        "verification": "failed",
+        "is_retained": false,
+        "scope": "database",
+        "origin": "scheduled"
+      },
+      {
+        "backup_id": "01926f3a-7c00-7000-8000-000000000906",
+        "taken_at": "2026-06-02T01:00:00Z",
+        "size_bytes": 1309461708,
+        "verification": "passed",
+        "is_retained": false,
+        "scope": "database",
+        "origin": "scheduled"
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 3
+    }
+  }
+}

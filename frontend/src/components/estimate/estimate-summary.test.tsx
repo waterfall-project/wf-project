@@ -12,8 +12,8 @@ import { type EstimateIndicators, EstimateSummary, type MissingRates } from "./e
 
 type Permission = Parameters<typeof EstimateSummary>[0]["permissions"][number];
 
-const all = (example("session") as { permissions: Permission[] }).permissions;
-const estimator = (example("session_estimator") as { permissions: Permission[] }).permissions;
+const all = (example("me") as { permissions: Permission[] }).permissions;
+const estimator = (example("me_estimator") as { permissions: Permission[] }).permissions;
 
 /**
  * What the summary says, its tags left out: the texts a reader reads, one space apart — the

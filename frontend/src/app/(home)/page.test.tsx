@@ -112,7 +112,7 @@ beforeEach(() => {
   server.clients = [];
   server.unreachable = false;
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
   };
@@ -250,7 +250,7 @@ describe("the home, the list of projects", () => {
   it("shows the filter without the link that lifts it to a session that may not read every project (#522)", async () => {
     // A contributor without « consulter tous les projets » would see the same list lifted: the
     // link would promise what it does not do (WF-ADM-0110).
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home();
     expect(text(html)).toContain("Projects you contribute to");
     expect(text(html)).not.toContain("Show all projects");
@@ -258,7 +258,7 @@ describe("the home, the list of projects", () => {
   });
 
   it("stays filtered, without either link, for a session that may not read every project, whatever the address says (#522)", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home({ is_contributor: "false" });
     expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
     expect(text(html)).toContain("Projects you contribute to");
@@ -341,7 +341,7 @@ describe("the empty states of the home", () => {
   it("names the prerequisites without a link to a function the session may not read", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": UNAUTHORIZED,
+      "GET /me": UNAUTHORIZED,
       "GET /reference/readiness": "reference_readiness_incomplete",
     };
     const html = await home();

@@ -15,7 +15,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { API_PREFIX, type ApiClient, createApiClient } from "@/api/client";
+import { API_PREFIX, type ApiClient, type Bearer, createApiClient } from "@/api/client";
 import type { Examples } from "@/api/generated/examples";
 import type { components, paths } from "@/api/generated/schema";
 
@@ -133,6 +133,8 @@ export interface FakeCall {
   readonly query: URLSearchParams;
   /** The body: parsed when JSON, a `FormData` when multipart, a `Blob` otherwise. */
   readonly body: unknown;
+  /** The `Authorization` header the call carried: none unless the client was given a bearer. */
+  readonly authorization: string | null;
 }
 
 /** A client of the API that answers from the examples of the contract, and records its calls. */
@@ -196,16 +198,22 @@ export interface FakeTiming {
  * Make a client that answers each route from the examples of the contract. A call to a route
  * it has no answer for fails the test: an unexpected call is a defect, not an empty page. A
  * table keyed by any string — a `Record<string, string>` — is refused: it would name no
- * operation, and its examples would escape the typing of each.
+ * operation, and its examples would escape the typing of each. Given a bearer — the session of the
+ * front —, each call carries the token it gives, which `calls` records.
  */
 export function fakeClient<const A extends FakeAnswers>(
   answers: string extends keyof A ? never : A,
   timing: FakeTiming = {},
+  bearer?: Bearer,
 ): FakeClient {
   const table: Readonly<Record<string, AnyAnswer | readonly AnyAnswer[] | undefined>> = answers;
   const served = new Map<string, number>();
   const calls: { -readonly [K in keyof FakeCall]: FakeCall[K] }[] = [];
-  const client = createApiClient({ address: ADDRESS, fetch: refuse });
+  const client = createApiClient({
+    address: ADDRESS,
+    fetch: refuse,
+    ...(bearer === undefined ? {} : { bearer }),
+  });
 
   client.use({
     async onRequest({ request, schemaPath }) {
@@ -226,6 +234,7 @@ export function fakeClient<const A extends FakeAnswers>(
         path: url.pathname.slice(API_PREFIX.length),
         query: url.searchParams,
         body: undefined as unknown,
+        authorization: request.headers.get("Authorization"),
       };
       calls.push(call);
       call.body = await bodyOf(request);

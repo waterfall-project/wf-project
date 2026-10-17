@@ -5,21 +5,48 @@
  * grid (`query.ts`): the filters of the list (WF-IHM-0130, EP-02/L42f), under the names of the
  * contract — the kind of the roles, `is_predefined`, `true` for the predefined ones and `false` for
  * those composed since, and the bounds of the number of their holders, `holder_count_min` and
- * `holder_count_max`, both included, whole numbers from nought (`filters.ts`). A filter chosen only
- * changes the address, and the page reads anew: the server filters, never the front. The list is not
- * paged: no page needs to tell whether two addresses read the same list.
+ * `holder_count_max`, both included, whole numbers from nought (`filters.ts`) —, and the periods and
+ * the authors of the audit columns (`audit-address.ts`). A filter chosen only changes the address,
+ * and the page reads anew: the server filters, never the front. The list is not paged: no page needs
+ * to tell whether two addresses read the same list.
  *
  * Pure, and neither server nor client: the page reads, the filters write.
  */
 import type { operations } from "@/api/generated/schema";
-import type { Bounds } from "@/components/grid/filters";
-import { asked, type GridQuery } from "@/components/grid/query";
+import { type Bounds, boundNames, bounded } from "@/components/grid/filters";
+import { keptReading } from "@/components/grid/kept-address";
+import { asked, CONTRACT_ADDRESS, type GridQuery } from "@/components/grid/query";
+import { listReads } from "@/components/reference/address";
+
+import { AUDIT_FILTERS, type AuditFilters, auditNarrowed, auditQuery } from "./audit-address";
 
 /** The parameter of the address the kind of the roles goes by, as the contract names it. */
 export const PREDEFINED = "is_predefined";
 
 /** The column of the number of holders, whose bounds the address carries (`holder_count_min`). */
 export const HOLDER_COUNT = "holder_count";
+
+/** The longest label the contract gives a role. */
+export const LABEL_LENGTH = 100;
+
+/** The path of the screen of the access roles. */
+export const ACCESS_ROLES_PATH = "/admin/access-roles";
+
+/** The parameters of the address the screen filters the roles by, besides their search. */
+export const ROLE_FILTERS: readonly string[] = [
+  PREDEFINED,
+  ...Object.values(boundNames(HOLDER_COUNT)),
+  ...AUDIT_FILTERS,
+];
+
+/**
+ * What the table of the roles reads of the address and keeps with its settings — its search and its
+ * filters —, which the page finds again when the address says nothing of it (`kept-address.ts`).
+ */
+export const ROLE_KEPT = keptReading(CONTRACT_ADDRESS, ROLE_FILTERS);
+
+/** What the list of the roles reads of the address, which a refusal is told on (`Reactivations`). */
+export const ROLE_READS = listReads(CONTRACT_ADDRESS, ...ROLE_FILTERS);
 
 /** What the page asks `listAccessRoles`: the query of the contract. */
 type RolesQuery = NonNullable<operations["listAccessRoles"]["parameters"]["query"]>;
@@ -32,12 +59,34 @@ export function rolesQuery<Sort extends NonNullable<RolesQuery["sort_by"]>>(filt
   readonly query: GridQuery<Sort>;
   readonly predefined: boolean | undefined;
   readonly holders: Bounds;
+  /** The periods and the authors of their creation and of their last modification. */
+  readonly audit: AuditFilters;
 }): RolesQuery {
-  const { query, predefined, holders } = filters;
+  const { query, predefined, holders, audit } = filters;
   return {
     ...asked(query),
     ...(predefined === undefined ? {} : { is_predefined: predefined }),
     ...(holders.min === undefined ? {} : { holder_count_min: Number(holders.min) }),
     ...(holders.max === undefined ? {} : { holder_count_max: Number(holders.max) }),
+    ...auditQuery(audit),
   };
+}
+
+/**
+ * Whether the address narrows the list of the roles — its search, its kind, the bounds of its
+ * holders or its audit columns —: an empty list then says nothing of the installation, and the
+ * authors offered are read from the list unfiltered.
+ */
+export function rolesNarrowed(filters: {
+  readonly query: { readonly search: string | undefined };
+  readonly predefined: boolean | undefined;
+  readonly holders: Bounds;
+  readonly audit: AuditFilters;
+}): boolean {
+  return (
+    filters.query.search !== undefined ||
+    filters.predefined !== undefined ||
+    bounded(filters.holders) ||
+    auditNarrowed(filters.audit)
+  );
 }

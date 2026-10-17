@@ -14,8 +14,10 @@ coverage/
 next-env.d.ts
 *.tsbuildinfo
 docs/api/waterfall.mock.json
+docs/api/waterfall.proxy.json
 frontend/.e2e/
 backend/coverage.json
+backend/coverage-keycloak.json
 .coverage
 test-results/
 playwright-report/
@@ -23,3 +25,7 @@ playwright-report/
 /docs/schemas/
 # Variables d'un poste pour la plateforme de développement (WATERFALL_DEV_ORIGINS)
 deploy/compose/.env
+# Ce que la construction locale de l'extension Keycloak laisse
+deploy/keycloak/extension/target/
+# La racine de l'autorité du frontal de Keycloak, copiée de la plateforme de service (make service-up)
+deploy/compose/.authority/

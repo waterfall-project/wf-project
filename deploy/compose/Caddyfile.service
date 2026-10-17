@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The front end of the service platform (#680): Keycloak in HTTPS, as the demonstration serves it,
+# for the browser and for the server of Next alike, back channel included — openid-client admits
+# no address in HTTP. The certificates come from Caddy's own authority (`tls internal`), whose
+# root, kept in the volume of Caddy, is what the front (NODE_EXTRA_CA_CERTS) and the tests of the
+# platform (SSL_CERT_FILE) trust: `make service-up` copies it out (docs/dev/README.md, « Commandes »).
+{
+	# The root is handed to whoever must trust it; the store of the container has no use for it.
+	skip_install_trust
+	# Nothing changes the configuration once started.
+	admin off
+	# A client sends no server name for an address: it gets the certificate of 127.0.0.1.
+	default_sni 127.0.0.1
+}
+
+# localhost is where the browser and the server of Next reach Keycloak, the issuer of its tokens;
+# 127.0.0.1 another address, where the tests of the platform reach it as a service of the platform
+# does (backend/tests/test_keycloak_platform.py).
+localhost, 127.0.0.1 {
+	tls internal
+	reverse_proxy keycloak:8080
+}

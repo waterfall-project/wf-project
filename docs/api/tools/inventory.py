@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 FAMILIES: list[tuple[str, str]] = [
     ("system", "Système, métriques et traitements de fond"),
-    ("session", "Session, compte courant et préférences"),
+    ("me", "Compte courant, préférences et avatar"),
     ("access", "Comptes, rôles et permissions"),
     ("platform", "Sauvegarde et restauration"),
     ("audit", "Journal d'audit"),
@@ -118,6 +118,48 @@ def unknown_path_files() -> list[str]:
     }
     declared = {f"paths/{family}.yaml" for family, _ in FAMILIES}
     return sorted(present ^ declared)
+
+
+RE_ROOT_REFERENCE = re.compile(
+    r"^  (/[^\s:]*):\n    \$ref: \./paths/([\w/-]+)\.yaml#/(\S+)$", re.MULTILINE
+)
+"""A path of the root of the contract and the file and pointer of `paths/` that it refers to."""
+
+
+def unreferenced_paths() -> list[str]:
+    """Return the paths of `paths/` the root forgets, and its references to paths none writes.
+
+    The contract is what the root reaches: Redocly lints it, the bundle carries it to the client
+    of the front, the models of the service and the fake back. A path written in `paths/` and
+    forgotten in the root escapes them all, while the inventory, which reads `paths/`, lists it
+    (#845): `createPasswordSetupLink` stayed so for weeks.
+    """
+    written = {
+        (family, header)
+        for family, _ in FAMILIES
+        if (ROOT / "paths" / f"{family}.yaml").exists()
+        for header in re.findall(
+            r"^(/[^\s:]*):",
+            (ROOT / "paths" / f"{family}.yaml").read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+    }
+    referenced = {
+        (family, pointer.replace("~1", "/").replace("~0", "~"))
+        for _, family, pointer in RE_ROOT_REFERENCE.findall(
+            (ROOT / "openapi.yaml").read_text(encoding="utf-8")
+        )
+    }
+    return sorted(
+        [
+            f"paths/{family}.yaml {path} is not referred to by openapi.yaml"
+            for family, path in written - referenced
+        ]
+        + [
+            f"openapi.yaml refers to {path} in paths/{family}.yaml, which has no such path"
+            for family, path in referenced - written
+        ]
+    )
 
 
 def own_words(body: str) -> str:
@@ -237,6 +279,11 @@ def main() -> int:
     for name in unknown:
         print(f"  ! family and path file do not match: {name}", file=sys.stderr)
     if unknown:
+        return 1
+    loose = unreferenced_paths()
+    for message in loose:
+        print(f"  ! {message}", file=sys.stderr)
+    if loose:
         return 1
     if not projection.PROJECTION.exists():
         print(f"specification not found: {projection.PROJECTION}", file=sys.stderr)

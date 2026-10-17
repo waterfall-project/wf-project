@@ -8,11 +8,10 @@
  * motive of a failure; the alerts under way, each with its zone, by `Signal`, and what it names —
  * the component unavailable, the storage used and free (WF-OBS-0030). The backups
  * (WF-ADM-0150): each with its date, its size, its verification, whether it was taken by hand or
- * on schedule, and whether it is marked to be kept; and their schedule and retention
+ * on schedule, and whether it is marked to be kept, and, to whom the session permits, the commands
+ * of a verified one: its download and its restoration (US-0440); and their schedule and retention
  * (WF-ADM-0170), its time said in universal time as the contract gives it, unconverted: a time
- * of day has no date to take the offset of a zone with summer time from. Read only: neither a
- * backup nor a restoration is started here — the commands belong to the epic of the operation of
- * the platform.
+ * of day has no date to take the offset of a zone with summer time from.
  */
 import {
   Archive,
@@ -21,6 +20,7 @@ import {
   CircleCheck,
   CircleX,
   DatabaseBackup,
+  Download,
   HardDrive,
   History,
   Server,
@@ -28,10 +28,13 @@ import {
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { backupContentHref, backupsHref } from "@/components/admin/backup-address";
+import { RestoreBackup } from "@/components/admin/backup-commands";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { ReferenceSection } from "@/components/reference/section";
 import { Signal } from "@/components/signal/signal";
+import { buttonVariants } from "@/components/ui/button";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { formatBytes } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
@@ -176,7 +179,7 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
         label={t("operations")}
         columns={[t("operation"), t("at"), t("outcome"), t("motive")]}
       >
-        <OperationRow name={t("directorySync")} outcome={status.last_directory_sync} />
+        <OperationRow name={t("identitySync")} outcome={status.last_identity_sync} />
         <OperationRow name={t("backup")} outcome={status.last_backup} />
         <OperationRow name={t("backupCopy")} outcome={status.last_backup_copy} />
         <OperationRow name={t("restoreTest")} outcome={status.last_restore_test} />
@@ -264,21 +267,51 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
   );
 }
 
+/** The commands the session may give on a verified backup of the list. */
+export interface BackupCommands {
+  /** Its download: the permissions of reading and of modifying the backups. */
+  readonly download: boolean;
+  /** Its restoration: the permission of restoring the platform. */
+  readonly restore: boolean;
+}
+
 /**
- * The backups of a page of the list, each dated, sized and verified; or that there is none — only
- * when the list holds none at all: a page asked beyond its end shows no table, and its pages say
- * where it stands (`ListPages`).
+ * The download of a verified backup, a link the route of its archive answers, which comes back to
+ * the page of the list given when it refuses.
+ */
+function DownloadBackup({ backupId, from }: { readonly backupId: string; readonly from: string }) {
+  const t = useTranslations("admin.backups");
+  return (
+    <a
+      href={backupContentHref(backupId, from)}
+      className={buttonVariants({ variant: "outline", size: "sm" })}
+    >
+      <Download aria-hidden="true" />
+      {t("download")}
+    </a>
+  );
+}
+
+/**
+ * The backups of a page of the list, each dated, sized and verified, with the commands of a
+ * verified one the session may give — a backup not verified, or whose verification failed, is
+ * neither downloaded nor restored; or that there is none — only when the list holds none at all: a
+ * page asked beyond its end shows no table, and its pages say where it stands (`ListPages`).
  */
 export function BackupList({
   backups,
   page,
+  commands = { download: false, restore: false },
 }: {
   readonly backups: readonly Backup[];
   readonly page: ListPage;
+  readonly commands?: BackupCommands;
 }) {
   const t = useTranslations("admin.backups");
   const enums = useTranslations("enums.Backup");
   const locale = useLocale();
+  const commanded = commands.download || commands.restore;
+  const columns = [t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")];
   return (
     <ReferenceSection
       title={t("title")}
@@ -286,10 +319,7 @@ export function BackupList({
       empty={page.total === 0 ? t("none") : undefined}
     >
       {backups.length === 0 ? null : (
-        <ListTable
-          label={t("title")}
-          columns={[t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")]}
-        >
+        <ListTable label={t("title")} columns={commanded ? [...columns, t("commands")] : columns}>
           {backups.map((backup) => (
             <TableRow key={backup.backup_id}>
               <TableCell className={CELL}>
@@ -310,6 +340,23 @@ export function BackupList({
                   </span>
                 ) : null}
               </TableCell>
+              {commanded ? (
+                <TableCell className={CELL}>
+                  {backup.verification === "passed" ? (
+                    <span className="inline-flex gap-2">
+                      {commands.download ? (
+                        <DownloadBackup
+                          backupId={backup.backup_id}
+                          from={backupsHref(page.offset)}
+                        />
+                      ) : null}
+                      {commands.restore ? (
+                        <RestoreBackup backupId={backup.backup_id} takenAt={backup.taken_at} />
+                      ) : null}
+                    </span>
+                  ) : null}
+                </TableCell>
+              ) : null}
             </TableRow>
           ))}
         </ListTable>

@@ -580,3 +580,105 @@ def test_the_reading_of_the_accounts_deactivated_holds_them_alone(lists: dict[st
     assert [mocklists.display_name(row) for row in inactive["items"]] == ["Alix Moreau"]
     assert inactive["items"] == [row for row in written if row["is_active"] is False]
     assert inactive["meta"]["total"] == 1
+
+
+def _audited(identifier: str, created: str, by: Row, updated_by: Row | None = None) -> Row:
+    return {
+        "id": identifier,
+        "audit": {
+            "created_at": created,
+            "created_by": by,
+            "updated_at": created,
+            "updated_by": by if updated_by is None else updated_by,
+        },
+    }
+
+
+PLATFORM: Row = {"kind": "platform"}
+ANONYMISED: Row = {"kind": "user", "user_id": "u0", "display_name": None}
+
+
+def _account(name: str) -> Row:
+    return {"kind": "user", "user_id": name.lower(), "display_name": name}
+
+
+def test_the_audit_columns_are_filtered_and_sorted_as_the_contract_says() -> None:
+    # #936: the dates by their instant, the authors by their name, the platform after the
+    # accounts in the ascending order and before them in the descending one; equals keep the
+    # order they came in.
+    rows = [
+        _audited("r1", "2026-02-01T00:00:00Z", PLATFORM),
+        _audited("r2", "2026-01-01T00:00:00Z", _account("Zoé Blanc")),
+        _audited("r3", "2026-03-01T00:00:00Z", _account("Ana Roy")),
+        _audited("r4", "2026-01-01T00:00:00Z", PLATFORM, _account("Ana Roy")),
+    ]
+    assert _ids(mocklists.written_by(rows, "created_by", "platform"), "id") == ["r1", "r4"]
+    assert _ids(mocklists.written_by(rows, "updated_by", "user"), "id") == ["r2", "r3", "r4"]
+    by_date = mocklists.ordered(rows, mocklists.written_at("created_at"))
+    assert _ids(by_date, "id") == ["r2", "r4", "r1", "r3"]
+    by_author = mocklists.author_name("created_by")
+    assert _ids(mocklists.ordered(rows, by_author), "id") == ["r3", "r2", "r1", "r4"]
+    descending = mocklists.ordered(rows, by_author, descending=True)
+    assert _ids(descending, "id") == ["r1", "r4", "r2", "r3"]
+    # An author anonymised would come between the names and the platform: it is refused.
+    with pytest.raises(ValueError, match="anonymised"):
+        mocklists.ordered([_audited("r5", "2026-01-01T00:00:00Z", ANONYMISED)], by_author)
+
+
+def test_the_readings_of_the_audit_columns_follow_their_parameters(lists: dict[str, Any]) -> None:
+    users = fixture("users")["items"]
+    by_platform = lists["users_created_by_platform"]
+    assert [mocklists.display_name(row) for row in by_platform["items"]] == [
+        "Dominique Bernard",
+        "Sacha Lefèvre",
+        "Camille Martin",
+    ]
+    assert by_platform["meta"]["total"] == 3
+    assert all(row["audit"]["created_by"] == PLATFORM for row in by_platform["items"])
+    created = lists["users_by_created_at"]["items"]
+    assert sorted(created, key=lambda row: row["user_id"]) == sorted(
+        users, key=lambda row: row["user_id"]
+    )
+    instants = [row["audit"]["created_at"] for row in created]
+    assert instants == sorted(instants)
+    # Created at the installation, at one instant: in the order of the list without sort, by name.
+    assert [mocklists.display_name(row) for row in created[:2]] == [
+        "Dominique Bernard",
+        "Camille Martin",
+    ]
+    roles = lists["access_roles_by_updated_by"]
+    assert [row["label"] for row in roles] == [
+        "Auditeur",
+        "Chiffreur",
+        "Direction de projet",
+        "Pilotage de projet",
+        "Administrateur",
+        "Chef de projet",
+        "Manager",
+    ]
+    assert [row["audit"]["updated_by"]["kind"] for row in roles] == ["user"] * 4 + ["platform"] * 3
+
+
+def test_the_role_alix_moreau_changed_names_her_until_her_account_is_anonymised() -> None:
+    # #936: the counterfactual readings filtered on the author of the last change, Alix Moreau
+    # (303), deactivated: she stays named; anonymised, her name is null, the change still hers.
+    [alix] = [row for row in fixture("users")["items"] if row["user_id"].endswith("000000000303")]
+    assert alix["is_active"] is False
+    [witness] = [row for row in fixture("access_roles") if row["label"] == "Chef de projet"]
+    [named] = fixture("access_roles_updated_by_deactivated")
+    [anonymised] = fixture("access_roles_updated_by_anonymized")
+    for read, name in ((named, "Alix Moreau"), (anonymised, None)):
+        author = read["audit"]["updated_by"]
+        assert author == {"kind": "user", "user_id": alix["user_id"], "display_name": name}
+        # Changed while she was active: after her creation, before her deactivation.
+        changed = read["audit"]["updated_at"]
+        assert alix["audit"]["created_at"] < changed < alix["audit"]["updated_at"]
+        # The role of the witness otherwise, its version advanced by the change.
+        assert read["lock_version"] == witness["lock_version"] + 1
+        changed_fields = {"audit", "lock_version"}
+        unchanged = {key: value for key, value in read.items() if key not in changed_fields}
+        assert unchanged == {
+            key: value for key, value in witness.items() if key not in changed_fields
+        }
+        assert read["audit"]["created_by"] == witness["audit"]["created_by"]
+    assert named["audit"]["updated_by"]["display_name"] == mocklists.display_name(alix)
