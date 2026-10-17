@@ -19,7 +19,7 @@ function serve(answers: FakeAnswers): FakeClient {
 }
 
 describe("the server actions of the backups", () => {
-  it("ask a backup, which the worker takes [WF-ADM-0150-A]", async () => {
+  it("ask a backup, which gives its task back queued: the request held no longer than its creation [WF-ARC-0090-A]", async () => {
     const client = serve({ "POST /backups": { status: 202, example: "task_backup_queued" } });
     expect(await startPlatformBackup()).toMatchObject({
       kind: "done",
