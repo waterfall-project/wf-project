@@ -206,6 +206,32 @@ docker compose -f compose.prod.yaml restart keycloak
 docker compose -f compose.prod.yaml restart keycloak-realm
 ```
 
+Abandonnée, ses trois tentatives épuisées, une restauration laisse la maintenance posée et ne se
+reprend plus d'elle-même ; la reprise automatique au redémarrage relève d'EP-13 (#1016). La
+maintenance est une clé de Redis, `waterfall:tasks:maintenance`, qui nomme la tâche de la
+restauration, compte ses tentatives et la dit abandonnée (`"abandoned": true`) :
+
+```sh
+docker compose -f compose.prod.yaml exec redis redis-cli GET waterfall:tasks:maintenance
+```
+
+La cause corrigée d'après les journaux, l'exploitant lève la maintenance en retirant la clé :
+
+```sh
+docker compose -f compose.prod.yaml exec redis redis-cli DEL waterfall:tasks:maintenance
+```
+
+`redis-cli` s'authentifie par la variable `REDISCLI_AUTH` du conteneur `redis`, que Compose tire
+de `WATERFALL_REDIS_PASSWORD` : le mot de passe ne s'écrit pas sur la ligne de commande.
+
+Lever la maintenance ne termine pas la tâche. Si la base de Waterfall la tient encore en file ou
+en cours — l'abandon avant le remplacement des bases, ou après la réinscription de ce que la
+restauration garde —, le service `restore` la redépose dans la minute et la reprend depuis le
+début, maintenance comprise : la levée est alors une relance. Si la base ne la tient pas —
+l'abandon entre le remplacement et la réinscription —, la plateforme sert les bases telles que
+l'abandon les a laissées, sans le journal d'audit ni la liste des sauvegardes réinscrits : il faut
+alors demander une nouvelle restauration, qui reprend ce que la première avait gardé.
+
 ## Arrêter
 
 ```sh
