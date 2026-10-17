@@ -5,12 +5,18 @@
  * (US-0440): the administrator of the installation presses « Sauvegarder maintenant »; the worker
  * backs the platform up and the tracker follows the task to its end (WF-ADM-0150); the screen read
  * anew lists the backup, which the administrator downloads, then deposits as the archive of another
- * installation would be (#350), and restores at the date its manifest says, confirmed (WF-ADM-0160).
- * The screen gives way to that of the maintenance, every user signed out, until the restoration is
- * done; the administrator signs in again, with the password of the backup, and finds the screen.
+ * installation would be (#350), and the deposit says the date its manifest says. The backup of the
+ * list is then restored at its date, confirmed (WF-ADM-0160). The screen gives way to that of the
+ * maintenance, every user signed out, until the restoration is done; the administrator signs in
+ * again, with the password of the backup, and finds the screen.
  *
- * The service platform is one installation: the backup is restored where it was taken, the second
- * installation of US-0440 being the service's own proof
+ * The proxy of the contract between the front and the API, Prism, reads every body as text: the
+ * bytes of the archive past 0x7f reach the browser, and the deposit the API, each replaced by
+ * U+FFFD. Its manifest, the first member and plain JSON, comes through, and with it the date the
+ * deposit says; the dumps do not, and a deposit restored here would be refused as unreadable
+ * (`FILE_FORMAT_UNREADABLE`) before any maintenance. The path restores the backup of the list,
+ * whose bytes never leave the service; the restoration of a deposit, its bytes intact, is the
+ * service's own proof, on a second installation
  * (`test_uploads.py::test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it_a_copy`).
  * The restoration replaces the whole platform and closes every session: the path plays alone, last
  * (`playwright.config.ts`, the project `restoration`).
@@ -69,13 +75,16 @@ test(
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 180_000 });
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
     const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
-    await expect(newest).toContainText("Vérifiée");
-    // Listed with its date, the instant it was taken, which the browser writes in its local time,
+    // Listed first, once the screen is read anew, with its date, the instant it was taken, which
+    // the browser writes in its local time — a backup of a run before may be listed until then —,
     // and with its size.
     const taken = newest.locator("time");
+    const instant = async () => Date.parse((await taken.getAttribute("datetime")) ?? "");
+    await expect.poll(async () => Math.abs(Date.now() - (await instant()))).toBeLessThan(240_000);
+    await expect(newest).toContainText("Vérifiée");
     await expect(taken).not.toBeEmpty();
-    const takenAt = Date.parse((await taken.getAttribute("datetime")) ?? "");
-    expect(Math.abs(Date.now() - takenAt)).toBeLessThan(240_000);
+    const takenIso = (await taken.getAttribute("datetime")) ?? "";
+    const takenAt = Date.parse(takenIso);
     await expect(newest.getByRole("cell").nth(1)).toHaveText(
       /^\d+(,\d)?\s(octet|kilooctet|mégaoctet|gigaoctet)s?$/,
     );
@@ -100,11 +109,12 @@ test(
     const deposited = await deposit.getByRole("time").getAttribute("datetime");
     expect(Date.parse(deposited ?? "")).toBe(takenAt);
 
-    // Restored once its date is confirmed: first the restoration waiting, no one signed out yet.
+    // The backup of the list restored once its date is confirmed — not the deposit, whose dumps
+    // Prism altered —: first the restoration waiting, no one signed out yet.
     const confirmed = Date.now();
-    await restore.click();
+    await newest.getByRole("button", { name: "Restaurer", exact: true }).click();
     const dialog = page.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
-    await expect(dialog.getByRole("time").first()).toHaveAttribute("datetime", deposited ?? "");
+    await expect(dialog.getByRole("time").first()).toHaveAttribute("datetime", takenIso);
     await dialog.getByRole("button", { name: /^Restaurer la sauvegarde du/ }).click();
     const maintenance = page.getByRole("status", {
       name: "Restauration de la plateforme en cours",
@@ -116,7 +126,11 @@ test(
     // affirming the restoration done: the journal of audit says it, after the sign-in.
     const signedOut = page.getByRole("status", { name: "Session terminée" });
     const ended = maintenance.getByText("Restauration terminée").or(signedOut);
-    await expect(ended).toBeVisible({ timeout: 420_000 });
+    // A restoration refused before the maintenance gives the page back with its motive: said at
+    // once, rather than waited for until the end of the path.
+    const refused = page.getByRole("main").getByRole("alert");
+    await expect(ended.or(refused)).toBeVisible({ timeout: 420_000 });
+    await expect(refused).toHaveCount(0);
 
     // Signed out by the restoration, the administrator signs in again, and finds the screen.
     await page.getByRole("link", { name: "Se connecter" }).click();
@@ -125,13 +139,14 @@ test(
     await expect(page.getByRole("table", { name: "Sauvegardes" })).toBeVisible();
 
     // Whatever end the screen saw, the restoration took place and succeeded: the last inscription
-    // of the journal of audit is the restoration itself, of the deposit, which the service writes
+    // of the journal of audit is the restoration itself, of the backup, which the service writes
     // only once the task succeeded, the maintenance lifted after it (WF-ADM-0160). The
     // administrator, « Administrateur », reads the journal.
     await page.goto(JOURNAL);
     const last = page.getByRole("grid", { name: "Journal d’audit" }).getByRole("row").nth(1);
     await expect(last).toContainText("Restauration", { timeout: WORKING });
-    await expect(last).toContainText("Sauvegarde déposée");
+    await expect(last).toContainText("Sauvegarde");
+    await expect(last).not.toContainText("Sauvegarde déposée");
     const restoredAt = Date.parse((await last.locator("time").getAttribute("datetime")) ?? "");
     expect(restoredAt).toBeGreaterThanOrEqual(confirmed - 60_000);
   },
