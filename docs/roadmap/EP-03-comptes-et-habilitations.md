@@ -1462,7 +1462,7 @@ présente le compte rendu, que le suivi des tâches de la coquille annonce à so
 
 ## US-0380 — Rôles d'habilitation et catalogue des permissions
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ADM-0010-A`, `WF-ADM-0020-A`, `WF-ADM-0090-A`, `WF-ADM-0100-A`,
   `WF-ADM-0120-A`, `WF-INTF-0030-A`
 - **opérations** : `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`,
