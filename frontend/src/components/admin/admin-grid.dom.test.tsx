@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -9,15 +9,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { ColumnLabel } from "@/components/grid/columns";
+import type { KeptReading } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { refusedBounds } from "@/components/grid/filters";
-import { example, fakeClient, type Problem } from "@/test/fixtures";
+import { NO_AUDIT } from "@/test/accounts";
+import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
 
 import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
-import { CreateCommand, LaterCommands } from "./later-commands";
+import { type AuditFilters, authorsOf } from "./audit-address";
+import { ROLE_KEPT } from "./role-address";
 import {
   ACCESS_ROLE_SORTS,
   type AccessRole,
@@ -32,10 +36,12 @@ import {
 // The server of Next, as far as the screen needs it: the fake back, which keeps the settings of
 // the grids a sort writes, the address it reads and the navigations it asks.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
-const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const refresh = vi.hoisted(() => vi.fn());
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
 const page = vi.hoisted(() => ({ path: "/admin/users", search: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -48,6 +54,10 @@ type Schemas = components["schemas"];
 const NO_QUERY = { sort: undefined, search: undefined };
 const users = example("users") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const second = example("users_page") as { items: User[]; meta: Schemas["PaginationMeta"] };
+const anonymized = example("users_anonymized") as {
+  items: User[];
+  meta: Schemas["PaginationMeta"];
+};
 const roles = example("access_roles") as AccessRole[];
 const roleChoices = roles.map((role) => ({ id: role.access_role_id, label: role.label }));
 const nodes = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
@@ -57,11 +67,14 @@ const nodes = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
   level: node.level,
 }));
 
-/** A part of the screen, in French, sharing the address last asked as the page does. */
-function inFrench(children: ReactNode) {
+/**
+ * A part of the screen, in French, sharing the address last asked as the page does — and, for the
+ * screen of the roles, naming what its table keeps.
+ */
+function inFrench(children: ReactNode, kept?: KeptReading) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <PendingAddress>{children}</PendingAddress>
+      <PendingAddress kept={kept}>{children}</PendingAddress>
     </NextIntlClientProvider>
   );
 }
@@ -75,25 +88,26 @@ function userList(
     orgNode?: string;
     accessRoles?: readonly string[];
     active?: boolean;
+    audit?: AuditFilters;
     editable?: boolean;
   } = {},
 ) {
   return inFrench(
-    <LaterCommands>
-      <UserList
-        users={shown.items}
-        page={shown.meta}
-        query={query}
-        preferences={undefined}
-        origins={filters.origins ?? []}
-        nodes={nodes}
-        orgNode={filters.orgNode}
-        roles={roleChoices}
-        accessRoles={filters.accessRoles ?? []}
-        active={filters.active}
-        editable={filters.editable ?? false}
-      />
-    </LaterCommands>,
+    <UserList
+      users={shown.items}
+      page={shown.meta}
+      query={query}
+      preferences={undefined}
+      origins={filters.origins ?? []}
+      nodes={nodes}
+      orgNode={filters.orgNode}
+      roles={roleChoices}
+      accessRoles={filters.accessRoles ?? []}
+      active={filters.active}
+      audit={filters.audit ?? NO_AUDIT}
+      authors={authorsOf(shown.items)}
+      editable={filters.editable ?? false}
+    />,
   );
 }
 
@@ -101,6 +115,8 @@ function userList(
 const NO_ROLE_FILTER: RoleFilters = {
   predefined: undefined,
   holders: { min: undefined, max: undefined },
+  audit: NO_AUDIT,
+  authors: authorsOf(roles),
 };
 
 /** The list of the access roles, as the address asks it. */
@@ -109,16 +125,38 @@ function roleList(
   query: GridQuery<AccessRoleSort> = NO_QUERY,
   filters: RoleFilters = NO_ROLE_FILTER,
   shown: readonly AccessRole[] = roles,
+  preferences?: GridPreferences,
 ) {
   return inFrench(
     <AccessRoleList
       roles={shown}
       query={query}
-      preferences={undefined}
+      preferences={preferences}
       filters={filters}
       editable={editable}
     />,
+    ROLE_KEPT,
   );
+}
+
+const ROLES = "POST /access-roles";
+const ROLE = "DELETE /access-roles/{access_role_id}";
+const RENAMED = "PATCH /access-roles/{access_role_id}";
+
+/** The region of the table of the roles that says what its last command did, by its name. */
+function told(): HTMLElement {
+  return screen.getByRole("status", { name: "Commandes des rôles d’habilitation" });
+}
+
+/** Confirm the deletion the table asks to confirm, which names the role. */
+async function confirmDeletion(label: string) {
+  const confirmation = await screen.findByRole("alertdialog", {
+    name: `Supprimer «\u00a0${label}\u00a0»\u00a0?`,
+  });
+  expect(confirmation).toHaveAccessibleDescription(
+    `La suppression de «\u00a0${label}\u00a0» est définitive\u00a0: rien ne restaure le rôle.`,
+  );
+  await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
 }
 
 /** The address of the last navigation the screen asked. */
@@ -146,15 +184,23 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   router.push.mockClear();
+  router.replace.mockClear();
+  refresh.mockReset();
 });
 
 describe("the grid of the accounts", () => {
   it("presents each account with its origin, its roles and its node as the server names them, and says in its totals how many the server retained", () => {
     render(userList());
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    expect(within(grid).getByRole("row", { name: /^Moreau/ }).textContent).toBe(
-      "MoreauAlixalix.moreau@example.comCréé dans WaterfallChef de projetBureau d'études électricitéDésactivé",
+    const moreau = within(grid).getByRole("row", { name: /^Moreau/ });
+    // Its audit columns after its state, each instant in the local time of the workstation.
+    expect(moreau.textContent).toMatch(
+      /^MoreauAlixalix\.moreau@example\.comCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
+    expect([...moreau.querySelectorAll("time")].map((time) => time.dateTime)).toEqual([
+      "2026-01-12T10:00:00Z",
+      "2026-03-02T16:20:00Z",
+    ]);
     expect(grid.querySelector("tfoot tr")?.textContent).toBe("7 comptes");
     // The header of every column is grey, as that of every table (#508).
     expect(grid.querySelector("thead th")?.className).toContain("bg-muted");
@@ -165,7 +211,7 @@ describe("the grid of the accounts", () => {
     async (column) => {
       page.search = "offset=2";
       const { rerender } = render(userList(NO_QUERY, second));
-      const heading = headingOf(userGrid(false).columns, column);
+      const heading = headingOf(userGrid().columns, column);
       const header = () =>
         within(screen.getByRole("grid", { name: "Comptes utilisateurs" })).getByRole("button", {
           name: heading,
@@ -303,115 +349,15 @@ describe("the grid of the accounts", () => {
   });
 });
 
-describe("the commands and the state of the accounts", () => {
-  it("offers to a session that may modify the accounts to modify each, to deactivate or reactivate it as it is, and to attribute its roles, each saying it is available with EP-03, and to delete none", async () => {
-    const { container } = render(userList(NO_QUERY, users, { editable: true }));
+describe("an anonymised account", () => {
+  it("presents neither its name nor its address, the neutral label in their place [WF-ADM-0060-A]", () => {
+    render(userList(NO_QUERY, anonymized));
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    expect(within(grid).getAllByRole("button", { name: /^Modifier «/ })).toHaveLength(7);
-    expect(within(grid).getAllByRole("button", { name: /^Attribuer les rôles de «/ })).toHaveLength(
-      7,
+    const row = within(grid).getAllByRole("row")[1];
+    expect(row).toHaveTextContent(
+      /^Compte anonymiséCréé dans WaterfallBureau d'études électricitéChef de projetDésactivé.+Camille Martin.+Camille Martin$/,
     );
-    // Alix Moreau, deactivated, is offered her reactivation; the six others their deactivation.
-    expect(within(grid).getAllByRole("button", { name: /^Désactiver «/ })).toHaveLength(6);
-    expect(
-      within(grid).getByRole("button", { name: "Réactiver «\u00a0Alix Moreau\u00a0»" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Supprimer/ })).toBeNull();
-    const told = screen.getByRole("status");
-    await userEvent.click(
-      within(grid).getByRole("button", { name: "Désactiver «\u00a0Lucas Petit\u00a0»" }),
-    );
-    expect(told.textContent).toBe(
-      "Désactiver «\u00a0Lucas Petit\u00a0»\u00a0: disponible avec EP-03.",
-    );
-    expect(router.push).not.toHaveBeenCalled();
-    await expectAccessible(container);
-  });
-
-  it("presents the deactivation of the last administrator unavailable, naming the condition she lacks, the attribution of her roles available, as the account lists them [WF-ADM-0120-A]", async () => {
-    render(userList(NO_QUERY, users, { editable: true }));
-    const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    // Camille Martin is the one account active that holds the permissions of administration.
-    const deactivation = within(grid).getByRole("button", {
-      name: "Désactiver «\u00a0Camille Martin\u00a0»",
-    });
-    const unmet =
-      "Condition non remplie\u00a0: un autre compte actif portant les permissions d’administration.";
-    expect(deactivation).toHaveAttribute("aria-disabled", "true");
-    expect(deactivation).toHaveAccessibleDescription(unmet);
-    // A press does not run it: it says the condition it lacks.
-    await userEvent.click(deactivation);
-    expect(screen.getByRole("status").textContent).toBe(
-      `Désactiver «\u00a0Camille Martin\u00a0»\u00a0: ${unmet}`,
-    );
-    // Giving her more roles takes none of her permissions away: the attribution stays available.
-    const attribution = within(grid).getByRole("button", {
-      name: "Attribuer les rôles de «\u00a0Camille Martin\u00a0»",
-    });
-    expect(attribution).not.toHaveAttribute("aria-disabled");
-    await userEvent.click(attribution);
-    expect(screen.getByRole("status").textContent).toBe(
-      "Attribuer les rôles de «\u00a0Camille Martin\u00a0»\u00a0: disponible avec EP-03.",
-    );
-    // Another account active is no last administrator: its deactivation is available.
-    expect(
-      within(grid).getByRole("button", { name: "Désactiver «\u00a0Lucas Petit\u00a0»" }),
-    ).not.toHaveAttribute("aria-disabled");
-  });
-
-  it("presents no command an account does not list, its modification kept to a session that may modify the accounts", () => {
-    // Dominique Bernard read as a session would that the server listed none of her commands for.
-    const bare = {
-      ...users,
-      items: users.items.map((user, at) => (at === 0 ? { ...user, available_commands: [] } : user)),
-    };
-    render(userList(NO_QUERY, bare, { editable: true }));
-    const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    const name = "«\u00a0Dominique Bernard\u00a0»";
-    expect(within(grid).getByRole("button", { name: `Modifier ${name}` })).toBeInTheDocument();
-    for (const command of ["Désactiver", "Réactiver", "Attribuer les rôles de"]) {
-      expect(within(grid).queryByRole("button", { name: `${command} ${name}` })).toBeNull();
-    }
-    expect(within(grid).getAllByRole("button", { name: /^Attribuer les rôles de «/ })).toHaveLength(
-      6,
-    );
-  });
-
-  it("tells the creation of a local account pressed in the header when the list holds no account, nothing narrowing it", async () => {
-    const none = { items: [], meta: { limit: 50, offset: 0, total: 0 } };
-    render(
-      inFrench(
-        <LaterCommands>
-          <CreateCommand kind="localAccount" />
-          <UserList
-            users={none.items}
-            page={none.meta}
-            query={NO_QUERY}
-            preferences={undefined}
-            origins={[]}
-            nodes={nodes}
-            orgNode={undefined}
-            roles={roleChoices}
-            accessRoles={[]}
-            active={undefined}
-            editable
-          />
-        </LaterCommands>,
-      ),
-    );
-    expect(screen.getByText("Aucun compte.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Créer un compte local" }));
-    expect(screen.getByRole("status").textContent).toBe(
-      "Créer un compte local\u00a0: disponible avec EP-03.",
-    );
-  });
-
-  it("presents no command of the accounts to a session that may not modify them", () => {
-    render(userList());
-    expect(
-      screen.queryByRole("button", { name: /^(Modifier|Désactiver|Réactiver|Attribuer)/ }),
-    ).toBeNull();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(grid).not.toHaveTextContent(/Alix|Moreau|alix\.moreau/);
   });
 });
 
@@ -446,37 +392,98 @@ describe("the grid of the access roles", () => {
     expect(lastAddress()).toBe("/admin/access-roles?search=Chef");
   });
 
-  it("offers to create a role, and to modify and delete each, to a session that may modify the roles, each saying it is available with EP-03, each press anew", async () => {
+  it("offers to a session that may modify the roles to create one in line, to rename each in its cell and to delete each, and breaks no rule of accessibility", async () => {
     page.path = "/admin/access-roles";
     const { container } = render(roleList(true));
     const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
-    expect(within(grid).getAllByRole("button", { name: /^Modifier «/ })).toHaveLength(7);
     expect(within(grid).getAllByRole("button", { name: /^Supprimer «/ })).toHaveLength(7);
+    // The renaming is the entry of the label: no command modifies a role besides the matrix.
+    expect(within(grid).queryByRole("button", { name: /^Modifier «/ })).toBeNull();
+    const creation = screen.getByRole("form", { name: "Création d’un rôle" });
+    expect(within(creation).getByRole("textbox", { name: "Nouveau rôle" })).toHaveAttribute(
+      "maxlength",
+      "100",
+    );
     // The region is there from the start, empty, for a reader to hear what is put in it.
-    const told = screen.getByRole("status");
-    expect(told.textContent).toBe("");
-
-    await userEvent.click(screen.getByRole("button", { name: "Créer un rôle" }));
-    expect(told.textContent).toBe("Créer un rôle\u00a0: disponible avec EP-03.");
-    const deletion = within(grid).getByRole("button", {
-      name: "Supprimer «\u00a0Administrateur\u00a0»",
-    });
-    expect(deletion).not.toHaveAttribute("aria-disabled");
-    await userEvent.click(deletion);
-    expect(told.textContent).toBe(
-      "Supprimer «\u00a0Administrateur\u00a0»\u00a0: disponible avec EP-03.",
-    );
-    // The same command pressed again puts a new text in the region, which a reader hears again.
-    const said = told.firstElementChild;
-    await userEvent.click(deletion);
-    expect(told.firstElementChild).not.toBe(said);
-    expect(told.textContent).toBe(
-      "Supprimer «\u00a0Administrateur\u00a0»\u00a0: disponible avec EP-03.",
-    );
-    // Nothing is asked of the server: EP-03 wires the commands.
-    expect(router.push).not.toHaveBeenCalled();
-    expect(router.refresh).not.toHaveBeenCalled();
+    expect(told().textContent).toBe("");
     await expectAccessible(container);
+  });
+
+  it("creates a role in line from its label alone, and says at its field the label the server refuses", async () => {
+    page.path = "/admin/access-roles";
+    const refused: Problem & { status: 422 } = {
+      code: "VALIDATION_FAILED",
+      status: 422,
+      fields: [{ pointer: "/label", code: "VALUE_TOO_LONG", params: { max_length: 100 } }],
+    };
+    const client = fakeClient({ [ROLES]: { problem: refused } });
+    server.client = client;
+    render(roleList(true));
+    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    await userEvent.type(label, "Contrôle de gestion{Enter}");
+    await waitFor(() => {
+      expect(label).toHaveAttribute("aria-invalid", "true");
+    });
+    expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
+    expect(label).toHaveFocus();
+    expect(client.calls.map(({ route, body }) => [route, body])).toEqual([
+      [ROLES, { label: "Contrôle de gestion", permissions: [] }],
+    ]);
+    // Refused, the label typed stays, to be corrected.
+    expect(label).toHaveValue("Contrôle de gestion");
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("tells above the table a creation the server refuses otherwise than by its label", async () => {
+    page.path = "/admin/access-roles";
+    server.client = fakeClient({
+      [ROLES]: { problem: { code: "PERMISSION_MISSING", status: 403 } },
+    });
+    render(roleList(true));
+    await userEvent.type(screen.getByRole("textbox", { name: "Nouveau rôle" }), "Audit{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      CATALOGUES.fr.errors.PERMISSION_MISSING,
+    );
+  });
+
+  it("deletes a role no account holds once its deletion is confirmed, says so, and reads the page anew", async () => {
+    page.path = "/admin/access-roles";
+    const client = fakeClient({ [ROLE]: { status: 204 } });
+    server.client = client;
+    render(roleList(true));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    await userEvent.click(
+      within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+    );
+    // Final, a predefined role included: nothing is asked before it is confirmed.
+    expect(client.calls).toEqual([]);
+    await confirmDeletion("Administrateur");
+    await waitFor(() => {
+      expect(told().textContent).toBe("«\u00a0Administrateur\u00a0» supprimé.");
+    });
+    const administrator = roles.find((role) => role.label === "Administrateur");
+    expect(client.calls.map(({ route, path }) => [route, path])).toEqual([
+      [ROLE, `/access-roles/${administrator?.access_role_id ?? ""}`],
+    ]);
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("tells by the catalogue a role the server refuses to delete, an account holding it since it was read", async () => {
+    page.path = "/admin/access-roles";
+    server.client = fakeClient({
+      [ROLE]: { problem: { code: "ACCESS_ROLE_IN_USE", status: 409 } },
+    });
+    render(roleList(true));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    await userEvent.click(
+      within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+    );
+    await confirmDeletion("Administrateur");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      CATALOGUES.fr.errors.ACCESS_ROLE_IN_USE,
+    );
+    expect(told().textContent).toBe("");
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("presents the deletion of a role an account holds unavailable, naming the condition, as the server would refuse it", async () => {
@@ -490,46 +497,172 @@ describe("the grid of the access roles", () => {
     expect(deletion).toHaveAccessibleDescription(
       "Porté par 1 compte\u00a0: un rôle ne se supprime pas tant qu’un compte le porte.",
     );
-    // A press does not run it, nothing being available: it says the condition it lacks.
+    // A press does not run it: it says the condition it lacks, each press anew.
     await userEvent.click(deletion);
-    expect(screen.getByRole("status").textContent).toBe(
+    expect(told().textContent).toBe(
       "Supprimer «\u00a0Chiffreur\u00a0»\u00a0: Porté par 1 compte\u00a0: un rôle ne se supprime pas tant qu’un compte le porte.",
     );
-    expect(screen.getByRole("status").textContent).not.toContain("EP-03");
+    const said = told().firstElementChild;
+    await userEvent.click(deletion);
+    expect(told().firstElementChild).not.toBe(said);
   });
 
-  it("presses the command of the active cell on Enter, the grid one stop of the tabulation", async () => {
+  it("presses the command of the active cell on Enter, the grid one stop of the tabulation, which opens the confirmation of the deletion: Escape gives it up, nothing deleted, the focus back on the cell", async () => {
     page.path = "/admin/access-roles";
+    const client = fakeClient({ [ROLE]: { status: 204 } });
+    server.client = client;
     render(roleList(true));
     const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
-    const modify = within(grid).getByRole("button", { name: "Modifier «\u00a0Manager\u00a0»" });
-    expect(modify).toHaveAttribute("tabindex", "-1");
-    const cell = modify.closest("td");
+    const deletion = within(grid).getByRole("button", {
+      name: "Supprimer «\u00a0Administrateur\u00a0»",
+    });
+    expect(deletion).toHaveAttribute("tabindex", "-1");
+    const cell = deletion.closest("td");
     expect(cell).not.toBeNull();
-    // The cell made active, its command not pressed; Enter presses it.
+    // The cell made active, its command not pressed; Enter presses it, and asks to confirm.
     await userEvent.click(cell as HTMLElement);
     expect(cell).toHaveFocus();
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(client.calls).toEqual([]);
     await userEvent.keyboard("{Enter}");
-    expect(screen.getByRole("status").textContent).toBe(
-      "Modifier «\u00a0Manager\u00a0»\u00a0: disponible avec EP-03.",
-    );
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(within(confirmation).getByRole("button", { name: "Conserver" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+    expect(cell).toHaveFocus();
+    expect(client.calls).toEqual([]);
+    expect(told().textContent).toBe("");
+    // Asked again and confirmed, the deletion is sent.
+    await userEvent.keyboard("{Enter}");
+    await confirmDeletion("Administrateur");
+    await waitFor(() => {
+      expect(client.calls.map(({ route }) => route)).toEqual([ROLE]);
+    });
   });
 
-  it("presents no command to a session that may not modify the roles", () => {
+  it("renames a role in its cell, from the version read with the permissions the row reads, and tells the role changed meanwhile", async () => {
+    page.path = "/admin/access-roles";
+    const client = fakeClient({
+      [RENAMED]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } },
+    });
+    server.client = client;
+    render(roleList(true));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    const label = within(grid).getByText("Manager").closest<HTMLElement>("[tabindex]");
+    label?.focus();
+    await userEvent.keyboard("Responsable de service{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Recharger/);
+    const manager = roles.find((role) => role.label === "Manager");
+    expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
+      [
+        `/access-roles/${manager?.access_role_id ?? ""}`,
+        {
+          label: "Responsable de service",
+          permissions: manager?.permissions,
+          lock_version: manager?.lock_version,
+        },
+      ],
+    ]);
+  });
+
+  it("presents no command to a session that may not modify the roles, nor any label to enter", async () => {
     page.path = "/admin/access-roles";
     render(roleList(false));
-    expect(screen.queryByRole("button", { name: "Créer un rôle" })).toBeNull();
+    expect(screen.queryByRole("form", { name: "Création d’un rôle" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^(Modifier|Supprimer) «/ })).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Supprimer" })).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    within(grid).getByText("Manager").closest<HTMLElement>("[tabindex]")?.focus();
+    await userEvent.keyboard("Responsable{Enter}");
+    expect(screen.queryByRole("textbox", { name: "Libellé" })).toBeNull();
+    expect(within(grid).getByText("Manager")).toBeInTheDocument();
+  });
+
+  it("keeps the filters the page shows with the settings of the grid, its sort and its columns as the account kept them", async () => {
+    page.path = "/admin/access-roles";
+    page.search = "search=Chef&is_predefined=false&holder_count_max=0";
+    const kept: GridPreferences = {
+      hidden_columns: ["holder_count"],
+      sort: { column: "label", order: "desc" },
+      filters: { is_predefined: "true" },
+    };
+    render(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
+    const client = server.client as FakeClient;
+    await waitFor(() => {
+      expect(client.calls.map(({ route }) => route)).toEqual(["PATCH /me/preferences"]);
+    });
+    expect(client.calls[0]?.body).toEqual({
+      grids: {
+        access_roles: {
+          hidden_columns: ["holder_count"],
+          column_widths: {},
+          sort: { column: "label", order: "desc" },
+          filters: { search: "Chef", is_predefined: "false", holder_count_max: "0" },
+        },
+      },
+    });
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("says in the address a reading whose last filter is lifted, which empties the filters kept and is never filled in [WF-IHM-0060-A]", async () => {
+    page.path = "/admin/access-roles";
+    page.search = "is_predefined=false";
+    const kept: GridPreferences = { filters: { is_predefined: "false" } };
+    const { rerender } = render(
+      roleList(false, NO_QUERY, { ...NO_ROLE_FILTER, predefined: false }, roles, kept),
+    );
+    // Both natures chosen: the address would say nothing of the grid, and says the search empty, so
+    // that the page does not find the filters kept again.
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Nature" }),
+      "Toutes les natures",
+    );
+    expect(lastAddress()).toBe("/admin/access-roles?search=");
+    page.search = "search=";
+    rerender(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
+    const client = server.client as FakeClient;
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    expect(client.calls[0]?.body).toEqual({
+      grids: { access_roles: { hidden_columns: [], column_widths: {}, filters: {} } },
+    });
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("opens at the address that says the grid as it says it, and keeps a reading whose filters are lifted within the screen", async () => {
+    page.path = "/admin/access-roles";
+    page.search = "sort_by=holder_count&sort_order=asc";
+    const kept: GridPreferences = { filters: { is_predefined: "false" } };
+    const { rerender } = render(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
+    const client = server.client as FakeClient;
+    // A sort said: the address is the truth, and its filters, none, are kept.
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    expect(client.calls[0]?.body).toMatchObject({ grids: { access_roles: { filters: {} } } });
+    page.search = "is_predefined=true";
+    rerender(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    // Lifted, the address says so: kept as such, never filled in.
+    page.search = "search=";
+    rerender(roleList(false, NO_QUERY, NO_ROLE_FILTER, roles, kept));
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(3);
+    });
+    expect(client.calls[2]?.body).toMatchObject({ grids: { access_roles: { filters: {} } } });
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("says an empty list, and offers to create a role all the same to who may", () => {
     page.path = "/admin/access-roles";
     render(roleList(true, NO_QUERY, NO_ROLE_FILTER, []));
     expect(screen.getByText("Aucun rôle d’habilitation.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Créer un rôle" })).toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Création d’un rôle" })).toBeInTheDocument();
   });
 
   it("is filtered by its kind under the name of the contract, and keeps its grid when a filter retains nothing", async () => {
@@ -570,7 +703,7 @@ describe("the grid of the access roles", () => {
       roleList(
         false,
         NO_QUERY,
-        { predefined: undefined, holders: { min: "2", max: "1" }, refused },
+        { ...NO_ROLE_FILTER, holders: { min: "2", max: "1" }, refused },
         [],
       ),
     );

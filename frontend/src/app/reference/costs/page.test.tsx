@@ -111,7 +111,7 @@ beforeEach(() => {
   server.clients = [];
   withdrawn.permissions = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /reference/settings": "reference_settings",
     [TYPES]: "cost_types",
     "GET /reference/cost-categories": "volume/cost_categories",
@@ -154,7 +154,7 @@ describe("the types of the natures the page hands the form of a category", () =>
   it("are none for a session that only reads, which has no form", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
       [TYPES]: "cost_types_reader",
     };
     await costsAt();

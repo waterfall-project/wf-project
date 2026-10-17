@@ -330,6 +330,7 @@ _KEYS = {
         "natures de coût",
         "catégories de coût",
         "sous-projets",
+        "comptes",
     ),
     "audit_event_id": ("inscriptions du journal d'audit",),
     "object_id": (
@@ -344,6 +345,7 @@ _KEYS = {
         "lignes de coût réel",
     ),
     "upload_id": ("imports et téléversements",),
+    "chunked_upload_id": ("imports et téléversements",),
     "import_id": ("imports et téléversements",),
     "timeline_id": ("chronologies",),
     "cost_line_id": ("lignes de coût réel",),

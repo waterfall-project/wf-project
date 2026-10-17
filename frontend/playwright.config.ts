@@ -27,8 +27,20 @@
  * measure, depending on all of them, would otherwise drag every one into each part —, with no
  * production build; `measure`, the measure alone, with no development server, a runner to
  * itself. Unset, the whole harness: the paths, then the measure.
+ *
+ * `service` plays the paths of `e2e/service/` alone (US-0340), which the others leave out:
+ * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
+ * (`make e2e-service`), with the real authentication — no fixed token —, and the development
+ * server listening on every interface, so that Keycloak reaches its back channel from its
+ * container (#681). They play in five projects: the installation first, whose administrator the
+ * bootstrap made, and whose link serves once (US-0420); the paths, on several workers; those that
+ * change a setting of the realm, which every account reads, one at a time once the others are done;
+ * the restoration of the platform, which closes every session, after them, alone (US-0440); and last
+ * the guard of the run, which reads the log of the proxy of the contract from the start of the run.
  */
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
+
+import { lastLogged } from "./e2e/service/proxy-log";
 
 type Project = NonNullable<PlaywrightTestConfig["projects"]>[number];
 type WebServer = Extract<
@@ -54,10 +66,16 @@ const NAMED_API = process.env.WATERFALL_API_ADDRESS;
 const API = NAMED_API ?? `http://127.0.0.1:${String(API_PORT)}`;
 const FRONT = `http://127.0.0.1:${String(FRONT_PORT)}`;
 const PRODUCTION = `http://127.0.0.1:${String(PRODUCTION_PORT)}`;
-const PARTS = ["paths", "measure"] as const;
+// The fake back grants the session, and the front sends it a fixed token (`WATERFALL_AUTH=mock`,
+// `src/api/server.ts`); the front built for production refuses that mode unless the harness
+// says it is the harness (`WATERFALL_E2E`). Against an API the environment names, the real
+// authentication stands.
+const AUTHENTICATION =
+  NAMED_API === undefined ? { WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" } : {};
+const PARTS = ["paths", "measure", "service"] as const;
 type Part = (typeof PARTS)[number];
 
-/** The half of the harness the environment names, or the whole of it; anything else refused. */
+/** The part of the harness the environment names, or the whole of it; anything else refused. */
 function part(): Part | undefined {
   const named = process.env.E2E_PART;
   if (named === undefined || named === "") {
@@ -71,11 +89,30 @@ function part(): Part | undefined {
 }
 
 const PART = part();
-const PLAYS_PATHS = PART !== "measure";
-const PLAYS_MEASURE = PART !== "paths";
+const PLAYS_SERVICE = PART === "service";
+const PLAYS_PATHS = PART === undefined || PART === "paths";
+const PLAYS_MEASURE = PART === undefined || PART === "measure";
+if (PLAYS_SERVICE && NAMED_API === undefined) {
+  throw new Error("E2E_PART=service plays against the service WATERFALL_API_ADDRESS names");
+}
 // From the root of the repository, where `make -C ..` runs; ignored by git.
 const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
 const MEASURES = /opening\.spec\.ts$/;
+// The paths against the real service, which need its platform: `make e2e-service` alone plays them.
+const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
+// The paths that change a setting of the realm for the time they run — a lifetime —, which every
+// account of the realm reads: tagged, played alone.
+const REALM_WIDE = /@realm-wide/;
+// The paths that replace the whole platform — a restoration —, which closes every session: tagged,
+// played alone, after all the others.
+const PLATFORM_WIDE = /@platform-wide/;
+// The moment the run started, which the workers inherit: the guard of the run reads the log of the
+// proxy from it (`e2e/service/contract.ts`). The last line the proxy wrote before the run, on the
+// clock of Docker that stamps its log, never the workstation's (`e2e/service/proxy-log.ts`). Kept
+// by a worker, which loads this file again.
+if (PLAYS_SERVICE) {
+  process.env.E2E_SERVICE_STARTED ??= lastLogged();
+}
 const onWorkstation = process.env.CI === undefined;
 
 /** The fake back, started on the port of the harness — unless the environment names an API. */
@@ -103,8 +140,61 @@ function pathProjects(): Project[] {
   return [
     {
       name: "chromium",
-      testIgnore: MEASURES,
+      testIgnore: [MEASURES, SERVICE_PATHS],
       use: { ...devices["Desktop Chrome"], locale: "fr-FR" },
+    },
+  ];
+}
+
+/** The paths against the real service, in a French browser — when they are the part played. */
+function serviceProjects(): Project[] {
+  if (!PLAYS_SERVICE) {
+    return [];
+  }
+  // Keycloak's front end answers with a certificate of its own local authority (#680), which the
+  // server of Next trusts by NODE_EXTRA_CA_CERTS, and the browser by this.
+  const use = { ...devices["Desktop Chrome"], locale: "fr-FR", ignoreHTTPSErrors: true };
+  return [
+    {
+      // The link of the bootstrap serves once: its path sets the password of the administrator,
+      // through whom the others act.
+      name: "installation",
+      testMatch: /e2e\/service\/installation\.setup\.ts$/,
+      teardown: "contract",
+      use,
+    },
+    {
+      // Each path signs in as an account of its own, or as one no other path closes the sessions
+      // of: they share no session, and play on several workers (#730).
+      name: "service",
+      testMatch: SERVICE_PATHS,
+      grepInvert: [REALM_WIDE, PLATFORM_WIDE],
+      dependencies: ["installation"],
+      use,
+    },
+    {
+      // A setting of the realm changed would reach the paths beside: these play once the others are
+      // done, one at a time.
+      name: "realm",
+      testMatch: SERVICE_PATHS,
+      grep: REALM_WIDE,
+      dependencies: ["installation", "service"],
+      workers: 1,
+      use,
+    },
+    {
+      // A restoration replaces the whole platform and closes every session: it plays last, alone.
+      name: "restoration",
+      testMatch: SERVICE_PATHS,
+      grep: PLATFORM_WIDE,
+      dependencies: ["installation", "service", "realm"],
+      workers: 1,
+      use,
+    },
+    {
+      name: "contract",
+      testMatch: /e2e\/service\/contract\.teardown\.ts$/,
+      use,
     },
   ];
 }
@@ -129,14 +219,17 @@ function measureProjects(): Project[] {
 
 /** The development server the paths play against — unless the measure is played alone. */
 function developmentServer(): WebServer[] {
-  if (!PLAYS_PATHS) {
+  if (!PLAYS_PATHS && !PLAYS_SERVICE) {
     return [];
   }
+  // Against the service, on every interface: Keycloak posts to the back channel of the front from
+  // its container, through the address of the workstation (`host.docker.internal`).
+  const hostname = PLAYS_SERVICE ? "0.0.0.0" : "127.0.0.1";
   return [
     {
-      command: `pnpm dev --hostname 127.0.0.1 --port ${String(FRONT_PORT)}`,
+      command: `pnpm dev --hostname ${hostname} --port ${String(FRONT_PORT)}`,
       url: FRONT,
-      env: { WATERFALL_API_ADDRESS: API },
+      env: { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION },
       reuseExistingServer: false,
       timeout: 120_000,
       // Signal the whole process group: make and pnpm start the servers as children.
@@ -157,7 +250,7 @@ function productionServer(): WebServer[] {
       // the two live side by side.
       command: `pnpm build && pnpm start --hostname 127.0.0.1 --port ${String(PRODUCTION_PORT)}`,
       url: PRODUCTION,
-      env: { WATERFALL_API_ADDRESS: API },
+      env: { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION },
       reuseExistingServer: false,
       timeout: 300_000,
       // Signal the whole process group: make and pnpm start the servers as children.
@@ -174,6 +267,6 @@ export default defineConfig({
   use: { baseURL: FRONT, trace: "retain-on-failure" },
   // A French browser by default, the language of the reference catalogue: a path that needs
   // another language sets its own (`test.use({ locale })`).
-  projects: [...pathProjects(), ...measureProjects()],
+  projects: [...pathProjects(), ...serviceProjects(), ...measureProjects()],
   webServer: [...fakeBack(), ...developmentServer(), ...productionServer()],
 });

@@ -96,8 +96,11 @@ ActorRef:
       enum: [user, platform]
     user_id: { $ref: '#/Uuid' }
     display_name:
-      type: string
-      description: Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060).
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060) ; nul pour un
+        compte anonymisé, que le front présente sous le libellé neutre de son catalogue, l'API ne
+        rendant aucune phrase (WF-ADM-0060, WF-ARC-0110). Absent pour la plateforme.
 
 Problem:
   type: object
@@ -160,7 +163,12 @@ Problem:
         WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
-        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040).
+        (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040) ; `backup_version` et `installed_version`,
+        dans `params`, la version de l'application qui a pris la sauvegarde et celle de
+        l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec
+        de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers,
+        des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`,
+        `STATE_FORBIDS_OPERATION`, WF-ADM-0160).
     fields:
       type: array
       description: >-
@@ -200,10 +208,16 @@ ErrorCode:
     # 400 — requête mal formée ou confirmation absente.
     - MALFORMED_REQUEST
     - CONFIRMATION_REQUIRED
-    # 401 — aucune session valide (WF-SEC-0020).
+    # 401 — aucun jeton valide (WF-SEC-0020) ; ou compte désactivé (WF-ADM-0060), ou que
+    # Waterfall n'admet pas, que le front distingue de l'absence de jeton pour ne pas renvoyer à
+    # une connexion qui bouclerait. Un jeton expiré est `SESSION_EXPIRED` ; un jeton d'une
+    # connexion antérieure à la dernière fermeture des sessions du compte, `SESSION_REVOKED`, sur
+    # lequel seul le front redemande les identifiants (#855).
     - SESSION_REQUIRED
     - SESSION_EXPIRED
-    - INVALID_CREDENTIALS
+    - SESSION_REVOKED
+    - ACCOUNT_DEACTIVATED
+    - ACCOUNT_NOT_ADMITTED
     # 403 — permission présente, condition manquante : `params.missing_permission`
     # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090). Une action
     # structurante ou le paramétrage du projet exigent la qualité de chef de projet
@@ -236,9 +250,6 @@ ErrorCode:
     - TASK_COMPLETED
     - WIN_PROBABILITY_FROZEN
     - REFERENCE_INCOMPLETE
-    - PASSWORD_RESET_TOKEN_INVALID
-    # 429 — compte verrouillé après dix échecs consécutifs (WF-ADM-0140).
-    - ACCOUNT_LOCKED
     # 412 — `lock_version` périmé ; `params.expected_lock_version`, la version courante de
     # l'objet que le chemin nomme (WF-IHM-0110).
     - STALE_LOCK_VERSION
@@ -271,6 +282,17 @@ ErrorCode:
     # WF-REF-0040).
     - UNKNOWN_COST_TYPE
     - UNKNOWN_RESOURCE_ROLE
+    # Une personne du fournisseur d'identité, ou un compte qu'il tient, sans adresse : la lecture
+    # des comptes la laisse telle quelle et le dit (`IdentitySyncReport.skipped`, #918).
+    - EMAIL_MISSING
+    # Motifs par champ des écritures d'un compte (`createUser`, `updateUser`,
+    # `setUserAccessRoles`) : un rôle d'habilitation ou un nœud d'organisation que le serveur n'a
+    # pas, et une valeur différente de celle du compte pour un champ d'identité d'un compte qui
+    # ne vient pas de Waterfall (`origin` autre que `local`), que le fournisseur tient ; envoyer
+    # le champ inchangé n'est pas refusé (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
+    - UNKNOWN_ACCESS_ROLE
+    - UNKNOWN_ORG_NODE
+    - FIELD_READ_ONLY
     - UNKNOWN_SUBPROJECT
     - UNKNOWN_TASK
     - INACTIVE_REFERENCE_OBJECT
@@ -278,6 +300,14 @@ ErrorCode:
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).
     - UPLOAD_PURPOSE_MISMATCH
+    # Une sauvegarde d'une version plus récente que l'installation, que la tâche `restore`
+    # refuse avant la maintenance (`startRestore`, WF-ADM-0160) : le motif de l'échec de la tâche
+    # (`BackgroundTaskRef.problem`), `params.backup_version` et `params.installed_version`.
+    - BACKUP_FROM_NEWER_VERSION
+    # Une tâche que la restauration a trouvée en file ou en cours dans la base restaurée : elle
+    # échoue sans reprendre, pour qu'une sauvegarde en cours au moment du vidage ne se relance pas
+    # et n'écrase pas son archive (`startRestore`, #892) ; le motif de l'échec de la tâche.
+    - TASK_INTERRUPTED_BY_RESTORE
     # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
     # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED
@@ -313,8 +343,11 @@ FieldProblem:
       description: >-
         Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901),
         `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son
-        nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un
-        pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération.
+        nom, `/query/revision_id` ; un paramètre de chemin qui n'est pas un identifiant,
+        sous `/path` suivi de son nom, `/path/year` (un identifiant mal formé est un 404,
+        comme un objet inexistant). Aucun champ du corps ne se nomme `query`, et le seul
+        `path` d'un corps est un texte, sans champ sous lui : un pointeur ne désigne ainsi
+        qu'un seul champ, quelle que soit l'opération.
     code: { $ref: '#/ErrorCode' }
     params:
       type: object
@@ -350,6 +383,14 @@ BackgroundTaskRef:
     task_id: { $ref: '#/Uuid' }
     kind:
       type: string
+      description: >-
+        Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ;
+        `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne
+        passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue
+        reprend depuis le début ; une archive d'une version plus récente que l'installation est
+        refusée avant la maintenance, la tâche échouant par `BACKUP_FROM_NEWER_VERSION`
+        (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du
+        fournisseur d'identité (WF-ADM-0070).
       enum:
         - import_analysis
         - import_apply
@@ -359,7 +400,7 @@ BackgroundTaskRef:
         - export
         - backup
         - restore
-        - directory_sync
+        - identity_sync
     status: { $ref: '#/BackgroundTaskStatus' }
     progress:
       type: integer
@@ -379,4 +420,7 @@ BackgroundTaskRef:
       anyOf:
         - type: string
         - type: 'null'
-      description: Où lire le résultat, lorsque la tâche en produit un.
+      description: >-
+        Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes
+        (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la
+        tâche : une lecture achevée depuis l'a remplacé.

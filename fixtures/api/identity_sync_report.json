@@ -1,0 +1,13 @@
+{
+  "summary": "La lecture planifiée de cette nuit, achevée à 2 h : l'annuaire n'avait rien changé depuis la veille, et Dominique Bernard y figure toujours. Aucun compte créé, mis à jour, désactivé ni rétabli, rien de signalé ni de retiré (WF-ADM-0070).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000940",
+    "finished_at": "2026-06-03T02:00:00Z",
+    "created": 0,
+    "updated": 0,
+    "deactivated": 0,
+    "restored": 0,
+    "skipped": [],
+    "removed": []
+  }
+}

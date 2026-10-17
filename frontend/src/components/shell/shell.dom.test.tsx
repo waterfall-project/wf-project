@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { type ReactElement, useEffect, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { useHeldWrites } from "@/components/commands/held";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
+import { dismissLeftRefusals } from "@/navigation/held-writes";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -31,7 +34,8 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const { user, permissions } = example("session") as components["schemas"]["Session"];
+const account = example("me") as components["schemas"]["UserSelf"];
+const { permissions } = account;
 const project = example("project") as components["schemas"]["Project"];
 
 /** A page in the shell, in French, for the account and the session of the contract. */
@@ -39,7 +43,7 @@ function inShell(props: Partial<ShellProps> = {}, page = <main />) {
   return (
     <Shell
       locale="fr"
-      account={user}
+      account={account}
       preference="default"
       theme="default"
       permissions={permissions}
@@ -206,10 +210,10 @@ describe("the shell", () => {
     expect(menu).toHaveTextContent("camille.martin@example.com");
     expect(within(menu).getByRole("menuitem", { name: /^Langue/ })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();
-    const pages = ["Mon compte", "Changer le mot de passe", "Changer l’avatar"].map((name) =>
+    const pages = ["Mon compte", "Changer l’avatar"].map((name) =>
       within(menu).getByRole("menuitem", { name }).getAttribute("href"),
     );
-    expect(pages).toEqual(["/account", "/account/password", "/account/avatar"]);
+    expect(pages).toEqual(["/account", "/account/avatar"]);
     expect(within(menu).getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
       "aria-disabled",
     );
@@ -292,8 +296,7 @@ describe("the shell", () => {
     // Without « consulter tous les projets », the list lifted is the list filtered: no link
     // promises it, and the choice leads home.
     visit("/portfolio/projects");
-    const estimator = (example("session_estimator") as components["schemas"]["Session"])
-      .permissions;
+    const estimator = (example("me_estimator") as components["schemas"]["UserSelf"]).permissions;
     shell({ permissions: estimator });
     await userEvent.click(screen.getByRole("button", { name: "Aucun projet ouvert" }));
     const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
@@ -306,8 +309,7 @@ describe("the shell", () => {
   it("names the planning without a link in the breadcrumb of a costing engineer on the imports and exports, and with one for a session that reads it (#521)", () => {
     const exchanges = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
     visit(exchanges);
-    const estimator = (example("session_estimator") as components["schemas"]["Session"])
-      .permissions;
+    const estimator = (example("me_estimator") as components["schemas"]["UserSelf"]).permissions;
     const { unmount } = shell({ permissions: estimator });
     const crumbs = () => bar().getByRole("navigation", { name: "Fil d’Ariane" });
     expect(within(crumbs()).getByText("Planification").closest("a")).toBeNull();
@@ -457,29 +459,66 @@ describe("the shell", () => {
     );
   });
 
-  it.each(["/login", "/login/reset"])(
-    "leaves the way in bare, without side bar, bar nor tasks, whatever the session: %s",
-    (pathname) => {
-      visit(pathname);
-      shell({}, <main>Connexion</main>);
-      expect(screen.queryByRole("banner")).toBeNull();
-      expect(screen.queryByRole("navigation", { name: "Fonctions" })).toBeNull();
-      expect(screen.queryByRole("region", { name: "Tâches de fond" })).toBeNull();
-      expect(screen.getByRole("main")).toHaveTextContent("Connexion");
-    },
-  );
-
-  it("frames every other address, one under /login that leads nowhere included", () => {
-    visit("/login/nobody");
-    shell();
-    expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Fonctions" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Tâches de fond" })).toBeInTheDocument();
-  });
-
   it("sets the side bar in a landmark named for it", () => {
     shell();
     const aside = screen.getByRole("complementary", { name: "Barre latérale" });
     expect(within(aside).getByRole("navigation", { name: "Fonctions" })).toBeInTheDocument();
+  });
+});
+
+/** A screen that makes a write, answered when the test says: whether it was applied. */
+function writing(): { Screen: () => ReactElement; answer: (applied: boolean) => void } {
+  let answer: (applied: boolean) => void = () => undefined;
+  const write = new Promise<boolean>((resolve) => {
+    answer = resolve;
+  });
+  /** The screen, its write made once mounted. */
+  function Screen() {
+    const hold = useHeldWrites();
+    const made = useRef(false);
+    useEffect(() => {
+      if (!made.current) {
+        made.current = true;
+        hold(write);
+      }
+    }, [hold]);
+    return <main />;
+  }
+  return { Screen, answer };
+}
+
+describe("the writes refused once their screen is gone (#863)", () => {
+  beforeEach(dismissLeftRefusals);
+
+  it("are told in the bar of the shell, which outlives the screen, until dismissed", async () => {
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    // The screen left — « Précédent », the router — while its write is under way.
+    visit("/system");
+    view.rerender(inShell({}, <main />));
+    expect(bar().queryByRole("alert")).toBeNull();
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const alert = bar().getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.",
+    );
+    await expectAccessible(view.container);
+    await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
+    expect(bar().queryByRole("alert")).toBeNull();
+  });
+
+  it("say nothing of a write applied once its screen was gone", async () => {
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    view.rerender(inShell({}, <main />));
+    await act(async () => {
+      answer(true);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().queryByRole("alert")).toBeNull();
   });
 });

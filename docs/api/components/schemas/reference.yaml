@@ -89,7 +89,7 @@ OrgNode:
       description: >-
         Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est
         refusé par 409, `ALREADY_EXISTS` (WF-REF-0070).
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     parent_id:
       anyOf:
         - $ref: ../common.yaml#/Uuid
@@ -117,8 +117,8 @@ OrgNodeWrite:
   type: object
   required: [code, label]
   properties:
-    code: { type: string, minLength: 1, maxLength: 20 }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     parent_id:
       anyOf:
         - $ref: ../common.yaml#/Uuid
@@ -168,7 +168,7 @@ ResourceRoleImage:
     seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`).
   properties:
     resource_role_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     org_node_id: { $ref: ../common.yaml#/Uuid }
     org_node_label:
       type: string
@@ -204,7 +204,7 @@ ResourceRoleWrite:
   type: object
   required: [label, org_node_id, cost_category_id, calendar_id, capacity]
   properties:
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     org_node_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
@@ -224,7 +224,7 @@ ResourceRoleUpdate:
     compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une
     réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080).
   properties:
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
     capacity: { $ref: '#/RoleCapacity' }
@@ -248,7 +248,7 @@ CalendarImage:
     (`EmployedReference`).
   properties:
     calendar_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     weekly_hours: { $ref: '#/WeeklyHours' }
     is_default: { type: boolean }
     is_active: { type: boolean }
@@ -271,7 +271,7 @@ CalendarWrite:
   type: object
   required: [label, weekly_hours]
   properties:
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     weekly_hours: { $ref: '#/WeeklyHours' }
 
 CalendarUpdate:
@@ -345,7 +345,7 @@ CostType:
       description: >-
         Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté
         est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0030).
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     kind: { $ref: '#/CostTypeKind' }
     is_active: { type: boolean }
     available_commands: { $ref: '#/CostTypeCommands' }
@@ -356,8 +356,8 @@ CostTypeWrite:
   type: object
   required: [code, label, kind]
   properties:
-    code: { type: string, minLength: 1, maxLength: 20 }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     kind: { $ref: '#/CostTypeKind' }
 
 CostTypeUpdate:
@@ -454,7 +454,7 @@ CostCategoryImage:
       description: >-
         Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui
         d'une nature : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code`.
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     cost_type_id: { $ref: ../common.yaml#/Uuid }
     cost_type_label:
       type: string
@@ -477,8 +477,8 @@ CostCategoryWrite:
   type: object
   required: [code, label, cost_type_id, accounting_code]
   properties:
-    code: { type: string, minLength: 1, maxLength: 20 }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     cost_type_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
@@ -554,8 +554,8 @@ HourlyRateRow:
     et une cellule par année de `years`, dans le même ordre.
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, maxLength: 20 }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     is_active: { type: boolean }
     cells:
       type: array
@@ -607,7 +607,7 @@ Installation:
       maximum: 9007199254740991
       description: >-
         La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée
-        pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un
+        pour une restauration (`openChunkedUpload`, WF-ADM-0160), en octets : un
         réglage de l'installation, la spécification ne fixant pas la taille d'une
         sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1
         (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON

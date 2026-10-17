@@ -1,0 +1,13 @@
+{
+  "summary": "La fin du dépôt de la sauvegarde waterfall-2026-06-02.tar demandée alors que seuls le premier et le deuxième de ses trois morceaux sont reçus : refusée, le troisième manque, et rien n'est assemblé (WF-ADM-0160).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_parts": [
+        3
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001043"
+  }
+}

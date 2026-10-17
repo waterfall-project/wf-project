@@ -356,6 +356,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    * reads the row as the one before did (`reread` of `answers.ts`). None, and it never says.
    */
   readonly fresher?: ((answered: Row, read: Row) => boolean | undefined) | undefined;
+  /**
+   * The parameters of the address its screen filters it by, besides its search, kept with its
+   * settings as the address writes them (`kept-filters.ts`, WF-IHM-0060); none, and its screen keeps
+   * no filter.
+   */
+  readonly filters?: readonly string[] | undefined;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */

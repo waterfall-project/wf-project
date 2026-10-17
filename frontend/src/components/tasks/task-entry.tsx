@@ -5,7 +5,7 @@
  * user named it after —, where it stands, how far it has gone while it runs, and, failed, its
  * motive in a sentence of the catalogue and the offer to run the same command again — or,
  * without the command, the way to do it from the screen of its object —; succeeded, the offer
- * to read the screen anew, and to download its result when it made one — an export —, which
+ * to read the screen anew, and to download its result when it made a file — an export —, which
  * the server of Next hands on from the API as a stream (`app/tasks/[taskId]/result`). Before each
  * download, the entry reads the task anew (`getBackgroundTask`, #329): a refusal of that read — the
  * task unknown, the session lost — is told by the notice of the entry, and a task that no longer
@@ -37,14 +37,17 @@ import {
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
+import { useHeldCommand } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
+import { asksIdentifiers } from "@/navigation/login";
 
 import { resultHref, withoutRefusal } from "./result-refusal";
 import {
   type EndKind,
   type EndLine,
+  givesFile,
   isPolled,
   type Refusal,
   type TrackedTask,
@@ -228,7 +231,9 @@ function Interruption({ refusal }: { readonly refusal: Refusal }) {
   return (
     <>
       <Motive problem={refusal.problem} />
-      {refusal.kind === "signed_out" ? <SignIn /> : null}
+      {refusal.kind === "signed_out" ? (
+        <SignIn reauthenticate={asksIdentifiers(refusal.problem.code)} />
+      ) : null}
     </>
   );
 }
@@ -277,6 +282,7 @@ export interface TaskEntryProps {
 export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryProps) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
+  const held = useHeldCommand();
   const dismiss = useRef<HTMLButtonElement | null>(null);
   const { key, task, command, interrupted } = entry;
   const setDismiss = useCallback(
@@ -293,7 +299,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       return;
     }
     startTransition(async () => {
-      const outcome = await command().catch(rejected);
+      const outcome = await held(command());
       dispatch({ type: "answer", source: "relaunch", key, taskId: task.task_id, outcome });
       if (outcome.kind === "done" || outcome.kind === "stale") {
         // The button pressed goes — with the failure, or with the command refused as stale —:
@@ -333,9 +339,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       {isPolled(entry) ? <Progress name={name} progress={task.progress} /> : null}
       {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
       {task.status === "succeeded" ? <ReloadScreen /> : null}
-      {task.status === "succeeded" && task.result_url != null ? (
-        <DownloadResult entry={entry} name={name} dispatch={dispatch} />
-      ) : null}
+      {givesFile(task) ? <DownloadResult entry={entry} name={name} dispatch={dispatch} /> : null}
       {entry.resultUnavailable === true ? (
         <p role="alert" className="text-destructive">
           {t("tasks.resultUnavailable")}

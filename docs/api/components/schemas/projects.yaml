@@ -21,7 +21,7 @@ Project:
     - lock_version
   properties:
     project_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     code:
@@ -131,8 +131,19 @@ CommandCondition:
     Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
-    `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par
-    `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
+    `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et
+    `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui
+    n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès
+    du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et
+    `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à
+    l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de
+    `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme
+    dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ;
+    `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que
+    le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans
+    leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser`
+    nomme dans son 409. Le retrait de l'une de
+    ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
     dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
   enum:
     - is_contributor
@@ -165,6 +176,10 @@ CommandCondition:
     - cost_type_not_last_provision
     - cost_category_not_last_provision
     - last_administrator
+    - is_local_account
+    - is_active_account
+    - is_deactivated_account
+    - is_not_anonymized
 
 ProjectCommand:
   type: string
@@ -227,7 +242,7 @@ ProjectCreate:
   type: object
   required: [label]
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     code:
@@ -237,7 +252,7 @@ ProjectUpdate:
   type: object
   required: [lock_version]
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     code:
@@ -343,7 +358,7 @@ OrderItem:
   required: [order_item_id, label, work_packages]
   properties:
     order_item_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     work_packages:
       type: array
       items: { $ref: '#/WorkPackage' }
@@ -353,7 +368,7 @@ WorkPackage:
   required: [work_package_id, label, deliverables]
   properties:
     work_package_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     deliverables:
       type: array
       items: { $ref: '#/Deliverable' }
@@ -363,7 +378,7 @@ Deliverable:
   required: [deliverable_id, label]
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
 WorkBreakdownKind:
   type: string
@@ -381,8 +396,8 @@ Subproject:
     le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050).
   properties:
     subproject_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, maxLength: 50 }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     has_actual_costs: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -391,8 +406,8 @@ SubprojectWrite:
   type: object
   required: [code, label]
   properties:
-    code: { type: string, minLength: 1, maxLength: 50 }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
 SubprojectUpdate:
   description: >-

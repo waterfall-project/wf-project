@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import {
@@ -56,11 +57,11 @@ function text(markup: string): string {
     .trim();
 }
 
-/** Render a page of the administration in French. */
+/** Render a page of the administration in French, within the shell that follows the tasks. */
 function rendered(page: unknown): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      {page as ReactNode}
+      <TaskTracker>{page as ReactNode}</TaskTracker>
     </NextIntlClientProvider>,
   );
 }
@@ -117,8 +118,9 @@ beforeEach(() => {
   shown.path = "/admin/users";
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /users": "users",
+    "GET /identity-syncs/latest": "identity_sync_report",
     "GET /reference/org-nodes": "org_nodes",
     "GET /access-roles": "access_roles",
     "GET /permissions": "permissions",
@@ -133,19 +135,46 @@ describe("the accounts", () => {
     expect((await usersMetadata()).title).toBe("Gestion des utilisateurs — Waterfall");
   });
 
+  it("present above the table the report of the last reading of the accounts, and to a session that may modify the accounts the command that asks a new one", async () => {
+    const page = rendered(await UsersPage(searched()));
+    const said = text(page);
+    expect(said).toContain(
+      "Lecture des comptes du fournisseur d’identité Lire les comptes Dernière lecture achevée le .",
+    );
+    expect(said).toContain(
+      "Aucun compte créé Aucun compte mis à jour Aucun compte désactivé Aucune identité rétablie dans le fournisseur Aucun compte local retiré du fournisseur Rien de signalé",
+    );
+    expect(page).toContain('<time dateTime="2026-06-03T02:00:00Z">');
+    expect(said.indexOf("Lire les comptes")).toBeLessThan(said.indexOf("Comptes utilisateurs"));
+    expect(queriesOf("GET /identity-syncs/latest")).toEqual([{}]);
+  });
+
+  it("offer no reading of the accounts to a session that may not modify them, and say so when no reading has ended yet", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /me": "me_estimator",
+      "GET /identity-syncs/latest": NOT_FOUND,
+    };
+    const page = rendered(await UsersPage(searched()));
+    expect(buttons(page)).not.toContain("Lire les comptes");
+    expect(text(page)).toContain(
+      "Lecture des comptes du fournisseur d’identité Aucune lecture des comptes n’a encore abouti.",
+    );
+  });
+
   it("present each account with its origin, its roles and its node as the server names them, deactivated ones listed, on a grid sorted by each of its columns [WF-IHM-0060-A]", async () => {
     // A session that may not modify the accounts: no column of commands.
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
     expect(rows(page, "Comptes utilisateurs")).toEqual([
-      "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État",
-      "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Manager Aucun Actif",
-      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun rôle Aucun Actif",
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
-      "Petit Lucas lucas.petit@example.com Créé dans Waterfall Chiffreur Aucun Actif",
-      "Roux Inès ines.roux@example.com Créé dans Waterfall Pilotage de projet Aucun Actif",
-      "Vidal Noé noe.vidal@example.com Créé dans Waterfall Auditeur Aucun Actif",
+      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
+      "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif La plateforme La plateforme",
+      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun Aucun rôle Actif La plateforme La plateforme",
+      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
+      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
+      "Petit Lucas lucas.petit@example.com Créé dans Waterfall Aucun Chiffreur Actif Camille Martin Camille Martin",
+      "Roux Inès ines.roux@example.com Créé dans Waterfall Aucun Pilotage de projet Actif Camille Martin Camille Martin",
+      "Vidal Noé noe.vidal@example.com Créé dans Waterfall Aucun Auditeur Actif Camille Martin Camille Martin",
       "7 comptes",
     ]);
     expect(sortable(page, "Comptes utilisateurs")).toEqual([
@@ -153,10 +182,16 @@ describe("the accounts", () => {
       "Prénom",
       "Adresse électronique",
       "Origine",
-      "Rôles d’habilitation",
       "Rattachement",
+      "Rôles d’habilitation",
       "État",
+      "Créé le",
+      "Créé par",
+      "Modifié le",
+      "Modifié par",
     ]);
+    // Each instant written for the browser to show in its local time.
+    expect(instants(page)).toContain("2026-03-02T16:20:00Z");
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
     expect(page).not.toContain("<nav");
   });
@@ -205,7 +240,7 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /reference/org-nodes": NOT_FOUND };
     const page = text(rendered(await UsersPage(searched())));
     expect(page).toContain("Nœud d’organisation Tous les nœuds Tous les rôles Administrateur");
-    expect(page).toContain("Comptes actifs Comptes désactivés Colonnes Nom");
+    expect(page).toContain("Comptes actifs Comptes désactivés Du Au Filtrer Créé par");
   });
 
   it("ask the server for the access roles the address names among those it gives, an identifier of none not asked [WF-IHM-0130-A]", async () => {
@@ -238,6 +273,135 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
+  it("ask the server for the periods and the authors of the audit columns the address names, under the names of the contract, a value no server could take not asked [WF-IHM-0130-A]", async () => {
+    server.answers = { ...server.answers, "GET /users": "users_created_by_platform" };
+    const page = text(
+      rendered(
+        await UsersPage(
+          searched({
+            created_at_from: "2025-09-01T00:00:00Z",
+            created_at_to: "2026-02-30T00:00:00Z",
+            created_by_kind: "platform",
+            updated_at_to: "2026-06-04T00:00:00Z",
+            updated_by_user_id: "01926f3a-7c00-7000-8000-000000000301",
+            updated_by_kind: "nobody",
+          }),
+        ),
+      ),
+    );
+    expect(queriesOf("GET /users")).toEqual([
+      {
+        include_inactive: "true",
+        created_at_from: "2025-09-01T00:00:00Z",
+        created_by_kind: "platform",
+        updated_at_to: "2026-06-04T00:00:00Z",
+        updated_by_user_id: "01926f3a-7c00-7000-8000-000000000301",
+      },
+    ]);
+    expect(page).toContain("3 comptes");
+    // The authors to choose: any account, the platform, and the accounts that wrote the page.
+    expect(page).toContain("Modifié par Tous les auteurs Un compte La plateforme Camille Martin");
+  });
+
+  it("say at its field the end of a period the API refuses for preceding its start, the grid unread", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /users": {
+        problem: example("users_period_inverted") as Problem & { status: 422 },
+      },
+    };
+    const page = rendered(
+      await UsersPage(
+        searched({
+          created_at_from: "2026-03-01T00:00:00Z",
+          created_at_to: "2026-01-01T00:00:00Z",
+        }),
+      ),
+    );
+    expect(page).not.toContain('aria-label="Comptes utilisateurs" role="grid"');
+    expect(text(page)).toContain(text(CATALOGUES.fr.reference.boundsRefused));
+    // Only the browser knows its time zone: the start is named once the page is hydrated.
+    expect(text(page)).toContain(CATALOGUES.fr.grid.period.invertedUndated);
+    expect(page).toMatch(/<input[^>]*aria-invalid="true"/);
+  });
+
+  it("say any refusal of the list in its place, even one that names no period, the filters kept, never an empty list", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /users": {
+        problem: {
+          status: 422,
+          code: "VALIDATION_FAILED",
+          fields: [{ pointer: "/query/search", code: "VALUE_REQUIRED" }],
+        },
+      },
+    };
+    const page = rendered(await UsersPage(searched({ search: "x" })));
+    expect(page).not.toContain('aria-label="Comptes utilisateurs" role="grid"');
+    expect(text(page)).toContain(text(CATALOGUES.fr.reference.boundsRefused));
+    expect(text(page)).toContain("Créé par Tous les auteurs");
+    expect(text(page)).not.toContain("0 comptes");
+    expect(text(page)).not.toContain(text(CATALOGUES.fr.admin.users.none));
+  });
+
+  it("name an account chosen as an author that the page does not offer by its names, deactivated since, never by its identifier [WF-ADM-0060-A]", async () => {
+    const vidal = "01926f3a-7c00-7000-8000-000000000307";
+    server.answers = {
+      ...server.answers,
+      "GET /users": {
+        problem: example("users_period_inverted") as Problem & { status: 422 },
+      },
+      "GET /users/{user_id}": "user_deactivated",
+    };
+    const page = rendered(
+      await UsersPage(
+        searched({
+          created_at_from: "2026-03-01T00:00:00Z",
+          created_at_to: "2026-01-01T00:00:00Z",
+          created_by_user_id: vidal,
+        }),
+      ),
+    );
+    expect(text(page)).toContain("Créé par Tous les auteurs Un compte La plateforme Noé Vidal");
+    expect(text(page)).not.toContain(vidal);
+    expect(
+      server.clients
+        .flatMap((client) => client.calls)
+        .filter((call) => call.route === "GET /users/{user_id}")
+        .map((call) => call.path),
+    ).toEqual([`/users/${vidal}`]);
+  });
+
+  it("read no account chosen as an author that the page offers, and leave one the API does not find chosen by its identifier", async () => {
+    const camille = "01926f3a-7c00-7000-8000-000000000301";
+    const unknown = "01926f3a-7c00-7000-8000-000000000399";
+    server.answers = { ...server.answers, "GET /users/{user_id}": NOT_FOUND };
+    const page = text(
+      rendered(
+        await UsersPage(searched({ created_by_user_id: camille, updated_by_user_id: unknown })),
+      ),
+    );
+    expect(queriesOf("GET /users/{user_id}")).toHaveLength(1);
+    expect(page).toContain("Modifié par Tous les auteurs Un compte La plateforme Camille Martin");
+    expect(page).toContain(unknown);
+  });
+
+  it("present an anonymised account under the neutral label, nowhere by its name nor its address, its reactivation and its anonymisation unavailable [WF-ADM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /users": "users_anonymized" };
+    const page = rendered(await UsersPage(searched({ is_active: "false" })));
+    expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
+      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Condition non remplie : compte non anonymisé. Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
+    ]);
+    expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
+    // Its reactivation, on the switch of its state, and its anonymisation: both unavailable.
+    expect(page).toMatch(
+      /<[^>]*aria-label="Compte de «\u00a0Compte anonymisé\u00a0» actif"[^>]*aria-disabled="true"/,
+    );
+    expect(page).toMatch(
+      /<[^>]*aria-label="Anonymiser «\u00a0Compte anonymisé\u00a0»"[^>]*aria-disabled="true"/,
+    );
+  });
+
   it("offer no filter by access role to a session that may not read the roles, and ask none", async () => {
     server.answers = { ...server.answers, "GET /access-roles": NOT_FOUND };
     const page = text(
@@ -250,26 +414,44 @@ describe("the accounts", () => {
     expect(page).toContain("Nœud d’organisation Tous les nœuds");
   });
 
-  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, offer to create a local account, and to modify, deactivate or reactivate each and attribute its roles", async () => {
+  it("offer to delete no account [WF-ADM-0060-A]; to a session that may modify the accounts, the table its own entry, « Créer un compte local » at its head, and the anonymisation of a deactivated one", async () => {
     const page = rendered(await UsersPage(searched()));
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rôles d’habilitation Rattachement État Modifier Activation Attribution des rôles",
+      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Anonymisation",
     );
-    expect(page).toContain('aria-label="Réactiver «\u00a0Alix Moreau\u00a0»"');
-    expect(page).toContain('aria-label="Désactiver «\u00a0Camille Martin\u00a0»"');
-    expect(page).toContain('aria-label="Attribuer les rôles de «\u00a0Inès Roux\u00a0»"');
+    expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
+    expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
+    expect(page).toContain('aria-label="Rôles de «\u00a0Inès Roux\u00a0»"');
+    expect(page).toContain(
+      'aria-label="Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»"',
+    );
+  });
+
+  it("lead an address that says nothing of the table to the search and the filters the account keeps for it, before anything is read [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await expect(UsersPage(searched())).rejects.toMatchObject({
+      digest: expect.stringContaining(";/admin/users?origins=local&is_active=true;") as unknown,
+    });
+    expect(queriesOf("GET /users")).toEqual([]);
+    // A reading lifted, or a sort alone, reads the accounts as the address says.
+    await UsersPage(searched({ search: "" }));
+    await UsersPage(searched({ sort_by: "email", sort_order: "asc" }));
+    expect(queriesOf("GET /users")).toEqual([
+      { include_inactive: "true" },
+      { include_inactive: "true", sort_by: "email", sort_order: "asc" },
+    ]);
   });
 
   it("offer no command of the accounts to a session that may not modify them", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await UsersPage(searched()));
-    expect(
-      buttons(page).filter((name) =>
-        /Supprimer|Désactiver|Réactiver|Créer|Modifier|Attribuer/.test(name),
-      ),
-    ).toEqual([]);
+    expect(buttons(page).filter((name) => /Supprimer|Créer|Lien|Anonymiser/.test(name))).toEqual(
+      [],
+    );
+    expect(page).not.toContain('role="switch"');
+    expect(page).not.toMatch(/aria-label="(Rôles de|Lien de fixation)/);
   });
 
   it("ask the deactivated accounts too, and read an address that hid them as the active ones alone, which the choice says", async () => {
@@ -288,13 +470,13 @@ describe("the accounts", () => {
     server.answers = {
       ...server.answers,
       "GET /users": "users_page",
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
     };
     const page = rendered(await UsersPage(searched({ offset: "2" })));
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true", offset: "2" }]);
     expect(rows(page, "Comptes utilisateurs").slice(1)).toEqual([
-      "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
-      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
+      "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
+      "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
       "7 comptes",
     ]);
     // The pages before and after: the state of the accounts is a choice, no link.
@@ -315,28 +497,32 @@ describe("the access roles", () => {
   });
 
   it("present each role, predefined or composed, with how many accounts hold it, on a grid sorted by each of its columns [WF-IHM-0060-A]", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await AccessRolesPage(searched()));
     expect(rows(page, "Rôles d’habilitation")).toEqual([
-      "Libellé Nature Comptes porteurs",
-      "Administrateur Prédéfini 0",
-      "Auditeur Composé 1",
-      "Chef de projet Prédéfini 1",
-      "Chiffreur Composé 1",
-      "Direction de projet Composé 1",
-      "Manager Prédéfini 1",
-      "Pilotage de projet Composé 1",
+      "Libellé Nature Comptes porteurs Créé le Créé par Modifié le Modifié par",
+      "Administrateur Prédéfini 0 La plateforme La plateforme",
+      "Auditeur Composé 1 Camille Martin Camille Martin",
+      "Chef de projet Prédéfini 1 La plateforme La plateforme",
+      "Chiffreur Composé 1 Camille Martin Camille Martin",
+      "Direction de projet Composé 1 Camille Martin Camille Martin",
+      "Manager Prédéfini 1 La plateforme La plateforme",
+      "Pilotage de projet Composé 1 Camille Martin Camille Martin",
       "7 rôles",
     ]);
     expect(sortable(page, "Rôles d’habilitation")).toEqual([
       "Libellé",
       "Nature",
       "Comptes porteurs",
+      "Créé le",
+      "Créé par",
+      "Modifié le",
+      "Modifié par",
     ]);
     expect(queriesOf("GET /access-roles")).toEqual([{}]);
   });
 
-  it("ask the server for the search and the sort the address names, and every role for the matrix", async () => {
+  it("ask the server for the search and the sort the address names, which the matrix shows too, and the roles unfiltered for the authors to choose", async () => {
     await AccessRolesPage(
       searched({ search: "Chef", sort_by: "holder_count", sort_order: "desc" }),
     );
@@ -344,13 +530,14 @@ describe("the access roles", () => {
       { search: "Chef", sort_by: "holder_count", sort_order: "desc" },
       {},
     ]);
+    // A sort alone narrows nothing: the roles are read once.
+    server.clients = [];
+    await AccessRolesPage(searched({ sort_by: "updated_by", sort_order: "asc" }));
+    expect(queriesOf("GET /access-roles")).toEqual([{ sort_by: "updated_by", sort_order: "asc" }]);
   });
 
-  it("ask the server for the kind and the bounds of the holders the address names, and every role for the matrix [WF-IHM-0130-A]", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /access-roles": ["access_roles_unheld", "access_roles"],
-    };
+  it("ask the server for the kind and the bounds of the holders the address names, the matrix showing the roles the table retains [WF-IHM-0130-A]", async () => {
+    server.answers = { ...server.answers, "GET /access-roles": "access_roles_unheld" };
     const page = rendered(
       await AccessRolesPage(searched({ is_predefined: "true", holder_count_max: "0" })),
     );
@@ -359,11 +546,33 @@ describe("the access roles", () => {
       {},
     ]);
     expect(rows(page, "Rôles d’habilitation").slice(1)).toEqual([
-      "Administrateur Prédéfini 0 Modifier Supprimer",
+      "Administrateur Prédéfini 0 La plateforme La plateforme Supprimer",
       "1 rôle",
     ]);
-    // The matrix holds every role, whatever the grid asks.
-    expect(rows(page, "Permissions par fonction")[0]).toContain("Pilotage de projet");
+    // The matrix has a column for the roles the table retains, and none for another.
+    expect(rows(page, "Permissions par fonction")[0]).toBe("Fonction Permission Administrateur");
+  });
+
+  it("lead an address that says nothing of the table — the link of the navigation, from the screen too — to the filters the account keeps for it before anything is read, which reads the roles filtered, and unfiltered for their authors [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await expect(AccessRolesPage(searched())).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        ";/admin/access-roles?is_predefined=false&holder_count_min=1;",
+      ) as unknown,
+    });
+    expect(queriesOf("GET /access-roles")).toEqual([]);
+    await AccessRolesPage(searched({ is_predefined: "false", holder_count_min: "1" }));
+    expect(queriesOf("GET /access-roles")).toEqual([
+      { is_predefined: "false", holder_count_min: "1" },
+      {},
+    ]);
+  });
+
+  it("read the roles unfiltered at an address that says the reading lifted, or a sort alone, whatever the account keeps", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await AccessRolesPage(searched({ search: "" }));
+    await AccessRolesPage(searched({ sort_by: "label", sort_order: "desc" }));
+    expect(queriesOf("GET /access-roles")).toEqual([{}, { sort_by: "label", sort_order: "desc" }]);
   });
 
   it("ask no bound that is no count, nor a kind that is none", async () => {
@@ -373,9 +582,10 @@ describe("the access roles", () => {
     expect(queriesOf("GET /access-roles")).toEqual([{}]);
   });
 
-  it("say at its field the bound the API refuses, the grid unread, the matrix of every role kept", async () => {
+  it("say at its field the bound the API refuses, the grid unread, the matrix without a role", async () => {
     server.answers = {
       ...server.answers,
+      // The list refused, then the roles unfiltered, read for their authors.
       "GET /access-roles": [
         { problem: example("access_roles_bounds_inverted") as Problem & { status: 422 } },
         "access_roles",
@@ -387,24 +597,120 @@ describe("the access roles", () => {
     expect(page).not.toContain('aria-label="Rôles d’habilitation" role="grid"');
     expect(text(page)).toContain(text(CATALOGUES.fr.reference.boundsRefused));
     expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 2.");
-    expect(rows(page, "Permissions par fonction")[0]).toContain("Pilotage de projet");
+    expect(rows(page, "Permissions par fonction")[0]).toBe("Fonction Permission");
   });
 
-  it("offer to a session that may modify the roles the commands to create one, and to modify and delete each", async () => {
+  it("name an author deactivated since in its audit columns, and an anonymised one by the neutral label, never by a name it no longer has [WF-ADM-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /me": "me_estimator",
+      "GET /access-roles": "access_roles_updated_by_deactivated",
+    };
+    const asked = { updated_by_user_id: "01926f3a-7c00-7000-8000-000000000303" };
+    const deactivated = rendered(await AccessRolesPage(searched(asked)));
+    expect(rows(deactivated, "Rôles d’habilitation").slice(1, 2)).toEqual([
+      "Chef de projet Prédéfini 1 La plateforme Alix Moreau",
+    ]);
+    // The author offered to the filter of its column by the same name.
+    expect(text(deactivated)).toContain(
+      "Modifié par Tous les auteurs Un compte La plateforme Alix Moreau",
+    );
+    server.answers = {
+      ...server.answers,
+      "GET /access-roles": "access_roles_updated_by_anonymized",
+    };
+    const anonymized = rendered(await AccessRolesPage(searched(asked)));
+    expect(rows(anonymized, "Rôles d’habilitation").slice(1, 2)).toEqual([
+      "Chef de projet Prédéfini 1 La plateforme Compte anonymisé",
+    ]);
+    expect(anonymized).toContain("data-anonymized");
+    expect(text(anonymized)).not.toMatch(/Alix|Moreau/);
+  });
+
+  it("name an account chosen as an author that no role cites by the neutral label once anonymised, never by a name it no longer has [WF-ADM-0060-A]", async () => {
+    const alix = "01926f3a-7c00-7000-8000-000000000303";
+    server.answers = { ...server.answers, "GET /users/{user_id}": "user_anonymized" };
+    const page = text(rendered(await AccessRolesPage(searched({ updated_by_user_id: alix }))));
+    // The authors of the roles offered, then the account chosen that none of them is.
+    expect(page).toContain(
+      "Modifié par Tous les auteurs Un compte La plateforme Camille Martin Compte anonymisé",
+    );
+    expect(page).not.toMatch(/Alix|Moreau/);
+    expect(page).not.toContain(alix);
+  });
+
+  it("ask the server for the periods and the authors of the audit columns the address names, the authors offered those of the roles unfiltered [WF-IHM-0130-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /access-roles": ["access_roles_by_updated_by", "access_roles"],
+    };
+    const page = text(
+      rendered(
+        await AccessRolesPage(
+          searched({
+            sort_by: "updated_by",
+            sort_order: "asc",
+            created_by_kind: "user",
+            updated_at_from: "2025-01-01T00:00:00Z",
+          }),
+        ),
+      ),
+    );
+    expect(queriesOf("GET /access-roles")).toEqual([
+      {
+        sort_by: "updated_by",
+        sort_order: "asc",
+        created_by_kind: "user",
+        updated_at_from: "2025-01-01T00:00:00Z",
+      },
+      {},
+    ]);
+    expect(page).toContain("Créé par Tous les auteurs Un compte La plateforme Camille Martin");
+    // No search of the accounts on the screen of the roles: their authors are all offered.
+    expect(page).not.toContain("Chercher un compte");
+  });
+
+  it("say at its field the end of a period the API refuses for preceding its start, the grid unread", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /access-roles": [
+        { problem: example("access_roles_period_inverted") as Problem & { status: 422 } },
+        "access_roles",
+      ],
+    };
+    const page = rendered(
+      await AccessRolesPage(
+        searched({
+          updated_at_from: "2026-06-01T00:00:00Z",
+          updated_at_to: "2026-05-01T00:00:00Z",
+        }),
+      ),
+    );
+    expect(page).not.toContain('aria-label="Rôles d’habilitation" role="grid"');
+    expect(text(page)).toContain(text(CATALOGUES.fr.reference.boundsRefused));
+    expect(text(page)).toContain(CATALOGUES.fr.grid.period.invertedUndated);
+    expect(rows(page, "Permissions par fonction")[0]).toBe("Fonction Permission");
+  });
+
+  it("offer to a session that may modify the roles to create one in line, to delete each, and to write their permissions in the matrix", async () => {
     const page = rendered(await AccessRolesPage(searched()));
     expect(rows(page, "Rôles d’habilitation")[0]).toBe(
-      "Libellé Nature Comptes porteurs Modifier Supprimer",
+      "Libellé Nature Comptes porteurs Créé le Créé par Modifié le Modifié par Supprimer",
     );
     expect(buttons(page)).toContain("Créer un rôle");
+    expect(page).toContain('aria-label="Création d’un rôle"');
     expect(page).toContain('aria-label="Supprimer «\u00a0Chiffreur\u00a0»"');
-    expect(page).toContain('aria-label="Modifier «\u00a0Manager\u00a0»"');
+    expect(page).toContain(
+      'aria-label="«\u00a0Restaurer la plateforme\u00a0» pour «\u00a0Administrateur\u00a0»"',
+    );
   });
 
   it("present the permissions of the catalogue in its order, under the function of the second level each covers, and whether each role holds it", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const matrix = rows(rendered(await AccessRolesPage(searched())), "Permissions par fonction");
-    // A header, forty-eight permissions of the functions, the consultation of the journal of
-    // audit, eight irreversible and two structuring.
-    expect(matrix).toHaveLength(60);
+    // A header, forty permissions of the functions — the functions in reading alone read only
+    // (#739) —, the consultation of the journal of audit, eight irreversible and two structuring.
+    expect(matrix).toHaveLength(52);
     // Named by the catalogue, never by a code of the FBS (#518).
     expect(matrix).toContain(
       "Journal d’audit Consulter le journal d’audit Accordée Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
@@ -433,7 +739,7 @@ describe("the access roles", () => {
   });
 
   it("offer to create no permission, nor any command of the roles to a session that may not modify them [WF-ADM-0100-A]", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const page = rendered(await AccessRolesPage(searched()));
     expect(buttons(page).filter((name) => /Créer|Modifier|Supprimer/.test(name))).toEqual([]);
     expect(links(page)).toEqual([]);
@@ -538,6 +844,7 @@ describe("the backups", () => {
   });
 
   it("present each backup with its date, its size and its verification [WF-ADM-0150-A]", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_auditor" };
     const page = rendered(await BackupsPage(searched()));
     const backups = rows(page, "Sauvegardes");
     expect(backups).toHaveLength(9);
@@ -550,13 +857,78 @@ describe("the backups", () => {
     expect(text(page)).toContain("8 sauvegardes");
   });
 
-  it("present their schedule and retention, and start neither a backup nor a restoration", async () => {
+  it("present their schedule and retention, and to a session that may not modify them, no command", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_auditor" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
       "Planification État Active Fréquence Quotidienne Heure 01:00 UTC Rétention 7 sauvegardes conservées",
     );
+    expect(rows(page, "Sauvegardes")[0]).toBe(
+      "Date Taille Vérification Déclenchement Conservation",
+    );
     expect(buttons(page)).toEqual([]);
     expect(links(page)).toEqual([]);
+  });
+
+  it("offer an administrator to back up now, to download or restore each verified backup, and to deposit one of another installation [WF-ADM-0150-A]", async () => {
+    shown.path = "/admin/backups";
+    const page = rendered(await BackupsPage(searched()));
+    const backups = rows(page, "Sauvegardes");
+    expect(backups[0]).toBe("Date Taille Vérification Déclenchement Conservation Commandes");
+    expect(backups[1]).toBe("1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer");
+    expect(buttons(page)).toEqual([
+      "Sauvegarder maintenant",
+      ...Array<string>(8).fill("Restaurer"),
+      "Déposer",
+    ]);
+    // Downloaded by the route of the front that hands the archive on, never from the API itself.
+    expect(links(page)).toHaveLength(8);
+    // It names the page of the list it leaves from, which a refusal comes back to.
+    expect(links(page)[0]).toBe(
+      "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
+    );
+    expect(text(page)).toContain(
+      "Restaurer une sauvegarde d’une autre installation Déposez l’archive d’une sauvegarde",
+    );
+  });
+
+  it("list the backups and offer their commands without a schedule the API does not find [WF-ADM-0150-A]", async () => {
+    // The service answers 404 to the schedule until it serves it (EP-13).
+    shown.path = "/admin/backups";
+    server.answers = { ...server.answers, "GET /backup-schedule": NOT_FOUND };
+    const page = rendered(await BackupsPage(searched()));
+    expect(text(page)).not.toContain("Planification");
+    expect(rows(page, "Sauvegardes")[1]).toBe(
+      "1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer",
+    );
+    expect(buttons(page)).toEqual([
+      "Sauvegarder maintenant",
+      ...Array<string>(8).fill("Restaurer"),
+      "Déposer",
+    ]);
+  });
+
+  it("offer the download and the restoration of a verified backup alone, never of one in verification or whose verification failed [WF-ADM-0150-A]", async () => {
+    shown.path = "/admin/backups";
+    server.answers = { ...server.answers, "GET /backups": "backups_unverified" };
+    const page = rendered(await BackupsPage(searched()));
+    expect(rows(page, "Sauvegardes").slice(1)).toEqual([
+      "1,2 gigaoctet Vérification en attente Manuelle",
+      "1,2 gigaoctet Vérification échouée Planifiée",
+      "1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer",
+    ]);
+    expect(links(page)).toEqual([
+      "/admin/backups/01926f3a-7c00-7000-8000-000000000906/content?from=%2Fadmin%2Fbackups",
+    ]);
+  });
+
+  it("tell the refusal of a download the route carried back in the address", async () => {
+    shown.path = "/admin/backups";
+    const page = rendered(await BackupsPage(searched({ download_refusal: "404:NOT_FOUND" })));
+    expect(page).toContain('role="alert"');
+    expect(text(page)).toContain(
+      "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès. Fermer l’avis",
+    );
   });
 
   it("present the external copy of the scheduled backups, the location by the name the installation declares", async () => {
@@ -578,7 +950,8 @@ describe("the backups", () => {
   it("say there is none yet, once", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_empty" };
     const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toMatch(/Sauvegardes Aucune sauvegarde\.$/);
+    expect(text(page)).toContain("Sauvegardes Aucune sauvegarde. Restaurer une sauvegarde");
+    expect(text(page).split("Aucune sauvegarde").length - 1).toBe(1);
     expect(page).not.toContain('<table aria-label="Sauvegardes"');
   });
 

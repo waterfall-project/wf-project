@@ -11,15 +11,37 @@ import { STORAGE_KEY } from "@/components/tasks/storage";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { loadDocument } from "@/navigation/document";
+import { createIdentityProvider } from "@/session/provider";
+import { SessionLost } from "@/session/tokens";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { TEST_SETTINGS } from "@/test/identity-provider";
+import { cookieJar } from "@/test/session";
 
 import { Shell } from "./shell";
 
-// The server of Next, as far as signing out needs it: the fake back behind serverClient.
+// The server of Next, as far as signing out needs it: the fake back behind serverClient, which
+// grants its own session (`WATERFALL_AUTH=mock`).
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 
-vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("@/api/server", () => ({
+  serverClient: () => server.client,
+  isMockAuthentication: () => true,
+}));
 vi.mock("@/navigation/document", () => ({ loadDocument: vi.fn() }));
+// The realm of the tests: what a lost session reaches.
+vi.mock("@/session/provider", async (original) => ({
+  ...(await original<typeof import("@/session/provider")>()),
+  identityProvider: () => createIdentityProvider(TEST_SETTINGS),
+}));
+// The ticket of the sign-out of a session lost, which Redis keeps (`session.test.ts`).
+vi.mock("@/session/store", async (original) => ({
+  ...(await original<typeof import("@/session/store")>()),
+  armSignOut: () => Promise.resolve("armed-ticket"),
+}));
+// The cookie of the session the front lost, to which the ticket is bound.
+vi.mock("next/headers", () => ({
+  cookies: () => Promise.resolve(cookieJar({ "__Host-wf_session": "lost" })),
+}));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   usePathname: () => SCREEN,
@@ -28,8 +50,9 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const SCREEN = `/projects/${PROJECT}/revisions`;
-const SIGN_OUT = "DELETE /session";
-const { user, permissions } = example("session") as components["schemas"]["Session"];
+const SIGN_OUT = "DELETE /me/sessions";
+const account = example("me") as components["schemas"]["UserSelf"];
+const { permissions } = account;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
@@ -60,7 +83,7 @@ function shell() {
   return render(
     <Shell
       locale="fr"
-      account={user}
+      account={account}
       preference="default"
       theme="default"
       permissions={permissions}
@@ -117,6 +140,25 @@ describe("signing out from the menu of the account", () => {
     await signOut();
     expect(rememberedContext()).toBeUndefined();
     expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login");
+  });
+
+  it("sends the browser to the silent sign-in that closes every workstation, when the front had lost its session (#689) [WF-SEC-0020-A]", async () => {
+    const sent: Request[] = [];
+    server.client = createApiClient({
+      address: "http://api.test",
+      bearer: () => {
+        throw new SessionLost();
+      },
+      fetch: (request) => {
+        sent.push(request);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    shell();
+    await signOut();
+    expect(sent).toEqual([]);
+    expect(rememberedContext()).toBeUndefined();
+    expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login?sign_out=armed-ticket");
   });
 
   it("says the API out of reach, and keeps what the session left, which still stands", async () => {

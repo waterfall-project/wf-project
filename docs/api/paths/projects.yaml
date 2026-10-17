@@ -86,6 +86,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/projects_period_inverted.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createProject
     tags: [projects]
@@ -105,6 +106,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -116,6 +118,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}:
   get:
@@ -141,6 +144,7 @@
               reader: { $ref: ../../../fixtures/api/project_reader.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateProject
     tags: [projects]
@@ -163,6 +167,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -176,6 +181,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/state-transitions:
   get:
@@ -202,6 +208,7 @@
               exited: { $ref: ../../../fixtures/api/state_transitions_exited.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/next-state:
   get:
@@ -222,6 +229,7 @@
             schema: { $ref: ../components/schemas/projects.yaml#/NextState }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/exit:
   post:
@@ -250,6 +258,7 @@
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
             examples:
               completed: { $ref: ../../../fixtures/api/project_completed.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -259,6 +268,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/work-breakdown:
   get:
@@ -307,6 +317,8 @@
               work_packages: { $ref: ../../../fixtures/api/work_breakdown_work_packages.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setWorkBreakdown
     tags: [projects]
@@ -333,6 +345,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -349,6 +362,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/subprojects:
   get:
@@ -400,6 +414,8 @@
               with_actual_costs: { $ref: ../../../fixtures/api/subprojects_with_actual_costs.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createSubproject
     summary: Créer un sous-projet
@@ -419,6 +435,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
@@ -429,6 +446,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/subprojects/{subproject_id}:
   patch:
@@ -451,6 +470,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -465,6 +485,8 @@
             examples:
               code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteSubproject
     tags: [projects]
@@ -486,6 +508,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/contributors:
   get:
@@ -552,6 +575,8 @@
               inactive: { $ref: ../../../fixtures/api/contributors_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setContributors
     tags: [projects]
@@ -580,6 +605,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -590,6 +616,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/contributors/suggestions:
   get:
@@ -611,6 +638,7 @@
               items: { $ref: ../components/schemas/projects.yaml#/ContributorSuggestion }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/timelines:
   get:
@@ -633,6 +661,7 @@
               none: { $ref: ../../../fixtures/api/timelines_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createTimeline
     summary: Créer une chronologie
@@ -657,9 +686,12 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/timelines/{timeline_id}:
   delete:
@@ -677,3 +709,4 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

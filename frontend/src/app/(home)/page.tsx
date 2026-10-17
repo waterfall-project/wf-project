@@ -149,7 +149,7 @@ export default async function HomePage({
   // filtered whatever the address says, and no link promises otherwise (WF-IHM-0090, #522).
   const mayLift = mayLiftContributorFilter(permissions);
   const filtered = isContributorFiltered(search) || !mayLift;
-  const kept = session?.user.display_preferences?.grids?.[PROJECT_LIST_GRID.key] ?? undefined;
+  const kept = session?.display_preferences?.grids?.[PROJECT_LIST_GRID.key] ?? undefined;
   const asked = {
     filtered,
     states: readValues(search, STATES_PARAMETER, PROJECT_STATES),

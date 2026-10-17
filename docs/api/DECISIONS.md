@@ -118,12 +118,22 @@ a lancé le traitement.
 
 ## Session et erreurs
 
-**Témoin de session `httpOnly`, pas de jeton Bearer.** La session est conservée en base et
-révocable immédiatement (WF-SEC-0020, constat C-074 de la revue du §4) : un témoin
-correspond à ce modèle, et il évite de faire circuler un jeton dans des en-têtes que du
-code client pourrait stocker.
+**Un jeton `bearer`, le jeton d'accès du fournisseur d'identité** (EP-03, US-0350/L1 ; défait
+« témoin de session `httpOnly`, pas de jeton Bearer », décision d'EP-02). Le front obtient les
+jetons du fournisseur d'identité côté serveur, les garde dans Redis sous un identifiant opaque
+et ne donne au navigateur que cet identifiant, dans un témoin qui n'est pas celui de l'API : le
+navigateur ne détient aucun jeton (WF-ARC-0030). Le front porte le jeton d'accès à l'API, qui le
+valide et n'en tire que l'identité du compte ; les rôles et l'état du compte se lisent en base à
+chaque requête (WF-SEC-0020). Le schéma de sécurité du contrat est donc `bearer` (`type: http`,
+`scheme: bearer`, `bearerFormat: JWT`), non plus un témoin `wf_session` ; le motif de C-074, un
+jeton qui circule dans des en-têtes que du code client pourrait stocker, vaut pour le navigateur,
+et le navigateur n'en voit aucun. Écarté : garder la session ouverte par Waterfall, un mot de
+passe reçu et une session conservée en base — contraire à WF-ARC-0030 (l'authentification est
+déléguée), à WF-ADM-0140 (aucun écran de Waterfall ne demande de mot de passe) et au §4.4.1
+(la session du front est dans Redis).
 
-**Les permissions effectives sont renvoyées avec la session.** Sans elles, le front ne peut
+**Les permissions effectives sont renvoyées par `getMe`** (EP-02 : avec la session ; EP-03 :
+avec le compte). Sans elles, le front ne peut
 pas tenir WF-IHM-0090, qui distingue une commande indisponible d'une commande absente.
 Aucune exigence ne l'impose — voir C-087. Elles règlent la navigation : une fonction dont
 l'utilisateur n'a pas la consultation ne s'y présente pas.
@@ -175,6 +185,13 @@ d'écriture, ou pas contributeur, c'est 403 avec la condition nommée.
 
 **`412` pour un `lock_version` périmé**, distinct du `409` d'un conflit d'état. Le front
 peut ainsi proposer de recharger dans un cas et d'expliquer dans l'autre.
+
+**Un identifiant de chemin mal formé est un 404, un autre paramètre de chemin mal formé un
+422** (EP-03/US-0330/L1). Un identifiant qui n'est pas un UUID ne peut nommer aucun objet : il
+reçoit la réponse d'un objet inexistant ou invisible, 404 `NOT_FOUND` (README, 404 contre 403).
+Tout autre paramètre de chemin refusé (`year`, `part_number`, `location_name`…) est une valeur
+que l'opération refuse : 422 `VALIDATION_FAILED`, un champ par faute, au pointeur
+`/path/<nom>` — par analogie avec `/query/<nom>` du paramètre de requête.
 
 **Chaque signalement porte sa zone** (`AlertZone`, EP-02/L4, #139). WF-IHM-0070 veut une
 échelle commune, et une zone que le serveur classe : le dépassement du budget d'un sous-projet
@@ -692,19 +709,21 @@ L'écran des comptes présente chacun avec ses rôles d'habilitation et son ratt
 (WF-ADM-0050) ; sans les libellés, le front rapprochait `listAccessRoles` et `listOrgNodes` des
 comptes (WF-ARC-0020), et disait inconnu un nœud désactivé auquel un compte reste rattaché
 (WF-REF-0150). Libellés résolus à la lecture, exigés : les rôles dans l'ordre de
-`access_role_ids`, le nœud nul sans rattachement. Ils valent pour `UserSelf`, que la session
+`access_role_ids`, le nœud nul sans rattachement. Ils valent pour `UserSelf`, que `getMe`
 rend. Écarté : des objets `{access_role_id, label}` à la place des identifiants, qui auraient
 changé la forme que `setUserAccessRoles` écrit.
 
 **Exemples**, dans l'univers des autres, au 16 mars 2026 : `users` et `users_page` (les comptes
-de l'installation, par nom — Dominique Bernard de `me_directory`, Camille Martin de la session,
+de l'installation, par nom — Dominique Bernard de `me_directory`, Camille Martin de `me`,
 Alix Moreau, désactivée, de `contributors`, et un compte venu du fournisseur d'identité, sans
 rôle —, puis leur seconde page lue deux par deux) ; `permissions` (le catalogue, dans l'ordre de
 `PermissionCode`) ; `access_roles` (les trois rôles prédéfinis tels que livrés, et celui, composé
-de tout le catalogue, que porte la session) ; `system_status` et `system_status_backup_failed`
+de tout le catalogue, que porte `getMe`) ; `system_status` et `system_status_backup_failed`
 (l'installation saine, puis la même au stockage des fichiers indisponible, la sauvegarde planifiée
 échouée et signalée) ; `backups` et `backups_empty` (les sept sauvegardes de la rétention et une
-manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond`) ;
+manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond` ;
+une manuelle en vérification, une planifiée à la vérification échouée et une vérifiée,
+`backups_unverified`) ;
 `backup_schedule`, `backup_schedule_weekly` et `backup_schedule_disabled` (suspendue). Les sessions
 d'un chiffreur et sans administration, qui n'ont pas tout le catalogue, portent chacune un rôle
 propre (`Chiffreur`, `Pilotage de projet`), que `access_roles` ne liste pas : ce sont d'autres
@@ -826,7 +845,8 @@ d'`avatar_max_bytes`, la spécification ne fixant pas la taille d'une sauvegarde
 `FILE_TOO_LARGE`. `FileUpload.purpose` redit l'usage ; un import ne s'ouvre que sur un dépôt
 d'import, une restauration que sur un dépôt de sauvegarde. Le front règle sa borne sur celle des
 imports (`IMPORT_MAX_BYTES`, `bodySizeLimit`). Exemples : `file_upload` (un import),
-`installation` (vingt gigaoctets).
+`installation` (vingt gigaoctets). *`uploadFile` ne reçoit plus la sauvegarde : défait par
+EP-03/US-0350/L1, décision 10.*
 
 **Un paramètre de requête refusé se désigne par `/query/<nom>`** (`FieldProblem.pointer`, #307).
 Le pointeur JSON ne désigne que le corps ; un paramètre de requête a désormais sa forme, préfixée,
@@ -1280,7 +1300,8 @@ permission propre, et une permission nouvelle serait une modification de la spé
 l'adresse du front que #154 demandait de fixer : `<adresse publique du front>/login/reset?token=<jeton>`,
 celle que le front d'EP-02 a posée, l'adresse publique du front étant un paramètre de
 l'installation, fixé à son déploiement (WF-EXP-0020), que l'API ne sert pas ; la description de
-`requestPasswordReset` dit le même lien pour le courriel. Exemple : `password_setup_link`.
+`requestPasswordReset` dit le même lien pour le courriel (défait par EP-03/US-0350/L1, décision 5 :
+le lien mène au fournisseur d'identité, `requestPasswordReset` disparaît). Exemple : `password_setup_link`.
 
 **Les lignes du portefeuille disent si le projet s'ouvre** (`can_open`, #389 ; WF-PTF-0030,
 WF-ADM-0110) : un booléen exigé sur `PortfolioProjectRow`, sur les risques les plus lourds de
@@ -2536,7 +2557,7 @@ la produit (EP-03, US-0410).
   soit contributeur ou non, comme les vues du portefeuille nomment les projets qu'elles comptent ;
   le lien vers l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110). Les exemples l'accordent au rôle prédéfini d'administrateur et à
   « Direction de projet », qui porte tout le catalogue, donc aux sessions de Camille Martin, et à
-  « Auditeur », un rôle composé qui ne porte qu'elle, celui de Noé Vidal (`session_auditor`) : la
+  « Auditeur », un rôle composé qui ne porte qu'elle, celui de Noé Vidal (`me_auditor`) : la
   session d'un auditeur qui ne lit ni les comptes ni les projets dont il n'est pas contributeur
   (EP-02/L41e).
   La spécification révisée par #518, relue et acceptée par l'auteur, porte la fonction FBS-1.5, et
@@ -3066,7 +3087,9 @@ puis le nom —, que la liste des contributeurs cherche déjà (EP-02/L42e) : «
 le compte, qu'aucune colonne ne porte entier. Le texte se compare comme toute recherche, sans égard
 à la casse ni aux accents (paragraphe suivant). Le paramètre est propre à l'opération, comme celui
 des contributeurs, le paramètre partagé disant « le libellé », qu'un compte n'a pas. Exemple
-`users_search` : « ines roux » trouve Inès Roux par son nom affiché, sans son accent ni sa casse.
+`users_search` : « ines roux » trouve Inès Roux par le prénom suivi du nom, sans son accent ni
+sa casse. *Reformulé par EP-03/US-0350/L1, décision 7 : le comportement ne change pas, le « nom
+affiché » n'est pas un champ du contrat.*
 
 **Une recherche ignore la casse et les accents** (décision de l'auteur du 2026-10-09). Le premier
 passage du lot comparait les textes cherchés dans leurs points de code, accents compris, sans égard
@@ -3468,6 +3491,529 @@ natures provision, la désactivation et le rattachement des catégories provisio
 `setHourlyRate`, par un premier taux, le rattachement de la catégorie à une nature d'un autre type
 (`cost_category_unrated`). `test_mockcostsettings.py` exige « relit » de chacune ; le résumé de
 `cost_categories` dit la désactivation de PRV-001 indisponible.
+
+## L'authentification déléguée, les comptes et la sauvegarde de la plateforme (EP-03/US-0350/L1)
+
+Les dix modifications du contrat de la conception d'EP-03 (« Modifications du contrat »),
+faites par le premier lot avant le code qui les consomme. Elles défont, pour la première, une
+décision d'EP-02 (« Session et erreurs ») ; chacune dit l'option écartée.
+
+**1. Le schéma de sécurité est `bearer`.** Voir « Session et erreurs ». La règle
+`rule/session-operation-declares-401` de `redocly.yaml` garde son nom — la conception d'EP-03 et
+d'EP-02 la citent — et son sens : toute opération gardée déclare le 401, une opération publique
+le dit par `security: []`. Le 401 porte désormais le jeton absent, expiré ou invalide, et le
+compte désactivé.
+
+**2. La famille `session` disparaît.** Retirées : `listAuthProviders`, `getCurrentSession`,
+`openSession`, `startOidcSession`, `completeOidcSession`, `requestPasswordReset`,
+`confirmPasswordReset`, `changeMyPassword`, avec `AuthProviderKind`, `AuthProvider`,
+`LocalCredentials`, `Session`, `PasswordResetRequest`, `PasswordResetConfirm`, `PasswordChange`,
+et leurs exemples (`auth_providers*`). Le fournisseur d'identité authentifie, réinitialise et
+change les mots de passe sur ses pages ; Waterfall n'en voit aucun (WF-ADM-0140). `closeSession`
+devient `closeMySessions` (`DELETE /me/sessions`, famille `me`) et ferme toutes les sessions du
+compte, sur tous ses postes : c'est la lecture de WF-SEC-0020, « à la requête suivante, sur tous
+ses postes ». Écarté : ne fermer que la session du navigateur, qui ne tient pas la phrase.
+Les opérations de la famille `me` (`getMe`, `updateMyPreferences`, `putMyAvatar`,
+`deleteMyAvatar`) vivent dans `paths/me.yaml`, qui remplace `paths/session.yaml`.
+
+**3. `getMe` porte les permissions.** `UserSelf.permissions` est l'union des permissions des
+rôles du compte, ce que `Session.permissions` portait ; `expires_at` et `idle_expires_at`
+disparaissent, la durée de la session étant celle du fournisseur d'identité. Les exemples de
+session deviennent des exemples de `getMe`, un par ancien exemple : `session` → `me`,
+`session_english` → `me_english`, `session_without_preferences` → `me_without_preferences`,
+`session_dark` → `me_dark`, `session_without_administration` → `me_without_administration`,
+`session_grid_settings` → `me_grid_settings`, `session_estimator` → `me_estimator`,
+`session_without_roles` → `me_without_roles`, `session_manager` → `me_manager`,
+`session_auditor` → `me_auditor` ; les exemples `me*` qui existaient (`me_directory`,
+`me_with_avatar` compris) gagnent leurs permissions. Écarté : une opération de plus pour lire
+les permissions, un aller-retour de plus à chaque page pour une donnée du même compte.
+
+**4. Codes d'erreur.** `ACCOUNT_DEACTIVATED` (401) entre ; `INVALID_CREDENTIALS`,
+`ACCOUNT_LOCKED` et `PASSWORD_RESET_TOKEN_INVALID` sortent, le fournisseur d'identité tenant les
+identifiants, le verrouillage et le lien de réinitialisation. Un compte désactivé est un 401 et
+non un 403 : toute opération gardée le déclare déjà, et le front distingue le code, ne renvoie
+pas à la connexion, qui bouclerait. Par champ entrent `UNKNOWN_ACCESS_ROLE`, `UNKNOWN_ORG_NODE`
+et `FIELD_READ_ONLY`, et `createUser`, `updateUser`, `setUserAccessRoles` déclarent leur 422,
+`VALIDATION_FAILED` avec `fields`, comme les écritures du référentiel. Le refus du nom, du
+prénom ou de l'adresse d'un compte qui ne vient pas de Waterfall, qui était un 409
+`STATE_FORBIDS_OPERATION` sans paramètre (EP-02/L42g), devient un 422 par champ,
+`FIELD_READ_ONLY` sur le champ en défaut (`user_external_update_refused` change de statut) :
+c'est un refus de champ, que le formulaire peut montrer sur le champ. Écarté : garder le 409,
+qui ne dit pas quel champ.
+
+**5. Le lien de fixation mène au fournisseur d'identité.** `PasswordSetupLink.url` est une
+adresse de la page du fournisseur d'identité qui fixe le mot de passe, non plus `/login/reset`
+du front, qui n'existe plus. Le 409 de `createPasswordSetupLink` nomme sa condition par
+`params.missing_condition`, deux valeurs de plus de `CommandCondition` : `is_local_account`,
+`is_active_account`. Écarté : `params.state`, que #413 dit ambigu, et qui n'a de sens que pour
+`ProjectState`.
+
+**6. La lecture des comptes passe par le fournisseur d'identité.** `/directory-syncs` devient
+`/identity-syncs` (`startIdentitySync`, `getLatestIdentitySync`) ; `BackgroundTaskRef.kind`
+`directory_sync` devient `identity_sync` ; `DirectorySyncResult` devient `IdentitySyncReport`, dont
+chaque signalement (`skipped[].code`) est un `ErrorCode` et non une chaîne libre ; le 409 « aucun
+annuaire activé » disparaît, une installation sans annuaire lisant simplement zéro compte ;
+`PlatformComponent` remplace `directory` par `identity_provider`, et, qui suivent, l'alerte
+`directory_sync_failed` devient `identity_sync_failed` et `SystemStatus.last_directory_sync`
+`last_identity_sync`. Waterfall ne lit jamais l'annuaire lui-même (WF-ADM-0070, WF-ADM-0180).
+Écarté : lire l'annuaire en LDAP depuis Waterfall, un second chemin vers l'annuaire que la
+spécification révisée a retiré.
+
+**7. Les tables des comptes et des rôles.** EP-02/L42f avait déjà ajouté les filtres que la
+conception d'EP-03 nomme sous d'autres noms : sur `listUsers`, les rôles (`access_role_ids`) et
+l'état (`is_active`, avec `include_inactive`, plus riche qu'une liste d'états) ; sur
+`listAccessRoles`, la nature (`is_predefined`) et les porteurs (`holder_count_min`,
+`holder_count_max`, plus riches qu'un booléen « a des porteurs » : `holder_count_max=0` dit « sans
+porteur »). Ils restent, ce lot n'en ajoute pas un second jeu qui ferait deux façons de
+filtrer la même colonne. Ce que le lot ajoute : le départage par identifiant, dit dans les
+descriptions des deux listes et de leur `sort_by`, qui rend les pages stables ; la règle générale
+du README (« un tri à égalité se départage… par l'identifiant ») s'y applique désormais en
+terminant par l'identifiant du compte ou du rôle, dans le sens du tri. La recherche de
+`listUsers` porte sur le nom, le prénom et l'adresse, et sur « le prénom suivi du nom, tels que la
+table les montre » : « ines roux » trouve Inès Roux sans qu'un « nom affiché » soit un champ du
+contrat (L42f). `listAccessRoles` rend un tableau nu : le nombre de rôles retenus se lit de sa
+longueur, la liste n'étant pas paginée.
+
+**8. La suppression d'un rôle est logique.** `deleteAccessRole` le dit (WF-DAT-0080) : le rôle
+n'est plus proposé, sa trace est conservée, et il est un 404 ensuite. Écarté : la suppression
+physique, contraire à WF-DAT-0080.
+
+**9. La sauvegarde couvre les deux bases.** `Backup`, `startBackup` et `startRestore` disent que
+la sauvegarde est celle des deux bases de la plateforme, Waterfall et le fournisseur d'identité
+(WF-ADM-0150), que le journal d'audit n'est pas restauré mais laissé en place, la restauration
+s'y inscrivant (WF-ADM-0160 révisée), et que la plateforme est en maintenance pendant la
+restauration : 503 `COMPONENT_UNAVAILABLE`. Le refus d'une sauvegarde d'une version plus récente
+que l'installation se nomme `BACKUP_FROM_NEWER_VERSION` et est le fait de **la tâche `restore`**, que
+la conception d'EP-03 charge de refuser l'archive avant de mettre la plateforme en maintenance :
+elle échoue, `BackgroundTaskRef.problem` portant le code, avec `backup_version` et
+`installed_version` dans ses `params` (exemple `task_restore_backup_newer_version`), et aucune
+session n'est fermée pour rien. Écarté : un 422 synchrone de `startRestore`, qui obligerait l'API à
+lire l'archive dans la requête (défaut n° 4 de `docs/dev/python.md`, un traitement lent dans la
+requête). `BackgroundTaskRef.kind` possédait déjà `restore` : une tâche suit toute la restauration,
+de la mise en maintenance à sa levée, et ne passe à `succeeded` qu'à la levée. Écarté : une tâche
+par phase, qui rendrait une restauration « réussie » avant que la plateforme ne réponde. Reste une
+question ouverte, **#604** : pendant la maintenance l'API répond 503 et la tâche vit dans la base
+recréée, de sorte que la façon de suivre la fin d'une restauration n'est pas tranchée ; le lot de
+la restauration (US-0440/L2) la règlera, et le contrat n'y touche pas ici.
+
+**10. Le dépôt par morceaux d'une sauvegarde** (#350). Un dépôt s'ouvre, reçoit ses morceaux et se
+termine : `openChunkedUpload` (`POST /chunked-uploads`, `ChunkedUploadOpen` → `ChunkedUpload`),
+`uploadChunk` (`PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}`, octets bruts →
+`ChunkedUpload`), `completeChunkedUpload` (`POST /chunked-uploads/{chunked_upload_id}/completion`
+→ `FileUpload`, `purpose` à `external_backup`). Le serveur fixe à l'ouverture la taille d'un
+morceau (`part_size_bytes`, entre 5 Mio, le plus petit morceau que le stockage objet assemble, et
+10 Mio, la borne du corps d'une action serveur du front, celle des imports, « Un dépôt dit son
+usage » : la raison d'être des morceaux est de passer sous cette borne). À 5 Mio, une sauvegarde
+de 20 Gio, la valeur d'`Installation` du témoin, fait 20 Gio ÷ 5 Mio = 4 096 morceaux, sous la
+limite des dépôts en plusieurs parties du stockage objet (10 000), que `ChunkedUpload.part_count`
+porte en `maximum`. Le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000
+morceaux ; l'ouverture est refusée par 413 `FILE_TOO_LARGE` au-delà d'`external_backup_max_bytes`
+**ou** au-delà de 10 000 morceaux de 10 Mio (10 000 × 10 Mio, environ 97 Gio). Le réglage
+`external_backup_max_bytes` n'est pas borné pour autant : le refus est celui de l'ouverture.
+Chaque morceau est de la taille exacte (`part_size_bytes`, le reste pour le dernier), sinon
+422 `VALIDATION_FAILED`, `/body` par `VALUE_OUT_OF_RANGE` (`params.minimum` et `maximum`
+égaux à la taille attendue : aucun code nouveau) ; un morceau redéposé remplace le précédent,
+ce qui reprend un envoi interrompu à partir de la dernière réponse.
+Les trois opérations exigent `platform_restore`, comme `startRestore` (403). Le 409 de
+`completeChunkedUpload` dit dans `params.missing_parts` les numéros manquants (exemple
+`chunked_upload_incomplete`). **Pas d'opération de lecture d'un
+dépôt** : la conception dit trois temps, ouvrir, recevoir, terminer ; un envoi que le client ne
+peut plus suivre — un rechargement de page — recommence par une ouverture, le dépôt précédent
+expirant ; une lecture serait une surface de plus pour un cas que l'expiration couvre. L'assemblage est celui du
+dépôt en plusieurs parties du stockage objet (WF-ARC-0050), et l'identifiant du `FileUpload` rendu
+est celui que `startRestore` désigne. `uploadFile` garde sa forme et ne sert plus que les
+imports : `purpose` à `external_backup` y est refusé par `UPLOAD_PURPOSE_MISMATCH`. Écartés
+(« Décisions » du fichier d'EP-03) : une action serveur, dont la taille de corps est bornée ; une
+adresse signée du stockage objet, où le navigateur parlerait au stockage, hors des flux du
+§4.3.2 ; un gestionnaire de route qui relaie l'API, écarté par EP-02 (WF-ARC-0020). Écarté
+aussi : une opération d'abandon, l'expiration (24 heures, comme un fichier d'import) suffit.
+*Complété par EP-03/US-0440/L2c (#1006)* : le `FileUpload` que rend `completeChunkedUpload` porte
+`backup_taken_at`, la date que dit le manifeste, en tête de l'archive, lue à l'achèvement ; une
+archive dont la tête n'en dit pas est refusée là (422 `FILE_FORMAT_UNREADABLE`, le dépôt reste
+inachevé) : un dépôt sans date serait restaurable sous n'importe quelle date confirmée. C'est la
+date que la confirmation de `startRestore` doit nommer, et l'écran ne la connaîtrait sinon qu'en
+lisant l'archive dans le navigateur, une seconde lecture du manifeste, fragile, que le service fait
+déjà (écarté). Le champ n'existe que pour `external_backup`.
+
+## Les comptes non admis, les adresses et le 503 des opérations gardées (EP-03, #664, #665, #666)
+
+Décisions de l'auteur du 2026-10-10, sur trois constats de la revue d'US-0350/L3.
+
+**Un compte que Waterfall n'admet pas est refusé par 401 `ACCOUNT_NOT_ADMITTED`** (#664). Un
+compte local du fournisseur que Waterfall n'a pas créé (WF-ADM-0070), sans nom, sans prénom ou
+sans adresse, ou dont l'adresse est déjà portée par un autre (WF-ADM-0050), n'est pas un compte
+désactivé : `ACCOUNT_DEACTIVATED` le lui dirait à tort. Le front le traite comme lui, un refus
+sans renvoi à la connexion, qui bouclerait. Écarté : `SESSION_REQUIRED`, qui ferait boucler ;
+un 403, que chaque opération devrait déclarer. Une personne de l'annuaire dont l'adresse est
+déjà portée par un compte de Waterfall est rattachée à ce compte, l'annuaire étant ce qui
+reconnaît la personne par son adresse (motif de WF-ADM-0050) ; venue d'un fournisseur externe,
+elle est refusée : un fournisseur peu rigoureux sur les adresses ouvrirait le compte d'un autre.
+
+**Une adresse est reçue telle qu'elle est écrite** (#665). La règle est au tableau du README :
+une forme simple, casse gardée, comparée sans égard à la casse, domaines à usage spécial et sans
+point admis. Waterfall n'envoie aucun courriel lui-même, le fournisseur d'identité le fait : il
+n'a pas à être plus strict que l'annuaire qu'il lit, et un annuaire d'entreprise en `.local`
+donnerait des comptes qu'il ne saurait pas créer. Écarté : la validation d'email-validator
+(`EmailStr`), qui refuse ces domaines et récrit la casse.
+
+**Toute opération gardée déclare 503** (#666). La lecture des clés du royaume, à la première
+requête ou après une rotation, et l'admission d'un compte inconnu attendent le fournisseur
+d'identité ; s'il ne répond pas, l'opération rend 503 `COMPONENT_UNAVAILABLE`
+(`params.component` à `identity_provider`). La règle `rule/protected-operation-declares-503` le
+vérifie, comme celle du 401. Écarté : la règle écrite au seul README, qu'une réponse validée
+contre le contrat contredirait.
+
+## Toute opération à corps déclare 400 et 422 (EP-03, #748)
+
+Décision de l'auteur du 2026-10-11. `updateAccessRole` recevait le corps de `createAccessRole`,
+plus `lock_version`, sans déclarer ni 400 ni 422 ; le relevé a trouvé soixante opérations à corps
+dans le même cas, presque toutes d'EP-02. Le service rend pourtant les deux pour toute opération
+à corps : un corps illisible, absent ou qui n'est pas un objet, par 400 `MALFORMED_REQUEST` ; un
+champ manquant, d'un autre type ou refusé, par 422 et le code du champ
+(`backend/src/waterfall/api/problems.py`). Les deux réponses sont déclarées partout où il y a un
+corps (58 `400`, 29 `422` ajoutés), et la règle `rule/operation-with-body-declares-400-and-422`
+le tient. Écarté : ne corriger que `updateAccessRole`, l'oubli se serait reproduit à la prochaine
+opération.
+
+## Le 412 de la désactivation d'un compte (EP-03/US-0360/L2, #828)
+
+`setUserActivation` reçoit le `lock_version` du compte sans déclarer le 412 qu'un compteur
+périmé donne, que toute écriture qui porte une version déclare (#296, #532) : il est déclaré,
+`STALE_LOCK_VERSION`, `params.expected_lock_version`. Écarté : ignorer le compteur reçu, une
+désactivation écraserait alors une modification que l'administrateur n'a pas vue (WF-IHM-0110).
+Son corps devient un schéma nommé, `UserActivationWrite`, comme `UserRolesWrite` : le service en
+engendre le modèle, que le générateur ne tire pas d'un corps décrit en place.
+
+## Le lien de fixation, enfin au contrat (EP-03/US-0350/L5)
+
+`createPasswordSetupLink` (`POST /users/{user_id}/password-link`) était décrit dans
+`paths/access.yaml` depuis EP-02/L29 (#388), mais la racine du contrat ne le référençait pas :
+il manquait au contrat assemblé, donc au client du front, aux modèles du service et au faux back.
+La racine le référence, sans rien changer à sa description, au moment où le service le sert.
+
+## Aucun libellé fait seulement de blancs (EP-03, #837)
+
+Décision de l'auteur du 2026-10-11. Le libellé d'un rôle n'exigeait qu'un caractère : « ␣␣␣ » était
+accepté, et le rôle n'avait plus de nom visible dans la matrice. Les quarante-quatre libellés, noms
+et codes du contrat qui exigeaient un caractère exigent désormais un caractère qui n'est pas un
+blanc (`pattern: '\S'`) ; le service, dont les modèles sont engendrés du contrat, le refuse par 422
+`VALIDATION_FAILED` au pointeur du champ. Écarté : ne corriger que le libellé d'un rôle, l'oubli
+serait resté sur les noms d'un compte et les libellés du référentiel.
+
+## Les préférences d'affichage ont une taille bornée (EP-03, #874)
+
+Décision de l'auteur du 2026-10-11. `DisplayPreferences` ne bornait ni le nombre de grilles, ni la
+taille de leurs filtres, ni la longueur des noms : chaque `updateMyPreferences` pouvait ajouter des
+grilles, et les préférences sont relues avec le compte à chaque requête de son titulaire et dans la
+liste des comptes. Bornes : cent grilles ; un nom de grille, de colonne ou de filtre de 64
+caractères ; par grille, 64 colonnes masquées et 64 largeurs ; 20 filtres, chacun un texte de 500
+caractères au plus. Les noms d'aujourd'hui en ont moins de vingt, et la recherche elle-même s'arrête
+à 200 caractères. Un filtre devient un texte, ce que le front écrit déjà : la valeur du paramètre de
+l'adresse qui le porte. Le service, dont les modèles sont engendrés du contrat, refuse une borne
+passée par 422 `VALUE_TOO_LONG` ; un nom trop long l'est au pointeur de l'objet qui le porte, comme
+un NUL dans un nom, une clé n'étant pas un champ. Écarté : une borne sur la taille du document
+entier, que le contrat ne sait pas dire et qu'un code d'erreur par champ ne pointerait pas.
+
+## Le 412 et le 422 de chaque opération qui peut les rendre, les refus du fournisseur (EP-03, #799, #827, #814, #815)
+
+Décisions de l'auteur du 2026-10-11. Le service refuse un paramètre de requête hors de son schéma
+par 422 `VALIDATION_FAILED`, sur toute opération qui en a, et un `lock_version` périmé par 412
+`STALE_LOCK_VERSION`, sur toute écriture qui en porte. Vingt-quatre opérations à paramètres de
+requête ne déclaraient pas leur 422 (#799), et `setNodeTracking` pas son 412 (#827) : elles les
+déclarent. Deux tests du service (`backend/tests/test_contract_declarations.py`) le tiennent, en
+lisant le contrat références suivies — ce que les règles de `redocly.yaml` ne savent pas faire
+pour la place d'un paramètre ou les propriétés d'un corps.
+
+`createUser` dit deux cas que le service connaît : son 409 n'a pas de `conflicting_object_id`
+quand seul le fournisseur d'identité porte l'adresse (#814) ; son 422 refuse aussi une adresse
+ou un nom que le fournisseur refuse alors que la règle du contrat les admet (#815). Écarté :
+resserrer la règle des adresses sur celle du fournisseur, qui défait la décision de #665.
+
+## Attribuer un rôle, et l'invitation d'un compte créé (EP-03/US-0360/L2b, #834, #816)
+
+**Attribuer un rôle exige la permission de modifier les rôles** (#834 ; décision de l'auteur du
+2026-10-11). `setUserAccessRoles` n'exigeait que `users.write` : qui la portait sans
+`access_roles.write` lisait l'identifiant du rôle administrateur dans les `access_role_ids` d'un
+compte, se le donnait, et obtenait la gestion des rôles. Le corps de WF-ADM-0090 (FBS-1.2) range
+« attribuer ou retirer des rôles aux comptes » parmi ce que fait l'utilisateur habilité aux rôles :
+l'opération exige désormais, outre `users.write`, `access_roles.write`, et refuse sans elle par 403
+`PERMISSION_MISSING`. La commande `set_access_roles` d'un compte ne se liste que pour qui porte les
+deux, ce qui amende « Toutes suivent `users.write` » (EP-02/L42d). Écartés : refuser seulement un
+rôle qui porte une permission que l'appelant n'a pas, une règle de plus à tenir à chaque
+modification d'un rôle ; assumer l'élévation par écrit, contraire à WF-ADM-0090.
+
+**`createUser` dit si l'invitation est partie** (#816 ; décision de l'auteur du 2026-10-11). Quand
+le courriel qui porte le lien de fixation ne part pas — royaume sans messagerie (WF-CMP-0030),
+serveur de courriel en échec, fournisseur injoignable —, le compte existe tout de même et `createUser`
+rendait 201 sans le dire : la personne attendait un courriel qui ne viendrait pas. La réponse est
+désormais `UserCreated`, le compte (`User`) et `invitation_sent`, un booléen exigé ; faux, l'écran
+des comptes propose aussitôt le lien de fixation (`createPasswordSetupLink`). Écarté : une règle
+d'écran qui propose toujours le lien, que l'administrateur remettrait aussi à qui l'a déjà reçu.
+
+## L'anonymisation d'un compte (EP-03/US-0360/L2b, #702, #832)
+
+**Un compte anonymisé garde sa ligne, ses noms et son adresse à nul** (#832 ; décision de l'auteur
+du 2026-10-11). `UserAccount` rend `last_name`, `first_name` et `email` nuls pour un compte
+anonymisé seulement, et `anonymized_at`, exigé, nul tant qu'il ne l'est pas ; `ActorRef.display_name`
+et `AuditActorFacet.display_name` sont nuls pour lui, `AuditObject.label` aussi. Le front présente
+un nom nul d'un compte sous le libellé neutre de son catalogue : l'API ne rend aucune phrase
+(WF-ARC-0110). Écartés : un libellé neutre écrit en base, une phrase que l'API rendrait ; une
+adresse de remplacement, une valeur qu'aucune personne ne porte.
+
+**`anonymizeUser`, `POST /users/{user_id}/anonymization`** : l'anonymisation est irréversible, et
+mérite un verbe comme le marquage (« Forme des chemins ») ; elle porte le `lock_version` lu, d'où
+son 412, et rend le compte (`User`) ; aucune confirmation côté API, l'écran la demande. Elle
+refuse un compte actif par 409 `STATE_FORBIDS_OPERATION`, `missing_condition` à
+`is_deactivated_account`, une condition de plus, miroir de `is_active_account`, et un compte déjà
+anonymisé par `is_not_anonymized` (#856 ; décision de l'auteur du 2026-10-11). La commande
+`anonymize` ne se liste que pour un compte désactivé, comme `reactivate` qu'elle suit : disponible
+tant qu'il n'est pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante. Un compte
+local est retiré du fournisseur d'identité **avant** l'écriture, hors transaction (#669), après
+une vérification sous transaction courte — le compte, son état, sa version — : si le fournisseur
+ne répond pas, 503 et rien n'est écrit, et l'anonymisation se redemande ; un compte que le
+fournisseur ne tient déjà plus est retiré. Une modification glissée entre la vérification et
+l'écriture fait refuser l'écriture, le compte étant déjà retiré du fournisseur : si c'est une
+réactivation, le compte local est actif hors du fournisseur, et personne ne s'y connecte, jusqu'à
+ce qu'on le désactive puis l'anonymise de nouveau, le retrait étant sans effet sur un compte que
+le fournisseur ne tient plus. Fermer cet écart est à trancher (#868). Un compte de l'annuaire ou
+d'un fournisseur externe n'est pas touché dans le fournisseur, et la lecture des comptes ne le
+recrée pas (WF-ADM-0070). Écarté : retirer le compte local après la validation, un échec du
+fournisseur seulement journalisé, qui laisse un compte anonymisé dans le fournisseur sans que
+personne le sache. La commande `reactivate` d'un compte anonymisé est indisponible,
+`is_not_anonymized` manquante, que `setUserActivation` nomme dans son 409 ; `updateUser` la nomme
+aussi pour un nom, un prénom ou une adresse envoyés à un compte anonymisé, que la contrainte de la
+table refuserait. `user_anonymize` s'ajoute à `AuditAction` (WF-SEC-0030), l'objet le compte, sans
+libellé ni paramètre. La base n'admet l'oubli d'un nom dans le journal que pour un compte anonymisé
+(#865) : le déclencheur du journal n'admet que le passage à nul de `actor_display_name` ou
+`object_label`, l'un au moins, le reste de la ligne inchangé, et un déclencheur du module des
+comptes sur le journal refuse ce passage quand le compte désigné n'a pas `anonymized_at` ; la
+plateforme ne lit la table d'aucun module (`docs/dev/sql.md`). Écarté : laisser la vérification au
+service seul, qu'une écriture qui le contourne ne rencontre pas.
+`User.available_commands` admet trois commandes.
+
+## Le journal d'audit rend les paramètres de l'action (EP-03/US-0410/L2, #706)
+
+Décision de l'auteur du 2026-10-10. `AuditEvent` disait qui avait changé les rôles de qui, mais
+pas lesquels : l'« afin de » d'US-0410, dire après coup qui a donné quel droit, ne se lisait pas,
+quand l'inscription garde ces données depuis US-0410/L1. Il rend `params`, un `AuditParams` : un
+seul objet fermé, dont chaque propriété dit l'action qui la porte — l'origine d'un compte créé,
+les champs d'une identité modifiée et, quand la modification le rattache à une personne de
+l'annuaire qui porte son adresse, ce rattachement (`attached`, #707), les permissions d'un rôle
+créé, données ou retirées par sa modification et son libellé d'avant, les rôles donnés ou
+retirés à un compte, chacun par son identifiant et son libellé du moment —, en codes, en
+identifiants et en libellés, jamais en phrase (WF-ARC-0110). Une action qui n'a rien à dire de
+plus que son objet rend un objet vide.
+Écarté : un schéma par action, choisi par `action` (`oneOf` à discriminant), que le discriminant
+d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
+dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
+qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
+L'exemple `administration` de `listAuditEvents` (`audit_events_administration`, US-0410/L2b, #961)
+donne ces paramètres tels que le service les inscrit, sur les écritures d'aujourd'hui des comptes
+et des rôles : un rôle créé sans permission, enregistré sans
+changement, renommé en recevant et en perdant des permissions ; un compte créé avec son premier
+rôle, que la requête de la création inscrit après lui sous sa corrélation ; un nom corrigé ; un
+rattachement à l'annuaire ; une attribution qui ne fait que retirer. Une attribution qui ne change
+rien n'y est pas : le service ne l'inscrit pas. Ce que les autres exemples ne répondent pas y est
+une liberté déclarée, dans le résumé comme ici :
+- une modification combinée, renommage et permissions, qu'aucun exemple d'`updateAccessRole` ne
+  répond — chacun renomme ou change les permissions, jamais les deux ; son état après est écrit
+  par `mockaudit` (les permissions de `access_role_updated` moins celles de la saisie des
+  paramètres de coûts et de ressources), et ce qu'elle accorde et retire s'en lit comme le
+  service le lit, dans l'ordre du catalogue ;
+- une création avec premier rôle qu'aucun exemple de `createUser` ne répond — chacun crée son
+  compte sans rôle : le compte de `user_created` reçoit « Chiffreur » de la requête qui le crée ;
+- un rattachement à l'annuaire, par la plateforme, qu'aucun exemple ne répond : Noé Vidal, tel que
+  la liste des comptes le donne, prend le nom que l'annuaire donne à la personne qui porte son
+  adresse, « Vidal-Roux » (`mockaudit.DIRECTORY_LAST_NAME`).
+
+Une inscription lue d'un exemple est de l'auteur de sa dernière mise à jour (`audit.updated_by`) ;
+`test_mockaudit.py` le tient.
+
+## Le journal d'audit dans la sauvegarde, la permission du téléchargement (EP-03/US-0440/L1, #705)
+
+Décision de l'auteur du 2026-10-10 (#705), suivant WF-SEC-0030 révisée : le journal d'audit est
+sauvegardé avec la base de Waterfall. `Backup`, `Backup.scope` et `startBackup` le disent, à la
+place de « à l'exception du journal d'audit » qu'écrivait la décision 9 d'US-0350/L1 ; la
+restauration, qui relit les inscriptions postérieures à la sauvegarde et les réinscrit, reste à
+dire par son lot (US-0440/L2). `startBackup` est sous `backups.write`, comme toute écriture de la
+fonction ; `downloadBackup` demande `backups.read` puis `backups.write` : l'archive porte les deux
+bases entières, comptes et réglages du fournisseur d'identité compris, et son 403 déclaré n'avait
+pas d'autre permission à nommer. Écarté : `backups.read` seule, qui ferait sortir de la
+plateforme tout ce qu'elle garde à qui ne peut que lire la liste.
+
+## La restauration et sa maintenance (EP-03/US-0440/L2, #604, #892)
+
+Décision de l'auteur du 2026-10-10 (#604) : `getLiveness`, publique, dit la maintenance d'une
+restauration (`status` à `maintenance`) et sa levée (`ok`), et le front l'interroge pour savoir
+quand la restauration a abouti. L'état de maintenance ne dépend pas de la base que la
+restauration recrée, où vit la tâche ; `getBackgroundTask` n'est pas servie pendant la
+maintenance, et toute opération autre que la sonde répond 503 `COMPONENT_UNAVAILABLE`,
+`component` à `database`. La sonde reste à 200 en maintenance : la plateforme est vivante, et un
+orchestrateur qui la redémarrerait interromprait la restauration. Écarté : `getBackgroundTask`
+servie pendant la maintenance, sa ligne réécrite dans la base restaurée, qui ferait lire à l'API la
+base qu'on remplace.
+
+`startRestore` déclare ce qu'elle refuse : une date confirmée qui n'est pas celle de la sauvegarde
+désignée est une confirmation qui ne la nomme pas, 400 `CONFIRMATION_REQUIRED` (WF-ADM-0160 : « La
+confirmation nomme la date de la sauvegarde ») ; une sauvegarde ou un dépôt inconnus, 404 ; une
+restauration déjà en file ou en cours, 409 `STATE_FORBIDS_OPERATION`. Écarté : un 422 par champ
+sur `acknowledged_backup_taken_at`, qui dirait la valeur invalide quand c'est la confirmation qui
+manque.
+
+Décision de l'auteur du 2026-10-12 (#892) : une tâche que la restauration trouve en file ou en
+cours dans la base restaurée échoue par `TASK_INTERRUPTED_BY_RESTORE` (409), code propre, sans
+reprendre ; exemple `task_interrupted_by_restore`, variante contrefactuelle. Décision de l'auteur du
+2026-10-13 (#987) : les tâches que la restauration garde — la sienne et celles des sauvegardes, que
+la liste garde (#893) — reprennent l'état gardé, plus récent que la sauvegarde, et seules les autres
+tâches restaurées en file ou en cours échouent ainsi ; l'exemple, qui figeait une sauvegarde
+interrompue, devient une lecture des comptes en file. Écarté : faire échouer la tâche d'une
+sauvegarde que la liste tient vérifiée, un succès présenté comme un échec (WF-EXP-0040).
+
+Décisions de l'auteur du 2026-10-12 (#953, #954, #955) : la restauration est exécutée par un
+service à part, seul à tenir l'adresse du propriétaire des bases et le client d'administration
+du fournisseur d'identité, et non par le worker ; le contrat n'en change pas — `startRestore`
+dépose toujours une tâche `restore`, que la sonde de vie suit. Après le remplacement des bases, le
+royaume de l'installation qui restaure est réappliqué : la description de `startRestore` dit que
+ses clients et ses adresses restent ceux de la cible, ses comptes et leurs mots de passe ceux de
+la sauvegarde (#955).
+
+## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
+
+`IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,
+`finished_at`) : la plateforme en planifie une chaque jour, et l'écran des comptes montre la
+dernière qui a abouti, demandée ou non. Il nomme aussi, dans `removed`, les adresses des comptes
+locaux que la lecture retire du fournisseur d'identité — inconnus de Waterfall, sans mot de
+passe, laissés par une création interrompue —, décision de l'auteur du 2026-10-11 (#811). Le
+compte rendu s'inscrit dans la transaction de la lecture, et le retrait ne suit que sa
+validation : une adresse de `removed` est celle d'un compte retiré, ou à retirer. Un retrait qui
+échoue est journalisé, et la lecture suivante, qui retrouve le compte, nomme de nouveau son
+adresse. Un
+rattachement par l'adresse d'une personne de l'annuaire à un compte existant (#707) compte parmi
+les mises à jour : il change le compte que le fournisseur désigne, son nom, son prénom et son
+adresse, et s'inscrit au journal comme une modification du compte, `params.attached` à vrai.
+`ALREADY_EXISTS` et `VALIDATION_FAILED` rejoignent `LAST_ADMINISTRATOR` parmi les motifs d'un
+compte laissé tel quel.
+`startIdentitySync` est sous `users.write`, comme toute écriture des comptes ;
+`getLatestIdentitySync` sous `users.read`, 404 tant qu'aucune lecture n'a abouti. Écarté : un
+compteur de rattachements à part, que l'écran ne présente pas autrement qu'une mise à jour.
+
+## Le compte rendu de la lecture des comptes, sans donnée d'un compte (EP-03/US-0370/L2b, #918, #919, #920)
+
+Décisions de l'auteur du 2026-10-12. Une entrée de `IdentitySyncReport.skipped`
+(`IdentitySyncSkipped`) dit par `kind` ce qu'elle désigne :
+
+- **un compte de Waterfall** (`account`) — le dernier administrateur gardé, un compte dont la
+  nouvelle adresse est portée par un autre, dont le nouveau nom ne se garde pas ou dont le
+  fournisseur ne tient plus d'adresse — n'est gardé dans le compte rendu que par son
+  identifiant : le compte rendu n'en copie ni le nom ni l'adresse, que l'anonymisation devrait
+  sinon poursuivre dans chaque compte rendu (#920). Son nom, son prénom et son adresse sont lus à
+  la consultation, nuls pour un compte anonymisé depuis, que le front présente sous le libellé
+  neutre ;
+- **une personne du fournisseur** sans compte (`person`) est nommée par son identifiant chez lui,
+  `subject`, son nom, son prénom et son adresse, nulle s'il n'en tient pas : `EMAIL_MISSING`
+  entre au catalogue pour elle (#918) — une personne sans adresse, que Waterfall ne sait pas
+  reconnaître, n'est plus ignorée en silence. Sauf celle qu'un compte de Waterfall prive de son
+  adresse (`ALREADY_EXISTS`, une personne relayée par un fournisseur externe, #707) : cette
+  adresse est celle du compte, que le compte rendu ne copie pas plus que son nom, et
+  l'anonymisation du compte l'y laisserait. L'entrée garde l'identifiant de la personne chez le
+  fournisseur, `subject`, et celui du compte qui porte l'adresse, `user_id` — nul si aucun ne la
+  portait plus quand elle a été écartée —, rien de personnel ; son nom, son prénom et son adresse
+  sont ceux du compte, lus à la consultation comme pour une entrée `account`, nuls s'il est
+  anonymisé depuis (décision de livraison, application de #920). `account` porte donc `user_id`
+  et jamais `subject` ; `person` porte toujours `subject`, et `user_id` pour `ALREADY_EXISTS`
+  seulement. Écartées : le nom que le fournisseur tient de la personne, gardé à côté de
+  l'identifiant du compte — deux identités dans une entrée, que l'écran ne distinguerait que par
+  son motif ; une entrée `account` désignant le compte porteur — elle dirait laissé tel quel un
+  compte que la lecture n'a pas touché.
+
+Une seule forme, fermée — `additionalProperties: false`, chaque propriété exigée, nulle quand elle
+ne vaut pas pour la nature de l'entrée —, comme `ActorRef` dit par `kind` un compte ou la
+plateforme. Écartées : l'adresse rendue facultative dans la forme `{email, code}` — une entrée
+sans adresse ne désignerait plus personne, et l'adresse d'un compte de Waterfall resterait
+copiée ; deux formes réunies par `oneOf` — le contrat n'en compose aucune de deux objets, que le
+client du service et ses tests ne lisent pas (`AmbiguousCompositionError`) ; une liste à part pour
+les personnes sans adresse — une seconde forme pour un même signalement.
+
+`restored` compte les comptes locaux dont la lecture rétablit l'identité dans le fournisseur : le
+nom, le prénom ou l'adresse que Keycloak en tient diffèrent de ceux de Waterfall, qui en fait foi
+(WF-ADM-0050) — un report d'`updateUser` resté sans réponse, ou une modification faite dans la
+console du fournisseur (#919). L'adresse s'y compare sans égard à la casse, que le fournisseur ne
+garde pas. Comme `removed`, le compte suit la validation de la lecture : rétabli, ou à rétablir.
+Un compteur plutôt que la liste des comptes : l'écran ne nomme pas plus les comptes rétablis que
+les comptes mis à jour, et le journal de la plateforme dit chacun. Écarté : les compter dans
+`updated`, qui dit les comptes que la lecture change dans Waterfall.
+
+## La session révoquée (EP-03/US-0350/L5c, #855)
+
+Décision de l'auteur du 2026-10-11 (#855). Un jeton dont la connexion (`auth_time`, à défaut
+`iat`) précède la dernière fermeture des sessions du compte, ou tombe dans sa seconde, est refusé
+par 401 `SESSION_REVOKED`, et non plus `SESSION_EXPIRED`, que garde la seule expiration du jeton.
+La fermeture que le fournisseur d'identité a manquée — une panne pendant la déconnexion ou la
+désactivation — laisse vivre sa session : une connexion ordinaire en rendrait un jeton de la même
+connexion, de nouveau refusé, jusqu'à la fin de cette session, deux heures plus tard au moins. Sur
+ce code seulement, le front mène à une connexion qui force l'authentification (`prompt=login`),
+et le fournisseur renouvelle `auth_time` ; une expiration ne redemande pas d'identifiants. Le
+retrait de tous les rôles d'un compte note aussi l'heure de la fermeture (`setUserAccessRoles`),
+comme la déconnexion et la désactivation : une fermeture manquée n'y survit pas à un rôle rendu.
+Un jeton à la fois expiré et antérieur à la fermeture reçoit `SESSION_EXPIRED` : l'expiration
+prime, constatée par la validation du jeton avant que le compte soit lu ; le front rafraîchit
+alors, et le jeton rafraîchi, de la même connexion, reçoit `SESSION_REVOKED` si le fournisseur a
+manqué la fermeture ; s'il a fermé la session, c'est le rafraîchissement lui-même qu'il refuse
+(#940).
+Écartés : redemander les identifiants à toute expiration, que rien ne justifie après cinq
+minutes de jeton d'accès ; laisser `closeMySessions` accepter un jeton antérieur à la fermeture,
+qui ne sort de l'impasse que la personne qui sait se déconnecter.
+
+## Les colonnes d'audit des comptes et des rôles (EP-03/US-0360/L4, #936)
+
+Décision de l'auteur du 2026-10-12 (#936, option (a)) : les tables des comptes et des rôles
+d'habilitation présentent « Créé le », « Créé par », « Modifié le » et « Modifié par », que
+`User.audit` et `AccessRole.audit` portaient déjà, et chacune se trie et se filtre (WF-IHM-0060,
+WF-IHM-0130) ; l'écart de WF-ADM-0060-A — un compte désactivé reste nommé partout où il est cité
+— s'y constate. Les noms et les règles suivent ce que le contrat a déjà ; ce qui suit est de
+l'agent du lot, chacun avec sa raison.
+
+- **Le tri** : `sort_by` de `listUsers` et de `listAccessRoles` gagne `created_at`, `created_by`,
+  `updated_at` et `updated_by`, les noms des champs d'`Audit`. Un auteur se range comme celui du
+  journal (`sort_by=actor` de `listAuditEvents`, EP-02/L42d) : un compte par son nom affiché, le
+  prénom puis le nom, comparé dans l'ordre des points de code ; dans l'ordre croissant, un compte
+  anonymisé, qui n'a plus de nom, après les noms, et la plateforme, qui n'en a pas, après les
+  comptes. À égalité, l'ordre de la liste sans tri, puis l'identifiant (#741).
+- **Les périodes** : une par colonne de date, `created_at_from` et `created_at_to`,
+  `updated_at_from` et `updated_at_to`, deux instants, le début inclus, la fin exclue, comme la
+  période du journal et de la liste des projets. Une table qui a deux colonnes de dates ne peut
+  pas les filtrer toutes deux par `from` et `to` : chaque borne prend le nom de sa colonne, comme
+  `<colonne>_min` et `<colonne>_max` d'une colonne de nombres (EP-02/L42f), et le README étend la
+  règle des périodes à cette forme, le refus d'une période inversée désignant
+  `/query/<colonne>_to`. Exemples `users_period_inverted` et `access_roles_period_inverted`,
+  écrits à la main ; `test_mockuniverse.py` les tient à la règle, et les deux opérations à la
+  déclaration de leur 422.
+- **Les auteurs** : `created_by_user_id` et `created_by_kind`, `updated_by_user_id` et
+  `updated_by_kind`, sur le modèle de l'auteur du journal (`user_id`, `actor_kind`,
+  `AuditActorKind`) : un compte, désactivé ou anonymisé compris, ou la plateforme, un traitement
+  automatique (WF-DAT-0070). Les huit paramètres sont partagés (`parameters.yaml`), pour que les
+  deux tables ne divergent pas. Écartés : une recherche sur le nom de l'auteur, qui ne trouverait
+  pas un compte anonymisé, dont l'API ne rend aucun libellé ; une opération des auteurs à la
+  manière de `listAuditFacets`, que la conception d'EP-03 ne prévoit pas : la liste des rôles,
+  non paginée, nomme elle-même ses auteurs, et l'écran des comptes choisit un compte parmi les
+  comptes qu'il lit.
+- **Un auteur désactivé reste nommé, un anonymisé ne l'est plus** : `ActorRef.display_name` le dit
+  déjà (WF-ADM-0060), et les descriptions des deux opérations le rappellent. Le témoin n'a aucune
+  ligne de ces tables écrite par Alix Moreau, cheffe de projet sans permission sur les comptes ni
+  sur les rôles : la lui donner ferait changer les porteurs du témoin et le journal qui en est
+  engendré. Deux variantes contrefactuelles déclarées, écrites à la main comme celles du journal
+  (`audit_events_anonymized_actor`), la montrent : `access_roles_updated_by_deactivated`, une
+  installation où, habilitée alors, elle aurait modifié « Chef de projet » le 10 février 2026,
+  avant sa désactivation — « Modifié par » la nomme — ; `access_roles_updated_by_anonymized`, la
+  même après l'anonymisation de son compte, le nom de l'auteur nul. `test_mocklists.py` les tient
+  au rôle du témoin, dont seuls l'audit et le compteur diffèrent.
+- **Pas d'index** : au plus 500 comptes aux volumes du §4.6.2, et quelques rôles ; les deux tables
+  se trient en mémoire de PostgreSQL sans en avoir besoin.
+
+Exemples engendrés par `wftools.mocklists` du témoin : `users_created_by_platform`
+(`created_by_kind=platform`), `users_by_created_at` (`sort_by=created_at`) et
+`access_roles_by_updated_by` (`sort_by=updated_by`, la plateforme après Camille Martin). Le
+client est régénéré.
 
 ## Collage et annulation
 

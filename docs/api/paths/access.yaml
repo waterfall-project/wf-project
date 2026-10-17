@@ -12,21 +12,29 @@
       la liste, paginée, ne laisserait pas déduire.
 
       Les filtres se combinent (WF-IHM-0130) : la recherche (`search`) porte sur le nom, le
-      prénom, l'adresse et le nom affiché ; l'origine (`origins`), le nœud (`org_node_id`) et
-      les rôles (`access_role_ids`) se filtrent, l'état par `is_active` — les comptes
-      désactivés s'ajoutant aux actifs par `include_inactive` — ; `meta.total` compte les
-      comptes retenus.
+      prénom et l'adresse, et sur le prénom suivi du nom, tels que la table les montre ;
+      l'origine (`origins`), le nœud (`org_node_id`) et les rôles (`access_role_ids`) se filtrent,
+      l'état par `is_active` — les comptes désactivés s'ajoutant aux actifs par
+      `include_inactive` — ; les colonnes d'audit (WF-DAT-0070) par une période chacune
+      (`created_at_from`, `created_at_to`, `updated_at_from`, `updated_at_to`) et par leur auteur,
+      un compte ou la plateforme (`created_by_user_id`, `created_by_kind`, `updated_by_user_id`,
+      `updated_by_kind`) ; `meta.total` compte les
+      comptes retenus. Un auteur désactivé reste nommé dans les colonnes d'audit (WF-ADM-0060) ;
+      un auteur anonymisé n'y a plus de nom (`ActorRef.display_name` nul), que le front présente
+      sous le libellé neutre de son catalogue. Un tri à égalité se départage par l'ordre de la liste sans tri — le nom
+      puis le prénom —, puis par l'identifiant du compte, dans l'ordre croissant, pour que deux
+      pages successives ne répètent ni n'omettent aucun compte (WF-IHM-0060, #741).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - name: search
         in: query
         description: >-
-          Recherche sur le nom, le prénom, l'adresse électronique et le nom affiché, le prénom
-          suivi du nom : un compte est retenu dès que l'un d'eux contient le texte, comparé
-          comme toute recherche du contrat, sans égard à la casse ni aux accents (README,
-          « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par son nom
-          affiché, qu'aucune colonne ne porte entier.
+          Recherche sur le nom, le prénom, l'adresse électronique, et sur le prénom suivi du nom,
+          tels que la table les montre : un compte est retenu dès que l'un d'eux contient le
+          texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents
+          (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par le
+          prénom suivi du nom, qu'aucune colonne ne porte entier.
         schema: { type: string, minLength: 1, maxLength: 200 }
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - name: is_active
@@ -39,7 +47,12 @@
         schema: { type: boolean }
       - name: origins
         in: query
-        description: Restreint aux comptes de ces origines (WF-IHM-0130).
+        description: >-
+          Restreint aux comptes de ces origines (WF-IHM-0130). Le service vérifie la liste après
+          les schémas des autres paramètres : une valeur hors de `UserOrigin`, ou vide, est
+          refusée par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/origins`, une fois
+          ces schémas tenus ; tant qu'un autre paramètre est refusé par son schéma, elle n'est
+          pas nommée.
         schema:
           type: array
           items: { $ref: ../components/schemas/access.yaml#/UserOrigin }
@@ -56,11 +69,22 @@
           Restreint aux comptes qui portent l'un au moins de ces rôles d'habilitation, la colonne
           des rôles filtrée (WF-IHM-0130, WF-ADM-0050). Un compte sans rôle n'est retenu par
           aucune valeur ; un identifiant qui ne désigne aucun rôle ne retient aucun compte, comme
-          `org_node_id` un nœud inconnu.
+          `org_node_id` un nœud inconnu. Le service vérifie la liste comme `origins`, après les
+          schémas des autres paramètres : un identifiant mal formé, ou vide, est refusé par 422
+          `VALIDATION_FAILED`, `fields[]` désignant `/query/access_role_ids`, une fois ces
+          schémas tenus.
         schema:
           type: array
           items: { $ref: ../components/common.yaml#/Uuid }
         explode: false
+      - $ref: ../components/parameters.yaml#/CreatedAtFrom
+      - $ref: ../components/parameters.yaml#/CreatedAtTo
+      - $ref: ../components/parameters.yaml#/CreatedByUserId
+      - $ref: ../components/parameters.yaml#/CreatedByKind
+      - $ref: ../components/parameters.yaml#/UpdatedAtFrom
+      - $ref: ../components/parameters.yaml#/UpdatedAtTo
+      - $ref: ../components/parameters.yaml#/UpdatedByUserId
+      - $ref: ../components/parameters.yaml#/UpdatedByKind
       - name: sort_by
         in: query
         description: >-
@@ -68,11 +92,27 @@
           (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs
           libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son
           libellé, un compte sans rattachement après les autres dans l'ordre croissant — et
-          l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se
-          comparent dans l'ordre des points de code Unicode.
+          l'état, les comptes désactivés après les actifs dans l'ordre croissant ; puis les
+          colonnes d'audit (WF-DAT-0070) : les dates de création et de dernière modification, et
+          leurs auteurs, comme le journal d'audit trie le sien — par le nom affiché du compte, le
+          prénom puis le nom, dans l'ordre croissant un compte anonymisé, qui n'en a plus, après
+          les noms, et la plateforme, qui n'en a pas, après les comptes. Les textes se
+          comparent dans l'ordre des points de code Unicode, et deux comptes à égalité se
+          rangent par le nom puis le prénom, puis par leur identifiant, dans l'ordre croissant.
         schema:
           type: string
-          enum: [last_name, first_name, email, origin, access_roles, org_node, is_active]
+          enum:
+            - last_name
+            - first_name
+            - email
+            - origin
+            - access_roles
+            - org_node
+            - is_active
+            - created_at
+            - created_by
+            - updated_at
+            - updated_by
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
@@ -93,8 +133,26 @@
               by_access_role: { $ref: ../../../fixtures/api/users_by_access_role.json }
               search: { $ref: ../../../fixtures/api/users_search.json }
               inactive: { $ref: ../../../fixtures/api/users_inactive.json }
+              anonymized: { $ref: ../../../fixtures/api/users_anonymized.json }
+              created_by_platform: { $ref: ../../../fixtures/api/users_created_by_platform.json }
+              by_created_at: { $ref: ../../../fixtures/api/users_by_created_at.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields[]` désignant chaque paramètre refusé par son schéma : une
+          valeur hors de son schéma ; un instant mal formé, `/query/<colonne>_from` ou
+          `/query/<colonne>_to` par `DATE_INVALID`. Une incohérence entre paramètres, une fois les
+          schémas tenus : une période dont la fin précède le début, à sa fin
+          (`/query/created_at_to`, `/query/updated_at_to`) par `VALUE_OUT_OF_RANGE`,
+          `params.minimum` le début donné, la règle de toute période du contrat. Aucune liste vide
+          ne tient lieu de refus.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/users_period_inverted.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createUser
     tags: [users]
@@ -113,10 +171,16 @@
           schema: { $ref: ../components/schemas/access.yaml#/UserCreate }
     responses:
       '201':
-        description: Compte créé.
+        description: >-
+          Compte créé, et si l'invitation est partie (`invitation_sent`) : faux, le porteur
+          n'attend aucun courriel, et son lien de fixation se remet à la main
+          (`createPasswordSetupLink`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/access.yaml#/User }
+            schema: { $ref: ../components/schemas/access.yaml#/UserCreated }
+            examples:
+              witness: { $ref: ../../../fixtures/api/user_created.json }
+              invited: { $ref: ../../../fixtures/api/user_created_invited.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -124,10 +188,31 @@
         description: >-
           Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`,
           `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          le compte qui la porte ; rien n'est écrit.
+          le compte qui la porte, absent quand seul le fournisseur d'identité la porte — un compte
+          du royaume que Waterfall ne connaît pas (#814) ; rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              email_taken: { $ref: ../../../fixtures/api/user_email_taken.json }
+      '422':
+        description: >-
+          Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
+          en défaut (WF-ADM-0050) : un rôle
+          d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`,
+          `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`,
+          `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé
+          (`INACTIVE_REFERENCE_OBJECT`) ; une adresse, un nom ou un prénom que le fournisseur
+          d'identité refuse alors que la règle des adresses et des noms du contrat les admet — des
+          points qui se suivent, une partie locale de plus de 64 caractères, un caractère qu'il
+          interdit dans un nom (`/email`, `/last_name`, `/first_name`, `VALIDATION_FAILED`,
+          #815). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unknown_references: { $ref: ../../../fixtures/api/user_creation_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}:
   get:
@@ -144,16 +229,20 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              deactivated: { $ref: ../../../fixtures/api/user_deactivated.json }
+              anonymized: { $ref: ../../../fixtures/api/user_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateUser
     tags: [users]
     summary: Modifier un compte
     description: >-
-      Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne sont
-      pas modifiables ici (WF-ADM-0050). Aucun écran ne propose de supprimer un compte
-      (WF-ADM-0060).
+      Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre
+      que `local`) ne sont pas modifiables ici : le fournisseur d'identité les tient
+      (WF-ADM-0050, WF-ADM-0070). Aucun écran ne propose de supprimer un compte (WF-ADM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:
@@ -167,6 +256,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              renamed: { $ref: ../../../fixtures/api/user_renamed.json }
+              renamed_after_deactivation: { $ref: ../../../fixtures/api/user_renamed_deactivated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -174,16 +267,30 @@
         description: >-
           Adresse électronique déjà portée par un autre compte (WF-ADM-0050) : `ALREADY_EXISTS`,
           `fields` désignant `/email` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          le compte qui la porte. Le nom, le prénom ou l'adresse d'un compte venu d'un fournisseur
-          externe (`origin` autre que `local`), qui ne se modifient pas ici (WF-ADM-0050) :
-          `STATE_FORBIDS_OPERATION`, sans paramètre — l'origine du compte, que la lecture porte,
-          le dit, et aucune condition du catalogue ne la nomme. Rien n'est écrit.
+          le compte qui la porte. Un nom, un prénom ou une adresse envoyés pour un compte
+          anonymisé, l'anonymisation étant irréversible (WF-ADM-0060) : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              anonymized: { $ref: ../../../fixtures/api/user_anonymized_update_refused.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
+          en défaut (WF-ADM-0050) : une valeur du nom, du prénom ou de l'adresse, différente de
+          celle du compte, quand il ne vient pas de Waterfall et que le fournisseur d'identité
+          les tient (`/last_name`, `/first_name`, `/email`, `FIELD_READ_ONLY`) — envoyer le champ
+          inchangé n'est pas refusé — ; un nœud
+          d'organisation que l'installation n'a pas (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le
+          référentiel a désactivé (`INACTIVE_REFERENCE_OBJECT`). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               external_account: { $ref: ../../../fixtures/api/user_external_update_refused.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/activation:
   put:
@@ -193,26 +300,26 @@
     description: >-
       Un compte se désactive, jamais ne se supprime : ses actes doivent rester
       attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions
-      (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions
-      d'administration (WF-ADM-0120).
+      (WF-SEC-0020) — un jeton d'une connexion qui la précède est refusé par 401
+      `SESSION_REVOKED`, même après la réactivation (#835) — et est refusée s'il est le
+      dernier à porter les permissions d'administration (WF-ADM-0120). La réactivation d'un compte anonymisé est refusée :
+      l'anonymisation est irréversible (WF-ADM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:
       required: true
       content:
         application/json:
-          schema:
-            type: object
-            required: [is_active, lock_version]
-            properties:
-              is_active: { type: boolean }
-              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+          schema: { $ref: ../components/schemas/access.yaml#/UserActivationWrite }
     responses:
       '200':
         description: Compte activé ou désactivé.
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              deactivated: { $ref: ../../../fixtures/api/user_deactivated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -221,12 +328,77 @@
           La désactivation du dernier compte actif qui porte les permissions de modifier les
           comptes et les rôles d'habilitation, refusée, rien n'étant écrit (WF-ADM-0120) :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `last_administrator`, ce que la
-          commande `deactivate` du compte dit d'avance (`available_commands`).
+          commande `deactivate` du compte dit d'avance (`available_commands`). La réactivation
+          d'un compte anonymisé, refusée, rien n'étant écrit (WF-ADM-0060) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `is_not_anonymized`, ce que la
+          commande `reactivate` du compte dit d'avance.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               last_administrator: { $ref: ../../../fixtures/api/user_deactivation_refused.json }
+              anonymized: { $ref: ../../../fixtures/api/user_reactivation_refused.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/users/{user_id}/anonymization:
+  post:
+    operationId: anonymizeUser
+    tags: [users]
+    summary: Anonymiser un compte désactivé
+    description: >-
+      À la demande de la personne, un compte désactivé est anonymisé, de façon irréversible
+      (WF-ADM-0060) : son nom, son prénom et son adresse deviennent nuls (`anonymized_at` dit
+      quand), son avatar est retiré, et le libellé qui le désigne dans le journal d'audit, comme
+      auteur ou comme objet, est effacé de toutes les inscriptions, leur nombre, leurs dates et
+      leurs actions inchangés (WF-SEC-0030) ; le front le présente partout sous le libellé neutre
+      de son catalogue. Ses actes lui restent attribués, par son identifiant ; il garde ses rôles,
+      son rattachement, et l'identifiant que le fournisseur d'identité lui donne, par lequel la
+      lecture des comptes le reconnaît sans le modifier ni le recréer (WF-ADM-0070). Un compte
+      local est en outre retiré du fournisseur d'identité, avant que l'anonymisation ne soit
+      écrite : si le fournisseur ne répond pas, 503 (`identity_provider`), rien n'est écrit, et
+      l'anonymisation se redemande. Un compte de l'annuaire ou d'un fournisseur externe n'est pas
+      touché dans le fournisseur. Aucune confirmation n'est demandée ici : l'écran la demande.
+      L'anonymisation s'inscrit au journal d'audit (`user_anonymize`, l'objet le compte, sans
+      libellé ni paramètre). Sous la permission de modifier les comptes (`users.write`,
+      WF-ADM-0100) ; un compte anonymisé ne se réactive plus, ni ne s'anonymise de nouveau.
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/UserAnonymizationWrite }
+    responses:
+      '200':
+        description: Compte anonymisé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              anonymized: { $ref: ../../../fixtures/api/user_anonymized.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un compte actif, refusé : seul un compte désactivé s'anonymise (WF-ADM-0060), et la
+          commande `anonymize` ne se liste que pour lui : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_deactivated_account`. Un compte déjà anonymisé, refusé,
+          ce que sa commande `anonymize` dit d'avance : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `is_not_anonymized`. Rien n'est écrit, et le fournisseur
+          d'identité n'est pas sollicité.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              active: { $ref: ../../../fixtures/api/user_anonymization_refused.json }
+              anonymized: { $ref: ../../../fixtures/api/user_anonymization_repeated.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/access-roles:
   put:
@@ -236,11 +408,17 @@
     description: >-
       Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs
       permissions ; la modification s'applique immédiatement, sans reconnexion
-      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020). Le
+      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020) : un jeton
+      d'une connexion qui le précède est refusé par 401 `SESSION_REVOKED`, même après qu'un rôle
+      lui est rendu, et la personne se reconnecte (#855). Le
       retrait de la permission de modifier les comptes ou les rôles d'habilitation au dernier
       compte actif qui les porte est refusé (WF-ADM-0120), par `LAST_ADMINISTRATOR` ; lui en
       donner davantage reste possible, et la commande `set_access_roles` de ce compte reste
-      disponible : le serveur juge les rôles envoyés.
+      disponible : le serveur juge les rôles envoyés. Attribuer ou retirer un rôle relève de la
+      gestion des rôles (FBS-1.2, WF-ADM-0090) : l'opération exige, outre la permission de modifier
+      les comptes (`users.write`), celle de modifier les rôles d'habilitation
+      (`access_roles.write`) ; sans elle, 403 `PERMISSION_MISSING` — qui ne porte que
+      `users.write` ne se donne pas le rôle administrateur.
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     requestBody:
@@ -254,6 +432,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+            examples:
+              attributed: { $ref: ../../../fixtures/api/user_access_roles_set.json }
+              cleared: { $ref: ../../../fixtures/api/user_access_roles_cleared.json }
+              two_roles: { $ref: ../../../fixtures/api/user_access_roles_two.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -269,6 +452,18 @@
             examples:
               last_administrator: { $ref: ../../../fixtures/api/user_access_roles_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
+          en défaut (WF-ADM-0050) : un rôle
+          d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`,
+          `UNKNOWN_ACCESS_ROLE`). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unknown_access_role: { $ref: ../../../fixtures/api/user_access_roles_unknown.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/password-link:
   post:
@@ -280,10 +475,11 @@
       mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal
       (WF-ADM-0140) : c'est ainsi que le premier administrateur fixe son mot de passe à
       l'installation (WF-EXP-0020) et que la réinitialisation se fait sur une installation
-      sans messagerie (WF-CMP-0030). Le lien est celui que le courriel porterait — à usage
-      unique, valable une heure, vers `/login/reset` du front avec son jeton —, créé par le
-      fournisseur d'identité, et rendu une seule fois : un lien précédent du même compte cesse
-      de valoir. Sous la permission de modifier les comptes (`users.write`, WF-ADM-0100) ;
+      sans messagerie (WF-CMP-0030). Le lien est celui que le courriel du fournisseur d'identité
+      porterait — à usage unique, valable une heure, vers la page de ce fournisseur qui fixe le
+      mot de passe, et non vers un écran de Waterfall —, créé par lui, et rendu une seule fois :
+      un lien précédent du même compte cesse de valoir. Sous la permission de modifier les
+      comptes (`users.write`, WF-ADM-0100) ;
       chaque demande est inscrite au journal d'audit, sans le jeton (WF-SEC-0030). Aucun écran
       ne présente, ne demande ni ne saisit de mot de passe : ce lien est le seul élément
       d'authentification que Waterfall montre (WF-ADM-0140).
@@ -302,12 +498,17 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION` : le compte n'est pas local — un compte de l'annuaire ou du
-          fournisseur d'identité s'authentifie ailleurs et n'a pas de mot de passe ici — ou il
-          est désactivé (WF-ADM-0140, WF-ADM-0060).
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque
+          (`CommandCondition`) : `is_local_account` quand le compte n'est pas local — un compte de
+          l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité
+          et n'a pas de mot de passe à fixer ici —, `is_active_account` quand il est désactivé
+          (WF-ADM-0140, WF-ADM-0060). Un compte qui manque aux deux est refusé par la première.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_local: { $ref: ../../../fixtures/api/password_link_not_local.json }
+              deactivated: { $ref: ../../../fixtures/api/password_link_deactivated.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/avatar:
@@ -329,48 +530,68 @@
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
-/directory-syncs:
+/identity-syncs:
   post:
-    operationId: startDirectorySync
+    operationId: startIdentitySync
     tags: [users]
-    summary: Resynchroniser les comptes depuis l'annuaire
+    summary: Lire les comptes du fournisseur d'identité
     description: >-
-      Crée les comptes absents, met à jour les trois attributs d'identité des comptes
-      importés, et désactive les comptes importés que l'annuaire ne connaît plus. Les
-      comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué
-      (WF-ADM-0070). Confiée au worker (WF-ARC-0090).
+      Lit, par l'API d'administration du fournisseur d'identité, les comptes que son annuaire
+      fédéré y rend : crée les comptes absents, met à jour les trois attributs d'identité des
+      comptes lus, et désactive les comptes lus que le fournisseur ne connaît plus. Les comptes
+      créés dans Waterfall ne sont pas modifiés, et aucun rôle n'est attribué (WF-ADM-0070) :
+      c'est dans le fournisseur que la lecture rétablit le nom, le prénom et l'adresse que
+      Waterfall tient d'un compte local, s'ils y diffèrent, puisqu'il en fait foi (WF-ADM-0050,
+      #919).
+      Waterfall ne lit jamais l'annuaire lui-même, et n'en paramètre aucun (WF-ADM-0180). Sur
+      une installation sans annuaire, la lecture ne trouve aucun compte à lire. Confiée au
+      worker (WF-ARC-0090), qui demande d'abord au fournisseur de synchroniser chaque annuaire
+      qu'il fédère. Une personne de l'annuaire dont l'adresse est déjà portée par un compte est
+      rattachée à ce compte ; un compte anonymisé n'est ni modifié ni recréé ; les comptes
+      locaux du fournisseur que Waterfall ne connaît pas et qui n'ont jamais eu de mot de passe
+      en sont retirés (#707, #811). Sous la permission de modifier les comptes (`users.write`).
+      Réussie, la tâche donne pour résultat le compte rendu de `getLatestIdentitySync`.
     responses:
       '202':
         description: Synchronisation mise en file.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/identity_sync_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '409':
-        description: Aucun annuaire activé (WF-ADM-0180).
-        content:
-          application/problem+json:
-            schema: { $ref: ../components/common.yaml#/Problem }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
-/directory-syncs/latest:
+/identity-syncs/latest:
   get:
-    operationId: getLatestDirectorySync
+    operationId: getLatestIdentitySync
     tags: [users]
-    summary: Résultat de la dernière synchronisation
+    summary: Compte rendu de la dernière lecture des comptes
     description: >-
-      Comptes créés, mis à jour et désactivés lors du dernier import depuis l'annuaire
-      (WF-ADM-0070).
+      Comptes créés, mis à jour et désactivés lors de la dernière lecture des comptes du
+      fournisseur d'identité qui a abouti, demandée ou planifiée, comptes locaux dont elle
+      rétablit l'identité dans le fournisseur, ce qu'elle a laissé tel quel avec son motif, et
+      les comptes locaux qu'elle retire du fournisseur — rétablis ou retirés, ou à l'être : le
+      rétablissement et le retrait suivent la validation de la lecture ; un échec est journalisé
+      et la lecture suivante le reprend (WF-ADM-0070, #811, #919). Un compte de Waterfall laissé
+      tel quel est nommé tel qu'il se lit à la consultation, anonymisé compris (#920). Sous la
+      permission de consulter les comptes (`users.read`) ; 404 tant qu'aucune lecture n'a abouti.
     responses:
       '200':
-        description: Compte rendu de la dernière synchronisation (WF-ADM-0070, WF-ADM-0130).
+        description: Compte rendu de la dernière lecture (WF-ADM-0070, WF-ADM-0130).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/platform.yaml#/DirectorySyncResult }
+            schema: { $ref: ../components/schemas/platform.yaml#/IdentitySyncReport }
+            examples:
+              witness: { $ref: ../../../fixtures/api/identity_sync_report.json }
+              flagged: { $ref: ../../../fixtures/api/identity_sync_report_flagged.json }
+              anonymized: { $ref: ../../../fixtures/api/identity_sync_report_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /permissions:
   get:
@@ -392,6 +613,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/permissions.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /access-roles:
   get:
@@ -403,9 +625,18 @@
       WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le
       serveur (WF-IHM-0060), et se filtre (WF-IHM-0130) — le libellé par la recherche
       (`search`), la nature par `is_predefined`, le nombre de porteurs par deux bornes
-      incluses (`holder_count_min`, `holder_count_max`) ; les filtres se combinent. Le nombre
+      incluses (`holder_count_min`, `holder_count_max`), les colonnes d'audit (WF-DAT-0070) par
+      une période chacune (`created_at_from`, `created_at_to`, `updated_at_from`,
+      `updated_at_to`) et par leur auteur, un compte ou la plateforme (`created_by_user_id`,
+      `created_by_kind`, `updated_by_user_id`, `updated_by_kind`) ; les filtres se combinent. Un
+      auteur désactivé reste nommé dans les colonnes d'audit (WF-ADM-0060) ; un auteur anonymisé
+      n'y a plus de nom (`ActorRef.display_name` nul), que le front présente sous le libellé
+      neutre de son catalogue. Le nombre
       de porteurs (`holder_count`) compte tous les comptes qui portent le rôle, désactivés
-      compris.
+      compris. Les rôles supprimés (`deleteAccessRole`) n'y figurent plus. Un tri à égalité se
+      départage par l'ordre de la liste sans tri — le libellé —, puis par l'identifiant du rôle,
+      dans l'ordre croissant, pour que deux lectures successives rendent le même ordre
+      (WF-IHM-0060, #741).
     parameters:
       - $ref: ../components/parameters.yaml#/Search
       - name: is_predefined
@@ -419,7 +650,10 @@
         in: query
         description: >-
           Borne inférieure, incluse, du nombre de porteurs : restreint aux rôles portés par au
-          moins autant de comptes (WF-IHM-0130).
+          moins autant de comptes (WF-IHM-0130). Le service vérifie les deux bornes après les
+          schémas des autres paramètres : une borne qui n'est pas un entier est refusée avec
+          eux, mais une borne négative, ou inférieure à l'autre, n'est refusée, et nommée,
+          qu'une fois ces schémas tenus.
         schema: { type: integer, minimum: 0 }
       - name: holder_count_max
         in: query
@@ -428,15 +662,34 @@
           plus autant de comptes — à 0, les rôles que personne ne porte (WF-IHM-0130).
           Inférieure à `holder_count_min`, elle est refusée par 422.
         schema: { type: integer, minimum: 0 }
+      - $ref: ../components/parameters.yaml#/CreatedAtFrom
+      - $ref: ../components/parameters.yaml#/CreatedAtTo
+      - $ref: ../components/parameters.yaml#/CreatedByUserId
+      - $ref: ../components/parameters.yaml#/CreatedByKind
+      - $ref: ../components/parameters.yaml#/UpdatedAtFrom
+      - $ref: ../components/parameters.yaml#/UpdatedAtTo
+      - $ref: ../components/parameters.yaml#/UpdatedByUserId
+      - $ref: ../components/parameters.yaml#/UpdatedByKind
       - name: sort_by
         in: query
         description: >-
           Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé,
           la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de
-          porteurs.
+          porteurs ; puis les colonnes d'audit (WF-DAT-0070) : les dates de création et de
+          dernière modification, et leurs auteurs, comme ceux de `listUsers` — par le nom affiché
+          du compte, comparé dans l'ordre des points de code Unicode, dans l'ordre croissant un
+          compte anonymisé après les noms, et la plateforme après les comptes. Deux rôles à
+          égalité se rangent par leur libellé, puis par leur identifiant, dans l'ordre croissant.
         schema:
           type: string
-          enum: [label, is_predefined, holder_count]
+          enum:
+            - label
+            - is_predefined
+            - holder_count
+            - created_at
+            - created_by
+            - updated_at
+            - updated_by
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
@@ -450,6 +703,11 @@
               witness: { $ref: ../../../fixtures/api/access_roles.json }
               composed: { $ref: ../../../fixtures/api/access_roles_composed.json }
               unheld: { $ref: ../../../fixtures/api/access_roles_unheld.json }
+              by_updated_by: { $ref: ../../../fixtures/api/access_roles_by_updated_by.json }
+              updated_by_deactivated:
+                $ref: ../../../fixtures/api/access_roles_updated_by_deactivated.json
+              updated_by_anonymized:
+                $ref: ../../../fixtures/api/access_roles_updated_by_anonymized.json
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -457,12 +715,19 @@
           Une borne mal formée, qui n'est pas un entier positif ou nul : `VALIDATION_FAILED`,
           `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure
           inférieure à la borne inférieure : `fields[]` désignant `/query/holder_count_max` par
-          `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée.
+          `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. Un instant mal formé,
+          `/query/<colonne>_from` ou `/query/<colonne>_to` par `DATE_INVALID` ; une période dont
+          la fin précède le début, à sa fin (`/query/created_at_to`, `/query/updated_at_to`) par
+          `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du
+          contrat. `fields[]` désigne chaque paramètre refusé par son schéma, et une incohérence
+          entre paramètres une fois les schémas tenus.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/access_roles_bounds_inverted.json }
+              period_inverted: { $ref: ../../../fixtures/api/access_roles_period_inverted.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createAccessRole
     tags: [access]
@@ -481,10 +746,13 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+            examples:
+              witness: { $ref: ../../../fixtures/api/access_role_created.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /access-roles/{access_role_id}:
   get:
@@ -504,6 +772,7 @@
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateAccessRole
     tags: [access]
@@ -522,6 +791,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+            examples:
+              witness: { $ref: ../../../fixtures/api/access_role_updated.json }
+              marking_granted: { $ref: ../../../fixtures/api/access_role_marking_granted.json }
+              renamed: { $ref: ../../../fixtures/api/access_role_renamed.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -537,11 +811,17 @@
             examples:
               last_administrator: { $ref: ../../../fixtures/api/access_role_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteAccessRole
     tags: [access]
     summary: Supprimer un rôle
-    description: Refusé tant qu'un compte le porte (WF-ADM-0090, WF-ADM-0120).
+    description: >-
+      Suppression logique (WF-DAT-0080) : le rôle n'est plus proposé — ni `listAccessRoles`, ni
+      `getAccessRole`, ni l'attribution à un compte ne le rendent — et sa trace est conservée,
+      avec ce que le journal d'audit en dit. Un rôle supprimé est un 404, comme un rôle qui
+      n'a jamais existé. Refusé tant qu'un compte le porte (WF-ADM-0090, WF-ADM-0120).
     parameters:
       - $ref: ../components/parameters.yaml#/AccessRoleId
     responses:
@@ -551,7 +831,10 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: Rôle encore porté par un compte (WF-ADM-0090).
+        description: >-
+          Rôle encore porté par un compte, `ACCESS_ROLE_IN_USE` (WF-ADM-0090) ; rien n'est
+          supprimé.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

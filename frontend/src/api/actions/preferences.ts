@@ -40,13 +40,16 @@ export async function updateLanguage(
 }
 
 /**
- * Record the language and the mode together, as the screen of the account submits them: the
- * same fields the menu of the account writes one at a time.
+ * Record the mode, and the language when it changed, as the screen of the account submits them:
+ * the same fields the menu of the account writes one at a time. The language is sent only when
+ * chosen anew, for the API reports it to the identity provider (US-0400/L1): a change of the mode
+ * alone never waits on Keycloak, nor is refused when it is out of reach a moment (#877).
  */
 export async function updateDisplay(
-  preferences: Required<Pick<DisplayPreferences, "language" | "theme">>,
+  preferences: Required<Pick<DisplayPreferences, "theme">> & Pick<DisplayPreferences, "language">,
 ): Promise<Outcome<DisplayPreferences>> {
-  return update({ language: preferences.language, theme: preferences.theme });
+  const { language, theme } = preferences;
+  return update(language === undefined ? { theme } : { language, theme });
 }
 
 /**

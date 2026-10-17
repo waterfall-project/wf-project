@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The production image of the front (US-0430), which images.yml publishes after a merge alone:
+# built from frontend/Dockerfile and started at a pull request that changes what makes it, in both
+# tiers. It answers /, refuses the fake back of the mock-up, and prerenders no page that would read
+# the environment at the build (make check-front-image).
+name: front-image
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    # The build of the front, about a minute and a half on a workstation in October 2026, and two
+    # starts of a few seconds.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      - run: make check-front-image

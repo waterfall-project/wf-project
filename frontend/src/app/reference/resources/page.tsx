@@ -367,7 +367,7 @@ export default async function ResourceSettingsPage({
     requestSession(),
   ]);
   const permissions = session?.permissions ?? [];
-  const grids = session?.user.display_preferences?.grids ?? undefined;
+  const grids = session?.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
   const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead, natures]] =
     await readLists(queries);

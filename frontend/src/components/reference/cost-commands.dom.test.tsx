@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -19,6 +19,7 @@ import {
   type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import type { CostCategory, CostType } from "./cost-grids";
 import { type NatureChoice, natureChoice } from "./cost-kinds";
@@ -29,6 +30,8 @@ import { CostCategoryList, CostTypeList } from "./cost-lists";
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+/** The query of the address the lists read, none save where a test reads them otherwise. */
+const address = vi.hoisted(() => ({ query: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
@@ -36,7 +39,7 @@ vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => "/reference/costs",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(address.query),
 }));
 
 const TYPES = "POST /reference/cost-types";
@@ -160,6 +163,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  address.query = "";
   refresh.mockClear();
   router.refresh.mockClear();
 });
@@ -500,6 +504,106 @@ describe("a write whose dialog is closed, and the focus", () => {
       "Vous n’avez pas la permission nécessaire.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("holds a link clicked once the dialog is closed while it sends, and does not follow it when the server refuses the write: the refusal is told above the list (#688)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      const alert = await screen.findByRole("alert");
+      expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
+  });
+
+  it("follows a link clicked once the list is read otherwise, the refusal of a write sent from the reading before told on the list no more — the bar of the shell tells it (#688, #863)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    const { rerender } = render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // The deactivated categories hidden: the list reads otherwise.
+      address.query = "category_is_active=true";
+      rerender(categoryList());
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      await vi.waitFor(() => {
+        expect(link.followed).toHaveBeenCalledOnce();
+      });
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      link.remove();
+    }
+  });
+
+  it("follows a link clicked once the list is back on the reading a write was sent from, its clicks released when it was left, and tells its refusal on the list no more (#688)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    const { rerender } = render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // The deactivated categories hidden, then shown again: the list is back on its reading.
+      address.query = "category_is_active=true";
+      rerender(categoryList());
+      address.query = "";
+      rerender(categoryList());
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      await vi.waitFor(() => {
+        expect(link.followed).toHaveBeenCalledOnce();
+      });
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      link.remove();
+    }
   });
 
   it("tells a refusal answered once the dialog is closed beside another refusal of the list, neither in the place of the other", async () => {

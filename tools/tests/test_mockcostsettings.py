@@ -665,13 +665,13 @@ def test_a_409_taken_from_the_shared_responses_says_nothing_of_its_own() -> None
     assert "Dit." in conflict_said(text, "b")
 
 
-def test_the_names_of_an_external_account_are_refused_by_its_origin(
+def test_the_names_of_an_external_account_are_refused_by_field(
     examples: dict[str, Any],
 ) -> None:
     example = examples["user_external_update_refused"]
     refused = example["value"]
-    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
-    assert set(refused) == {"code", "status", "correlation_id"}
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [{"pointer": "/last_name", "code": "FIELD_READ_ONLY"}]
     users = fixture("users")["items"]
     [named] = [u for u in users if f"{u['first_name']} {u['last_name']}" in example["summary"]]
     assert named["origin"] != "local"
