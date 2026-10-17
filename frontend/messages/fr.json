@@ -1386,7 +1386,23 @@
       "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}",
       "commands": "Commandes",
       "start": "Sauvegarder maintenant",
-      "download": "Télécharger"
+      "download": "Télécharger",
+      "restore": "Restaurer"
+    },
+    "deposit": {
+      "title": "Restaurer une sauvegarde d’une autre installation",
+      "explanation": "Déposez l’archive d’une sauvegarde téléchargée sur une installation de même version ou plus ancienne : la plateforme entière pourra ensuite être remplacée par elle.",
+      "file": "Archive de la sauvegarde",
+      "send": "Déposer",
+      "sending": "Dépôt de l’archive : morceau {part} sur {count}…",
+      "deposited": "Sauvegarde du <time></time> déposée : {name}.",
+      "restore": "Restaurer cette sauvegarde"
+    },
+    "restoration": {
+      "confirmTitle": "Restaurer la plateforme entière",
+      "confirmText": "La plateforme entière — projets, comptes, rôles et réglages — sera remplacée par la sauvegarde du <time></time>, et tout ce qui a été fait depuis sera perdu, hors le journal d’audit. Tous les utilisateurs seront déconnectés pendant la restauration. Cette opération est irréversible.",
+      "keep": "Annuler",
+      "confirm": "Restaurer la sauvegarde du <time></time>"
     },
     "schedule": {
       "title": "Planification",
@@ -2399,5 +2415,11 @@
       "depth": "Niveau de l’arborescence",
       "none": "Aucun export ne vous est offert sur cette révision."
     }
+  },
+  "maintenance": {
+    "title": "Restauration de la plateforme en cours",
+    "maintenance": "La plateforme est en maintenance le temps de sa restauration : tous les utilisateurs ont été déconnectés, et pourront se reconnecter une fois la restauration terminée.",
+    "doneTitle": "Restauration terminée",
+    "done": "La plateforme a été restaurée. Reconnectez-vous pour continuer."
   }
 }

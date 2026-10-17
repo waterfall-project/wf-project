@@ -66,3 +66,11 @@ export function serverClient(): ApiClient {
 export function tokenClient(token: string): ApiClient {
   return createApiClient({ address: apiAddress(), bearer: () => token });
 }
+
+/**
+ * Make a client of the API that carries no token: for the public operations alone — the probe that
+ * says the maintenance of a restoration (`getLiveness`), asked while the sessions are closed (#604).
+ */
+export function publicClient(): ApiClient {
+  return createApiClient({ address: apiAddress() });
+}

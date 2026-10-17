@@ -4,9 +4,11 @@
  * The backups of the platform (FBS-1.4, US-0250), outside any project: their schedule and retention
  * (WF-ADM-0170), and a page of their list the server pages, each dated, sized and verified
  * (WF-ADM-0150), as the contract gives them — the schedule left out when the API does not find
- * it. And their commands (US-0440), to whom the session permits them (`platformOffer`): a backup
- * asked, a verified one downloaded — the refusal of a download carried back in the address. A read the API refuses, or cannot answer, is thrown for the
- * pages of the shell to say.
+ * it. And their commands (US-0440), each to whom the session permits it (`platformOffer`): a backup
+ * asked, a verified one downloaded — the refusal of a download carried back in the address — or
+ * restored, and a backup copied out of another installation deposited, then restored; a
+ * restoration replaces the screen by that of its maintenance (`Restoration`). A read the API
+ * refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -14,8 +16,9 @@ import { useTranslations } from "next-intl";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { BACKUPS_LIST, DOWNLOAD_REFUSAL } from "@/components/admin/backup-address";
-import { DownloadRefusal, StartBackup } from "@/components/admin/backup-commands";
+import { BackupDeposit, DownloadRefusal, StartBackup } from "@/components/admin/backup-commands";
 import { BackupList, BackupScheduleFacts } from "@/components/admin/platform-lists";
+import { Restoration } from "@/components/admin/restoration";
 import { platformOffer } from "@/components/commands/offer";
 import { ListPages } from "@/components/grid/list-pages";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -78,14 +81,23 @@ export default async function BackupsPage({
     ),
     requestSession(),
   ]);
-  const modifiable = platformOffer(session?.permissions, "backups") !== undefined;
+  const permissions = session?.permissions;
+  const modifiable = platformOffer(permissions, "backups") !== undefined;
+  const restorable = platformOffer(permissions, "platform_restore") !== undefined;
   return (
     <Screen density={FUNCTION_DENSITY.backups}>
-      <BackupsHeader startable={modifiable} />
-      <DownloadRefusal refusal={heardRefusal(query.get(DOWNLOAD_REFUSAL))} />
-      {schedule === undefined ? null : <BackupScheduleFacts schedule={schedule} />}
-      <BackupList backups={backups.items} page={backups.meta} downloadable={modifiable} />
-      <BackupPages page={backups.meta} shown={backups.items.length} />
+      <Restoration>
+        <BackupsHeader startable={modifiable} />
+        <DownloadRefusal refusal={heardRefusal(query.get(DOWNLOAD_REFUSAL))} />
+        {schedule === undefined ? null : <BackupScheduleFacts schedule={schedule} />}
+        <BackupList
+          backups={backups.items}
+          page={backups.meta}
+          commands={{ download: modifiable, restore: restorable }}
+        />
+        <BackupPages page={backups.meta} shown={backups.items.length} />
+        {restorable ? <BackupDeposit /> : null}
+      </Restoration>
     </Screen>
   );
 }
