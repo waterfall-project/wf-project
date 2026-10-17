@@ -214,6 +214,27 @@ describe("the restoration of the platform", () => {
     expect(screen.getByRole("button", { name: "Sauvegarder maintenant" })).toBeVisible();
   });
 
+  it("affirms nothing of a restoration whose task can no longer be read before any maintenance was seen, and offers to sign in again", async () => {
+    serve(
+      {
+        [RESTORE]: { status: 202, example: "task_restore_queued" },
+        [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } },
+      },
+      { [HEALTH]: "liveness" },
+    );
+    open();
+    const dialog = await askRestore();
+    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
+    const said = await screen.findByRole("status", { name: "Session terminée" });
+    expect(said).toHaveTextContent("avant que l’issue de la restauration soit connue");
+    expect(said).not.toHaveTextContent("Restauration terminée");
+    expect(said).not.toHaveTextContent("restaurée");
+    expect(within(said).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/login"),
+    );
+  });
+
   it("tells a confirmation the API refuses, and keeps the page", async () => {
     serve({
       [RESTORE]: { problem: { code: "CONFIRMATION_REQUIRED", status: 400 } },

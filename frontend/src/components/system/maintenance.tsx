@@ -11,7 +11,7 @@
  */
 "use client";
 
-import { CircleCheck, LoaderCircle, Wrench } from "lucide-react";
+import { CircleCheck, LoaderCircle, LogIn, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -26,11 +26,13 @@ export const RESTORATION_POLL = 2000;
 /**
  * Where a restoration stands, as the screen reads it: `asking`, nothing read yet; `serving`, the
  * platform serves and no restoration was followed; `queued`, the task waits, the platform serving;
- * `maintenance`; `done`, the maintenance lifted, the sessions closed; `failed`, refused before the
+ * `maintenance`; `done`, the maintenance lifted, the sessions closed; `signed_out`, the task no
+ * longer read for want of a session before any maintenance was seen — the session may have expired
+ * while the task waited, nothing says the restoration took place; `failed`, refused before the
  * maintenance, with its motive.
  */
 export type RestorationPhase =
-  | { readonly kind: "asking" | "serving" | "queued" | "maintenance" | "done" }
+  | { readonly kind: "asking" | "serving" | "queued" | "maintenance" | "done" | "signed_out" }
   | { readonly kind: "failed"; readonly problem: Problem };
 
 /** The motive of a task that failed without one: the unexpected error. */
@@ -38,19 +40,26 @@ const UNEXPECTED: Problem = { code: "INTERNAL_ERROR", status: 500 };
 
 const QUEUED: RestorationPhase = { kind: "queued" };
 const DONE: RestorationPhase = { kind: "done" };
+const SIGNED_OUT: RestorationPhase = { kind: "signed_out" };
 
 /** The phases after which nothing more is asked. */
-const ENDED: ReadonlySet<RestorationPhase["kind"]> = new Set(["serving", "done", "failed"]);
+const ENDED: ReadonlySet<RestorationPhase["kind"]> = new Set([
+  "serving",
+  "done",
+  "signed_out",
+  "failed",
+]);
 
 /**
- * Where a restoration stands by its task, the platform serving: done once it succeeded — or once
- * it cannot be read for want of a session, the restoration having closed them all —, failed with
- * its motive, or still to come.
+ * Where a restoration stands by its task, the platform serving and no maintenance seen: done once
+ * it succeeded, failed with its motive, or still to come. Read for want of a session, it says
+ * nothing of the restoration — the session may have expired while the task waited —: `signed_out`,
+ * not `done`.
  */
 async function taskPhase(taskId: string): Promise<RestorationPhase> {
   const read = await readBackgroundTask(taskId);
   if (read.kind === "signed_out") {
-    return DONE;
+    return SIGNED_OUT;
   }
   if (read.kind !== "done") {
     return QUEUED;
@@ -118,13 +127,39 @@ export function useRestorationPhase(taskId: string | undefined): RestorationPhas
 }
 
 /**
+ * The screen of a restoration whose task can no longer be read for want of a session, before any
+ * maintenance was seen: the way to sign in again, without saying whether the restoration was made.
+ */
+function SignedOutNotice() {
+  const t = useTranslations("maintenance");
+  return (
+    <section
+      role="status"
+      aria-label={t("signedOutTitle")}
+      className="max-w-prose space-y-2 text-sm"
+    >
+      <h1 className="flex items-center gap-2 text-lg font-semibold">
+        <LogIn aria-hidden="true" className="size-5 shrink-0" />
+        {t("signedOutTitle")}
+      </h1>
+      <p>{t("signedOut")}</p>
+      <SignIn reauthenticate />
+    </section>
+  );
+}
+
+/**
  * The screen of a restoration, by where it stands: asked but not begun — the task waits, the
  * platform still serves, no session closed yet —, that the platform is about to go under
  * maintenance; under maintenance, that every user is signed out until it ends; done, that it is,
- * and the way to sign in again.
+ * and the way to sign in again; its task out of reach for want of a session, the way to sign in
+ * again alone.
  */
 export function RestorationNotice({ phase }: { readonly phase: RestorationPhase }) {
   const t = useTranslations("maintenance");
+  if (phase.kind === "signed_out") {
+    return <SignedOutNotice />;
+  }
   const done = phase.kind === "done";
   return (
     <section role="status" aria-label={t("title")} className="max-w-prose space-y-2 text-sm">
