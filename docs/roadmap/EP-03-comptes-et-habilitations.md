@@ -812,6 +812,13 @@ par une règle de cycle de vie du stockage, que tous ne savent pas tenir.
 
   Une restauration interrompue reprend depuis le début et ne lève la maintenance qu'une fois
   finie (WF-ARC-0090).
+
+  Écart (#1014) : une écriture en cours au moment où le service de restauration pose la
+  maintenance — passée avant elle, validée après que la restauration a gardé le journal — peut
+  ne pas être inscrite au journal restauré. Cette écriture est de toute façon effacée par le
+  remplacement des bases. La vidange des écritures en cours avant de garder — un verrou partagé
+  pris par chaque écriture, un verrou exclusif pris par le service de restauration une fois la
+  maintenance posée — est reportée à EP-13 (#1014).
 - **Le service de restauration** (auteur, 2026-10-12, #953, #954, #955), que réalise
   US-0440/L2b (#985, coupé d'US-0440/L2 le 2026-10-13) :
   - **ce qu'il tient** : sur le modèle de l'amorçage, un service de l'image `waterfall`, sous
