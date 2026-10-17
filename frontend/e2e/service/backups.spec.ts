@@ -27,10 +27,11 @@ import { ADMINISTRATOR, giveIdentifiers, signIn } from "./realm";
 heldToTheContract();
 
 const BACKUPS = "/admin/backups";
+const JOURNAL = "/admin/audit-log";
 const ANY_BACKUP = `${BACKUPS}/01926f3a-7c00-7000-8000-000000000907/content`;
 
 test.beforeEach(async ({ request }) => {
-  await compileAnswered(request, "/auth/callback", BACKUPS, ANY_BACKUP);
+  await compileAnswered(request, "/auth/callback", BACKUPS, ANY_BACKUP, JOURNAL);
 });
 
 /**
@@ -100,6 +101,7 @@ test(
     expect(Date.parse(deposited ?? "")).toBe(takenAt);
 
     // Restored once its date is confirmed: first the restoration waiting, no one signed out yet.
+    const confirmed = Date.now();
     await restore.click();
     const dialog = page.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
     await expect(dialog.getByRole("time").first()).toHaveAttribute("datetime", deposited ?? "");
@@ -111,7 +113,7 @@ test(
     // Then its end: done, once the probe said the maintenance — every user signed out — and its
     // end. A restoration this small may hold the maintenance between two reads of the probe: the
     // screen then sees the session closed and nothing more, and says that alone, without
-    // affirming the restoration done.
+    // affirming the restoration done: the journal of audit says it, after the sign-in.
     const signedOut = page.getByRole("status", { name: "Session terminée" });
     const ended = maintenance.getByText("Restauration terminée").or(signedOut);
     await expect(ended).toBeVisible({ timeout: 420_000 });
@@ -121,5 +123,16 @@ test(
     await giveIdentifiers(page, ADMINISTRATOR);
     await expect(page).toHaveURL(BACKUPS);
     await expect(page.getByRole("table", { name: "Sauvegardes" })).toBeVisible();
+
+    // Whatever end the screen saw, the restoration took place and succeeded: the last inscription
+    // of the journal of audit is the restoration itself, of the deposit, which the service writes
+    // only once the task succeeded, the maintenance lifted after it (WF-ADM-0160). The
+    // administrator, « Administrateur », reads the journal.
+    await page.goto(JOURNAL);
+    const last = page.getByRole("grid", { name: "Journal d’audit" }).getByRole("row").nth(1);
+    await expect(last).toContainText("Restauration", { timeout: WORKING });
+    await expect(last).toContainText("Sauvegarde déposée");
+    const restoredAt = Date.parse((await last.locator("time").getAttribute("datetime")) ?? "");
+    expect(restoredAt).toBeGreaterThanOrEqual(confirmed - 60_000);
   },
 );
