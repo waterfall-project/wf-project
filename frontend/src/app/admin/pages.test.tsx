@@ -885,6 +885,20 @@ describe("the backups", () => {
     );
   });
 
+  it("offer the download of a verified backup alone, never of one in verification or whose verification failed [WF-ADM-0150-A]", async () => {
+    shown.path = "/admin/backups";
+    server.answers = { ...server.answers, "GET /backups": "backups_unverified" };
+    const page = rendered(await BackupsPage(searched()));
+    expect(rows(page, "Sauvegardes").slice(1)).toEqual([
+      "1,2 gigaoctet Vérification en attente Manuelle",
+      "1,2 gigaoctet Vérification échouée Planifiée",
+      "1,2 gigaoctet Vérifiée Planifiée Télécharger",
+    ]);
+    expect(links(page)).toEqual([
+      "/admin/backups/01926f3a-7c00-7000-8000-000000000906/content?from=%2Fadmin%2Fbackups",
+    ]);
+  });
+
   it("tell the refusal of a download the route carried back in the address", async () => {
     shown.path = "/admin/backups";
     const page = rendered(await BackupsPage(searched({ download_refusal: "404:NOT_FOUND" })));

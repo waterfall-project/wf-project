@@ -21,7 +21,7 @@ export interface Examples {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
-    200: "backups" | "backups_beyond" | "backups_empty";
+    200: "backups" | "backups_beyond" | "backups_empty" | "backups_unverified";
   };
   "GET /external-backup-locations": {
     200: "external_backup_locations" | "external_backup_locations_none";
