@@ -44,7 +44,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { findOffer, type ListedCommand } from "@/components/commands/offer";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 
@@ -279,6 +279,10 @@ export function useRowCommand(
   const list = useListReport();
   const commands = useContext(ListCommands);
   const [pending, startTransition] = useTransition();
+  // The list, which tells the refusal, holds the navigations while the command answers: the row
+  // may be gone meanwhile (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const run = (
     action: () => Promise<Outcome<readonly ReferenceObject[]>>,
     said: (rows: readonly ReferenceObject[]) => string,
@@ -287,14 +291,14 @@ export function useRowCommand(
       return;
     }
     // The reading the command is pressed on: its refusal is told on it alone.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const outcome = await action().catch(rejected);
+      const outcome = await held(action());
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
         commands?.say(said(outcome.data));
       } else {
-        list?.report({ outcome, reading, names, target });
+        list?.report({ outcome, generation, names, target });
       }
     });
   };

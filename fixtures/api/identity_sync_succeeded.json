@@ -1,0 +1,13 @@
+{
+  "summary": "La lecture des comptes du fournisseur d'identité demandée par Camille Martin à 14 h 03 min 30 s, aboutie à 14 h 05 : son compte rendu est le dernier, que la tâche désigne (WF-ADM-0070, WF-ARC-0090).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000941",
+    "kind": "identity_sync",
+    "status": "succeeded",
+    "progress": 100,
+    "submitted_at": "2026-06-03T14:03:30Z",
+    "finished_at": "2026-06-03T14:05:00Z",
+    "problem": null,
+    "result_url": "/api/v1/identity-syncs/latest"
+  }
+}

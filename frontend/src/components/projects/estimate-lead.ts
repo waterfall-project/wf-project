@@ -12,7 +12,7 @@ import type { CommandCondition } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
 
 /** The session of the request: its effective permissions among the rest. */
-type Session = components["schemas"]["Session"];
+type Session = components["schemas"]["UserSelf"];
 
 /**
  * The revision in progress whose estimate a deletion leads to, for a session that reads the

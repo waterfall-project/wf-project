@@ -1,16 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The restoration of the platform from a backup of the list (WF-ADM-0160, EP-02/L43c), confirmed in
- * a dialog that states the date of the backup, its verification, what is lost and that the
- * restoration is recorded in the journal of audit (WF-SEC-0030); it restores only once the
- * identifier of the backup is typed — a backup has no label —, whatever its case. While the request
- * is on its way, the dialog stays: neither Escape, a click outside nor « Annuler » closes it, so that
- * a refusal is told in it and nothing restores that the user believes abandoned — a state that
- * forbids the restoration (409), the condition named, as any outcome; a date confirmed that is not
- * that of the backup named (422, `BACKUP_DATE_MISMATCH` on `/acknowledged_backup_taken_at`,
- * EP-14/L42h) at the date the dialog states, which the list gave: the list read is no longer that of
- * the backup, and the page reads anew. The task goes to the tracker without its command: a
+ * The restoration of the platform from a backup of the list (WF-ADM-0160, EP-02/L43c) or from a
+ * deposit (US-0440, #350), confirmed in a dialog that states the date of the backup, its
+ * verification — that of a deposit is to come, its restoration verifies it (EP-14/L42o) —, what is
+ * lost, that the users are signed out and that the restoration is recorded in the journal of audit
+ * (WF-SEC-0030); it restores only once the identifier of the backup or of the deposit is typed — a
+ * backup has no label —, whatever its case. While the request is on its way, the dialog stays:
+ * neither Escape, a click outside nor « Annuler » closes it, so that a refusal is told in it and
+ * nothing restores that the user believes abandoned — a state that forbids the restoration (409),
+ * the condition named, as any outcome; a date confirmed that is not that of the backup named (400,
+ * `CONFIRMATION_REQUIRED`, EP-03/US-0440/L2) at the date the dialog states, which the list gave: the
+ * list read is no longer that of the backup, and the page reads anew. Queued, the restoration is
+ * handed over to the screen of its maintenance (`Restoration`), which follows it to its end: a
  * restoration starts again from this confirmation alone.
  */
 "use client";
@@ -20,12 +22,10 @@ import { useRouter } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useState, useTransition } from "react";
 
-import { startRestore } from "@/api/actions/backups";
-import type { components } from "@/api/generated/schema";
-import type { Outcome } from "@/api/problem";
+import { type RestoreSource, startRestore } from "@/api/actions/backups";
+import type { Outcome, Problem } from "@/api/problem";
+import { useHeldCommand } from "@/components/commands/held";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
-import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,48 +40,44 @@ import { Label } from "@/components/ui/label";
 import { formatTimestamp } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
-type Backup = components["schemas"]["Backup"];
-type FieldProblem = components["schemas"]["FieldProblem"];
+import type { BackupVerification } from "./backup-address";
+import { useFollowRestoration } from "./restoration";
 
-/** The pointer of the contract to the date the confirmation states (`RestoreRequest`). */
-const DATE_POINTER = "/acknowledged_backup_taken_at";
-
-/**
- * A refusal as the dialog tells it: the refusal of the date stated, said at the date; the rest —
- * the envelope with its other fields, if any — told as any outcome.
- */
-function placed(answer: Outcome<unknown>): {
-  readonly date: FieldProblem | undefined;
-  readonly told: Outcome<unknown> | undefined;
-} {
-  if (!("problem" in answer) || answer.problem.fields === undefined) {
-    return { date: undefined, told: answer };
-  }
-  const date = answer.problem.fields.find((field) => field.pointer === DATE_POINTER);
-  const rest = answer.problem.fields.filter((field) => field !== date);
-  if (date === undefined) {
-    return { date, told: answer };
-  }
-  return {
-    date,
-    told:
-      rest.length === 0 ? undefined : { ...answer, problem: { ...answer.problem, fields: rest } },
-  };
+/** What a restoration replaces the platform with, as the dialog states and sends it. */
+export interface RestoreSubject {
+  readonly source: RestoreSource;
+  /** The date of the backup, as the API gave it, which the dialog states and the request sends. */
+  readonly takenAt: string;
+  /** What the user types to confirm: the identifier of the backup, or of the deposit. */
+  readonly identifier: string;
+  /** How far the backup is verified: a deposit is verified by its restoration (`pending`). */
+  readonly verification: BackupVerification;
 }
 
 /**
- * Confirm the restoration of the platform from a backup, by its identifier typed, then restore and
- * hand the task over to the tracker.
+ * A refusal as the dialog tells it: a date confirmed that is not that of the backup (400,
+ * `CONFIRMATION_REQUIRED`), said at the date; the rest told as any outcome.
+ */
+function placed(answer: Outcome<unknown>): {
+  readonly date: Problem | undefined;
+  readonly told: Outcome<unknown> | undefined;
+} {
+  if ("problem" in answer && answer.problem.code === "CONFIRMATION_REQUIRED") {
+    return { date: answer.problem, told: undefined };
+  }
+  return { date: undefined, told: answer };
+}
+
+/**
+ * Confirm the restoration of the platform from a backup or a deposit, by its identifier typed, then
+ * restore and hand the task over to the screen of its maintenance.
  */
 export function RestoreDialog({
-  backup,
-  onStarted,
+  subject,
   onClose,
   onClosed,
 }: {
-  readonly backup: Backup;
-  /** Say that the restoration started, in the region of the list. */
-  readonly onStarted: (text: string) => void;
+  readonly subject: RestoreSubject;
   readonly onClose: () => void;
   /** Give the focus back where the dialog was opened from, once it has closed. */
   readonly onClosed: () => void;
@@ -90,15 +86,16 @@ export function RestoreDialog({
   const locale = useLocale();
   const messages = useMessages();
   const router = useRouter();
-  const track = useTrackTask();
+  const held = useHeldCommand();
+  const follow = useFollowRestoration();
   const id = useId();
   const [typed, setTyped] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [dateRefused, setDateRefused] = useState<FieldProblem>();
+  const [dateRefused, setDateRefused] = useState<Problem>();
   const [pending, startTransition] = useTransition();
   // Shown in the browser alone, which knows its time zone: the dialog opens on a press.
-  const date = formatTimestamp(backup.taken_at, locale);
-  const confirmed = typed.trim().toLowerCase() === backup.backup_id.toLowerCase();
+  const date = formatTimestamp(subject.takenAt, locale);
+  const confirmed = typed.trim().toLowerCase() === subject.identifier.toLowerCase();
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -108,11 +105,10 @@ export function RestoreDialog({
     setOutcome(undefined);
     setDateRefused(undefined);
     startTransition(async () => {
-      const answer = await startRestore(backup.backup_id, backup.taken_at).catch(rejected);
+      const answer = await held(startRestore(subject.source, subject.takenAt));
       if (answer.kind === "done") {
-        track(answer.data, { subject: date });
-        onStarted(t("started", { date }));
         onClose();
+        follow(answer.data.task_id);
         return;
       }
       const refusal = placed(answer);
@@ -145,7 +141,7 @@ export function RestoreDialog({
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            {t("warning", { date, verification: backup.verification })}
+            {t("warning", { date, verification: subject.verification })}
           </DialogDescription>
           {dateRefused === undefined ? null : (
             <p role="alert" className="text-sm font-medium text-destructive">
@@ -158,7 +154,7 @@ export function RestoreDialog({
             <Label htmlFor={`${id}-typed`}>{t("confirm")}</Label>
             <p id={`${id}-identifier`} className="text-sm">
               {t.rich("identifier", {
-                code: () => <code className="font-mono select-all">{backup.backup_id}</code>,
+                code: () => <code className="font-mono select-all">{subject.identifier}</code>,
               })}
             </p>
             <Input

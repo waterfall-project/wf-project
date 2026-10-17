@@ -138,6 +138,133 @@ active les rend toutes ; aucun défaut n'est démontré en production. Ouvert au
 `[EP-14] front : DenseGrid ne mémorise ni ses lignes ni ses cellules` (#620), décision
 reporté → EP-06, qui construit la grille de planning réelle et pourra mesurer.
 
+Reportés → EP-15 par la décision de l'auteur du 2026-10-17 : EP-14 resserre son périmètre avant
+la validation (EP-14/L56) ; voir les « Constats reçus » d'EP-15.
+
+Reportés d'EP-03 le 2026-10-11 :
+
+- #846 [EP-03] le guide dit encore à venir la confirmation de #836 — relevé par la revue
+  d'US-0380/L2 : `docs/dev/README.md`, à la règle des préférences d'une grille, écrit
+  « (#836, confirmation de l'auteur à venir) », alors que #836 est tranchée : les filtres d'une
+  grille qui les déclare sont gardés en préférence. EP-14 écrit « (#836, confirmée par l'auteur
+  le 2026-10-11) ». Reporté d'EP-03 le 2026-10-11.
+- #847 [EP-03] la source commune des rôles répondus n'est éprouvée que dans un sens, et le test
+  d'axe de la matrice en fait deux — relevé par la revue d'US-0380/L2 : seul « renommage puis case
+  cochée » est éprouvé sous `RoleAnswers` ; l'inverse, que `role-answers.tsx` et le guide
+  annoncent, n'a pas de test, et retirer `answers?.latest(shown)` de `renaming` ne casse rien ;
+  le contrôle d'axe de la matrice fait la lecture et l'écriture dans un seul `it`. EP-14 ajoute
+  le test du second sens — une case cochée, puis un renommage dont le corps porte la
+  `lock_version` et les `permissions` de la réponse — et coupe le contrôle d'axe en deux `it`.
+  Reporté d'EP-03 le 2026-10-11.
+- #872 [EP-03] un import refusé après la fermeture de son formulaire n'est dit nulle part —
+  relevé par la revue d'US-0350/L5b : `FileForm` (`import-commands.tsx`), fermé pendant
+  l'envoi, ne dit son refus ni dans le formulaire démonté, ni sur l'écran qui l'a ouvert. EP-14
+  rapporte le refus à l'écran porteur, comme `reference-form` le fait vers la liste, avec un
+  test « fermer pendant l'envoi, refus dit ». Reporté d'EP-03 le 2026-10-11.
+- #888 [EP-03] trois mineurs du front — relevés par la revue d'US-0350/L5b, tour 3 : le test
+  « nothing armed » de `session.test.ts` n'affirme que l'adresse rendue, et non qu'aucune clé
+  `wf:sign-out:*` n'a été écrite dans Redis ; `own` est créé sans condition dans
+  `reference-form.tsx` et `commands.tsx`, sans le commentaire qui dirait pourquoi ; la directive
+  `"use client"` de l'utilitaire de test `held-link.ts` n'a d'effet que sur les gardes d'import,
+  ce que le guide (`typescript.md`, « Où s'exécute un composant ») ne dit pas. EP-14 reprend les
+  trois. Reporté d'EP-03 le 2026-10-11.
+- #889 [EP-03] les écritures des rôles et de la matrice ne retiennent pas la navigation —
+  relevé par la revue d'US-0350/L5b, tour 4 : `permission-matrix.tsx` et `role-commands.tsx`
+  appellent leurs actions sans `list.held` ni `useHeldCommand` ; refusée pendant qu'on quitte
+  l'écran, une telle écriture n'est dite nulle part, contre l'invariant que #688 pose pour les
+  autres. EP-14 fait passer ces trois appels par la retenue, avec un test « refus pendant la
+  navigation » par écran, à l'image de `cost-commands.dom.test.tsx`. Le constat couvre aussi
+  les écritures de la table des comptes (`user-commands.tsx`), relevées à la reprise d'epic
+  d'US-0350/L5b après US-0360/L2b : EP-14 les fait passer par la même retenue. Reporté d'EP-03
+  le 2026-10-11.
+- #901 [EP-03] la liste garde les refus des lectures passées — relevé par la revue
+  d'US-0350/L5b, tour 5 : depuis que les refus sont datés par une génération de lecture,
+  `reported` (`reactivation.tsx`) garde ceux des générations passées, qui ne s'affichent plus
+  jamais mais restent en mémoire tant que la liste vit. EP-14 n'y garde que les refus de la
+  génération courante, avec un test qui le constate. Reporté d'EP-03 le 2026-10-11.
+- #902 [EP-03] un test importe `RouterContext` d'un module privé de Next — relevé par la revue
+  d'US-0350/L5b, tour 5 : `outcome-notice.dom.test.tsx` l'importe de `next/dist/shared/lib/…`,
+  qu'une montée de version de Next peut casser sans avertissement. EP-14 fournit le routeur au
+  test par une voie publique, une simulation de `next/navigation` comme les tests voisins.
+  Reporté d'EP-03 le 2026-10-11.
+- #905 [EP-03] des tests du front écrivent des espaces insécables littéraux, qu'ESLint ne relève
+  pas — relevé pendant la correction du tour 5 d'US-0350/L5b : `page.test.tsx` des coûts,
+  `reference-filters.dom.test.tsx`, `exchanges.dom.test.tsx`, `command.dom.test.tsx` et
+  `resource-commands.dom.test.tsx` en écrivent encore, invisibles à la lecture, et
+  `no-irregular-whitespace` ignore les chaînes par défaut. EP-14 les écrit par leur
+  échappement, comme les tests voisins, et active la règle avec `skipStrings: false` sur les
+  fichiers de tests. Reporté d'EP-03 le 2026-10-11.
+
+Reportés d'EP-03 le 2026-10-12 :
+
+- #937 [EP-03] le refus d'une écriture lancée avant un changement de lecture n'est dit nulle
+  part — relevé par la revue d'US-0350/L5b, tour 5 : une écriture lancée sur une liste du
+  référentiel, puis la lecture changée — recherche, filtre — avant sa réponse ; refusée, elle
+  n'est plus dite, même au retour sur la lecture d'origine (`useHeldCommand(generation)`,
+  #688), contre le « ne rien perdre en silence » d'US-0350. Rien n'est écrit par le service
+  dans ce cas ; seul le message manque. EP-14, au retour sur la lecture d'origine, y rattache
+  les écritures encore en cours et dit leur refus (décision de l'auteur). Reporté d'EP-03 le
+  2026-10-12.
+- #941 [EP-03] une confirmation d'anonymisation n'écrit rien sans le dire quand la ligne est
+  occupée — relevé par le développement d'US-0360/L3b : un renommage de la même ligne commencé
+  pendant que la confirmation est ouverte, celle-ci n'écrit rien, et rien ne le dit
+  (`UserWrites.run` refuse en silence une écriture sur une ligne occupée, comme pour
+  l'interrupteur d'état). EP-14 dit le refus, ou tient la confirmation indisponible tant que la
+  ligne est occupée. Reporté d'EP-03 le 2026-10-12.
+- #942 [EP-03] la confirmation d'anonymisation n'énumère pas tout ce que l'anonymisation fait —
+  relevé par la revue d'US-0360/L3b, tour 1 : `admin.users.anonymizationFinal` dit
+  l'irréversibilité (#856), mais ni le retrait de l'avatar ni celui du fournisseur d'identité
+  d'un compte local (corps de WF-ADM-0060). EP-14 complète la phrase, en français et en
+  anglais. Reporté d'EP-03 le 2026-10-12.
+- #949 [EP-03] la désactivation reste offerte pendant que le lien de la même ligne est en
+  route — relevé par la revue d'US-0360/L3b, tour 2 : `StateSwitch` (`user-cells.tsx`) ne lit
+  pas `writes.linking`, si bien qu'un lien demandé avant une désactivation peut s'afficher pour
+  un compte désactivé ; la connexion d'un tel compte reste refusée (WF-ADM-0060). EP-14 tient
+  l'interrupteur tant que le lien de sa ligne est en route, avec un test. Reporté d'EP-03 le
+  2026-10-12.
+- #951 [EP-03] aucun test ne dit où tombe le focus quand le dialogue d'un lien se ferme
+  par-dessus la création — relevé par la revue d'US-0360/L3b, tour 3 : `focusBack` vise la
+  cellule du compte, derrière le dialogue modal de création ; le piège de focus de Radix le
+  ramène probablement dans la création, sans test qui le constate. EP-14 ajoute l'assertion du
+  focus après la fermeture du lien. Reporté d'EP-03 le 2026-10-12.
+- #959 [EP-03] le focus tombe sur la page quand on ferme l'avis des écritures refusées de la
+  barre — relevé par le développement d'US-0400/L2 : le bouton de l'avis
+  (`left-refusals.tsx`, #863) disparaît à sa fermeture, et le focus tombe sur `<body>`. EP-14
+  le rend à un élément stable de la barre. Reporté d'EP-03 le 2026-10-12.
+- #963 [EP-03] deux finitions de l'écran et du parcours du journal d'audit — relevé par la
+  revue d'US-0410/L2b, tour 1 : le parcours du journal crée un rôle « Audit … » à chaque passage
+  sans le supprimer (`frontend/e2e/service/realm.ts`) ; une attribution sans effet dit « Aucun
+  rôle donné ni retiré », mais un `access_role_update` sans libellé ni permission changés
+  n'affiche rien (`audit-cells.tsx`). EP-14 supprime le rôle dans le `finally` du parcours, et
+  décide si la seconde appelle une phrase. Reporté d'EP-03 le 2026-10-12.
+- #967 [EP-03] deux finitions du parcours et de la cellule de l'action du journal — relevé par
+  la revue d'US-0410/L2b, tour 2 : `audit.spec.ts` recopie en dur les langues de format et prend
+  « aujourd'hui » à l'heure de l'assertion, non à celle de l'inscription, ce qui peut échouer à
+  minuit ; le `title` de la seconde ligne de la cellule de l'action (`audit-cells.tsx`) répète
+  son texte, lu deux fois par certaines aides techniques. EP-14 lit les langues de
+  `FORMAT_LOCALE` et date l'attente de l'inscription, et ne pose le `title` que sur un texte
+  tronqué. Reporté d'EP-03 le 2026-10-12.
+- #984 [EP-03] le test de l'aboutissement de la lecture des comptes montre le compte rendu d'une
+  autre tâche — relevé par la revue d'US-0370/L2b, tour 1 : dans `identity-sync.dom.test.tsx`,
+  le commentaire présente le compte rendu de la lecture qui vient d'aboutir (tâche …0941), mais
+  le test montre `identity_sync_report_flagged` (tâche …0942, variante contrefactuelle) ;
+  l'aboutissement est prouvé avant, par le suivi. EP-14 ajoute l'exemple du compte rendu de la
+  tâche …0941, ou retire ces lignes. Reporté d'EP-03 le 2026-10-12.
+- #990 [EP-03] « Adresse portée par le compte Compte anonymisé » — relevé par la revue
+  d'US-0370/L2b, tour 2 : la clé `admin.identitySync.carrier` (fr, en) met « compte » devant le
+  nom du porteur, qui, anonymisé, est déjà « Compte anonymisé ». EP-14 prend une tournure qui ne
+  l'ajoute pas, « Adresse portée par : » suivi du nom. Reporté d'EP-03 le 2026-10-12.
+
+Reportés d'EP-03 le 2026-10-13 :
+
+- #960 [EP-03] l'avis de la barre dit le nombre des écritures refusées, sans dire laquelle,
+  pourquoi ni ce qui reste possible — relevé par la revue d'US-0400/L2, tour 1 : l'avis de la
+  coquille (`left-refusals.tsx`, décision (b) de #863) compte les écritures refusées lancées
+  depuis un écran quitté ; un refus parce que le service est injoignable ou la session perdue
+  s'y dit comme un 412, alors que WF-EXP-0040 veut nommer le composant indisponible et ce qui
+  reste possible. L'avis existe et prévient : EP-14 garde, par écriture libérée, l'écran et la
+  nature du refus, et dit le dernier. Reporté d'EP-03 le 2026-10-13, sur décision de l'auteur.
+
 ## Reprise de `main` après la livraison d'EP-03
 
 EP-03 (comptes, authentification et habilitations) est fusionné dans `main` avant EP-14. Quand il
@@ -1292,6 +1419,56 @@ nomme.
 
 L44c (#813), fusionné avant lui, a été fusionné dans le lot, sans rebase : ces notes gardent son
 apport d'abord.
+
+Reprise de `main` après EP-03 (#1029), par une fusion, sans rebase, comme le dit « Reprise de
+`main` après la livraison d'EP-03 » : 56 fichiers en conflit, dont 24 du front. La part du contrat,
+des exemples, des outils et des documents garde les deux côtés, et ses choix sont dans
+`DECISIONS.md` (« La reprise de `main` après EP-03 ») : les réponses 400, 422, 503 et les motifs
+`\S` d'EP-03 avec les opérations et les refus d'EP-14, que `make lint-openapi` a fait compléter
+sur deux opérations (`getStructureMergeReport`, `setDefaultCalendar`) ; `session.yaml` et
+`session_without_roles.json` supprimés, leur modification reportée sur `me.yaml` (le 422 de la
+largeur d'une colonne) et `me_without_roles.json` (Sacha Lefèvre à l'atelier de câblage) ; pour les
+sauvegardes, les règles d'EP-03 que le service tient — la date confirmée refusée par 400
+`CONFIRMATION_REQUIRED`, `BACKUP_DATE_MISMATCH` retiré, le téléchargement sous `backups.read` et
+`backups.write`, le dépôt par morceaux — et les ajouts d'EP-14 qu'elles ne contredisent pas — les
+commandes de chaque sauvegarde, les filtres, les 409 nommés ; les numéros de corrélation pris des
+deux côtés renumérotés du côté d'EP-03, comme deux tâches et un instant ; `UNKNOWN_ORG_NODE` une
+seule fois. Les sections de `DECISIONS.md` sont rangées par date, les « Constats reçus » d'EP-04 et
+d'EP-13 réunis, et les constats qu'EP-03 avait reportés ici, venus de `main`, rangés dans les
+« Constats reçus » : par la décision de l'auteur du 2026-10-17, ils sont reportés → EP-15, avec six
+autres (#1005 à #1024), et notés dans ses « Constats reçus ». `test_mocklists.py`, passé au-delà de
+mille lignes, cède ses sauvegardes à `test_mocklistsbackups.py`. Restent au front : ses fichiers en
+conflit, la session devenue `getMe`, et les sauvegardes telles que le contrat les dit désormais.
+Le service, dont les réponses sont éprouvées contre le contrat, rend les commandes de chaque
+sauvegarde (`available_commands`) et la longueur de son téléchargement, que le contrat exige
+désormais. Relevé par la reprise, et non corrigé ici : il ne refuse pas encore par les 409 nommés
+d'EP-14 (`startBackup`, `downloadBackup`, les conditions de `startRestore`).
+
+La part du front de la reprise fait un seul écran des sauvegardes de ceux que les deux EPIC avaient
+écrits chacun (EP-02/L43c, L43d, L43f ; US-0440/L3, L3b). D'EP-14, il garde la grille dense, son tri,
+ses filtres et ses pages, les commandes que liste chaque sauvegarde (`available_commands`) — le
+téléchargement compris, sous `backups.read` et `backups.write` comme le serveur le liste —,
+« Sauvegarder maintenant » dans la tête de la liste, la planification et son formulaire, et la route
+du téléchargement (`relay.ts`, la sauvegarde et le refus nommés dans l'adresse de retour,
+`refused_backup`, la longueur relayée) ; écartés, le tableau d'EP-03, ses commandes déduites de la
+session et de la vérification, et son refus de téléchargement sans la sauvegarde
+(`download_refusal`). D'EP-03, il garde le dépôt par morceaux (`BackupDeposit`, sous la liste, à qui
+porte `platform_restore`), l'écran de la maintenance qui suit une restauration mise en file
+(`Restoration`, `maintenance.tsx`), et la lecture de la planification qui se passe d'un 404 — étendue
+aux emplacements externes, que le service ne sert pas non plus. La confirmation est une seule, le
+dialogue d'EP-14 (`RestoreDialog`), pour une sauvegarde de la liste comme pour un dépôt : il énonce
+la date et la vérification — celle d'un dépôt en attente, sa restauration la fait (L42o) —, n'agit
+qu'une fois l'identifiant saisi — celui du dépôt pour un dépôt —, dit à la date le 400
+`CONFIRMATION_REQUIRED` et relit la page ; écartés, le dialogue d'alerte d'EP-03 et ses phrases.
+Mise en file, la restauration passe à l'écran de sa maintenance et non plus au suivi de la coquille,
+qui lirait une tâche pendant que l'API ne répond qu'à sa sonde. Les commandes d'EP-14 suivent la
+lecture comptée d'EP-03 (`generation`) et retiennent les navigations le temps de leur réponse
+(`useHeldCommand`, #688), comme celles de `main`. Les tests des pages des sauvegardes passent dans
+`app/admin/backups/page.test.tsx`, ceux des commandes se partagent entre la liste
+(`backup-commands.dom.test.tsx`), la restauration (`restore-dialog.dom.test.tsx`) et le dépôt
+(`backup-deposit.dom.test.tsx`), qui lisent la liste par `src/test/backups.tsx` et les pages par
+`src/test/markup.ts` : chacun sous les mille lignes. Le parcours contre le service
+(`e2e/service/backups.spec.ts`) suit l'écran fusionné ; il n'a pas été rejoué à la reprise.
 
 ## US-0200 — Accessibilité minimale
 

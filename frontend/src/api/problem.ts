@@ -11,8 +11,11 @@
  * - `conflict` (409), the state of an object forbids the operation: the screen explains it,
  *   naming the object in conflict when the envelope carries it — or one of its refusals by field,
  *   the object that holds a value already taken — and the screen knows it;
- * - `signed_out` (401), no session: the screen leads to the sign-in page, which comes back to
- *   the screen once signed in again (`loginHref`, `src/navigation/login.ts`);
+ * - `signed_out` (401), no session — or none the front holds, and the request did not leave —,
+ *   not the account refused, a `refused` whose code the screen says (`ACCOUNT_DEACTIVATED`,
+ *   `ACCOUNT_NOT_ADMITTED`), since signing in again would loop —: the screen leads to the sign-in
+ *   page, which comes back to the screen once signed in again (`loginHref`,
+ *   `src/navigation/login.ts`);
  * - `unreachable`, the API did not answer at all — `fetch` rejected, or a gateway answered
  *   502, 503 or 504 without the envelope — a result of its own, never a `Problem` the API did
  *   not send, and never a blank screen.
@@ -22,19 +25,28 @@
  *
  * A read of a server component that its screen cannot do without goes through `readOrFail`
  * instead: what is not its data is thrown — not found, the API out of reach, no session, an
- * unexpected answer —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`). A read it
- * can do without goes through `readUnlessRefused`, which gives nothing on the refusals it expects.
+ * unexpected answer, the account refused —, and the pages of the shell say it (`not-found.tsx`,
+ * `error.tsx`). A read it can do without goes through `readUnlessRefused`, which gives nothing on
+ * the refusals it expects.
  *
  * A client component imports only the types of this module; the decoding runs on the server.
  */
 import { notFound, unstable_rethrow } from "next/navigation";
 
-import { correlationDigest, SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
+import {
+  ACCOUNT_DEACTIVATED_DIGEST,
+  ACCOUNT_NOT_ADMITTED_DIGEST,
+  correlationDigest,
+  SESSION_LOST_DIGEST,
+  SESSION_REQUIRED_DIGEST,
+  SESSION_REVOKED_DIGEST,
+} from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
+import { asksIdentifiers } from "@/navigation/login";
 
 import { Unreachable } from "./client";
-import { kindOf, type ProblemKind } from "./problem-kind";
+import { isAccountRefusal, kindOf, type ProblemKind } from "./problem-kind";
 import type { components } from "./generated/schema";
 
 export { kindOf, type ProblemKind } from "./problem-kind";
@@ -146,24 +158,59 @@ export class UnexpectedAnswer extends Error {
 /**
  * The API refused a read of a screen for want of a session (401): the screen of failure
  * leads to the sign-in page, which comes back to the screen once signed in again — its
- * digest, the one thing of it Next forwards, says so.
+ * digest, the one thing of it Next forwards, says so, and whether the sign-in is to ask for the
+ * identifiers again, the session closed (`SESSION_REVOKED`, #855).
  */
 export class SignedOut extends Error {
-  readonly digest = SESSION_REQUIRED_DIGEST;
+  readonly digest: string;
 
-  /** The refusal of an operation, by its `operationId`. */
-  constructor(readonly operation: string) {
+  /** The refusal of an operation, by its `operationId`, and the code of its envelope, if any. */
+  constructor(
+    readonly operation: string,
+    code?: string,
+  ) {
     super(`${operation} answered 401`);
     this.name = "SignedOut";
+    this.digest = asksIdentifiers(code) ? SESSION_REVOKED_DIGEST : SESSION_REQUIRED_DIGEST;
+  }
+}
+
+/**
+ * The API refused a read of a screen because of the account itself, deactivated (401
+ * `ACCOUNT_DEACTIVATED`) or not admitted (401 `ACCOUNT_NOT_ADMITTED`, #664): the screen of failure
+ * says which, and does not lead to the sign-in page, which would loop.
+ */
+export class AccountRefused extends Error {
+  readonly digest: string;
+
+  /** The refusal of an operation, by its `operationId`, and the code that says why. */
+  constructor(
+    readonly operation: string,
+    readonly code: "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED",
+  ) {
+    super(`${operation} answered 401 ${code}`);
+    this.name = "AccountRefused";
+    this.digest =
+      code === "ACCOUNT_DEACTIVATED" ? ACCOUNT_DEACTIVATED_DIGEST : ACCOUNT_NOT_ADMITTED_DIGEST;
   }
 }
 
 /**
  * What a read throws on an answer that is neither a success, nor "not found", nor the API
- * out of reach: `SignedOut` on 401, `UnexpectedAnswer` otherwise.
+ * out of reach: `SignedOut` on 401, `AccountRefused` on the 401 that refuses the account,
+ * `UnexpectedAnswer` otherwise.
  */
 export function refusalOf(operation: string, status: number, body: unknown): Error {
-  return status === 401 ? new SignedOut(operation) : new UnexpectedAnswer(operation, status, body);
+  const code = isProblem(body) ? body.code : undefined;
+  if (isAccountRefusal(status, code)) {
+    return new AccountRefused(
+      operation,
+      code === "ACCOUNT_DEACTIVATED" ? "ACCOUNT_DEACTIVATED" : "ACCOUNT_NOT_ADMITTED",
+    );
+  }
+  return status === 401
+    ? new SignedOut(operation, code)
+    : new UnexpectedAnswer(operation, status, body);
 }
 
 /**
@@ -265,7 +312,11 @@ function decodeAnswer<T>(answer: Answer<T>): Outcome<T> {
     return { kind: "unreachable" };
   }
   const problem = envelope(answer.error, status);
-  return { kind: kindOf(status), problem, conflictingObjectId: conflictingOf(problem) };
+  return {
+    kind: kindOf(status, problem.code),
+    problem,
+    conflictingObjectId: conflictingOf(problem),
+  };
 }
 
 /**
@@ -280,10 +331,52 @@ function conflictingOf({ params, fields }: Problem): string | null {
   return typeof named === "string" ? named : null;
 }
 
-/** Call the API and decode its answer, `unreachable` when it does not answer at all. */
-export async function decode<T>(call: () => Promise<Answer<T>>): Promise<Outcome<T>> {
-  const answer = await reach(call);
+/** Whether an error is the session of the request lost: the request did not leave. */
+function isSessionLost(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    error.digest === SESSION_LOST_DIGEST
+  );
+}
+
+/** A request that did not leave: the session of the front its cookie names lives no more. */
+export interface Lost {
+  readonly kind: "lost";
+}
+
+/**
+ * Call the API and decode its answer, `unreachable` when it does not answer at all, and `lost`
+ * when the request did not leave, the session of the front lost — for the one action that must
+ * tell it apart from a refusal of the API, the sign-out.
+ */
+export async function decodeOrLost<T>(call: () => Promise<Answer<T>>): Promise<Outcome<T> | Lost> {
+  let answer: Answer<T> | undefined;
+  try {
+    answer = await reach(call);
+  } catch (error) {
+    if (isSessionLost(error)) {
+      return { kind: "lost" };
+    }
+    throw error;
+  }
   return answer === undefined ? { kind: "unreachable" } : decodeAnswer(answer);
+}
+
+/**
+ * Call the API and decode its answer, `unreachable` when it does not answer at all. Without a
+ * session that lives, the request does not leave, and the outcome is `signed_out`, as if the API
+ * had refused it: the action is not applied, and its screen says so before it leads to the
+ * sign-in page — never the screen of failure, which would lead there at once.
+ */
+export async function decode<T>(call: () => Promise<Answer<T>>): Promise<Outcome<T>> {
+  const outcome = await decodeOrLost(call);
+  if (outcome.kind === "lost") {
+    const problem: Problem = { code: "SESSION_REQUIRED", status: 401 };
+    return { kind: "signed_out", problem, conflictingObjectId: null };
+  }
+  return outcome;
 }
 
 /** The outcome of an action whose success is all the screen needs to know. */

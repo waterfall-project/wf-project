@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the invariants that hold the examples of the universe together, across their files.
 
-The examples written by hand — sessions, accounts, roles, imports and their reports, background
-tasks, the state of the system and the backups — and those the generator writes must tell one
-witness at one instant (#287; C3, C5, C6 and #421). They try the simplifications of the fake back
-against one another, not the Vérif of a requirement: none cites one (WF-QUA-0010, « un test qui
-ne couvre aucune exigence »).
+The examples written by hand — accounts and their permissions, roles, imports and their
+reports, background tasks, the state of the system and the backups — and those the generator
+writes must tell one witness at one instant (#287; C3, C5, C6 and #421). They try the
+simplifications of the fake back against one another, not the Vérif of a requirement: none cites
+one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import json
@@ -174,20 +174,25 @@ def test_the_paste_follows_the_label_entered_and_the_reestimate_the_hours_entere
         assert then["structure_lock_version"] == first["structure_lock_version"] + 1
 
 
-# --- The accounts and the sessions (C6) ---------------------------------------------------------
+# --- The accounts and their permissions (C6) ---------------------------------------------------
 
 
-def test_each_session_is_of_a_user_the_accounts_list_with_the_roles_it_holds(
-    examples: dict[str, Any],
-) -> None:
+def examples_of_getme() -> list[str]:
+    """Name the fixtures the contract gives as the examples of getMe, in its order (#606)."""
+    text = (REPOSITORY / "docs" / "api" / "paths" / "me.yaml").read_text(encoding="utf-8")
+    operation = text[text.index("operationId: getMe") : text.index("'401'")]
+    return re.findall(r"fixtures/api/(\w+)\.json", operation)
+
+
+def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_holds() -> None:
     users = {user["user_id"]: user for user in fixture("users")["items"]}
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     contributors = {each["user_id"] for each in fixture("contributors")["items"]}
-    for name, value in examples.items():
-        if not (name.startswith("session") and isinstance(value, dict) and "user" in value):
-            continue
-        session = cast("Node", value)
-        user = session["user"]
+    names = examples_of_getme()
+    # Each example of the contract is tried: none passes for want of being found.
+    assert len(names) == 12
+    for name in names:
+        user = cast("Node", fixture(name))
         listed = users[user["user_id"]]
         assert listed["access_role_ids"] == user["access_role_ids"], name
         assert (listed["last_name"], listed["first_name"]) == (
@@ -199,8 +204,8 @@ def test_each_session_is_of_a_user_the_accounts_list_with_the_roles_it_holds(
             for role in user["access_role_ids"]
             for permission in roles[role]["permissions"]
         }
-        assert set(session["permissions"]) == granted, name
-        # A session that reads the witness without reading every project is a contributor's
+        assert set(user["permissions"]) == granted, name
+        # An account that reads the witness without reading every project is a contributor's
         # (WF-PRJ-0060, WF-ADM-0110).
         if "revisions.read" in granted and "all_projects_read" not in granted:
             assert user["user_id"] in contributors, name
@@ -211,10 +216,11 @@ def test_each_session_is_of_a_user_the_accounts_list_with_the_roles_it_holds(
 
 def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None:
     # The accounts are read by Camille Martin, who may modify them: each carries the command that
-    # changes its state and the attribution of its roles. The one active account that holds the
-    # permissions to modify the accounts and the access roles has its deactivation unavailable,
-    # the condition `last_administrator` missing (WF-ADM-0120); giving it more roles stays
-    # possible, and every other command listed is available.
+    # changes its state, the anonymisation of a deactivated one, and the attribution of its
+    # roles. The one active account that holds the permissions to modify the accounts and the
+    # access roles has its deactivation unavailable, the condition `last_administrator` missing
+    # (WF-ADM-0120); giving it more roles stays possible, and every other command listed is
+    # available.
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
 
     def administers(user: Node) -> bool:
@@ -229,12 +235,20 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
         assert user["available_commands"] == listed[user["user_id"]]["available_commands"]
         last = user["user_id"] in administrators
         unmet = ["last_administrator"] if last else []
+        # A deactivated account not anonymised carries its anonymisation too (WF-ADM-0060).
+        anonymize: dict[str, Any] = {
+            "command": "anonymize",
+            "is_available": True,
+            "missing_conditions": [],
+        }
+        anonymization = [] if user["is_active"] else [anonymize]
         assert user["available_commands"] == [
             {
                 "command": "deactivate" if user["is_active"] else "reactivate",
                 "is_available": not last,
                 "missing_conditions": unmet,
             },
+            *anonymization,
             {"command": "set_access_roles", "is_available": True, "missing_conditions": []},
         ], user["last_name"]
 
@@ -277,15 +291,45 @@ def test_an_active_object_is_refused_under_a_deactivated_node_by_its_field() -> 
         assert refusal["fields"] == [{"pointer": pointer, "code": "INACTIVE_REFERENCE_OBJECT"}]
 
 
-def test_the_account_of_the_session_is_written_alike_wherever_it_is_read() -> None:
+def test_the_account_of_the_caller_is_written_alike_wherever_it_is_read() -> None:
     audits: list[tuple[Node, int]] = []
-    for name in ("session", "me", "users"):
+    for name in ("me", "users"):
         value = fixture(name)
-        accounts = value["items"] if "items" in value else [value.get("user", value)]
+        accounts = value.get("items", [value])
         mine = next(each for each in accounts if each["user_id"] == universe(301))
         audits.append((mine["audit"], mine["lock_version"]))
         assert _instant(mine["audit"]["updated_at"]) <= TODAY, name
     assert all(each == audits[0] for each in audits)
+
+
+def test_the_anonymization_of_today_follows_the_account_the_list_reads() -> None:
+    # The anonymisation of Alix Moreau is the sequel of a write made today: the account the list
+    # reads, deactivated, one version further, without its names, and the journal that named it
+    # renamed nothing else (#832).
+    read = {each["user_id"]: each for each in fixture("users")["items"]}
+    forgotten = {"last_name", "first_name", "email", "anonymized_at", "available_commands"}
+    for name in ("user_anonymized", "users_anonymized"):
+        value = fixture(name)
+        anonymized = value.get("items", [value])[0]
+        before = read[anonymized["user_id"]]
+        assert before["anonymized_at"] is None, name
+        assert _instant(anonymized["anonymized_at"]) == TODAY, name
+        assert anonymized["audit"]["updated_at"] == anonymized["anonymized_at"], name
+        assert anonymized["lock_version"] == before["lock_version"] + 1, name
+        assert {anonymized[key] for key in ("last_name", "first_name", "email")} == {None}, name
+        kept = forgotten | {"audit", "lock_version"}
+        assert {key: value for key, value in anonymized.items() if key not in kept} == {
+            key: value for key, value in before.items() if key not in kept
+        }, name
+    journal = {each["audit_event_id"]: each for each in fixture("audit_events")["items"]}
+    anonymization, *history = fixture("audit_events_anonymized_object")["items"]
+    assert (anonymization["action"], _instant(anonymization["occurred_at"])) == (
+        "user_anonymize",
+        TODAY,
+    )
+    for inscription in history:
+        named = journal[inscription["audit_event_id"]]
+        assert inscription == {**named, "object": {**named["object"], "label": None}}
 
 
 # --- The actual costs (C3) ----------------------------------------------------------------------
@@ -596,21 +640,20 @@ def _block_of(operation: str, file: str) -> str:
     return text.split(f"operationId: {operation}\n", 1)[1].split("operationId:", 1)[0]
 
 
-def test_a_confirmation_that_is_not_the_instant_of_the_deposit_is_refused_at_its_field() -> None:
-    # The refusal of a backup of the list (`restore_date_mismatch`, EP-14/L42h), for a deposit:
-    # the date confirmed is the one of a backup of the list, not the instant the archive bears.
+def test_a_confirmation_that_is_not_the_date_of_the_deposit_names_no_backup() -> None:
+    # The refusal of a backup of the list (`restore_confirmation_mismatch`, EP-03/US-0440/L2), for
+    # a deposit: the date confirmed is the one of a backup of the list, not the date the manifest
+    # of the archive says. A confirmation that does not name the date is a 400, not a refusal of
+    # a field (reprise of main after EP-03).
     refused = fixture("restore_external_date_mismatch")
-    assert set(refused) == {"code", "status", "fields", "correlation_id"}
-    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
-    assert refused["fields"] == [
-        {"pointer": "/acknowledged_backup_taken_at", "code": "BACKUP_DATE_MISMATCH"}
-    ]
-    assert fixture("restore_date_mismatch")["fields"] == refused["fields"]
+    assert set(refused) == {"code", "status", "correlation_id"}
+    assert (refused["status"], refused["code"]) == (400, "CONFIRMATION_REQUIRED")
+    listed_refusal = fixture("restore_confirmation_mismatch")
+    assert (listed_refusal["status"], listed_refusal["code"]) == (400, "CONFIRMATION_REQUIRED")
     listed = {each["taken_at"] for each in fixture("backups")["items"]}
     assert fixture("file_upload_external_backup")["backup_taken_at"] not in listed
-    assert "fixtures/api/restore_external_date_mismatch.json" in _block_of(
-        "startRestore", "platform.yaml"
-    )
+    told = _block_of("startRestore", "platform.yaml").split("'400':", 1)[1].split("'401':", 1)[0]
+    assert "fixtures/api/restore_external_date_mismatch.json" in told
 
 
 def test_a_restore_on_the_deposit_of_an_import_is_refused_by_its_purpose_alone() -> None:
@@ -624,14 +667,21 @@ def test_a_restore_on_the_deposit_of_an_import_is_refused_by_its_purpose_alone()
     ]
 
 
-def test_a_deposited_archive_whose_instant_does_not_read_is_refused_without_parameter() -> None:
-    # No kind of exchange names the format of the backups: `expected_format` stays absent.
-    unreadable = fixture("file_upload_backup_unreadable")
+def test_a_deposited_archive_whose_date_does_not_read_is_refused_without_parameter() -> None:
+    # No kind of exchange names the format of the backups: `expected_format` stays absent. A
+    # backup is deposited by parts (EP-03, #350), its date read at the completion; the deposit of
+    # a file serves the imports alone.
+    unreadable = fixture("chunked_upload_unreadable")
     assert set(unreadable) == {"code", "status", "correlation_id"}
     assert (unreadable["status"], unreadable["code"]) == (422, "FILE_FORMAT_UNREADABLE")
-    upload = _block_of("uploadFile", "exchanges.yaml")
-    for name in ("file_upload", "file_upload_external_backup", "file_upload_backup_unreadable"):
-        assert f"fixtures/api/{name}.json" in upload, name
+    completion = _block_of("completeChunkedUpload", "exchanges.yaml")
+    for name in (
+        "chunked_upload_completed",
+        "file_upload_external_backup",
+        "chunked_upload_unreadable",
+    ):
+        assert f"fixtures/api/{name}.json" in completion, name
+    assert "fixtures/api/file_upload.json" in _block_of("uploadFile", "exchanges.yaml")
 
 
 def test_a_restore_on_a_deposit_expired_or_unknown_is_not_found_without_parameter() -> None:
@@ -827,16 +877,19 @@ def test_the_coverage_of_the_portfolio_counts_that_of_the_witness() -> None:
 def test_every_inverted_period_is_refused_by_one_rule() -> None:
     # One rule for every period of the contract (docs/api/README.md): 422, `/query/to` by
     # VALUE_OUT_OF_RANGE, `params.minimum` the start given — a date or an instant, as `from` is.
+    # A table with several columns of dates names the end by its column (#936).
     # A bound of the portfolio sent alone is completed by the default period, and the refusal
     # names the bound sent, `params` the bound completed (#560).
     found = sorted(mockwitness.FIXTURES.glob("*_period_inverted.json"))
     expected = {
+        "access_roles": ("/query/updated_at_to", "minimum", datetime),
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
         "backups": ("/query/to", "minimum", datetime),
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
+        "users": ("/query/created_at_to", "minimum", datetime),
     }
     assert {path.name.removesuffix("_period_inverted.json") for path in found} == set(expected)
     for path in found:
@@ -897,10 +950,12 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "getPortfolioProjects",
         "getPortfolioRisks",
         "getPortfolioValue",
+        "listAccessRoles",
         "listActualCosts",
         "listAuditEvents",
         "listBackups",
         "listProjects",
+        "listUsers",
     ]
     for name, text in taking.items():
         refused = text.split("\n      '422':", 1)

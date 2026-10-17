@@ -44,8 +44,8 @@ import {
 import { createTimeline, deleteTimeline } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import { UnmetConditions } from "@/components/commands/command";
+import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { rejected } from "@/components/commands/rejection";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -158,6 +158,9 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
   const form = useTranslations("reference.form");
   const router = useRouter();
   const list = useListReport();
+  // The list, which tells the refusal, holds the navigations while the deletion answers (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const id = useId();
   const { deleted, drop } = useDeletions();
   const [said, setSaid] = useState<{ readonly text: string; readonly count: number }>();
@@ -210,9 +213,9 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
     if (pending) {
       return;
     }
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const outcome = await deleteTimeline(project, timeline.timeline_id).catch(rejected);
+      const outcome = await held(deleteTimeline(project, timeline.timeline_id));
       if (outcome.kind === "done") {
         drop(timeline.timeline_id);
         say(t("deleted", { label: timeline.label }));
@@ -228,7 +231,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
       } else {
         list?.report({
           outcome,
-          reading,
+          generation,
           names: {},
           target: `delete timeline ${timeline.timeline_id}`,
         });

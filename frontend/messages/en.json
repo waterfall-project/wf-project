@@ -43,40 +43,14 @@
   },
   "accountMenu": {
     "label": "Account of {name}",
-    "name": "{first} {last}",
     "preferences": "Preferences",
     "account": "My account",
-    "password": "Change password",
     "avatar": "Change avatar",
     "signOut": "Sign out"
   },
-  "signIn": {
-    "title": "Sign in",
-    "local": "With your Waterfall account.",
-    "directory": "With your Waterfall account or your account in the company directory.",
-    "namedDirectory": "With your Waterfall account or your account in the “{directory}” directory.",
-    "email": "Email address",
-    "password": "Password",
-    "submit": "Sign in",
-    "or": "or",
-    "identityProvider": "Sign in with the identity provider",
-    "namedIdentityProvider": "Sign in with {provider}",
-    "forgotten": "Forgotten your password?"
-  },
-  "passwordReset": {
-    "title": "Forgotten password",
-    "request": "Give the email address of your account: a link to choose a new password will be sent to it.",
-    "email": "Email address",
-    "send": "Send the link",
-    "sent": "If an account has this address, a link has just been sent to it.",
-    "chooseTitle": "New password",
-    "choose": "Choose the new password of your account.",
-    "newPassword": "New password",
-    "save": "Save the password",
-    "saved": "Your password is saved: you may sign in.",
-    "askAgain": "Ask for a new link",
-    "back": "Back to sign in",
-    "signIn": "Sign in"
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Anonymised account"
   },
   "account": {
     "details": "Account details",
@@ -87,13 +61,9 @@
     "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
     "save": "Save",
     "saved": "Your preferences are saved.",
-    "password": {
-      "current": "Current password",
-      "new": "New password",
-      "submit": "Change the password",
-      "changed": "Your password is changed.",
-      "external": "Your password is the one of the directory or of the identity provider your account comes from: it is not changed in Waterfall."
-    },
+    "signIn": "Sign-in",
+    "signInHelp": "Your sign-in credentials are set and changed on the page of your account at the identity provider.",
+    "realmPage": "Open my account at the identity provider",
     "avatar": {
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",
@@ -205,8 +175,7 @@
       "holders": "Holding accounts",
       "modify": "Modify",
       "delete": "Delete",
-      "activation": "Activation",
-      "assignRoles": "Role assignment",
+      "anonymize": "Anonymisation",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
@@ -226,6 +195,9 @@
       "physicalProgress": "Physical progress",
       "gantt": "Gantt",
       "updatedAt": "Last modified",
+      "createdAt": "Created",
+      "createdBy": "Created by",
+      "updatedBy": "Last modified by",
       "occurredAt": "Date",
       "author": "Author",
       "auditAction": "Action",
@@ -240,7 +212,8 @@
       "backupOrigin": "Started",
       "retention": "Retention",
       "download": "Download",
-      "restore": "Restoration"
+      "restore": "Restoration",
+      "passwordLink": "Setup link"
     },
     "computed": "Computed",
     "entry": {
@@ -897,7 +870,8 @@
     "signIn": "Sign in",
     "dismiss": "Dismiss",
     "namedLines": "Estimate lines the refusal names",
-    "namedProjects": "Projects named by the refusal"
+    "namedProjects": "Projects named by the refusal",
+    "leftRefused": "{count, plural, one {A change no longer shown was refused: it is not saved.} other {# changes no longer shown were refused: they are not saved.}}"
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
@@ -1138,12 +1112,26 @@
       "title": "Session required",
       "explanation": "The screen needs an open session: sign in, and you will come back to it."
     },
+    "revoked": {
+      "title": "Session closed",
+      "explanation": "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles: sign in again with your credentials, and you will come back to the screen."
+    },
+    "deactivated": {
+      "title": "Account deactivated",
+      "explanation": "This account is deactivated: the screen is not available. Contact an administrator."
+    },
+    "notAdmitted": {
+      "title": "Account not admitted",
+      "explanation": "Waterfall does not admit this account: the screen cannot be shown. Contact an administrator."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
     },
+    "signInUnreachable": "The service does not answer: the sign-in could not be made. Try again in a moment.",
     "reference": "Reference: {reference}",
-    "retry": "Try again"
+    "retry": "Try again",
+    "signOut": "Sign out"
   },
   "loading": {
     "label": "Loading the screen"
@@ -1357,7 +1345,6 @@
       "beyond": "This page is beyond the end of the list."
     },
     "commands": {
-      "later": "{command}: available with EP-03.",
       "unmet": "{command}: {condition}"
     },
     "users": {
@@ -1369,21 +1356,62 @@
       "originFilter": "Filter by origin",
       "everyOrigin": "Every origin",
       "create": "Create a local account",
-      "modify": "Modify",
-      "deactivate": "Deactivate",
-      "reactivate": "Reactivate",
-      "assignRoles": "Assign the roles",
-      "named": "{firstName} {lastName}",
-      "modifyUser": "Modify “{name}”",
-      "deactivateUser": "Deactivate “{name}”",
-      "reactivateUser": "Reactivate “{name}”",
-      "assignRolesUser": "Assign the roles of “{name}”",
+      "anonymize": "Anonymise",
+      "anonymizeUser": "Anonymise “{name}”",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
       "stateFilter": "Account state",
       "everyState": "Every state",
       "activeAccounts": "Active accounts",
-      "inactiveAccounts": "Deactivated accounts"
+      "inactiveAccounts": "Deactivated accounts",
+      "told": "Commands of the accounts",
+      "created": "Account “{name}” created.",
+      "creationHint": "The account is born with no way to sign in: its holder gets one through the link the identity provider mails them, or, when no invitation went, the link the table hands over. Its roles are then attributed in the table.",
+      "deactivated": "“{name}” deactivated.",
+      "reactivated": "“{name}” reactivated.",
+      "activeUser": "Account of “{name}” active",
+      "rolesOf": "Roles of “{name}”",
+      "rolesAttributed": "Roles of “{name}” attributed.",
+      "link": "Link",
+      "password_link": {
+        "command": "Link to set the password of “{name}”",
+        "title": "Link to set the password of “{name}”",
+        "hint": "To hand over to its holder by another channel: they set their password on the page of the identity provider. The link serves once and will not be shown again; asking another makes this one void."
+      },
+      "linkExpiry": "Valid until <expiry></expiry>.",
+      "copyLink": "Copy the link",
+      "closeLink": "Close",
+      "linkCopied": "Link copied.",
+      "linkSelected": "Link selected: copy it with the keyboard.",
+      "renamed": "“{name}” renamed.",
+      "createdUninvited": "Account “{name}” created; no invitation went: hand over its setup link.",
+      "uninvited": "The account “{name}” is created, but no invitation went to it: hand over its setup link to its holder, by another channel.",
+      "giveLink": "Hand over the link",
+      "anonymized": "Account anonymised.",
+      "anonymizationTitle": "Anonymise “{name}”?",
+      "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, and the account is never reactivated.",
+      "keep": "Keep"
+    },
+    "identitySync": {
+      "title": "Reading of the identity provider accounts",
+      "start": "Read the accounts",
+      "none": "No reading of the accounts has ended yet.",
+      "finished": "Last reading ended on <time></time>.",
+      "created": "{count, plural, =0 {No account created} one {# account created, without a role} other {# accounts created, without a role}}",
+      "updated": "{count, plural, =0 {No account updated} one {# account updated} other {# accounts updated}}",
+      "deactivated": "{count, plural, =0 {No account deactivated} one {# account deactivated} other {# accounts deactivated}}",
+      "restored": "{count, plural, =0 {No identity restored in the provider} one {# local account identity restored in the provider} other {# local account identities restored in the provider}}",
+      "removed": "{count, plural, =0 {No local account removed from the provider} one {# local account removed from the provider} other {# local accounts removed from the provider}}",
+      "skipped": "{count, plural, =0 {Nothing reported} one {# reported, left as it was} other {# reported, left as they were}}",
+      "details": "Details of the last reading",
+      "skippedTitle": "Left as they were",
+      "noneSkipped": "Nothing was left as it was.",
+      "removedTitle": "Local accounts removed from the identity provider",
+      "noneRemoved": "No local account removed.",
+      "unnamed": "No name at the provider",
+      "address": "Address: {email}",
+      "subject": "Identifier at the provider: {subject}",
+      "carrier": "Address held by the account <name></name>"
     },
     "accessRoles": {
       "title": "Access roles",
@@ -1392,10 +1420,16 @@
       "none": "No access role.",
       "count": "{count, plural, =0 {No role} one {# role} other {# roles}}",
       "create": "Create a role",
-      "modify": "Modify",
       "delete": "Delete",
-      "modifyRole": "Modify “{name}”",
+      "creation": "Creation of a role",
+      "told": "Commands of the access roles",
+      "newLabel": "New role",
+      "created": "“{name}” created.",
+      "deleted": "“{name}” deleted.",
       "deleteRole": "Delete “{name}”",
+      "deletionTitle": "Delete “{name}”?",
+      "deletionFinal": "Deleting “{name}” is final: nothing restores the role.",
+      "keep": "Keep",
       "heldBy": "Held by {count, plural, one {# account} other {# accounts}}: a role is not deleted while an account holds it.",
       "kindFilter": "Kind",
       "everyKind": "Every kind",
@@ -1403,12 +1437,20 @@
       "composedRoles": "Composed roles",
       "bounds": "Bounds of the access roles"
     },
+    "audit": {
+      "everyAuthor": "Every author",
+      "anyAccount": "An account",
+      "find": "Find an account for “{column}”",
+      "findButton": "Find",
+      "found": "{count, plural, =0 {No account found for “{column}”.} one {# account found, to choose in “{column}”.} other {# accounts found, to choose in “{column}”.}}"
+    },
     "permissions": {
       "title": "Permissions by function",
       "function": "Function",
       "permission": "Permission",
       "held": "Granted",
-      "notHeld": "Not granted"
+      "notHeld": "Not granted",
+      "cell": "“{permission}” for “{role}”"
     },
     "status": {
       "version": "Installed version: {version}",
@@ -1432,7 +1474,7 @@
       "succeeded": "Succeeded",
       "failed": "Failed",
       "never": "Never run",
-      "directorySync": "Reading of the identity provider accounts",
+      "identitySync": "Reading of the identity provider accounts",
       "backup": "Backup",
       "backupCopy": "External copy of the backup",
       "restoreTest": "Restoration test",
@@ -1473,7 +1515,8 @@
       "retainedOnes": "Marked to keep",
       "rotatingOnes": "Subject to rotation",
       "bounds": "Bounds of the backups",
-      "sizeBytes": "Size (bytes)"
+      "sizeBytes": "Size (bytes)",
+      "commands": "Commands"
     },
     "restore": {
       "title": "Restore the platform",
@@ -1482,8 +1525,16 @@
       "identifier": "Identifier: <code></code>",
       "submit": "Restore",
       "sending": "Sending…",
-      "cancel": "Cancel",
-      "started": "Restoration from the backup of {date} started: follow its progress in the background tasks."
+      "cancel": "Cancel"
+    },
+    "deposit": {
+      "title": "Restore a backup of another installation",
+      "explanation": "Deposit the archive of a backup downloaded from an installation of the same version or an older one: the whole platform can then be replaced by it.",
+      "file": "Archive of the backup",
+      "send": "Deposit",
+      "sending": "Depositing the archive: part {part} of {count}…",
+      "deposited": "Backup of <time></time> deposited: {name}.",
+      "restore": "Restore this backup"
     },
     "schedule": {
       "title": "Schedule",
@@ -1547,6 +1598,17 @@
       "history": "History of “{object}”",
       "correlated": "The entries of the correlation {correlation}",
       "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
+      "details": {
+        "fields": "{count, plural, one {Field changed} other {Fields changed}}: {fields}",
+        "attached": "Origin from now on: {origin}",
+        "permissions": "{count, plural, =0 {No permission} one {Permission: {permissions}} other {Permissions: {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission granted} other {Permissions granted}}: {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission withdrawn} other {Permissions withdrawn}}: {permissions}",
+        "renamed": "Formerly “{label}”",
+        "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
+        "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
+        "then": "{first}; {second}"
+      },
       "filters": {
         "label": "Filters of the log",
         "period": "Period",
@@ -1615,7 +1677,7 @@
     "CONFIRMATION_REQUIRED": "This operation requires explicit confirmation.",
     "SESSION_REQUIRED": "You need to sign in.",
     "SESSION_EXPIRED": "Your session has expired; please sign in again.",
-    "INVALID_CREDENTIALS": "Incorrect email address or password.",
+    "SESSION_REVOKED": "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles; sign in again with your credentials.",
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
     "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
@@ -1633,8 +1695,6 @@
     "TASK_ALREADY_STARTED": "The task has already started.",
     "TASK_COMPLETED": "The task is completed.",
     "REFERENCE_INCOMPLETE": "The minimum reference data is incomplete.",
-    "PASSWORD_RESET_TOKEN_INVALID": "This reset link is no longer valid.",
-    "ACCOUNT_LOCKED": "Account locked after too many failed attempts; try again in fifteen minutes.",
     "STALE_LOCK_VERSION": "Someone changed this data in the meantime; reload it to see its latest version.",
     "FILE_TOO_LARGE": "The file is larger than allowed.",
     "VALIDATION_FAILED": "The data entered is not valid.",
@@ -1656,7 +1716,6 @@
     "DATE_INVALID": "This is not a valid date.",
     "UNKNOWN_COST_CATEGORY": "Unknown cost category.",
     "UNKNOWN_COST_TYPE": "Unknown cost type.",
-    "UNKNOWN_ORG_NODE": "Unknown organisation node.",
     "UNKNOWN_CALENDAR": "Unknown calendar.",
     "UNKNOWN_RESOURCE_ROLE": "Unknown resource role.",
     "UNKNOWN_SUBPROJECT": "Unknown subproject.",
@@ -1671,7 +1730,6 @@
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
     "PATH_INVALID": "Invalid path: it must be relative, without “..”.",
-    "BACKUP_DATE_MISMATCH": "The confirmed date is not that of the backup named.",
     "BOUNDS_NOT_ORDERED": "The bounds must be strictly increasing.",
     "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "The threshold must lie between 0 and 1, both excluded.",
@@ -1684,7 +1742,15 @@
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
-    "INTERNAL_ERROR": "Unexpected service error."
+    "INTERNAL_ERROR": "Unexpected service error.",
+    "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
+    "ACCOUNT_NOT_ADMITTED": "This account is not admitted in Waterfall; contact an administrator.",
+    "EMAIL_MISSING": "The identity provider holds no address for this person.",
+    "UNKNOWN_ACCESS_ROLE": "This access role does not exist.",
+    "UNKNOWN_ORG_NODE": "This organisation node does not exist.",
+    "FIELD_READ_ONLY": "This field comes from the identity provider: it cannot be changed in Waterfall.",
+    "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
+    "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",
@@ -1721,8 +1787,7 @@
       "write": "Edit access roles"
     },
     "system_status": {
-      "read": "View the system status",
-      "write": "Edit the system status"
+      "read": "View the system status"
     },
     "backups": {
       "read": "View backups",
@@ -1732,32 +1797,25 @@
       "read": "View the audit log"
     },
     "portfolio_projects": {
-      "read": "View the project portfolio",
-      "write": "Edit the project portfolio"
+      "read": "View the project portfolio"
     },
     "portfolio_workload": {
-      "read": "View the aggregated workload",
-      "write": "Edit the aggregated workload"
+      "read": "View the aggregated workload"
     },
     "portfolio_performance": {
-      "read": "View the portfolio performance",
-      "write": "Edit the portfolio performance"
+      "read": "View the portfolio performance"
     },
     "portfolio_cost_structure": {
-      "read": "View the portfolio cost structure",
-      "write": "Edit the portfolio cost structure"
+      "read": "View the portfolio cost structure"
     },
     "portfolio_risks": {
-      "read": "View the portfolio risks",
-      "write": "Edit the portfolio risks"
+      "read": "View the portfolio risks"
     },
     "portfolio_cost_curve": {
-      "read": "View the portfolio S-curve",
-      "write": "Edit the portfolio S-curve"
+      "read": "View the portfolio S-curve"
     },
     "portfolio_pilot_health": {
-      "read": "View the project control health",
-      "write": "Edit the project control health"
+      "read": "View the project control health"
     },
     "cost_settings": {
       "read": "View cost settings",
@@ -1829,7 +1887,7 @@
       "database": "Database",
       "cache": "Cache",
       "object_storage": "File storage",
-      "directory": "Directory",
+      "identity_provider": "Identity provider",
       "metrics": "Metrics"
     },
     "AlertZone": {
@@ -1843,7 +1901,7 @@
         "task_queue_stalled": "Task queue stalled",
         "scheduled_backup_failed": "Scheduled backup failed",
         "scheduled_backup_copy_failed": "External copy of a scheduled backup failed",
-        "directory_sync_failed": "Directory synchronisation failed",
+        "identity_sync_failed": "Reading of the identity provider accounts failed",
         "storage_nearly_full": "Storage nearly full",
         "error_rate_abnormal": "Abnormal error rate"
       }
@@ -1862,7 +1920,7 @@
         "export": "Export",
         "backup": "Backup",
         "restore": "Restore",
-        "directory_sync": "Directory synchronisation"
+        "identity_sync": "Reading of the identity provider accounts"
       }
     },
     "BackgroundTaskStatus": {
@@ -1870,11 +1928,6 @@
       "running": "Running",
       "succeeded": "Succeeded",
       "failed": "Failed"
-    },
-    "AuthProviderKind": {
-      "local": "Local account",
-      "ldap": "LDAP directory",
-      "oidc": "Identity provider (OIDC)"
     },
     "UserOrigin": {
       "local": "Created in Waterfall",
@@ -1885,6 +1938,12 @@
       "kind": {
         "user": "User",
         "platform": "Automatic process"
+      }
+    },
+    "IdentitySyncSkipped": {
+      "kind": {
+        "account": "Waterfall account",
+        "person": "Identity provider person"
       }
     },
     "SortOrder": {
@@ -1962,6 +2021,7 @@
       "user_update": "Account edited",
       "user_deactivate": "Account deactivated",
       "user_reactivate": "Account reactivated",
+      "user_anonymize": "Account anonymised",
       "password_link_create": "Password link generated",
       "access_role_create": "Role created",
       "access_role_update": "Role edited",
@@ -1985,6 +2045,11 @@
       "access_role": "Access role",
       "backup": "Backup",
       "external_backup_upload": "Uploaded backup"
+    },
+    "AuditUserField": {
+      "last_name": "Last name",
+      "first_name": "First name",
+      "email": "Email address"
     },
     "ReferenceReadiness": {
       "missing": {
@@ -2073,7 +2138,11 @@
       "subproject_without_actual_costs": "no actual cost booked against the subproject",
       "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
       "main_structure_without_tasks": "main structure without any task",
-      "import_file_accepted": "file accepted by the report"
+      "import_file_accepted": "file accepted by the report",
+      "is_local_account": "account created in Waterfall",
+      "is_active_account": "active account",
+      "is_deactivated_account": "deactivated account",
+      "is_not_anonymized": "account not anonymised"
     },
     "ProjectExit": {
       "to_state": {
@@ -2402,6 +2471,7 @@
     "UserCommand": {
       "deactivate": "Deactivate the account",
       "reactivate": "Reactivate the account",
+      "anonymize": "Anonymise the account",
       "set_access_roles": "Assign the roles of the account"
     },
     "RiskComputedField": {
@@ -2574,5 +2644,14 @@
       "depth": "Level of the tree",
       "none": "No export is offered to you on this revision."
     }
+  },
+  "maintenance": {
+    "title": "Restoration of the platform under way",
+    "pending": "The restoration is waiting: the platform is about to go under maintenance, and every user will then be signed out until it is done.",
+    "maintenance": "The platform is under maintenance while it is restored: every user has been signed out, and can sign in again once the restoration is done.",
+    "signedOutTitle": "Session ended",
+    "signedOut": "Your session ended before the outcome of the restoration was known. Sign in again to learn it.",
+    "doneTitle": "Restoration done",
+    "done": "The platform has been restored. Sign in again to go on."
   }
 }

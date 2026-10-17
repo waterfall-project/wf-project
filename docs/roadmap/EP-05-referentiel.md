@@ -133,6 +133,10 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
   ses descendants, catégorie hors main-d'œuvre ou rattachement désactivé d'un rôle (WF-REF-0090),
   heures hors bornes, version périmée —, que les « Interface contract issue » relevées par L43b
   précisent d'abord ; les parcours contre le service ; et le retrait de l'avis de la maquette.
+- La saisie du rattachement d'un compte dans sa cellule de l'écran des comptes — une liste
+  déroulante des nœuds de l'organigramme, écrite par `updateUser` ; la colonne « Rattachement »
+  reste aujourd'hui en lecture seule (#379, renvoyé par US-0360 : « reste en lecture… jusqu'à
+  EP-05 »).
 
 ## Préalables
 

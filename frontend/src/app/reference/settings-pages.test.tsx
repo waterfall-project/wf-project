@@ -51,15 +51,15 @@ function rendered(page: unknown): string {
 }
 
 /** Serve the settings of the witness to a session, by the name of its example. */
-function servedTo(session: "session" | "session_manager") {
-  server.answers = { "GET /session": session, "GET /reference/settings": "reference_settings" };
+function servedTo(session: "me" | "me_manager") {
+  server.answers = { "GET /me": session, "GET /reference/settings": "reference_settings" };
 }
 
 /** The note that says the fake back keeps nothing. */
 const MOCKUP = /role="note"[^>]*>.*?le service simulé répond/;
 
 beforeEach(() => {
-  servedTo("session");
+  servedTo("me");
   withdrawn.permissions = [];
 });
 
@@ -105,7 +105,7 @@ describe("the forms of the settings of the risks and of the indicators", () => {
   });
 
   it("offer neither form to a session that may only read the settings, nor say anything of the fake back [WF-IHM-0090-A]", async () => {
-    servedTo("session_manager");
+    servedTo("me_manager");
     const risks = rendered(await RiskSettingsPage());
     const indicators = rendered(await IndicatorSettingsPage());
     expect(risks).not.toContain("Modifier la matrice de risques");

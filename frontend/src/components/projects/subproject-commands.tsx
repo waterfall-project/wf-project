@@ -59,8 +59,8 @@ import {
 
 import { deleteSubproject, writeSubproject } from "@/api/actions/projects";
 import { UnmetConditions } from "@/components/commands/command";
+import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { rejected } from "@/components/commands/rejection";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
@@ -450,22 +450,25 @@ function DeleteConfirmation({
   const t = useTranslations("projectLists.subprojects");
   const form = useTranslations("reference.form");
   const list = useListReport();
+  // The list, which tells the refusal, holds the navigations while the deletion answers (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const [pending, startTransition] = useTransition();
   const confirm = () => {
     if (pending) {
       return;
     }
     // The reading the deletion is confirmed on: its refusal is told on it alone.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const outcome = await deleteSubproject(commands.project, row.subproject_id).catch(rejected);
+      const outcome = await held(deleteSubproject(commands.project, row.subproject_id));
       if (outcome.kind === "done") {
         commands.remove(row.subproject_id);
         commands.say(t("deleted", { code: row.code }));
       } else {
         list?.report({
           outcome,
-          reading,
+          generation,
           names: { [row.subproject_id]: row.code },
           target: `delete subproject ${row.subproject_id}`,
         });

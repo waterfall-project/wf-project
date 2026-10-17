@@ -26,7 +26,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
-import { readEveryPage } from "@/api/every-page";
+import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { type Problem, readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
@@ -63,12 +63,18 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { PROJECT_STATES } from "@/navigation/home";
 import { problemMessage } from "@/i18n/problem";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
-import { requestSession, type Session } from "@/session/request";
+import { type Account, requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 
 /** The refusal of filters the server cannot apply — a period inverted (`listAuditEvents`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
+
+/**
+ * The list of the projects the API does not find: a service that serves none yet.
+ * TODO(#962): withdraw once the service serves the projects (EP-04).
+ */
+const PROJECTS_UNSERVED = [{ status: 404 }] as const;
 
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -90,8 +96,8 @@ function AuditHeader({ count }: { readonly count: number | undefined }) {
 
 /**
  * The authors and the projects the whole journal names, to choose among in its filters: the accounts
- * by the names they show today, deactivated ones included (WF-ADM-0060), the projects by their codes
- * and labels, whether the session may open them or not.
+ * by the names they show today, deactivated ones included, none for an anonymised one (WF-ADM-0060),
+ * the projects by their codes and labels, whether the session may open them or not.
  */
 async function readFacets(): Promise<{
   readonly authors: AuthorChoice[];
@@ -110,14 +116,19 @@ async function readFacets(): Promise<{
   };
 }
 
-/** The projects the session may open, in every state, by their identifiers: every page of them. */
+/**
+ * The projects the session may open, in every state, by their identifiers: every page of them. None
+ * where the API finds no list of projects — a service that serves none yet, the projects coming
+ * with EP-04 —: the journal names its projects then, and leads to none.
+ * TODO(#962): read every page again, without the refusal tolerated, once EP-04 serves them.
+ */
 async function readOpenable(): Promise<string[]> {
-  const projects = await readEveryPage("listProjects", (page) =>
+  const projects = await readEveryPageUnlessRefused("listProjects", PROJECTS_UNSERVED, (page) =>
     serverClient().GET("/projects", {
       params: { query: { ...page, states: [...PROJECT_STATES], sort_by: "code" } },
     }),
   );
-  return projects.map((project) => project.project_id);
+  return (projects ?? []).map((project) => project.project_id);
 }
 
 /**
@@ -222,14 +233,14 @@ function Inscriptions({
  * What the session reads of the journal: its permissions, and the settings it keeps for the grid;
  * not found to a session that may not consult the journal (WF-ADM-0110).
  */
-function consultation(session: Session | undefined) {
+function consultation(session: Account | undefined) {
   const permissions = session?.permissions ?? [];
   if (!permissions.includes("audit_log.read")) {
     notFound();
   }
   return {
     permissions,
-    preferences: session?.user.display_preferences?.grids?.[AUDIT_GRID_KEY] ?? undefined,
+    preferences: session?.display_preferences?.grids?.[AUDIT_GRID_KEY] ?? undefined,
   };
 }
 

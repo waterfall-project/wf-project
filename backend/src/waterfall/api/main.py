@@ -1,19 +1,69 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Entry point of the API service.
-
-The service itself arrives with EP-03; until then the process starts, states its version,
-and stops.
-"""
+"""Entry point of the API service."""
 
 import sys
+from collections.abc import Sequence
+
+import uvicorn
 
 from waterfall import __version__
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
+from waterfall.platform.database import Database, create_database_engine
+from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.logs import configure_logging, get_logger
+from waterfall.platform.maintenance import Maintenance
+from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
+from waterfall.platform.settings import SettingsError, load_service_settings
+from waterfall.platform.storage import Bucket
+
+NAME = "waterfall-api"
 
 
-def main() -> int:
-    """Start the API service."""
-    sys.stdout.write(f"waterfall-api {__version__}\n")
+def main(argv: Sequence[str] | None = None) -> int:
+    """Start the API service, or say why it cannot start (WF-SEC-0010).
+
+    The service takes no argument but ``--version``: any other one is refused with status 2, but
+    ``install``, which ``waterfall.bootstrap`` takes before it (US-0420).
+    """
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments == ["--version"]:
+        sys.stdout.write(f"{NAME} {__version__}\n")
+        return 0
+    if arguments:
+        sys.stderr.write(
+            f"usage: {NAME} [--version | install]\n{NAME}: unexpected argument: {arguments[0]}\n"
+        )
+        return 2
+    try:
+        settings = load_service_settings()
+    except SettingsError as error:
+        sys.stderr.write(f"{NAME}: {error}\n")
+        return 2
+    configure_logging(settings.log_level, secrets=settings.secret_values())
+    get_logger(__name__).info(
+        "service.starting", version=__version__, host=settings.host, port=settings.port
+    )
+    database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    keycloak = Keycloak(settings)
+    queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
+    administration = KeycloakAdmin(keycloak, settings)
+    backups = Bucket.of_backups(settings)
+    services = Services(database, keycloak, administration, queue, backups, Maintenance.of(queue))
+    try:
+        uvicorn.run(
+            create_app(services),
+            host=settings.host,
+            port=settings.port,
+            log_config=None,
+            access_log=False,
+        )
+    finally:
+        queue.close()
+        keycloak.close()
+        database.dispose()
     return 0
 
 

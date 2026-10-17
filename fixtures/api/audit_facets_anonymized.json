@@ -1,0 +1,22 @@
+{
+  "summary": "Variante contrefactuelle : les auteurs et les projets du journal d'une installation où Alix Moreau, cheffe de projet, aurait appliqué un import avant que son compte soit désactivé, puis anonymisé aujourd'hui : Camille Martin, et le compte d'Alix Moreau, dont le nom affiché est nul, que le front présente sous le libellé neutre de son catalogue ; et le projet témoin (WF-SEC-0030, WF-ADM-0060, WF-IHM-0130).",
+  "value": {
+    "actors": [
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000303",
+        "display_name": null
+      }
+    ],
+    "projects": [
+      {
+        "project_id": "01926f3a-7c00-7000-8000-000000000001",
+        "code": "PRJ-001",
+        "label": "Modernisation du poste de commande"
+      }
+    ]
+  }
+}

@@ -172,7 +172,7 @@ export default async function HomePage({
   const mayLift = mayLiftContributorFilter(permissions);
   const filtered = isContributorFiltered(search) || !mayLift;
   const creates = platformOffer(permissions, "project_create") !== undefined;
-  const kept = session?.user.display_preferences?.grids?.[PROJECT_LIST_GRID.key] ?? undefined;
+  const kept = session?.display_preferences?.grids?.[PROJECT_LIST_GRID.key] ?? undefined;
   const asked = {
     filtered,
     states: readValues(search, STATES_PARAMETER, PROJECT_STATES),

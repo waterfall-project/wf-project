@@ -69,8 +69,8 @@ export function tableScreens(): AppScreen[] {
 
 /**
  * The screens no table names: the project itself, under its label; the account and its pages; the
- * way in, which the session of the fake back opens as well (`login.spec.ts`); and the screen of an
- * address no page answers.
+ * sign-in that could not be made — the way in is the identity provider's, `/login` a route that
+ * sends the browser there (EP-03) —; and the screen of an address no page answers.
  */
 export const OTHER_SCREENS: readonly AppScreen[] = [
   {
@@ -81,23 +81,16 @@ export const OTHER_SCREENS: readonly AppScreen[] = [
   },
   { code: "account", route: "/account", address: "/account", name: text("accountMenu.account") },
   {
-    code: "account-password",
-    route: "/account/password",
-    address: "/account/password",
-    name: text("accountMenu.password"),
-  },
-  {
     code: "account-avatar",
     route: "/account/avatar",
     address: "/account/avatar",
     name: text("accountMenu.avatar"),
   },
-  { code: "login", route: "/login", address: "/login", name: text("signIn.title") },
   {
-    code: "login-reset",
-    route: "/login/reset",
-    address: "/login/reset",
-    name: text("passwordReset.title"),
+    code: "login-unavailable",
+    route: "/login/unavailable",
+    address: "/login/unavailable",
+    name: text("failure.unreachable.title"),
   },
   {
     code: "not-found",

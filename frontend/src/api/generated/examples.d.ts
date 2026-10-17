@@ -9,19 +9,19 @@ export interface Examples {
     200: "node_deleted";
   };
   "GET /access-roles": {
-    200: "access_roles" | "access_roles_composed" | "access_roles_unheld";
+    200: "access_roles" | "access_roles_by_updated_by" | "access_roles_composed" | "access_roles_unheld" | "access_roles_updated_by_anonymized" | "access_roles_updated_by_deactivated";
   };
   "GET /audit-events": {
-    200: "audit_events" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
+    200: "audit_events" | "audit_events_administration" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
   };
   "GET /audit-events/facets": {
-    200: "audit_facets";
+    200: "audit_facets" | "audit_facets_anonymized";
   };
   "GET /backup-schedule": {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
-    200: "backups" | "backups_beyond" | "backups_by_size" | "backups_during_backup" | "backups_empty" | "backups_manual" | "backups_period" | "backups_reader" | "backups_retained";
+    200: "backups" | "backups_beyond" | "backups_by_size" | "backups_during_backup" | "backups_empty" | "backups_manual" | "backups_period" | "backups_reader" | "backups_retained" | "backups_unverified";
   };
   "GET /backups/{backup_id}": {
     200: "backup" | "backup_pending";
@@ -29,11 +29,17 @@ export interface Examples {
   "GET /external-backup-locations": {
     200: "external_backup_locations" | "external_backup_locations_none";
   };
+  "GET /health": {
+    200: "liveness" | "liveness_maintenance";
+  };
+  "GET /identity-syncs/latest": {
+    200: "identity_sync_report" | "identity_sync_report_anonymized" | "identity_sync_report_flagged";
+  };
   "GET /installation": {
     200: "installation" | "installation_english";
   };
   "GET /me": {
-    200: "me" | "me_directory" | "me_english" | "me_with_avatar" | "me_without_preferences";
+    200: "me" | "me_auditor" | "me_dark" | "me_directory" | "me_english" | "me_estimator" | "me_grid_settings" | "me_manager" | "me_with_avatar" | "me_without_administration" | "me_without_preferences" | "me_without_roles";
   };
   "GET /permissions": {
     200: "permissions";
@@ -200,12 +206,6 @@ export interface Examples {
   "GET /reference/settings": {
     200: "reference_settings";
   };
-  "GET /session": {
-    200: "session" | "session_auditor" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_manager" | "session_without_administration" | "session_without_preferences" | "session_without_roles";
-  };
-  "GET /session/providers": {
-    200: "auth_providers" | "auth_providers_local";
-  };
   "GET /system/status": {
     200: "system_status" | "system_status_backup_failed" | "system_status_copy_failed" | "system_status_storage_full";
   };
@@ -213,10 +213,16 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_merge_outside_order_item" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_outside_order_item" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
-    200: "users" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
+    200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
+  };
+  "GET /users/{user_id}": {
+    200: "user_anonymized" | "user_deactivated";
+  };
+  "PATCH /access-roles/{access_role_id}": {
+    200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
   };
   "PATCH /backups/{backup_id}": {
     200: "backup_released" | "backup_retained";
@@ -254,14 +260,29 @@ export interface Examples {
   "PATCH /reference/settings": {
     200: "reference_settings_matrix_updated" | "reference_settings_thresholds_updated";
   };
+  "PATCH /users/{user_id}": {
+    200: "user_renamed" | "user_renamed_deactivated";
+  };
+  "POST /access-roles": {
+    201: "access_role_created";
+  };
   "POST /backups": {
     202: "task_backup_queued";
+  };
+  "POST /chunked-uploads": {
+    201: "chunked_upload";
+  };
+  "POST /chunked-uploads/{chunked_upload_id}/completion": {
+    201: "chunked_upload_completed" | "file_upload_external_backup";
   };
   "POST /external-backup-locations/{location_name}/test": {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
   };
   "POST /file-uploads": {
-    201: "file_upload" | "file_upload_external_backup";
+    201: "file_upload";
+  };
+  "POST /identity-syncs": {
+    202: "identity_sync_queued";
   };
   "POST /projects": {
     201: "project_created";
@@ -314,11 +335,20 @@ export interface Examples {
   "POST /restores": {
     202: "task_restore_queued";
   };
-  "POST /session": {
-    201: "session";
+  "POST /users": {
+    201: "user_created" | "user_created_invited";
+  };
+  "POST /users/{user_id}/anonymization": {
+    200: "user_anonymized";
+  };
+  "POST /users/{user_id}/password-link": {
+    201: "password_setup_link";
   };
   "PUT /backup-schedule": {
     200: "backup_schedule_set";
+  };
+  "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
+    200: "chunked_upload_part";
   };
   "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
     200: "actual_cost_excluded" | "actual_cost_reinstated";
@@ -355,5 +385,11 @@ export interface Examples {
   };
   "PUT /reference/resource-roles/{resource_role_id}/activation": {
     200: "resource_role_deactivated" | "resource_role_reactivated";
+  };
+  "PUT /users/{user_id}/access-roles": {
+    200: "user_access_roles_cleared" | "user_access_roles_set" | "user_access_roles_two";
+  };
+  "PUT /users/{user_id}/activation": {
+    200: "user_deactivated";
   };
 }

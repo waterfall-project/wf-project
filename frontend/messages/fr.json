@@ -43,40 +43,14 @@
   },
   "accountMenu": {
     "label": "Compte de {name}",
-    "name": "{first} {last}",
     "preferences": "Préférences",
     "account": "Mon compte",
-    "password": "Changer le mot de passe",
     "avatar": "Changer l’avatar",
     "signOut": "Se déconnecter"
   },
-  "signIn": {
-    "title": "Connexion",
-    "local": "Avec votre compte Waterfall.",
-    "directory": "Avec votre compte Waterfall ou celui de l’annuaire de l’entreprise.",
-    "namedDirectory": "Avec votre compte Waterfall ou celui de l’annuaire « {directory} ».",
-    "email": "Adresse électronique",
-    "password": "Mot de passe",
-    "submit": "Se connecter",
-    "or": "ou",
-    "identityProvider": "Se connecter avec le fournisseur d’identité",
-    "namedIdentityProvider": "Se connecter avec {provider}",
-    "forgotten": "Mot de passe oublié ?"
-  },
-  "passwordReset": {
-    "title": "Mot de passe oublié",
-    "request": "Indiquez l’adresse électronique de votre compte : un lien pour choisir un nouveau mot de passe lui sera envoyé.",
-    "email": "Adresse électronique",
-    "send": "Envoyer le lien",
-    "sent": "Si un compte correspond à cette adresse, un lien vient de lui être envoyé.",
-    "chooseTitle": "Nouveau mot de passe",
-    "choose": "Choisissez le nouveau mot de passe de votre compte.",
-    "newPassword": "Nouveau mot de passe",
-    "save": "Enregistrer le mot de passe",
-    "saved": "Votre mot de passe est enregistré : vous pouvez vous connecter.",
-    "askAgain": "Demander un nouveau lien",
-    "back": "Retour à la connexion",
-    "signIn": "Se connecter"
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Compte anonymisé"
   },
   "account": {
     "details": "Informations du compte",
@@ -87,13 +61,9 @@
     "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
     "save": "Enregistrer",
     "saved": "Vos préférences sont enregistrées.",
-    "password": {
-      "current": "Mot de passe actuel",
-      "new": "Nouveau mot de passe",
-      "submit": "Changer le mot de passe",
-      "changed": "Votre mot de passe est changé.",
-      "external": "Votre mot de passe est celui de l’annuaire ou du fournisseur d’identité dont vient votre compte : il ne se change pas dans Waterfall."
-    },
+    "signIn": "Connexion",
+    "signInHelp": "Vos identifiants de connexion se fixent et se changent sur la page de votre compte du fournisseur d’identité.",
+    "realmPage": "Ouvrir mon compte du fournisseur d’identité",
     "avatar": {
       "current": "Votre avatar",
       "initials": "Aucune image : vos initiales en tiennent lieu.",
@@ -205,8 +175,7 @@
       "holders": "Comptes porteurs",
       "modify": "Modifier",
       "delete": "Supprimer",
-      "activation": "Activation",
-      "assignRoles": "Attribution des rôles",
+      "anonymize": "Anonymisation",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -226,6 +195,9 @@
       "physicalProgress": "Avancement physique",
       "gantt": "Gantt",
       "updatedAt": "Modifié le",
+      "createdAt": "Créé le",
+      "createdBy": "Créé par",
+      "updatedBy": "Modifié par",
       "occurredAt": "Date",
       "author": "Auteur",
       "auditAction": "Action",
@@ -240,7 +212,8 @@
       "backupOrigin": "Déclenchement",
       "retention": "Conservation",
       "download": "Téléchargement",
-      "restore": "Restauration"
+      "restore": "Restauration",
+      "passwordLink": "Lien de fixation"
     },
     "computed": "Calculé",
     "entry": {
@@ -897,7 +870,8 @@
     "signIn": "Se connecter",
     "dismiss": "Fermer l’avis",
     "namedLines": "Lignes de devis nommées par le refus",
-    "namedProjects": "Projets nommés par le refus"
+    "namedProjects": "Projets nommés par le refus",
+    "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
@@ -1138,12 +1112,26 @@
       "title": "Session requise",
       "explanation": "L’écran demande une session ouverte : connectez-vous, vous y reviendrez ensuite."
     },
+    "revoked": {
+      "title": "Session fermée",
+      "explanation": "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles : connectez-vous en saisissant à nouveau vos identifiants, vous reviendrez ensuite à l’écran."
+    },
+    "deactivated": {
+      "title": "Compte désactivé",
+      "explanation": "Ce compte est désactivé : l’écran n’est pas accessible. Contactez un administrateur."
+    },
+    "notAdmitted": {
+      "title": "Compte non admis",
+      "explanation": "Waterfall n’admet pas ce compte : l’écran n’est pas accessible. Contactez un administrateur."
+    },
     "unexpected": {
       "title": "Erreur inattendue",
       "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
     },
+    "signInUnreachable": "Le service ne répond pas : la connexion n’a pas pu se faire. Réessayez dans un instant.",
     "reference": "Référence : {reference}",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "signOut": "Se déconnecter"
   },
   "loading": {
     "label": "Chargement de l’écran"
@@ -1357,7 +1345,6 @@
       "beyond": "Cette page est au-delà de la fin de la liste."
     },
     "commands": {
-      "later": "{command} : disponible avec EP-03.",
       "unmet": "{command} : {condition}"
     },
     "users": {
@@ -1369,21 +1356,62 @@
       "originFilter": "Filtrer par origine",
       "everyOrigin": "Toutes les origines",
       "create": "Créer un compte local",
-      "modify": "Modifier",
-      "deactivate": "Désactiver",
-      "reactivate": "Réactiver",
-      "assignRoles": "Attribuer les rôles",
-      "named": "{firstName} {lastName}",
-      "modifyUser": "Modifier « {name} »",
-      "deactivateUser": "Désactiver « {name} »",
-      "reactivateUser": "Réactiver « {name} »",
-      "assignRolesUser": "Attribuer les rôles de « {name} »",
+      "anonymize": "Anonymiser",
+      "anonymizeUser": "Anonymiser « {name} »",
       "roleFilter": "Filtrer par rôle",
       "everyRole": "Tous les rôles",
       "stateFilter": "État du compte",
       "everyState": "Tous les états",
       "activeAccounts": "Comptes actifs",
-      "inactiveAccounts": "Comptes désactivés"
+      "inactiveAccounts": "Comptes désactivés",
+      "told": "Commandes des comptes",
+      "created": "Compte « {name} » créé.",
+      "creationHint": "Le compte naît sans moyen de se connecter : son porteur en reçoit un par le lien de fixation, que le fournisseur d’identité lui envoie par courriel, ou, faute d’invitation, que la table remet. Ses rôles s’attribuent ensuite dans la table.",
+      "deactivated": "« {name} » désactivé.",
+      "reactivated": "« {name} » réactivé.",
+      "activeUser": "Compte de « {name} » actif",
+      "rolesOf": "Rôles de « {name} »",
+      "rolesAttributed": "Rôles de « {name} » attribués.",
+      "link": "Lien",
+      "password_link": {
+        "command": "Lien de fixation du mot de passe de « {name} »",
+        "title": "Lien de fixation du mot de passe de « {name} »",
+        "hint": "À remettre à son porteur par un autre canal : il y fixe son mot de passe, sur la page du fournisseur d’identité. Le lien ne sert qu’une fois et ne sera plus montré ; en demander un autre rend celui-ci caduc."
+      },
+      "linkExpiry": "Valable jusqu’à <expiry></expiry>.",
+      "copyLink": "Copier le lien",
+      "closeLink": "Fermer",
+      "linkCopied": "Lien copié.",
+      "linkSelected": "Lien sélectionné : copiez-le au clavier.",
+      "renamed": "« {name} » renommé.",
+      "createdUninvited": "Compte « {name} » créé ; aucune invitation n’est partie : remettez-lui son lien de fixation.",
+      "uninvited": "Le compte « {name} » est créé, mais aucune invitation ne lui est partie : remettez à son porteur son lien de fixation, par un autre canal.",
+      "giveLink": "Remettre le lien",
+      "anonymized": "Compte anonymisé.",
+      "anonymizationTitle": "Anonymiser « {name} » ?",
+      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, et le compte ne se réactive plus.",
+      "keep": "Conserver"
+    },
+    "identitySync": {
+      "title": "Lecture des comptes du fournisseur d’identité",
+      "start": "Lire les comptes",
+      "none": "Aucune lecture des comptes n’a encore abouti.",
+      "finished": "Dernière lecture achevée le <time></time>.",
+      "created": "{count, plural, =0 {Aucun compte créé} one {# compte créé, sans rôle} other {# comptes créés, sans rôle}}",
+      "updated": "{count, plural, =0 {Aucun compte mis à jour} one {# compte mis à jour} other {# comptes mis à jour}}",
+      "deactivated": "{count, plural, =0 {Aucun compte désactivé} one {# compte désactivé} other {# comptes désactivés}}",
+      "restored": "{count, plural, =0 {Aucune identité rétablie dans le fournisseur} one {# identité de compte local rétablie dans le fournisseur} other {# identités de comptes locaux rétablies dans le fournisseur}}",
+      "removed": "{count, plural, =0 {Aucun compte local retiré du fournisseur} one {# compte local retiré du fournisseur} other {# comptes locaux retirés du fournisseur}}",
+      "skipped": "{count, plural, =0 {Rien de signalé} one {# signalé, laissé tel quel} other {# signalés, laissés tels quels}}",
+      "details": "Détails de la dernière lecture",
+      "skippedTitle": "Laissés tels quels",
+      "noneSkipped": "Rien n’a été laissé tel quel.",
+      "removedTitle": "Comptes locaux retirés du fournisseur d’identité",
+      "noneRemoved": "Aucun compte local retiré.",
+      "unnamed": "Sans nom chez le fournisseur",
+      "address": "Adresse : {email}",
+      "subject": "Identifiant chez le fournisseur : {subject}",
+      "carrier": "Adresse portée par le compte <name></name>"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
@@ -1392,10 +1420,16 @@
       "none": "Aucun rôle d’habilitation.",
       "count": "{count, plural, =0 {Aucun rôle} one {# rôle} other {# rôles}}",
       "create": "Créer un rôle",
-      "modify": "Modifier",
       "delete": "Supprimer",
-      "modifyRole": "Modifier « {name} »",
+      "creation": "Création d’un rôle",
+      "told": "Commandes des rôles d’habilitation",
+      "newLabel": "Nouveau rôle",
+      "created": "« {name} » créé.",
+      "deleted": "« {name} » supprimé.",
       "deleteRole": "Supprimer « {name} »",
+      "deletionTitle": "Supprimer « {name} » ?",
+      "deletionFinal": "La suppression de « {name} » est définitive : rien ne restaure le rôle.",
+      "keep": "Conserver",
       "heldBy": "Porté par {count, plural, one {# compte} other {# comptes}} : un rôle ne se supprime pas tant qu’un compte le porte.",
       "kindFilter": "Nature",
       "everyKind": "Toutes les natures",
@@ -1403,12 +1437,20 @@
       "composedRoles": "Rôles composés",
       "bounds": "Bornes des rôles d’habilitation"
     },
+    "audit": {
+      "everyAuthor": "Tous les auteurs",
+      "anyAccount": "Un compte",
+      "find": "Chercher un compte pour « {column} »",
+      "findButton": "Chercher",
+      "found": "{count, plural, =0 {Aucun compte trouvé pour « {column} ».} one {# compte trouvé, à choisir dans « {column} ».} other {# comptes trouvés, à choisir dans « {column} ».}}"
+    },
     "permissions": {
       "title": "Permissions par fonction",
       "function": "Fonction",
       "permission": "Permission",
       "held": "Accordée",
-      "notHeld": "Non accordée"
+      "notHeld": "Non accordée",
+      "cell": "« {permission} » pour « {role} »"
     },
     "status": {
       "version": "Version installée : {version}",
@@ -1432,7 +1474,7 @@
       "succeeded": "Réussie",
       "failed": "Échouée",
       "never": "Jamais effectuée",
-      "directorySync": "Lecture des comptes du fournisseur d’identité",
+      "identitySync": "Lecture des comptes du fournisseur d’identité",
       "backup": "Sauvegarde",
       "backupCopy": "Copie externe de la sauvegarde",
       "restoreTest": "Test de restauration",
@@ -1473,7 +1515,8 @@
       "retainedOnes": "Marquées à conserver",
       "rotatingOnes": "Soumises à la rotation",
       "bounds": "Bornes des sauvegardes",
-      "sizeBytes": "Taille (octets)"
+      "sizeBytes": "Taille (octets)",
+      "commands": "Commandes"
     },
     "restore": {
       "title": "Restaurer la plateforme",
@@ -1482,8 +1525,16 @@
       "identifier": "Identifiant : <code></code>",
       "submit": "Restaurer",
       "sending": "Envoi en cours…",
-      "cancel": "Annuler",
-      "started": "Restauration depuis la sauvegarde du {date} lancée : son avancement se suit dans les tâches de fond."
+      "cancel": "Annuler"
+    },
+    "deposit": {
+      "title": "Restaurer une sauvegarde d’une autre installation",
+      "explanation": "Déposez l’archive d’une sauvegarde téléchargée sur une installation de même version ou plus ancienne : la plateforme entière pourra ensuite être remplacée par elle.",
+      "file": "Archive de la sauvegarde",
+      "send": "Déposer",
+      "sending": "Dépôt de l’archive : morceau {part} sur {count}…",
+      "deposited": "Sauvegarde du <time></time> déposée : {name}.",
+      "restore": "Restaurer cette sauvegarde"
     },
     "schedule": {
       "title": "Planification",
@@ -1547,6 +1598,17 @@
       "history": "Histoire de « {object} »",
       "correlated": "Les inscriptions de la corrélation {correlation}",
       "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
+      "details": {
+        "fields": "{count, plural, one {Champ modifié} other {Champs modifiés}} : {fields}",
+        "attached": "Origine désormais : {origin}",
+        "permissions": "{count, plural, =0 {Aucune permission} one {Permission : {permissions}} other {Permissions : {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission donnée} other {Permissions données}} : {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission retirée} other {Permissions retirées}} : {permissions}",
+        "renamed": "Auparavant « {label} »",
+        "rolesGranted": "{count, plural, one {Rôle donné} other {Rôles donnés}} : {roles}",
+        "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
+        "then": "{first} ; {second}"
+      },
       "filters": {
         "label": "Filtres du journal",
         "period": "Période",
@@ -1615,7 +1677,7 @@
     "CONFIRMATION_REQUIRED": "Cette opération demande une confirmation explicite.",
     "SESSION_REQUIRED": "Vous devez vous connecter.",
     "SESSION_EXPIRED": "Votre session a expiré ; reconnectez-vous.",
-    "INVALID_CREDENTIALS": "Adresse électronique ou mot de passe incorrect.",
+    "SESSION_REVOKED": "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles ; reconnectez-vous en saisissant à nouveau vos identifiants.",
     "PERMISSION_MISSING": "Vous n’avez pas la permission nécessaire.",
     "NOT_CONTRIBUTOR": "Seuls les contributeurs du projet peuvent le faire.",
     "NOT_PROJECT_MANAGER": "Seuls les chefs de projet peuvent le faire.",
@@ -1633,8 +1695,6 @@
     "TASK_ALREADY_STARTED": "La tâche a déjà démarré.",
     "TASK_COMPLETED": "La tâche est terminée.",
     "REFERENCE_INCOMPLETE": "Le référentiel minimal est incomplet.",
-    "PASSWORD_RESET_TOKEN_INVALID": "Ce lien de réinitialisation n’est plus valable.",
-    "ACCOUNT_LOCKED": "Compte verrouillé après trop d’échecs ; réessayez dans quinze minutes.",
     "STALE_LOCK_VERSION": "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
     "FILE_TOO_LARGE": "Le fichier dépasse la taille admise.",
     "VALIDATION_FAILED": "Les données saisies ne sont pas valides.",
@@ -1656,7 +1716,6 @@
     "DATE_INVALID": "Ce n’est pas une date valide.",
     "UNKNOWN_COST_CATEGORY": "Catégorie de coût inconnue.",
     "UNKNOWN_COST_TYPE": "Nature de coût inconnue.",
-    "UNKNOWN_ORG_NODE": "Nœud d’organisation inconnu.",
     "UNKNOWN_CALENDAR": "Calendrier inconnu.",
     "UNKNOWN_RESOURCE_ROLE": "Rôle de ressource inconnu.",
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
@@ -1671,7 +1730,6 @@
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
     "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
-    "BACKUP_DATE_MISMATCH": "La date confirmée n’est pas celle de la sauvegarde désignée.",
     "BOUNDS_NOT_ORDERED": "Les bornes doivent être strictement croissantes.",
     "THRESHOLD_NOT_BELOW_WATCH": "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "Le seuil doit être compris entre 0 et 1, l’un et l’autre exclus.",
@@ -1684,7 +1742,15 @@
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
-    "INTERNAL_ERROR": "Erreur inattendue du service."
+    "INTERNAL_ERROR": "Erreur inattendue du service.",
+    "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
+    "ACCOUNT_NOT_ADMITTED": "Ce compte n’est pas admis dans Waterfall ; contactez un administrateur.",
+    "EMAIL_MISSING": "Le fournisseur d’identité ne tient aucune adresse pour cette personne.",
+    "UNKNOWN_ACCESS_ROLE": "Ce rôle d’habilitation n’existe pas.",
+    "UNKNOWN_ORG_NODE": "Ce nœud d’organisation n’existe pas.",
+    "FIELD_READ_ONLY": "Ce champ vient du fournisseur d’identité : il ne se modifie pas dans Waterfall.",
+    "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas.",
+    "TASK_INTERRUPTED_BY_RESTORE": "La restauration a interrompu cette tâche, en cours au moment de la sauvegarde restaurée : elle ne reprend pas."
   },
   "problemDetails": {
     "missing_permission": "Permission requise : {permission}.",
@@ -1721,8 +1787,7 @@
       "write": "Modifier les rôles d’habilitation"
     },
     "system_status": {
-      "read": "Consulter l’état du système",
-      "write": "Modifier l’état du système"
+      "read": "Consulter l’état du système"
     },
     "backups": {
       "read": "Consulter les sauvegardes",
@@ -1732,32 +1797,25 @@
       "read": "Consulter le journal d’audit"
     },
     "portfolio_projects": {
-      "read": "Consulter le portefeuille de projets",
-      "write": "Modifier le portefeuille de projets"
+      "read": "Consulter le portefeuille de projets"
     },
     "portfolio_workload": {
-      "read": "Consulter le plan de charge agrégé",
-      "write": "Modifier le plan de charge agrégé"
+      "read": "Consulter le plan de charge agrégé"
     },
     "portfolio_performance": {
-      "read": "Consulter la performance du portefeuille",
-      "write": "Modifier la performance du portefeuille"
+      "read": "Consulter la performance du portefeuille"
     },
     "portfolio_cost_structure": {
-      "read": "Consulter la structure des coûts du portefeuille",
-      "write": "Modifier la structure des coûts du portefeuille"
+      "read": "Consulter la structure des coûts du portefeuille"
     },
     "portfolio_risks": {
-      "read": "Consulter les risques du portefeuille",
-      "write": "Modifier les risques du portefeuille"
+      "read": "Consulter les risques du portefeuille"
     },
     "portfolio_cost_curve": {
-      "read": "Consulter la courbe en S du portefeuille",
-      "write": "Modifier la courbe en S du portefeuille"
+      "read": "Consulter la courbe en S du portefeuille"
     },
     "portfolio_pilot_health": {
-      "read": "Consulter la santé du pilotage",
-      "write": "Modifier la santé du pilotage"
+      "read": "Consulter la santé du pilotage"
     },
     "cost_settings": {
       "read": "Consulter les paramètres de coûts",
@@ -1829,7 +1887,7 @@
       "database": "Base de données",
       "cache": "Cache",
       "object_storage": "Stockage des fichiers",
-      "directory": "Annuaire",
+      "identity_provider": "Fournisseur d’identité",
       "metrics": "Métriques"
     },
     "AlertZone": {
@@ -1843,7 +1901,7 @@
         "task_queue_stalled": "File des traitements bloquée",
         "scheduled_backup_failed": "Échec de la sauvegarde planifiée",
         "scheduled_backup_copy_failed": "Échec de la copie externe d’une sauvegarde planifiée",
-        "directory_sync_failed": "Échec de la synchronisation de l’annuaire",
+        "identity_sync_failed": "Échec de la lecture des comptes du fournisseur d’identité",
         "storage_nearly_full": "Stockage presque plein",
         "error_rate_abnormal": "Taux d’erreur anormal"
       }
@@ -1862,7 +1920,7 @@
         "export": "Export",
         "backup": "Sauvegarde",
         "restore": "Restauration",
-        "directory_sync": "Synchronisation de l’annuaire"
+        "identity_sync": "Lecture des comptes du fournisseur d’identité"
       }
     },
     "BackgroundTaskStatus": {
@@ -1870,11 +1928,6 @@
       "running": "En cours",
       "succeeded": "Réussie",
       "failed": "Échouée"
-    },
-    "AuthProviderKind": {
-      "local": "Compte local",
-      "ldap": "Annuaire LDAP",
-      "oidc": "Fournisseur d’identité (OIDC)"
     },
     "UserOrigin": {
       "local": "Créé dans Waterfall",
@@ -1885,6 +1938,12 @@
       "kind": {
         "user": "Utilisateur",
         "platform": "Traitement automatique"
+      }
+    },
+    "IdentitySyncSkipped": {
+      "kind": {
+        "account": "Compte Waterfall",
+        "person": "Personne du fournisseur d’identité"
       }
     },
     "SortOrder": {
@@ -1962,6 +2021,7 @@
       "user_update": "Modification d’un compte",
       "user_deactivate": "Désactivation d’un compte",
       "user_reactivate": "Réactivation d’un compte",
+      "user_anonymize": "Anonymisation d’un compte",
       "password_link_create": "Lien de mot de passe engendré",
       "access_role_create": "Création d’un rôle",
       "access_role_update": "Modification d’un rôle",
@@ -1985,6 +2045,11 @@
       "access_role": "Rôle d’habilitation",
       "backup": "Sauvegarde",
       "external_backup_upload": "Sauvegarde déposée"
+    },
+    "AuditUserField": {
+      "last_name": "Nom",
+      "first_name": "Prénom",
+      "email": "Adresse électronique"
     },
     "ReferenceReadiness": {
       "missing": {
@@ -2073,7 +2138,11 @@
       "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
       "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
       "main_structure_without_tasks": "structure principale sans aucune tâche",
-      "import_file_accepted": "fichier accepté par le compte rendu"
+      "import_file_accepted": "fichier accepté par le compte rendu",
+      "is_local_account": "compte créé dans Waterfall",
+      "is_active_account": "compte actif",
+      "is_deactivated_account": "compte désactivé",
+      "is_not_anonymized": "compte non anonymisé"
     },
     "ProjectExit": {
       "to_state": {
@@ -2402,6 +2471,7 @@
     "UserCommand": {
       "deactivate": "Désactiver le compte",
       "reactivate": "Réactiver le compte",
+      "anonymize": "Anonymiser le compte",
       "set_access_roles": "Attribuer les rôles du compte"
     },
     "RiskComputedField": {
@@ -2574,5 +2644,14 @@
       "depth": "Niveau de l’arborescence",
       "none": "Aucun export ne vous est offert sur cette révision."
     }
+  },
+  "maintenance": {
+    "title": "Restauration de la plateforme en cours",
+    "pending": "La restauration est en attente : la plateforme va passer en maintenance, et tous les utilisateurs seront alors déconnectés jusqu’à ce qu’elle soit terminée.",
+    "maintenance": "La plateforme est en maintenance le temps de sa restauration : tous les utilisateurs ont été déconnectés, et pourront se reconnecter une fois la restauration terminée.",
+    "signedOutTitle": "Session terminée",
+    "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous pour la connaître.",
+    "doneTitle": "Restauration terminée",
+    "done": "La plateforme a été restaurée. Reconnectez-vous pour continuer."
   }
 }

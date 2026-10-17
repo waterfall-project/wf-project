@@ -17,9 +17,13 @@ import pytest
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 LAYOUT = {
+    "bootstrap.py": "",
+    "restore/__init__.py": "",
     "api/__init__.py": "",
     "worker/__init__.py": "",
+    "migrations/__init__.py": "",
     "core/__init__.py": "",
+    "platform/__init__.py": "",
     "core/accounts/__init__.py": "",
     "core/accounts/interface.py": "from sample.core.accounts import tables\n",
     "core/accounts/tables.py": "",
@@ -95,6 +99,58 @@ def test_the_core_may_not_import_the_api(sample: Path) -> None:
 def test_the_api_may_not_import_the_worker(sample: Path) -> None:
     result = lint(sample, "api.__init__", "import sample.worker\n")
     assert result.returncode == 1
+
+
+def test_the_platform_may_be_imported_by_the_core_the_api_and_the_worker(sample: Path) -> None:
+    for module in ("core.projects.tables", "api.__init__", "worker.__init__"):
+        result = lint(sample, module, "import sample.platform\n")
+        assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize("imported", ["core.projects.interface", "api", "worker"])
+def test_the_platform_may_not_import_the_core_the_api_or_the_worker(
+    sample: Path, imported: str
+) -> None:
+    result = lint(sample, "platform.__init__", f"import sample.{imported}\n")
+    assert result.returncode == 1
+    assert f"sample.platform -> sample.{imported}" in result.stdout
+
+
+def test_the_core_may_not_import_the_migrations(sample: Path) -> None:
+    result = lint(sample, "core.projects.tables", "from sample import migrations\n")
+    assert result.returncode == 1
+
+
+def test_the_bootstrap_may_apply_the_migrations(sample: Path) -> None:
+    # The bootstrap applies the migrations, which the API may not import (US-0420).
+    imports = "import sample.migrations\nimport sample.api\nimport sample.core.accounts.interface\n"
+    result = lint(sample, "bootstrap", imports)
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize("module", ["api.__init__", "migrations.__init__", "core.projects.tables"])
+def test_nothing_imports_the_bootstrap(sample: Path, module: str) -> None:
+    result = lint(sample, module, "import sample.bootstrap\n")
+    assert result.returncode == 1
+    assert f"sample.{module.removesuffix('.__init__')} -> sample.bootstrap" in result.stdout
+
+
+def test_the_service_of_the_restoration_may_apply_the_migrations_and_run_as_the_worker(
+    sample: Path,
+) -> None:
+    # The restoration applies the migrations and runs as the worker does (#953).
+    imports = (
+        "import sample.migrations\nimport sample.worker\nimport sample.core.accounts.interface\n"
+    )
+    result = lint(sample, "restore.__init__", imports)
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize("module", ["worker.__init__", "api.__init__", "core.projects.tables"])
+def test_nothing_imports_the_service_of_the_restoration(sample: Path, module: str) -> None:
+    result = lint(sample, module, "import sample.restore\n")
+    assert result.returncode == 1
+    assert f"sample.{module.removesuffix('.__init__')} -> sample.restore" in result.stdout
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

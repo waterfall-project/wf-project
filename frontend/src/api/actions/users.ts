@@ -1,0 +1,153 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The server actions of the accounts (FBS-1.1, US-0360): a local account created, an account
+ * modified — the names of a local one —, deactivated or reactivated — never deleted (WF-ADM-0060) —,
+ * anonymised once deactivated, its access roles attributed, each decoded into an outcome
+ * (`src/api/problem.ts`); and the link by which the holder of a local account sets its password,
+ * handed to who asked it (WF-ADM-0140). Every write answered reads the page anew: the accounts as the server retains them, and the permissions of
+ * the session, which an attribution of its own roles may have changed (WF-ADM-0110). The link reads
+ * nothing anew: it changes nothing the page shows, nor does the search of an author (`findAccounts`).
+ * Nor does the reading of the accounts of the identity provider, asked of the worker (WF-ADM-0070,
+ * WF-ARC-0090): it gives a background task back at once, which the tracker of the shell follows to
+ * its end.
+ */
+"use server";
+
+import { refresh } from "next/cache";
+
+import type { components } from "@/api/generated/schema";
+import { type BackgroundTask, decode, decodeTask, type Outcome } from "@/api/problem";
+import { serverClient } from "@/api/server";
+
+type Schemas = components["schemas"];
+type User = Schemas["User"];
+
+/** Read the page anew once a write is answered. */
+function readAnew<T>(outcome: Outcome<T>): Outcome<T> {
+  if (outcome.kind === "done") {
+    refresh();
+  }
+  return outcome;
+}
+
+/**
+ * Create a local account from its names and its address (WF-ADM-0050), and say whether the invitation
+ * that carries its link went.
+ */
+export async function createUser(
+  user: Schemas["UserCreate"],
+): Promise<Outcome<Schemas["UserCreated"]>> {
+  return readAnew(await decode(() => serverClient().POST("/users", { body: user })));
+}
+
+/** Modify an account from the version read. */
+export async function updateUser(
+  userId: string,
+  user: Schemas["UserUpdate"],
+): Promise<Outcome<User>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().PATCH("/users/{user_id}", {
+        params: { path: { user_id: userId } },
+        body: user,
+      }),
+    ),
+  );
+}
+
+/** Deactivate or reactivate an account from the version read: never delete it (WF-ADM-0060). */
+export async function setUserActivation(
+  userId: string,
+  activation: Schemas["UserActivationWrite"],
+): Promise<Outcome<User>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().PUT("/users/{user_id}/activation", {
+        params: { path: { user_id: userId } },
+        body: activation,
+      }),
+    ),
+  );
+}
+
+/**
+ * Anonymise a deactivated account from the version read, irreversibly (WF-ADM-0060): the screen asks
+ * the confirmation first, the server none.
+ */
+export async function anonymizeUser(
+  userId: string,
+  anonymization: Schemas["UserAnonymizationWrite"],
+): Promise<Outcome<User>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().POST("/users/{user_id}/anonymization", {
+        params: { path: { user_id: userId } },
+        body: anonymization,
+      }),
+    ),
+  );
+}
+
+/** Attribute its access roles to an account, from the version read: none, one or more. */
+export async function setUserAccessRoles(
+  userId: string,
+  roles: Schemas["UserRolesWrite"],
+): Promise<Outcome<User>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().PUT("/users/{user_id}/access-roles", {
+        params: { path: { user_id: userId } },
+        body: roles,
+      }),
+    ),
+  );
+}
+
+/** Ask the link by which the holder of a local account sets its password, given once. */
+export async function createPasswordSetupLink(
+  userId: string,
+): Promise<Outcome<Schemas["PasswordSetupLink"]>> {
+  return decode(() =>
+    serverClient().POST("/users/{user_id}/password-link", {
+      params: { path: { user_id: userId } },
+    }),
+  );
+}
+
+/**
+ * Ask the worker to read the accounts of the identity provider (WF-ADM-0070): queued at once, the
+ * task given back for the tracker to follow (WF-ARC-0090). Nothing of the page has changed yet.
+ */
+export async function startIdentitySync(): Promise<Outcome<BackgroundTask>> {
+  return decodeTask(() => serverClient().POST("/identity-syncs"));
+}
+
+/** The most accounts a search of an author offers to choose: a search narrows, it does not list. */
+const AUTHORS_FOUND = 20;
+
+/**
+ * Find the accounts whose names or address hold a text, deactivated ones included — an anonymised
+ * one has none left to find (WF-ADM-0060) —, in the order of the list, to choose the author a table
+ * is filtered on (WF-IHM-0130, #936): a reading, which reads nothing anew. Each by its identifier
+ * and its names, which the screen composes in its language.
+ */
+export async function findAccounts(
+  search: string,
+): Promise<Outcome<Pick<User, "user_id" | "first_name" | "last_name">[]>> {
+  const outcome = await decode(() =>
+    serverClient().GET("/users", {
+      params: { query: { search, include_inactive: true, limit: AUTHORS_FOUND } },
+    }),
+  );
+  return outcome.kind === "done"
+    ? {
+        kind: "done",
+        data: outcome.data.items.map(({ user_id, first_name, last_name }) => ({
+          user_id,
+          first_name,
+          last_name,
+        })),
+      }
+    : outcome;
+}

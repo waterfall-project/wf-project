@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The directory of test of the development platform (WF-ADM-0180): one person, whom Keycloak
+# federates (development/waterfall.yaml). Her password is a development value, visible.
+
+dn: ou=people,dc=waterfall,dc=test
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=dominique.annuaire,ou=people,dc=waterfall,dc=test
+objectClass: inetOrgPerson
+uid: dominique.annuaire
+cn: Dominique Annuaire
+givenName: Dominique
+sn: Annuaire
+mail: dominique.annuaire@waterfall.test
+userPassword: development-only-directory-password

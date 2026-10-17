@@ -46,6 +46,7 @@ REFUSED = {
     ("updateMyPreferences", f"/grids/{ANY}/column_widths/{ANY}"): (
         "preferences_column_width_out_of_range"
     ),
+    ("openChunkedUpload", "/size_bytes"): "chunked_upload_size_out_of_range",
 }
 """Each bound of a body, by its operation and its pointer, and the example of its refusal."""
 
@@ -316,7 +317,7 @@ def test_the_examples_keep_within_the_bounds() -> None:
     for line in lines:
         assert (line["payment_delay_days"] or 0) >= delay["minimum"], line["label"]
     assert min(node["position"] for node in nodes) == position["minimum"]
-    # Every example that bears widths of columns — the preferences, the session — keeps them at
+    # Every example that bears widths of columns — the preferences, the account — keeps them at
     # least as wide as the narrowest admitted.
     width = published()["updateMyPreferences", f"/grids/{ANY}/column_widths/{ANY}"]
     checked: list[str] = []
@@ -326,4 +327,4 @@ def test_the_examples_keep_within_the_bounds() -> None:
             assert all(each >= width["minimum"] for each in widths.values()), path.name
             checked.extend(path.name for _ in widths)
     assert checked
-    assert "session_grid_settings.json" in checked
+    assert "me_grid_settings.json" in checked

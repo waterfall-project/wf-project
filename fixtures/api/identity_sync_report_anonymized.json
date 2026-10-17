@@ -1,0 +1,50 @@
+{
+  "summary": "Variante contrefactuelle déclarée de la lecture de cette nuit, consultée après l'anonymisation, aujourd'hui, du compte d'Alix Moreau (WF-ADM-0060). Si le compte d'Alix Moreau venait de l'annuaire — local, la lecture rétablirait son identité dans le fournisseur (restored) —, la lecture l'aurait laissé tel quel, le fournisseur lui donnant un prénom vide : gardé par son seul identifiant, il se lit maintenant sans nom ni adresse, que le front présente sous le libellé neutre de son catalogue (#920). Elle a écarté une personne que le fournisseur tient sans nom ni prénom (#918) ; une personne relayée par un fournisseur externe à l'adresse que portait alors le compte d'Alix Moreau, gardée par son identifiant chez le fournisseur et celui du compte, qui se lit lui aussi anonymisé ; et une autre relayée à une adresse qu'aucun compte ne portait plus quand elle a été écartée, gardée par son seul identifiant (#707).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000943",
+    "finished_at": "2026-06-03T02:00:00Z",
+    "created": 0,
+    "updated": 0,
+    "deactivated": 0,
+    "restored": 0,
+    "skipped": [
+      {
+        "kind": "account",
+        "user_id": "01926f3a-7c00-7000-8000-000000000303",
+        "subject": null,
+        "last_name": null,
+        "first_name": null,
+        "email": null,
+        "code": "VALIDATION_FAILED"
+      },
+      {
+        "kind": "person",
+        "user_id": null,
+        "subject": "8e3f1c2a-6b4d-4f0e-a1c9-7d2e5b8f3a61",
+        "last_name": "",
+        "first_name": "",
+        "email": "contact.chantier@example.com",
+        "code": "VALIDATION_FAILED"
+      },
+      {
+        "kind": "person",
+        "user_id": "01926f3a-7c00-7000-8000-000000000303",
+        "subject": "c47a2e9b-1d5f-4b8c-9e3a-6f0d2c8b5e14",
+        "last_name": null,
+        "first_name": null,
+        "email": null,
+        "code": "ALREADY_EXISTS"
+      },
+      {
+        "kind": "person",
+        "user_id": null,
+        "subject": "2f9d6b1e-8a3c-4e7f-b5d2-9c1a4e6f8b03",
+        "last_name": null,
+        "first_name": null,
+        "email": null,
+        "code": "ALREADY_EXISTS"
+      }
+    ],
+    "removed": []
+  }
+}

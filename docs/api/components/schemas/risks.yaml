@@ -33,7 +33,7 @@ Risk:
     porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090).
   properties:
     risk_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     mitigation_notes:
@@ -188,7 +188,7 @@ RiskWrite:
     d'avance l'une et l'autre condition (EP-14/L42s). Le sous-projet de la provision est
     facultatif.
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     mitigation_notes:

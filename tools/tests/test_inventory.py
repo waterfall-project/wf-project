@@ -70,6 +70,37 @@ def test_the_inventory_fails_naming_a_declared_family_without_its_file(
     assert inventory.main() == 1
 
 
+def test_the_inventory_fails_naming_a_path_the_root_forgets_or_one_it_refers_to_in_vain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A path written in paths/ and forgotten in the root escapes the bundle, Redocly, the client,
+    # the models and the fake back, while the inventory lists it (#845): it is named, nothing
+    # is written.
+    _paths(tmp_path, *(family for family, _ in inventory.FAMILIES))
+    (tmp_path / "paths" / "access.yaml").write_text(
+        "/users:\n  get: {}\n/users/{user_id}/password-link:\n  post: {}\n", encoding="utf-8"
+    )
+    (tmp_path / "openapi.yaml").write_text(
+        "paths:\n"
+        "  /users:\n    $ref: ./paths/access.yaml#/~1users\n"
+        "  /roles:\n    $ref: ./paths/access.yaml#/~1roles\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+
+    assert inventory.unreferenced_paths() == [
+        "openapi.yaml refers to /roles in paths/access.yaml, which has no such path",
+        "paths/access.yaml /users/{user_id}/password-link is not referred to by openapi.yaml",
+    ]
+    assert inventory.main() == 1
+    assert "/users/{user_id}/password-link" in capsys.readouterr().err
+    assert not (tmp_path / "INVENTORY.md").exists()
+
+
+def test_every_path_of_the_contract_is_reached_from_its_root() -> None:
+    assert inventory.unreferenced_paths() == []
+
+
 def test_the_families_of_the_inventory_are_the_files_of_the_contract() -> None:
     assert inventory.unknown_path_files() == []
 

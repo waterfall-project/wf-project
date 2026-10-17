@@ -33,7 +33,9 @@
  * totals included — or, where the grid cannot tell, while the reading anew reads the row as the one
  * before did (`reread` of `answers.ts`, défaut n° 22). An answer about another row than the one
  * written is a failure of the service. A refusal stays told until the notice clears it, whatever
- * writes succeed after it. Rows a paste wrote together take the place of those read the same way,
+ * writes succeed after it. A navigation of the page waits for the writes under way, and does not
+ * take place when one is refused: the refusal is told here, and the person decides; the grid gone,
+ * its writes hold nothing (`useHeldWrites`, #688). Rows a paste wrote together take the place of those read the same way,
  * the cells of each row written after them starting from them (WF-IHM-0050). A cell written before
  * a paste and answered after it is taken as any answer, its place among the writes deciding which
  * of the two a row shows (#202); only its refusal is kept quiet when the paste wrote its row since
@@ -49,6 +51,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { useHeldWrites } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 
 import {
@@ -273,8 +276,10 @@ export function useCellWrites<Row, Totals>(
       book.current = { epoch, answers: copyAnswers(view) };
     }
   }, [epoch, view, rowKey, fresher]);
+  // The writes the navigations of the page wait for, released when the grid goes.
+  const hold = useHeldWrites();
   // The write of each row under way, which the next waits for.
-  const queues = useRef(new Map<string, Promise<void>>());
+  const queues = useRef(new Map<string, Promise<unknown>>());
   // How many pastes wrote each row: a refusal of a write the paste of its row overtook says
   // nothing of the row shown.
   const pasted = useRef(new Map<string, number>());
@@ -413,8 +418,11 @@ export function useCellWrites<Row, Totals>(
         };
       });
       settle(at);
+      // Applied, or a refusal kept quiet: a navigation waits for no refusal the screen does not say.
+      return answer.kind === "done" || stale;
     });
     queues.current.set(key, queued);
+    hold(queued);
   };
   const applied = (together: RowsWritten<Row, Totals>) => {
     for (const row of together.rows) {

@@ -294,7 +294,7 @@ StructureCreate:
     kind:
       allOf: [{ $ref: '#/StructureKind' }]
       enum: [amendment, risk]
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     risk_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
 
@@ -909,7 +909,7 @@ TaskFacet:
     `work_package_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le
     fichier lui donnait (`external_id`, WF-INTF-0040).
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     scheduling_mode: { $ref: '#/SchedulingMode' }
@@ -1046,7 +1046,7 @@ EstimateLineFacet:
     référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis
     et de reste à engager la signalent (WF-REF-0010).
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     cost_category_label:
       type: string
@@ -1211,7 +1211,7 @@ Timeline:
   description: Chronologie nommée, à laquelle des tâches sont inscrites (WF-PLA-0140, WF-PLA-0060).
   properties:
     timeline_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 200 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
 
 NodeCreate:
   type: object
@@ -1236,7 +1236,7 @@ TaskFacetWrite:
     structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée
     (`NodeCreate.parent_id`) disant si la tâche d'un lot reste sous celle de son poste.
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     scheduling_mode: { $ref: '#/SchedulingMode' }
@@ -1288,7 +1288,7 @@ TaskFacetUpdate:
     lots en cause, chacune par son nœud et son libellé, comme l'échec d'une fusion (Vérif de
     WF-PLA-0170 ; WF-IHM-0080 ; EP-14/L42s).
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     scheduling_mode: { $ref: '#/SchedulingMode' }
@@ -1314,7 +1314,7 @@ EstimateLineWrite:
     la ligne n'accepte pas — le débours d'une ligne de main-d'œuvre, le rôle ou la charge d'une
     autre — est refusé par 422, motif `FIELD_NOT_ACCEPTED` sur son champ (EP-14/L42s).
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     quantity: { $ref: ../common.yaml#/Decimal }
     resource_role_id:
@@ -1343,7 +1343,7 @@ EstimateLineUpdate:
     lesquels il accepte (`editable_fields`). Le délai de paiement d'une ligne de main-d'œuvre,
     que la spécification veut saisissable et que le nœud n'offre pas encore, est suivi par #785.
   properties:
-    label: { type: string, minLength: 1, maxLength: 300 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     quantity: { $ref: ../common.yaml#/Decimal }
     resource_role_id:

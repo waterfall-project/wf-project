@@ -472,7 +472,7 @@ EPIC, et un seuil se fixera quand il y aura de quoi le fonder.
 
 ## US-0020 — Client d'API engendré du contrat
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ARC-0060-A`
 - **opérations** : toutes, par engendrement
 - **issue** : #7

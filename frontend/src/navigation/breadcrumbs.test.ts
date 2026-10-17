@@ -12,12 +12,12 @@ import { readContext } from "./context";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
-type Session = components["schemas"]["Session"];
+type Account = components["schemas"]["UserSelf"];
 
 /** The steps of an address, its context read as the shell reads it, for a session of the contract. */
-function steps(address: string, session = "session") {
+function steps(address: string, session = "me") {
   const [pathname = "", query = ""] = address.split("?");
-  const { permissions } = example(session) as Session;
+  const { permissions } = example(session) as Account;
   return crumbsOf(pathname, readContext(pathname, new URLSearchParams(query)), permissions);
 }
 
@@ -107,18 +107,18 @@ describe("the breadcrumb", () => {
 
   it("names the planning without a link to a costing engineer who does not read it, on the imports and exports (#521)", () => {
     const exchanges = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
-    expect(steps(exchanges, "session_estimator")[2]).toEqual({
+    expect(steps(exchanges, "me_estimator")[2]).toEqual({
       kind: "label",
       label: "functions.planning",
     });
     // The workload, a leaf of the estimate the estimator reads: its function is a link.
-    expect(
-      steps(`/projects/${PROJECT}/revisions/${REVISION}/workload`, "session_estimator")[2],
-    ).toEqual({
-      kind: "label",
-      label: "functions.estimate",
-      href: `/projects/${PROJECT}/revisions/${REVISION}/estimate`,
-    });
+    expect(steps(`/projects/${PROJECT}/revisions/${REVISION}/workload`, "me_estimator")[2]).toEqual(
+      {
+        kind: "label",
+        label: "functions.estimate",
+        href: `/projects/${PROJECT}/revisions/${REVISION}/estimate`,
+      },
+    );
   });
 
   it("sits a function of a project whose address names none in its block alone", () => {
@@ -130,9 +130,9 @@ describe("the breadcrumb", () => {
 
   it("sits the pages of the account in the account", () => {
     expect(steps("/account")).toEqual([{ kind: "label", label: "accountMenu.account" }]);
-    expect(steps("/account/password")).toEqual([
+    expect(steps("/account/avatar")).toEqual([
       { kind: "label", label: "accountMenu.account", href: "/account" },
-      { kind: "label", label: "accountMenu.password" },
+      { kind: "label", label: "accountMenu.avatar" },
     ]);
   });
 

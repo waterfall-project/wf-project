@@ -25,7 +25,6 @@
 "use client";
 
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { createContext, type ReactNode, useContext, useId } from "react";
@@ -42,7 +41,7 @@ import {
   projectName,
   type Say,
 } from "@/i18n/problem";
-import { loginHref } from "@/navigation/login";
+import { asksIdentifiers, loginHref } from "@/navigation/login";
 
 /**
  * The names of the objects a screen shows, by identifier: what names the object of a conflict,
@@ -106,21 +105,31 @@ const SENTENCE = "flex items-start gap-1.5";
 const ICON = "mt-0.5 size-4 shrink-0";
 
 /**
- * The link to the sign-in page, which comes back to the screen shown: its path and its query,
- * as the browser shows them. The screen of failure offers it too, when a read wanted a session.
+ * The address of the sign-in page, which comes back to the screen shown: its path and its query;
+ * with `reauthenticate`, a sign-in that asks for the identifiers again (`loginHref`).
  */
-export function SignIn() {
-  const t = useTranslations("outcome");
+export function useSignInHref(reauthenticate = false): string {
   const query = useSearchParams().toString();
-  const screen = `${usePathname()}${query === "" ? "" : `?${query}`}`;
+  return loginHref(`${usePathname()}${query === "" ? "" : `?${query}`}`, reauthenticate);
+}
+
+/**
+ * The link to the sign-in page, which comes back to the screen shown, as the browser shows it. The
+ * screen of failure offers it too, when a read wanted a session. A plain link, never one of the
+ * router: `/login` sends the browser to another site, which the router would fetch, and prefetch
+ * — each time starting a sign-in for nothing. For a session closed (`SESSION_REVOKED`), the sign-in
+ * asks for the identifiers again (#855).
+ */
+export function SignIn({ reauthenticate = false }: { readonly reauthenticate?: boolean }) {
+  const t = useTranslations("outcome");
   return (
-    <Link
-      href={loginHref(screen)}
+    <a
+      href={useSignInHref(reauthenticate)}
       className="inline-flex items-center gap-1.5 font-medium underline"
     >
       <LogIn aria-hidden="true" className="size-4" />
       {t("signIn")}
-    </Link>
+    </a>
   );
 }
 
@@ -266,7 +275,7 @@ export function OutcomeNotice({
         {name === undefined ? null : (
           <p id={conflictId(told)}>{t("conflictingObject", { name })}</p>
         )}
-        {kind === "signed_out" ? <SignIn /> : null}
+        {kind === "signed_out" ? <SignIn reauthenticate={asksIdentifiers(problem.code)} /> : null}
         {/* Reloading forgets the outcome as dismissing it does, the focus given back the same way. */}
         {kind === "stale" ? <Reload onClear={dismissed} /> : null}
         {dismiss}

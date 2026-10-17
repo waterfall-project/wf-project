@@ -22,8 +22,10 @@
  * (`unshownRows`, L40, #527). Otherwise the server says what it
  * would write and refuse, with the reason of each refusal, and writes nothing (`GridPaste.preview`);
  * the grid shows that plan, and applies it once confirmed, in one operation (`GridPaste.apply`), what
- * the server wrote taking the place of what was read (`CellWrites.applied`) — its valid rows, a plan
- * that refuses some applied all the same, the refused rows left as they were (EP-14/L42q). What the
+ * the server wrote taking the place of what was read (`CellWrites.applied`), the navigations of the
+ * page held until it answers, and dropped when it is refused (`useHeldCommand`, #688) — its valid
+ * rows, a plan that refuses some applied all the same, the refused rows left as they were
+ * (EP-14/L42q). What the
  * confirmation did not write — the refusals of the preview, and those the server adds judging the
  * accepted rows again — is told with the cell the block was pasted from and the number of rows
  * written, the refusals in a region whose height is bounded, until the next paste or until the user
@@ -39,6 +41,7 @@ import type { RowData } from "@tanstack/react-table";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { useHeldCommand } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 
 import type { CellWrites } from "./cell-writes";
@@ -323,6 +326,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   const [applied, setApplied] = useState<PasteReport>();
   // The paste an answer belongs to: one abandoned, or another started, drops the answer.
   const current = useRef(0);
+  const held = useHeldCommand();
   // The cell the block was pasted on, which has the focus back once the report closes.
   const origin = useRef<HTMLElement>(undefined);
   const { paste } = config;
@@ -424,28 +428,25 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       return;
     }
     setPasting({ ...pasting, applying: true });
-    void paste
-      .apply(plan)
-      .catch(rejected)
-      .then((answer) => {
-        if (answer.kind === "done") {
-          const { written, rejected: refused } = answer.data;
-          writes.applied(written);
-          setApplied(
-            refused.length === 0
-              ? undefined
-              : {
-                  target: pasting.target,
-                  written: written.rows.length,
-                  rejected: refused,
-                  block: pasting.block,
-                },
-          );
-        }
-        current.current += 1;
-        setPasting(undefined);
-        setOutcome(answer);
-      });
+    void held(paste.apply(plan)).then((answer) => {
+      if (answer.kind === "done") {
+        const { written, rejected: refused } = answer.data;
+        writes.applied(written);
+        setApplied(
+          refused.length === 0
+            ? undefined
+            : {
+                target: pasting.target,
+                written: written.rows.length,
+                rejected: refused,
+                block: pasting.block,
+              },
+        );
+      }
+      current.current += 1;
+      setPasting(undefined);
+      setOutcome(answer);
+    });
   };
 
   return {

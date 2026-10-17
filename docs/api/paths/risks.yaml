@@ -50,6 +50,8 @@
               empty: { $ref: ../../../fixtures/api/risks_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createRisk
     tags: [risks]
@@ -81,6 +83,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -123,6 +126,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               provision_refused: { $ref: ../../../fixtures/api/risk_provision_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}:
   get:
@@ -147,6 +151,8 @@
               occurred: { $ref: ../../../fixtures/api/risk_occurred_detail.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateRisk
     tags: [risks]
@@ -177,6 +183,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -202,6 +209,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteRisk
     tags: [risks]
@@ -241,6 +249,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               cited: { $ref: ../../../fixtures/api/risk_delete_cited.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}/reviews:
   get:
@@ -268,6 +277,8 @@
               witness: { $ref: ../../../fixtures/api/risk_reviews.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: reviewRisk
     tags: [risks]
@@ -298,6 +309,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -320,6 +332,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}/occurrence:
   post:
@@ -351,10 +364,13 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/coverage:
   get:
@@ -379,6 +395,8 @@
               witness: { $ref: ../../../fixtures/api/risk_coverage.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/matrix:
   get:
@@ -404,3 +422,5 @@
               witness: { $ref: ../../../fixtures/api/risk_matrix.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

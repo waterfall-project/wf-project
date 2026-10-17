@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The image of Keycloak (US-0350): built from deploy/keycloak — the extension compiled and tested
+# in it —, started on the service platform with its realm applied, and tried by the tests of
+# backend/tests/test_keycloak_*.py, the API that validates its tokens included. images.yml publishes
+# it, at each merge (US-0430).
+name: keycloak
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # The platform lives for the job and is reachable from the runner alone: development values,
+      # visible, named as such, as the secrets of a workstation would be.
+      WATERFALL_POSTGRES_PASSWORD: chainonlypostgres
+      WATERFALL_SERVICE_DATABASE_PASSWORD: chainonlyservice
+      WATERFALL_BACKUP_DATABASE_PASSWORD: chainonlybackup
+      WATERFALL_REDIS_PASSWORD: chain-only-redis
+      WATERFALL_KEYCLOAK_DATABASE_PASSWORD: chain-only-keycloak-database
+      WATERFALL_KEYCLOAK_ADMIN_PASSWORD: chain-only-keycloak-admin
+      WATERFALL_FRONT_CLIENT_SECRET: chain-only-front-client
+      WATERFALL_SERVICE_CLIENT_SECRET: chain-only-service-client
+      WATERFALL_INSTALLATION_CLIENT_SECRET: chain-only-installation-client
+      WATERFALL_STORAGE_SECRET: chain-only-storage-secret
+      # Garage wants the secret of its RPC in 64 hexadecimal digits.
+      WATERFALL_STORAGE_RPC_SECRET: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: make check-keycloak
+      # What the platform said, when it failed to start or to apply the realm.
+      - if: failure()
+        run: make service-logs SERVICES="keycloak keycloak-front-end keycloak-database openldap"
