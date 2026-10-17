@@ -37,7 +37,7 @@ function sentBackTo(response: Response): string {
 }
 
 describe("the archive of a backup", () => {
-  it("is handed on as a stream, as the attachment the API names, kept by no cache [WF-ADM-0150-A]", async () => {
+  it("is handed on as the attachment the API names, kept by no cache [WF-ADM-0150-A]", async () => {
     answering("the archive", {
       "content-type": "application/octet-stream",
       "content-disposition": 'attachment; filename="waterfall-2026-06-03.tar"',
@@ -51,6 +51,28 @@ describe("the archive of a backup", () => {
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.text()).toBe("the archive");
+  });
+
+  it("is handed on as it comes, its first bytes before the API has sent the last [WF-ADM-0150-A]", async () => {
+    // An archive the API is still sending: the route that held it whole would never answer.
+    let api: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const archive = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("the first part"));
+        api = controller;
+      },
+    });
+    answering(archive, { "content-disposition": 'attachment; filename="waterfall.tar"' });
+    const response = await download();
+    const reader = response.body?.getReader();
+    const bytes = new TextDecoder();
+    const first = await reader?.read();
+    expect(bytes.decode(first?.value)).toBe("the first part");
+    api?.enqueue(new TextEncoder().encode("the last part"));
+    api?.close();
+    const last = await reader?.read();
+    expect(bytes.decode(last?.value)).toBe("the last part");
+    expect((await reader?.read())?.done).toBe(true);
   });
 
   it("asks nothing of the API for an address that names no backup", async () => {
