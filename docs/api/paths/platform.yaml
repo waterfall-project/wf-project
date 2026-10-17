@@ -24,6 +24,7 @@
               witness: { $ref: ../../../fixtures/api/backups.json }
               empty: { $ref: ../../../fixtures/api/backups_empty.json }
               beyond: { $ref: ../../../fixtures/api/backups_beyond.json }
+              unverified: { $ref: ../../../fixtures/api/backups_unverified.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -46,6 +47,8 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_backup_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

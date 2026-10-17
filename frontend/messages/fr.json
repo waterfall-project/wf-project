@@ -1383,7 +1383,10 @@
       "retention": "Conservation",
       "retained": "Marquée à conserver",
       "none": "Aucune sauvegarde.",
-      "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}"
+      "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}",
+      "commands": "Commandes",
+      "start": "Sauvegarder maintenant",
+      "download": "Télécharger"
     },
     "schedule": {
       "title": "Planification",

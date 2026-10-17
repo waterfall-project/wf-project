@@ -1383,7 +1383,10 @@
       "retention": "Retention",
       "retained": "Marked to keep",
       "none": "No backup.",
-      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}"
+      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}",
+      "commands": "Commands",
+      "start": "Back up now",
+      "download": "Download"
     },
     "schedule": {
       "title": "Schedule",

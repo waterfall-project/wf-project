@@ -8,11 +8,10 @@
  * motive of a failure; the alerts under way, each with its zone, by `Signal`, and what it names —
  * the component unavailable, the storage used and free (WF-OBS-0030). The backups
  * (WF-ADM-0150): each with its date, its size, its verification, whether it was taken by hand or
- * on schedule, and whether it is marked to be kept; and their schedule and retention
+ * on schedule, and whether it is marked to be kept, and, to whom the session permits, the download
+ * of a verified one (US-0440); and their schedule and retention
  * (WF-ADM-0170), its time said in universal time as the contract gives it, unconverted: a time
- * of day has no date to take the offset of a zone with summer time from. Read only: neither a
- * backup nor a restoration is started here — the commands belong to the epic of the operation of
- * the platform.
+ * of day has no date to take the offset of a zone with summer time from.
  */
 import {
   Archive,
@@ -21,6 +20,7 @@ import {
   CircleCheck,
   CircleX,
   DatabaseBackup,
+  Download,
   HardDrive,
   History,
   Server,
@@ -28,10 +28,12 @@ import {
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { backupContentHref, backupsHref } from "@/components/admin/backup-address";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { ReferenceSection } from "@/components/reference/section";
 import { Signal } from "@/components/signal/signal";
+import { buttonVariants } from "@/components/ui/button";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { formatBytes } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
@@ -265,20 +267,42 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
 }
 
 /**
- * The backups of a page of the list, each dated, sized and verified; or that there is none — only
- * when the list holds none at all: a page asked beyond its end shows no table, and its pages say
- * where it stands (`ListPages`).
+ * The download of a verified backup, a link the route of its archive answers, which comes back to
+ * the page of the list given when it refuses.
+ */
+function DownloadBackup({ backupId, from }: { readonly backupId: string; readonly from: string }) {
+  const t = useTranslations("admin.backups");
+  return (
+    <a
+      href={backupContentHref(backupId, from)}
+      className={buttonVariants({ variant: "outline", size: "sm" })}
+    >
+      <Download aria-hidden="true" />
+      {t("download")}
+    </a>
+  );
+}
+
+/**
+ * The backups of a page of the list, each dated, sized and verified, with the download of a
+ * verified one when the session may download them (the permissions of reading and of modifying
+ * the backups) — a backup not verified, or whose verification failed, is not downloaded; or that
+ * there is none — only when the list holds none at all: a page asked beyond its end shows no
+ * table, and its pages say where it stands (`ListPages`).
  */
 export function BackupList({
   backups,
   page,
+  downloadable = false,
 }: {
   readonly backups: readonly Backup[];
   readonly page: ListPage;
+  readonly downloadable?: boolean;
 }) {
   const t = useTranslations("admin.backups");
   const enums = useTranslations("enums.Backup");
   const locale = useLocale();
+  const columns = [t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")];
   return (
     <ReferenceSection
       title={t("title")}
@@ -288,7 +312,7 @@ export function BackupList({
       {backups.length === 0 ? null : (
         <ListTable
           label={t("title")}
-          columns={[t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")]}
+          columns={downloadable ? [...columns, t("commands")] : columns}
         >
           {backups.map((backup) => (
             <TableRow key={backup.backup_id}>
@@ -310,6 +334,13 @@ export function BackupList({
                   </span>
                 ) : null}
               </TableCell>
+              {downloadable ? (
+                <TableCell className={CELL}>
+                  {backup.verification === "passed" ? (
+                    <DownloadBackup backupId={backup.backup_id} from={backupsHref(page.offset)} />
+                  ) : null}
+                </TableCell>
+              ) : null}
             </TableRow>
           ))}
         </ListTable>

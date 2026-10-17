@@ -721,7 +721,9 @@ rôle —, puis leur seconde page lue deux par deux) ; `permissions` (le catalog
 de tout le catalogue, que porte `getMe`) ; `system_status` et `system_status_backup_failed`
 (l'installation saine, puis la même au stockage des fichiers indisponible, la sauvegarde planifiée
 échouée et signalée) ; `backups` et `backups_empty` (les sept sauvegardes de la rétention et une
-manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond`) ;
+manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond` ;
+une manuelle en vérification, une planifiée à la vérification échouée et une vérifiée,
+`backups_unverified`) ;
 `backup_schedule`, `backup_schedule_weekly` et `backup_schedule_disabled` (suspendue). Les sessions
 d'un chiffreur et sans administration, qui n'ont pas tout le catalogue, portent chacune un rôle
 propre (`Chiffreur`, `Pilotage de projet`), que `access_roles` ne liste pas : ce sont d'autres

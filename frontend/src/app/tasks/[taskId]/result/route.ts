@@ -19,7 +19,7 @@
  * by a notice of its panel when the task cannot be read again (`result-refusal.ts`). An address
  * that names no task asks the API nothing.
  */
-import { attachmentName } from "@/api/disposition";
+import { attachment, attachmentName } from "@/api/disposition";
 import { decode } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { FROM, refusedHref, type ResultRefusal } from "@/components/tasks/result-refusal";
@@ -45,20 +45,6 @@ const NOT_KEPT = "private, no-store";
 /** Whether a media type is one the contract declares for a result, its parameters aside. */
 function declared(type: string | null): type is string {
   return type !== null && RESULT_TYPES.has(type.split(";")[0]?.trim().toLowerCase() ?? "");
-}
-
-/** A value of an extended parameter (RFC 8187): UTF-8, encoded in percent. */
-function extended(name: string): string {
-  return encodeURIComponent(name).replace(
-    /['()*]/g,
-    (letter) => `%${letter.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-}
-
-/** The attachment of a file under its name, its ASCII equivalent first (RFC 6266). */
-function attachment(name: string): string {
-  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_");
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${extended(name)}`;
 }
 
 /** Hand on the result of a task, read from the API, or send the browser back to say why not. */

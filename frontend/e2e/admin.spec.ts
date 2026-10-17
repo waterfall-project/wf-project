@@ -49,7 +49,7 @@ test("reaches every screen of the reference data and of the administration with 
   }
 });
 
-test("reads the accounts, the matrix of the permissions, the state of the platform and the backups, and starts nothing (US-0250)", async ({
+test("reads the accounts, the matrix of the permissions, the state of the platform and the backups (US-0250)", async ({
   page,
 }) => {
   await page.goto("/admin/users");
@@ -119,8 +119,34 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   await expect(
     page.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
   ).toBeVisible();
-  // Neither a backup nor a restoration is started from here.
-  await expect(page.getByRole("main").getByRole("button")).toHaveCount(0);
+});
+
+test("asks a backup from its screen, which the tracker follows, and offers a verified one for download through the front [WF-ADM-0150-A]", async ({
+  page,
+}) => {
+  await page.goto("/admin/backups");
+  const start = page.getByRole("button", { name: "Sauvegarder maintenant" });
+  const entries = page.getByRole("region", { name: "Tâches de fond" }).getByRole("listitem");
+  // Pressed again until React answers it, the page hydrated (défaut n° 19 de `typescript.md`).
+  await expect(async () => {
+    if ((await entries.count()) === 0 && (await start.getAttribute("aria-busy")) !== "true") {
+      await start.click();
+    }
+    await expect(entries).toHaveCount(1, { timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(entries.first()).toContainText("Sauvegarde");
+
+  // A verified backup is downloaded through the route of the front, never from the API itself.
+  const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
+  // Listed with its date, written by the browser in its local time, its size and its verification.
+  await expect(newest.locator("time")).toHaveAttribute("datetime", "2026-06-03T01:00:00Z");
+  await expect(newest.locator("time")).not.toBeEmpty();
+  await expect(newest).toContainText("1,2 gigaoctet");
+  await expect(newest).toContainText("Vérifiée");
+  await expect(newest.getByRole("link", { name: "Télécharger" })).toHaveAttribute(
+    "href",
+    "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
+  );
 });
 
 test("sorts, searches and filters the accounts by the server, under the names of the contract, back to their first page [WF-IHM-0060-A]", async ({
