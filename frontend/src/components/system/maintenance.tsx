@@ -39,6 +39,7 @@ export type RestorationPhase =
 const UNEXPECTED: Problem = { code: "INTERNAL_ERROR", status: 500 };
 
 const QUEUED: RestorationPhase = { kind: "queued" };
+const MAINTENANCE: RestorationPhase = { kind: "maintenance" };
 const DONE: RestorationPhase = { kind: "done" };
 const SIGNED_OUT: RestorationPhase = { kind: "signed_out" };
 
@@ -54,12 +55,13 @@ const ENDED: ReadonlySet<RestorationPhase["kind"]> = new Set([
  * Where a restoration stands by its task, the platform serving and no maintenance seen: done once
  * it succeeded, failed with its motive, or still to come. Read for want of a session, it says
  * nothing of the restoration — the session may have expired while the task waited —: `signed_out`,
- * not `done`.
+ * not `done`. Unless the probe, asked again, now says the maintenance: the restoration closes every
+ * session once it holds it, which may fall between the probe and the read of the task.
  */
 async function taskPhase(taskId: string): Promise<RestorationPhase> {
   const read = await readBackgroundTask(taskId);
   if (read.kind === "signed_out") {
-    return SIGNED_OUT;
+    return (await readLiveness()) === "maintenance" ? MAINTENANCE : SIGNED_OUT;
   }
   if (read.kind !== "done") {
     return QUEUED;
@@ -80,7 +82,7 @@ async function phaseOf(
   taskId: string | undefined,
 ): Promise<RestorationPhase | undefined> {
   if (live === "maintenance") {
-    return { kind: "maintenance" };
+    return MAINTENANCE;
   }
   if (seen) {
     return live === "ok" ? DONE : undefined;
@@ -105,11 +107,11 @@ export function useRestorationPhase(taskId: string | undefined): RestorationPhas
     let timer: ReturnType<typeof setTimeout> | undefined;
     const step = async () => {
       const live = await readLiveness();
-      seen ||= live === "maintenance";
       const next = stopped ? undefined : await phaseOf(live, seen, taskId);
       if (stopped) {
         return;
       }
+      seen ||= next?.kind === "maintenance";
       if (next !== undefined) {
         setPhase(next);
       }

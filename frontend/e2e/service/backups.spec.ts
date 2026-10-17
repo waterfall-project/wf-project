@@ -53,7 +53,7 @@ async function handOver(command: Locator, entries: Locator): Promise<void> {
 }
 
 test(
-  "a backup taken, downloaded, deposited and restored: the screen says the maintenance, every user signed out, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A]",
+  "a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A]",
   { tag: "@platform-wide" },
   async ({ page }, testInfo) => {
     // A backup by the worker, its verification, then a restoration that replaces both databases
@@ -99,7 +99,7 @@ test(
     const deposited = await deposit.getByRole("time").getAttribute("datetime");
     expect(Date.parse(deposited ?? "")).toBe(takenAt);
 
-    // Restored once its date is confirmed: the screen of the maintenance, then its end.
+    // Restored once its date is confirmed: first the restoration waiting, no one signed out yet.
     await restore.click();
     const dialog = page.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
     await expect(dialog.getByRole("time").first()).toHaveAttribute("datetime", deposited ?? "");
@@ -107,11 +107,17 @@ test(
     const maintenance = page.getByRole("status", {
       name: "Restauration de la plateforme en cours",
     });
-    await expect(maintenance).toContainText("tous les utilisateurs ont été déconnectés");
-    await expect(maintenance).toContainText("Restauration terminée", { timeout: 420_000 });
+    await expect(maintenance).toContainText("La restauration est en attente");
+    // Then its end: done, once the probe said the maintenance — every user signed out — and its
+    // end. A restoration this small may hold the maintenance between two reads of the probe: the
+    // screen then sees the session closed and nothing more, and says that alone, without
+    // affirming the restoration done.
+    const signedOut = page.getByRole("status", { name: "Session terminée" });
+    const ended = maintenance.getByText("Restauration terminée").or(signedOut);
+    await expect(ended).toBeVisible({ timeout: 420_000 });
 
     // Signed out by the restoration, the administrator signs in again, and finds the screen.
-    await maintenance.getByRole("link", { name: "Se connecter" }).click();
+    await page.getByRole("link", { name: "Se connecter" }).click();
     await giveIdentifiers(page, ADMINISTRATOR);
     await expect(page).toHaveURL(BACKUPS);
     await expect(page.getByRole("table", { name: "Sauvegardes" })).toBeVisible();

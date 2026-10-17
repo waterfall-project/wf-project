@@ -235,6 +235,32 @@ describe("the restoration of the platform", () => {
     );
   });
 
+  it("says the maintenance of a restoration that closed the session between the probe and the read of its task, then its end — pendant une restauration, les utilisateurs sont déconnectés, et l’écran le dit", async () => {
+    serve(
+      {
+        [RESTORE]: { status: 202, example: "task_restore_queued" },
+        [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } },
+      },
+      {
+        [HEALTH]: ["liveness", { status: 200, example: "liveness_maintenance" }, "liveness"],
+      },
+    );
+    open();
+    const dialog = await askRestore();
+    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
+    const status = await screen.findByRole("status", {
+      name: "Restauration de la plateforme en cours",
+    });
+    await vi.waitFor(() => {
+      expect(status).toHaveTextContent("tous les utilisateurs ont été déconnectés");
+    });
+    expect(screen.queryByRole("status", { name: "Session terminée" })).toBeNull();
+    await tick();
+    expect(
+      screen.getByRole("status", { name: "Restauration de la plateforme en cours" }),
+    ).toHaveTextContent("Restauration terminée");
+  });
+
   it("tells a confirmation the API refuses, and keeps the page", async () => {
     serve({
       [RESTORE]: { problem: { code: "CONFIRMATION_REQUIRED", status: 400 } },
