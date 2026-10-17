@@ -98,7 +98,7 @@ describe("the server actions of the backups", () => {
     });
   });
 
-  it("restore a backup of the list or a deposit at the date the confirmation names [WF-ADM-0160-A]", async () => {
+  it("restore a backup of the list or a deposit at the date the confirmation names", async () => {
     const client = serve({ "POST /restores": { status: 202, example: "task_restore_queued" } });
     expect(
       await startPlatformRestore(

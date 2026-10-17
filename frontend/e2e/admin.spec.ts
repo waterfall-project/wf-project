@@ -121,7 +121,7 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   ).toBeVisible();
 });
 
-test("asks a backup from its screen, which the tracker follows, and a restoration only once the date of its backup is confirmed [WF-ADM-0160-A]", async ({
+test("asks a backup from its screen, which the tracker follows, lists it and offers a verified one for download through the front, and a restoration only once the date of its backup is confirmed [WF-ADM-0150-A] [WF-ADM-0160-A]", async ({
   page,
 }) => {
   await page.goto("/admin/backups");
