@@ -1,7 +1,7 @@
 ---
 id: EP-03
 titre: Se connecter, et n'agir que dans les limites de ses habilitations
-statut: en cours
+statut: livré
 depend_de: EP-01, EP-02
 famille: front, back, plateforme
 issue: 426

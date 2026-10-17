@@ -22,7 +22,7 @@ workstation.
 
   <properties>
     <!-- The Keycloak of the image (deploy/keycloak/Dockerfile): raise both together. -->
-    <keycloak.version>26.5.7</keycloak.version>
+    <keycloak.version>26.6.3</keycloak.version>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- The same bytes from the same sources, whoever builds them. -->
