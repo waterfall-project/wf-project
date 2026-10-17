@@ -2180,6 +2180,15 @@ d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADM
 durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
 et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
 
+Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
+du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
+réponse `application/octet-stream` devient U+FFFD (#973, #1025). Les parcours n'éprouvent donc ni
+le téléchargement ni le dépôt d'une archive octet pour octet : `backups.spec.ts` ne vérifie de
+l'archive téléchargée que son nom et sa taille non nulle, et restaure la sauvegarde de la liste,
+non un dépôt. La restauration d'un dépôt est prouvée par les tests du service
+(`backend/tests/test_uploads.py`). Le passage des opérations binaires hors de Prism est reporté à
+EP-13.
+
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
 back, pour la grille de devis et pour celle de planning ; le faux back sert le planning sans
