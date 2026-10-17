@@ -10,7 +10,8 @@
  * of the front holds every page of `src/app` to these screens and to the pages that only redirect
  * (`src/app/screens.test.ts`): a page added has its paths, or the test says it has none.
  */
-import project from "../../fixtures/api/project.json" with { type: "json" };
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import catalogue from "../messages/fr.json" with { type: "json" };
 import type { FunctionGroup } from "../src/navigation/functions";
 import table from "../src/navigation/functions.json" with { type: "json" };
@@ -20,6 +21,14 @@ import table from "../src/navigation/functions.json" with { type: "json" };
  * attribute Node asks for, and cannot be loaded here.
  */
 export const FUNCTION_GROUPS = table.groups as readonly FunctionGroup[];
+
+/**
+ * The project of the examples, read when the paths run: the fixtures lie outside the front, which
+ * the image builds alone, and a static import would fail its type check.
+ */
+const project = JSON.parse(
+  readFileSync(join(import.meta.dirname, "../../fixtures/api/project.json"), "utf-8"),
+) as { value: { label: string } };
 
 // The project of the examples of the contract, in progress, and its current revision.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
