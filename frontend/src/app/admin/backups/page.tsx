@@ -3,15 +3,15 @@
 /**
  * The backups of the platform (FBS-1.4, US-0250), outside any project: their schedule and retention
  * (WF-ADM-0170), and a page of their list the server pages, each dated, sized and verified
- * (WF-ADM-0150), as the contract gives them. And their commands (US-0440), to whom the session
- * permits them (`platformOffer`): a backup asked, a verified one downloaded — the refusal of a
- * download carried back in the address. A read the API refuses, or cannot answer, is thrown for the
+ * (WF-ADM-0150), as the contract gives them — the schedule left out when the API does not find
+ * it. And their commands (US-0440), to whom the session permits them (`platformOffer`): a backup
+ * asked, a verified one downloaded — the refusal of a download carried back in the address. A read the API refuses, or cannot answer, is thrown for the
  * pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { readOrFail } from "@/api/problem";
+import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { BACKUPS_LIST, DOWNLOAD_REFUSAL } from "@/components/admin/backup-address";
 import { DownloadRefusal, StartBackup } from "@/components/admin/backup-commands";
@@ -70,7 +70,9 @@ export default async function BackupsPage({
   const offset = offsetOf(query.get(OFFSET_PARAMETER));
   const client = serverClient();
   const [schedule, backups, session] = await Promise.all([
-    readOrFail("getBackupSchedule", () => client.GET("/backup-schedule")),
+    // The schedule is a read the screen does without: the service does not serve it yet (EP-13),
+    // and answers it 404, which would take the list and its commands down with it.
+    readUnlessRefused("getBackupSchedule", [{ status: 404 }], () => client.GET("/backup-schedule")),
     readOrFail("listBackups", () =>
       client.GET("/backups", { params: { query: offset === undefined ? {} : { offset } } }),
     ),
@@ -81,7 +83,7 @@ export default async function BackupsPage({
     <Screen density={FUNCTION_DENSITY.backups}>
       <BackupsHeader startable={modifiable} />
       <DownloadRefusal refusal={heardRefusal(query.get(DOWNLOAD_REFUSAL))} />
-      <BackupScheduleFacts schedule={schedule} />
+      {schedule === undefined ? null : <BackupScheduleFacts schedule={schedule} />}
       <BackupList backups={backups.items} page={backups.meta} downloadable={modifiable} />
       <BackupPages page={backups.meta} shown={backups.items.length} />
     </Screen>

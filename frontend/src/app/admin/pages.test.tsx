@@ -885,6 +885,16 @@ describe("the backups", () => {
     );
   });
 
+  it("list the backups and offer their commands without a schedule the API does not find [WF-ADM-0150-A]", async () => {
+    // The service answers 404 to the schedule until it serves it (EP-13).
+    shown.path = "/admin/backups";
+    server.answers = { ...server.answers, "GET /backup-schedule": NOT_FOUND };
+    const page = rendered(await BackupsPage(searched()));
+    expect(text(page)).not.toContain("Planification");
+    expect(rows(page, "Sauvegardes")[1]).toBe("1,2 gigaoctet Vérifiée Planifiée Télécharger");
+    expect(buttons(page)).toEqual(["Sauvegarder maintenant"]);
+  });
+
   it("offer the download of a verified backup alone, never of one in verification or whose verification failed [WF-ADM-0150-A]", async () => {
     shown.path = "/admin/backups";
     server.answers = { ...server.answers, "GET /backups": "backups_unverified" };
