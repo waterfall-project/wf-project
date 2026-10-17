@@ -870,18 +870,25 @@ describe("the backups", () => {
     expect(links(page)).toEqual([]);
   });
 
-  it("offer an administrator to back up now, and to download each verified backup [WF-ADM-0150-A]", async () => {
+  it("offer an administrator to back up now, to download or restore each verified backup, and to deposit one of another installation [WF-ADM-0150-A]", async () => {
     shown.path = "/admin/backups";
     const page = rendered(await BackupsPage(searched()));
     const backups = rows(page, "Sauvegardes");
     expect(backups[0]).toBe("Date Taille Vérification Déclenchement Conservation Commandes");
-    expect(backups[1]).toBe("1,2 gigaoctet Vérifiée Planifiée Télécharger");
-    expect(buttons(page)).toEqual(["Sauvegarder maintenant"]);
+    expect(backups[1]).toBe("1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer");
+    expect(buttons(page)).toEqual([
+      "Sauvegarder maintenant",
+      ...Array<string>(8).fill("Restaurer"),
+      "Déposer",
+    ]);
     // Downloaded by the route of the front that hands the archive on, never from the API itself.
     expect(links(page)).toHaveLength(8);
     // It names the page of the list it leaves from, which a refusal comes back to.
     expect(links(page)[0]).toBe(
       "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
+    );
+    expect(text(page)).toContain(
+      "Restaurer une sauvegarde d’une autre installation Déposez l’archive d’une sauvegarde",
     );
   });
 
@@ -891,18 +898,24 @@ describe("the backups", () => {
     server.answers = { ...server.answers, "GET /backup-schedule": NOT_FOUND };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).not.toContain("Planification");
-    expect(rows(page, "Sauvegardes")[1]).toBe("1,2 gigaoctet Vérifiée Planifiée Télécharger");
-    expect(buttons(page)).toEqual(["Sauvegarder maintenant"]);
+    expect(rows(page, "Sauvegardes")[1]).toBe(
+      "1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer",
+    );
+    expect(buttons(page)).toEqual([
+      "Sauvegarder maintenant",
+      ...Array<string>(8).fill("Restaurer"),
+      "Déposer",
+    ]);
   });
 
-  it("offer the download of a verified backup alone, never of one in verification or whose verification failed [WF-ADM-0150-A]", async () => {
+  it("offer the download and the restoration of a verified backup alone, never of one in verification or whose verification failed [WF-ADM-0150-A]", async () => {
     shown.path = "/admin/backups";
     server.answers = { ...server.answers, "GET /backups": "backups_unverified" };
     const page = rendered(await BackupsPage(searched()));
     expect(rows(page, "Sauvegardes").slice(1)).toEqual([
       "1,2 gigaoctet Vérification en attente Manuelle",
       "1,2 gigaoctet Vérification échouée Planifiée",
-      "1,2 gigaoctet Vérifiée Planifiée Télécharger",
+      "1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer",
     ]);
     expect(links(page)).toEqual([
       "/admin/backups/01926f3a-7c00-7000-8000-000000000906/content?from=%2Fadmin%2Fbackups",
@@ -937,7 +950,8 @@ describe("the backups", () => {
   it("say there is none yet, once", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_empty" };
     const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toMatch(/Sauvegardes Aucune sauvegarde\.$/);
+    expect(text(page)).toContain("Sauvegardes Aucune sauvegarde. Restaurer une sauvegarde");
+    expect(text(page).split("Aucune sauvegarde").length - 1).toBe(1);
     expect(page).not.toContain('<table aria-label="Sauvegardes"');
   });
 

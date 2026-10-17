@@ -1386,7 +1386,23 @@
       "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}",
       "commands": "Commands",
       "start": "Back up now",
-      "download": "Download"
+      "download": "Download",
+      "restore": "Restore"
+    },
+    "deposit": {
+      "title": "Restore a backup of another installation",
+      "explanation": "Deposit the archive of a backup downloaded from an installation of the same version or an older one: the whole platform can then be replaced by it.",
+      "file": "Archive of the backup",
+      "send": "Deposit",
+      "sending": "Depositing the archive: part {part} of {count}…",
+      "deposited": "Backup of <time></time> deposited: {name}.",
+      "restore": "Restore this backup"
+    },
+    "restoration": {
+      "confirmTitle": "Restore the whole platform",
+      "confirmText": "The whole platform — projects, accounts, roles and settings — will be replaced by the backup of <time></time>, and everything done since will be lost, except the audit log. Every user will be signed out during the restoration. This cannot be undone.",
+      "keep": "Cancel",
+      "confirm": "Restore the backup of <time></time>"
     },
     "schedule": {
       "title": "Schedule",
@@ -2399,5 +2415,14 @@
       "depth": "Level of the tree",
       "none": "No export is offered to you on this revision."
     }
+  },
+  "maintenance": {
+    "title": "Restoration of the platform under way",
+    "pending": "The restoration is waiting: the platform is about to go under maintenance, and every user will then be signed out until it is done.",
+    "maintenance": "The platform is under maintenance while it is restored: every user has been signed out, and can sign in again once the restoration is done.",
+    "signedOutTitle": "Session ended",
+    "signedOut": "Your session ended before the outcome of the restoration was known. Sign in again to learn it.",
+    "doneTitle": "Restoration done",
+    "done": "The platform has been restored. Sign in again to go on."
   }
 }
