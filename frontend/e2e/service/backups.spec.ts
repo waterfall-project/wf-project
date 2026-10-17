@@ -58,6 +58,15 @@ test("a backup taken from the screen, followed to its end, then downloaded throu
   await entries.getByRole("button", { name: "Recharger l’écran" }).click();
   const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
   await expect(newest).toContainText("Vérifiée");
+  // Listed with its date, the instant it was taken, which the browser writes in its local time,
+  // and with its size.
+  const taken = newest.locator("time");
+  await expect(taken).not.toBeEmpty();
+  const instant = Date.parse((await taken.getAttribute("datetime")) ?? "");
+  expect(Math.abs(Date.now() - instant)).toBeLessThan(240_000);
+  await expect(newest.getByRole("cell").nth(1)).toHaveText(
+    /^\d+(,\d)?\s(octet|kilooctet|mégaoctet|gigaoctet)s?$/,
+  );
 
   // Downloaded through the front, which hands the archive on under its name.
   const downloading = page.waitForEvent("download");

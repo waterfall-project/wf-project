@@ -138,6 +138,11 @@ test("asks a backup from its screen, which the tracker follows, and offers a ver
 
   // A verified backup is downloaded through the route of the front, never from the API itself.
   const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
+  // Listed with its date, written by the browser in its local time, its size and its verification.
+  await expect(newest.locator("time")).toHaveAttribute("datetime", "2026-06-03T01:00:00Z");
+  await expect(newest.locator("time")).not.toBeEmpty();
+  await expect(newest).toContainText("1,2 gigaoctet");
+  await expect(newest).toContainText("Vérifiée");
   await expect(newest.getByRole("link", { name: "Télécharger" })).toHaveAttribute(
     "href",
     "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
