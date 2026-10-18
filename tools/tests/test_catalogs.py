@@ -407,9 +407,11 @@ def test_the_chain_runs_the_check_of_the_catalogues() -> None:
         assert rule is not None, target
         return rule.group(1).split()
 
-    # The front's check runs it in its first half, the one front.yml runs in every tier.
+    # The front's check runs it in its first half, the one front.yml runs in every tier, on the
+    # runner that holds all but the tests.
     assert "check-front-code" in prerequisites("check-front")
-    assert "catalogs" in prerequisites("check-front-code")
+    assert "check-front-static" in prerequisites("check-front-code")
+    assert "catalogs" in prerequisites("check-front-static")
     recipe = re.search(r"^catalogs:.*\n((?:\t.*\n)+)", makefile, re.MULTILINE)
     assert recipe is not None
     command = (
@@ -417,7 +419,7 @@ def test_the_chain_runs_the_check_of_the_catalogues() -> None:
     )
     assert f"\t{command}\n" in recipe.group(1)
     workflow = (REPOSITORY / ".github/workflows/front.yml").read_text(encoding="utf-8")
-    assert "run: make check-front-code\n" in workflow
+    assert "run: make check-front-static\n" in workflow
 
 
 def test_without_catalogues_the_problems_are_those_of_the_contract() -> None:

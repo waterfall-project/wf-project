@@ -1907,6 +1907,19 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   au palier complet seulement (`make e2e`, `make e2e-measure`, puis `make prerendered-front`
   sur la construction de la mesure) ; sur un poste, `make check-front` enchaîne les deux
   moitiés, `check-front-code` puis `check-front-e2e`.
+  `front.yml` répartit son travail sur plusieurs runners. L'un tient le client, le lint, les
+  types, les catalogues et, au palier rapide, la construction de production
+  (`make check-front-static`). Trois jouent les tests unitaires, qui occupent tous les cœurs
+  d'un runner (`make check-front-tests`) : les gardes qui lancent ESLint, une minute ou plus
+  chacune, sur l'un (`SHARD=lint`, le projet `lint` de `frontend/vitest.config.ts`), les autres
+  tests en deux moitiés sur les deux autres (`SHARD=1/2`, `SHARD=2/2`). Vitest répartit des
+  fichiers entiers par l'empreinte de leur chemin, et les trois gardes tombaient dans le même
+  morceau. Au palier complet, un dernier runner rassemble la couverture des trois morceaux et
+  la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu
+  de chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute.
+  `front-cache.yml` écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche
+  dont les pull requests et la file de fusion lisent les caches : sans lui, elles ne
+  trouveraient rien.
   `keycloak.yml` construit l'image de Keycloak et l'éprouve sur la plateforme de service, son
   royaume appliqué (`make check-keycloak`), aux deux paliers : la famille `keycloak` se
   réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur

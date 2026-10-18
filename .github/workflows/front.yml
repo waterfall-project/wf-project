@@ -1,10 +1,14 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The front but its end-to-end paths: the client is the contract's, lint, strict types, the
-# catalogues, then its production build with no API to reach, the routes it prerendered and the
-# unit tests in the fast tier, the coverage in the full one (make check-front-code). The paths
-# run beside it, in e2e.yml, in the full tier only (#492).
+# The front but its end-to-end paths (make check-front-code), over several runners. One holds that
+# the client is the contract's, lint, strict types, the catalogues, then in the fast tier its
+# production build with no API to reach and the routes it prerendered (make check-front-static).
+# The unit tests, which keep the cores of a runner busy, are spread over three others: the guards
+# that run ESLint, a minute each, on one, the other tests in two halves on two (make
+# check-front-tests SHARD=lint, SHARD=i/2); in the full tier each part is measured, and
+# the coverage of the parts gathered is held to its thresholds once all of them are done (make
+# coverage-front-merge). The paths run beside it, in e2e.yml, in the full tier only (#492).
 name: front
 
 on:
@@ -21,10 +25,51 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    # The paths, the longer half, went to e2e.yml with the browser (#492). What is left, in the
-    # full tier, took about 6 minutes on a 4-core workstation busy with other work by October
-    # 2026, the coverage being most of it: less on a hosted runner, and 12 leaves it room.
+    # ESLint about a minute without its cache, the client, the types and the catalogues, and in
+    # the fast tier the production build: 12 leaves room to a slow runner.
     timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
+      - run: corepack enable pnpm
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      # The check of the catalogues is held by the repository tools, in Python.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      # The cache of ESLint, by the content of each file (`pnpm lint`): the last one written, on
+      # this branch or on the one it merges into (front-cache.yml), and this run's written after.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: frontend/.eslintcache
+          key: eslint-${{ github.sha }}
+          restore-keys: eslint-
+      - run: make check-front-static
+        env:
+          TIER: ${{ inputs.tier }}
+
+  tests:
+    # Shown as front / tests (lint) and front / tests (i/2).
+    name: tests (${{ matrix.part }})
+    runs-on: ubuntu-24.04
+    # Vitest spreads whole files over the parts, by the hash of their path: the three guards, which
+    # are the longest by far and fell in the same part, have one of their own (the project lint of
+    # frontend/vitest.config.ts). Every part runs to its end: one failing does not cancel the
+    # others, whose results say whether the code fails or one test.
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [lint, "1/2", "2/2"]
+    # A part should take about two minutes on a hosted runner, its coverage measured: 10 leaves
+    # room to a slow runner, not to a test stuck.
+    timeout-minutes: 10
     # The sessions of the front are tested against a real Redis (docs/dev/README.md, "Un test
     # contre Redis"), the image of the service platform, which lives for the job.
     services:
@@ -41,20 +86,51 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
       - run: corepack enable pnpm
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
-      # The check of the catalogues and the coverage thresholds are held by the repository
-      # tools, in Python.
+      - run: make check-front-tests
+        env:
+          TIER: ${{ inputs.tier }}
+          SHARD: ${{ matrix.part }}
+          WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+      # The report of the part, coverage included, which the job below gathers.
+      - if: inputs.tier == 'full'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: front-coverage-${{ strategy.job-index }}
+          path: frontend/.vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # The coverage of the parts gathered, held to its thresholds (US-0060), in the full tier alone.
+  coverage:
+    needs: tests
+    if: inputs.tier == 'full'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: corepack enable pnpm
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      # The thresholds are held by the repository tools, in Python.
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: tools/uv.lock
-      - run: make check-front-code
-        env:
-          TIER: ${{ inputs.tier }}
-          WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: front-coverage-*
+          path: frontend/.vitest/blob/
+          merge-multiple: true
+      - run: make coverage-front-merge

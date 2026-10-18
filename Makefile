@@ -315,7 +315,16 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 # workstation, check-front runs both.
 check-front: check-front-code check-front-e2e ## The front: check-front-code, then check-front-e2e
 
-check-front-code: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front,build-front prerendered-front test-front) ## The front but its end-to-end paths: client, lint, types, catalogues, production build, what it prerendered, and tests; coverage replaces the build and the plain tests in the full tier
+check-front-code: check-front-static $(call full-else,coverage-front,test-front) ## The front but its end-to-end paths: check-front-static, then the tests; coverage replaces the plain tests in the full tier
+
+# The chain runs the tests of the front apart, over several runners (front.yml): check-front-static
+# on one, check-front-tests SHARD=<part> on each of the others, and in the full tier the measure of
+# their parts gathered (coverage-front-merge). A part is `lint`, the guards that run ESLint, a minute
+# each (the project lint of frontend/vitest.config.ts), or i/N, the i-th of N parts of the others.
+FRONT_PART = $(if $(filter lint,$(SHARD)),--project lint,$(if $(SHARD),--project node --project dom --shard=$(SHARD)))
+check-front-static: client-up-to-date lint-front typecheck-front catalogs $(call full-else,,build-front prerendered-front) ## The front but its tests and its end-to-end paths: client, lint, types, catalogues, and in the fast tier its production build and what it prerendered
+
+check-front-tests: $(call full-else,coverage-front,test-front) ## The tests of the front, SHARD=lint or i/N one part of them; in the full tier, measured
 
 # The whole harness builds the front for production for its measure, whose manifest
 # prerendered-front then reads; a part of the paths alone (SHARD) builds nothing to hold.
@@ -366,8 +375,8 @@ catalogs: ## The catalogues of the front are twins, with a key for each value th
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(JSON_BUNDLE)) >/dev/null
 	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
-test-front: install-front ## Unit tests of the front (TESTS=<file> runs one file)
-	@$(PNPM) test $(TESTS)
+test-front: install-front ## Unit tests of the front (TESTS=<file> runs one file; SHARD=lint or i/N one part of them, as the chain spreads them)
+	@$(PNPM) test $(FRONT_PART) $(TESTS)
 
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
 build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
@@ -379,8 +388,18 @@ build-front: install-front ## Build the front for production with no API to reac
 prerendered-front: ## The production build of the front prerendered no page that reads the environment, as its image would not (US-0430)
 	@$(WFTOOLS).frontimage --manifest $(FRONT)/.next/prerender-manifest.json
 
-coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060)
+# With SHARD, one part of the tests measured alone, its report written for coverage-front-merge
+# (frontend/.vitest/blob/), the thresholds held on the parts gathered alone.
+coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
+ifdef SHARD
+	@$(PNPM) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob
+else
 	@$(PNPM) exec vitest run --coverage --silent
+	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
+endif
+
+coverage-front-merge: install-front ## The code coverage of the front from the parts of coverage-front SHARD=i/N (frontend/.vitest/blob/), held to the same thresholds
+	@$(PNPM) exec vitest run --merge-reports --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
 
 check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
