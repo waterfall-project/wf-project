@@ -149,4 +149,6 @@ written again.
 ## Licence
 
 Contributions are accepted under the [GNU Affero General Public License v3.0](LICENSE) only,
-the licence of the project.
+the licence of the project's code. Contributions to the specification — the Word document, its
+draw.io and Mermaid sources, and the projection generated from them — are accepted under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr), its licence.
