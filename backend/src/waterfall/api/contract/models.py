@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel, constr
+from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel, StringConstraints
 
 from waterfall.api.contract.base import ContractModel
 
@@ -485,7 +485,8 @@ type FiltersAdditionalProperty = Annotated[str, Field(max_length=500)]
 class GridPreferences(ContractModel):
     hidden_columns: Annotated[list[HiddenColumn] | None, Field(max_length=64)] = None
     column_widths: Annotated[
-        dict[constr(max_length=64), ColumnWidthsAdditionalProperty] | None,
+        dict[Annotated[str, StringConstraints(max_length=64)], ColumnWidthsAdditionalProperty]
+        | None,
         Field(
             description="La largeur de chaque colonne élargie, en points, par sa clé : au moins vingt, une largeur plus étroite étant refusée par 422, `VALUE_OUT_OF_RANGE` sur `/grids/<grille>/column_widths/<colonne>`, `fields[].params.minimum` à `20`.",
             max_length=64,
@@ -493,7 +494,7 @@ class GridPreferences(ContractModel):
     ] = None
     sort: Sort | None = None
     filters: Annotated[
-        dict[constr(max_length=64), FiltersAdditionalProperty] | None,
+        dict[Annotated[str, StringConstraints(max_length=64)], FiltersAdditionalProperty] | None,
         Field(
             description="La recherche et les filtres de la grille, tels que son adresse les écrit : chaque paramètre sous son nom, avec sa valeur en texte.",
             max_length=20,
@@ -528,7 +529,8 @@ class DisplayPreferences(ContractModel):
     ] = None
     highlight_tasks_added_after_reference: bool | None = None
     grids: Annotated[
-        dict[constr(max_length=64), GridPreferences | None] | None, Field(max_length=100)
+        dict[Annotated[str, StringConstraints(max_length=64)], GridPreferences | None] | None,
+        Field(max_length=100),
     ] = None
 
 
