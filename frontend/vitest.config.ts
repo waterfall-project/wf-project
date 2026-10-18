@@ -11,7 +11,10 @@
  * - `dom`, for `*.dom.test.ts` and `*.dom.test.tsx`: the client components, which Testing
  *   Library renders into a document. happy-dom provides it: under jsdom, Vitest hands the
  *   `Request` of Node a `Blob` of jsdom, which jsdom 30.1 no longer lets it read, and a
- *   multipart body never finishes streaming, whatever the version of jsdom.
+ *   multipart body never finishes streaming, whatever the version of jsdom;
+ * - `lint`, for the guards that run ESLint on code, typed, which take a minute or more each: a
+ *   project of their own, which the chain plays on a runner of its own while the two others are
+ *   spread over two more (`make check-front-tests`, `.github/workflows/front.yml`).
  */
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
@@ -19,6 +22,11 @@ import { defineConfig } from "vitest/config";
 // `server-only` refuses to load outside the server bundle of Next; every test empties it.
 const SERVER_ONLY = "src/test/setup.ts";
 const DOM = "src/**/*.dom.test.{ts,tsx}";
+const LINT = [
+  "src/api/network-guard.test.ts",
+  "src/i18n/text-guard.test.ts",
+  "src/theme/colour-guard.test.ts",
+];
 
 export default defineConfig({
   resolve: {
@@ -31,7 +39,16 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["src/**/*.test.{ts,tsx}"],
-          exclude: [DOM],
+          exclude: [DOM, ...LINT],
+          environment: "node",
+          setupFiles: [SERVER_ONLY],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "lint",
+          include: LINT,
           environment: "node",
           setupFiles: [SERVER_ONLY],
         },

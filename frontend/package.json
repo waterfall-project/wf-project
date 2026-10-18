@@ -15,7 +15,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "eslint . --max-warnings 0 --cache --cache-strategy content",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

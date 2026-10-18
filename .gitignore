@@ -11,6 +11,10 @@ docs/api/*.bundle.json
 node_modules/
 .next/
 coverage/
+# The cache of ESLint (`pnpm lint`) and the reports of the parts of the tests of the front
+# (`make coverage-front SHARD=i/N`).
+.eslintcache
+.vitest/
 next-env.d.ts
 *.tsbuildinfo
 docs/api/waterfall.mock.json
