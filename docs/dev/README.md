@@ -2060,6 +2060,20 @@ Reste à écrire, quand la durée l'exige :
 - les parcours contre le vrai service (`service.yml`), qu'un seul runner joue tant qu'ils sont
   courts, se répartissent comme ceux d'`e2e.yml`, la plateforme démarrée dans chaque morceau.
 
+Les images se construisent depuis un cache de GitHub Actions (`type=gha`) : l'extension de
+Keycloak compilée par Maven, les dépendances du front et du back ne se refont pas à chaque
+travail. Le job `cache` d'`images.yml` l'écrit après chaque fusion (`make build-cache`), sur la
+branche dont les pull requests lisent les caches ; `keycloak.yml`, `service.yml`,
+`production.yml` et `front-image.yml` le lisent (`build-keycloak`, `wftools.images`,
+`wftools.frontimage`). L'action locale `.github/actions/build-cache` le leur ouvre : elle active
+le magasin d'images de containerd, sans lequel le builder de Docker n'importe ni n'exporte un tel
+cache, et redémarre Docker — jamais dans un travail qui a des `services:`
+(`tools/tests/test_images.py`) ; puis elle passe aux étapes suivantes l'adresse et le jeton du
+cache, que le runner ne donne qu'à une action (`.github/actions/actions-runtime`, sans rien
+afficher). Sur un poste, Docker ignore un cache `type=gha`. La publication (`publish`) n'en lit
+aucun : sur le magasin de containerd, une image se pousserait avec ses attestations, dans un
+autre format que celui publié aujourd'hui.
+
 Règles des workflows :
 
 - une action tierce est épinglée par l'empreinte de son commit, la version en commentaire ;

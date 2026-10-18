@@ -96,3 +96,17 @@ jobs:
       - env:
           WATERFALL_IMAGE_TAG: ${{ github.sha }}
         run: make production-trial
+
+  # The cache of the builds of the three images (type=gha), which the chain reads at each pull
+  # request and in the merge queue: written here, after a merge, on the branch every pull request
+  # of it reads the caches of. Built into the cache alone, neither loaded nor published: beside the
+  # publication, which it neither waits for nor changes (make build-cache).
+  cache:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build-cache
+      - run: make build-cache

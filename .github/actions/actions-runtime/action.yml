@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Hands the address and the token of the cache of GitHub Actions, which the runner gives to an action
+# alone, to the steps that follow: Docker reads them to import and export a cache of type gha. Ours,
+# a few lines read here, rather than a third-party one: that of crazy-max prints every variable it
+# exports, the token included.
+name: actions-runtime
+description: Expose the cache service of GitHub Actions to the steps that follow, printing nothing
+runs:
+  using: node24
+  main: index.mjs

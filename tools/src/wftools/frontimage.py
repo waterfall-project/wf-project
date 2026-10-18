@@ -34,6 +34,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from wftools import REPOSITORY
+from wftools.images import cache_source
 
 IMAGE = "waterfall-front:check"
 """The local tag of the image built here; it is never pushed."""
@@ -217,7 +218,8 @@ def main(
         help="the prerender manifest of a build of the front, held without building the image",
     )
     options = parser.parse_args(arguments)
-    build = ["docker", "build", "--target", "production", "--tag", IMAGE, "frontend"]
+    build = ["docker", "build", "--target", "production", *cache_source("front")]
+    build += ["--tag", IMAGE, "frontend"]
     try:
         if options.manifest is not None:
             check_built(options.manifest)
