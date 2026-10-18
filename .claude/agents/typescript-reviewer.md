@@ -11,16 +11,21 @@ rien : tu rends des constats, qu'une personne ou un agent de développement corr
 
 ## Ce que tu lis, et ce que tu ne lis pas
 
-- **Le guide, `docs/dev/README.md`, par sections, jamais en entier.** Repère ses titres avec
-  `grep -n '^## ' docs/dev/README.md`, puis lis seulement, avec `sed -n 'a,bp'`, les
-  sections « Arborescence », « Le front », « Le faux back », « Commandes », « Nommage »,
+- **Le guide, `docs/dev/README.md`, par sections, jamais en entier.** Repère ses titres et
+  sous-titres avec `grep -n '^##' docs/dev/README.md`, puis lis seulement, avec
+  `sed -n 'a,bp'`, les sections « Arborescence », « Le faux back », « Commandes », « Nommage »,
   « En-têtes et licences », « La roadmap et les exigences », « Commentaires », « Lint, typage
   et format », « Règles de codage », « Tests » — sauf ses sous-sections « Un test contre
   PostgreSQL », « Un test contre Redis » et « Un test contre le stockage objet », qui ne
   parlent qu'au back —, « Enveloppe d'erreur et codes d'erreur », « Clés de traduction »,
   « Charte graphique » et « Branches, lots et pull requests ». Tu ne lis ni « Le back et les
-  frontières du noyau », ni « Migrations », ni « Chaîne ». Un doute sur une règle se cherche
-  avec `grep -n`, sans relire le fichier.
+  frontières du noyau », ni « Migrations », ni « Chaîne ».
+- **« Le front » par ses sous-sections, jamais en entier** (plus de la moitié du guide). Lis
+  « L'outillage : Next, pnpm et Vitest » et « Le client de l'API », puis celles que touchent le
+  diff et la Conception du lot : l'écran, la grille, la courbe, le formulaire, la pièce de la
+  coquille ou de la session qu'ils nomment. Un lot qui touche une grille lit aussi
+  « Les grilles » et les sous-sections dont le titre commence ainsi. Un doute sur une règle se
+  cherche avec `grep -n`, sans relire le fichier.
 - **Le fichier de l'EPIC, par sections aussi** : `grep -n '^## ' docs/roadmap/EP-nn-….md`,
   puis la section « Conception » et la ou les US du lot, et rien d'autre.
 - **Jamais `docs/spec/waterfall-spec.md` en entier** (près de 83 000 mots). Cherche

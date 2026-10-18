@@ -96,6 +96,8 @@ nouvelle s'y ajoute.
 
 ## Le front
 
+### L'outillage : Next, pnpm et Vitest
+
 Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.json`, avec
 `noUncheckedIndexedAccess` et `exactOptionalPropertyTypes`). pnpm en gère les dépendances,
 à la version que nomme `packageManager` dans `package.json`, lancée par corepack
@@ -114,6 +116,8 @@ lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut d
 mesure rien : un test qui monte une courbe donne à son dessin la place qu'une page lui donne
 (`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit qu'il n'a
 ni largeur ni hauteur (EP-02/L37).
+
+### La navigation : la table des fonctions et ses routes
 
 La coquille (`frontend/src/components/shell/`) tire sa navigation de
 `frontend/src/navigation/functions.json` : pour chaque fonction de second niveau de la FBS,
@@ -182,6 +186,8 @@ servie par l'API seule, est lue par le serveur de Next en rendant la page et éc
 page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
 l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
 
+### Le nom d'un compte
+
 Un nom de compte ne s'affiche que par `useAccountNaming`
 (`frontend/src/components/account/account-name.ts`) : `person` pour un compte par ses prénom et
 nom, `kept` pour le nom qu'une réponse a gardé de lui — l'auteur et l'objet d'une inscription du
@@ -192,6 +198,8 @@ un vide ni par l'identifiant du compte. Dans une cellule, ce libellé a un seul 
 `AnonymizedName` (`KeptName` pour un nom gardé qui peut être nul, dans `anonymized-name.tsx`),
 grisé et marqué `data-anonymized` ; une option de `<select>`, qui ne porte que du texte, prend
 `kept(null)`.
+
+### La coquille : barre latérale, barre du haut et menu du compte
 
 La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
 latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
@@ -227,6 +235,8 @@ son bloc ouvert, et sans menu du compte. La barre latérale est un repère (`<as
 écran étroit, c'est une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que
 si elle est rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au
 déclencheur.
+
+### La session du front
 
 **La session du front** (US-0350, `frontend/src/session/`). Le navigateur ne détient aucun jeton
 (WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
@@ -343,6 +353,8 @@ Keycloak qui n'est pas en HTTPS, celle de la page de connexion comprise : sur la
 service, Keycloak est servi en HTTPS par un frontal à autorité locale, à laquelle le front se fie
 par `NODE_EXTRA_CA_CERTS` (« Commandes », #680).
 
+### Les pages système : lecture, panne et « introuvable »
+
 Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
 `readOrFail` de `frontend/src/api/problem.ts`, qui rend ses données ou lève : un 404 mène à
@@ -368,6 +380,8 @@ porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujour
 avant que la page sache l'objet introuvable. Il est le même pour toute adresse introuvable,
 ce qui compte ici. Chaque état vide — aucun projet, projet sans révision, référentiel
 incomplet — se montre sur un exemple nommé du contrat (`empty`, `incomplete`).
+
+### L'accueil : la liste des projets
 
 L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour qu'il
 ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les projets dont
@@ -480,6 +494,8 @@ tant que la liste s'écrit — le compteur d'ouvertures y reste en garde-fou. Le
 référentiel (`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont
 les leurs, sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
 
+### La création et la modification du projet
+
 Le projet se crée et se modifie dans la maquette (EP-02/L44a, décision de l'auteur du 2026-10-08,
 #513, #524 ; `project-form.tsx`), par le formulaire du référentiel (`ReferenceForm`, qui écrit aussi
 un autre objet que ceux du référentiel et saisit une date de planning). L'accueil offre « Créer un
@@ -532,6 +548,8 @@ deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
 prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
 mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
 
+### Les périodes d'une liste
+
 Une période d'une liste prend l'une des trois formes du contrat (`period.ts`), toutes saisies dans
 le même filtre (`PeriodFilter` de `frontend/src/components/grid/`) : deux jours de planning, bornes
 incluses, que le serveur reçoit tels quels — les pièces des coûts réels — ; deux jours locaux tirés
@@ -540,6 +558,8 @@ exclue — le journal d'audit. Seul le navigateur connaît son fuseau : les cham
 l'adresse, et le bouton envoie, une fois la page hydratée ; un côté laissé intact part tel que
 l'adresse le nomme. Le refus d'une période inversée, la règle de toute période du contrat, est dit
 au champ de la fin, le début nommé tel que son champ le montre.
+
+### Le contexte d'un écran de projet
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
@@ -552,6 +572,8 @@ aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une val
 enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
 (`enums.NotComputableReason.*`, `indicator.tsx`).
+
+### Les courbes
 
 Une courbe est une figure de `Chart` (`frontend/src/components/chart/`, US-0240) : Apache
 ECharts, importé pièce à pièce et dessiné en SVG, son option `aria` active ; sa légende la
@@ -588,6 +610,8 @@ leurs lignes, sur le fond de la charte, puis libère l'instance. Un choix qui ch
 courbe lit — les délais de paiement, la base et le nœud d'organisation du plan de charge — est un
 paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre ni ne décale rien.
 
+### L'écran des indicateurs
+
 L'écran des indicateurs d'un projet lit ses indicateurs et ses courbes dans la révision de sa route
 (`revision_id`) — ceux d'une révision marquée tels que son marquage les a conservés —, ou à la date
 que l'adresse demande (`as_of`), jamais les deux, que l'API refuse ensemble ; une offre marquée
@@ -607,6 +631,8 @@ des indicateurs nuls ; une courbe sans point dit qu'elle n'a rien à tracer plut
 zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphique — le budget de
 référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
 la décaler, et, décalée, garde la commande qui retire le décalage.
+
+### Les grilles
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
@@ -741,6 +767,8 @@ ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #1
 deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
 (`EstimateSummary`).
 
+### La grille de planning et le Gantt
+
 La grille de planning présente aussi la description d'une tâche et l'avancement physique d'une
 récapitulative, un pourcentage calculé ou non calculable, son motif en titre ; puis le Gantt
 (FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule. Chaque cellule
@@ -786,6 +814,8 @@ celui de sa plus profonde récapitulative, que le serveur dit quels que soient l
 (`meta.summary_depth`, #494), et montre le niveau demandé, ou le plus profond quand on lui en
 demande un au-delà (`depthShown`).
 
+### L'écran des risques
+
 L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
 ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des
 risques retenus, par état et le total général, tels que le serveur les rend ; le filtre par
@@ -803,6 +833,8 @@ libellés que le serveur résout — la catégorie dite désactivée quand elle 
 risque : la maquette n'en a pas le formulaire. Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
+
+### L'écran du reste à engager
 
 L'écran du reste à engager, `…/revisions/[r]/remaining` (`frontend/src/components/remaining/`,
 `remaining.tsx` de la grille), lit ses indicateurs dans la révision de sa route
@@ -830,6 +862,8 @@ signalé à terminer (`predecessors_completed`) ; aucun pourcentage, aucune comm
 la révision en cours : sur une
 révision marquée, l'écran le dit et ne demande rien.
 
+### L'écran des coûts réels
+
 L'écran des coûts réels, `…/revisions/[r]/actual-costs` (`frontend/src/components/costs/`), lit
 ceux du projet — ils ne sont pas versionnés, la révision de la route n'est que le contexte du
 bandeau — page par page, comme le serveur les pagine (`offset`, `listActualCosts`) : les trois
@@ -855,6 +889,8 @@ liste paginée à sa première page (`sortHref`, `searchHref`). Un lien de page,
 risque, part de la dernière adresse demandée
 (`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
 en attente —, il mène à leur première page.
+
+### Les écrans du référentiel
 
 Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
 US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
@@ -957,6 +993,8 @@ une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la 
 `include_inactive`, et ne gardant rien, les tests éprouvent ce que l'écran demande ; le service le
 tiendra en EP-05.
 
+### Les paramètres de coûts : natures et catégories
+
 Les paramètres de coûts offrent les commandes d'écriture des natures et des catégories (EP-02/L43a,
 décision de l'auteur du 2026-10-08, #512 ; `commands.tsx`, `reference-form.tsx`, `cost-form.tsx`),
 pour projeter la mise en page et éprouver le contrat de chaque écriture ; ceux des ressources les
@@ -1050,6 +1088,8 @@ tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-not
 par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
 service de son EPIC). La saisie d'un taux reste celle de la grille.
 
+### Les paramètres de ressources : organisation, rôles et calendriers
+
 Les paramètres de ressources offrent de même les commandes de l'organisation, des rôles et des
 calendriers (EP-02/L43b, #512 ; `resource-commands.tsx`, `calendar-default.tsx`), à une session qui
 porte `resource_settings.write` : « Nouveau nœud », « Nouveau rôle », « Nouveau calendrier », la
@@ -1110,6 +1150,8 @@ d'`outcome-notice.tsx`), chacun par son libellé et son code, et la cause se dit
 n'en a lu aucun — ; aucun rôle donné, les tâches sans ligne de main-d'œuvre, sur le calendrier par
 défaut vidé ou désigné.
 
+### Les paramètres des risques et des indicateurs
+
 Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
 #512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
 `risk_settings.write`, par « Modifier les seuils et le délai » à une session qui porte
@@ -1138,6 +1180,8 @@ récente qu'eux, la page relue, comme les paramètres du projet, et ne ferme que
 est partie, jamais un dialogue rouvert depuis ; la commande qui l'ouvre attend, inactive, la réponse
 d'une écriture d'un dialogue fermé (#661) ; face au faux back, qui répond par le
 premier exemple de l'opération — les seuils écrits —, la matrice montrée reste celle d'avant.
+
+### Les écrans de l'administration
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule hors
@@ -1269,6 +1313,8 @@ pour une planification quotidienne, le jour local aussi pour une hebdomadaire, q
 ou le lendemain du jour universel (`localTimeOfDay` de `format.ts`, dans le navigateur) : rien n'est
 converti à l'envoi.
 
+### L'écran des sauvegardes
+
 L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519, EP-14/L43f, EP-14/L43d)
 présente leur planification (`backup-schedule.tsx`) et une page de leur liste sur la
 grille dense (`backup-columns.tsx`, `backup-grid.tsx`, préférences sous la clé `backups`) : la date,
@@ -1369,6 +1415,8 @@ réponse d'une écriture d'un dialogue fermé (#661, #678) ; un refus par champ 
 invalide, rétention trop courte) se dit au champ, tout autre sous le formulaire, la version périmée
 (412) avec l'offre de relire.
 
+### Le journal d'audit
+
 Le journal d'audit (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
 #517) est un écran de l'administration à lui ; la table « Dernières opérations » de l'état du
 système, trois faits de la plateforme (WF-ADM-0130), reste telle quelle. C'est une fonction en
@@ -1419,6 +1467,8 @@ n'ont pas d'écran à eux : leur nom reste seul. Une période que l'API refuse (
 de ses bornes) se dit à la place des inscriptions, les filtres gardés, et tout autre refus des filtres
 par son enveloppe (`problemMessage`) ; aucune commande n'est offerte.
 
+### L'écran des imports et exports
+
 L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
 US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
 celui de l'écran des coûts réels ; un
@@ -1465,6 +1515,8 @@ le refus dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un
 et l'ôte de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont
 l'adresse change (#416).
 
+### Les écrans du portefeuille
+
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
 retenus (`states`), la période (`from`, `to`), la date de calcul (`as_of`) et le nœud d'organisation
@@ -1499,6 +1551,8 @@ par `Signal` ; l'évolution trimestrielle des indices, la courbe en S et les dé
 figures de `Chart`, exportées en PNG avec la provenance de leur vue (`usePortfolioExport`) : le
 périmètre que le serveur a retenu — états, nombre de projets, période, nœud d'organisation — et sa
 date de calcul, `scope.as_of`, la phrase même de l'en-tête (#312).
+
+### Les grilles : le collage d'un bloc de tableur
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
@@ -1550,6 +1604,8 @@ collage partiel n'est éprouvé que par les tests de la grille (`paste-applied.d
 `paste-dialog.dom.test.tsx`), et la hauteur réelle de l'avis ne se prouvera qu'en parcours. Une grille sans
 `paste` dans sa configuration, en lecture seule, ne prend aucun collage.
 
+### Les grilles : annuler et rétablir
+
 Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
 toute grille dont la révision en cours se saisit par sa commande `edit_*` les pose (`undoable`
 de `DenseGrid`) — le devis par `edit_estimate`, le planning par `edit_planning`, le reste à
@@ -1566,6 +1622,8 @@ recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 
 navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
 annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
 (EP-14/L42p).
+
+### Les grilles arborescentes : plier et déplier
 
 Les grilles arborescentes — planning, devis, reste à engager — se plient et se déplient
 (WF-PLA-0080, WF-PLA-0090, EP-02/L40, `frontend/src/components/grid/fold.tsx`) : une grille dont
@@ -1602,6 +1660,8 @@ une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état p
 stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
 au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
 
+### Les commandes
+
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
@@ -1623,6 +1683,8 @@ d'un projet, qu'aucun projet ne liste ; les commandes d'une sauvegarde sont cell
 (`Backup.available_commands`, EP-14/L43f), le téléchargement et la restauration comprises. Griser n'est qu'une
 commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
 par `OutcomeNotice`.
+
+### Les actions longues et le suivi des tâches de fond
 
 Une action longue rend la main à la réception de sa tâche de fond (WF-ARC-0090) : son action
 serveur passe par `decodeTask` de `frontend/src/api/problem.ts`, qui tient le motif d'un échec
@@ -1658,8 +1720,12 @@ objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de
 version.
 
+### L'image de développement
+
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
 empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
+
+### Le client de l'API
 
 Le client de l'API est engendré du contrat (PBS-1.2, WF-ARC-0060) : `make generate-client`
 écrit ses types dans `frontend/src/api/generated/schema.d.ts`, que personne ne retouche, et
