@@ -205,14 +205,14 @@ def locked_out(admin: httpx2.Client, account: Account) -> None:
     with httpx2.Client(base_url=realm_address(), timeout=30) as realm:
         for _ in range(10):
             failed = password_grant(realm, account, "not-the-password")
-            assert (failed.status_code, failed.json()["error"]) == (401, "invalid_grant")
+            assert (failed.status_code, failed.json()["error"]) == (400, "invalid_grant")
         detection = f"/attack-detection/brute-force/users/{account.id}"
         deadline = time.monotonic() + 5
         while not admin.get(detection).json()["disabled"]:
             assert time.monotonic() < deadline, "the tenth failure locked nothing"
             time.sleep(0.1)
         locked = password_grant(realm, account, PASSWORD)
-        assert (locked.status_code, locked.json()["error"]) == (401, "invalid_grant"), locked.text
+        assert (locked.status_code, locked.json()["error"]) == (400, "invalid_grant"), locked.text
 
 
 @pytest.mark.requirement("WF-ADM-0140-A")

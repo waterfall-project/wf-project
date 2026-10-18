@@ -20,13 +20,13 @@ RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet dependency:go-o
 COPY extension/src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet package
 
-# keycloak-config-cli, in the build nearest to this version of Keycloak it publishes (26.5.5);
+# keycloak-config-cli, in the build nearest to this version of Keycloak it publishes (26.5.5, the last);
 # only its jar is taken.
 FROM adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274 AS realm-applier
 
 # Keycloak runs as its own unprivileged user, 1000, that of its image, said again at the end of the
 # stage: the image never runs as root, whatever its base sets.
-FROM keycloak/keycloak:26.5.7@sha256:45ae20191531eb608ddb0b775d012b40d3e4f942697f3214694887dd7c108d13 AS production
+FROM keycloak/keycloak:26.8.1@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244 AS production
 COPY --from=extension /build/target/waterfall-keycloak-extension.jar /opt/keycloak/providers/
 COPY themes/ /opt/keycloak/themes/
 # The options Keycloak fixes at build time: started with --optimized, it does not rebuild. Under
