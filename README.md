@@ -97,6 +97,8 @@ decision.
 
 ## Commands
 
+To set up a workstation, read [`INSTALL.md`](INSTALL.md) (in French).
+
 ```bash
 make                      # list the commands
 make check-tools          # tell me what is missing
