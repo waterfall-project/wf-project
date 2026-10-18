@@ -161,8 +161,9 @@ niveau AA, en clair comme en sombre, part avec l'accessibilité.
 
 - **US-0200 — Accessibilité minimale** (#84, lot #126) : reportée : EP-14, avec `WF-IHM-0100-A`,
   qu'EP-14 clôt.
-- **US-0290 — Navigateurs et largeurs d'affichage** (#92, lot #127) : reportée : EP-14, avec
-  `WF-CMP-0010-A`, qu'EP-14 commence et qu'EP-13 clôt.
+- **US-0290 — Navigateurs et largeurs d'affichage** (#92, lot #127) : reportée : EP-14, puis
+  EP-15, puis EP-16 (décisions de l'auteur des 2026-10-11 et 2026-10-18), avec `WF-CMP-0010-A`,
+  qu'EP-16 commence et qu'EP-13 clôt.
 - **Les commandes des écrans**, décidées le 2026-10-08, qui n'étaient pas finies à la coupure :
   l'écran des sauvegardes (#519, sous #512), les paramètres des risques et des indicateurs (#512),
   les paramètres du projet (#513 : #583, #584, #585, et #524) ; avec eux, le critère d'US-0210

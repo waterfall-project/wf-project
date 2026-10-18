@@ -64,25 +64,25 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-INTF-0010-A` | Usages du chef de projet | début — close en EP-08 | — |
-| `WF-PRJ-0030-A` | Squelette de planning | entière | — |
+| `WF-PRJ-0030-A` | Squelette de planning | fin — amorcée en EP-15 | — |
 | `WF-PLA-0010-A` | Calendrier applicable à une tâche | entière | — |
-| `WF-PLA-0020-A` | Mode de planification | entière | — |
-| `WF-PLA-0030-A` | Liaisons entre tâches | entière | — |
+| `WF-PLA-0020-A` | Mode de planification | fin — amorcée en EP-15 | — |
+| `WF-PLA-0030-A` | Liaisons entre tâches | fin — amorcée en EP-15 | — |
 | `WF-PLA-0040-A` | Hiérarchie des tâches | entière | — |
 | `WF-PLA-0050-A` | Jalons | entière | — |
 | `WF-PLA-0070-A` | Suppression d’une tâche | début — close en EP-09 | — |
 | `WF-PLA-0130-A` | Attributs d’une tâche | début — close en EP-10 | — |
 | `WF-PLA-0170-A` | Rattachement au lotissement | début — close en EP-08 | — |
 | `WF-PLA-0150-A` | Horizon d’un projet | entière | — |
-| `WF-PLA-0060-A` | Inscription aux suivis | début — close en EP-10 | — |
-| `WF-PLA-0140-A` | Chronologies nommées | entière | — |
-| `WF-PLA-0080-A` | Grille de planning | entière | — |
-| `WF-PLA-0090-A` | Diagramme de Gantt | entière | — |
+| `WF-PLA-0060-A` | Inscription aux suivis | début — close en EP-10, amorcée aussi en EP-15 | — |
+| `WF-PLA-0140-A` | Chronologies nommées | fin — amorcée en EP-15 | — |
+| `WF-PLA-0080-A` | Grille de planning | fin — amorcée en EP-15 | — |
+| `WF-PLA-0090-A` | Diagramme de Gantt | fin — amorcée en EP-15 | — |
 | `WF-PLA-0100-A` | Chemin critique | entière | — |
 | `WF-PLA-0110-A` | Vue en arborescence de tâches | entière | — |
 | `WF-PLA-0120-A` | Export de l’arborescence de tâches | entière | — |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02 | — |
-| `WF-PLA-0160-A` | Unités de durée | entière | — |
+| `WF-PLA-0160-A` | Unités de durée | fin — amorcée en EP-15 | — |
 | `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | entière | — |
 | `WF-INTF-0040-A` | Imports MS Project | entière | — |
 | `WF-INTF-0050-A` | Exports MS Project | entière | — |

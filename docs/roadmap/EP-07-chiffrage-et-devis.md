@@ -55,28 +55,28 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-CYC-0020-A` | Progression automatique | fin — amorcée en EP-04 | — |
-| `WF-CYC-0030-A` | Conditions du passage à En cours | fin — amorcée en EP-04 | — |
+| `WF-CYC-0030-A` | Conditions du passage à En cours | fin — amorcée en EP-04, EP-15 | — |
 | `WF-CYC-0050-A` | Conditions de progression consultables | fin — amorcée en EP-04 | — |
 | `WF-REF-0020-A` | Désactivation sans effet sur les projets | fin — amorcée en EP-05 | — |
 | `WF-REF-0130-A` | Modification sans effet rétroactif | fin — amorcée en EP-05 | — |
 | `WF-REF-0140-A` | Devise de l’installation | fin — amorcée en EP-05 | — |
 | `WF-REV-0030-A` | Contenu de l’instantané | fin — amorcée en EP-04 | — |
-| `WF-REV-0060-A` | Mise à jour des taux à la création d’une révision | entière | — |
-| `WF-REV-0080-A` | Comparaison de deux révisions | entière | — |
+| `WF-REV-0060-A` | Mise à jour des taux à la création d’une révision | fin — amorcée en EP-15 | — |
+| `WF-REV-0080-A` | Comparaison de deux révisions | fin — amorcée en EP-15 | — |
 | `WF-PRJ-0010-A` | Code projet | fin — amorcée en EP-04 | — |
 | `WF-PRJ-0040-A` | Taux d’inflation du projet | entière | — |
 | `WF-PRJ-0070-A` | Proposition des contributeurs | entière | — |
 | `WF-DEV-0010-A` | Taux horaires requis pour le calcul à la création d’un chiffrage | entière | — |
 | `WF-DEV-0020-A` | Attributs d’une ligne de devis | entière | — |
 | `WF-DEV-0060-A` | Indicateurs de devis | entière | — |
-| `WF-DEV-0050-A` | Grille de devis | entière | — |
+| `WF-DEV-0050-A` | Grille de devis | fin — amorcée en EP-15 | — |
 | `WF-DEV-0030-A` | Calcul du montant d’une ligne | entière | — |
 | `WF-DEV-0040-A` | Année de consommation d’une ligne | entière | — |
 | `WF-DEV-0080-A` | Valeur planifiée | début — close en EP-08 | — |
-| `WF-DEV-0070-A` | Plan de charge du projet | début — close en EP-09 | — |
+| `WF-DEV-0070-A` | Plan de charge du projet | début — close en EP-09, amorcée aussi en EP-15 | — |
 | `WF-DAT-0090-A` | Intégrité déclarée en base | fin — amorcée en EP-03 | — |
 | `WF-DAT-0100-A` | Types des grandeurs | fin — amorcée en EP-03 | — |
-| `WF-IHM-0060-A` | Lecture d'une grille | fin — amorcée en EP-02, EP-03 | — |
+| `WF-IHM-0060-A` | Lecture d'une grille | fin — amorcée en EP-02, EP-03, EP-15 | — |
 | `WF-INTF-0070-A` | Formats d’échange Excel | début — close en EP-09 | — |
 | `WF-INTF-0080-A` | Contrôle et confirmation des imports Excel | fin — amorcée en EP-06 | — |
 | `WF-INTF-0090-A` | Imports et révisions marquées | fin — amorcée en EP-06 | — |
@@ -122,12 +122,6 @@ EP-06 livré : une ligne de devis est portée par une tâche.
 
 ## Constats reçus
 
-- #624 [EP-07] la comparaison de révisions rend ses 2 770 modifications en une table simple —
-  relevé par EP-14/L45a : sur le témoin à l'échelle, `compareRevisions` rend 2 770 nœuds, que
-  l'écran présente en une `<table>` rendue côté serveur (4,76 Mo de réponse ; 6,8 à 12,6 s du clic
-  à l'adresse mise à jour en développement, mesures d'EP-14/L55). EP-07, qui sert
-  `compareRevisions`, choisit la grille de la comparaison et mesure contre le service. Reporté
-  d'EP-14 sur décision de l'auteur (2026-10-18).
-- #729 [EP-07] la comparaison de `revisions.spec` n'écrit pas toujours son adresse en 15 s dans la
-  file — atténué par EP-14/L55 (trace sans instantanés, borne inchangée), la marge restant faible
-  sous charge : seul l'écran de #624 la règle. Reporté d'EP-14 avec #624 (2026-10-18).
+Aucun. #624 et #729, la comparaison de révisions en table simple et son e2e, reportés ici le
+2026-10-18, sont ramenés en EP-15 le même jour (décision de l'auteur) : la comparaison passe dans la
+grille dense, marquée comme un diff (#1060, US-0500).

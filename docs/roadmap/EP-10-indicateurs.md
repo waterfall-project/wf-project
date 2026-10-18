@@ -55,7 +55,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 |---|---|---|---|
 | `WF-REF-0170-A` | Seuils d’alerte des indices | fin — amorcée en EP-05 | — |
 | `WF-PLA-0130-A` | Attributs d’une tâche | fin — amorcée en EP-06 | — |
-| `WF-PLA-0060-A` | Inscription aux suivis | fin — amorcée en EP-06 | — |
+| `WF-PLA-0060-A` | Inscription aux suivis | fin — amorcée en EP-06, EP-15 | — |
 | `WF-RAE-0050-A` | Tâches ajoutées en cours d’exécution | fin — amorcée en EP-09 | — |
 | `WF-IND-0010-A` | Date et périmètre de calcul | entière | — |
 | `WF-IND-0020-A` | Granularité des indicateurs | entière | — |
