@@ -148,7 +148,9 @@ d'EP-03 », qui en garde la trace.
 - #1024 — écran : « Session terminée » renvoie à une reconnexion qui ne dit pas l'issue de la
   restauration (US-0440/L3b) ;
 - #1033 — front : sur un écran rempli, le plancher de la grille ne remonte pas la chaîne des
-  `min-h-0` ; `/admin/backups` ne remplit plus la fenêtre (reprise de main, #1032).
+  `min-h-0` ; `/admin/backups` ne remplit plus la fenêtre (reprise de main, #1032) ;
+- #1035 — back : le service ne rend pas les 409 nommés de `startBackup`, `downloadBackup` et
+  `startRestore` (reprise de main, #1032).
 
 ## Conception
 

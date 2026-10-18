@@ -6051,7 +6051,7 @@ après lui.
 
 **Le téléchargement d'une sauvegarde est sous `backups.read` et `backups.write`** (EP-03/US-0440/L1,
 #705, décision de l'auteur du 2026-10-10 : l'archive porte les deux bases entières ; le service le
-tient). Écartée : la permission de la restauration, `platform_restore`, décision de l'auteur du
+tient ; confirmée par l'auteur le 2026-10-18). Écartée : la permission de la restauration, `platform_restore`, décision de l'auteur du
 2026-10-09 (#588, EP-02/L43c), que la décision suivante remplace. `BackupCommand` le dit : le
 marquage sous `backups.write`, le téléchargement sous les deux, la restauration sous
 `platform_restore`.
@@ -6085,7 +6085,7 @@ de celle du témoin (…0907). Le service, dont les réponses sont éprouvées c
 désormais les commandes de chaque sauvegarde (`waterfall.api.backups`, une sauvegarde courant de
 sa mise en file à la fin de sa tâche, vérification comprise) et la longueur du téléchargement ;
 il ne refuse pas encore par les 409 nommés de `startBackup` et de `downloadBackup` : relevé par
-la reprise. Les exemples de la mise en file d'une sauvegarde et d'une restauration,
+la reprise, reporté à EP-15 (#1035). Les exemples de la mise en file d'une sauvegarde et d'une restauration,
 écrits des deux côtés, sont ceux d'EP-14, que l'univers témoin enchaîne (14 h 04 et
 14 h 04 min 30 s) ; la seconde dit en plus la maintenance que la sonde de vie suit (#604).
 

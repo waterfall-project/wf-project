@@ -16,9 +16,9 @@
  * modify the backups (WF-ADM-0100), the one that starts one now; to a session that may restore the
  * platform, the deposit of a backup copied out of another installation, in parts, then its
  * restoration (US-0440, #350). A restoration started replaces the screen by that of its maintenance
- * (`Restoration`). The fake back keeps none of what is written, which the screen says to who may
- * write (`MockupNotice`). A download the route refused comes back here, the refusal in the address,
- * told above the list. Filters the API refuses (422) — a period that ends before it starts, a size
+ * (`Restoration`). The screen says nothing of the fake back, which keeps none of what is written: it
+ * is wired to the service of EP-03 (decision of the author, 2026-10-18). A download the route
+ * refused comes back here, the refusal in the address, told above the list. Filters the API refuses (422) — a period that ends before it starts, a size
  * at most below the least — leave the list unread, said at their field; any other read the API
  * refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
@@ -45,7 +45,6 @@ import { platformOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
@@ -64,18 +63,15 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.backups");
 }
 
-/** The title of the screen, and, for who writes, that the fake back keeps nothing. */
-function BackupsHeader({ writes }: { readonly writes: boolean }) {
+/** The title of the screen. */
+function BackupsHeader() {
   const t = useTranslations("functions");
   return (
-    <>
-      <PageHeader
-        title={t("backups")}
-        icon={FUNCTION_ICONS.backups}
-        density={FUNCTION_DENSITY.backups}
-      />
-      {writes ? <MockupNotice /> : null}
-    </>
+    <PageHeader
+      title={t("backups")}
+      icon={FUNCTION_ICONS.backups}
+      density={FUNCTION_DENSITY.backups}
+    />
   );
 }
 
@@ -122,12 +118,6 @@ export default async function BackupsPage({
       : undefined,
     readBackups(filters, query, offsetOf(search.get(OFFSET_PARAMETER))),
   ]);
-  // Who writes: who may start a backup or deposit one, or whose backups list a command.
-  const writes =
-    startable ||
-    restorable ||
-    (backups.kind === "read" &&
-      backups.items.some((backup) => backup.available_commands.length > 0));
   // The screen does not fill the window (`Screen fill`): the deposit comes under the list, and a
   // grid shrunk to what the window leaves it, down to its floor, would spill over the deposit in a
   // window too low for both — at 150 % and less. The page grows with its content, and scrolls; the
@@ -137,7 +127,7 @@ export default async function BackupsPage({
       <Restoration>
         {/* The filters, the grid and the pages compose the changes they make to the address. */}
         <PendingAddress>
-          <BackupsHeader writes={writes} />
+          <BackupsHeader />
           {schedule === undefined ? null : (
             <BackupScheduleSection schedule={schedule} locations={locations} />
           )}

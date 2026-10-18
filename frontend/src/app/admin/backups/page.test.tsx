@@ -281,13 +281,14 @@ describe("the backups", () => {
       "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
     );
     expect(text(page)).not.toMatch(/Supprimer/);
-    expect(text(page)).toContain("Maquette : le service simulé répond à chaque écriture");
+    // Wired to the service of EP-03, the screen says nothing of the fake back.
+    expect(text(page)).not.toContain("Maquette");
     // The schedule set by its form, from the locations the installation declares (EP-14/L43d).
     expect(buttons(page).filter((name) => name === "Modifier la planification")).toHaveLength(1);
     expect(queriesOf("GET /external-backup-locations")).toEqual([{}]);
   });
 
-  it("offer no command of the backups to a session whose backups list none, nor say the fake back keeps nothing, and no start to one that may not modify them [WF-IHM-0090-A]", async () => {
+  it("offer no command of the backups to a session whose backups list none, and no start to one that may not modify them [WF-IHM-0090-A]", async () => {
     withdrawn.permissions = ["backups.write", "platform_restore"];
     server.answers = { ...server.answers, "GET /backups": "backups_reader" };
     const page = rendered(await BackupsPage(searched()));
@@ -317,7 +318,6 @@ describe("the backups", () => {
       "Conservation",
     ]);
     expect(links(page)).toEqual([]);
-    expect(text(page)).not.toContain("Maquette");
     // No form of the schedule, and no reading of the locations it alone needs.
     expect(queriesOf("GET /external-backup-locations")).toEqual([]);
   });
