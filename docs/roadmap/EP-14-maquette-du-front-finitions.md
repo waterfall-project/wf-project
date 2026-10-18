@@ -1,7 +1,7 @@
 ---
 id: EP-14
 titre: Les écrans de la maquette achevés, commandes branchées et constats du contrat soldés
-statut: en cours
+statut: livré
 depend_de: EP-02
 famille: front
 issue: 599
