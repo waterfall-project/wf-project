@@ -76,3 +76,26 @@ body:
       placeholder: "≈ 1,100 (production ≈ 550)"
     validations:
       required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Model
+      description: >-
+        The model that develops the lot, chosen by the framer from the lot plan:
+        `opus` only for a reason of the list in `docs/roadmap/README.md`, section « Lots »;
+        `sonnet` otherwise. The delivery agent escalates once per lot if it has to.
+      options:
+        - sonnet
+        - opus
+    validations:
+      required: false
+  - type: input
+    id: model_reason
+    attributes:
+      label: Why this model
+      description: >-
+        For `opus`, the reason, from the list: authentication, security, data migration,
+        contract, shared interface, or a design that leaves something to interpret.
+      placeholder: "data migration — or « none »"
+    validations:
+      required: false

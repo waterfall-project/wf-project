@@ -73,6 +73,10 @@ BASE ?= origin/main
 TIER ?= fast
 # Extra flags to install Playwright's browsers, such as --with-deps for their system packages.
 PLAYWRIGHT_INSTALL ?=
+# Test files to run alone, during development: `make test-back TESTS=tests/test_x.py`,
+# `make test-front TESTS=src/x.test.tsx`, `make e2e TESTS=e2e/x.spec.ts`. Empty runs them all,
+# as the chain does.
+TESTS ?=
 # The part of the end-to-end paths `make e2e` plays, as i/N: the chain spreads them over N
 # runners, and plays the measure of §4.6.2 on one more (e2e.yml). Empty, it plays them all.
 SHARD ?=
@@ -300,8 +304,8 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 # which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
 PYTEST_WORKERS := -n auto --maxprocesses 8
 
-test-back: ## Tests of the back
-	@cd $(BACK) && uv run --frozen pytest $(PYTEST_WORKERS)
+test-back: ## Tests of the back (TESTS=<file> runs one file)
+	@cd $(BACK) && uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
 
 coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
 	@cd $(BACK) && uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
@@ -362,8 +366,8 @@ catalogs: ## The catalogues of the front are twins, with a key for each value th
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(JSON_BUNDLE)) >/dev/null
 	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
-test-front: install-front ## Unit tests of the front
-	@$(PNPM) test
+test-front: install-front ## Unit tests of the front (TESTS=<file> runs one file)
+	@$(PNPM) test $(TESTS)
 
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
 build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
@@ -403,8 +407,8 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 # With SHARD, the paths alone (E2E_PART, frontend/playwright.config.ts): the measure, which
 # waits for all of them, would bring every path into each part; e2e-measure plays it apart.
 e2e: export E2E_PART = $(if $(SHARD),paths)
-e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080); SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers
-	@$(PNPM) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(if $(WORKERS),--workers=$(WORKERS))
+e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080); SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file
+	@$(PNPM) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(if $(WORKERS),--workers=$(WORKERS)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure
 e2e-measure: install-front ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)

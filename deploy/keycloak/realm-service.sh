@@ -20,6 +20,12 @@
 # KEYCLOAK_USER, gets back the password of the installation, KEYCLOAK_PASSWORD; then every temporary
 # administrator is removed, this one and any a run stopped midway left. Its secret is drawn here,
 # and goes to its commands by their environment, never a command line.
+#
+# At the first start on an empty database, keycloak passes its health check before it has
+# migrated its schema, which it only does at its first request; bootstrap-admin, in non-server
+# mode, validates the schema instead of migrating it, and refuses while the migration runs
+# (#1079). That refusal alone is tried again, every MIGRATION_PAUSE seconds, MIGRATION_ATTEMPTS
+# times at most; any other refusal stays immediate.
 set -eu
 
 REQUESTS=${WATERFALL_REALM_REQUESTS:?set WATERFALL_REALM_REQUESTS}
@@ -33,6 +39,11 @@ CONFIG=/tmp/realm-service.kcadm
 TEMPORARY=waterfall-realm-
 KC=/opt/keycloak/bin/kc.sh
 KCADM=/opt/keycloak/bin/kcadm.sh
+# What bootstrap-admin says while the schema is still migrating (#1079), and how long it is
+# waited for: two minutes, where a migration on an empty database takes some ten seconds.
+MIGRATING='Database not up-to-date'
+MIGRATION_ATTEMPTS=60
+MIGRATION_PAUSE=2
 
 trap 'rm -f "$CONFIG"' EXIT
 trap 'exit 143' TERM
@@ -62,15 +73,31 @@ remove_temporaries() {
     return "$left"
 }
 
+# Makes the temporary administrator $1, of secret $2, trying again while Keycloak's schema is
+# still migrating (#1079). What bootstrap-admin writes is shown when it fails.
+bootstrapped() {
+    local client=$1 secret=$2 attempt=0 output
+    until output=$(TEMPORARY_ID=$client TEMPORARY_SECRET=$secret "$KC" bootstrap-admin service \
+            --optimized --no-prompt --client-id:env=TEMPORARY_ID \
+            --client-secret:env=TEMPORARY_SECRET 2>&1)
+    do
+        attempt=$((attempt + 1))
+        if [ "$attempt" -ge "$MIGRATION_ATTEMPTS" ] || ! grep -q "$MIGRATING" <<< "$output"; then
+            printf '%s\n' "$output" >&2
+            return 1
+        fi
+        echo "realm-service: the schema of Keycloak is still migrating, trying again ($attempt)" >&2
+        sleep "$MIGRATION_PAUSE"
+    done
+}
+
 # Applies the realm by the command "$@" as a temporary administrator, then removes it.
 applied() {
     local client secret outcome=0
     client="$TEMPORARY$(drawn 6)"
     secret=$(drawn 32)
     rm -f "$CONFIG"
-    if ! TEMPORARY_ID=$client TEMPORARY_SECRET=$secret "$KC" bootstrap-admin service --optimized \
-            --no-prompt --client-id:env=TEMPORARY_ID --client-secret:env=TEMPORARY_SECRET
-    then
+    if ! bootstrapped "$client" "$secret"; then
         echo "realm-service: no temporary administrator is made" >&2
         return 1
     fi
