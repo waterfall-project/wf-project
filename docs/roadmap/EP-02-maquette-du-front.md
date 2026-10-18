@@ -78,7 +78,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 |---|---|---|---|
 | `WF-ARC-0020-A` | Le contrat est le seul contrat | entière | US-0270 |
 | `WF-IHM-0010-A` | Navigation et contexte du projet | entière | US-0090 |
-| `WF-IHM-0020-A` | Contexte de lecture affiché | entière | US-0100 |
+| `WF-IHM-0020-A` | Contexte de lecture affiché | début — close en EP-08 | US-0100 |
 | `WF-IHM-0030-A` | Valeur calculée et valeur saisie | entière | US-0150 |
 | `WF-IHM-0040-A` | Saisie au clavier dans les grilles | entière | US-0120 |
 | `WF-IHM-0050-A` | Collage depuis un tableur | entière | US-0130 |
@@ -774,8 +774,11 @@ suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif
 
 **Critères d'acceptation.**
 
-- `WF-IHM-0020-A` — « Chaque écran de données de projet nomme le projet et la révision
-  affichée. »
+- écart : `WF-IHM-0020-A` — « Chaque écran de données de projet nomme le projet et la révision
+  affichée ; une grille ouverte sur une structure différentielle nomme cette structure. » :
+  constaté pour le projet et la révision ; la structure lue est nommée par la maquette avec le
+  choix de la structure (#1060, EP-15), et constatée sur un différentiel servi en EP-08, qui
+  clôt l'exigence.
 - `WF-IHM-0020-A` — « L'ouverture d'une révision marquée présente cet état et ne propose
   aucune commande de modification. »
 - `WF-IHM-0020-A` — « Un indicateur affiché porte sa date de calcul. »
@@ -822,6 +825,9 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
   maquette depuis EP-02/L41 (#525), qui l'a retiré — la grille l'offrait jusque-là —, et le
   parcours du planning l'affirme (`frontend/e2e/planning.spec.ts`) ; le réordonnancement des
   lignes sous chaque tâche demande le vrai service, qui rend le devis ordonné — EP-07.
+- écart : `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé
+  à sa réouverture, sans changer celui des autres tables ; une grille arborescente n'offre pas
+  ce choix. » : le choix du nombre de lignes par page arrive avec #1045, en EP-15.
 - écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées
   à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres
   réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans
@@ -1309,6 +1315,8 @@ sans que le front ait à sommer quoi que ce soit.
 - propre à l'US : les zones d'indice emploient le composant de signalement de l'US-0160 ;
 - écart : `WF-IHM-0130-A` — « Le plan de charge d’un projet exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul ; le plan de charge agrégé exporté porte le périmètre et la date de calcul. » : constaté pour le plan de charge d'un projet ;
   le périmètre porté par l'export du plan de charge agrégé relève d'EP-11, qui clôt l'exigence.
+- écart : `WF-IHM-0130-A` — « La table des calendriers ne propose aucun filtre sur les heures de ses jours ; elle se filtre sur ses autres colonnes. » : le retrait des filtres
+  sur les heures arrive avec #1047, en EP-15.
 
 **Notes de réalisation.** Courbes en Apache ECharts (annexe C). Le plan de charge du projet
 (FBS-4.4.4) a son propre écran, feuille du devis, auquel l'écran du devis mène ; son export PNG
