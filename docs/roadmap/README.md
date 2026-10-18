@@ -202,6 +202,7 @@ lot technique, se range sous la première US qu'il prépare, et nomme les autres
 | un constat de revue hors du périmètre du lot devient une issue, rattachée et tranchée selon « Suivi sur GitHub », et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
 | la pull request donne la taille réelle du lot, mesurée par `make lot-size`, à côté de l'estimation de son issue ; un dépassement ne fait rien échouer | l'estimation se trompe, et une règle d'arrêt bloquerait un EPIC livré la nuit ; l'écart se lit au relevé de livraison, et le plan de lots suivant s'en corrige |
 | la revue locale corrige tous les constats de son premier tour ; aux tours suivants, seuls les majeurs et ceux qu'une correction a introduits, les mineurs devenant des issues | c'est ce qui fait tourner la revue en boucle, six tours pour un lot pendant la livraison d'EP-03, quand chaque correction fait naître un nouveau mineur |
+| l'issue d'un lot dit le modèle de son développement, `sonnet` ou `opus`, et pourquoi — authentification, sécurité, migration de données, contrat, interface partagée, ou conception qui laisse une part à interpréter ; sans ce champ, l'agent de livraison applique la même liste, et il escalade une fois par lot | le cadreur sait quelle part de la conception reste à interpréter, le livreur ne la découvre qu'en lisant le lot ; un lot marqué `sonnet` qui escalade dit que la règle a sous-estimé, et c'est ce qui la calibre |
 
 Ce tableau est la seule définition de la taille visée : le gabarit de pull request, celui
 des lots et les agents y renvoient, et aucun ne la recopie.
@@ -239,8 +240,9 @@ US passée `en cours` ou `fini` ; constat ouvert ou tranché. Il a deux parties 
 
 - **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
   issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
-  dépendances, son état — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —
-  et sa pull request ;
+  dépendances, son état — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —,
+  sa pull request, et le modèle qui l'a développé, avec la raison de l'escalade s'il y en a
+  eu une ;
 - **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
   sa décision.
 

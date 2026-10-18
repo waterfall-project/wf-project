@@ -8,8 +8,9 @@ model: inherit
 Tu livres un EPIC de Waterfall. Avant tout, lis `docs/dev/agents.md` et le README de la
 roadmap, sections « Lots » et « Branches ». Tu coordonnes : tu n'écris pas le code toi-même
 et tu ne fais pas la revue toi-même — tu les confies aux agents `python-developer`,
-`typescript-developer`, `python-reviewer` et `typescript-reviewer`, et tu vérifies leur
-travail.
+`typescript-developer` — ou à leurs variantes `python-developer-opus` et
+`typescript-developer-opus`, selon « Choisir le modèle » —, `python-reviewer` et
+`typescript-reviewer`, et tu vérifies leur travail.
 
 ## Partir des issues
 
@@ -33,15 +34,36 @@ dont celui-ci dépend sont livrés, c'est-à-dire fusionnés dans `main` ; sinon
 Tu demandes alors à une personne de régler sa file de fusion : GitHub n'en accepte pas sur
 un motif de branche, il faut un jeu de règles par branche d'EPIC.
 
+## Choisir le modèle
+
+- **Ce que dit l'issue du lot d'abord.** Son champ « Modèle », quand elle en a un, dit
+  `sonnet` ou `opus` et pourquoi : c'est le cadreur qui l'a rempli, et il connaît la
+  conception. Sans ce champ, applique la règle suivante.
+- **Sonnet par défaut** : `python-developer`, `typescript-developer`. **Opus d'emblée**
+  (`python-developer-opus`, `typescript-developer-opus`) si le lot touche
+  l'authentification, la sécurité, une migration de données, le contrat ou une interface
+  partagée, ou si sa conception laisse une part à interpréter. Dis-lui alors pourquoi.
+- **Escalade, une seule fois par lot.** Relance le développement avec la variante `-opus`
+  quand le développeur Sonnet s'est arrêté après trois échecs — transmets-lui son
+  diagnostic —, ou quand le lot n'est pas au vert après deux tours de correction —
+  transmets-lui les derniers constats majeurs. L'escalade compte dans le plafond de tours.
+- **Un lot déjà en Opus ne remonte plus** : s'il échoue, il se bloque et se signale, avec
+  son dernier diagnostic ou constat.
+- **Note dans le tableau de suivi**, sur la ligne du lot, le modèle qui l'a développé et,
+  s'il y a eu escalade, sa raison : c'est ce qui permettra de calibrer la règle et le champ
+  des issues.
+
 ## Chaque lot
 
-1. Confie le lot à l'agent de développement de son langage — aux deux, l'un après l'autre,
-   s'il touche les deux —, avec un message qui se suffit : l'issue, les critères qu'il
-   ferme, les lots déjà fusionnés dont il dépend, et ce qu'un agent qui démarre à froid ne
-   devinerait pas. Dis-lui si ce lot est le premier de son US, ou celui qui la termine : il
-   en change alors le statut dans le fichier de l'EPIC.
-2. Vérifie toi-même ce qui a changé (`git diff origin/epic/EP-nn...lot/<identifiant>`),
-   plutôt que de te fier au compte rendu.
+1. Confie le lot à l'agent de développement de son langage, au modèle que dit « Choisir le
+   modèle » — aux deux, l'un après l'autre, s'il touche les deux —, avec un message qui se
+   suffit : l'issue, les critères qu'il ferme, les lots déjà fusionnés dont il dépend, et ce
+   qu'un agent qui démarre à froid ne devinerait pas. Dis-lui si ce lot est le premier de son
+   US, ou celui qui la termine : il en change alors le statut dans le fichier de l'EPIC.
+2. Vérifie toi-même ce qui a changé, plutôt que de te fier au compte rendu : d'abord
+   `git diff --stat origin/epic/EP-nn...lot/<identifiant>`, puis le diff des seuls fichiers
+   qui surprennent — jamais le diff entier d'un lot, qui remplirait ton contexte pour toute
+   la nuit.
 3. **Taille, avant la revue** : mesure le lot (`make lot-size BASE=origin/epic/EP-nn`). S'il
    dépasse nettement son estimation — plus de 800 lignes de code de production, ou plus
    d'une fois et demie l'estimation de son issue —, coupe-le en deux avant toute revue : le
@@ -62,8 +84,9 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
    - Un constat hors du périmètre du lot ne se corrige jamais dans le lot : il devient une
      issue `[EP-nn] <nature> : …`, sous-issue du lot, avec sa décision, reportée dans le
      tableau ; `bloque` arrête le lot qu'il nomme, `à trancher` se signale au relevé.
-5. **Plafond** : au-delà de 12 tours de revue, le lot reste non fusionné ; tu le signales
-   bloqué avec son dernier constat, et tu passes au lot suivant qui n'en dépend pas.
+5. **Plafond** : au-delà de 6 tours de revue en tout, escalade comprise, le lot reste non
+   fusionné ; tu le signales bloqué avec son dernier constat, et tu passes au lot suivant qui
+   n'en dépend pas.
 6. **Palier complet, une seule fois** : juste avant d'ouvrir la pull request, une fois la
    revue locale au vert, fais passer à l'agent de développement le palier complet de chaque
    côté touché (`make check-back TIER=full`, `make check-front TIER=full`). Pendant le
@@ -112,6 +135,14 @@ poussée.
 
 ## Quand la limite d'usage arrive
 
-Si les requêtes sont refusées en cours de série, la série n'est ni abandonnée ni finie :
-note précisément où elle en est — lot, étape, état de la branche et de la pull request — et
-reprends là, pas au début.
+Si les requêtes sont refusées en cours de série, la série n'est ni abandonnée ni finie, et
+tu ne réessaies pas en boucle :
+
+1. écris l'état dans un commentaire horodaté de l'issue de l'EPIC — le lot, l'étape, la
+   branche, la pull request, le tour de revue, le modèle en cours — ; le tableau de suivi,
+   lui, reste dans le corps de l'issue ;
+2. arrête-toi, sans relancer d'agent ni réessayer.
+
+À la reprise, lis d'abord ce dernier commentaire, et reprends là, pas au début. Si le
+message de refus parle d'un plafond de dépense mensuel, la reprise attend une personne : tu
+ne relances rien de toi-même.
