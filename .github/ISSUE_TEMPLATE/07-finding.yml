@@ -31,7 +31,10 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: The fix, or the question to settle.
+      description: >-
+        The fix, or the question to settle. A fix proposed here is received under the licence
+        of the file it targets; the maintainer rewrites it before integrating it, unless you
+        have signed the contributor agreement (`CONTRIBUTING.md`, « Licence »).
   - type: input
     id: decision
     attributes:

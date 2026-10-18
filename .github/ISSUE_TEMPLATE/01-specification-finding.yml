@@ -61,7 +61,9 @@ body:
       label: Proposed wording
       description: >-
         The replacement text, not just the problem. A finding without a proposal is a
-        finding someone else has to write again.
+        finding someone else has to write again. A wording proposed here is received under
+        the licence of the specification; the maintainer rewrites it before integrating it,
+        unless you have signed the contributor agreement (`CONTRIBUTING.md`, « Licence »).
     validations:
       required: true
   - type: checkboxes
