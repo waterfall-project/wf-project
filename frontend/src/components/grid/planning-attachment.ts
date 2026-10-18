@@ -16,10 +16,10 @@ import type { Outcome } from "@/api/problem";
 /** The work breakdown of a project, as `getWorkBreakdown` reads it. */
 export type WorkBreakdownReading = components["schemas"]["WorkBreakdownReading"];
 
-/** What a task may bear of the work breakdown: a post, or a lot. */
-export type BreakdownKind = "order_item" | "work_package";
+/** What a task may bear of the work breakdown: a lot, or a post. */
+export type BreakdownKind = "work_package" | "order_item";
 
-/** A post or a lot a task may bear, by its identifier and its label. */
+/** A lot or a post a task may bear, by its identifier and its label. */
 export interface BreakdownItem {
   readonly id: string;
   readonly label: string;
@@ -27,16 +27,16 @@ export interface BreakdownItem {
 }
 
 /**
- * The posts and the lots of a work breakdown read whole, in its order — each post, then its lots —;
+ * The lots and the posts of a work breakdown read whole, in its order — each lot, then its posts —;
  * a deliverable is borne by no task (WF-PLA-0170).
  */
 export function breakdownItems(reading: WorkBreakdownReading): BreakdownItem[] {
-  return reading.order_items.flatMap((item) => [
-    { id: item.order_item_id, label: item.label, kind: "order_item" as const },
-    ...item.work_packages.map((work) => ({
-      id: work.work_package_id,
-      label: work.label,
-      kind: "work_package" as const,
+  return reading.work_packages.flatMap((work) => [
+    { id: work.work_package_id, label: work.label, kind: "work_package" as const },
+    ...work.order_items.map((item) => ({
+      id: item.order_item_id,
+      label: item.label,
+      kind: "order_item" as const,
     })),
   ]);
 }

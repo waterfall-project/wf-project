@@ -74,10 +74,10 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   }
 });
 
-test("attaches a leaf to a lot of the work breakdown from its cell, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({
+test("attaches a leaf to a post of the work breakdown from its cell, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({
   page,
 }) => {
-  // Row 8, « Poste de commande », bears the post of the work breakdown of the witness; row 9 under
+  // Row 8, « Poste de commande », bears the lot of the work breakdown of the witness; row 9 under
   // it, « Câblage des armoires », a leaf, nothing. The fake back answers `updateTaskFacet` by its
   // first example whatever was written: the task of row 9 renamed — what the grid does with an
   // attachment answered is proven on the examples by `planning-writes.dom.test.tsx`.
@@ -85,17 +85,15 @@ test("attaches a leaf to a lot of the work breakdown from its cell, which the se
   await expect(page.getByRole("note")).toContainText("Maquette");
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { attachment: "Rattachement" });
-  const post = grid.getByRole("row", { name: /^8 .*Poste de commande/ });
-  await expect(post.getByRole("gridcell").nth(at.attachment)).toHaveText(
-    "Fourniture et montage des armoires",
-  );
-  // Une feuille peut être rattachée à un lot: its first letter typed on the cell finds it.
+  const lot = grid.getByRole("row", { name: /^8 .*Poste de commande/ });
+  await expect(lot.getByRole("gridcell").nth(at.attachment)).toHaveText("Lot 1");
+  // Une feuille peut être rattachée à un poste: its first letter typed on the cell finds it.
   const leaf = grid.getByRole("row", { name: /^9 .*Câblage des armoires/ });
   const cell = leaf.getByRole("gridcell").nth(at.attachment);
   await cell.click();
   await expect(cell).toBeFocused();
   const sent = page.waitForRequest((request) => request.method() === "POST");
-  await page.keyboard.press("A");
+  await page.keyboard.press("P");
   await expect(page.getByRole("combobox", { name: "Rattachement" })).toHaveValue(
     "01926f3a-7c00-7000-8000-000000000712",
   );

@@ -221,9 +221,9 @@ test("the settings of a project search the sub-projects, filter the contributors
   await openHydrated(page, `${PROJECT}/settings`);
   const main = page.getByRole("main");
   const tree = main.getByRole("treegrid", { name: "Lotissement" });
-  const item = tree.getByRole("row", { name: /Fourniture et montage des armoires/ });
+  const item = tree.getByRole("row", { name: /Lot 1/ });
   await item.getByRole("button", { name: "Plier" }).click();
-  // The header, the order item, the totals.
+  // The header, the work package, the totals.
   await expect(tree.getByRole("row")).toHaveCount(3);
   await item.getByRole("button", { name: "Déplier" }).click();
   await expect(tree.getByRole("row")).toHaveCount(5);
@@ -245,7 +245,7 @@ test("the settings of a project search the sub-projects, filter the contributors
   );
   // The fake back answers its whole reading, with its counter, whatever is asked: nothing says the
   // tree partial, which only a reading without a counter is.
-  await expect(main.getByText("Les postes et les lots ne montrent que ce que")).toHaveCount(0);
+  await expect(main.getByText("Les lots et les postes ne montrent que ce que")).toHaveCount(0);
   // Back to the whole screen, for the filters of the other grids.
   await openHydrated(page, `${PROJECT}/settings`);
 
@@ -376,7 +376,7 @@ test("the settings of a project create and modify a sub-project, present unavail
   await expect(grid.getByRole("row", { name: /Inès Roux/ })).toContainText("Chef de projet");
 });
 
-test("the settings of a project edit the work breakdown in its grid: a work package added from the menu of a cell, an element deleted from the bar once confirmed (EP-14/L44c)", async ({
+test("the settings of a project edit the work breakdown in its grid: an order item added from the menu of a cell, an element deleted from the bar once confirmed (EP-14/L44c)", async ({
   page,
 }) => {
   await openHydrated(page, `${PROJECT}/settings`);
@@ -385,36 +385,32 @@ test("the settings of a project edit the work breakdown in its grid: a work pack
   const tree = section.getByRole("treegrid", { name: "Lotissement" });
   const said = section.getByRole("status").filter({ hasText: /./ }).first();
   // The totals count the elements the reading retains, by kind (#574).
-  await expect(tree.getByRole("row").last()).toHaveText("1 poste, 1 lot et 1 livrable");
+  await expect(tree.getByRole("row").last()).toHaveText("1 lot, 1 poste et 1 livrable");
 
-  // A work package added under the order item, from the menu of its cell: the work breakdown
+  // An order item added under the work package, from the menu of its cell: the work breakdown
   // answered — the fake back's, whatever is typed — takes the place of the rows.
-  await tree
-    .getByText("Fourniture et montage des armoires", { exact: true })
-    .click({ button: "right" });
+  await tree.getByText("Lot 1", { exact: true }).click({ button: "right" });
   await page
     .getByRole("menu", { name: "Menu de la cellule" })
-    .getByRole("menuitem", {
-      name: "Ajouter un lot au poste «\u00a0Fourniture et montage des armoires\u00a0»",
-    })
+    .getByRole("menuitem", { name: "Ajouter un poste au lot «\u00a0Lot 1\u00a0»" })
     .click();
-  const form = page.getByRole("dialog", { name: /^Nouveau lot du poste/ });
+  const form = page.getByRole("dialog", { name: /^Nouveau poste du lot/ });
   await form.getByRole("textbox", { name: "Libellé" }).fill("Mise en service sur site");
   await form.getByRole("button", { name: "Créer" }).click();
   await expect(form).toHaveCount(0);
-  await expect(said).toHaveText("Lot « Mise en service sur site » ajouté.");
+  await expect(said).toHaveText("Poste « Mise en service sur site » ajouté.");
   await expect(tree.getByText("Procès-verbal de mise en service", { exact: true })).toBeVisible();
-  await expect(tree.getByRole("row").last()).toHaveText("1 poste, 2 lots et 2 livrables");
+  await expect(tree.getByRole("row").last()).toHaveText("1 lot, 2 postes et 2 livrables");
 
-  // The deletion of a work package, from the bar on the row of the active cell, confirmed first,
+  // The deletion of an order item, from the bar on the row of the active cell, confirmed first,
   // saying that the tasks that bear it stay.
-  await tree.getByText("Armoires", { exact: true }).click();
-  await section.getByRole("button", { name: "Supprimer le lot «\u00a0Armoires\u00a0»" }).click();
+  await tree.getByText("Poste 1.1", { exact: true }).click();
+  await section.getByRole("button", { name: "Supprimer le poste «\u00a0Poste 1.1\u00a0»" }).click();
   const confirmation = page.getByRole("dialog", {
-    name: "Supprimer le lot «\u00a0Armoires\u00a0»\u00a0?",
+    name: "Supprimer le poste «\u00a0Poste 1.1\u00a0»\u00a0?",
   });
   await expect(confirmation).toContainText("restent et perdent leur rattachement");
   await confirmation.getByRole("button", { name: "Supprimer" }).click();
   await expect(confirmation).toHaveCount(0);
-  await expect(said).toHaveText("Lot « Armoires » supprimé.");
+  await expect(said).toHaveText("Poste « Poste 1.1 » supprimé.");
 });

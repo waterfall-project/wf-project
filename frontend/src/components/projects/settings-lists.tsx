@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The lists of the settings of a project (FBS-4.2, US-0210), each a dense grid under its title
- * (#301), in the order the server gave it: its work breakdown, each order item with its work
- * packages and their deliverables, a tree that folds (WF-PRJ-0020), searched and filtered on its
+ * (#301), in the order the server gave it: its work breakdown, each work package with its order
+ * items and their deliverables, a tree that folds (WF-PRJ-0020), searched and filtered on its
  * kinds by the server; its sub-projects, each by the code the ERP knows it by, and whether actual
  * costs are charged to it (WF-PRJ-0050), searched, sorted and filtered on their actual costs by the
  * server; its contributors, the project manager told from the others, and whether their account is
@@ -88,12 +88,12 @@ function partialNote(
 }
 
 /**
- * The work breakdown of a project, as its order was entered (WF-PRJ-0020): a tree of its order
- * items, each with its work packages under it, and their deliverables under them; searched on its
+ * The work breakdown of a project, as its order was entered (WF-PRJ-0020): a tree of its work
+ * packages, each with its order items under it, and their deliverables under them; searched on its
  * labels and filtered on its kinds by the server. Read partial — without a counter, as the server
- * reads it filtered —, the order items and the work packages that hold an element retained show
+ * reads it filtered —, the work packages and the order items that hold an element retained show
  * without the rest they hold, which the list says; and a partial reading that retains nothing keeps
- * its grid, to be changed — as does an empty one its commands edit, for an order item to be added.
+ * its grid, to be changed — as does an empty one its commands edit, for a work package to be added.
  */
 export function WorkBreakdownList({
   breakdown,
@@ -118,7 +118,7 @@ export function WorkBreakdownList({
   const named = useTranslations("enums.WorkBreakdownKind");
   // The server says the reading partial — filtered — by giving it no counter.
   const partial = breakdown.lock_version === null;
-  const none = breakdown.order_items.length === 0 && !partial;
+  const none = breakdown.work_packages.length === 0 && !partial;
   const edited = editing?.offer !== undefined;
   return (
     // Keyed by the project: an answer of the server never outlives its project.
