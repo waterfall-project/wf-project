@@ -144,3 +144,11 @@ EP-04 livré : les tâches vivent dans la structure principale d'une révision e
   ces replis, vérifier que les parcours de l'arborescence et des chronologies restent verts, et
   retirer l'écart du fichier d'EP-02. Reporté d'EP-03, qui ne sert pas `listNodes`
   (2026-10-10).
+- #620 [EP-06] `DenseGrid` ne mémorise ni ses lignes ni ses cellules — relevé par EP-02/L46 :
+  chaque déplacement de la cellule active les rend toutes ; aucun défaut n'est démontré en
+  production. EP-06, qui construit la grille de planning réelle, mesure contre le service avant
+  toute optimisation. Reporté d'EP-14 au cadrage, retitré le 2026-10-18.
+- #646 [EP-06] le Kanban rend ses 960 cartes en listes simples, sans fenêtre — relevé par
+  EP-14/L45a : EP-06, qui construit le Kanban contre le service, mesure sur mille tâches réelles ;
+  EP-14 garde les listes simples sous le délai `WORKING`. Reporté d'EP-14 sur décision de l'auteur
+  (2026-10-10), retitré le 2026-10-18.

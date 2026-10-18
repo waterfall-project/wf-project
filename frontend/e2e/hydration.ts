@@ -13,7 +13,9 @@ import { type Locator, type Page, expect } from "@playwright/test";
  * The bound of a screen of grid, in milliseconds: a dense grid — of the estimate, the planning,
  * the remaining, the risks, the actual costs, the portfolio, the reference data — or a screen that
  * reads the structure of a thousand tasks (`listNodes`) — the Kanban, the tree, the timelines —,
- * to show, to hydrate, or to read anew after a click. A bound of its working under load, not a
+ * to show, to hydrate, or to read anew after a click; the comparison of two revisions too, until
+ * it is decided: its 2 770 changed nodes come in a plain table, rendered on the server, that takes
+ * over five seconds in development (#624, EP-14/L45a). A bound of its working under load, not a
  * measure (#315); the risks and the actual costs, read anew, overran five seconds under load:
  * measures in #500, which is still to be decided. The settings of the costs, read anew for a
  * nature chosen, took from two to seven seconds under six workers on four processors — the read of
@@ -45,6 +47,34 @@ export async function openHydrated(page: Page, address: string): Promise<void> {
       { message: `the shell hydrated on ${shown}`, timeout: WORKING },
     )
     .toBe(shown);
+}
+
+/**
+ * Wait until React has hydrated every element of the page the keyboard can reach, on any screen,
+ * of a project or not: React marks each element it hydrates with its props (`__reactProps$…`), a
+ * detail of its own, read by the paths alone. A walk by the keyboard needs it: an element that
+ * hydration renders anew drops the focus to the document, and the walk would start over. The
+ * tools of the development server of Next live in a shadow root of their own, out of reach of the
+ * search.
+ */
+export async function untilHydrated(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const reachable = [
+            ...document.querySelectorAll("a[href], button, input, select, textarea, [tabindex]"),
+          ];
+          return (
+            reachable.length > 0 &&
+            reachable.every((element) =>
+              Object.keys(element).some((key) => key.startsWith("__reactProps$")),
+            )
+          );
+        }),
+      { message: `React hydrated ${new URL(page.url()).pathname}`, timeout: WORKING },
+    )
+    .toBe(true);
 }
 
 /**

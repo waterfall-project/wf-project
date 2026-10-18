@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { BackgroundTask } from "@/api/problem";
 import { example } from "@/test/fixtures";
 
-import { isPolled, NOTHING_TRACKED, type Tracking, tracking } from "./tracking";
+import { givesFile, isPolled, NOTHING_TRACKED, type Tracking, tracking } from "./tracking";
 
 const MARKING = "01926f3a-7c00-7000-8000-000000000931";
 
@@ -181,5 +181,16 @@ describe("what the tracker follows", () => {
       outcome: { kind: "done", data: task("task_succeeded") },
     });
     expect(late).toBe(forgotten);
+  });
+});
+
+describe("the result of a task", () => {
+  it.each([
+    ["task_export_succeeded", true],
+    ["identity_sync_succeeded", false],
+    ["task_succeeded", false],
+    ["task_running", false],
+  ])("of %s is a file to download: %s", (name, file) => {
+    expect(givesFile(example(name) as BackgroundTask)).toBe(file);
   });
 });

@@ -4,8 +4,9 @@
 
 The lists written by hand — the projects of the home (``projects``), the subprojects
 (``subprojects``) and the contributors of the witness (``contributors``) (#536), the accounts
-(``users``) and the access roles (``access_roles``) (#560) —, and the work breakdown of the witness,
-which the generator writes (``work_breakdown``), read as their screens ask them:
+(``users``) and the access roles (``access_roles``) (#560), the backups (``backups``) (#588) —, and
+the work breakdown of the witness, which the generator writes (``work_breakdown``), read as their
+screens ask them:
 
 - ``projects_default_states.json``, ``listProjects`` without `states`: the projects in progress
   alone, the default of the perimeter of the portfolio (WF-PTF-0010), which the answer names
@@ -19,11 +20,25 @@ which the generator writes (``work_breakdown``), read as their screens ask them:
 - ``users_by_access_role.json``, ``listUsers`` restricted to the accounts that hold one of two
   roles; ``users_search.json``, a search that finds an account by its displayed name, without
   its accent;
-  ``users_inactive.json``, the accounts deactivated alone;
+  ``users_inactive.json``, the accounts deactivated alone; ``users_created_by_platform.json``,
+  those the platform created; ``users_by_created_at.json``, sorted by the moment of their
+  creation (#936);
 - ``access_roles_composed.json``, ``listAccessRoles`` restricted to the roles composed since the
   installation; ``access_roles_unheld.json``, to those no account holds, an upper bound of none;
+  ``access_roles_by_updated_by.json``, sorted by the author of their last change (#936);
 - ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: an order item, without what it
-  holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item.
+  holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item,
+  which it gives for the context alone (#574); ``work_breakdown_entered.json`` and
+  ``work_breakdown_saved.json``, ``setWorkBreakdown``: the work breakdown entered whole from its
+  whole reading, a work package added without identifier, and the answer that gives it one;
+  ``work_breakdown_label_required.json``, ``work_breakdown_unknown_item.json`` and
+  ``work_breakdown_duplicate_item.json``, its refusals: the work package added without a label,
+  with the identifier of a deliverable, with that of a work package the write bears already;
+- ``backups_reader.json``, ``listBackups`` read by a session that may neither modify the backups
+  nor restore the platform: no command; ``backups_during_backup.json``, read while a backup runs:
+  the restoration unavailable on each; ``backups_manual.json``, the manual backups alone;
+  ``backups_retained.json``, those marked to be kept; ``backups_period.json``, those taken within
+  a period; ``backups_by_size.json``, sorted by size, the lightest first.
 
 Each list written by hand is in the order of the list without sort. A sort here is stable — two
 rows of one value keep that order, as every sort of the contract breaks a tie (DECISIONS,
@@ -39,13 +54,13 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockids import universe
-from wftools.mockwitness import WORK_BREAKDOWN, fixture
+from wftools.mockwitness import ON_SITE, SAVED_BREAKDOWN, WORK_BREAKDOWN, fixture
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
     from wftools.mockstructure import JsonObject, JsonValue
-    from wftools.mockwitness import OrderItem
+    from wftools.mockwitness import OrderItem, WorkPackage
 
 PROJECT_STATES = ("created", "pricing", "in_progress", "completed", "lost", "abandoned")
 """The states of a project in the order of `ProjectState`, that of the life cycle (WF-CYC-0010)."""
@@ -80,6 +95,25 @@ SEARCHED_LABEL = "Montage"
 
 BREAKDOWN_KINDS = ("order_item", "work_package", "deliverable")
 """The kinds of an element of a work breakdown in the order of `WorkBreakdownKind`."""
+
+BREAKDOWN_HELD = {
+    "order_item": ("work_packages", "work_package"),
+    "work_package": ("deliverables", "deliverable"),
+}
+"""What an element of a work breakdown holds, by its kind: the field, and the kind it holds."""
+
+BACKUP_ORIGINS = ("manual", "scheduled")
+"""The origins of a backup in the order of `BackupOrigin`: by hand first."""
+
+BACKUP_VERIFICATIONS = ("pending", "passed", "failed")
+"""The outcomes of the verification of a backup in the order of `BackupVerification`."""
+
+BACKUP_PERIOD = (datetime(2026, 5, 31, 22, tzinfo=UTC), datetime(2026, 6, 30, 22, tzinfo=UTC))
+"""The period of ``backups_period``: June in Paris, as the screen asks it from the days of its
+reader, two hours ahead of universal time in summer, the end excluded."""
+
+RUNNING_BACKUP = "no_backup_running"
+"""The condition the restoration lacks while a backup runs (`CommandCondition`)."""
 
 type Key = Callable[[JsonObject], JsonValue]
 """The key of a column: its value in a row, a text, a number or a truth value; none for no value."""
@@ -145,10 +179,13 @@ def modified_at(project: JsonObject) -> datetime:
     return datetime.fromisoformat(cast("str", cast("JsonObject", project["audit"])["updated_at"]))
 
 
-def modified_within(
-    projects: Iterable[JsonObject], start: datetime | None, end: datetime | None
+def within(
+    rows: Iterable[JsonObject],
+    at: Callable[[JsonObject], datetime],
+    start: datetime | None,
+    end: datetime | None,
 ) -> list[JsonObject]:
-    """Return the projects last modified within a period (`from` included, `to` excluded).
+    """Return the rows whose instant is within a period (`from` included, `to` excluded).
 
     As the journal of audit reads its period (`listAuditEvents`): instants, the screen turning the
     days of its reader into them. A period whose end precedes its start is refused.
@@ -158,10 +195,16 @@ def modified_within(
         raise ValueError(message)
     return [
         each
-        for each in projects
-        if (start is None or modified_at(each) >= start)
-        and (end is None or modified_at(each) < end)
+        for each in rows
+        if (start is None or at(each) >= start) and (end is None or at(each) < end)
     ]
+
+
+def modified_within(
+    projects: Iterable[JsonObject], start: datetime | None, end: datetime | None
+) -> list[JsonObject]:
+    """Return the projects last modified within a period (`from` included, `to` excluded)."""
+    return within(projects, modified_at, start, end)
 
 
 def by_default(projects: Iterable[JsonObject]) -> list[JsonObject]:
@@ -266,17 +309,57 @@ def in_state(users: Iterable[JsonObject], *, active: bool) -> list[JsonObject]:
     return [each for each in users if each["is_active"] is active]
 
 
-def user_page(users: Sequence[JsonObject], limit: int = mocktext.PAGE) -> JsonObject:
-    """Return the first page of the accounts retained, which `meta.total` counts."""
+def user_page(rows: Sequence[JsonObject], limit: int = mocktext.PAGE) -> JsonObject:
+    """Return the first page of the rows retained, which `meta.total` counts.
+
+    The page of the accounts, and of every list paged the same way, the backups among them.
+    """
     return {
-        "items": cast("list[JsonValue]", list(users[:limit])),
-        "meta": {"limit": limit, "offset": 0, "total": len(users)},
+        "items": cast("list[JsonValue]", list(rows[:limit])),
+        "meta": {"limit": limit, "offset": 0, "total": len(rows)},
     }
 
 
 def of_nature(roles: Iterable[JsonObject], *, predefined: bool) -> list[JsonObject]:
     """Return the roles predefined, or those composed since (`is_predefined`)."""
     return [each for each in roles if each["is_predefined"] is predefined]
+
+
+def written_by(rows: Iterable[JsonObject], column: str, kind: str) -> list[JsonObject]:
+    """Return the rows an account, or the platform, wrote (`created_by_kind`, `updated_by_kind`).
+
+    ``column`` is the author of the audit, `created_by` or `updated_by`; ``kind`` its kind.
+    """
+    return [each for each in rows if _author(each, column)["kind"] == kind]
+
+
+def written_at(column: str) -> Key:
+    """Return the key of a date of the audit, `created_at` or `updated_at`: its instant."""
+    return lambda row: cast("str", cast("JsonObject", row["audit"])[column])
+
+
+def author_name(column: str) -> Key:
+    """Return the key of an author of the audit, `created_by` or `updated_by`: its name.
+
+    An account by its displayed name; the platform, which has none, after the accounts in the
+    ascending order. The examples have no author anonymised, which would come between them: one is
+    refused rather than sorted among the platform.
+    """
+
+    def name(row: JsonObject) -> JsonValue:
+        author = _author(row, column)
+        if author["kind"] == "platform":
+            return None
+        if author["display_name"] is None:
+            message = f"an author anonymised is not sorted here: {author['user_id']}"
+            raise ValueError(message)
+        return author["display_name"]
+
+    return name
+
+
+def _author(row: JsonObject, column: str) -> JsonObject:
+    return cast("JsonObject", cast("JsonObject", row["audit"])[column])
 
 
 def held_within(
@@ -295,6 +378,75 @@ def held_within(
         if (minimum is None or cast("int", each["holder_count"]) >= minimum)
         and (maximum is None or cast("int", each["holder_count"]) <= maximum)
     ]
+
+
+# --- The backups --------------------------------------------------------------------------------
+
+BACKUP_KEYS: dict[str, Key] = {
+    "taken_at": lambda row: row["taken_at"],
+    "size_bytes": lambda row: row["size_bytes"],
+    "verification": lambda row: BACKUP_VERIFICATIONS.index(cast("str", row["verification"])),
+    "origin": lambda row: BACKUP_ORIGINS.index(cast("str", row["origin"])),
+    "is_retained": first_true("is_retained"),
+}
+"""The columns `listBackups` sorts by, each by its key: the enumerations in their order, the
+backups marked to be kept first."""
+
+
+def taken_at(backup: JsonObject) -> datetime:
+    """Return the instant a backup was taken (`taken_at`)."""
+    return datetime.fromisoformat(cast("str", backup["taken_at"]))
+
+
+def taken_within(
+    backups: Iterable[JsonObject], start: datetime | None, end: datetime | None
+) -> list[JsonObject]:
+    """Return the backups taken within a period (`from` included, `to` excluded)."""
+    return within(backups, taken_at, start, end)
+
+
+def of_origins(backups: Iterable[JsonObject], origins: Sequence[str]) -> list[JsonObject]:
+    """Return the backups of some origins (`origins` of `listBackups`); any, when none is named."""
+    unknown = set(origins) - set(BACKUP_ORIGINS)
+    if unknown:
+        message = f"no origin of a backup: {sorted(unknown)}"
+        raise ValueError(message)
+    return [each for each in backups if not origins or each["origin"] in origins]
+
+
+def marked(backups: Iterable[JsonObject], *, retained: bool) -> list[JsonObject]:
+    """Return the backups marked to be kept, or the others (`is_retained` of `listBackups`)."""
+    return [each for each in backups if each["is_retained"] is retained]
+
+
+def _with_commands(backup: JsonObject, commands: Callable[[JsonObject], JsonObject]) -> JsonObject:
+    """Return a backup, each of its commands as a function reads it."""
+    found = cast("list[JsonObject]", backup["available_commands"])
+    return {**backup, "available_commands": cast("list[JsonValue]", [commands(c) for c in found])}
+
+
+def without_commands(backups: Iterable[JsonObject]) -> list[JsonObject]:
+    """Return the backups as a session that may exercise no command reads them: none listed.
+
+    Who reads the backups without `backups.write` nor `platform_restore` (WF-IHM-0090).
+    """
+    return [{**each, "available_commands": []} for each in backups]
+
+
+def while_backup_runs(backups: Iterable[JsonObject]) -> list[JsonObject]:
+    """Return the backups as read while a backup runs: the restoration of each unavailable.
+
+    `no_backup_running` joins the conditions the restoration lacks; the marking and the download
+    stay as they were (`BackupCommand`).
+    """
+
+    def read(command: JsonObject) -> JsonObject:
+        if command["command"] != "restore":
+            return command
+        missing = [*cast("list[JsonValue]", command["missing_conditions"]), RUNNING_BACKUP]
+        return {**command, "is_available": False, "missing_conditions": missing}
+
+    return [_with_commands(each, read) for each in backups]
 
 
 # --- The work breakdown -------------------------------------------------------------------------
@@ -333,7 +485,9 @@ def filtered_breakdown(
     An element is retained if its kind is one of `kinds` — any, when none is named — and its
     label holds `text` — any, when none is given. The order items and the work packages that hold
     a retained element are given for the tree to stay readable, without the others they hold.
-    A filtered reading — a text or kinds given — has no counter, which `setWorkBreakdown`
+    Each element given says whether it is retained (`is_match`) or given for the context alone,
+    so that the grid counts the retained alone (WF-IHM-0130, #574); without a filter, every one
+    is. A filtered reading — a text or kinds given — has no counter, which `setWorkBreakdown`
     requires: sent back as it is, it would remove what it leaves out (#560).
     """
     unknown = set(kinds) - set(BREAKDOWN_KINDS)
@@ -344,21 +498,113 @@ def filtered_breakdown(
     def retained(kind: str, element: JsonObject) -> bool:
         return (not kinds or kind in kinds) and (text is None or holds(element["label"], text))
 
+    def marked(element: JsonObject, kind: str, below: str, held: list[JsonValue]) -> JsonObject:
+        """Return an element given, its mark after its label and before what it holds."""
+        rest = {key: value for key, value in element.items() if key != below}
+        return {**rest, "is_match": retained(kind, element), below: held}
+
     items: list[JsonValue] = []
     for item in cast("list[JsonObject]", breakdown["order_items"]):
         packages: list[JsonValue] = []
         for package in cast("list[JsonObject]", item["work_packages"]):
-            deliverables = [
-                each
+            deliverables: list[JsonValue] = [
+                {**each, "is_match": True}
                 for each in cast("list[JsonObject]", package["deliverables"])
                 if retained("deliverable", each)
             ]
             if deliverables or retained("work_package", package):
-                packages.append({**package, "deliverables": cast("list[JsonValue]", deliverables)})
+                packages.append(marked(package, "work_package", "deliverables", deliverables))
         if packages or retained("order_item", item):
-            items.append({**item, "work_packages": packages})
+            items.append(marked(item, "order_item", "work_packages", packages))
     filtered = text is not None or bool(kinds)
     return {"order_items": items, "lock_version": None if filtered else breakdown["lock_version"]}
+
+
+def breakdown_reading(items: tuple[OrderItem, ...], lock_version: int) -> JsonObject:
+    """Return a work breakdown as `getWorkBreakdown` reads it whole: every element retained."""
+    return filtered_breakdown(work_breakdown(items, lock_version))
+
+
+def written(reading: JsonValue) -> JsonValue:
+    """Return what a screen sends back to `setWorkBreakdown` from a reading: its marks left out.
+
+    Only a whole reading is written back: a filtered one has no counter (#560).
+    """
+    if isinstance(reading, list):
+        return [written(each) for each in reading]
+    if not isinstance(reading, dict):
+        return reading
+    if reading.get("lock_version", 0) is None:
+        message = "a filtered reading of a work breakdown is never written back"
+        raise ValueError(message)
+    return {key: written(value) for key, value in reading.items() if key != "is_match"}
+
+
+def entered_with(entered: JsonObject, change: JsonObject) -> JsonObject:
+    """Return a write of the work breakdown, its last work package changed: a variant refused."""
+    items = cast("list[JsonObject]", entered["order_items"])
+    *before, last = items
+    packages = cast("list[JsonObject]", last["work_packages"])
+    *kept, package = packages
+    rest = {key: value for key, value in package.items() if key not in change}
+    changed = {**change, **rest}
+    return {
+        **entered,
+        "order_items": [*before, {**last, "work_packages": [*kept, changed]}],
+    }
+
+
+def breakdown_refusal(read: JsonObject, entered: JsonObject, correlation: str) -> JsonObject:
+    """Return the 422 `setWorkBreakdown` answers a write with, its fields in the order written.
+
+    A label left empty is `VALUE_REQUIRED`; an identifier the whole reading does not bear under
+    the kind of its element — unknown, or that of an element of another kind — is
+    `UNKNOWN_WORK_BREAKDOWN_ITEM`: the client forges none (WF-DAT-0060, EP-14/L42k); one it
+    bears, sent again after its first occurrence, is `DUPLICATE_WORK_BREAKDOWN_ITEM`.
+    """
+    known: dict[str, set[JsonValue]] = {kind: set() for kind in BREAKDOWN_KINDS}
+    seen: dict[str, set[JsonValue]] = {kind: set() for kind in BREAKDOWN_KINDS}
+    fields: list[JsonValue] = []
+
+    def walk(element: JsonObject, kind: str, at: str, *, judged: bool) -> None:
+        key = f"{kind}_id"
+        if not judged:
+            known[kind].add(element[key])
+        else:
+            if key in element and element[key] not in known[kind]:
+                fields.append({"pointer": f"{at}/{key}", "code": "UNKNOWN_WORK_BREAKDOWN_ITEM"})
+            elif key in element and element[key] in seen[kind]:
+                fields.append({"pointer": f"{at}/{key}", "code": "DUPLICATE_WORK_BREAKDOWN_ITEM"})
+            elif key in element:
+                seen[kind].add(element[key])
+            if element["label"] == "":
+                fields.append({"pointer": f"{at}/label", "code": "VALUE_REQUIRED"})
+        if kind in BREAKDOWN_HELD:
+            name, inner = BREAKDOWN_HELD[kind]
+            for index, each in enumerate(cast("list[JsonObject]", element[name])):
+                walk(each, inner, f"{at}/{name}/{index}", judged=judged)
+
+    for judged, breakdown in ((False, read), (True, entered)):
+        for index, item in enumerate(cast("list[JsonObject]", breakdown["order_items"])):
+            walk(item, "order_item", f"/order_items/{index}", judged=judged)
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": fields,
+        "correlation_id": correlation,
+    }
+
+
+def added(package: WorkPackage) -> JsonObject:
+    """Return a work package a screen adds: its label and its deliverables, without identifier.
+
+    The server engenders the identifier of an element written without one (WF-DAT-0060,
+    EP-14/L42k): the client forges none.
+    """
+    return {
+        "label": package.label,
+        "deliverables": [{"label": label} for _, label in package.deliverables],
+    }
 
 
 def _labels(rows: Iterable[JsonObject]) -> str:
@@ -398,6 +644,11 @@ def administration() -> dict[str, JsonObject]:
     found = searched_users(users, SEARCHED_ACCOUNT)
     composed = of_nature(roles, predefined=False)
     unheld = held_within(roles, None, 0)
+    by_platform = written_by(users, "created_by", "platform")
+    by_creation = ordered(users, written_at("created_at"))
+    by_changer = ordered(roles, author_name("updated_by"))
+    changers = written_by(by_changer, "updated_by", "user")
+    platform = written_by(by_changer, "updated_by", "platform")
     asked = mocktext.listed([f"« {named[role]} »" for role in HELD_ROLES])
     return {
         "users_by_access_role.json": _example(
@@ -409,7 +660,7 @@ def administration() -> dict[str, JsonObject]:
         ),
         "users_search.json": _example(
             f"Les comptes cherchés par « {SEARCHED_ACCOUNT} », désactivés compris "
-            f"(include_inactive=true) : {_accounts(found)}, trouvée par son nom affiché, le "
+            f"(include_inactive=true) : {_accounts(found)}, trouvée par le "
             f"prénom suivi du nom, qu'aucune colonne ne porte entier — la recherche ignore la "
             f"casse et les accents (WF-IHM-0130).",
             user_page(found),
@@ -419,6 +670,21 @@ def administration() -> dict[str, JsonObject]:
             f"{_accounts(deactivated)} ; les comptes actifs sont écartés (WF-ADM-0060, "
             f"WF-IHM-0130).",
             user_page(deactivated),
+        ),
+        "users_created_by_platform.json": _example(
+            f"Les comptes que la plateforme a créés (created_by_kind=platform), désactivés "
+            f"compris (include_inactive=true) : {_accounts(by_platform)} — à l'installation, par "
+            f"la lecture de l'annuaire ou à la première connexion par le fournisseur d'identité "
+            f"—, dans l'ordre sans tri ; ceux qu'un compte a créés sont écartés (WF-DAT-0070, "
+            f"WF-IHM-0130).",
+            user_page(by_platform),
+        ),
+        "users_by_created_at.json": _example(
+            f"Les comptes triés par date de création, croissante (sort_by=created_at), "
+            f"désactivés compris (include_inactive=true) : {_accounts(by_creation)} ; deux "
+            f"comptes créés au même instant dans l'ordre sans tri, par nom (WF-IHM-0060, "
+            f"WF-DAT-0070).",
+            user_page(by_creation),
         ),
         "access_roles_composed.json": _example(
             f"Les rôles d'habilitation composés depuis l'installation (is_predefined=false) : "
@@ -432,14 +698,83 @@ def administration() -> dict[str, JsonObject]:
             f"(WF-IHM-0130).",
             cast("JsonValue", unheld),
         ),
+        "access_roles_by_updated_by.json": _example(
+            f"Les rôles d'habilitation triés par l'auteur de leur dernière modification, "
+            f"croissant (sort_by=updated_by) : {_labels(changers)}, modifiés par Camille "
+            f"Martin, puis {_labels(platform)}, tels que la plateforme les a livrés, qui n'a "
+            f"pas de nom et vient après les comptes ; à auteur égal, par libellé (WF-IHM-0060, "
+            f"WF-DAT-0070).",
+            cast("JsonValue", by_changer),
+        ),
+    }
+
+
+def _dates(rows: Iterable[JsonObject]) -> str:
+    """Say backups by the day they were taken."""
+    return mocktext.listed([_day(taken_at(row).date()) for row in rows])
+
+
+def backups() -> dict[str, JsonObject]:
+    """Return the readings of the backups — filtered, sorted, without command —, by file name."""
+    found = cast("list[JsonObject]", fixture("backups")["items"])
+    manual = of_origins(found, ("manual",))
+    kept = marked(found, retained=True)
+    start, end = BACKUP_PERIOD
+    period = taken_within(found, start, end)
+    by_size = ordered(found, BACKUP_KEYS["size_bytes"])
+    return {
+        "backups_reader.json": _example(
+            f"Les sauvegardes lues par une session qui ne peut ni les modifier ni restaurer la "
+            f"plateforme : les {len(found)} du témoin, sans aucune commande — la liste est vide "
+            f"pour qui n'a que la permission de consulter (WF-IHM-0090, WF-ADM-0100).",
+            user_page(without_commands(found)),
+        ),
+        "backups_during_backup.json": _example(
+            f"Les sauvegardes lues pendant que la sauvegarde manuelle mise en file à 14 h 04 "
+            f"s'exécute (task_backup_queued) : la restauration est indisponible sur chacune des "
+            f"{len(found)}, {RUNNING_BACKUP} manquante ; le marquage et le téléchargement restent "
+            f"disponibles (WF-ADM-0160, WF-IHM-0090).",
+            user_page(while_backup_runs(found)),
+        ),
+        "backups_manual.json": _example(
+            f"Les sauvegardes manuelles seules (origins=manual) : celle du {_dates(manual)}, "
+            f"marquée à conserver ; les planifiées sont écartées, et meta.total compte les "
+            f"retenues (WF-ADM-0150, WF-IHM-0130).",
+            user_page(manual),
+        ),
+        "backups_retained.json": _example(
+            f"Les sauvegardes marquées à conserver (is_retained=true), qui échappent à la "
+            f"rotation : celle du {_dates(kept)} ; les autres sont écartées (WF-ADM-0170, "
+            f"WF-IHM-0130).",
+            user_page(kept),
+        ),
+        "backups_period.json": _example(
+            f"Les sauvegardes prises en juin 2026 à Paris : de {_stamp(start)}, inclus, à "
+            f"{_stamp(end)}, exclu (from, to), les jours du lecteur en instants : celles des "
+            f"{_dates(period)}, les plus récentes d'abord ; celles de mai et de janvier sont "
+            f"écartées (WF-IHM-0130).",
+            user_page(period),
+        ),
+        "backups_by_size.json": _example(
+            f"Les sauvegardes triées par taille, croissante (sort_by=size_bytes) : la manuelle du "
+            f"{_dates(by_size[:1])}, la plus légère, d'abord, puis les planifiées de la plus "
+            f"ancienne à la plus récente, chacune plus lourde que la veille ; la liste sans tri "
+            f"les range par date, les plus récentes d'abord (WF-IHM-0060).",
+            user_page(by_size),
+        ),
     }
 
 
 def breakdowns() -> dict[str, JsonObject]:
-    """Return the readings of the work breakdown of the witness, filtered, by file name."""
+    """Return the readings of the work breakdown of the witness, filtered, and its write."""
     breakdown = work_breakdown(WORK_BREAKDOWN, 1)
     [item] = cast("list[JsonObject]", breakdown["order_items"])
     [package] = cast("list[JsonObject]", item["work_packages"])
+    read = breakdown_reading(WORK_BREAKDOWN, 1)
+    entered = cast("JsonObject", written(read))
+    [kept] = cast("list[JsonObject]", entered["order_items"])
+    kept["work_packages"] = [*cast("list[JsonValue]", kept["work_packages"]), added(ON_SITE)]
+    [(deliverable, label)] = WORK_BREAKDOWN[0].work_packages[0].deliverables
     return {
         "work_breakdown_search.json": _example(
             f"Le lotissement du projet témoin cherché par « {SEARCHED_LABEL} », quels que soient "
@@ -453,8 +788,48 @@ def breakdowns() -> dict[str, JsonObject]:
         "work_breakdown_work_packages.json": _example(
             f"Les lots du lotissement du projet témoin (kinds=work_package) : « "
             f"{package['label']} », sans son livrable, sous le poste « {item['label']} » qui le "
-            f"contient, rendu pour que l'arbre reste lisible (WF-IHM-0130, WF-IHM-0060).",
+            f"contient, rendu pour que l'arbre reste lisible et marqué non retenu (is_match), "
+            f"pour que la grille compte un lot et aucun poste (WF-IHM-0130, WF-IHM-0060).",
             filtered_breakdown(breakdown, kinds=("work_package",)),
+        ),
+        "work_breakdown_entered.json": _example(
+            f"Le lotissement du projet témoin saisi aujourd'hui, entier, depuis sa lecture "
+            f"entière, ses marques laissées : le lot « {ON_SITE.label} » ajouté sous le poste "
+            f"« {item['label']} », après « {package['label']} », avec son livrable, l'un et "
+            f"l'autre sans identifiant — le serveur les engendre (WF-PRJ-0020, WF-DAT-0060).",
+            entered,
+        ),
+        "work_breakdown_unknown_item.json": _example(
+            f"La saisie work_breakdown_entered, le lot « {ON_SITE.label} » envoyé avec "
+            f"l'identifiant du livrable « {label} », refusée : le "
+            f"lotissement lu ne porte aucun lot de cet identifiant, et le client n'en forge "
+            f"aucun ; rien n'est écrit (WF-DAT-0060, WF-PRJ-0020).",
+            breakdown_refusal(
+                read, entered_with(entered, {"work_package_id": deliverable}), universe(1133)
+            ),
+        ),
+        "work_breakdown_duplicate_item.json": _example(
+            f"La saisie work_breakdown_entered, le lot « {ON_SITE.label} » envoyé avec "
+            f"l'identifiant du lot « {package['label']} », que la saisie porte déjà, refusée à sa "
+            f"seconde occurrence : un élément du lotissement ne s'écrit qu'une fois ; rien n'est "
+            f"écrit (WF-PRJ-0020).",
+            breakdown_refusal(
+                read,
+                entered_with(entered, {"work_package_id": package["work_package_id"]}),
+                universe(1135),
+            ),
+        ),
+        "work_breakdown_label_required.json": _example(
+            "La saisie work_breakdown_entered, le lot ajouté envoyé sans libellé, refusée : "
+            "chaque poste, lot et livrable porte un libellé ; rien n'est écrit (WF-PRJ-0020).",
+            breakdown_refusal(read, entered_with(entered, {"label": ""}), universe(1134)),
+        ),
+        "work_breakdown_saved.json": _example(
+            f"La réponse à cette saisie : le lotissement entier, lu comme après une lecture "
+            f"entière, chaque élément retenu ; le lot « {ON_SITE.label} » et son livrable "
+            f"portent les identifiants que le serveur leur a donnés, et le compteur suivant, "
+            f"jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110).",
+            breakdown_reading(SAVED_BREAKDOWN, 2),
         ),
     }
 
@@ -471,6 +846,7 @@ def examples() -> dict[str, JsonObject]:
     outside = [each for each in projects if each not in within]
     by_label = ordered(subprojects, SUBPROJECT_KEYS["label"])
     with_costs = charged(subprojects, with_costs=True)
+    uncharged = charged(subprojects, with_costs=False)
     by_name = ordered(people, CONTRIBUTOR_KEYS["display_name"])
     found = [each for each in people if holds(each["display_name"], SEARCHED_NAME)]
     inactive = [each for each in people if each["is_active"] is False]
@@ -505,8 +881,16 @@ def examples() -> dict[str, JsonObject]:
         ),
         "subprojects_with_actual_costs.json": _example(
             f"Les sous-projets auxquels des coûts réels sont imputés (has_actual_costs) : "
-            f"{_labels(with_costs)}, qui ne se supprime plus ; les autres sont écartés "
-            f"(WF-PRJ-0050, WF-IHM-0130).",
+            f"{_labels(with_costs)}, qui ne se suppriment plus"
+            + (
+                " ; les deux du projet, depuis que les tâches tirées des lots « Ligne d'essais » "
+                "ont reçu leurs factures (EP-14/L45a) : la lecture filtrée coïncide avec la liste "
+                "entière, et seul le paramètre les distingue"
+                if not uncharged
+                else f" ; {_labels(uncharged)}, sans coût réel, "
+                + ("est écarté" if len(uncharged) == 1 else "sont écartés")
+            )
+            + " (WF-PRJ-0050, WF-IHM-0130).",
             cast("JsonValue", with_costs),
         ),
         "contributors_by_name.json": _example(
@@ -530,5 +914,6 @@ def examples() -> dict[str, JsonObject]:
             contributor_list(contributors, inactive, filtered=True),
         ),
         **administration(),
+        **backups(),
         **breakdowns(),
     }

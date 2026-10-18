@@ -1,0 +1,4 @@
+{
+  "summary": "La plateforme sert ses opérations : aucune restauration ne la tient en maintenance, ou la dernière a abouti et la maintenance est levée (WF-ADM-0160).",
+  "value": { "status": "ok" }
+}

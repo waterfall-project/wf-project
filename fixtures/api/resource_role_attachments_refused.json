@@ -1,0 +1,22 @@
+{
+  "summary": "Le dessinateur électricien créé sous un nœud que le référentiel n'a pas, rattaché à la sous-traitance, une catégorie hors main-d'œuvre, et à la semaine de trente-neuf heures, désactivée : refusé à chacun des trois rattachements, que le formulaire dit au champ ; rien n'est écrit (WF-REF-0090).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/org_node_id",
+        "code": "UNKNOWN_ORG_NODE"
+      },
+      {
+        "pointer": "/cost_category_id",
+        "code": "LABOUR_CATEGORY_REQUIRED"
+      },
+      {
+        "pointer": "/calendar_id",
+        "code": "INACTIVE_REFERENCE_OBJECT"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001083"
+  }
+}

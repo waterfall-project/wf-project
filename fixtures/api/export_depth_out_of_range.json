@@ -1,0 +1,17 @@
+{
+  "summary": "L'image de l'arborescence de la révision courante demandée au niveau 0 : refusée, au-dessous du plus petit niveau admis, 1, celui des tâches de premier niveau, le champ désigné avec la borne franchie ; rien n'est mis en file (WF-PLA-0120).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/depth",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 1
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001095"
+  }
+}

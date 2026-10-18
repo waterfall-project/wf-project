@@ -21,11 +21,15 @@ import {
   ListTree,
   ListX,
   type LucideIcon,
+  Milestone,
   Pencil,
+  Percent,
   ShieldAlert,
+  ShieldPlus,
   Stamp,
   Star,
   UserPlus,
+  Workflow,
 } from "lucide-react";
 
 import { createElement, type ReactElement } from "react";
@@ -37,12 +41,21 @@ export const PROJECT_COMMAND_ICONS: Readonly<
   Record<components["schemas"]["ProjectCommand"], LucideIcon>
 > = {
   update: Pencil,
+  // The win probability, a rate the project freezes from in progress (EP-14/L42i).
+  update_win_probability: Percent,
+  // The work breakdown, entered whole, which waits for a background task (EP-14/L42s): the
+  // icon of a tree of items, as its grid.
+  update_work_breakdown: ListTree,
   manage_contributors: UserPlus,
+  // The timelines of the project, which show its milestones and tasks inscribed (EP-14/L42k).
+  manage_timelines: Milestone,
   create_revision: GitBranchPlus,
   complete: CircleCheckBig,
   lose: CircleX,
   abandon: Ban,
   edit_risks: ShieldAlert,
+  // The declaration of a risk, which a main structure without task forbids (EP-14/L42s).
+  declare_risk: ShieldPlus,
   declare_risk_occurrence: FlagTriangleRight,
   import_actual_costs: FileUp,
   exclude_cost_lines: ListX,
@@ -57,9 +70,12 @@ export const REVISION_COMMAND_ICONS: Readonly<
   Record<components["schemas"]["RevisionCommand"], LucideIcon>
 > = {
   edit_planning: CalendarRange,
+  // The skeleton the work breakdown generates, a structure of tasks drawn at once (EP-14/L42k).
+  generate_skeleton: Workflow,
   edit_estimate: Calculator,
   edit_remaining: Hourglass,
   edit_risks: ShieldAlert,
+  declare_risk: ShieldPlus,
   create_structure: ListTree,
   merge_structure: GitMerge,
   mark: Stamp,

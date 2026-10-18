@@ -9,28 +9,37 @@ export interface Examples {
     200: "node_deleted";
   };
   "GET /access-roles": {
-    200: "access_roles" | "access_roles_composed" | "access_roles_unheld";
+    200: "access_roles" | "access_roles_by_updated_by" | "access_roles_composed" | "access_roles_unheld" | "access_roles_updated_by_anonymized" | "access_roles_updated_by_deactivated";
   };
   "GET /audit-events": {
-    200: "audit_events" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
+    200: "audit_events" | "audit_events_administration" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_search";
   };
   "GET /audit-events/facets": {
-    200: "audit_facets";
+    200: "audit_facets" | "audit_facets_anonymized";
   };
   "GET /backup-schedule": {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
-    200: "backups" | "backups_beyond" | "backups_empty";
+    200: "backups" | "backups_beyond" | "backups_by_size" | "backups_during_backup" | "backups_empty" | "backups_manual" | "backups_period" | "backups_reader" | "backups_retained" | "backups_unverified";
+  };
+  "GET /backups/{backup_id}": {
+    200: "backup" | "backup_pending";
   };
   "GET /external-backup-locations": {
     200: "external_backup_locations" | "external_backup_locations_none";
+  };
+  "GET /health": {
+    200: "liveness" | "liveness_maintenance";
+  };
+  "GET /identity-syncs/latest": {
+    200: "identity_sync_report" | "identity_sync_report_anonymized" | "identity_sync_report_flagged";
   };
   "GET /installation": {
     200: "installation" | "installation_english";
   };
   "GET /me": {
-    200: "me" | "me_directory" | "me_english" | "me_with_avatar" | "me_without_preferences";
+    200: "me" | "me_auditor" | "me_dark" | "me_directory" | "me_english" | "me_estimator" | "me_grid_settings" | "me_manager" | "me_with_avatar" | "me_without_administration" | "me_without_preferences" | "me_without_roles";
   };
   "GET /permissions": {
     200: "permissions";
@@ -63,13 +72,16 @@ export interface Examples {
     200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_without_current_revision";
+    200: "project" | "project_completed" | "project_created" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_revision_opened" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
   };
   "GET /projects/{project_id}/contributors": {
     200: "contributors" | "contributors_by_name" | "contributors_inactive" | "contributors_search";
+  };
+  "GET /projects/{project_id}/contributors/suggestions": {
+    200: "contributor_suggestions" | "contributor_suggestions_empty";
   };
   "GET /projects/{project_id}/cost-imports": {
     200: "cost_imports" | "cost_imports_beyond" | "cost_imports_empty";
@@ -84,7 +96,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_remaining_analysed";
+    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_rejected" | "import_remaining_analysed";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked";
@@ -101,6 +113,9 @@ export interface Examples {
   "GET /projects/{project_id}/indicators/milestone-tracking": {
     200: "milestone_tracking" | "milestone_tracking_none";
   };
+  "GET /projects/{project_id}/next-state": {
+    200: "next_state" | "next_state_completed" | "next_state_created" | "next_state_pricing";
+  };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
@@ -114,16 +129,19 @@ export interface Examples {
     200: "comparison" | "comparison_identical";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
-    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader";
+    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader" | "revision_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update" | "rate_update_none";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures": {
-    200: "structures" | "structures_amendments";
+    200: "structures" | "structures_amendments" | "structures_without_tasks";
+  };
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
+    200: "structure_merge_report" | "structure_merge_report_refused";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_core" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
@@ -147,7 +165,7 @@ export interface Examples {
     200: "state_transitions" | "state_transitions_exited";
   };
   "GET /projects/{project_id}/subprojects": {
-    200: "subprojects" | "subprojects_by_label" | "subprojects_with_actual_costs";
+    200: "subprojects" | "subprojects_by_label" | "subprojects_completed" | "subprojects_with_actual_costs";
   };
   "GET /projects/{project_id}/timelines": {
     200: "timelines" | "timelines_empty";
@@ -180,19 +198,13 @@ export interface Examples {
     200: "org_nodes" | "org_nodes_reader" | "org_nodes_with_inactive";
   };
   "GET /reference/readiness": {
-    200: "reference_readiness" | "reference_readiness_incomplete";
+    200: "reference_readiness" | "reference_readiness_incomplete" | "reference_readiness_without_provision";
   };
   "GET /reference/resource-roles": {
     200: "resource_roles" | "resource_roles_bounded" | "resource_roles_reader";
   };
   "GET /reference/settings": {
     200: "reference_settings";
-  };
-  "GET /session": {
-    200: "session" | "session_auditor" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_manager" | "session_without_administration" | "session_without_preferences" | "session_without_roles";
-  };
-  "GET /session/providers": {
-    200: "auth_providers" | "auth_providers_local";
   };
   "GET /system/status": {
     200: "system_status" | "system_status_backup_failed" | "system_status_copy_failed" | "system_status_storage_full";
@@ -201,19 +213,34 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_outside_order_item" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
-    200: "users" | "users_by_access_role" | "users_inactive" | "users_page" | "users_search";
+    200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
+  };
+  "GET /users/{user_id}": {
+    200: "user_anonymized" | "user_deactivated";
+  };
+  "PATCH /access-roles/{access_role_id}": {
+    200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
+  };
+  "PATCH /backups/{backup_id}": {
+    200: "backup_released" | "backup_retained";
   };
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";
+  };
+  "PATCH /projects/{project_id}": {
+    200: "project_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
     200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";
+  };
+  "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
+    200: "subproject_updated";
   };
   "PATCH /reference/calendars/{calendar_id}": {
     200: "calendar_updated";
@@ -225,16 +252,40 @@ export interface Examples {
     200: "cost_type_updated";
   };
   "PATCH /reference/org-nodes/{org_node_id}": {
-    200: "org_node_updated";
+    200: "org_node_renamed_under_inactive" | "org_node_updated";
   };
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
+  };
+  "PATCH /reference/settings": {
+    200: "reference_settings_matrix_updated" | "reference_settings_thresholds_updated";
+  };
+  "PATCH /users/{user_id}": {
+    200: "user_renamed" | "user_renamed_deactivated";
+  };
+  "POST /access-roles": {
+    201: "access_role_created";
+  };
+  "POST /backups": {
+    202: "task_backup_queued";
+  };
+  "POST /chunked-uploads": {
+    201: "chunked_upload";
+  };
+  "POST /chunked-uploads/{chunked_upload_id}/completion": {
+    201: "chunked_upload_completed" | "file_upload_external_backup";
   };
   "POST /external-backup-locations/{location_name}/test": {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
   };
   "POST /file-uploads": {
     201: "file_upload";
+  };
+  "POST /identity-syncs": {
+    202: "identity_sync_queued";
+  };
+  "POST /projects": {
+    201: "project_created";
   };
   "POST /projects/{project_id}/exit": {
     200: "project_completed";
@@ -251,11 +302,20 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/mark": {
     202: "task_mark_queued" | "task_mark_relaunched";
   };
+  "POST /projects/{project_id}/revisions/{revision_id}/skeleton": {
+    201: "skeleton_generated";
+  };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
-    200: "paste_applied";
+    200: "paste_applied" | "paste_applied_partial";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_unknown_category";
+  };
+  "POST /projects/{project_id}/subprojects": {
+    201: "subproject_created";
+  };
+  "POST /projects/{project_id}/timelines": {
+    201: "timeline_created";
   };
   "POST /reference/calendars": {
     201: "calendar_created";
@@ -272,17 +332,38 @@ export interface Examples {
   "POST /reference/resource-roles": {
     201: "resource_role_created";
   };
-  "POST /session": {
-    201: "session";
+  "POST /restores": {
+    202: "task_restore_queued";
+  };
+  "POST /users": {
+    201: "user_created" | "user_created_invited";
+  };
+  "POST /users/{user_id}/anonymization": {
+    200: "user_anonymized";
+  };
+  "POST /users/{user_id}/password-link": {
+    201: "password_setup_link";
+  };
+  "PUT /backup-schedule": {
+    200: "backup_schedule_set";
+  };
+  "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
+    200: "chunked_upload_part";
   };
   "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
     200: "actual_cost_excluded" | "actual_cost_reinstated";
+  };
+  "PUT /projects/{project_id}/contributors": {
+    200: "contributors_set";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining": {
     200: "remaining_reestimated";
+  };
+  "PUT /projects/{project_id}/work-breakdown": {
+    200: "work_breakdown_saved";
   };
   "PUT /reference/calendars/{calendar_id}/activation": {
     200: "calendar_deactivated";
@@ -304,5 +385,11 @@ export interface Examples {
   };
   "PUT /reference/resource-roles/{resource_role_id}/activation": {
     200: "resource_role_deactivated" | "resource_role_reactivated";
+  };
+  "PUT /users/{user_id}/access-roles": {
+    200: "user_access_roles_cleared" | "user_access_roles_set" | "user_access_roles_two";
+  };
+  "PUT /users/{user_id}/activation": {
+    200: "user_deactivated";
   };
 }

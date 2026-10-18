@@ -15,7 +15,14 @@ const DEV_ORIGINS = (process.env.WATERFALL_DEV_ORIGINS ?? "127.0.0.1")
   .map((host) => host.trim())
   .filter((host) => host !== "");
 
+// The image of production (`Dockerfile`, US-0430) is built with `WATERFALL_STANDALONE=1`: Next
+// traces the server and the modules it imports into `.next/standalone`, which Node runs alone.
+// Elsewhere `next start` serves the build — the measure of the end-to-end harness does —, and it
+// warns against a standalone output.
+const STANDALONE = process.env.WATERFALL_STANDALONE === "1";
+
 const config: NextConfig = {
+  ...(STANDALONE ? { output: "standalone" } : {}),
   reactStrictMode: true,
   allowedDevOrigins: DEV_ORIGINS,
   // The front calls nothing but the API, through the generated client (WF-ARC-0020).

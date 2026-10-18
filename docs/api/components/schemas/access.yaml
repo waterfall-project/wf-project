@@ -1,60 +1,9 @@
-# Session, comptes, rôles d'habilitation et permissions (FBS-1.1, FBS-1.2).
+# Comptes, rôles d'habilitation et permissions (FBS-1.1, FBS-1.2).
 # Il n'existe aucune inscription libre : un compte est créé par un utilisateur
-# habilité, importé de l'annuaire, ou créé à sa première connexion par le
-# fournisseur d'identité (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
-
-AuthProviderKind:
-  type: string
-  enum: [local, ldap, oidc]
-
-AuthProvider:
-  type: object
-  required: [kind, is_enabled]
-  description: >-
-    Fournisseur d'authentification. Les comptes locaux sont toujours actifs ;
-    l'annuaire et le fournisseur d'identité s'activent dans l'administration
-    (WF-ADM-0180, WF-ARC-0030).
-  properties:
-    kind: { $ref: '#/AuthProviderKind' }
-    is_enabled: { type: boolean }
-    label:
-      anyOf: [{ type: string }, { type: 'null' }]
-    start_url:
-      anyOf: [{ type: string }, { type: 'null' }]
-      description: Point de départ des redirections, pour un fournisseur OIDC (TFX-07).
-
-LocalCredentials:
-  type: object
-  required: [email, password]
-  properties:
-    email: { type: string, format: email }
-    password: { type: string, minLength: 12, maxLength: 200 }
-
-Session:
-  type: object
-  required: [user, permissions, expires_at]
-  description: >-
-    Session conservée en base, révocable immédiatement (WF-SEC-0020). Les
-    permissions effectives sont évaluées à chaque requête et renvoyées ici pour que
-    le front sache quoi présenter (WF-ADM-0110, WF-IHM-0090).
-  properties:
-    user: { $ref: '#/UserSelf' }
-    permissions:
-      type: array
-      items: { $ref: '#/PermissionCode' }
-    expires_at: { $ref: ../common.yaml#/Timestamp }
-    idle_expires_at: { $ref: ../common.yaml#/Timestamp }
-
-PasswordResetRequest:
-  type: object
-  required: [email]
-  description: >-
-    Demande un lien de réinitialisation, valable une heure et à usage unique
-    (WF-ADM-0140). Le courriel part dans la langue que le compte a choisie, `fr` ou
-    `en` ; si elle vaut `default`, dans la première langue offerte que demande la
-    requête, et à défaut dans la langue par défaut de l'installation (WF-ARC-0110).
-  properties:
-    email: { type: string, format: email }
+# habilité, lu du fournisseur d'identité qui fédère l'annuaire, ou créé à sa première
+# connexion venue d'un fournisseur externe (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
+# Waterfall ne voit jamais de mot de passe : l'authentification est celle du fournisseur
+# d'identité (WF-ARC-0030, WF-ADM-0140).
 
 PasswordSetupLink:
   type: object
@@ -62,11 +11,11 @@ PasswordSetupLink:
   description: >-
     Le lien par lequel le porteur d'un compte local fixe ou réinitialise son mot de passe,
     rendu à l'utilisateur habilité qui l'a demandé pour le remettre par un autre canal
-    (WF-ADM-0140) : le même lien que le courriel porte, à usage unique et valable une heure,
-    vers l'adresse du front qui fixe le mot de passe — `<adresse publique du front>/login/reset?token=<jeton>`,
-    l'adresse publique du front étant un paramètre de l'installation, fixé à son déploiement
-    (WF-EXP-0020), comme pour `requestPasswordReset`. Il n'est rendu qu'une fois, jamais relu, et sa demande est
-    inscrite au journal d'audit (WF-SEC-0030) ; le jeton n'y figure pas.
+    (WF-ADM-0140) : le même lien qu'un courriel du fournisseur d'identité porterait, à usage
+    unique et valable une heure. Il mène à la page du fournisseur d'identité qui fixe le mot de
+    passe, non à un écran de Waterfall, qui n'en présente aucun (WF-ADM-0140, WF-ARC-0030). Il
+    n'est rendu qu'une fois, jamais relu, et sa demande est inscrite au journal d'audit
+    (WF-SEC-0030) ; le jeton n'y figure pas.
   properties:
     url:
       type: string
@@ -76,26 +25,13 @@ PasswordSetupLink:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140).
 
-PasswordResetConfirm:
-  type: object
-  required: [token, password]
-  properties:
-    token: { type: string, minLength: 20 }
-    password: { type: string, minLength: 12, maxLength: 200 }
-
-PasswordChange:
-  type: object
-  required: [current_password, new_password]
-  properties:
-    current_password: { type: string }
-    new_password: { type: string, minLength: 12, maxLength: 200 }
-
 UserOrigin:
   type: string
   enum: [local, directory, identity_provider]
   description: >-
-    Origine du compte : créé dans Waterfall, importé de l'annuaire, ou créé à sa
-    première connexion par le fournisseur d'identité (WF-ADM-0050).
+    Origine du compte : créé dans Waterfall (`local`), lu du fournisseur d'identité qui fédère
+    l'annuaire (`directory`), ou créé à la première connexion d'une personne venue d'un
+    fournisseur externe (`identity_provider`) (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
 
 User:
   description: >-
@@ -108,28 +44,55 @@ User:
       properties:
         available_commands:
           type: array
-          maxItems: 2
+          maxItems: 3
           description: >-
             Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou
             non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
-            `UserCommand` : au plus deux, celle qui change son état et l'attribution de ses
-            rôles. Une commande absente de la liste n'est pas présentée ; la liste est vide pour
-            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100).
+            `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est
+            désactivé, et l'attribution de ses rôles. Une commande absente de la liste n'est pas
+            présentée ; la liste est vide pour
+            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100),
+            et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles
+            d'habilitation (`access_roles.write`, WF-ADM-0090).
             Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier
             administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste
             est refusé par son code d'erreur.
           items: { $ref: '#/UserCommandAvailability' }
 
+UserCreated:
+  description: >-
+    Le compte local créé (`createUser`), et si l'invitation qui porte son lien de fixation est
+    partie (WF-ADM-0140).
+  allOf:
+    - $ref: '#/User'
+    - type: object
+      required: [invitation_sent]
+      properties:
+        invitation_sent:
+          type: boolean
+          description: >-
+            Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien
+            de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie
+            (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe
+            pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal
+            (`createPasswordSetupLink`).
+
 UserCommand:
   type: string
-  enum: [deactivate, reactivate, set_access_roles]
+  enum: [deactivate, reactivate, anonymize, set_access_roles]
   description: >-
     Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par
-    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, et lui attribuer ses rôles
-    d'habilitation, par `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui
-    change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé ; il porte
-    toujours `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
-    (`users.write`, WF-ADM-0100). Le dernier compte actif qui porte à la fois les permissions de
+    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, l'anonymiser, par
+    `anonymizeUser` (WF-ADM-0060), et lui attribuer ses rôles d'habilitation, par
+    `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état :
+    `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte
+    anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte
+    `anonymize` s'il est désactivé, comme `reactivate` qu'elle suit — disponible tant qu'il n'est
+    pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante —, et toujours
+    `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
+    (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles
+    d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2,
+    WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de
     modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa
     désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est
     disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste
@@ -137,7 +100,7 @@ UserCommand:
     davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une
     attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de
     `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est
-    disponible.
+    disponible, hors `reactivate` et `anonymize` d'un compte anonymisé.
 
 UserCommandAvailability:
   type: object
@@ -153,13 +116,14 @@ UserCommandAvailability:
 UserAccount:
   type: object
   description: >-
-    Un compte, sans ses commandes : celui que la session porte (`UserSelf`), et que la table
+    Un compte, sans ses commandes : celui que `getMe` rend (`UserSelf`), et que la table
     des comptes complète des siennes (`User`).
   required:
     - user_id
     - last_name
     - first_name
     - email
+    - anonymized_at
     - is_active
     - origin
     - org_node_label
@@ -169,17 +133,34 @@ UserAccount:
     - lock_version
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    last_name: { type: string, minLength: 1, maxLength: 100 }
-    first_name: { type: string, minLength: 1, maxLength: 100 }
+    last_name:
+      anyOf:
+        - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+        - { type: 'null' }
+      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+    first_name:
+      anyOf:
+        - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+        - { type: 'null' }
+      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
     email:
-      type: string
-      format: email
-      description: Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
+      anyOf: [{ type: string, format: email }, { type: 'null' }]
+      description: >-
+        Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050). Nulle
+        pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+    anonymized_at:
+      anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        L'instant de l'anonymisation du compte, nul tant qu'il ne l'est pas (WF-ADM-0060). Un
+        compte anonymisé n'a plus ni nom, ni prénom, ni adresse, ni avatar : ces trois champs
+        sont nuls, et le front le présente partout sous le libellé neutre de son catalogue,
+        l'API ne rendant aucune phrase (WF-ARC-0110) ; ses actes lui restent attribués, par son
+        identifiant. L'anonymisation est irréversible : un compte anonymisé ne se réactive pas.
     is_active:
       type: boolean
       description: >-
         L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour
-        « désactivé » (`deactivated`). Un compte désactivé ne peut plus ouvrir de session.
+        « désactivé » (`deactivated`). Un compte désactivé est refusé à chaque requête, par 401 `ACCOUNT_DEACTIVATED`, et ses sessions sont fermées (WF-SEC-0020).
     origin: { $ref: '#/UserOrigin' }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
@@ -206,21 +187,31 @@ UserAccount:
 
 UserSelf:
   description: >-
-    Le compte de la session, et ses préférences d'affichage (WF-ADM-0040). Il ne porte pas les
-    commandes de la table des comptes : la session ne s'administre pas par elle.
+    Le compte connecté, ses préférences d'affichage (WF-ADM-0040) et ses permissions
+    effectives. Il ne porte pas les commandes de la table des comptes : un compte ne
+    s'administre pas par `getMe`.
   allOf:
     - $ref: '#/UserAccount'
     - type: object
+      required: [permissions]
       properties:
         display_preferences: { $ref: '#/DisplayPreferences' }
+        permissions:
+          type: array
+          description: >-
+            Les permissions effectives du compte, l'union de celles de ses rôles, évaluées à
+            chaque requête (WF-ADM-0090, WF-ADM-0110) et rendues pour que le front sache quoi
+            présenter (WF-IHM-0090) : une fonction dont le compte n'a pas la consultation ne se
+            présente pas. Vide pour un compte sans rôle (WF-ADM-0180).
+          items: { $ref: '#/PermissionCode' }
 
 UserCreate:
   type: object
   required: [last_name, first_name, email]
   properties:
-    last_name: { type: string, minLength: 1, maxLength: 100 }
-    first_name: { type: string, minLength: 1, maxLength: 100 }
-    email: { type: string, format: email }
+    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     access_role_ids:
@@ -231,14 +222,29 @@ UserUpdate:
   type: object
   required: [lock_version]
   description: >-
-    Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne
-    sont pas modifiables ici (WF-ADM-0050).
+    Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre
+    que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est
+    refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050).
   properties:
-    last_name: { type: string, minLength: 1, maxLength: 100 }
-    first_name: { type: string, minLength: 1, maxLength: 100 }
-    email: { type: string, format: email }
+    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+UserActivationWrite:
+  type: object
+  required: [is_active, lock_version]
+  properties:
+    is_active: { type: boolean }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+UserAnonymizationWrite:
+  type: object
+  required: [lock_version]
+  description: L'anonymisation d'un compte désactivé, à la version lue (`anonymizeUser`).
+  properties:
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserRolesWrite:
@@ -257,6 +263,12 @@ DisplayPreferences:
     réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne
     change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme,
     chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut.
+    Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
+    (#874) — cent grilles au plus, des noms de grille, de colonne et de filtre de 64
+    caractères au plus ; par grille, 64 colonnes masquées ou élargies et 20 filtres au plus,
+    la valeur d'un filtre de 500 caractères au plus. Une préférence qui passe une borne est
+    refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
+    défaut ; un nom trop long, au pointeur de l'objet qui le porte.
   properties:
     language:
       type: string
@@ -277,6 +289,8 @@ DisplayPreferences:
     highlight_tasks_added_after_reference: { type: boolean }
     grids:
       type: object
+      maxProperties: 100
+      propertyNames: { maxLength: 64 }
       additionalProperties:
         anyOf: [{ $ref: '#/GridPreferences' }, { type: 'null' }]
 
@@ -285,9 +299,16 @@ GridPreferences:
   properties:
     hidden_columns:
       type: array
-      items: { type: string }
+      maxItems: 64
+      items: { type: string, maxLength: 64 }
     column_widths:
       type: object
+      maxProperties: 64
+      propertyNames: { maxLength: 64 }
+      description: >-
+        La largeur de chaque colonne élargie, en points, par sa clé : au moins vingt, une largeur
+        plus étroite étant refusée par 422, `VALUE_OUT_OF_RANGE` sur
+        `/grids/<grille>/column_widths/<colonne>`, `fields[].params.minimum` à `20`.
       additionalProperties: { type: integer, minimum: 20 }
     sort:
       anyOf:
@@ -297,19 +318,26 @@ GridPreferences:
             Le tri tel que la grille le demande au serveur : `column` est une valeur
             du `sort_by` de l'opération qui la sert.
           properties:
-            column: { type: string }
+            column: { type: string, maxLength: 64 }
             order: { $ref: ../common.yaml#/SortOrder }
         - type: 'null'
     filters:
       type: object
-      additionalProperties: true
+      description: >-
+        La recherche et les filtres de la grille, tels que son adresse les écrit : chaque
+        paramètre sous son nom, avec sa valeur en texte.
+      maxProperties: 20
+      propertyNames: { maxLength: 64 }
+      additionalProperties: { type: string, maxLength: 500 }
 
 PermissionCode:
   type: string
   description: >-
     Code du catalogue, livré et non modifiable : deux permissions par fonction de
-    second niveau, consulter et modifier, la permission d'une fonction couvrant ses
-    sous-fonctions ; plus une permission propre par action irréversible ou
+    second niveau, consulter et modifier, sauf pour les fonctions en lecture seule — l'état du
+    système (FBS-1.3), le journal d'audit (FBS-1.5) et les vues du portefeuille (FBS-2.1 à
+    FBS-2.7) —, qui n'ont que la permission de consulter (WF-ADM-0100, #739) ; la permission
+    d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou
     structurante — créer un projet, marquer une révision, abandonner une révision en cours,
     désigner la révision de référence, fusionner un différentiel, déclarer une sortie du
     cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la
@@ -318,9 +346,7 @@ PermissionCode:
     déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige
     pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit
     (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne
-    sous l'administration, FBS-1.5 « Journal d'audit » ; le journal ne se modifiant pas, elle
-    n'a pas de permission de modifier : WF-ADM-0100 admet qu'une fonction en lecture seule n'ait
-    que sa permission de consulter. L'énumération est le catalogue : une permission
+    sous l'administration, FBS-1.5 « Journal d'audit ». L'énumération est le catalogue : une permission
     nouvelle est une modification du contrat.
   enum:
     # FBS-1 — Administration.
@@ -329,25 +355,17 @@ PermissionCode:
     - access_roles.read
     - access_roles.write
     - system_status.read
-    - system_status.write
     - backups.read
     - backups.write
     - audit_log.read
     # FBS-2 — Portefeuille.
     - portfolio_projects.read
-    - portfolio_projects.write
     - portfolio_workload.read
-    - portfolio_workload.write
     - portfolio_performance.read
-    - portfolio_performance.write
     - portfolio_cost_structure.read
-    - portfolio_cost_structure.write
     - portfolio_risks.read
-    - portfolio_risks.write
     - portfolio_cost_curve.read
-    - portfolio_cost_curve.write
     - portfolio_pilot_health.read
-    - portfolio_pilot_health.write
     # FBS-3 — Paramètres applicatifs.
     - cost_settings.read
     - cost_settings.write
@@ -413,7 +431,7 @@ AccessRole:
     toujours les permissions d'administration (WF-ADM-0120).
   properties:
     access_role_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, maxLength: 100 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     permissions:
       type: array
       items: { $ref: '#/PermissionCode' }
@@ -426,7 +444,7 @@ AccessRoleWrite:
   type: object
   required: [label, permissions]
   properties:
-    label: { type: string, minLength: 1, maxLength: 100 }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     permissions:
       type: array
       items: { $ref: '#/PermissionCode' }

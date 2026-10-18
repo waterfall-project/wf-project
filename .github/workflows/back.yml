@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The back: lint and format, strict types, the boundaries of the core, the tests.
+# The back: lint and format, strict types, the boundaries of the core, the tests. The tests of the
+# data run against a real PostgreSQL, those of the queue of tasks against a real Redis, services of
+# the job, and those of the backups against a real object storage, Garage, which a service of the
+# job cannot start with the arguments it needs (the guide, "Tests").
 name: back
 
 on:
@@ -19,10 +22,44 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    services:
+      postgres:
+        # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.
+        image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+        env:
+          # A server that lives for the job and is reachable from the runner alone.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+      redis:
+        # The image of the service platform, by its digest, which lives for the job.
+        image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The image and the settings of the service platform (deploy/compose/compose.service.yaml),
+      # its key a value of the job; ready long before the tests, which run last.
+      - run: >-
+          docker run --detach --name storage --publish 127.0.0.1:3900:3900
+          --volume "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro"
+          --env GARAGE_RPC_SECRET=c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
+          --env GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001
+          --env GARAGE_DEFAULT_SECRET_KEY=chain-only-storage-secret
+          dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+          /garage server --single-node --default-access-key
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
@@ -30,3 +67,8 @@ jobs:
       - run: make check-back
         env:
           TIER: ${{ inputs.tier }}
+          # A role that may create databases: each run creates its own and drops it.
+          WATERFALL_TEST_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+          WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+          # The key that may create a bucket for the run.
+          WATERFALL_TEST_STORAGE_URL: http://GK000000000000000000000001:chain-only-storage-secret@127.0.0.1:3900

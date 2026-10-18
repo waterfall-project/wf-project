@@ -20,6 +20,13 @@
             ]
           },
           {
+            "command": "generate_skeleton",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
             "command": "edit_estimate",
             "is_available": false,
             "missing_conditions": [
@@ -121,6 +128,13 @@
             "missing_conditions": []
           },
           {
+            "command": "generate_skeleton",
+            "is_available": false,
+            "missing_conditions": [
+              "main_structure_without_tasks"
+            ]
+          },
+          {
             "command": "edit_estimate",
             "is_available": true,
             "missing_conditions": []
@@ -132,6 +146,11 @@
           },
           {
             "command": "edit_risks",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "declare_risk",
             "is_available": true,
             "missing_conditions": []
           },
@@ -213,6 +232,13 @@
         "available_commands": [
           {
             "command": "edit_planning",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "generate_skeleton",
             "is_available": false,
             "missing_conditions": [
               "revision_draft"

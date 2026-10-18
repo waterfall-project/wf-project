@@ -1,5 +1,5 @@
 {
-  "summary": "La création à la main, sous le « Câblage des armoires », d'une ligne de la catégorie « Provisions pour risques », de nature provision, refusée : une ligne de provision n'est créée que par la déclaration d'un risque, et porte un montant calculé (WF-DEV-0020, WF-RIS-0010).",
+  "summary": "La création à la main, sous le « Câblage des armoires », d'une ligne de la catégorie « Provisions pour risques », de type provision pour risques, refusée : une ligne de provision n'est créée que par la déclaration d'un risque, et porte un montant calculé (WF-DEV-0020, WF-RIS-0010).",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,

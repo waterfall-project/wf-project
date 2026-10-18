@@ -2,16 +2,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
+import { SessionLost } from "@/session/tokens";
 import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
 
 import {
+  ACCOUNT_DEACTIVATED_DIGEST,
+  ACCOUNT_NOT_ADMITTED_DIGEST,
   failureOf,
   SESSION_REQUIRED_DIGEST,
+  SESSION_REVOKED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "@/components/system/failure";
 
 import { createApiClient, Unreachable } from "./client";
 import {
+  AccountRefused,
   type BackgroundTask,
   decode,
   decodeTask,
@@ -100,7 +105,7 @@ describe("the decoder of an answer of the API", () => {
   });
 
   it("names the object that holds a value already taken, which a 409 says at its first field", async () => {
-    const taken = { ...(example("cost_category_codes_taken") as Problem), status: 409 } as const;
+    const taken = example("cost_category_codes_taken") as Problem & { status: 409 };
     const client = fakeClient({ "POST /reference/cost-categories": { problem: taken } });
     const outcome = await decode(() =>
       client.POST("/reference/cost-categories", {
@@ -128,6 +133,32 @@ describe("the decoder of an answer of the API", () => {
       client.PATCH("/me/preferences", { body: { theme: "dark" } }),
     );
     expect(outcome).toMatchObject({ kind: "signed_out", problem: { code: "SESSION_REQUIRED" } });
+  });
+
+  it.each(["ACCOUNT_DEACTIVATED", "ACCOUNT_NOT_ADMITTED"] as const)(
+    "says an account refused (401 %s) as a refusal, not as a session to open again, which would loop",
+    async (code) => {
+      const client = fakeClient({ "PATCH /me/preferences": { problem: { code, status: 401 } } });
+      const outcome = await decode(() =>
+        client.PATCH("/me/preferences", { body: { theme: "dark" } }),
+      );
+      expect(outcome).toMatchObject({ kind: "refused", problem: { code } });
+    },
+  );
+
+  it("says a write whose session the front lost as signed out, the request never sent, rather than fail (#695)", async () => {
+    const client = fakeClient({ "PATCH /me/preferences": "preferences" }, {}, () => {
+      throw new SessionLost();
+    });
+    const outcome = await decode(() =>
+      client.PATCH("/me/preferences", { body: { theme: "dark" } }),
+    );
+    expect(outcome).toEqual({
+      kind: "signed_out",
+      problem: { code: "SESSION_REQUIRED", status: 401 },
+      conflictingObjectId: null,
+    });
+    expect(client.calls).toEqual([]);
   });
 
   it("tells an API out of reach apart from any refusal", async () => {
@@ -281,6 +312,32 @@ describe("a read a screen cannot do without", () => {
       digest: SESSION_REQUIRED_DIGEST,
     });
   });
+
+  it.each([
+    ["session_revoked", SESSION_REVOKED_DIGEST],
+    ["session_expired", SESSION_REQUIRED_DIGEST],
+  ] as const)(
+    "throws a token refused as %s for want of a session, which asks for the identifiers again for a session closed only (#855)",
+    async (name, digest) => {
+      const problem = example(name) as Problem & { status: 401 };
+      const read = readiness(fakeClient({ "GET /reference/readiness": { problem } }));
+      await expect(read).rejects.toBeInstanceOf(SignedOut);
+      await expect(read).rejects.toMatchObject({ operation: "getReferenceReadiness", digest });
+    },
+  );
+
+  it.each([
+    ["ACCOUNT_DEACTIVATED", ACCOUNT_DEACTIVATED_DIGEST],
+    ["ACCOUNT_NOT_ADMITTED", ACCOUNT_NOT_ADMITTED_DIGEST],
+  ] as const)(
+    "throws a refusal of the account (%s) as such, for the screen of failure to say which",
+    async (code, digest) => {
+      const client = fakeClient({ "GET /reference/readiness": { problem: { code, status: 401 } } });
+      const read = readiness(client);
+      await expect(read).rejects.toBeInstanceOf(AccountRefused);
+      await expect(read).rejects.toMatchObject({ operation: "getReferenceReadiness", digest });
+    },
+  );
 
   it("throws any other answer as unexpected, with the correlation identifier of the envelope", async () => {
     const read = readiness(answering(() => Promise.resolve(failure("req-7f3a"))));

@@ -1,0 +1,36 @@
+{
+  "summary": "La cellule robotique, désactivée, renommée aujourd'hui « Cellule robotique et vision », à partir de la version lue et sous son parent inchangé, le bureau d'études automatismes, désactivé : le corps renvoie ce parent tel qu'il est, et une modification qui ne change pas le parent ne le refuse pas ; sa version avance d'une, sa réactivation reste indisponible tant que son parent l'est (WF-REF-0070, WF-REF-0080).",
+  "value": {
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000475",
+    "code": "CEL-ROBOT",
+    "label": "Cellule robotique et vision",
+    "parent_id": "01926f3a-7c00-7000-8000-000000000474",
+    "parent_label": "Bureau d'études automatismes",
+    "level": 3,
+    "is_active": false,
+    "available_commands": [
+      {
+        "command": "reactivate",
+        "is_available": false,
+        "missing_conditions": [
+          "org_node_parent_active"
+        ]
+      }
+    ],
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 2
+  }
+}

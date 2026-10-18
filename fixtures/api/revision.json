@@ -1,5 +1,5 @@
 {
-  "summary": "La révision courante du projet, en brouillon, créée en 2026 et portant cette année de référence (WF-REV-0060) : toutes ses commandes de saisie sont disponibles.",
+  "summary": "La révision courante du projet, en brouillon, créée en 2026 et portant cette année de référence (WF-REV-0060) : toutes ses commandes de saisie sont disponibles, sauf la génération du squelette de planning, que sa structure principale, qui porte déjà ses tâches, ne propose plus (WF-PRJ-0030).",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000102",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -16,6 +16,13 @@
         "missing_conditions": []
       },
       {
+        "command": "generate_skeleton",
+        "is_available": false,
+        "missing_conditions": [
+          "main_structure_without_tasks"
+        ]
+      },
+      {
         "command": "edit_estimate",
         "is_available": true,
         "missing_conditions": []
@@ -27,6 +34,11 @@
       },
       {
         "command": "edit_risks",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "declare_risk",
         "is_available": true,
         "missing_conditions": []
       },

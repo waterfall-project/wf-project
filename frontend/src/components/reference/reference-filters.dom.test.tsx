@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { TextFilter } from "@/components/grid/text-filter";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
 import { expectAccessible } from "@/test/axe";
@@ -18,10 +19,14 @@ import { listReads } from "./address";
 import { InactiveSwitch, StateFilter } from "./reference-filters";
 import {
   CALENDAR_ADDRESS,
+  ORG_CODE_LENGTH,
   RESOURCE_ROLE_ADDRESS,
+  ROLE_CODE,
   ROLE_COST_CATEGORY,
   ROLE_STATE,
+  type ResourceRole,
 } from "./resource-grids";
+import { ResourceRoleList } from "./resource-lists";
 
 // The server of Next, as far as the filters need it: the address they read and the navigations
 // they ask.
@@ -160,6 +165,57 @@ describe("the filters of a list of the reference data", () => {
     expect(lastAddress()).toBe("/reference/resources?role_cost_category_id=mo-001");
     await userEvent.selectOptions(filter, "");
     expect(lastAddress()).toBe("/reference/resources");
+  });
+
+  it("filter on a text, back to the first page of the list the page of the address names", async () => {
+    page.search = "role_offset=50";
+    render(
+      inFrench(
+        <TextFilter
+          name={ROLE_CODE}
+          label="Code du rôle"
+          value={undefined}
+          length={ORG_CODE_LENGTH}
+          page={RESOURCE_ROLE_ADDRESS.offset}
+        />,
+      ),
+    );
+    await userEvent.type(screen.getByRole("searchbox", { name: "Code du rôle" }), "AUT{Enter}");
+    expect(lastAddress()).toBe("/reference/resources?role_code=AUT");
+  });
+
+  it("filter the roles on their code from their list, back to its first page (EP-14/L42r)", async () => {
+    // The list of the roles of the witness on its second page, for a session that only reads it.
+    page.search = "role_offset=50";
+    const roles = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
+    const none = { min: undefined, max: undefined };
+    render(
+      inFrench(
+        <ResourceRoleList
+          rows={roles.items}
+          page={roles.meta}
+          query={{ sort: undefined, search: undefined }}
+          preferences={undefined}
+          readsInactive
+          editable={false}
+          nodes={[]}
+          categories={undefined}
+          labour={undefined}
+          calendars={[]}
+          filters={{
+            code: undefined,
+            orgNode: undefined,
+            category: undefined,
+            calendar: undefined,
+            state: undefined,
+            monthlyHours: none,
+            headcount: none,
+          }}
+        />,
+      ),
+    );
+    await userEvent.type(screen.getByRole("searchbox", { name: "Code du rôle" }), "AUT{Enter}");
+    expect(lastAddress()).toBe("/reference/resources?role_code=AUT");
   });
 
   it("show the object chosen while the server reads the list anew, and the address once it has answered", async () => {

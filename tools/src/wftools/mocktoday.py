@@ -2,15 +2,17 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The examples of the indicators of the witness today, engendered (EP-02/L24, #287).
 
-The witness is read once — the offer and the reference at their marking, the current revision
-today, the actual costs (``wftools.mockindicators``) — and each example is one of four kinds,
-as the frame of #287 wants: a reading of the state of today (the indicators of the estimate, of
-the remaining to commit and of the project, the evolution of the indices, the tracking of the
-milestones, the curves, the workload); a reading of an earlier instant (the estimate the offer
-kept at its marking, the indicators the reference kept, the rate update its creation proposed);
-the sequel of a write made today (the remaining to commit after ``remaining_reestimated``); or a
-counterfactual variant declared as such (``*_missing_rates``, ``cost_curve_amendment``,
-``cost_curve_subproject_unbudgeted``). The
+The witness is read once, on its whole structure of a thousand tasks (EP-14/L45a) — the offer and
+the reference at their marking, the current revision today, the actual costs
+(``wftools.mockindicators``) — and each example is one of four kinds, as the frame of #287 wants:
+a reading of the state of today (the indicators of the estimate, of the remaining to commit and of
+the project, the evolution of the indices, the tracking of the milestones, the curves, the
+workload); a reading of an earlier instant (the estimate the offer kept at its marking, the
+indicators the reference kept, the rate update its creation proposed); the sequel of a write made
+today (the remaining to commit after ``remaining_reestimated``); or a counterfactual variant
+declared as such (``*_missing_rates``, ``cost_curve_amendment``,
+``cost_curve_subproject_unbudgeted``, and the curves of a subproject no line relates to, read on
+the core alone, ``alone``). The
 portfolio sums the indicators of the project in memory (``project_today``), never read back from
 the file the same command writes.
 """
@@ -22,7 +24,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mocktext, mockwitness, mockwrites
+from wftools import mockcore, mocktext, mockwitness, mockwrites
 from wftools.mockcurves import Era, cost_curve, earned_value_curves, workload
 from wftools.mockids import universe
 from wftools.mockindicators import (
@@ -43,10 +45,13 @@ from wftools.mockindicators import (
     remaining_indicators,
     today,
 )
+from wftools.mockstructure import described
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CORE,
+    COSTS,
     ELECTRICAL_ENGINEERING,
+    GENERATED,
     LABOUR,
     OFFER_MARKED,
     ORDER_RECEIVED,
@@ -103,8 +108,22 @@ class Witness:
 
 
 def witness() -> Witness:
-    """Read the witness once."""
+    """Read the witness once, on its whole structure."""
     return Witness(offer(), reference(), today(), actual_costs())
+
+
+def alone() -> Witness:
+    """Read the core of the witness as if the structure bore nothing else: a declared variant.
+
+    Its three revisions described from the core alone, and the lines of cost written by hand — the
+    drawn tasks, which the invoices of ``mockcosts.drawn`` are those of, are not there.
+    """
+    return Witness(
+        offer(CORE),
+        reference(mockwitness.reference(CORE)),
+        today(CORE),
+        actual_costs(COSTS),
+    )
 
 
 def project_today(read_once: Witness | None = None) -> JsonObject:
@@ -124,18 +143,18 @@ def estimate_today(read_once: Witness | None = None) -> JsonObject:
 
 def values() -> dict[str, JsonValue]:
     """Return the values of the examples of the indicators, by name."""
-    found = witness()
+    found, core = witness(), alone()
     now, base, costs = found.today, found.reference, found.costs
     missing = frozenset({ELECTRICAL_ENGINEERING})
     reestimated = today(
         mockwrites.amended(
-            CORE,
+            described(),
             line=mockwrites.on_line(LABOUR, hours=mockwrites.REESTIMATED_HOURS),
         )
     )
     amended = reference(
         mockwrites.amended(
-            mockwitness.reference(),
+            mockcore.REFERENCE,
             line=lambda line: (
                 replace(line, unit=cast("Decimal", line.unit) + AMENDMENT_2)
                 if line.number == STUDIES_LINE
@@ -163,12 +182,14 @@ def values() -> dict[str, JsonValue]:
         "cost_curve_payment_delays": cost_curve(now, found.eras, costs, delays=True),
         "cost_curve_amendment": cost_curve(now, [*found.eras, Era(AMENDMENT_2_ON, amended)], costs),
         "cost_curve_subproject": cost_curve(now, found.eras, costs, scope=SUBPROJECT_CONTROL),
-        "cost_curve_subproject_empty": cost_curve(now, found.eras, costs, scope=SUBPROJECT_TESTS),
+        "cost_curve_subproject_empty": cost_curve(
+            core.today, core.eras, core.costs, scope=SUBPROJECT_TESTS
+        ),
         "cost_curve_subproject_unbudgeted": cost_curve(
             now, found.eras[:1], costs, scope=SUBPROJECT_CONTROL
         ),
         "cost_curve_subproject_empty_payment_delays": cost_curve(
-            now, found.eras, costs, delays=True, scope=SUBPROJECT_TESTS
+            core.today, core.eras, core.costs, delays=True, scope=SUBPROJECT_TESTS
         ),
         "earned_value_curves": earned_value_curves(now, base, costs),
         "workload": workload(now, "current_remaining"),
@@ -353,13 +374,14 @@ def _remaining_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     )
     return {
         "remaining_indicators": (
-            f"Le reste à engager de la révision courante au {_TODAY} : {_money(left['total'])} — "
-            f"les tâches non démarrées à leur montant budgété, le câblage des armoires démarré à "
-            f"son montant réestimé, les études terminées pour rien, les lignes fusionnées par la "
-            f"survenance, budgétées à zéro, à leur montant réestimé et la provision du risque "
-            f"identifié (WF-RAE-0010). Par sous-projet, le coût réel et le reste à engager face "
-            f"au budget : {_scopes_said(left)} ; {_margins(left)} ; la couverture des risques "
-            f"(WF-RAE-0020, WF-RIS-0050)."
+            f"Le reste à engager de la révision courante au {_TODAY}, sur toute la structure de "
+            f"mille tâches : {_money(left['total'])} — les tâches non démarrées à leur montant "
+            f"budgété projeté sur leur année de consommation, les tâches démarrées, le câblage des "
+            f"armoires parmi elles, à leur montant réestimé, les tâches terminées pour rien, les "
+            f"lignes fusionnées par la survenance, budgétées à zéro, à leur montant réestimé et la "
+            f"provision du risque identifié (WF-RAE-0010). Par sous-projet, le coût réel et le "
+            f"reste à engager face au budget : {_scopes_said(left)} ; {_margins(left)} ; la "
+            f"couverture des risques (WF-RAE-0020, WF-RIS-0050)."
         ),
         "remaining_indicators_over_budget": (
             f"Le reste à engager juste après la réestimation du raccordement des borniers à "
@@ -385,9 +407,22 @@ def _indices(scope: JsonObject) -> str:
     )
 
 
-def _project_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
+def _completed_drawn(reading: Reading) -> int:
+    """Count the tasks drawn about the core that are completed at the day of a reading."""
+    return sum(
+        1
+        for row in reading.rows
+        if row.kind == mockcore.TASK
+        and row.number >= GENERATED
+        and reading.facet(row)["progress"] == "completed"
+        and not reading.facet(row)["is_summary"]
+    )
+
+
+def _project_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[str, str]:
     project, marked = _get(found, "project_indicators"), _get(found, "project_indicators_marked")
     studies, acceptance = _objs(_get(found, "milestone_tracking")["milestones"])
+    completed = _count(_completed_drawn(read_once.today))
     history = _get(found, "index_history")
     indices = " ; ".join(_indices(scope) for scope in _objs(history["scopes"]))
     [control] = _objs(_get(found, "index_history_subproject")["scopes"])
@@ -399,15 +434,17 @@ def _project_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     )
     return {
         "project_indicators": (
-            f"Les indicateurs du projet en cours au {_TODAY}, sur sa révision courante : le "
-            f"budget de référence de {_money(project['reference_budget'])}, hors provisions ; la "
-            f"valeur planifiée de {_money(project['planned_value'])} sur les dates de la "
-            f"référence ; la valeur acquise de {_money(project['earned_value'])}, celle des "
-            f"études de détail terminées, les tâches de la survenance n'en acquérant pas ; le "
-            f"coût réel de {_money(project['actual_cost'])}, les pièces du périmètre suivi ; le "
-            f"reste à engager de {_money(project['remaining'])}, provisions comprises ; d'où les "
-            f"avancements, les deux indices et leur zone, leurs écarts et les trois projections "
-            f"à terminaison (WF-IND-0010 à WF-IND-0080)."
+            f"Les indicateurs du projet en cours au {_TODAY}, sur sa révision courante, toute la "
+            f"structure de mille tâches sommée : le budget de référence de "
+            f"{_money(project['reference_budget'])}, hors provisions ; la valeur planifiée de "
+            f"{_money(project['planned_value'])} sur les dates de la référence ; la valeur acquise "
+            f"de {_money(project['earned_value'])}, celle des études de détail et des {completed} "
+            f"tâches tirées autour du cœur terminées, les tâches de la survenance n'en acquérant "
+            f"pas ; le coût réel de {_money(project['actual_cost'])}, les pièces du périmètre "
+            f"suivi, les factures de ces tâches comprises ; le reste à engager de "
+            f"{_money(project['remaining'])}, provisions comprises ; d'où les avancements, les "
+            f"deux indices et leur zone, leurs écarts et les trois projections à terminaison "
+            f"(WF-IND-0010 à WF-IND-0080)."
         ),
         "project_indicators_marked": (
             f"Les indicateurs du projet sur sa révision « Référence », tels que son marquage du "
@@ -446,9 +483,11 @@ def _project_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     }
 
 
-def _curve_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
+def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[str, str]:
     curve, amended = _get(found, "cost_curve"), _get(found, "cost_curve_amendment")
     project = _get(found, "project_indicators")
+    earned_points = _series(_get(found, "earned_value_curves"), "earned_value")
+    completed = _count(_completed_drawn(read_once.today))
     budget = _series(curve, "reference_budget")
     projection = _series(curve, "project_manager_projection")
     [step] = _objs(curve["steps"])
@@ -490,8 +529,9 @@ def _curve_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"(WF-IND-0100)."
         ),
         "cost_curve_payment_delays": (
-            f"La même courbe décalée des délais de paiement — {PAYMENT_DELAY} jours sur "
-            f"l'ingénierie de détail et sur les borniers, aucun sur la main-d'œuvre — : ce sont "
+            f"La même courbe décalée des délais de paiement — {PAYMENT_DELAY} jours sur les "
+            f"débours, l'ingénierie de détail, les borniers, le matériel et la sous-traitance des "
+            f"tâches tirées, aucun sur la main-d'œuvre — : ce sont "
             f"les décaissements. Le budget de référence et la projection sont décalés ligne par "
             f"ligne, la provision du risque identifié ajoutée à la fin de la tâche qui la porte ; "
             f"le coût réel ne l'est pas. Les décaissements passés, par mois de date de pièce, et "
@@ -521,11 +561,13 @@ def _curve_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"WF-IND-0100)."
         ),
         "cost_curve_subproject_empty": (
-            f"La courbe de coûts cumulés du seul sous-projet « {labels[SUBPROJECT_TESTS]} » au "
-            f"{_TODAY} (scope) : aucune ligne de la référence ni de la révision en cours ne "
+            f"Variante contrefactuelle : la courbe de coûts cumulés du seul sous-projet "
+            f"« {labels[SUBPROJECT_TESTS]} » au {_TODAY} (scope) si la structure ne portait que "
+            f"le cœur du témoin, dont aucune ligne de la référence ni de la révision en cours ne "
             f"relève de lui, et aucune ligne de coût réel ne lui est imputée — ses trois séries "
             f"sans point et aucune marche ; rien à tracer, que l'écran dit (WF-IND-0020, "
-            f"WF-IND-0100)."
+            f"WF-IND-0100). Dans la structure de mille tâches, les lots « Ligne d'essais » en "
+            f"relèvent, et leurs tâches terminées lui imputent leurs factures."
         ),
         "cost_curve_subproject_unbudgeted": (
             f"Variante contrefactuelle : la courbe du seul sous-projet "
@@ -540,19 +582,20 @@ def _curve_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"WF-IND-0100)."
         ),
         "cost_curve_subproject_empty_payment_delays": (
-            f"La même courbe du sous-projet « {labels[SUBPROJECT_TESTS]} » demandée avec les "
-            f"délais de paiement (payment_delays) : ses trois séries sans point, aucune marche, "
-            f"et aucun mois de décaissement — rien n'est payé ni à payer pour lui (WF-IND-0020, "
-            f"WF-IND-0100)."
+            f"La même variante du sous-projet « {labels[SUBPROJECT_TESTS]} », le cœur lu seul, "
+            f"demandée avec les délais de paiement (payment_delays) : ses trois séries sans "
+            f"point, aucune marche, et aucun mois de décaissement — rien n'est payé ni à payer "
+            f"pour lui (WF-IND-0020, WF-IND-0100)."
         ),
         "earned_value_curves": (
-            f"Les courbes de valeur acquise du projet au {_TODAY} : la valeur planifiée, "
-            f"{_money(project['planned_value'])} à la date de calcul, sur les dates de la "
-            f"référence, qui atteint le budget de référence à sa fin, le "
-            f"{_on(planned_end['date'])} ; la valeur acquise, une marche de "
-            f"{_money(project['earned_value'])} à la terminaison des études de détail ; le coût "
-            f"réel par date de pièce, {_money(project['actual_cost'])}, jusqu'à la date de calcul "
-            f"(WF-IND-0110)."
+            f"Les courbes de valeur acquise du projet au {_TODAY}, sur toute la structure : la "
+            f"valeur planifiée, {_money(project['planned_value'])} à la date de calcul, sur les "
+            f"dates de la référence, qui atteint le budget de référence à sa fin, le "
+            f"{_on(planned_end['date'])} ; la valeur acquise, par marches à la terminaison de "
+            f"chaque tâche — les études de détail le {_on(earned_points[1]['date'])}, puis les "
+            f"{completed} tâches tirées terminées —, {_money(project['earned_value'])} à la date "
+            f"de calcul ; le coût réel par date de pièce, {_money(project['actual_cost'])}, "
+            f"jusqu'à la date de calcul (WF-IND-0110)."
         ),
     }
 
@@ -632,26 +675,14 @@ def _workload_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
 
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the indicators of the witness, by file name."""
-    found = values()
+    found, read_once = values(), witness()
     summaries = {
         **_estimate_summaries(found),
         **_remaining_summaries(found),
-        **_project_summaries(found),
-        **_curve_summaries(found),
+        **_project_summaries(found, read_once),
+        **_curve_summaries(found, read_once),
         **_workload_summaries(found),
     }
-    for name in (
-        "estimate_indicators",
-        "remaining_indicators",
-        "project_indicators",
-        "cost_curve",
-        "cost_curve_subproject",
-        "cost_curve_subproject_empty",
-        "cost_curve_subproject_unbudgeted",
-        "cost_curve_subproject_empty_payment_delays",
-        "earned_value_curves",
-    ):
-        summaries[name] = f"{summaries[name]} {mocktext.CORE_ONLY}"
     return {
         f"{name}.json": mocktext.example(summaries[name], value) for name, value in found.items()
     }

@@ -176,11 +176,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
-// reference, amount corrected for inflation.
+// Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment delay,
+// inactive object, amount at the year of reference, amount corrected for inflation.
 const QUANTITY = 4;
 const HOURS = 5;
 const DISBURSEMENT = 6;
+const SUBPROJECT = 7;
 const REFERENCE = 10;
 const INFLATED = 11;
 // Number, label, description, mode, duration, start, finish, progress, physical progress, float,
@@ -435,9 +436,29 @@ describe("a value of a grid the server computes", () => {
     await userEvent.click(cell(provision, QUANTITY));
     expect((await said()).paragraphs.slice(1)).toEqual([
       "Qté ne se saisit pas : Waterfall calcule cette valeur.",
-      "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
+      "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.quantity"]);
+  });
+
+  it("marks the sub-project of a provision, the one its risk designates, and asks what it depends on (EP-14/L42p)", async () => {
+    // The fake back answers what the quantity of the provision depends on
+    // (`dependencies_provision`): the contract has no answer for its sub-project (#764), and the
+    // test reads only the field asked, never the answer's.
+    const client = serve({ [DEPENDENCIES]: "dependencies_provision" });
+    renderGrid("estimate");
+    const provision = cell("Provision — risque de reprise du câblage", SUBPROJECT);
+    // Out of any sub-project, computed all the same: shaded, marked Σ and named so.
+    expect(provision).toHaveClass("bg-muted");
+    expect(provision).toHaveAccessibleName(/^Calculé/);
+    expect(provision).toHaveAttribute("aria-haspopup", "dialog");
+    // The sub-project of a line of labour is entered.
+    expect(cell("Raccordement des borniers", SUBPROJECT)).toHaveClass("bg-background");
+    await userEvent.click(provision);
+    expect((await said()).paragraphs[1]).toBe(
+      "Sous-projet ne se saisit pas : Waterfall calcule cette valeur.",
+    );
+    expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.subproject_id"]);
   });
 
   it("names what the amount of a task depends on: the lines it bears", async () => {

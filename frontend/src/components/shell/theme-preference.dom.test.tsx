@@ -28,14 +28,14 @@ vi.mock("next/navigation", async (original) => ({
 vi.mock("next/cache", () => ({ refresh: () => server.refresh() }));
 
 const PREFERENCES = "PATCH /me/preferences";
-const { user } = example("session") as components["schemas"]["Session"];
+const user = example("me") as components["schemas"]["UserSelf"];
 
 /**
  * Render the shell as the root layout does for the mode: the account, and its preference read
  * once. The language and the navigation are not this file's: French, and left out.
  */
 async function layout() {
-  const account = (await requestSession())?.user;
+  const account = await requestSession();
   return (
     <Shell
       locale="fr"
@@ -99,7 +99,7 @@ beforeEach(() => {
 
 describe("the mode selector", () => {
   it("offers the workstation's setting, light and dark, and lets the workstation decide first", async () => {
-    await open({ "GET /session": "session" });
+    await open({ "GET /me": "me" });
     expect(darkLogo()).toBe("(prefers-color-scheme: dark)");
     await expectAccessible(document.body);
     const values = await modes();
@@ -118,9 +118,9 @@ describe("the mode selector", () => {
 
   it("records the mode chosen in the account, and renders the page in it", async () => {
     // The back keeps the choice, and the next read of the session returns it; the fake back
-    // keeps nothing, so the second answer of GET /session stands in for what it would keep.
+    // keeps nothing, so the second answer of GET /me stands in for what it would keep.
     const client = await open({
-      "GET /session": ["session", "session_dark"],
+      "GET /me": ["me", "me_dark"],
       [PREFERENCES]: "preferences_dark",
     });
 
@@ -132,11 +132,7 @@ describe("the mode selector", () => {
     expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark" }]);
     await modes();
     expect(checked()).toBe("Sombre");
-    expect(client.calls.map((call) => call.route)).toEqual([
-      "GET /session",
-      PREFERENCES,
-      "GET /session",
-    ]);
+    expect(client.calls.map((call) => call.route)).toEqual(["GET /me", PREFERENCES, "GET /me"]);
   });
 
   it("shows the light variant of the logo alone in a mode forced light", async () => {
@@ -161,7 +157,7 @@ describe("the mode selector", () => {
   it("says why the API refused the choice, and shows the mode the account kept", async () => {
     const malformed = { problem: { code: "MALFORMED_REQUEST", status: 400 } } as const;
     const refresh = vi.fn();
-    const client = await open({ "GET /session": "session", [PREFERENCES]: malformed });
+    const client = await open({ "GET /me": "me", [PREFERENCES]: malformed });
     server.refresh = refresh;
 
     await choose("Clair");

@@ -44,6 +44,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
+import { scrollingList } from "@/components/ui/table";
+import { cn } from "@/components/ui/utils";
 import { formatTimestamp } from "@/i18n/format";
 
 import { monthTicks } from "./ticks";
@@ -546,6 +548,8 @@ export function Chart({ title, description, note, option, children, exported }: 
     }
   };
 
+  // The table of the values, wider than the figure in a narrow window, scrolls by the keyboard.
+  const values = scrollingList(t("values"));
   return (
     <figure aria-labelledby={caption} className="space-y-2">
       {/* The figure is named by its title alone, not by the command beside it. */}
@@ -567,7 +571,9 @@ export function Chart({ title, description, note, option, children, exported }: 
       <div ref={drawing} role="img" aria-label={description} className="h-72 w-full" />
       <details className="text-sm">
         <summary className="cursor-pointer text-muted-foreground">{t("values")}</summary>
-        <div className="mt-2 overflow-x-auto">{children}</div>
+        <div {...values} className={cn("mt-2 overflow-x-auto", values.className)}>
+          {children}
+        </div>
       </details>
     </figure>
   );

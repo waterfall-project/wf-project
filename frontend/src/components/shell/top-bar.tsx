@@ -4,7 +4,8 @@
  * The bar of the shell, above the page: the button that folds the side bar, and where the page
  * sits (`Breadcrumbs`); at the right, the search, the button of the background tasks, and the
  * menu of the account. Without a side bar — no session —, the logo takes the place of its
- * button; without an account, there is no menu of the account.
+ * button; without an account, there is no menu of the account. Under them, when it has one to
+ * tell, the notice of the writes refused once their screen was gone (`LeftRefusals`, #863).
  *
  * The search is in place, and does nothing yet: what it searches — the functions, the projects —
  * comes with the screens that list them.
@@ -23,6 +24,7 @@ import type { ThemePreference } from "@/theme/theme";
 
 import { AccountMenu, type MenuAccount } from "./account-menu";
 import { Breadcrumbs } from "./breadcrumbs";
+import { LeftRefusals } from "./left-refusals";
 import { Logo } from "./logo";
 
 /**
@@ -76,6 +78,7 @@ export function TopBar({ navigable, account, language, theme, permissions }: Top
       {account === undefined ? null : (
         <AccountMenu account={account} language={language} theme={theme} />
       )}
+      <LeftRefusals />
     </header>
   );
 }

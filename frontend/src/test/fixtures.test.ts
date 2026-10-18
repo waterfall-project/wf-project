@@ -119,6 +119,7 @@ describe("fakeClient", () => {
         path: `/projects/${PROJECT}`,
         query: new URLSearchParams(),
         body: undefined,
+        authorization: null,
       },
     ]);
   });

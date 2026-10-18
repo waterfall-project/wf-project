@@ -74,7 +74,7 @@ function leafHref(segment: string): string {
 
 beforeEach(() => {
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
@@ -85,6 +85,7 @@ beforeEach(() => {
     "GET /reference/cost-categories": "volume/cost_categories",
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
   };
 });
 

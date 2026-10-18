@@ -379,7 +379,7 @@ describe("the grid of the resource roles", () => {
     expect(active).toHaveFocus();
   });
 
-  it("says nothing of a refusal answered after the address changed, on the list now shown", async () => {
+  it("says nothing of a refusal answered after the address changed, on the list now shown nor once back on the reading it was asked from", async () => {
     let answer: (value?: unknown) => void = () => undefined;
     const client = fakeClient(
       { [ROLE_ACTIVATION]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
@@ -404,10 +404,11 @@ describe("the grid of the resource roles", () => {
     });
     expect(client.calls).toHaveLength(1);
     expect(screen.queryByRole("alert")).toBeNull();
-    // Back on the reading it was asked from, it is said.
+    // Back on the reading it was asked from, it is said no more: the click of its gesture was
+    // released when the list was read otherwise (#688).
     page.search = "include_inactive=true";
     rerender(roleGrid());
-    expect(await screen.findByRole("alert")).toHaveTextContent("Vous n’avez pas la permission");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("keeps the refusal of a reactivation said when another list of the screen is sorted", async () => {
@@ -593,8 +594,9 @@ describe("the grid of the calendars", () => {
       "Par défaut",
       "État",
     ]);
-    // By label, as the list without sort gives them: the standard week, the default one, second.
-    expect(cell(0, "is_default")).toHaveTextContent(/^$/);
+    // By label, as the list without sort gives them: the standard week, the default one, second; the
+    // other offers its designation as it lists it (`set_default`).
+    expect(cell(0, "is_default")).toHaveTextContent("Désigner");
     expect(cell(1, "is_default")).toHaveTextContent("Calendrier par défaut");
   });
 });

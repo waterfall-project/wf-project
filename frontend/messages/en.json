@@ -43,40 +43,14 @@
   },
   "accountMenu": {
     "label": "Account of {name}",
-    "name": "{first} {last}",
     "preferences": "Preferences",
     "account": "My account",
-    "password": "Change password",
     "avatar": "Change avatar",
     "signOut": "Sign out"
   },
-  "signIn": {
-    "title": "Sign in",
-    "local": "With your Waterfall account.",
-    "directory": "With your Waterfall account or your account in the company directory.",
-    "namedDirectory": "With your Waterfall account or your account in the “{directory}” directory.",
-    "email": "Email address",
-    "password": "Password",
-    "submit": "Sign in",
-    "or": "or",
-    "identityProvider": "Sign in with the identity provider",
-    "namedIdentityProvider": "Sign in with {provider}",
-    "forgotten": "Forgotten your password?"
-  },
-  "passwordReset": {
-    "title": "Forgotten password",
-    "request": "Give the email address of your account: a link to choose a new password will be sent to it.",
-    "email": "Email address",
-    "send": "Send the link",
-    "sent": "If an account has this address, a link has just been sent to it.",
-    "chooseTitle": "New password",
-    "choose": "Choose the new password of your account.",
-    "newPassword": "New password",
-    "save": "Save the password",
-    "saved": "Your password is saved: you may sign in.",
-    "askAgain": "Ask for a new link",
-    "back": "Back to sign in",
-    "signIn": "Sign in"
+  "accountName": {
+    "full": "{first} {last}",
+    "anonymized": "Anonymised account"
   },
   "account": {
     "details": "Account details",
@@ -87,13 +61,9 @@
     "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
     "save": "Save",
     "saved": "Your preferences are saved.",
-    "password": {
-      "current": "Current password",
-      "new": "New password",
-      "submit": "Change the password",
-      "changed": "Your password is changed.",
-      "external": "Your password is the one of the directory or of the identity provider your account comes from: it is not changed in Waterfall."
-    },
+    "signIn": "Sign-in",
+    "signInHelp": "Your sign-in credentials are set and changed on the page of your account at the identity provider.",
+    "realmPage": "Open my account at the identity provider",
     "avatar": {
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",
@@ -135,7 +105,8 @@
       "auditLog": "Audit log",
       "portfolioProjects": "Portfolio projects",
       "remaining": "Remaining to commit grid",
-      "projects": "List of projects"
+      "projects": "List of projects",
+      "backups": "Backups"
     },
     "columns": {
       "rowNumber": "No.",
@@ -204,8 +175,7 @@
       "holders": "Holding accounts",
       "modify": "Modify",
       "delete": "Delete",
-      "activation": "Activation",
-      "assignRoles": "Role assignment",
+      "anonymize": "Anonymisation",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
@@ -225,6 +195,9 @@
       "physicalProgress": "Physical progress",
       "gantt": "Gantt",
       "updatedAt": "Last modified",
+      "createdAt": "Created",
+      "createdBy": "Created by",
+      "updatedBy": "Last modified by",
       "occurredAt": "Date",
       "author": "Author",
       "auditAction": "Action",
@@ -232,7 +205,15 @@
       "auditObject": "Object",
       "objectHistory": "History of the object",
       "project": "Project",
-      "correlation": "Correlation"
+      "correlation": "Correlation",
+      "takenAt": "Date",
+      "size": "Size",
+      "verification": "Verification",
+      "backupOrigin": "Started",
+      "retention": "Retention",
+      "download": "Download",
+      "restore": "Restoration",
+      "passwordLink": "Setup link"
     },
     "computed": "Computed",
     "entry": {
@@ -287,11 +268,13 @@
       "block": "Block of {rows, plural, one {# row} other {# rows}} by {columns, plural, one {# column} other {# columns}}, from row {row}, column “{column}”: nothing is written before you confirm.",
       "reading": "Reading the report…",
       "accepted": "{count, plural, =0 {No row will be written.} one {# row will be written.} other {# rows will be written.}}",
-      "validRows": "{count, plural, =0 {No row is valid} one {# row is valid} other {# rows are valid}}; nothing will be written while a row is refused.",
       "noneRejected": "No row is refused.",
+      "partial": "Confirmed, the paste writes the valid rows, and not the refused ones; abandoned, it changes no row.",
       "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
+      "rejectedListed": "{count, plural, one {# row is refused, listed below.} other {# rows are refused, listed below.}}",
       "rejectedRow": "Row {row} of the block — {reason}",
-      "blocked": "A paste with a refused row is not applied: the grid stays unchanged. Correct the block in the spreadsheet, then paste it again.",
+      "appliedFrom": "Paste applied from row {row}, column “{column}”: {count, plural, =0 {no row was written} one {# row was written} other {# rows were written}}.",
+      "refusedRows": "Rows the paste refused",
       "apply": "Apply the paste",
       "abandon": "Abandon",
       "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
@@ -335,7 +318,8 @@
     "critical": "Critical path",
     "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
-    "notComputableReason": " — {reason}"
+    "notComputableReason": " — {reason}",
+    "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid."
   },
   "gantt": {
     "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}"
@@ -348,10 +332,19 @@
     "noSummary": "This plan has no summary task: the tree comes down to the project."
   },
   "timelines": {
-    "summary": "The tasks and milestones inscribed to each timeline of the project — read only.",
+    "summary": "The tasks and milestones inscribed to each timeline of the project, inscribed from the planning.",
     "choice": "Timeline shown",
     "none": "This project has no timeline.",
-    "empty": "No task of this revision is inscribed to this timeline."
+    "empty": "No task of this revision is inscribed to this timeline.",
+    "create": "New timeline",
+    "labelField": "Name",
+    "formHint": "A timeline bears a name, which others may share; the tasks and milestones are inscribed to it afterwards, from the planning.",
+    "created": "Timeline “{label}” created.",
+    "delete": "Delete",
+    "deleteNamed": "Delete the timeline “{label}”",
+    "deleteTitle": "Delete the timeline “{label}”?",
+    "deleteHint": "The timeline and its inscriptions will be deleted; the tasks and milestones keep their dates.",
+    "deleted": "Timeline “{label}” deleted."
   },
   "remainingGrid": {
     "finishOverdue": "Started task past its finish",
@@ -395,7 +388,10 @@
         "title": "Provision line",
         "present": "In the main structure: the provision weighs on the estimate.",
         "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",
-        "absent": "Not in the main structure: the risk does not weigh on the estimate."
+        "absent": "Not in the main structure: the risk does not weigh on the estimate.",
+        "category": "Category",
+        "subproject": "Subproject",
+        "outOfSubproject": "Out of any subproject"
       },
       "reviews": {
         "title": "History of the reviews",
@@ -706,6 +702,10 @@
     "notComputable": "Not computable",
     "computedAt": "Computed on <time></time>"
   },
+  "share": {
+    "below": "<{share}",
+    "above": ">{share}"
+  },
   "chart": {
     "values": "Values of the chart",
     "exportPng": "Export as PNG",
@@ -868,7 +868,10 @@
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "namedLines": "Estimate lines the refusal names",
+    "namedProjects": "Projects named by the refusal",
+    "leftRefused": "{count, plural, one {A change no longer shown was refused: it is not saved.} other {# changes no longer shown were refused: they are not saved.}}"
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data."
@@ -916,6 +919,7 @@
   "projectFacts": {
     "label": "The project",
     "settings": "Project settings",
+    "projectLabel": "Label",
     "code": "Code",
     "state": "State",
     "orderReceivedOn": "Order received on",
@@ -924,6 +928,19 @@
     "inflationRate": "Annual inflation rate",
     "winProbability": "Probability of winning",
     "revisions": "Revisions"
+  },
+  "projectForm": {
+    "create": "Create a project",
+    "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
+    "modifyTitle": "Modify “{name}”",
+    "modifyHint": "The inflation rate affects no marked revision.",
+    "label": "Label",
+    "code": "Project code",
+    "description": "Description",
+    "orderReceivedOn": "Order received on",
+    "inflationRate": "Annual inflation rate (%)",
+    "winProbability": "Probability of winning (%)",
+    "saved": "Project settings saved."
   },
   "projectLists": {
     "subprojects": {
@@ -935,7 +952,19 @@
       "actualCostsFilter": "Actual costs",
       "everyActualCosts": "Every subproject",
       "withActualCosts": "With actual costs charged",
-      "withoutActualCosts": "Without actual costs charged"
+      "withoutActualCosts": "Without actual costs charged",
+      "create": "New subproject",
+      "createTitle": "New subproject",
+      "formHint": "A subproject is known by the code the ERP gives it, unique within the project.",
+      "modify": "Modify",
+      "modifyNamed": "Modify “{code}”",
+      "delete": "Delete",
+      "deleteNamed": "Delete “{code}”",
+      "deleteTitle": "Delete the subproject “{code}”?",
+      "deleteHint": "The subproject “{code}”, {label}, will be deleted. One charged with actual costs, or cited by a marked revision, cannot be.",
+      "deleted": "“{code}” deleted.",
+      "unavailable": "{command}: unavailable. {unmet}",
+      "estimateLines": "See in the estimate the lines of the main structure that bear “{code}”"
     },
     "contributors": {
       "title": "Contributors",
@@ -946,17 +975,46 @@
       "accountFilter": "Account state",
       "everyAccount": "Every account",
       "activeAccounts": "Active accounts",
-      "inactiveAccounts": "Deactivated accounts"
+      "inactiveAccounts": "Deactivated accounts",
+      "modify": "Modify the contributors",
+      "formHint": "Each contributor is a project manager or a contributor; a project keeps at least one project manager. Nothing is written until the list is saved.",
+      "draft": "Contributors to save",
+      "kindOf": "Capacity of {name}",
+      "withdraw": "Withdraw {name}",
+      "refusedFor": "{name}: {problem}",
+      "proposals": "Proposed contributors",
+      "proposedFrom": "{node}: {count, plural, one {role} other {roles}} {roles}",
+      "inscribe": "Inscribe {name}",
+      "suggested": "{count, plural, one {Proposed from the roles of the estimate, to be confirmed:} other {Proposed from the roles of the estimate, to be confirmed:}} {names}.",
+      "saved": "List of the contributors saved."
     },
     "workBreakdown": {
       "title": "Work breakdown",
       "none": "This project has no order item.",
-      "count": "{count, plural, =0 {No order item} one {# order item} other {# order items}}",
       "kindFilter": "Filter by kind",
       "everyKind": "Every kind",
       "partial": "The order items and work packages show only what the search and the filter retain.",
       "partialSearch": "The order items and work packages show only what the search retains.",
-      "partialKinds": "The order items and work packages show only what the filter by kind retains."
+      "partialKinds": "The order items and work packages show only what the filter by kind retains.",
+      "retained": "{kind, select, order_item {{count, plural, one {# order item} other {# order items}}} work_package {{count, plural, one {# work package} other {# work packages}}} other {{count, plural, one {# deliverable} other {# deliverables}}}}",
+      "noneRetained": "No element retained",
+      "element": "{kind, select, order_item {the order item} work_package {the work package} other {the deliverable}} “{label}”",
+      "createItem": "New order item",
+      "add": "{kind, select, order_item {Add a work package} other {Add a deliverable}}",
+      "addUnder": "{kind, select, order_item {Add a work package to the order item} other {Add a deliverable to the work package}} “{label}”",
+      "rename": "Rename",
+      "renameNamed": "Rename {element}",
+      "delete": "Delete",
+      "deleteNamed": "Delete {element}",
+      "addTitle": "{kind, select, order_item {New work package of the order item “{label}”} work_package {New deliverable of the work package “{label}”} other {New order item}}",
+      "labelField": "Label",
+      "formHint": "The work breakdown is saved whole, from its last reading whole; each order item, work package and deliverable bears a label.",
+      "deleteTitle": "Delete {element}?",
+      "deleteHint": "{kind, select, order_item {The order item, its work packages and their deliverables will be deleted. The tasks of the revision in progress that bear the order item or one of its work packages remain and lose their attachment; the marked revisions keep it.} work_package {The work package and its deliverables will be deleted. The tasks of the revision in progress that bear the work package remain and lose their attachment; the marked revisions keep it.} other {The deliverable will be deleted.}}",
+      "added": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}” added.",
+      "renamed": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} renamed “{label}”.",
+      "deleted": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}” deleted.",
+      "refusedFor": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}”: {problem}"
     },
     "transitions": {
       "title": "History of states",
@@ -1031,6 +1089,15 @@
     "cancel": "Cancel",
     "done": "The project has gone to the state “{state}”."
   },
+  "nextState": {
+    "title": "Next state",
+    "none": "No fact leads the project to another state any more: only the exits of the lifecycle remain.",
+    "closed": "The project is closed: no state follows it.",
+    "state": "State ahead",
+    "trigger": "Trigger",
+    "conditions": "Remaining conditions",
+    "noCondition": "None"
+  },
   "notFound": {
     "title": "Not found",
     "explanation": "This address leads to nothing you can consult.",
@@ -1045,12 +1112,26 @@
       "title": "Session required",
       "explanation": "The screen needs an open session: sign in, and you will come back to it."
     },
+    "revoked": {
+      "title": "Session closed",
+      "explanation": "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles: sign in again with your credentials, and you will come back to the screen."
+    },
+    "deactivated": {
+      "title": "Account deactivated",
+      "explanation": "This account is deactivated: the screen is not available. Contact an administrator."
+    },
+    "notAdmitted": {
+      "title": "Account not admitted",
+      "explanation": "Waterfall does not admit this account: the screen cannot be shown. Contact an administrator."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."
     },
+    "signInUnreachable": "The service does not answer: the sign-in could not be made. Try again in a moment.",
     "reference": "Reference: {reference}",
-    "retry": "Try again"
+    "retry": "Try again",
+    "signOut": "Sign out"
   },
   "loading": {
     "label": "Loading the screen"
@@ -1075,7 +1156,8 @@
       "unavailable": "Reactivating “{name}” is unavailable. {unmet}",
       "deactivate": "Deactivate “{name}”",
       "deactivateShort": "Deactivate",
-      "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}"
+      "deactivationUnavailable": "Deactivating “{name}” is unavailable. {unmet}",
+      "designationUnavailable": "Designating “{name}” by default is unavailable. {unmet}"
     },
     "inactive": {
       "show": "Show the deactivated ones too",
@@ -1100,10 +1182,11 @@
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "takenBy": "Already held by “{name}”.",
-      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} other {Already held by another object.}}",
+      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} resource_role {Already held by another role.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
+      "writing": "Saving in progress…",
       "cancel": "Cancel",
       "created": "“{name}” {kind, select, other {created}}.",
       "saved": "“{name}” {kind, select, other {saved}}.",
@@ -1126,15 +1209,15 @@
     },
     "orgNodeForm": {
       "create": "New organisation node",
-      "createHint": "The code, unique, and the label are required; without a parent, the node is a root. An active node only takes place under an active node.",
-      "modifyHint": "The code, unique, and the label are required; without a parent, the node is a root. Moved, it takes its descendants along; active, it only takes place under an active node.",
+      "createHint": "The code, unique, and the label are required; without a parent, the node is a root. A node only takes place under an active node.",
+      "modifyHint": "The code, unique, and the label are required; without a parent, the node is a root. Moved, it takes its descendants along, and only takes place under an active node; its deactivated parent may be kept.",
       "parent": "Parent",
       "root": "None — root"
     },
     "roleForm": {
       "create": "New resource role",
-      "createHint": "The label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
-      "modifyHint": "The label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
+      "createHint": "The code, unique, the label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
+      "modifyHint": "The code, unique, the label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
     },
     "calendarForm": {
       "create": "New calendar",
@@ -1185,6 +1268,7 @@
     "resourceRoles": {
       "title": "Resource roles",
       "none": "No resource role.",
+      "codeFilter": "Role code",
       "orgNodeFilter": "Organisation node",
       "everyNode": "Every node",
       "costCategoryFilter": "Cost category",
@@ -1236,6 +1320,20 @@
       "title": "Pace of the reviews",
       "maxWeeks": "Longest delay between two marked revisions of a project in progress: {weeks, plural, one {# week} other {# weeks}}."
     },
+    "riskForm": {
+      "modify": "Modify the risk matrix",
+      "hint": "The three bounds of each axis, strictly rising, and the zone of each of the sixteen cells; the matrix holds for every project.",
+      "probability": "Bounds of probability (%)",
+      "severity": "Bounds of severity (% of the reference budget)",
+      "saved": "Risk matrix saved."
+    },
+    "indicatorForm": {
+      "modify": "Modify the thresholds and the delay",
+      "hint": "Each threshold is a value of the index between 0 and 1, both excluded, the alert threshold below the watch threshold; the delay counts whole weeks.",
+      "weeks": "Longest delay between two marked revisions (weeks)",
+      "weeksInvalid": "The delay is a whole number of weeks.",
+      "saved": "Thresholds and delay saved."
+    },
     "boundsOf": "Bounds of “{list}”",
     "boundsRefused": "The list is not read: the server refuses the bounds asked."
   },
@@ -1247,7 +1345,6 @@
       "beyond": "This page is beyond the end of the list."
     },
     "commands": {
-      "later": "{command}: available with EP-03.",
       "unmet": "{command}: {condition}"
     },
     "users": {
@@ -1259,21 +1356,62 @@
       "originFilter": "Filter by origin",
       "everyOrigin": "Every origin",
       "create": "Create a local account",
-      "modify": "Modify",
-      "deactivate": "Deactivate",
-      "reactivate": "Reactivate",
-      "assignRoles": "Assign the roles",
-      "named": "{firstName} {lastName}",
-      "modifyUser": "Modify “{name}”",
-      "deactivateUser": "Deactivate “{name}”",
-      "reactivateUser": "Reactivate “{name}”",
-      "assignRolesUser": "Assign the roles of “{name}”",
+      "anonymize": "Anonymise",
+      "anonymizeUser": "Anonymise “{name}”",
       "roleFilter": "Filter by role",
       "everyRole": "Every role",
       "stateFilter": "Account state",
       "everyState": "Every state",
       "activeAccounts": "Active accounts",
-      "inactiveAccounts": "Deactivated accounts"
+      "inactiveAccounts": "Deactivated accounts",
+      "told": "Commands of the accounts",
+      "created": "Account “{name}” created.",
+      "creationHint": "The account is born with no way to sign in: its holder gets one through the link the identity provider mails them, or, when no invitation went, the link the table hands over. Its roles are then attributed in the table.",
+      "deactivated": "“{name}” deactivated.",
+      "reactivated": "“{name}” reactivated.",
+      "activeUser": "Account of “{name}” active",
+      "rolesOf": "Roles of “{name}”",
+      "rolesAttributed": "Roles of “{name}” attributed.",
+      "link": "Link",
+      "password_link": {
+        "command": "Link to set the password of “{name}”",
+        "title": "Link to set the password of “{name}”",
+        "hint": "To hand over to its holder by another channel: they set their password on the page of the identity provider. The link serves once and will not be shown again; asking another makes this one void."
+      },
+      "linkExpiry": "Valid until <expiry></expiry>.",
+      "copyLink": "Copy the link",
+      "closeLink": "Close",
+      "linkCopied": "Link copied.",
+      "linkSelected": "Link selected: copy it with the keyboard.",
+      "renamed": "“{name}” renamed.",
+      "createdUninvited": "Account “{name}” created; no invitation went: hand over its setup link.",
+      "uninvited": "The account “{name}” is created, but no invitation went to it: hand over its setup link to its holder, by another channel.",
+      "giveLink": "Hand over the link",
+      "anonymized": "Account anonymised.",
+      "anonymizationTitle": "Anonymise “{name}”?",
+      "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, and the account is never reactivated.",
+      "keep": "Keep"
+    },
+    "identitySync": {
+      "title": "Reading of the identity provider accounts",
+      "start": "Read the accounts",
+      "none": "No reading of the accounts has ended yet.",
+      "finished": "Last reading ended on <time></time>.",
+      "created": "{count, plural, =0 {No account created} one {# account created, without a role} other {# accounts created, without a role}}",
+      "updated": "{count, plural, =0 {No account updated} one {# account updated} other {# accounts updated}}",
+      "deactivated": "{count, plural, =0 {No account deactivated} one {# account deactivated} other {# accounts deactivated}}",
+      "restored": "{count, plural, =0 {No identity restored in the provider} one {# local account identity restored in the provider} other {# local account identities restored in the provider}}",
+      "removed": "{count, plural, =0 {No local account removed from the provider} one {# local account removed from the provider} other {# local accounts removed from the provider}}",
+      "skipped": "{count, plural, =0 {Nothing reported} one {# reported, left as it was} other {# reported, left as they were}}",
+      "details": "Details of the last reading",
+      "skippedTitle": "Left as they were",
+      "noneSkipped": "Nothing was left as it was.",
+      "removedTitle": "Local accounts removed from the identity provider",
+      "noneRemoved": "No local account removed.",
+      "unnamed": "No name at the provider",
+      "address": "Address: {email}",
+      "subject": "Identifier at the provider: {subject}",
+      "carrier": "Address held by the account <name></name>"
     },
     "accessRoles": {
       "title": "Access roles",
@@ -1282,10 +1420,16 @@
       "none": "No access role.",
       "count": "{count, plural, =0 {No role} one {# role} other {# roles}}",
       "create": "Create a role",
-      "modify": "Modify",
       "delete": "Delete",
-      "modifyRole": "Modify “{name}”",
+      "creation": "Creation of a role",
+      "told": "Commands of the access roles",
+      "newLabel": "New role",
+      "created": "“{name}” created.",
+      "deleted": "“{name}” deleted.",
       "deleteRole": "Delete “{name}”",
+      "deletionTitle": "Delete “{name}”?",
+      "deletionFinal": "Deleting “{name}” is final: nothing restores the role.",
+      "keep": "Keep",
       "heldBy": "Held by {count, plural, one {# account} other {# accounts}}: a role is not deleted while an account holds it.",
       "kindFilter": "Kind",
       "everyKind": "Every kind",
@@ -1293,12 +1437,20 @@
       "composedRoles": "Composed roles",
       "bounds": "Bounds of the access roles"
     },
+    "audit": {
+      "everyAuthor": "Every author",
+      "anyAccount": "An account",
+      "find": "Find an account for “{column}”",
+      "findButton": "Find",
+      "found": "{count, plural, =0 {No account found for “{column}”.} one {# account found, to choose in “{column}”.} other {# accounts found, to choose in “{column}”.}}"
+    },
     "permissions": {
       "title": "Permissions by function",
       "function": "Function",
       "permission": "Permission",
       "held": "Granted",
-      "notHeld": "Not granted"
+      "notHeld": "Not granted",
+      "cell": "“{permission}” for “{role}”"
     },
     "status": {
       "version": "Installed version: {version}",
@@ -1322,7 +1474,7 @@
       "succeeded": "Succeeded",
       "failed": "Failed",
       "never": "Never run",
-      "directorySync": "Reading of the identity provider accounts",
+      "identitySync": "Reading of the identity provider accounts",
       "backup": "Backup",
       "backupCopy": "External copy of the backup",
       "restoreTest": "Restoration test",
@@ -1334,20 +1486,61 @@
     },
     "backups": {
       "title": "Backups",
-      "takenAt": "Date",
-      "size": "Size",
-      "verification": "Verification",
-      "origin": "Started",
-      "retention": "Retention",
       "retained": "Marked to keep",
       "none": "No backup.",
-      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}"
+      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}",
+      "periodRefused": "The list is not read: the server refuses the period asked.",
+      "start": "Back up now",
+      "started": "Backup started: follow its progress in the background tasks.",
+      "retain": "Keep",
+      "retainNamed": "Keep the backup of {date}",
+      "release": "Stop keeping",
+      "releaseNamed": "Stop keeping the backup of {date}",
+      "retainedSaid": "The backup of {date} is marked to keep.",
+      "releasedSaid": "The backup of {date} is no longer marked to keep.",
+      "download": "Download",
+      "downloadNamed": "Download the backup of {date}",
+      "restore": "Restore",
+      "restoreNamed": "Restore the platform from the backup of {date}",
+      "downloadRefused": "A backup could not be downloaded.",
+      "downloadRefusedNamed": "The backup of {date} could not be downloaded.",
+      "unavailable": "{command}: unavailable. {unmet}",
+      "period": "Period of the backups",
+      "originFilter": "Filter by trigger",
+      "everyOrigin": "Every trigger",
+      "verificationFilter": "Filter by verification",
+      "everyVerification": "Every verification",
+      "retentionFilter": "Retention",
+      "everyRetention": "Every backup",
+      "retainedOnes": "Marked to keep",
+      "rotatingOnes": "Subject to rotation",
+      "bounds": "Bounds of the backups",
+      "sizeBytes": "Size (bytes)",
+      "commands": "Commands"
+    },
+    "restore": {
+      "title": "Restore the platform",
+      "warning": "The whole platform will be replaced by the backup of {date}, {verification, select, passed {verified} pending {whose verification is pending} other {whose verification failed}}: everything entered since will be lost, with no way back. Users are signed out while the restoration runs, and it will be recorded in the audit log.",
+      "confirm": "To confirm, type the identifier of the backup",
+      "identifier": "Identifier: <code></code>",
+      "submit": "Restore",
+      "sending": "Sending…",
+      "cancel": "Cancel"
+    },
+    "deposit": {
+      "title": "Restore a backup of another installation",
+      "explanation": "Deposit the archive of a backup downloaded from an installation of the same version or an older one: the whole platform can then be replaced by it.",
+      "file": "Archive of the backup",
+      "send": "Deposit",
+      "sending": "Depositing the archive: part {part} of {count}…",
+      "deposited": "Backup of <time></time> deposited: {name}.",
+      "restore": "Restore this backup"
     },
     "schedule": {
       "title": "Schedule",
       "state": "State",
       "enabled": "On",
-      "disabled": "Off",
+      "disabled": "Suspended",
       "frequency": "Frequency",
       "weekday": "Day",
       "at": "Time",
@@ -1357,6 +1550,35 @@
       "externalCopy": "External copy",
       "externalCopyNone": "None",
       "externalCopyTo": "To {location}, folder {path} — {count, plural, one {# copy kept} other {# copies kept}}",
+      "form": {
+        "modify": "Modify the schedule",
+        "hint": "The schedule is saved whole. The time and the day are in universal time (UTC). The external location keeps at least as many copies as the platform keeps backups.",
+        "at": "Time (UTC)",
+        "atInvalid": "A time, as HH:MM.",
+        "localTime": "That is {time} in the time of this workstation.",
+        "localWeekTime": "That is {day, select, monday {Monday} tuesday {Tuesday} wednesday {Wednesday} thursday {Thursday} friday {Friday} saturday {Saturday} other {Sunday}} {time} in the time of this workstation.",
+        "noWeekday": "None (daily)",
+        "weekdayNote": "For a weekly backup only.",
+        "retained": "Backups kept",
+        "retainedInvalid": "A whole number of backups.",
+        "location": "External copy to",
+        "noCopy": "No copy",
+        "locationChoice": "{name} ({kind})",
+        "undeclared": "{name} (not declared by the installation)",
+        "path": "Folder in the location",
+        "pathNote": "A relative path, with no leading “/” and no “..”.",
+        "copies": "Copies kept",
+        "copiesNote": "At least as many as the backups kept.",
+        "copiesInvalid": "A whole number of copies.",
+        "copying": "State of the copy",
+        "copyOn": "On",
+        "copySuspended": "Suspended",
+        "test": "Test the location",
+        "testing": "Testing…",
+        "tested": "“{location}” tested on {at}{folder, select, root {, at its root} other {, folder {path}}}: the witness file was written then erased.",
+        "testFailed": "“{location}” tested on {at}{folder, select, root {, at its root} other {, folder {path}}}: failed — {failure}.",
+        "saved": "Schedule saved."
+      },
       "externalCopySuspended": "Suspended — to {location}, folder {path}, {count, plural, one {# copy kept} other {# copies kept}}",
       "weekdays": {
         "monday": "Monday",
@@ -1376,6 +1598,17 @@
       "history": "History of “{object}”",
       "correlated": "The entries of the correlation {correlation}",
       "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
+      "details": {
+        "fields": "{count, plural, one {Field changed} other {Fields changed}}: {fields}",
+        "attached": "Origin from now on: {origin}",
+        "permissions": "{count, plural, =0 {No permission} one {Permission: {permissions}} other {Permissions: {permissions}}}",
+        "permissionsGranted": "{count, plural, one {Permission granted} other {Permissions granted}}: {permissions}",
+        "permissionsWithdrawn": "{count, plural, one {Permission withdrawn} other {Permissions withdrawn}}: {permissions}",
+        "renamed": "Formerly “{label}”",
+        "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
+        "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
+        "then": "{first}; {second}"
+      },
       "filters": {
         "label": "Filters of the log",
         "period": "Period",
@@ -1444,7 +1677,7 @@
     "CONFIRMATION_REQUIRED": "This operation requires explicit confirmation.",
     "SESSION_REQUIRED": "You need to sign in.",
     "SESSION_EXPIRED": "Your session has expired; please sign in again.",
-    "INVALID_CREDENTIALS": "Incorrect email address or password.",
+    "SESSION_REVOKED": "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles; sign in again with your credentials.",
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
     "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
@@ -1459,13 +1692,9 @@
     "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
     "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
     "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
-    "HAS_ACTUAL_COSTS": "Actual costs are booked against it.",
     "TASK_ALREADY_STARTED": "The task has already started.",
     "TASK_COMPLETED": "The task is completed.",
-    "WIN_PROBABILITY_FROZEN": "The win probability can no longer be changed once the project is in progress.",
     "REFERENCE_INCOMPLETE": "The minimum reference data is incomplete.",
-    "PASSWORD_RESET_TOKEN_INVALID": "This reset link is no longer valid.",
-    "ACCOUNT_LOCKED": "Account locked after too many failed attempts; try again in fifteen minutes.",
     "STALE_LOCK_VERSION": "Someone changed this data in the meantime; reload it to see its latest version.",
     "FILE_TOO_LARGE": "The file is larger than allowed.",
     "VALIDATION_FAILED": "The data entered is not valid.",
@@ -1479,7 +1708,7 @@
     "PROJECT_CODE_REQUIRED": "The project code must be filled in.",
     "PASTE_TOO_WIDE": "The pasted data has more columns than the grid.",
     "FILE_FORMAT_UNREADABLE": "The file format cannot be read.",
-    "TASK_WITHOUT_WORKING_HOURS": "The calendars of the roles of this task never overlap: it would have no working hour in the week.",
+    "TASK_WITHOUT_WORKING_HOURS": "A task would have no working hour left in the week.",
     "VALUE_REQUIRED": "A value is required.",
     "VALUE_TOO_LONG": "The value is too long.",
     "VALUE_OUT_OF_RANGE": "The value is outside the allowed range.",
@@ -1487,32 +1716,66 @@
     "DATE_INVALID": "This is not a valid date.",
     "UNKNOWN_COST_CATEGORY": "Unknown cost category.",
     "UNKNOWN_COST_TYPE": "Unknown cost type.",
+    "UNKNOWN_CALENDAR": "Unknown calendar.",
     "UNKNOWN_RESOURCE_ROLE": "Unknown resource role.",
     "UNKNOWN_SUBPROJECT": "Unknown subproject.",
+    "UNKNOWN_USER": "Unknown account.",
+    "USER_INACTIVE": "This account is deactivated.",
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
+    "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
+    "PROVISION_CATEGORY_REQUIRED": "The provision of a risk takes a category of the kind provision for risks.",
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
     "PATH_INVALID": "Invalid path: it must be relative, without “..”.",
-    "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
+    "BOUNDS_NOT_ORDERED": "The bounds must be strictly increasing.",
+    "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
+    "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "The threshold must lie between 0 and 1, both excluded.",
+    "UNKNOWN_WORK_BREAKDOWN_ITEM": "This item is not part of the work breakdown read: unknown, of another kind, or deleted.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears an order item or a work package.",
+    "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
+    "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
+    "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
-    "INTERNAL_ERROR": "Unexpected service error."
+    "INTERNAL_ERROR": "Unexpected service error.",
+    "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
+    "ACCOUNT_NOT_ADMITTED": "This account is not admitted in Waterfall; contact an administrator.",
+    "EMAIL_MISSING": "The identity provider holds no address for this person.",
+    "UNKNOWN_ACCESS_ROLE": "This access role does not exist.",
+    "UNKNOWN_ORG_NODE": "This organisation node does not exist.",
+    "FIELD_READ_ONLY": "This field comes from the identity provider: it cannot be changed in Waterfall.",
+    "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
+    "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",
     "missing_condition": "Unmet condition: {condition}.",
     "missing_prerequisites": "Still missing: {prerequisites}.",
+    "estimate_lines": "Estimate lines of the current revision that bear the subproject: {lines}. A provision line changes subproject through its risk.",
+    "estimate_lines_listed": "{count, number} estimate lines of the current revision bear the subproject, listed below. A provision line changes subproject through its risk.",
+    "estimateLine": "line {row} “{label}”",
+    "resource_roles": "Roles to attach first {of, select, cost_type {to a labour category of another nature} other {to another labour category}}: {roles}.",
+    "resource_role_ids": "{count, plural, one {Role whose calendar has no hour: {roles}.} other {Roles whose calendars never overlap: {roles}.}}",
+    "resource_role_ids_unnamed": "{count, plural, one {The calendar of its role has no hour.} other {The calendars of its roles never overlap.}}",
+    "resource_role_ids_none": "Tasks without a labour line, on the default calendar.",
+    "projects": "Projects involved: {projects}.",
+    "projects_listed": "{count, number} projects involved, listed below.",
+    "codedName": "{label} ({code})",
     "projectState": "State of the project: {state}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "minimum": "Minimum value: {minimum}.",
+    "maximum": "Maximum value: {maximum}.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
-    "expected_version": "Expected version: {version}."
+    "expected_version": "Expected version: {version}.",
+    "order_item_task": "Task of the order item: {task}.",
+    "work_package_tasks": "{count, plural, one {Task of the work package at issue} other {Tasks of the work packages at issue}}: {tasks}.",
+    "taskName": "“{label}”"
   },
   "permissions": {
     "users": {
@@ -1524,8 +1787,7 @@
       "write": "Edit access roles"
     },
     "system_status": {
-      "read": "View the system status",
-      "write": "Edit the system status"
+      "read": "View the system status"
     },
     "backups": {
       "read": "View backups",
@@ -1535,32 +1797,25 @@
       "read": "View the audit log"
     },
     "portfolio_projects": {
-      "read": "View the project portfolio",
-      "write": "Edit the project portfolio"
+      "read": "View the project portfolio"
     },
     "portfolio_workload": {
-      "read": "View the aggregated workload",
-      "write": "Edit the aggregated workload"
+      "read": "View the aggregated workload"
     },
     "portfolio_performance": {
-      "read": "View the portfolio performance",
-      "write": "Edit the portfolio performance"
+      "read": "View the portfolio performance"
     },
     "portfolio_cost_structure": {
-      "read": "View the portfolio cost structure",
-      "write": "Edit the portfolio cost structure"
+      "read": "View the portfolio cost structure"
     },
     "portfolio_risks": {
-      "read": "View the portfolio risks",
-      "write": "Edit the portfolio risks"
+      "read": "View the portfolio risks"
     },
     "portfolio_cost_curve": {
-      "read": "View the portfolio S-curve",
-      "write": "Edit the portfolio S-curve"
+      "read": "View the portfolio S-curve"
     },
     "portfolio_pilot_health": {
-      "read": "View the project control health",
-      "write": "Edit the project control health"
+      "read": "View the project control health"
     },
     "cost_settings": {
       "read": "View cost settings",
@@ -1632,7 +1887,7 @@
       "database": "Database",
       "cache": "Cache",
       "object_storage": "File storage",
-      "directory": "Directory",
+      "identity_provider": "Identity provider",
       "metrics": "Metrics"
     },
     "AlertZone": {
@@ -1646,7 +1901,7 @@
         "task_queue_stalled": "Task queue stalled",
         "scheduled_backup_failed": "Scheduled backup failed",
         "scheduled_backup_copy_failed": "External copy of a scheduled backup failed",
-        "directory_sync_failed": "Directory synchronisation failed",
+        "identity_sync_failed": "Reading of the identity provider accounts failed",
         "storage_nearly_full": "Storage nearly full",
         "error_rate_abnormal": "Abnormal error rate"
       }
@@ -1665,7 +1920,7 @@
         "export": "Export",
         "backup": "Backup",
         "restore": "Restore",
-        "directory_sync": "Directory synchronisation"
+        "identity_sync": "Reading of the identity provider accounts"
       }
     },
     "BackgroundTaskStatus": {
@@ -1673,11 +1928,6 @@
       "running": "Running",
       "succeeded": "Succeeded",
       "failed": "Failed"
-    },
-    "AuthProviderKind": {
-      "local": "Local account",
-      "ldap": "LDAP directory",
-      "oidc": "Identity provider (OIDC)"
     },
     "UserOrigin": {
       "local": "Created in Waterfall",
@@ -1688,6 +1938,12 @@
       "kind": {
         "user": "User",
         "platform": "Automatic process"
+      }
+    },
+    "IdentitySyncSkipped": {
+      "kind": {
+        "account": "Waterfall account",
+        "person": "Identity provider person"
       }
     },
     "SortOrder": {
@@ -1715,18 +1971,24 @@
       }
     },
     "Backup": {
-      "verification": {
-        "pending": "Verification pending",
-        "passed": "Verified",
-        "failed": "Verification failed"
-      },
       "scope": {
         "database": "Database"
-      },
-      "origin": {
-        "manual": "Manual",
-        "scheduled": "Scheduled"
       }
+    },
+    "BackupVerification": {
+      "pending": "Verification pending",
+      "passed": "Verified",
+      "failed": "Verification failed"
+    },
+    "BackupOrigin": {
+      "manual": "Manual",
+      "scheduled": "Scheduled"
+    },
+    "BackupCommand": {
+      "retain": "Keep",
+      "release": "Stop keeping",
+      "download": "Download",
+      "restore": "Restore the platform"
     },
     "BackupSchedule": {
       "frequency": {
@@ -1759,6 +2021,7 @@
       "user_update": "Account edited",
       "user_deactivate": "Account deactivated",
       "user_reactivate": "Account reactivated",
+      "user_anonymize": "Account anonymised",
       "password_link_create": "Password link generated",
       "access_role_create": "Role created",
       "access_role_update": "Role edited",
@@ -1783,17 +2046,23 @@
       "backup": "Backup",
       "external_backup_upload": "Uploaded backup"
     },
+    "AuditUserField": {
+      "last_name": "Last name",
+      "first_name": "First name",
+      "email": "Email address"
+    },
     "ReferenceReadiness": {
       "missing": {
         "default_calendar_with_hours": "a default calendar with working hours",
-        "active_cost_category": "an active cost category",
+        "active_cost_category": "an active labour category",
+        "active_provision_category": "an active category of provision for risks",
         "active_resource_role": "an active resource role"
       }
     },
     "CostTypeKind": {
       "labor": "Labour",
       "non_labor": "Non-labour",
-      "provision": "Provision"
+      "provision": "Provision for risks"
     },
     "StateEnumeration": {
       "ProjectState": "State of the project"
@@ -1808,12 +2077,16 @@
     },
     "ProjectCommand": {
       "update": "Edit the project",
+      "update_win_probability": "Edit the win probability",
+      "update_work_breakdown": "Enter the work breakdown",
       "manage_contributors": "Manage contributors",
+      "manage_timelines": "Manage timelines",
       "create_revision": "Create a revision",
       "complete": "Complete the project",
       "lose": "Declare the project lost",
       "abandon": "Abandon the project",
       "edit_risks": "Edit the risks",
+      "declare_risk": "Declare a risk",
       "declare_risk_occurrence": "Declare that a risk has occurred",
       "import_actual_costs": "Import actual costs",
       "exclude_cost_lines": "Exclude cost lines",
@@ -1840,18 +2113,36 @@
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
       "may_create_revision": "holding the permission to create a revision",
+      "restored_subproject_exists": "subproject the undo would restore still existing",
       "risk_not_cited": "risk cited by no marked revision",
       "risk_not_occurred": "risk not occurred",
       "risk_identified": "risk identified",
+      "active_provision_category": "an active category of provision for risks",
       "org_node_parent_active": "parent node active",
       "org_node_active": "organisation node active",
       "calendar_not_default": "calendar other than the default one",
+      "calendar_active": "calendar active",
+      "cost_type_active": "cost type active",
       "cost_type_unused": "no category of the nature employed",
+      "cost_type_unrated": "no category of the nature bearing an hourly rate",
+      "cost_type_without_role": "no category of the nature attached to a resource role",
       "cost_category_unused": "category employed by no line",
       "cost_category_unrated": "category without hourly rates",
-      "cost_type_not_last_provision": "another active provision nature holding an active category",
-      "cost_category_not_last_provision": "another active category under an active provision nature",
-      "last_administrator": "another active account holding the administration permissions"
+      "cost_category_without_role": "category attached to no resource role",
+      "last_administrator": "another active account holding the administration permissions",
+      "backup_verified": "backup verified",
+      "no_backup_running": "no backup running",
+      "no_restore_running": "no restoration running",
+      "project_before_in_progress": "project not yet in progress",
+      "subproject_not_cited": "subproject cited by no marked revision",
+      "subproject_without_actual_costs": "no actual cost booked against the subproject",
+      "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
+      "main_structure_without_tasks": "main structure without any task",
+      "import_file_accepted": "file accepted by the report",
+      "is_local_account": "account created in Waterfall",
+      "is_active_account": "active account",
+      "is_deactivated_account": "deactivated account",
+      "is_not_anonymized": "account not anonymised"
     },
     "ProjectExit": {
       "to_state": {
@@ -1859,6 +2150,14 @@
         "lost": "Lost",
         "abandoned": "Abandoned"
       }
+    },
+    "LifecycleTrigger": {
+      "first_revision_created": "First revision created",
+      "reference_designated_and_code_set": "Reference revision designated and project code filled in"
+    },
+    "SubprojectCommand": {
+      "update": "Edit the subproject",
+      "delete": "Delete the subproject"
     },
     "ContributorKind": {
       "project_manager": "Project manager",
@@ -1875,9 +2174,11 @@
     },
     "RevisionCommand": {
       "edit_planning": "Edit the schedule",
+      "generate_skeleton": "Generate the schedule skeleton",
       "edit_estimate": "Edit the estimate",
       "edit_remaining": "Update the estimate to complete",
       "edit_risks": "Edit the risks",
+      "declare_risk": "Declare a risk",
       "create_structure": "Create a structure",
       "merge_structure": "Merge a structure",
       "mark": "Mark the revision",
@@ -1985,7 +2286,8 @@
       "estimate_line": {
         "quantity": "Quantity",
         "hours": "Hours",
-        "unit_disbursement": "Unit disbursement"
+        "unit_disbursement": "Unit disbursement",
+        "subproject_id": "Subproject"
       }
     },
     "EditableField": {
@@ -2058,6 +2360,7 @@
         "quantity": "Quantity of the line",
         "hours": "Effort of the line",
         "unit_disbursement": "Unit disbursement of the line",
+        "subproject_id": "Subproject of the line",
         "base_amount": "Amount at the reference year of the line",
         "budgeted_amount": "Budgeted amount of the line",
         "reestimated_amount": "Re-estimated amount of the line",
@@ -2073,7 +2376,7 @@
       "manual_mode": "A task in manual mode bears no float.",
       "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
       "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement.",
-      "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
+      "risk": "A provision line takes from its risk its figures — its severity weighted by its probability — and its subproject.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
       "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",
@@ -2106,7 +2409,8 @@
       "no_actual_or_remaining": "Neither actual cost nor estimate to complete.",
       "no_capacity": "No capacity for this role over the period.",
       "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
-      "hourly_rate_missing": "Hourly rate missing for the reference year."
+      "hourly_rate_missing": "Hourly rate missing for the reference year.",
+      "order_item_without_task": "No task bears this order item."
     },
     "CurveSeries": {
       "series": {
@@ -2140,9 +2444,15 @@
     },
     "RiskCommand": {
       "update": "Edit the risk",
+      "update_provision": "Change the category or the subproject of the provision",
       "review": "Review the risk",
       "declare_occurrence": "Declare the risk occurred",
       "delete": "Delete the risk"
+    },
+    "CalendarCommand": {
+      "deactivate": "Deactivate the calendar",
+      "reactivate": "Reactivate the calendar",
+      "set_default": "Set as default calendar"
     },
     "ReferenceCommand": {
       "deactivate": "Deactivate",
@@ -2161,6 +2471,7 @@
     "UserCommand": {
       "deactivate": "Deactivate the account",
       "reactivate": "Reactivate the account",
+      "anonymize": "Anonymise the account",
       "set_access_roles": "Assign the roles of the account"
     },
     "RiskComputedField": {
@@ -2333,5 +2644,14 @@
       "depth": "Level of the tree",
       "none": "No export is offered to you on this revision."
     }
+  },
+  "maintenance": {
+    "title": "Restoration of the platform under way",
+    "pending": "The restoration is waiting: the platform is about to go under maintenance, and every user will then be signed out until it is done.",
+    "maintenance": "The platform is under maintenance while it is restored: every user has been signed out, and can sign in again once the restoration is done.",
+    "signedOutTitle": "Session ended",
+    "signedOut": "Your session ended before the outcome of the restoration was known. Sign in again to learn it.",
+    "doneTitle": "Restoration done",
+    "done": "The platform has been restored. Sign in again to go on."
   }
 }

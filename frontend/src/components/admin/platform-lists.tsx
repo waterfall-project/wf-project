@@ -7,17 +7,15 @@
  * provider, the last backup and the last restoration test, each dated with its outcome and the
  * motive of a failure; the alerts under way, each with its zone, by `Signal`, and what it names —
  * the component unavailable, the storage used and free (WF-OBS-0030). The backups
- * (WF-ADM-0150): each with its date, its size, its verification, whether it was taken by hand or
- * on schedule, and whether it is marked to be kept; and their schedule and retention
- * (WF-ADM-0170), its time said in universal time as the contract gives it, unconverted: a time
- * of day has no date to take the offset of a zone with summer time from. Read only: neither a
- * backup nor a restoration is started here — the commands belong to the epic of the operation of
- * the platform.
+ * (WF-ADM-0150): a page of their list on the dense grid, sorted and filtered by the server as the
+ * address asks (WF-IHM-0130, EP-14/L42h) — by period, origin, verification, marking and size —,
+ * with the commands each backup lists (`available_commands`, WF-IHM-0090) — mark it to be kept or
+ * no longer, download it (US-0440), restore the platform from it — and, for a session that may
+ * modify the backups, the command that starts one (EP-02/L43c, `backup-commands.tsx`). Their
+ * schedule, their retention and its form are `backup-schedule.tsx` (EP-14/L43d).
  */
 import {
-  Archive,
   Bell,
-  CalendarClock,
   CircleCheck,
   CircleX,
   DatabaseBackup,
@@ -26,34 +24,51 @@ import {
   Server,
 } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
+import type { Problem } from "@/api/problem";
+import { ChoiceFilter } from "@/components/grid/choice-filter";
+import { refusedBounds, refusedSides } from "@/components/grid/filters";
+import { ListPages } from "@/components/grid/list-pages";
+import { refusedPeriod } from "@/components/grid/period";
+import { PeriodFilter } from "@/components/grid/period-filter";
+import { type GridQuery, OFFSET } from "@/components/grid/query";
+import { RangeFilter } from "@/components/grid/range-filter";
+import type { GridPreferences } from "@/components/grid/settings";
+import { ValuesFilter } from "@/components/grid/values-filter";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
-import { ReferenceSection } from "@/components/reference/section";
+import { Reactivations } from "@/components/reference/reactivation";
+import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import type { ResultRefusal } from "@/components/tasks/result-refusal";
 import { formatBytes } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 import type { ListPage } from "@/navigation/pages";
+
+import {
+  type Backup,
+  BACKUP_ORIGINS,
+  BACKUP_VERIFICATIONS,
+  type BackupFilters,
+  type BackupSort,
+  BACKUPS_LIST,
+  BACKUPS_READS,
+  IS_RETAINED,
+  narrows,
+  ORIGINS,
+  SIZE_BYTES,
+  VERIFICATIONS,
+} from "./backup-address";
+import { BackupCommands, BackupHead, DownloadRefusal, RestoreOpened } from "./backup-commands";
+import { BackupGrid } from "./backup-grid";
 
 type SystemStatus = components["schemas"]["SystemStatus"];
 type ComponentHealth = components["schemas"]["ComponentHealth"];
 type OperationOutcome = components["schemas"]["OperationOutcome"];
 type Alert = components["schemas"]["Alert"];
-type Backup = components["schemas"]["Backup"];
-type BackupSchedule = components["schemas"]["BackupSchedule"];
-
-/** The days of a weekly schedule, from 1, Monday, as the contract numbers them (ISO 8601). */
-const WEEKDAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-] as const;
 
 /** Whether something holds — a component available, an operation succeeded —, by a mark and a word. */
 function Outcome({
@@ -176,7 +191,7 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
         label={t("operations")}
         columns={[t("operation"), t("at"), t("outcome"), t("motive")]}
       >
-        <OperationRow name={t("directorySync")} outcome={status.last_directory_sync} />
+        <OperationRow name={t("identitySync")} outcome={status.last_identity_sync} />
         <OperationRow name={t("backup")} outcome={status.last_backup} />
         <OperationRow name={t("backupCopy")} outcome={status.last_backup_copy} />
         <OperationRow name={t("restoreTest")} outcome={status.last_restore_test} />
@@ -264,106 +279,157 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
   );
 }
 
+/** A page of the backups, as the contract gives it; or the envelope of the filters the API refused. */
+export type BackupsRead =
+  | { readonly kind: "read"; readonly items: readonly Backup[]; readonly page: ListPage }
+  | { readonly kind: "refused"; readonly problem: Problem };
+
 /**
- * The backups of a page of the list, each dated, sized and verified; or that there is none — only
- * when the list holds none at all: a page asked beyond its end shows no table, and its pages say
- * where it stands (`ListPages`).
+ * The filters of the backups (WF-IHM-0130): the period they were taken in, two local days drawn as
+ * instants; their origins and their verifications, a button for each value of the contract; their
+ * marking, one choice; the bounds of their size in bytes. Each only changes the address, back to the
+ * first page. A bound the API refused (422) — an end before the start, a size at most below the
+ * least — is said at its field.
  */
-export function BackupList({
-  backups,
-  page,
+function BackupFilterBar({
+  filters,
+  refused,
 }: {
-  readonly backups: readonly Backup[];
-  readonly page: ListPage;
+  readonly filters: BackupFilters;
+  /** The envelope of the filters the API refused; none when it read the list. */
+  readonly refused: Problem | undefined;
 }) {
-  const t = useTranslations("admin.backups");
-  const enums = useTranslations("enums.Backup");
-  const locale = useLocale();
+  const t = useTranslations();
+  const origins = useTranslations("enums.BackupOrigin");
+  const verifications = useTranslations("enums.BackupVerification");
+  const fields = refused?.fields ?? [];
   return (
-    <ReferenceSection
-      title={t("title")}
-      icon={DatabaseBackup}
-      empty={page.total === 0 ? t("none") : undefined}
-    >
-      {backups.length === 0 ? null : (
-        <ListTable
-          label={t("title")}
-          columns={[t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")]}
-        >
-          {backups.map((backup) => (
-            <TableRow key={backup.backup_id}>
-              <TableCell className={CELL}>
-                <LocalTime value={backup.taken_at} />
-              </TableCell>
-              <TableCell className={`${CELL} text-right tabular-nums`}>
-                {formatBytes(backup.size_bytes, locale)}
-              </TableCell>
-              <TableCell className={CELL}>{enums(`verification.${backup.verification}`)}</TableCell>
-              <TableCell className={CELL}>
-                {backup.origin === undefined ? null : enums(`origin.${backup.origin}`)}
-              </TableCell>
-              <TableCell className={CELL}>
-                {backup.is_retained ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Archive aria-hidden="true" className={ICON} />
-                    {t("retained")}
-                  </span>
-                ) : null}
-              </TableCell>
-            </TableRow>
-          ))}
-        </ListTable>
-      )}
-    </ReferenceSection>
+    <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+      <PeriodFilter
+        label={t("admin.backups.period")}
+        kind="day"
+        period={filters.period}
+        refused={refusedPeriod(fields)}
+        page={OFFSET}
+      />
+      <ValuesFilter
+        name={ORIGINS}
+        label={t("admin.backups.originFilter")}
+        every={t("admin.backups.everyOrigin")}
+        values={BACKUP_ORIGINS.map((origin) => ({ value: origin, text: origins(origin) }))}
+        chosen={filters.origins}
+        page={OFFSET}
+      />
+      <ValuesFilter
+        name={VERIFICATIONS}
+        label={t("admin.backups.verificationFilter")}
+        every={t("admin.backups.everyVerification")}
+        values={BACKUP_VERIFICATIONS.map((outcome) => ({
+          value: outcome,
+          text: verifications(outcome),
+        }))}
+        chosen={filters.verifications}
+        page={OFFSET}
+      />
+      <ChoiceFilter
+        name={IS_RETAINED}
+        label={t("admin.backups.retentionFilter")}
+        every={t("admin.backups.everyRetention")}
+        choices={[
+          { value: "true", text: t("admin.backups.retainedOnes") },
+          { value: "false", text: t("admin.backups.rotatingOnes") },
+        ]}
+        chosen={filters.retained === undefined ? undefined : String(filters.retained)}
+        page={OFFSET}
+      />
+      <RangeFilter
+        label={t("admin.backups.bounds")}
+        kind="bytes"
+        columns={[
+          {
+            column: SIZE_BYTES,
+            label: t("admin.backups.sizeBytes"),
+            bounds: filters.size,
+            refused: refusedSides(refusedBounds(fields), SIZE_BYTES),
+          },
+        ]}
+        page={OFFSET}
+      />
+    </div>
   );
 }
 
 /**
- * The schedule of the backups — off, or how often, on which day, at what time —, their retention,
- * and the copy of each scheduled backup to an external location (WF-ADM-0170): none, or the
- * location the installation declares, the folder in it and the copies kept there, suspended or
- * not. Read only: the form that sets them comes with the commands of the backups (#519).
+ * The backups of a page of the list, on the dense grid (`BackupGrid`), filtered and sorted as the
+ * address asks, or that there is none — only when the list holds none at all and nothing narrows
+ * it: a page asked beyond its end shows no grid, and its pages say where it stands (`ListPages`);
+ * filters the API refused (422) leave the list unread, the bound said at its field, a sentence
+ * standing for the grid — that of the period when the API refused it, that of the bounds otherwise. The head of the list says what the last command did, and offers to start a
+ * backup to who may modify them (`startable`); the refusals, and that of a download the browser came
+ * back with, are told above the list. The commands of each backup are those it lists. The list
+ * keeps its height — the grid no taller than the window —: the deposit comes under it (`BackupsPage`).
  */
-export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSchedule }) {
-  const t = useTranslations("admin.schedule");
-  const frequencies = useTranslations("enums.BackupSchedule.frequency");
-  const weekday =
-    schedule.frequency === "weekly" ? WEEKDAYS[(schedule.weekday ?? 0) - 1] : undefined;
-  const facts: (readonly [string, string])[] = [
-    [t("state"), schedule.is_enabled ? t("enabled") : t("disabled")],
-  ];
-  if (schedule.is_enabled) {
-    if (schedule.frequency !== undefined) {
-      facts.push([t("frequency"), frequencies(schedule.frequency)]);
-    }
-    if (weekday !== undefined) {
-      facts.push([t("weekday"), t(`weekdays.${weekday}`)]);
-    }
-    if (schedule.at_time !== undefined) {
-      facts.push([t("at"), t("universalTime", { time: schedule.at_time })]);
-    }
-  }
-  facts.push([t("retained"), t("count", { count: schedule.retained_count })]);
-  const copy = schedule.external_copy;
-  if (copy === undefined) {
-    facts.push([t("externalCopy"), t("externalCopyNone")]);
+export function BackupList({
+  read,
+  filters,
+  query,
+  preferences,
+  startable,
+  refused,
+}: {
+  readonly read: BackupsRead;
+  readonly filters: BackupFilters;
+  readonly query: GridQuery<BackupSort>;
+  readonly preferences: GridPreferences | undefined;
+  /** Whether the session may start a backup (`backups.write`, `platformOffer`). */
+  readonly startable: boolean;
+  /** The download refused the browser came back with, if any. */
+  readonly refused: { readonly id: string; readonly refusal: ResultRefusal } | undefined;
+}) {
+  const t = useTranslations("admin.backups");
+  const backups = read.kind === "read" ? read.items : [];
+  const listed = backups.some((backup) => backup.available_commands.length > 0);
+  const empty = read.kind === "read" && read.page.total === 0 && !narrows(filters);
+  let body: ReactNode;
+  if (read.kind === "refused" && refusedPeriod(read.problem.fields ?? []) !== undefined) {
+    body = <p className="text-sm text-destructive">{t("periodRefused")}</p>;
+  } else if (read.kind === "refused") {
+    body = <BoundsRefused />;
+  } else if (read.items.length === 0) {
+    body = (
+      <p className="text-sm text-muted-foreground">{t("count", { count: read.page.total })}</p>
+    );
   } else {
-    const named = { location: copy.location, path: copy.path, count: copy.retained_count };
-    facts.push([
-      t("externalCopy"),
-      copy.is_enabled ? t("externalCopyTo", named) : t("externalCopySuspended", named),
-    ]);
+    body = (
+      <BackupGrid backups={read.items} page={read.page} query={query} preferences={preferences} />
+    );
   }
   return (
-    <ReferenceSection title={t("title")} icon={CalendarClock}>
-      <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
-        {facts.map(([term, value]) => (
-          <div key={term} className="contents">
-            <dt className="text-muted-foreground">{term}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </ReferenceSection>
+    <BackupCommands backups={backups}>
+      <Reactivations reads={BACKUPS_READS}>
+        <DownloadRefusal refused={refused} />
+        <ReferenceSection
+          title={t("title")}
+          icon={DatabaseBackup}
+          empty={empty ? t("none") : undefined}
+          commands={startable || listed ? <BackupHead startable={startable} /> : undefined}
+        >
+          <BackupFilterBar
+            filters={filters}
+            refused={read.kind === "refused" ? read.problem : undefined}
+          />
+          {body}
+          {read.kind === "read" ? (
+            <ListPages
+              list={BACKUPS_LIST}
+              texts="admin.pages"
+              page={read.page}
+              shown={read.items.length}
+            />
+          ) : null}
+        </ReferenceSection>
+        <RestoreOpened />
+      </Reactivations>
+    </BackupCommands>
   );
 }

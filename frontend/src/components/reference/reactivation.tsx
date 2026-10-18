@@ -6,10 +6,11 @@
  * after the row that knows it; the version stale (412), with the offer to reload; a form whose dialog
  * is gone — is told above the list (`Reactivations`), which a cell of a dense grid has no room for;
  * and a command the server lists unavailable — a node under a deactivated parent, a role under a
- * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120) — stays
- * presented, marked `aria-disabled` and described by the conditions it lacks, as the deletion of a
- * role an account holds is (`later-commands.tsx`): a press does not run it, and says in the region of
- * the list the conditions it lacks (`UnavailableActivation`). The commands themselves are those of
+ * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120), the
+ * designation by default of a deactivated calendar (`calendar-default.tsx`) — stays presented, marked
+ * `aria-disabled` and described by the conditions it lacks, as the deletion of a role an account
+ * holds is (`role-commands.tsx`): a press does not run it, and says in the region of the list the
+ * conditions it lacks (`UnavailableActivation`). The commands themselves are those of
  * `commands.tsx`.
  *
  * Every prop is data — the name of the object, its commands —, never a function: a server component
@@ -27,25 +28,27 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useId,
   useMemo,
   useRef,
   useState,
 } from "react";
 
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
-import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { useHeldCommand } from "@/components/commands/held";
+import type { CommandOffer } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
+import { cn } from "@/components/ui/utils";
 import { readingOf } from "@/navigation/pages";
 
-import { CellCommand } from "./cell-command";
+import { UnavailableCellCommand } from "./cell-command";
 
 /** The outcome of a reactivation, and the reading of the list it was asked from. */
 interface Reported {
   readonly outcome: Outcome<unknown>;
-  /** What the list read when the command was pressed (`readingOf`). */
-  readonly reading: string;
+  /** The reading of the list the command was pressed on (`ListReport.generation`). */
+  readonly generation: number;
   /** The names of the objects the refusal may be about. */
   readonly names: ObjectNames;
   /**
@@ -53,21 +56,37 @@ interface Reported {
    * them replaces rather than repeats; none for a creation, which names no object yet.
    */
   readonly target?: string | undefined;
+  /**
+   * The control that asked the write, which takes the focus back once its refusal is dismissed —
+   * a checkbox of the matrix of the permissions —; none, the active cell of the grid, or the list.
+   */
+  readonly back?: HTMLElement | null | undefined;
 }
 
 /** A command that changes the state of an object of the reference data. */
 type ActivationCommand = "deactivate" | "reactivate";
+
+/** A command of a row whose unavailability a press tells: an activation, or a designation. */
+type ToldCommand =
+  ActivationCommand | Extract<components["schemas"]["CalendarCommand"], "set_default">;
+
+/** The sentence that tells what an unavailable command lacks, by command. */
+const TOLD = {
+  reactivate: "unavailable",
+  deactivate: "deactivationUnavailable",
+  set_default: "designationUnavailable",
+} as const satisfies Readonly<Record<ToldCommand, string>>;
 
 /**
  * What a press of an unavailable command says, the how-many-th press it was, and the reading of the
  * list it was pressed on.
  */
 interface Told {
-  readonly command: ActivationCommand;
+  readonly command: ToldCommand;
   readonly name: string;
   readonly offer: CommandOffer;
   readonly press: number;
-  readonly reading: string;
+  readonly generation: number;
 }
 
 /**
@@ -76,10 +95,26 @@ interface Told {
  */
 interface ListReport {
   readonly report: (reported: Reported) => void;
-  readonly tell: (name: string, offer: CommandOffer, command: ActivationCommand) => void;
-  readonly reading: string;
-  /** Give the focus to the active cell of the grid of the list, or to the list. */
-  readonly refocus: () => void;
+  readonly tell: (name: string, offer: CommandOffer, command: ToldCommand) => void;
+  /**
+   * The reading the list is on: counted anew each time the list is read otherwise, so that a
+   * reading left and come back to is another — the clicks its commands held were released when it
+   * was left (#688), and a refusal asked from it is told no more.
+   */
+  readonly generation: number;
+  /**
+   * Give the focus to the control given while the page holds it, or else to the active cell of the
+   * grid of the list, or to the list.
+   */
+  readonly refocus: (back?: HTMLElement | null) => void;
+  /**
+   * Hold the navigations of the page while a command whose refusal the list may tell answers
+   * (`useHeldCommand`), for as long as the list stays on the reading it was pressed on: the dialog
+   * or the row that sent it may be gone when it is refused, and the list tells it all the same
+   * (#688); read otherwise, the list tells it no more, and holds nothing: refused after, the bar of
+   * the shell tells it, unless `told` says that what asked it tells it still (#863).
+   */
+  readonly held: ReturnType<typeof useHeldCommand>;
 }
 
 /** Where a reactivation tells its refusal or the conditions it lacks; none outside a list. */
@@ -107,7 +142,7 @@ function ToldConditions({ told }: { readonly told: Told | undefined }) {
     <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
       {told === undefined ? null : (
         <span key={told.press}>
-          {t(told.command === "reactivate" ? "unavailable" : "deactivationUnavailable", {
+          {t(TOLD[told.command], {
             name: told.name,
             unmet: unmet(told.offer),
           })}
@@ -126,26 +161,42 @@ interface Kept extends Reported {
  * A list whose objects may be reactivated, and the refusals of its commands, each told above it until
  * dismissed — one that arrives while another is told is added to it, never put in its place, save
  * the refusal of the same command on the same object, which replaces the one before —: a
- * success after them does not take them away, and the focus goes back to the active cell of the grid
- * — or to the list, ringed — once one is. What an unavailable reactivation pressed
- * lacks is said in the region of the list, on the same reading alone. A refusal is told only on the reading it
+ * success after them does not take them away, and the focus goes back to the control that asked the
+ * write, when the refusal names one — a checkbox of the matrix —, else to the active cell of the grid
+ * — or to the list, ringed — once one is. What an unavailable command pressed — a reactivation, a
+ * deactivation or a designation by default — lacks is said in the region of the list, on the same
+ * reading alone. A refusal is told only on the reading it
  * was asked from: an answer that arrives after the list is read otherwise — the deactivated ones
  * hidden, a search of its own — says nothing of the list now shown (défaut n° 1 de
- * `typescript.md`); a sort of another list of the screen leaves it said.
+ * `typescript.md`), nor of the list back on that reading, whose clicks it no longer holds (#688); a
+ * sort of another list of the screen leaves it said.
  */
 export function Reactivations({
   reads,
+  fill = false,
   children,
 }: {
   /** The parameters of the address the list reads (`listReads`). */
   readonly reads: readonly string[];
+  /** Whether the list takes the height left in its section, a grid of a screen of its own. */
+  readonly fill?: boolean;
   readonly children: ReactNode;
 }) {
   const [reported, setReported] = useState<readonly Kept[]>([]);
   const [told, setTold] = useState<Told>();
   const reading = readingOf(useSearchParams(), reads);
+  // Each reading the list is on is counted: one come back to after another is a new one.
+  const [read, setRead] = useState({ reading, generation: 0 });
+  if (read.reading !== reading) {
+    setRead({ reading, generation: read.generation + 1 });
+  }
+  const { generation } = read;
   const list = useRef<HTMLDivElement>(null);
   const counted = useRef(0);
+  // The list tells a refusal on the reading it was asked from alone: read otherwise, it releases
+  // the clicks its commands hold, and one refused after is told by the bar of the shell — unless the
+  // dialog that asked it, still open, tells it at its fields (#863).
+  const held = useHeldCommand(String(generation));
   const report = useCallback((refusal: Reported) => {
     counted.current += 1;
     const key = counted.current;
@@ -154,30 +205,44 @@ export function Reactivations({
       { ...refusal, key },
     ]);
   }, []);
-  const refocus = useCallback(() => {
+  const refocus = useCallback((back?: HTMLElement | null) => {
+    if (back?.isConnected === true) {
+      back.focus();
+      return;
+    }
     const cell = list.current?.querySelector<HTMLElement>(ACTIVE_CELL);
     (cell ?? list.current)?.focus();
   }, []);
   const value = useMemo(
     () => ({
       report,
-      tell: (name: string, offer: CommandOffer, command: ActivationCommand) => {
-        setTold((before) => ({ command, name, offer, press: (before?.press ?? 0) + 1, reading }));
+      tell: (name: string, offer: CommandOffer, command: ToldCommand) => {
+        setTold((before) => ({
+          command,
+          name,
+          offer,
+          press: (before?.press ?? 0) + 1,
+          generation,
+        }));
       },
-      reading,
+      generation,
       refocus,
+      held,
     }),
-    [reading, report, refocus],
+    [generation, report, refocus, held],
   );
   return (
     <div
       ref={list}
       tabIndex={-1}
-      className="flex min-h-0 flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        "flex min-h-0 flex-col gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        fill && "flex-1",
+      )}
     >
-      <ToldConditions told={told?.reading === reading ? told : undefined} />
+      <ToldConditions told={told?.generation === generation ? told : undefined} />
       {reported
-        .filter((each) => each.reading === reading)
+        .filter((each) => each.generation === generation)
         .map((each) => (
           <OutcomeNotice
             key={each.key}
@@ -186,7 +251,9 @@ export function Reactivations({
             onClear={() => {
               setReported((before) => before.filter((kept) => kept.key !== each.key));
             }}
-            onDismissed={refocus}
+            onDismissed={() => {
+              refocus(each.back);
+            }}
             dismissible
           />
         ))}
@@ -196,8 +263,8 @@ export function Reactivations({
 }
 
 /**
- * The activation of an object the server lists unavailable, with the conditions it lacks: marked
- * `aria-disabled`, described by them, and, pressed, saying them in the region of the list.
+ * The activation of an object the server lists unavailable, with the conditions it lacks
+ * (`UnavailableCellCommand`): pressed, it says them in the region of the list.
  */
 export function UnavailableActivation({
   command,
@@ -210,27 +277,16 @@ export function UnavailableActivation({
 }) {
   const t = useTranslations("reference.state");
   const list = useContext(Report);
-  const unmet = useUnmet()(offer);
-  const described = `${useId()}-unmet`;
   return (
-    <>
-      <CellCommand
-        aria-label={t(command, { name })}
-        aria-disabled
-        aria-describedby={described}
-        title={unmet}
-        className={UNAVAILABLE}
-        onClick={() => {
-          // An unavailable command never runs: the press says the conditions it lacks.
-          list?.tell(name, offer, command);
-        }}
-      >
-        {command === "reactivate" ? <RotateCcw aria-hidden="true" /> : <Ban aria-hidden="true" />}
-        {t(`${command}Short`)}
-      </CellCommand>
-      <span id={described} className="sr-only">
-        {unmet}
-      </span>
-    </>
+    <UnavailableCellCommand
+      name={t(command, { name })}
+      offer={offer}
+      onPress={() => {
+        list?.tell(name, offer, command);
+      }}
+    >
+      {command === "reactivate" ? <RotateCcw aria-hidden="true" /> : <Ban aria-hidden="true" />}
+      {t(`${command}Short`)}
+    </UnavailableCellCommand>
   );
 }

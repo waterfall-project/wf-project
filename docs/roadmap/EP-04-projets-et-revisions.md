@@ -138,3 +138,73 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
   marquées sur la plateforme de développement ;
 - le parcours de bout en bout crée un projet, marque une révision et le fait sortir, contre le
   service réel.
+
+## Constats reçus
+
+- #513, #524 — les commandes d'écriture du projet dans la maquette, sur décision de l'auteur du
+  2026-10-08 (EP-02/L44), une entorse assumée au cadrage qui laissait les formulaires du projet à
+  cet EPIC. EP-02/L44a (#583) fait le projet lui-même : « Créer un projet » sur l'accueil, à la
+  session qui porte la permission de le créer et tant que le référentiel minimal est complet
+  (`createProject`) ; l'identité et les faits du projet modifiés sur ses paramètres comme il liste
+  sa commande `update` (`updateProject`), la probabilité de gain figée à partir de En cours ; le
+  prochain état, son déclencheur et ses conditions restantes au cycle de vie
+  (`getProjectNextState`), dont la sortie était déjà confirmée. Un succès remplace ce qui est
+  affiché par ce que le serveur rend, un refus se dit au champ ou sous le formulaire, et l'écran dit
+  que le faux back ne garde rien. EP-02/L44b (#584) fera les sous-projets et les contributeurs,
+  EP-02/L44c (#585) le lotissement et le jalonnement. Restent à EP-04 : le back de ces écritures —
+  le créateur inscrit chef de projet et contributeur (WF-PRJ-0060), le refus d'un code déjà porté
+  (WF-PRJ-0010), de la probabilité de gain à partir de En cours (WF-PRJ-0090), de toute
+  modification d'un projet terminal (WF-CYC-0100), d'une création sur un référentiel incomplet
+  (WF-CYC-0120) — et la conformité de leurs réponses au contrat, refus compris, que les « Interface
+  contract issue » relevées par EP-02/L44a précisent ; le parcours les éprouvera contre le service
+  réel.
+- #513, #584 — les commandes des sous-projets et des contributeurs dans la maquette, sur décision de
+  l'auteur du 2026-10-08 (EP-02/L44b), une entorse assumée au cadrage qui laissait ces formulaires à
+  cet EPIC : la création, la modification et la suppression confirmée d'un sous-projet comme le projet
+  liste `update` (`createSubproject`, `updateSubproject`, `deleteSubproject`), la suppression
+  présentée indisponible pour un sous-projet qui porte des coûts réels ; la liste des contributeurs
+  écrite entière comme il liste `manage_contributors` (`setContributors`), depuis une lecture
+  entière, les propositions de `listContributorSuggestions` inscrites sur confirmation. Restent à cet
+  EPIC : le back de ces écritures — l'unicité du code d'un sous-projet dans le projet et le refus de
+  supprimer un sous-projet qui porte des coûts réels ou qu'une révision marquée cite (WF-PRJ-0050,
+  WF-DAT-0080), le refus d'une liste sans chef de projet et le compteur de la liste (WF-PRJ-0060,
+  WF-IHM-0110), les propositions tirées des nœuds des rôles du devis (WF-PRJ-0070) — et la conformité
+  de leurs réponses au contrat, refus compris, que les « Interface contract issue » relevées par
+  EP-02/L44b précisent ; le parcours les éprouvera contre le service réel.
+- #754 [EP-03] la consultation d'un projet ne se décidera pas par `require(permission)` seule —
+  relevé par la revue d'US-0390 : `require` rend 404 pour une permission de consultation
+  absente et 403 pour toute autre, la consultation se reconnaissant au suffixe `.read`
+  (`backend/src/waterfall/core/access_roles/evaluation.py`). Exact pour le catalogue d'EP-03,
+  mais `all_projects_read` donnerait 403 en nommant la permission, alors que WF-ADM-0110 veut
+  qu'un projet non consultable n'existe pas pour l'appelant, et consulter un projet demande
+  la permission et la qualité de contributeur, ou `all_projects_read`. EP-04, qui ajoute la
+  qualité de contributeur à l'évaluation, décide la consultation d'un projet par une règle
+  propre, et la règle 404/403 par une propriété déclarée de la permission plutôt que par son
+  suffixe. Reporté d'EP-03 le 2026-10-11.
+- #870 [EP-03] le nom d'un contributeur anonymisé — relevé par la revue d'US-0360/L2b :
+  `Contributor.display_name` et `ContributorSuggestion.display_name` sont des chaînes non nulles
+  au contrat, et un compte désactivé reste listé comme contributeur ; anonymisé, le contrat
+  obligerait le service à rendre son nom (contre WF-ADM-0060-A) ou une phrase (contre
+  WF-ARC-0110). EP-04, qui sert les contributeurs, rend ces deux champs nullables comme
+  `ActorRef.display_name`, et le front les nomme par `useAccountNaming`, avec un exemple de
+  contributeur anonymisé et le test de la branche nulle d'`Actor` (`project-tables.tsx`).
+  Reporté d'EP-03 le 2026-10-11.
+- #927 [EP-03] les facettes du journal nomment un projet par sa dernière inscription, non par
+  son libellé du jour — relevé par la revue d'US-0410/L2, tour 1 : le contrat veut, pour
+  `AuditFacets.projects`, le code et le libellé du jour de chaque projet, et ceux de la dernière
+  inscription pour un projet qui n'existe plus ; `journal_projects`
+  (`backend/src/waterfall/platform/audit_consultation.py`) rend toujours ceux de la dernière
+  inscription, faute de projets. EP-04, avec le module des projets, lit le code et le libellé du
+  jour, et teste qu'un projet renommé est nommé sous son libellé du jour. Reporté d'EP-03 le
+  2026-10-12.
+- #962 [EP-03] l'écran du journal tolère le 404 de `listProjects` — relevé par la revue
+  d'US-0410/L2b, tour 1 : `frontend/src/app/admin/audit-log/page.tsx` tolère le 404 de la
+  première page de `GET /projects`, que le service ne sert pas encore, et le journal nomme ses
+  projets sans lien ; une fois `listProjects` servi, un 404 fautif effacerait en silence tous
+  les liens vers les projets. EP-04, qui sert `listProjects`, retire cette tolérance. Reporté
+  d'EP-03 le 2026-10-12.
+- #1004 [EP-03] avec une session, l'accueil rend « Introuvable » — relevé par EP-03/L1
+  (#1001) : l'accueil lit `listProjects` et `getReferenceReadiness`, que le service d'EP-03 ne
+  sert pas, et le 404 de ces lectures rend « Introuvable » dans la coquille. EP-04, qui sert
+  `listProjects`, rend l'accueil, et un parcours contre le service l'affirme connecté. Reporté
+  d'EP-03 le 2026-10-14.

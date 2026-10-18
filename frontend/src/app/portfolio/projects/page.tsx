@@ -64,7 +64,7 @@ export default async function PortfolioProjectsPage({
   const offset = readPage(search, OFFSET);
   const zones = readZones(search);
   const settings = requestSession().then(
-    (session) => session?.user.display_preferences?.grids?.[PROJECT_GRID.key] ?? undefined,
+    (session) => session?.display_preferences?.grids?.[PROJECT_GRID.key] ?? undefined,
   );
   const query = await settings.then((kept) =>
     readGridQuery(search, PROJECT_SORT_COLUMNS, kept?.sort),

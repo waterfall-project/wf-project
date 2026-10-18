@@ -7,12 +7,12 @@ import { example } from "@/test/fixtures";
 
 import { findOffer, platformOffer } from "./offer";
 
-type Session = components["schemas"]["Session"];
+type Account = components["schemas"]["UserSelf"];
 type Revision = components["schemas"]["Revision"];
 
 /** The permissions of a session of the contract. */
 function permissions(name: string) {
-  return (example(name) as Session).permissions;
+  return (example(name) as Account).permissions;
 }
 
 describe("the offer of a command", () => {
@@ -29,22 +29,32 @@ describe("the offer of a command", () => {
 
   it("follows, outside any project, the permission of modification of the function", () => {
     const granted = { is_available: true, missing_conditions: [] };
-    expect(platformOffer(permissions("session"), "users")).toEqual(granted);
-    expect(platformOffer(permissions("session_without_administration"), "users")).toBeUndefined();
-    expect(platformOffer(permissions("session_without_administration"), "cost_settings")).toEqual(
+    expect(platformOffer(permissions("me"), "users")).toEqual(granted);
+    expect(platformOffer(permissions("me_without_administration"), "users")).toBeUndefined();
+    expect(platformOffer(permissions("me_without_administration"), "cost_settings")).toEqual(
       granted,
     );
     expect(platformOffer(undefined, "cost_settings")).toBeUndefined();
   });
 
   it("follows the permission of its own for the restoration of a backup", () => {
-    expect(platformOffer(permissions("session"), "platform_restore")).toEqual({
+    expect(platformOffer(permissions("me"), "platform_restore")).toEqual({
       is_available: true,
       missing_conditions: [],
     });
     // Reading and writing the backups does not grant their restoration.
-    const withoutRestore = permissions("session").filter((code) => code !== "platform_restore");
+    const withoutRestore = permissions("me").filter((code) => code !== "platform_restore");
     expect(withoutRestore).toContain("backups.write");
     expect(platformOffer(withoutRestore, "platform_restore")).toBeUndefined();
+  });
+
+  it("offers the creation of a project to a session that holds its permission, and to no other [WF-ADM-0100-A]", () => {
+    expect(platformOffer(permissions("me"), "project_create")).toEqual({
+      is_available: true,
+      missing_conditions: [],
+    });
+    // A contributor who may write the estimate does not create a project.
+    expect(permissions("me_estimator")).not.toContain("project_create");
+    expect(platformOffer(permissions("me_estimator"), "project_create")).toBeUndefined();
   });
 });

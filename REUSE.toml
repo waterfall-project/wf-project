@@ -10,9 +10,6 @@ version = 1
 path = [
     "**/*.md",
     "docs/api/**/*.yaml",
-    "docs/spec/stb-waterfall.docx",
-    "docs/spec/waterfall.visuels.drawio",
-    "docs/spec/figures/**",
     "docs/assets/**",
     ".github/**",
     ".gitignore",
@@ -29,12 +26,28 @@ path = [
     "frontend/src/app/icon.svg",
     "frontend/src/navigation/functions.json",
     "frontend/src/api/generated/**",
+    "backend/src/waterfall/api/contract/models.py",
     "fixtures/**",
     "tools/src/wftools/py.typed",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"
 SPDX-License-Identifier = "AGPL-3.0-only"
+
+# The specification is published under CC BY-SA 4.0, with its sources (the Word document, the
+# draw.io file and the Mermaid figures) and the Markdown projection generated from them, which
+# is an adaptation of the document. The tools that build it stay under the AGPL. The name and
+# the logo « Waterfall » are not covered by this licence.
+[[annotations]]
+path = [
+    "docs/spec/stb-waterfall.docx",
+    "docs/spec/waterfall.visuels.drawio",
+    "docs/spec/figures/**",
+    "docs/spec/waterfall-spec.md",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Projet Waterfall"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
 
 # The Contributor Covenant, adopted as it is written: its text keeps its own licence.
 [[annotations]]

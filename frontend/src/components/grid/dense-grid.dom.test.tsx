@@ -592,10 +592,10 @@ describe("the columns and their widths, a display preference of the account", ()
   it("shows the columns and widths the session read, and records a column hidden, the rest of the grid as it came", async () => {
     const client = serve();
     const settings = (
-      example("session_grid_settings") as {
-        user: { display_preferences: { grids: { estimate: GridPreferences } } };
+      example("me_grid_settings") as {
+        display_preferences: { grids: { estimate: GridPreferences } };
       }
-    ).user.display_preferences.grids.estimate;
+    ).display_preferences.grids.estimate;
     // The account keeps a sort by the budgeted amount, which the grid no longer presents
     // (WF-DEV-0050): the page asks none.
     const { container } = renderGrid(witness, { preferences: settings });
@@ -918,10 +918,10 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1,234.56",
       "1,234.56",
     ]);
-    // The totals of the lot are those the server gave, 2934.56 at the year of reference and
+    // The totals of the lot are those the server gave, 502434.56 at the year of reference and
     // corrected for inflation, every line being of that year, in either language.
-    expect(french.totals.slice(-2)).toEqual(["2 934,56", "2 934,56"]);
-    expect(english.totals.slice(-2)).toEqual(["2,934.56", "2,934.56"]);
+    expect(french.totals.slice(-2)).toEqual(["502 434,56", "502 434,56"]);
+    expect(english.totals.slice(-2)).toEqual(["502,434.56", "502,434.56"]);
     expect(english.totals[1]).toBe("Total — 6 tasks, 5 lines");
   });
 

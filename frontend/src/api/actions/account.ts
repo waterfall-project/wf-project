@@ -1,22 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The server actions of the account of the user (`changeMyPassword`, `putMyAvatar`,
- * `deleteMyAvatar`): the screens of the account ask the server of Next, which calls the API
- * (§4.3.1), and get back the outcome the one decoder makes of its answer
- * (`src/api/problem.ts`). The API judges the new password — the front copies none of its rules
- * (WF-ADM-0140) — and the size of the image.
+ * The server actions of the account of the user (`putMyAvatar`, `deleteMyAvatar`): the screens
+ * of the account ask the server of Next, which calls the API (§4.3.1), and get back the outcome
+ * the one decoder makes of its answer (`src/api/problem.ts`). The API judges the size of the
+ * image.
  */
 "use server";
 
 import { refresh } from "next/cache";
 
-import type { components } from "@/api/generated/schema";
 import { decode, type Outcome, type Settled, settled } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { isAvatarType } from "@/components/account/avatar-types";
-
-type PasswordChange = components["schemas"]["PasswordChange"];
 
 /**
  * The outcome of a change of the avatar, and the page rendered again once it is done: the next
@@ -27,14 +23,6 @@ function applied<T>(outcome: Outcome<T>): Settled {
     refresh();
   }
   return settled(outcome);
-}
-
-/**
- * Change the password of a local account, the current one given (WF-ADM-0140). An account of
- * the directory or of the identity provider has none in Waterfall: the API refuses it.
- */
-export async function changePassword(change: PasswordChange): Promise<Settled> {
-  return settled(await decode(() => serverClient().PUT("/me/password", { body: change })));
 }
 
 /**

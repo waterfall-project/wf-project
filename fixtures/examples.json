@@ -142,6 +142,11 @@
       "sentence": "Une révision créée en 2027 par un import de reste à engager porte les taux de 2026 projetés d'une année ; la mise à jour catégorie par catégorie reste proposée jusqu'à son marquage, et l'accepter pour une catégorie la rechiffre au taux de 2027."
     },
     {
+      "key": "WF-REV-0060-A#964cab0bdd82",
+      "requirement": "WF-REV-0060-A",
+      "sentence": "Une mise à jour refusée à la création d'une révision est acceptée ensuite depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie."
+    },
+    {
       "key": "WF-PRJ-0090-A#0600dd236bf1",
       "requirement": "WF-PRJ-0090-A",
       "sentence": "Une offre à 40 % de probabilité et 100 000 € de devis pèse 40 000 € dans le pipeline pondéré et 40 % de sa charge dans le plan de charge agrégé pondéré."
@@ -182,6 +187,11 @@
       "sentence": "« 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des langues de l'interface."
     },
     {
+      "key": "WF-PLA-0160-A#accda3317067",
+      "requirement": "WF-PLA-0160-A",
+      "sentence": "Après passage des heures par jour de 8 à 7, une durée saisie « 2 j » dans une révision en cours vaut quatorze heures, et ses dates sont recalculées ; dans une révision marquée, elle vaut toujours seize heures."
+    },
+    {
       "key": "WF-PLA-0040-A#4b10e3009332",
       "requirement": "WF-PLA-0040-A",
       "sentence": "Une récapitulative dont toutes les subordonnées sont terminées et dont une ligne propre porte un reste à engager de 500 est démarrée et signalée ; la saisie d'un reste nul sur cette ligne la termine."
@@ -192,9 +202,9 @@
       "sentence": "Une récapitulative dont toutes les subordonnées sont terminées et dont la seule ligne propre est une provision de 40 est terminée et n'est pas signalée."
     },
     {
-      "key": "WF-PLA-0170-A#8a77ce244237",
+      "key": "WF-PLA-0170-A#f074a9bf18fa",
       "requirement": "WF-PLA-0170-A",
-      "sentence": "Une tâche rattachée au lot 2 dont un différentiel allonge la durée porte toujours ce rattachement après la fusion."
+      "sentence": "Une tâche rattachée au poste 2 dont un différentiel allonge la durée porte toujours ce rattachement après la fusion."
     },
     {
       "key": "WF-PLA-0110-A#7e0f932d2ca2",
@@ -212,9 +222,9 @@
       "sentence": "La saisie d'une charge de 80 heures sur une ligne de quantité 1 budgétée à 100 heures, consommée dans l'année de référence, donne un montant réestimé de 80 fois le taux et laisse le montant budgété inchangé."
     },
     {
-      "key": "WF-DEV-0060-A#5fe268c741ee",
+      "key": "WF-DEV-0060-A#89b7fa39b765",
       "requirement": "WF-DEV-0060-A",
-      "sentence": "Sur un planning importé dont aucune tâche n'est rattachée à un poste, les totaux par poste sont absents plutôt que nuls ; après rattachement d'une récapitulative au poste 1, son total apparaît, et il vaut celui de son sous-arbre ; après rattachement d'une feuille à un poste, le total de ce poste est le montant des lignes de cette feuille."
+      "sentence": "Sur un planning importé dont aucune tâche n'est rattachée à un lot, les totaux par lot sont absents plutôt que nuls ; après rattachement d'une récapitulative au lot 1, son total apparaît, et il vaut celui de son sous-arbre ; après rattachement d'une feuille à un lot, le total de ce lot est le montant des lignes de cette feuille."
     },
     {
       "key": "WF-DEV-0050-A#52fb4a7cb73b",

@@ -13,7 +13,8 @@
  * all answered (`GridConfig.retotal`). Until the server answers, the cell
  * shows what was validated, as pending; a refusal leaves the row as it was, and is told as every
  * screen tells one (`OutcomeNotice`) — a session lost among them, which leads to the sign-in
- * page and back to the screen (WF-SEC-0020).
+ * page and back to the screen (WF-SEC-0020) —, the cell it refused named with it, which the grid
+ * marks and has it describe (EP-14/L44d).
  *
  * The cells of a row leave one after the other: each is written from the row the server last
  * answered, so that the second carries the version the first gave it, whatever the pace of the
@@ -32,7 +33,9 @@
  * totals included — or, where the grid cannot tell, while the reading anew reads the row as the one
  * before did (`reread` of `answers.ts`, défaut n° 22). An answer about another row than the one
  * written is a failure of the service. A refusal stays told until the notice clears it, whatever
- * writes succeed after it. Rows a paste wrote together take the place of those read the same way,
+ * writes succeed after it. A navigation of the page waits for the writes under way, and does not
+ * take place when one is refused: the refusal is told here, and the person decides; the grid gone,
+ * its writes hold nothing (`useHeldWrites`, #688). Rows a paste wrote together take the place of those read the same way,
  * the cells of each row written after them starting from them (WF-IHM-0050). A cell written before
  * a paste and answered after it is taken as any answer, its place among the writes deciding which
  * of the two a row shows (#202); only its refusal is kept quiet when the paste wrote its row since
@@ -48,6 +51,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { useHeldWrites } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 
 import {
@@ -107,6 +111,8 @@ interface Written<Row, Totals> {
   readonly pending: ReadonlyMap<string, string>;
   /** The outcome of the last write answered; none before any. */
   readonly outcome: Outcome<unknown> | undefined;
+  /** The cell the outcome told refused, by `cellKey`; none for a success, or a total read anew. */
+  readonly refused: string | undefined;
 }
 
 /** What the writes answered at an address, which the callbacks change: one per address. */
@@ -129,6 +135,7 @@ function fresh<Row, Totals>({
     totals: undefined,
     pending: new Map(),
     outcome: undefined,
+    refused: undefined,
   };
 }
 
@@ -173,6 +180,26 @@ export function cellKey(row: string, column: string): string {
   return `${row}\u0000${column}`;
 }
 
+/**
+ * The cell the refusal told is about once a write of a cell answered, by `cellKey`: that cell for a
+ * refusal; for a success, the one told before, unless it is this very cell, written since — the
+ * notice may stay, the cell is no longer refused; a refusal a paste overtook changes nothing.
+ */
+function refusedAfter(
+  answer: Outcome<unknown>,
+  cell: string,
+  before: string | undefined,
+  stale: boolean,
+): string | undefined {
+  if (stale) {
+    return before;
+  }
+  if (answer.kind !== "done") {
+    return cell;
+  }
+  return before === cell ? undefined : before;
+}
+
 /** A map with one key changed — set, or taken away when the value is `undefined`. */
 function changed<V>(map: ReadonlyMap<string, V>, key: string, value: V | undefined) {
   const next = new Map(map);
@@ -202,6 +229,8 @@ export interface CellWrites<Row, Totals> {
   /** What a cell under way shows, if it is. */
   readonly pending: (row: string, column: string) => string | undefined;
   readonly outcome: Outcome<unknown> | undefined;
+  /** Whether the outcome told is the refusal of the write of a cell. */
+  readonly refused: (row: string, column: string) => boolean;
   /** Forget the outcome told. */
   readonly clear: () => void;
   readonly write: (write: CellWrite<Row, Totals>) => void;
@@ -236,7 +265,7 @@ export function useCellWrites<Row, Totals>(
         : fresh(reading);
     setState(written);
   }
-  const { epoch, view, answered, totals, pending, outcome } = written;
+  const { epoch, view, answered, totals, pending, outcome, refused } = written;
   // What the server answered at the address, which the next write of a row starts from: laid over
   // each reading as it is committed — afresh for another address.
   const book = useRef<Book<Row, Totals>>(undefined);
@@ -247,8 +276,10 @@ export function useCellWrites<Row, Totals>(
       book.current = { epoch, answers: copyAnswers(view) };
     }
   }, [epoch, view, rowKey, fresher]);
+  // The writes the navigations of the page wait for, released when the grid goes.
+  const hold = useHeldWrites();
   // The write of each row under way, which the next waits for.
-  const queues = useRef(new Map<string, Promise<void>>());
+  const queues = useRef(new Map<string, Promise<unknown>>());
   // How many pastes wrote each row: a refusal of a write the paste of its row overtook says
   // nothing of the row shown.
   const pasted = useRef(new Map<string, number>());
@@ -332,15 +363,17 @@ export function useCellWrites<Row, Totals>(
           retotalled(at.answers, answer.data);
         }
         const show = showing(at);
-        current(at.epoch, (before) => ({
-          ...show(before),
+        current(at.epoch, (before) => {
           // A refusal told before stays; a success told says nothing of this one.
-          outcome:
+          const kept =
             answer.kind === "done" ||
-            (before.outcome !== undefined && before.outcome.kind !== "done")
-              ? before.outcome
-              : answer,
-        }));
+            (before.outcome !== undefined && before.outcome.kind !== "done");
+          return {
+            ...show(before),
+            outcome: kept ? before.outcome : answer,
+            refused: kept ? before.refused : undefined,
+          };
+        });
       });
   };
   const write = ({ row, column, entry, value, shown: meanwhile }: CellWrite<Row, Totals>) => {
@@ -370,22 +403,26 @@ export function useCellWrites<Row, Totals>(
       }
       underWay.current -= 1;
       const show = data === undefined ? undefined : showing(at);
-      current(at.epoch, (before) => ({
-        ...(show === undefined ? before : show(before)),
-        pending: changed(before.pending, cell, undefined),
+      current(at.epoch, (before) => {
         // A refusal stays told until the notice clears it: a later write done says nothing of
         // it. A refusal a paste of its row overtook says nothing at all — any refusal, the API
         // out of reach and a session lost included: it belongs to the row before the paste,
         // which the paste wrote since, and the paste itself, answered, proved the API reachable
         // and the session open; a session lost meanwhile is told by the next write.
-        outcome:
-          stale || (answer.kind === "done" && before.outcome !== undefined)
-            ? before.outcome
-            : answer,
-      }));
+        const kept = stale || (answer.kind === "done" && before.outcome !== undefined);
+        return {
+          ...(show === undefined ? before : show(before)),
+          pending: changed(before.pending, cell, undefined),
+          outcome: kept ? before.outcome : answer,
+          refused: refusedAfter(answer, cell, before.refused, stale),
+        };
+      });
       settle(at);
+      // Applied, or a refusal kept quiet: a navigation waits for no refusal the screen does not say.
+      return answer.kind === "done" || stale;
     });
     queues.current.set(key, queued);
+    hold(queued);
   };
   const applied = (together: RowsWritten<Row, Totals>) => {
     for (const row of together.rows) {
@@ -403,8 +440,9 @@ export function useCellWrites<Row, Totals>(
     totals,
     pending: (row, column) => pending.get(cellKey(row, column)),
     outcome,
+    refused: (row, column) => refused === cellKey(row, column),
     clear: () => {
-      setState((before) => ({ ...before, outcome: undefined }));
+      setState((before) => ({ ...before, outcome: undefined, refused: undefined }));
     },
     write,
     applied,

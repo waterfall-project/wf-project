@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The actual costs of the witness and the journal of their imports, engendered (EP-02/L25).
 
-The lines and the imports are described once (``mockwitness.COSTS``, ``mockwitness.JOURNAL``);
-here they are read as the consultation of the costs and the journal present them today
-(WF-CRE-0040, WF-CRE-0050), and as the indicators count them (``tracked``). What follows from the
-description is computed, never written: the imputation of a line from its code of subproject
-(WF-CRE-0020), its audit from the imports that brought it and its exclusion, the three totals,
-the date of the last import, and the counts of lines each import created, updated and ignored.
+The lines of the core and the imports are described once (``mockwitness.COSTS``,
+``mockwitness.JOURNAL``); the lines of the tasks drawn about the core follow from the structure
+(``drawn``, EP-14/L45a): each work task completed by today has received the invoice of its supplier,
+dated the day it completed, brought by the imports whose period holds that day. Here they are read
+as the consultation of the costs and the journal present them today (WF-CRE-0040, WF-CRE-0050), and
+as the indicators count them (``tracked``). What follows from the description is computed, never
+written: the imputation of a line from its code of subproject (WF-CRE-0020), its audit from the
+imports that brought it and its exclusion, the three totals, the date of the last import, and the
+counts of lines each import created, updated and ignored.
 And the answers of the exclusion of a line from the tracked scope and of its reinstatement, written
 today (``setActualCostTrackedScope``, WF-CRE-0030), and the consultation read anew after the
 exclusion. Nothing here reads the clock, nor a file the same command writes.
@@ -15,19 +18,22 @@ exclusion. Nothing here reads the clock, nor a file the same command writes.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import replace
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mocktext
+from wftools import mockcore, mocktext
 from wftools.mockhistory import stamp
-from wftools.mockids import hex_identifier
-from wftools.mockstructure import money
+from wftools.mockids import COST_LINES, hex_identifier, identifier
+from wftools.mockstructure import CENT, draw, money
 from wftools.mocktext import PAGE
 from wftools.mockwitness import (
     APRIL,
     APRIL_AGAIN,
     COSTS,
+    GENERATED,
     JOURNAL,
     MARCH,
     MAY,
@@ -42,9 +48,96 @@ from wftools.mockwitness import (
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from datetime import date, datetime
+    from datetime import datetime
 
     from wftools.mockstructure import JsonObject, JsonValue
+
+INVOICED_FROM, INVOICED_TO = 90, 110
+"""What a supplier invoices of the amount of a task drawn about the core, in hundredths: the
+invoice is a few hundredths off the estimate, either way."""
+
+_SUPPLIERS = (
+    "Ateliers du Forez",
+    "Électro-Montage Lyonnais",
+    "Mécasoud Industrie",
+    "Tuyauterie Rhodanienne",
+    "Automatismes Durand",
+)
+"""The suppliers of the tasks drawn about the core, one drawn for each invoice."""
+
+INVOICE_NUMBER_FROM = 1_000
+"""Where the numbers of the invoices of the drawn tasks start, after those written by hand."""
+
+
+def cost_line_id(number: int) -> str:
+    """Return the identifier of a line of cost: 0xc0n written by hand, generated otherwise."""
+    if number < GENERATED:
+        return hex_identifier(number)
+    return identifier(COST_LINES, number - GENERATED)
+
+
+def brought_by(day: date) -> tuple[CostImport, ...]:
+    """Return the imports that brought a line dated a day: those whose period holds it.
+
+    A file without a period brought no line of the project (``mockwitness.UNDATED``); an import
+    is applied after the lines it brings are dated (WF-CRE-0050).
+    """
+    return tuple(
+        entry
+        for entry in sorted(JOURNAL, key=lambda each: each.event.instant)
+        if entry.period != (None, None)
+        and (entry.period[0] is None or entry.period[0] <= day)
+        and (entry.period[1] is None or day <= entry.period[1])
+        and day <= entry.event.on
+    )
+
+
+@functools.cache
+def drawn() -> tuple[CostLine, ...]:
+    """Return the lines of actual cost of the tasks drawn about the core, completed by today.
+
+    Each work task drawn and completed has received one invoice, dated the day it completed, for
+    the amount of the task at the reference year a few hundredths off, under the code of the
+    subproject of its lot — none for a lot of no subproject —, brought by the imports whose
+    period holds that day (WF-CRE-0010, WF-CRE-0020). A task not completed has received none
+    (EP-14/L45a, #528).
+    """
+    codes = {entry["subproject_id"]: entry["code"] for entry in fixture("subprojects")}
+    rows = mockcore.current()
+    subprojects = {
+        row.parent: cast("str | None", cast("JsonObject", row.node[row.kind])["subproject_id"])
+        for row in rows
+        if row.kind == mockcore.ESTIMATE_LINE
+    }
+    found: list[CostLine] = []
+    for row in rows:
+        facet = cast("JsonObject", row.node[row.kind])
+        if row.kind != mockcore.TASK or row.number < GENERATED or facet["is_summary"]:
+            continue
+        if facet["is_milestone"] or facet["progress"] != "completed":
+            continue
+        rank, key = len(found) + 1, row.number - GENERATED
+        completed = date.fromisoformat(cast("str", facet["completed_on"]))
+        share = Decimal(draw(f"invoice/{key}", INVOICED_FROM, INVOICED_TO)) / 100
+        subproject = subprojects[row.number]
+        found.append(
+            CostLine(
+                GENERATED + rank,
+                f"FA-2026-{INVOICE_NUMBER_FROM + rank:04d}",
+                completed,
+                (Decimal(cast("str", facet["base_amount"])) * share).quantize(CENT),
+                None if subproject is None else codes[subproject],
+                _SUPPLIERS[draw(f"supplier/{key}", 0, len(_SUPPLIERS) - 1)],
+                row.label,
+                brought_by(completed),
+            )
+        )
+    return tuple(found)
+
+
+def lines() -> tuple[CostLine, ...]:
+    """Return every line of actual cost of the witness: those of the core, then the drawn ones."""
+    return (*COSTS, *drawn())
 
 
 def imputed(line: CostLine) -> str | None:
@@ -57,12 +150,14 @@ def imputed(line: CostLine) -> str | None:
     return None if line.code is None else known.get(line.code)
 
 
-def tracked() -> list[tuple[date, Decimal, str | None]]:
+def tracked(known: Sequence[CostLine] | None = None) -> list[tuple[date, Decimal, str | None]]:
     """Return the lines of the tracked scope: their date of document, amount and subproject.
 
-    A line excluded from the tracked scope enters no indicator (WF-CRE-0030).
+    Every line of the witness, or those given; a line excluded from the tracked scope enters no
+    indicator (WF-CRE-0030).
     """
-    return [(line.on, line.amount, imputed(line)) for line in COSTS if line.excluded is None]
+    found = lines() if known is None else known
+    return [(line.on, line.amount, imputed(line)) for line in found if line.excluded is None]
 
 
 def _actor() -> JsonObject:
@@ -94,7 +189,7 @@ def cost_line(line: CostLine) -> JsonObject:
         changes.append(line.excluded[0])
     actor = _actor()
     return {
-        "cost_line_id": hex_identifier(line.number),
+        "cost_line_id": cost_line_id(line.number),
         "document_number": line.document,
         "document_date": line.on.isoformat(),
         "amount": money(line.amount),
@@ -122,13 +217,13 @@ EXCLUSION_REASON = "Câbles d'un autre projet, à réimputer"
 
 
 def _line(number: int) -> CostLine:
-    [line] = [line for line in COSTS if line.number == number]
+    [line] = [line for line in lines() if line.number == number]
     return line
 
 
 def _reinstated() -> CostLine:
     """Return the line the reinstatement written today brings back: the excluded one."""
-    [line] = [line for line in COSTS if line.excluded is not None]
+    [line] = [line for line in lines() if line.excluded is not None]
     return line
 
 
@@ -144,7 +239,7 @@ def _excluded_today() -> list[CostLine]:
     """Return the lines of the witness once the exclusion written today has been applied."""
     return [
         replace(line, excluded=(TODAY, EXCLUSION_REASON)) if line.number == EXCLUDED_TODAY else line
-        for line in COSTS
+        for line in lines()
     ]
 
 
@@ -204,8 +299,8 @@ def counts(entry: CostImport) -> tuple[int, int, int]:
     one is created (WF-CRE-0010); a line of another project is rejected, and ignored
     (WF-CRE-0020).
     """
-    created = sum(1 for line in COSTS if line.imports[0] is entry)
-    updated = sum(1 for line in COSTS if entry in line.imports[1:])
+    created = sum(1 for line in lines() if line.imports[0] is entry)
+    updated = sum(1 for line in lines() if entry in line.imports[1:])
     return created, updated, entry.rejected
 
 
@@ -236,10 +331,10 @@ def journal() -> JsonObject:
 
 def values() -> dict[str, JsonValue]:
     """Return the values of the examples of the costs, by name."""
-    control = [line for line in COSTS if imputed(line) == SUBPROJECT_CONTROL]
+    control = [line for line in lines() if imputed(line) == SUBPROJECT_CONTROL]
     return {
-        "actual_costs": consultation(COSTS),
-        "actual_costs_page": consultation(COSTS, limit=1, offset=1),
+        "actual_costs": consultation(lines()),
+        "actual_costs_page": consultation(lines(), limit=1, offset=1),
         "actual_costs_subproject": consultation(control),
         "cost_imports": journal(),
         "actual_cost_excluded": written(_line(EXCLUDED_TODAY), EXCLUSION_REASON),
@@ -296,6 +391,31 @@ def _said(entry: CostImport) -> str:
     return ", ".join(parts) if parts else "rien"
 
 
+def invoiced(invoices: Sequence[CostLine]) -> str:
+    """Say what the drawn tasks completed received, or that none has completed yet.
+
+    The structure is dated by the day of the witness: moved before the first drawn task
+    completes, no task has received an invoice, and the summary says so rather than looking for
+    the first and the last of none.
+    """
+    if not invoices:
+        return (
+            "Aucune tâche tirée autour du cœur n'est terminée : aucune n'a encore reçu la facture "
+            "de son fournisseur."
+        )
+    coded = sorted({line.code for line in invoices if line.code is not None})
+    first, last = min(line.on for line in invoices), max(line.on for line in invoices)
+    return (
+        f"Les {mocktext.count(len(invoices))} tâches tirées autour du cœur et terminées, du "
+        f"{mocktext.day(first)} au {mocktext.day(last)}, ont chacune reçu la facture de leur "
+        "fournisseur, datée du jour de leur fin, à quelques centièmes du montant de la tâche, "
+        "imputée au sous-projet de leur lot par le code de son OTP — "
+        + ", ".join(coded)
+        + " — ou au seul projet pour les utilités, et apportée par les imports dont la période "
+        "la couvre."
+    )
+
+
 def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     today = mocktext.day(TODAY.date())
     witness = cast("JsonObject", found["actual_costs"])
@@ -309,8 +429,8 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     return {
         "actual_costs": (
             f"Les coûts réels du projet au {today}, après les {len(JOURNAL)} imports du journal, "
-            f"les pièces les plus récentes d'abord : {len(COSTS) - len(excluded)} lignes suivies, "
-            f"dont un avoir de {_amount(credit.amount)}, font les "
+            f"les pièces les plus récentes d'abord : {len(lines()) - len(excluded)} lignes "
+            f"suivies, dont un avoir de {_amount(credit.amount)}, font les "
             f"{_amount(Decimal(cast('str', totals['tracked'])))} de coût réel des indicateurs ; "
             + ", ".join(f"« {line.text} », exclue du périmètre suivi," for line in excluded)
             + f" reste consultable. La facture des études de détail, {studies.document}, "
@@ -321,12 +441,13 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             + ", lus dans l'OTP, ne sont ceux d'aucun sous-projet du projet : ces lignes sont "
             "imputées au seul projet, hors sous-projet, et présentées avec leur code ; "
             f"{screens.document}, sous {screens.code}, est imputée au sous-projet Poste de "
-            "commande. Les colonnes conservées du fichier sont celles de toutes les lignes "
-            "retenues (WF-CRE-0010, WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, WF-CRE-0050)."
+            f"commande. {invoiced(drawn())} Les colonnes conservées du fichier sont celles de "
+            "toutes les lignes retenues (WF-CRE-0010, WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, "
+            "WF-CRE-0050)."
         ),
         "actual_costs_page": (
             "La même consultation lue une ligne par page (limit=1, offset=1) : la deuxième des "
-            f"{len(COSTS)} lignes, {page[0]['document_number']}, et les totaux et les colonnes "
+            f"{len(lines())} lignes, {page[0]['document_number']}, et les totaux et les colonnes "
             "conservées de toutes les lignes retenues, pas de la seule page rendue (WF-CRE-0040)."
         ),
         "actual_costs_subproject": (

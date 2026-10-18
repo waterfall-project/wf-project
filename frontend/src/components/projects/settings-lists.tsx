@@ -13,16 +13,28 @@
  * a section under its title — named by `aria-label`, never by an identifier of `useId`, which a
  * server component may share with a client one of the shell (#251) —; a list says it is empty only
  * when nothing narrows it: a search or a filter that retains nothing keeps its grid, to be changed.
- * Nothing is offered to create or modify: those forms belong to the epic of their domain.
+ * The sub-projects are created, modified and deleted as the project lists `update`
+ * (`subproject-commands.tsx`), the list of the contributors written as it lists
+ * `manage_contributors` (`contributor-commands.tsx`, EP-02/L44b), and the work breakdown edited in
+ * its grid as it lists `update_work_breakdown` (`breakdown-commands.tsx`, EP-14/L44c).
  */
 import { FolderTree, ListTree, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import type { CommandOffer } from "@/components/commands/offer";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { ValuesFilter } from "@/components/grid/values-filter";
+import { listReads } from "@/components/reference/address";
+import { ListBody, ReferenceSection } from "@/components/reference/section";
 
+import { BreakdownCommands, type BreakdownEditing, BreakdownHead } from "./breakdown-commands";
+import {
+  ContributorCommands,
+  type ContributorEditing,
+  ContributorHead,
+} from "./contributor-commands";
 import { ListSection } from "./project-tables";
 import { SettingsGrid } from "./settings-grid";
 import {
@@ -38,9 +50,11 @@ import {
   KINDS,
   type Subproject,
   SUBPROJECT_ACTUAL_COSTS,
+  SUBPROJECT_ADDRESS,
   type SubprojectSort,
   type WorkBreakdown,
 } from "./settings-grids";
+import { SubprojectCommands, SubprojectDialog, SubprojectHead } from "./subproject-commands";
 
 /** What a grid of the settings asks and keeps: the query of its address, its settings. */
 interface Shown<Sort extends string> {
@@ -79,13 +93,14 @@ function partialNote(
  * labels and filtered on its kinds by the server. Read partial — without a counter, as the server
  * reads it filtered —, the order items and the work packages that hold an element retained show
  * without the rest they hold, which the list says; and a partial reading that retains nothing keeps
- * its grid, to be changed.
+ * its grid, to be changed — as does an empty one its commands edit, for an order item to be added.
  */
 export function WorkBreakdownList({
   breakdown,
   project,
   kinds = [],
   shown = UNASKED,
+  editing,
 }: {
   readonly breakdown: WorkBreakdown;
   /** The project whose work breakdown it is. */
@@ -93,48 +108,64 @@ export function WorkBreakdownList({
   /** The kinds the address restricts the work breakdown to; none, every one. */
   readonly kinds?: readonly BreakdownKind[];
   readonly shown?: Shown<never>;
+  /**
+   * What the work breakdown is written from, as the project lists `update_work_breakdown`; none,
+   * read only.
+   */
+  readonly editing?: BreakdownEditing | undefined;
 }) {
   const t = useTranslations("projectLists.workBreakdown");
   const named = useTranslations("enums.WorkBreakdownKind");
-  const items = breakdown.order_items.length;
   // The server says the reading partial — filtered — by giving it no counter.
   const partial = breakdown.lock_version === null;
+  const none = breakdown.order_items.length === 0 && !partial;
+  const edited = editing?.offer !== undefined;
   return (
-    <ListSection
-      title={t("title")}
-      icon={ListTree}
-      empty={items === 0 && !partial ? t("none") : undefined}
-    >
-      <ValuesFilter
-        name={BREAKDOWN_KIND_FILTER}
-        label={t("kindFilter")}
-        every={t("everyKind")}
-        values={BREAKDOWN_KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
-        chosen={kinds}
-      />
-      {partial ? (
-        <p className="text-sm text-muted-foreground">{t(partialNote(shown.query.search, kinds))}</p>
-      ) : null}
-      <SettingsGrid
-        kind="workBreakdown"
-        rows={breakdownRows(breakdown)}
-        project={project}
-        items={items}
-        query={shown.query}
-        preferences={shown.preferences}
-      />
-    </ListSection>
+    // Keyed by the project: an answer of the server never outlives its project.
+    <BreakdownCommands key={project} editing={editing}>
+      <ListSection
+        title={t("title")}
+        icon={ListTree}
+        empty={none && !edited ? t("none") : undefined}
+      >
+        <ValuesFilter
+          name={BREAKDOWN_KIND_FILTER}
+          label={t("kindFilter")}
+          every={t("everyKind")}
+          values={BREAKDOWN_KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
+          chosen={kinds}
+        />
+        {partial || none ? (
+          <p className="text-sm text-muted-foreground">
+            {t(partial ? partialNote(shown.query.search, kinds) : "none")}
+          </p>
+        ) : null}
+        <BreakdownHead />
+        <SettingsGrid
+          kind="workBreakdown"
+          rows={breakdownRows(breakdown)}
+          project={project}
+          query={shown.query}
+          preferences={shown.preferences}
+        />
+      </ListSection>
+    </BreakdownCommands>
   );
 }
 
+/** The parameters of the address the sub-projects read, their filter among them. */
+const SUBPROJECT_READS = listReads(SUBPROJECT_ADDRESS, SUBPROJECT_ACTUAL_COSTS);
+
 /**
  * The sub-projects of a project, each by its code, its label, and its actual costs; filtered on
- * whether actual costs are charged to them, as the address asks it.
+ * whether actual costs are charged to them, as the address asks it; and, for the project they are
+ * of, their commands as it lists `update` (`editing`).
  */
 export function SubprojectList({
   subprojects,
   actualCosts,
   shown = UNASKED,
+  editing,
 }: {
   readonly subprojects: readonly Subproject[];
   /**
@@ -143,42 +174,76 @@ export function SubprojectList({
    */
   readonly actualCosts?: boolean | undefined;
   readonly shown?: Shown<SubprojectSort>;
+  /**
+   * The project, and the command `update` it lists: absent, nothing is offered; and the revision in
+   * progress whose estimate a sub-project its estimate lines keep may be read in — none when the
+   * project has none, or when the session may not read the estimate.
+   */
+  readonly editing?: {
+    readonly project: string;
+    readonly offer: CommandOffer | undefined;
+    readonly estimated?: string | undefined;
+  };
 }) {
   const t = useTranslations("projectLists.subprojects");
   const empty =
     subprojects.length === 0 && shown.query.search === undefined && actualCosts === undefined;
   return (
-    <ListSection title={t("title")} icon={FolderTree} empty={empty ? t("none") : undefined}>
-      <ChoiceFilter
-        name={SUBPROJECT_ACTUAL_COSTS}
-        label={t("actualCostsFilter")}
-        every={t("everyActualCosts")}
-        choices={[
-          { value: "true", text: t("withActualCosts") },
-          { value: "false", text: t("withoutActualCosts") },
-        ]}
-        chosen={chosenFlag(actualCosts)}
-      />
-      <SettingsGrid
-        kind="subprojects"
-        rows={subprojects}
-        query={shown.query}
-        preferences={shown.preferences}
-      />
-    </ListSection>
+    // Keyed by the project: an answer of the server never outlives its project.
+    <SubprojectCommands
+      key={editing?.project}
+      project={editing?.project}
+      estimated={editing?.estimated}
+    >
+      <ReferenceSection
+        title={t("title")}
+        icon={FolderTree}
+        commands={<SubprojectHead offer={editing?.offer} />}
+      >
+        <ListBody
+          empty={empty ? t("none") : undefined}
+          reads={SUBPROJECT_READS}
+          filters={
+            <ChoiceFilter
+              name={SUBPROJECT_ACTUAL_COSTS}
+              label={t("actualCostsFilter")}
+              every={t("everyActualCosts")}
+              choices={[
+                { value: "true", text: t("withActualCosts") },
+                { value: "false", text: t("withoutActualCosts") },
+              ]}
+              chosen={chosenFlag(actualCosts)}
+            />
+          }
+          grid={
+            <SettingsGrid
+              kind="subprojects"
+              rows={subprojects}
+              editable={editing?.offer !== undefined}
+              query={shown.query}
+              preferences={shown.preferences}
+            />
+          }
+          dialog={<SubprojectDialog />}
+        />
+      </ReferenceSection>
+    </SubprojectCommands>
   );
 }
 
 /**
  * The contributors of a project, each by the name of their account, their capacity — the project
  * manager marked by an icon besides its name, readable without colour —, and whether their
- * account is active; filtered by the capacities and the state of the accounts the address names.
+ * account is active; filtered by the capacities and the state of the accounts the address names;
+ * and, for the project they are of, the modification of the list as it lists `manage_contributors`
+ * (`editing`).
  */
 export function ContributorList({
   contributors,
   kinds = [],
   active,
   shown = UNASKED,
+  editing,
 }: {
   readonly contributors: readonly Contributor[];
   /** The capacities the address restricts the contributors to; none, every one. */
@@ -186,6 +251,7 @@ export function ContributorList({
   /** Whether the address retains the active accounts, or the deactivated ones; none, all. */
   readonly active?: boolean | undefined;
   readonly shown?: Shown<ContributorSort>;
+  readonly editing?: ContributorEditing;
 }) {
   const t = useTranslations("projectLists.contributors");
   const named = useTranslations("enums.ContributorKind");
@@ -195,32 +261,35 @@ export function ContributorList({
     active === undefined &&
     shown.query.search === undefined;
   return (
-    <ListSection title={t("title")} icon={Users} empty={empty ? t("none") : undefined}>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <ValuesFilter
-          name={CONTRIBUTOR_KINDS}
-          label={t("kindFilter")}
-          every={t("everyKind")}
-          values={KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
-          chosen={kinds}
+    <ContributorCommands key={editing?.project} editing={editing}>
+      <ListSection title={t("title")} icon={Users} empty={empty ? t("none") : undefined}>
+        <ContributorHead />
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <ValuesFilter
+            name={CONTRIBUTOR_KINDS}
+            label={t("kindFilter")}
+            every={t("everyKind")}
+            values={KINDS.map((kind) => ({ value: kind, text: named(kind) }))}
+            chosen={kinds}
+          />
+          <ChoiceFilter
+            name={CONTRIBUTOR_ACTIVE}
+            label={t("accountFilter")}
+            every={t("everyAccount")}
+            choices={[
+              { value: "true", text: t("activeAccounts") },
+              { value: "false", text: t("inactiveAccounts") },
+            ]}
+            chosen={chosenFlag(active)}
+          />
+        </div>
+        <SettingsGrid
+          kind="contributors"
+          rows={contributors}
+          query={shown.query}
+          preferences={shown.preferences}
         />
-        <ChoiceFilter
-          name={CONTRIBUTOR_ACTIVE}
-          label={t("accountFilter")}
-          every={t("everyAccount")}
-          choices={[
-            { value: "true", text: t("activeAccounts") },
-            { value: "false", text: t("inactiveAccounts") },
-          ]}
-          chosen={chosenFlag(active)}
-        />
-      </div>
-      <SettingsGrid
-        kind="contributors"
-        rows={contributors}
-        query={shown.query}
-        preferences={shown.preferences}
-      />
-    </ListSection>
+      </ListSection>
+    </ContributorCommands>
   );
 }

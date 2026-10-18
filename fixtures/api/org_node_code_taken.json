@@ -1,0 +1,18 @@
+{
+  "summary": "Le code BE-AUTO donné au bureau d'études mécanique — à sa création comme à sa modification : refusé, le code d'un nœud étant unique dans l'arbre, désactivés compris ; le bureau d'études automatismes le porte, désactivé, que l'arbre lu sans les désactivés ne montre pas : il est nommé par son identifiant et son libellé, et peut se réactiver plutôt que d'en créer un second ; rien n'est écrit (WF-REF-0070).",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "ALREADY_EXISTS",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000474",
+          "conflicting_object_label": "Bureau d'études automatismes"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001080"
+  }
+}

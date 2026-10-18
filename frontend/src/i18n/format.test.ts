@@ -1,12 +1,16 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { createTranslator } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
+import { CATALOGUES } from "./catalogues";
 import {
+  compareDecimals,
   editableDecimal,
+  editablePercent,
   formatBytes,
   formatDecimal,
   formatLocale,
@@ -14,9 +18,14 @@ import {
   formatPercent,
   formatMonth,
   formatPlanningDate,
+  formatShare,
   formatTimestamp,
+  localTimeOfDay,
   parseDecimal,
+  percentRatio,
+  ratioPercent,
 } from "./format";
+import type { Locale } from "./locale";
 
 // French separates thousands with a narrow no-break space; the Vérif writes a plain space,
 // which the projection of the document does not tell apart from a typographic one.
@@ -200,6 +209,110 @@ describe("a percentage", () => {
   });
 });
 
+type Schemas = components["schemas"];
+
+describe("a share", () => {
+  /** A share in a language, its bounds said by the catalogue of the language. */
+  const share = (value: string, locale: Locale) =>
+    formatShare(
+      value,
+      locale,
+      createTranslator({ locale, messages: CATALOGUES[locale], namespace: "share" }),
+    );
+
+  it.each([
+    ["0", `0${NO_BREAK}%`],
+    ["-0.00", `0${NO_BREAK}%`],
+    ["0.0000", `0${NO_BREAK}%`],
+    ["0.0000499999", `<${NO_BREAK}0,01${NO_BREAK}%`],
+    ["0.00005", `0,01${NO_BREAK}%`],
+    ["-0.0000499999", `>${NO_BREAK}-0,01${NO_BREAK}%`],
+    ["-0.00005", `-0,01${NO_BREAK}%`],
+    ["-0.0123", `-1,23${NO_BREAK}%`],
+    // Near the whole, the ordinary rounding: only the side of zero is said (#626).
+    ["0.9999499999", `99,99${NO_BREAK}%`],
+    ["0.99995", `100,00${NO_BREAK}%`],
+    ["1", `100${NO_BREAK}%`],
+    ["1.0000499999", `100,00${NO_BREAK}%`],
+  ])("shows %s, rounded to the hundredth, never nil when it is not", (value, shown) => {
+    expect(share(value, "fr")).toBe(shown);
+  });
+
+  it("shows the share the API gives to its fourth place as formatPercent does, and rounds a longer one", () => {
+    expect(share("0.0076", "fr")).toBe(formatPercent("0.0076", "fr"));
+    expect(share("0.337", "en")).toBe("33.7%");
+    expect(share("0.1300", "en")).toBe("13.00%");
+    expect(share("0.1000000000000000055511151231257827", "en")).toBe("10.00%");
+  });
+
+  it("says the bound in the words and the format of each language", () => {
+    expect(share("0.00003", "en")).toBe("<0.01%");
+    expect(share("-0.00003", "en")).toBe(">-0.01%");
+  });
+
+  it("says below the smallest shown the share of the contract that rounds to nil while it is not", () => {
+    // « Fourniture et montage des armoires » of the offer v1.0: 2 019,56 of 65 427 832,64, which the
+    // contract gives to its first significant digit, never nil (EP-14/L42o, #694).
+    const indicators = example("estimate_indicators_breakdown") as Schemas["EstimateIndicators"];
+    const item = indicators.by_order_item[0];
+    expect(item?.share?.value).toBe("0.00003");
+    expect(share(item?.share?.value ?? "", "fr")).toBe(`<${NO_BREAK}0,01${NO_BREAK}%`);
+  });
+
+  it("refuses what is not a decimal of the contract", () => {
+    expect(() => share("25%", "fr")).toThrow(RangeError);
+  });
+});
+
+describe("a percentage entered", () => {
+  it("offers a ratio of the API to entry as a percentage, every digit kept", () => {
+    expect(editablePercent("0.03", "fr")).toBe("3");
+    expect(editablePercent("0.035", "fr")).toBe("3,5");
+    expect(editablePercent("0.4", "en")).toBe("40");
+    expect(editablePercent("1", "en")).toBe("100");
+    expect(editablePercent("0", "fr")).toBe("0");
+    expect(editablePercent("-0.025", "en")).toBe("-2.5");
+  });
+
+  it("sends a percentage entered as the ratio of the contract, the point moved, never through a float", () => {
+    expect(String(Number("0.07") * 100)).toBe("7.000000000000001");
+    expect(percentRatio("7")).toBe("0.07");
+    expect(percentRatio("3.5")).toBe("0.035");
+    expect(percentRatio("40")).toBe("0.4");
+    expect(percentRatio("100")).toBe("1");
+    expect(percentRatio("0")).toBe("0");
+    expect(percentRatio("-2.50")).toBe("-0.025");
+    expect(percentRatio("-0")).toBe("0");
+    expect(percentRatio("1234.5678")).toBe("12.345678");
+    // Each of these would come out of a float with digits of its own.
+    expect(String(Number("1.1") / 100)).not.toBe("0.011");
+    expect(percentRatio("1.1")).toBe("0.011");
+    expect(percentRatio("0.7")).toBe("0.007");
+    expect(percentRatio("57")).toBe("0.57");
+  });
+
+  it("says a ratio of the contract as the percentage it stands for, as the contract writes a decimal", () => {
+    // The bounds of the two rates of a project, which the server gives in ratios (EP-14/L42i).
+    expect(ratioPercent("1")).toBe("100");
+    expect(ratioPercent("0")).toBe("0");
+    expect(ratioPercent("0.035")).toBe("3.5");
+    expect(ratioPercent("2026-06-03")).toBeUndefined();
+  });
+});
+
+describe("two decimals compared", () => {
+  it("orders two decimals of the contract by their digits, never through a float", () => {
+    expect(compareDecimals("0.1", "0.25")).toBeLessThan(0);
+    expect(compareDecimals("0.3", "0.30")).toBe(0);
+    expect(compareDecimals("10", "9.99")).toBeGreaterThan(0);
+    expect(compareDecimals("-0.5", "0.1")).toBeLessThan(0);
+    expect(compareDecimals("-2", "-10")).toBeGreaterThan(0);
+    // A float would make the two equal: 2^53 + 1 has no double of its own.
+    expect(Number("9007199254740993") === Number("9007199254740992")).toBe(true);
+    expect(compareDecimals("9007199254740993", "9007199254740992")).toBeGreaterThan(0);
+  });
+});
+
 describe("a planning date", () => {
   const original = process.env.TZ;
 
@@ -317,5 +430,64 @@ describe("the formatters of Intl", () => {
     } finally {
       restoreZone(original);
     }
+  });
+});
+
+describe("a time of day in universal time", () => {
+  const original = process.env.TZ;
+
+  afterEach(() => {
+    restoreZone(original);
+  });
+
+  it("stands for the local time of the workstation on the day given, which summer time moves", () => {
+    process.env.TZ = "Europe/Paris";
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "03:00",
+      shift: 0,
+    });
+    expect(localTimeOfDay("01:00", new Date("2026-01-15T14:05:00Z"))).toEqual({
+      time: "02:00",
+      shift: 0,
+    });
+    expect(localTimeOfDay("23:30", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "01:30",
+      shift: 1,
+    });
+  });
+
+  it("falls the day before west of Greenwich, or in the zone named", () => {
+    process.env.TZ = "America/Los_Angeles";
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "18:00",
+      shift: -1,
+    });
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"), "Asia/Tokyo")).toEqual({
+      time: "10:00",
+      shift: 0,
+    });
+  });
+
+  it("keeps the half hour of a zone that has one", () => {
+    process.env.TZ = "Asia/Kolkata";
+    expect(localTimeOfDay("01:00", new Date("2026-06-03T14:05:00Z"))).toEqual({
+      time: "06:30",
+      shift: 0,
+    });
+  });
+
+  it("takes the offset of the very day summer time begins, on either side of the change", () => {
+    // In Paris, on 29 March 2026, the clocks go from 02:00 to 03:00, at 01:00 in universal time.
+    process.env.TZ = "Europe/Paris";
+    const change = new Date("2026-03-29T12:00:00Z");
+    expect(localTimeOfDay("00:30", change)).toEqual({ time: "01:30", shift: 0 });
+    expect(localTimeOfDay("01:00", change)).toEqual({ time: "03:00", shift: 0 });
+  });
+
+  it("is none for what is no time of day of the contract", () => {
+    const day = new Date("2026-06-03T14:05:00Z");
+    expect(localTimeOfDay("", day)).toBeUndefined();
+    expect(localTimeOfDay("24:00", day)).toBeUndefined();
+    expect(localTimeOfDay("1:00", day)).toBeUndefined();
   });
 });

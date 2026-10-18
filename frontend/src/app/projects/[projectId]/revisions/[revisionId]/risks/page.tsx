@@ -166,7 +166,7 @@ export default async function RisksPage({
   const at = gridAddress(revision, search, "risks");
   const states = readValues(at.address, STATES, RISK_STATES);
   const settings = requestSession().then(
-    (session) => session?.user.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
+    (session) => session?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
   );
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
   const [reading, risks, coverage, matrix, detail, preferences, query] = await Promise.all([

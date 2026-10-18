@@ -5,10 +5,12 @@
 
 FileUpload:
   type: object
-  required: [upload_id, purpose, filename, size_bytes, uploaded_at, expires_at]
+  required: [upload_id, purpose, filename, size_bytes, uploaded_at, expires_at, backup_taken_at]
   description: >-
     Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué,
-    abandonné ou expiré (WF-DAT-0120, WF-ARC-0100).
+    abandonné ou expiré (WF-DAT-0120, WF-ARC-0100). Une sauvegarde déposée qu'une restauration
+    acceptée désigne est gardée jusqu'à la fin de sa tâche, même au-delà de `expires_at`
+    (`startRestore`).
   properties:
     upload_id: { $ref: ../common.yaml#/Uuid }
     purpose: { $ref: '#/FileUploadPurpose' }
@@ -16,15 +18,92 @@ FileUpload:
     size_bytes: { type: integer, minimum: 1 }
     uploaded_at: { $ref: ../common.yaml#/Timestamp }
     expires_at: { $ref: ../common.yaml#/Timestamp }
+    backup_taken_at:
+      anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        D'une sauvegarde déposée pour une restauration (`external_backup`), la date que son
+        manifeste dit en tête de l'archive, lue à l'achèvement du dépôt par morceaux
+        (`completeChunkedUpload`), qui refuse une archive qui n'en dit pas (#1006) : celle de la
+        sauvegarde dont elle est la copie (`Backup.taken_at`), la date que la confirmation de la
+        restauration énonce et que `RestoreRequest.acknowledged_backup_taken_at` doit répéter
+        (WF-ADM-0160). Jamais nulle pour une sauvegarde. Nulle pour le fichier d'un import
+        (`uploadFile`), qui n'a pas de date de sauvegarde.
 
 FileUploadPurpose:
   type: string
   enum: [import, external_backup]
   description: >-
-    L'usage d'un dépôt, qui le borne (`uploadFile`) : le fichier d'un import, au plus
-    10 Mio (§4.6.2) ; une sauvegarde copiée hors de la plateforme, à restaurer
+    L'usage d'un dépôt, qui le borne : le fichier d'un import, au plus 10 Mio (§4.6.2), déposé
+    en une fois par `uploadFile` ; une sauvegarde copiée hors de la plateforme, à restaurer
     (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus
-    `Installation.external_backup_max_bytes`.
+    `Installation.external_backup_max_bytes`, déposée par morceaux (`openChunkedUpload`,
+    `uploadChunk`, `completeChunkedUpload`), `uploadFile` la refusant. Les deux valeurs restent
+    dans l'énumération : le `FileUpload` que rend `completeChunkedUpload` emploie
+    `external_backup`, et un dépôt se désigne par son usage (`startRestore`, `openImport`).
+
+ChunkedUploadOpen:
+  type: object
+  required: [filename, size_bytes]
+  description: >-
+    Ouvre le dépôt par morceaux d'une sauvegarde copiée hors de la plateforme, à restaurer
+    (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). Il n'existe pas pour un autre usage :
+    le fichier d'un import se dépose en une fois.
+  properties:
+    filename:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Le nom du fichier, tel que l'utilisateur l'a choisi ; il reste au dépôt qui s'achève.
+    size_bytes:
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+      description: >-
+        La taille entière du fichier, en octets, que le dépôt s'engage à recevoir ; au-delà de
+        `Installation.external_backup_max_bytes`, ou qui ne tient pas en 10 000 morceaux de
+        `part_size_bytes` au plus (10 000 × 10 Mio), l'ouverture est refusée par 413,
+        `FILE_TOO_LARGE`.
+
+ChunkedUpload:
+  type: object
+  required: [chunked_upload_id, filename, size_bytes, part_size_bytes, part_count, received_parts, expires_at]
+  description: >-
+    Un dépôt par morceaux, ouvert et pas encore terminé : le fichier est découpé en `part_count`
+    morceaux de `part_size_bytes` octets, sauf le dernier, qui reçoit le reste, numérotés à
+    partir de 1, que le serveur assemble sur le stockage objet à mesure qu'ils arrivent
+    (WF-ARC-0050). Un morceau se redépose tant que le dépôt n'est pas terminé, ce qui permet de
+    reprendre un envoi interrompu à partir de `received_parts`, tant que le client a la dernière
+    réponse ; aucune opération ne relit un dépôt, et un envoi dont le client a perdu la réponse
+    — un rechargement de page — recommence par une ouverture, le dépôt précédent expirant.
+  properties:
+    chunked_upload_id: { $ref: ../common.yaml#/Uuid }
+    filename: { type: string }
+    size_bytes: { type: integer, minimum: 1 }
+    part_size_bytes:
+      type: integer
+      minimum: 5242880
+      maximum: 10485760
+      description: >-
+        La taille de chaque morceau sauf le dernier, fixée par le serveur à l'ouverture, entre
+        5 Mio et 10 Mio : le stockage objet n'assemble pas de morceau plus petit que 5 Mio, et
+        10 Mio est la borne du corps d'une requête que le front porte, celle des imports. Un
+        morceau fait exactement cette taille, le dernier recevant le reste (`uploadChunk`).
+    part_count:
+      type: integer
+      minimum: 1
+      maximum: 10000
+      description: >-
+        Le nombre de morceaux, au plus 10 000, la limite des dépôts en plusieurs parties du
+        stockage objet : le serveur choisit `part_size_bytes` dans ses bornes pour y tenir.
+    received_parts:
+      type: array
+      description: Les numéros des morceaux reçus, en ordre croissant, sans doublon.
+      items: { type: integer, minimum: 1 }
+    expires_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: >-
+        Vingt-quatre heures après l'ouverture : au-delà, le dépôt et ses morceaux sont
+        supprimés, comme un fichier d'import expiré (WF-DAT-0120).
 
 ExchangeKind:
   type: string
@@ -82,7 +161,7 @@ Import:
 
 ImportReport:
   type: object
-  required: [read_count, rejected, differences, ignored, completed_tasks, date_mismatches]
+  required: [read_count, rejected, refusals, differences, ignored, completed_tasks, date_mismatches]
   description: >-
     Compte rendu présenté avant application, et relu après elle : lignes lues, lignes
     rejetées avec leur motif, écarts avec les données existantes (WF-INTF-0080), ce que
@@ -94,16 +173,30 @@ ImportReport:
     (WF-INTF-0040, WF-INTF-0100) ; un reste à engager laisse inchangées, sans les signaler,
     les lignes absentes du fichier (WF-INTF-0120). Un planning exporté puis réimporté sans
     modification ne présente aucun écart : `differences` et `date_mismatches` sont vides
-    (WF-INTF-0060). Les quatre tableaux sont toujours rendus, vides quand il n'y a rien à
+    (WF-INTF-0060). Les tableaux sont toujours rendus, vides quand il n'y a rien à
     dire, pour que l'écran n'ait pas à distinguer un compte rendu qui n'en parle pas d'un
-    compte rendu où il n'y a rien.
+    compte rendu où il n'y a rien. Un fichier rejeté entier se lit à ce que `refusals` n'est pas
+    vide : rien ne s'applique, pas même les lignes acceptées, et seul l'abandon reste offert
+    (`applyImport`, `import_file_accepted` ; EP-14/L42s).
   properties:
     format_version:
       anyOf: [{ type: string }, { type: 'null' }]
     read_count: { type: integer, minimum: 0 }
     rejected:
       type: array
+      description: >-
+        Les lignes rejetées, chacune avec son motif ; les autres s'appliquent (WF-INTF-0080).
       items: { $ref: '#/ImportRejection' }
+    refusals:
+      type: array
+      description: >-
+        Les motifs qui rejettent le fichier entier, au lieu d'une ligne (`ReportRefusal`) : un
+        planning MS Project qui déplacerait la tâche d'un lot hors du sous-arbre de la tâche de
+        son poste — sur la structure principale, seule à porter des rattachements —, « rejeté au
+        compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon »
+        (WF-INTF-0040, WF-PLA-0170), et un planning qui porterait la durée du projet au-delà de
+        quinze ans (WF-PLA-0150). Vide quand le fichier s'applique (EP-14/L42s).
+      items: { $ref: '#/ReportRefusal' }
     differences:
       type: array
       items: { $ref: '#/ImportDifference' }
@@ -175,17 +268,19 @@ ImportIgnored:
 ImportCompletedTask:
   type: object
   required: [lineage_id, label, completed_on]
-  description: Une tâche qu'un import termine (WF-PLA-0130, WF-INTF-0120).
+  description: >-
+    Une tâche qu'un import termine (WF-PLA-0130, WF-INTF-0120), ou qu'une fusion termine, le
+    différentiel la retirant alors qu'elle est démarrée (WF-REV-0050, `StructureMergeReport`).
   properties:
     lineage_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string }
     completed_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
-        Le jour de l'application de l'import, la date de terminaison que la tâche prend
-        (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas
-        un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import n'est pas
-        appliqué.
+        Le jour de l'application de l'import ou de la fusion, la date de terminaison que la
+        tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée
+        qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que
+        l'import ou la fusion n'est pas appliqué.
 
 ImportDateMismatch:
   type: object
@@ -213,13 +308,35 @@ ImportRejection:
   description: >-
     Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs :
     une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée
-    (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), une tâche que le fichier placerait hors du
-    sous-arbre de la tâche du poste de son lot (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-    WF-PLA-0170), une ligne de devis d'une catégorie de nature provision, que seule la
-    déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), chacun avec les
-    paramètres qu'il porte dans un refus.
+    (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), ses `params` nommant les rôles et la tâche en
+    cause comme ceux d'une saisie d'une révision (`resource_role_ids`, `tasks`, chaque tâche par
+    `project_id`, `node_id` et `label`), une ligne de devis d'une catégorie de type provision
+    pour risques, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`,
+    WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus. Une tâche que le fichier
+    placerait hors du sous-arbre de la tâche du poste de son lot ne rejette pas sa ligne mais le
+    fichier entier (`ImportReport.refusals` ; EP-14/L42s).
   properties:
     row: { type: integer, minimum: 1 }
+    code: { $ref: ../common.yaml#/ErrorCode }
+    params:
+      type: object
+      additionalProperties: true
+
+ReportRefusal:
+  type: object
+  required: [code]
+  description: >-
+    Un motif qui refuse un import ou une fusion entière, présenté au compte rendu avant
+    l'application (WF-INTF-0040, WF-REV-0050 ; EP-14/L42s) : son code et les paramètres qu'il
+    porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure
+    principale et leur libellé. Ainsi `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, la tâche d'un lot sortie
+    du sous-arbre de la tâche de son poste, `params.order_item_task` et `work_package_tasks`
+    (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans,
+    `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS`, sur
+    lequel sa tâche de fond échoue déjà (WF-PLA-0010). Un cycle de liaisons (WF-PLA-0030) et
+    l'horizon, que WF-REV-0050 cite parmi les motifs de refus d'une fusion, n'ont pas encore
+    l'échec de la fusion décrit : #788.
+  properties:
     code: { $ref: ../common.yaml#/ErrorCode }
     params:
       type: object
@@ -228,6 +345,9 @@ ImportRejection:
 ImportDifference:
   type: object
   required: [change, target]
+  description: >-
+    Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure
+    principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s).
   properties:
     change:
       type: string
@@ -235,8 +355,10 @@ ImportDifference:
       description: >-
         Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou
         terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que
-        l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100). Un `kept` n'a pas
-        de `fields`.
+        l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une
+        tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la
+        démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ;
+        EP-14/L42s). Un `kept` n'a pas de `fields`.
     target:
       type: string
       enum: [task, estimate_line, link, actual_cost_line]
@@ -259,6 +381,13 @@ ImportDifference:
         Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte
         rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080,
         WF-ARC-0020) ; nul pour tout autre objet.
+    work_breakdown_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du poste ou du lot
+        qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte
+        rendu nomme le poste ou le lot qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou
+        absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k).
     fields:
       type: array
       description: >-

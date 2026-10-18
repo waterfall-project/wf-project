@@ -273,11 +273,17 @@ def _command(entry: Entry) -> tuple[str, bool, list[str]]:
     """Return the command that changes the state of an object, the first it lists.
 
     A nature lists the change of its kind after it (`CostTypeCommand`), a category its move under
-    a nature of another kind (`CostCategoryCommand`, EP-02/L42g); every other object of the
-    reference lists that command alone.
+    a nature of another kind (`CostCategoryCommand`, EP-02/L42g), a calendar its designation by
+    default (`CalendarCommand`, EP-14/L42j); every other object of the reference lists that command
+    alone.
     """
     available, *others = entry["available_commands"]
-    assert [other["command"] for other in others] in ([], ["change_kind"], ["change_cost_type"])
+    assert [other["command"] for other in others] in (
+        [],
+        ["change_kind"],
+        ["change_cost_type"],
+        ["set_default"],
+    )
     return available["command"], available["is_available"], available["missing_conditions"]
 
 
@@ -327,7 +333,8 @@ def test_the_witness_calendars_are_those_with_the_deactivated_week_left_out() ->
     whole = fixture("calendars_with_inactive")["items"]
     assert [entry for entry in whole if entry["is_active"]] == fixture("calendars")["items"]
     [week] = [entry for entry in whole if not entry["is_active"]]
-    assert (week["calendar_id"], week["available_commands"]) == (universe(483), REACTIVATE)
+    # Its designation by default is listed after, unavailable while it is deactivated (EP-14/L42j).
+    assert (week["calendar_id"], week["available_commands"][:1]) == (universe(483), REACTIVATE)
     hours = sum(Decimal(value) for value in week["weekly_hours"].values())
     assert hours == Decimal(39)
 
@@ -415,28 +422,32 @@ def test_the_grid_and_the_calendars_refuse_bounds_inverted_or_a_bound_without_it
     assert missing["fields"] == [{"pointer": "/query/rate_year", "code": "VALUE_REQUIRED"}]
 
 
-def test_the_last_category_of_provision_is_the_one_left_and_none_when_two_remain() -> None:
-    # PRV, 463, is the one active nature of provision (#578): its last active category may not go;
-    # two active categories, and neither is the last.
-    def category(number: int, *, active: bool = True) -> Entry:
-        return {
-            "cost_category_id": universe(number),
-            "cost_type_id": universe(463),
-            "is_active": active,
-        }
-
-    alone = [category(404), category(406, active=False), {**category(401), "cost_type_id": "x"}]
-    assert mockreference.last_provision(alone) == {universe(404)}
-    assert mockreference.last_provision([category(404), category(406)]) == set()
-    commands = mockreference.category_commands(category(404), set(), set(), {universe(404)})
-    assert commands[0] == {
-        "command": "deactivate",
-        "is_available": False,
-        "missing_conditions": ["cost_category_not_last_provision"],
+def test_the_last_category_of_provision_goes_as_any_other() -> None:
+    # The rule of #578 is withdrawn (EP-14/L42p, #579): the last active category of provision for
+    # risks has its deactivation available, the creation of a project and the declaration of a
+    # risk naming what they then miss (WF-CYC-0120, WF-RIS-0010).
+    category: Entry = {
+        "cost_category_id": universe(404),
+        "cost_type_id": universe(463),
+        "is_active": True,
     }
+    assert mockreference.category_commands(category, set(), set(), set()) == [
+        {"command": "deactivate", "is_available": True, "missing_conditions": []},
+        {"command": "change_cost_type", "is_available": True, "missing_conditions": []},
+    ]
 
 
-def test_the_categories_say_none_is_the_last_of_provision_when_none_is() -> None:
-    entry: Entry = {"cost_category_id": universe(404), "code": "PRV-001", "label": "Provisions"}
-    assert "aucune" in mockreference.last_said([entry], set())
-    assert "PRV-001 (provisions)" in mockreference.last_said([entry], {universe(404)})
+def test_a_category_that_a_single_deactivated_role_is_attached_to_keeps_its_nature() -> None:
+    # WF-REF-0040 : « Une catégorie qui porte des taux horaires, ou à laquelle un rôle de ressource
+    # est rattaché, ne quitte pas la main-d'œuvre » — a deactivated role is attached still, and
+    # reactivates without a look at its category (EP-14/L42r).
+    deactivated: Entry = {"cost_category_id": universe(403), "is_active": False}
+    roles = mockreference.attached([deactivated])
+    assert roles == {universe(403)}
+    category: Entry = {"cost_category_id": universe(403), "is_active": True}
+    [_, move] = mockreference.category_commands(category, set(), set(), roles)
+    assert move == {
+        "command": "change_cost_type",
+        "is_available": False,
+        "missing_conditions": ["cost_category_without_role"],
+    }

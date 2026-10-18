@@ -1,5 +1,5 @@
 {
-  "summary": "Les sauvegardes de la plateforme au 3 juin 2026, de la plus récente : les sept planifiées de la semaine écoulée, chaque nuit à une heure, que la rétention de sept garde, et une sauvegarde manuelle du 30 janvier, marquée à conserver, qui échappe à la rotation ; toutes vérifiées (WF-ADM-0150, WF-ADM-0170).",
+  "summary": "Les sauvegardes de la plateforme au 3 juin 2026, de la plus récente : les sept planifiées de la semaine écoulée, chaque nuit à une heure, que la rétention de sept garde, et une sauvegarde manuelle du 30 janvier, marquée à conserver, qui échappe à la rotation ; toutes vérifiées. Lues par une session qui peut modifier les sauvegardes et restaurer la plateforme : chacune porte le marquage qui change son état, son téléchargement et sa restauration, tous disponibles, rien ne s'exécutant (WF-ADM-0150, WF-ADM-0170, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -9,7 +9,24 @@
         "verification": "passed",
         "is_retained": false,
         "scope": "database",
-        "origin": "scheduled"
+        "origin": "scheduled",
+        "available_commands": [
+          {
+            "command": "retain",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000906",
@@ -18,7 +35,24 @@
         "verification": "passed",
         "is_retained": false,
         "scope": "database",
-        "origin": "scheduled"
+        "origin": "scheduled",
+        "available_commands": [
+          {
+            "command": "retain",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000905",
@@ -27,7 +61,24 @@
         "verification": "passed",
         "is_retained": false,
         "scope": "database",
-        "origin": "scheduled"
+        "origin": "scheduled",
+        "available_commands": [
+          {
+            "command": "retain",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000904",
@@ -36,7 +87,24 @@
         "verification": "passed",
         "is_retained": false,
         "scope": "database",
-        "origin": "scheduled"
+        "origin": "scheduled",
+        "available_commands": [
+          {
+            "command": "retain",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000903",
@@ -45,7 +113,24 @@
         "verification": "passed",
         "is_retained": false,
         "scope": "database",
-        "origin": "scheduled"
+        "origin": "scheduled",
+        "available_commands": [
+          {
+            "command": "retain",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000902",
@@ -54,7 +139,24 @@
         "verification": "passed",
         "is_retained": false,
         "scope": "database",
-        "origin": "scheduled"
+        "origin": "scheduled",
+        "available_commands": [
+          {
+            "command": "retain",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000901",
@@ -63,7 +165,24 @@
         "verification": "passed",
         "is_retained": false,
         "scope": "database",
-        "origin": "scheduled"
+        "origin": "scheduled",
+        "available_commands": [
+          {
+            "command": "retain",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000900",
@@ -72,7 +191,24 @@
         "verification": "passed",
         "is_retained": true,
         "scope": "database",
-        "origin": "manual"
+        "origin": "manual",
+        "available_commands": [
+          {
+            "command": "release",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "download",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "restore",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ]
       }
     ],
     "meta": {

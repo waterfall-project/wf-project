@@ -30,7 +30,7 @@ type PermissionCode = components["schemas"]["PermissionCode"];
 export type CrumbLabel =
   | NavigationFunction["label"]
   | FunctionGroup["label"]
-  | `accountMenu.${"account" | "password" | "avatar"}`
+  | `accountMenu.${"account" | "avatar"}`
   | "breadcrumbs.revision";
 
 /** A step of the breadcrumb: a label of the catalogue, or a project; a link when it has one. */

@@ -167,11 +167,12 @@ test("sorts and searches each list of the settings of the resources by the serve
   test.slow();
   await page.goto("/reference/resources");
   const roles = page.getByRole("grid", { name: "Rôles de ressources" });
-  // A header of the roles asks the server for its sort, under the names of the grid.
+  // A header of the roles asks the server for its sort, under the names of the grid: the code of
+  // a role among them (EP-14/L42r).
   await sortUntilAddress(
-    roles.getByRole("columnheader", { name: "Heures par mois" }),
+    roles.getByRole("columnheader", { name: "Code", exact: true }),
     roles,
-    "/reference/resources?role_sort_by=monthly_hours&role_sort_order=asc",
+    "/reference/resources?role_sort_by=code&role_sort_order=asc",
   );
   // The tree sorts nothing, folds and unfolds, and its search keeps the sort of the roles.
   const tree = page.getByRole("treegrid", { name: "Arbre d’organisation" });
@@ -185,7 +186,7 @@ test("sorts and searches each list of the settings of the resources by the serve
     .getByRole("searchbox", { name: "Rechercher dans «\u00a0Arbre d’organisation\u00a0»" })
     .fill("BE");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/role_sort_by=monthly_hours.*&org_search=BE$/, { timeout: WORKING });
+  await expect(page).toHaveURL(/role_sort_by=code.*&org_search=BE$/, { timeout: WORKING });
 
   // The deactivated objects asked of the server, each offered to be reactivated.
   await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
@@ -294,6 +295,12 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
     "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481&role_monthly_hours_min=300000",
     { timeout: WORKING },
   );
+  // The code of the roles, filtered by the server under the name of their grid (EP-14/L42r).
+  await page.getByRole("searchbox", { name: "Code du rôle" }).fill("AUT");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/role_monthly_hours_min=300000&role_code=AUT$/, {
+    timeout: WORKING,
+  });
 });
 
 test("creates a category, enters a rate and deactivates a nature, the mock-up saying the fake back keeps nothing (EP-02/L43a)", async ({
@@ -357,19 +364,19 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-test("presents fixed the type of a nature whose category is employed, and the deactivation of the last nature of provision unavailable, each with its condition [WF-IHM-0090-A]", async ({
+test("presents fixed the type of a nature whose category is employed, with its condition, and the deactivation of the nature of provision for risks available [WF-IHM-0090-A]", async ({
   page,
 }) => {
   await page.goto("/reference/costs");
   const natures = page.getByRole("grid", { name: "Natures de coût" });
-  // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
+  // The rule of #578 withdrawn (EP-14/L42p), the last nature of provision deactivates as any other.
   const deactivation = natures.getByRole("button", { name: "Désactiver « Provision »" });
-  await expect(deactivation).toHaveAttribute("aria-disabled", "true");
-  await expect(deactivation).toHaveAccessibleDescription(
-    /^Condition non remplie\s:\sune autre nature provision active portant une catégorie active\.$/,
-  );
+  await expect(deactivation).not.toHaveAttribute("aria-disabled", "true");
 
-  // The modification of the labour opened from its row, pressed again until React opens it.
+  // The type of the labour, whose categories the estimate employs, bear rates and serve roles, is
+  // fixed with its conditions (EP-14/L42r):
+  // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
+  // Its modification is opened from its row, pressed again until React opens it.
   const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
   await expect(async () => {
     if (!(await form.isVisible())) {
@@ -381,14 +388,14 @@ test("presents fixed the type of a nature whose category is employed, and the de
   await expect(type).toHaveAttribute("readonly", "");
   await expect(type).toHaveValue("Main-d’œuvre");
   await expect(type).toHaveAccessibleDescription(
-    /^Le type ne se modifie pas\. Condition non remplie\s:\saucune catégorie de la nature employée\.$/,
+    /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature employée, aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/,
   );
   await expect(form.getByRole("combobox", { name: "Type" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(form).toBeHidden();
 });
 
-test("creates a role in its form and designates the default calendar, its row showing the answer, the mock-up saying the fake back keeps nothing (EP-02/L43b)", async ({
+test("creates a role in its form, moves a node under an active one, and designates the default calendar as its row lists it, the mock-up saying the fake back keeps nothing (EP-02/L43b, EP-14/L43g)", async ({
   page,
 }) => {
   test.slow();
@@ -405,6 +412,7 @@ test("creates a role in its form and designates the default calendar, its row sh
     }
     await expect(form).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });
+  await form.getByRole("textbox", { name: "Code" }).fill("DESS-ELEC");
   await form.getByRole("textbox", { name: "Libellé" }).fill("Dessinateur électricien");
   // The active nodes alone, in the order of the tree; the categories of labour alone.
   await form
@@ -430,7 +438,30 @@ test("creates a role in its form and designates the default calendar, its row sh
     "«\u00a0Dessinateur électricien\u00a0» créé.",
   );
 
-  // The four-day week designated by default from its row: the row shows what the server answers.
+  // The workshop moved under the direction in its form: the active nodes alone are offered as its
+  // parent, never the workshop itself; the parent is sent, and the list says what the server wrote.
+  const organisation = page.getByRole("region", { name: "Arbre d’organisation" });
+  const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
+  await page
+    .getByRole("treegrid", { name: "Arbre d’organisation" })
+    .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
+    .click();
+  const parent = nodeForm.getByRole("combobox", { name: "Parent" });
+  await expect(parent.getByRole("option")).toHaveText([
+    "Aucun — racine",
+    "DT · Direction technique",
+    "\u2003BE-ELEC · Bureau d'études électricité",
+    "\u2003ACHATS · Service des achats",
+  ]);
+  await parent.selectOption({ label: "DT · Direction technique" });
+  await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(nodeForm).toBeHidden({ timeout: WORKING });
+  await expect(organisation.getByRole("status").filter({ hasText: "enregistré" })).toHaveText(
+    "«\u00a0Atelier de câblage\u00a0» enregistré.",
+  );
+
+  // The four-day week designated by default from its row, as it lists the command: the row shows
+  // what the server answers.
   const calendars = page.getByRole("grid", { name: "Calendriers" });
   await calendars
     .getByRole("button", { name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut" })
@@ -442,5 +473,81 @@ test("creates a role in its form and designates the default calendar, its row sh
       .getByRole("status")
       .filter({ hasText: "désigné" }),
   ).toHaveText("«\u00a0Semaine de quatre jours\u00a0» désigné calendrier par défaut.");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
+
+test("modifies the risk matrix and the thresholds of the indices in their forms, a bound out of order refused before asking, the mock-up saying the fake back keeps nothing (EP-14/L43e) [WF-REF-0160-A] [WF-REF-0170-A] [WF-REF-0180-A]", async ({
+  page,
+}) => {
+  test.slow();
+  await page.goto("/reference/risks");
+  await expect(page.getByRole("note")).toContainText("le service simulé répond");
+
+  // No project is opened here, nothing witnesses the hydration: the command is pressed again until
+  // React opens its form, and never once it is open.
+  const matrix = page.getByRole("dialog", { name: "Modifier la matrice de risques" });
+  await expect(async () => {
+    if (!(await matrix.isVisible())) {
+      await page.getByRole("button", { name: "Modifier la matrice de risques" }).click();
+    }
+    await expect(matrix).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  // Les six bornes sont saisissables et ordonnées : une borne sous la précédente est refusée.
+  const second = matrix
+    .getByRole("group", { name: "Bornes de probabilité (%)" })
+    .getByRole("textbox", { name: "Deuxième borne" });
+  await second.fill("5");
+  await matrix.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(second).toBeFocused();
+  await expect(second).toHaveAccessibleDescription(
+    "Les bornes doivent être strictement croissantes.",
+  );
+  await second.fill("25");
+  await matrix
+    .getByRole("group", { name: "Probabilité, niveau 1" })
+    .getByRole("combobox", { name: "Gravité, niveau 4" })
+    .selectOption({ label: "Alerte" });
+  await matrix.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(matrix).toBeHidden({ timeout: WORKING });
+  // The fake back answers the first example of the operation whatever was written — the thresholds
+  // written by the other screen, the matrix as it was —, and the screen shows what it answered.
+  await expect(page.getByRole("status").filter({ hasText: "enregistrée" })).toHaveText(
+    "Matrice de risques enregistrée.",
+  );
+  await expect(
+    page
+      .getByRole("table", { name: "Bornes de la matrice de risques" })
+      .getByRole("row", { name: "Probabilité 10 % 30 % 60 %" }),
+  ).toHaveCount(1);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+  await page.goto("/reference/indicators");
+  const thresholds = page.getByRole("dialog", { name: "Modifier les seuils et le délai" });
+  await expect(async () => {
+    if (!(await thresholds.isVisible())) {
+      await page.getByRole("button", { name: "Modifier les seuils et le délai" }).click();
+    }
+    await expect(thresholds).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  // Les quatre seuils sont saisissables ; le délai est saisissable en semaines.
+  for (const index of ["Indice de coût", "Indice de délai"]) {
+    const group = thresholds.getByRole("group", { name: index });
+    await group.getByRole("textbox", { name: "Seuil de vigilance" }).fill("0,95");
+    await group.getByRole("textbox", { name: "Seuil d’alerte" }).fill("0,85");
+  }
+  await thresholds
+    .getByRole("textbox", { name: "Délai maximal entre deux révisions marquées (semaines)" })
+    .fill("6");
+  await thresholds.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(thresholds).toBeHidden({ timeout: WORKING });
+  await expect(page.getByRole("status").filter({ hasText: "enregistrés" })).toHaveText(
+    "Seuils et délai enregistrés.",
+  );
+  await expect(
+    page
+      .getByRole("table", { name: "Seuils d’alerte des indices" })
+      .getByRole("row", { name: "Indice de coût 0,95 0,85" }),
+  ).toHaveCount(1);
+  await expect(page.getByText("6 semaines")).toBeVisible();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });

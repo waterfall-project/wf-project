@@ -68,6 +68,8 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 /** Every state of the contract, as the home asks them when its address names none. */
 const EVERY_STATE = "created,pricing,in_progress,completed,lost,abandoned";
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+/** The notice that the fake back keeps nothing, for a session that may create a project. */
+const MOCKUP = CATALOGUES.en.mockup.notKept;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -112,7 +114,7 @@ beforeEach(() => {
   server.clients = [];
   server.unreachable = false;
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
   };
@@ -250,7 +252,7 @@ describe("the home, the list of projects", () => {
   it("shows the filter without the link that lifts it to a session that may not read every project (#522)", async () => {
     // A contributor without « consulter tous les projets » would see the same list lifted: the
     // link would promise what it does not do (WF-ADM-0110).
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home();
     expect(text(html)).toContain("Projects you contribute to");
     expect(text(html)).not.toContain("Show all projects");
@@ -258,7 +260,7 @@ describe("the home, the list of projects", () => {
   });
 
   it("stays filtered, without either link, for a session that may not read every project, whatever the address says (#522)", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home({ is_contributor: "false" });
     expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
     expect(text(html)).toContain("Projects you contribute to");
@@ -288,6 +290,34 @@ describe("the home, the list of projects", () => {
     expect(html).not.toContain('aria-label="Pages of the projects"');
   });
 
+  it("offers the creation of a project to a session that holds its permission, saying the fake back keeps nothing [WF-ADM-0100-A]", async () => {
+    const html = await home();
+    expect(html).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Create a project<\/button>/);
+    expect(html).toMatch(/<p role="note"[^>]*>.*Mock-up: the simulated service/);
+  });
+
+  it("presents the creation of a project unavailable while the minimum reference data is incomplete, which the server would refuse", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /reference/readiness": "reference_readiness_incomplete",
+    };
+    const html = await home();
+    const create =
+      /<button[^>]*aria-disabled="true"[^>]*aria-describedby="([^"]+)"[^>]*>(?:(?!<\/button>).)*Create a project<\/button>/.exec(
+        html,
+      );
+    expect(create).not.toBeNull();
+    expect(html).toContain(`id="${create?.[1] ?? ""}"`);
+  });
+
+  it("offers no creation of a project to a session without its permission [WF-ADM-0100-A]", async () => {
+    // Un utilisateur sans la permission de créer un projet n'en crée pas.
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
+    const html = await home();
+    expect(text(html)).not.toContain("Create a project");
+    expect(html).not.toContain('role="note"');
+  });
+
   it("titles the tab with the list of projects", async () => {
     expect((await generateMetadata()).title).toBe("Projects — Waterfall");
   });
@@ -298,7 +328,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home();
     expect(text(html)).toMatch(
-      /^Projects Projects you contribute to Show all projects Every state .* You contribute to no project\.$/,
+      /^Projects Create a project Projects you contribute to Show all projects Mock-up: .* Every state .* You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -323,29 +353,49 @@ describe("the empty states of the home", () => {
   it("says there is no project when the list is empty unfiltered", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false" });
-    expect(text(html)).toMatch(/^Projects Show only my projects Every state .* No project\.$/);
+    expect(text(html)).toMatch(
+      /^Projects Create a project Show only my projects Mock-up: .* Every state .* No project\.$/,
+    );
   });
 
-  it("names each prerequisite an incomplete reference lacks, and leads to where it is provided", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /reference/readiness": "reference_readiness_incomplete",
-    };
-    const html = await home();
-    expect(text(html)).toMatch(
-      /^Projects Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: a default calendar with working hours an active cost category Every state/,
-    );
-    expect(links(html).slice(1, 3)).toEqual(["/reference/resources", "/reference/costs"]);
-  });
+  // A new installation, which lacks the labour category and the role alone, its calendar by default
+  // bootstrapped (WF-EXP-0020, EP-14/L42s); then a reference whose one category of provision for
+  // risks, PRV-001, was deactivated (EP-14/L42p).
+  it.each([
+    [
+      "reference_readiness_incomplete",
+      "an active labour category an active resource role",
+      ["/reference/costs", "/reference/resources"],
+    ],
+    [
+      "reference_readiness_without_provision",
+      "an active category of provision for risks",
+      ["/reference/costs"],
+    ],
+  ] as const)(
+    "names each prerequisite an incomplete reference lacks, and leads to where it is provided (%s) [WF-IHM-0120-A]",
+    async (readiness, missing, provided) => {
+      // Sur une installation au référentiel incomplet, l'accueil nomme les prérequis manquants et
+      // mène au référentiel.
+      server.answers = { ...server.answers, "GET /reference/readiness": readiness };
+      const html = await home();
+      expect(text(html)).toMatch(
+        new RegExp(
+          `^Projects Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
+        ),
+      );
+      expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
+    },
+  );
 
   it("names the prerequisites without a link to a function the session may not read", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": UNAUTHORIZED,
+      "GET /me": UNAUTHORIZED,
       "GET /reference/readiness": "reference_readiness_incomplete",
     };
     const html = await home();
-    expect(text(html)).toContain("a default calendar with working hours an active cost category");
+    expect(text(html)).toContain("an active labour category an active resource role");
     expect(links(html)).not.toContain("/reference/costs");
   });
 
@@ -368,8 +418,9 @@ describe("the empty states of the home", () => {
     );
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html)).toBe(
-      "Projects Show only my projects Incomplete reference data No project can be created until the common reference data has: " +
-        "a default calendar with working hours an active cost category " +
+      "Projects Create a project The minimum reference data is incomplete. Show only my projects " +
+        `${MOCKUP} Incomplete reference data No project can be created until the common reference data has: ` +
+        "an active labour category an active resource role " +
         "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
     );
   });

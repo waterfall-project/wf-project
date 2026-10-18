@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+# The image takes the description of the distribution and its sources alone: nothing of the
+# workstation — its environment, its caches, its measures, an environment file — enters the context.
+
+.venv
+.env*
+.pytest_cache
+.ruff_cache
+.grimp_cache
+.coverage
+coverage*.json
+**/__pycache__
+tests

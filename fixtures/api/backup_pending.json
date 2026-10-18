@@ -1,0 +1,33 @@
+{
+  "summary": "La sauvegarde manuelle mise en file aujourd'hui à 14 h 04 (task_backup_queued), prise à 14 h 04 min 50 s et lue avant que sa vérification n'aboutisse : son marquage est disponible, son téléchargement et sa restauration ne le sont pas, backup_verified manquante — seule une sauvegarde vérifiée sort de la plateforme ou la remplace (WF-ADM-0150, WF-IHM-0090).",
+  "value": {
+    "backup_id": "01926f3a-7c00-7000-8000-000000000908",
+    "taken_at": "2026-06-03T14:04:50Z",
+    "size_bytes": 1317850316,
+    "verification": "pending",
+    "is_retained": false,
+    "scope": "database",
+    "origin": "manual",
+    "available_commands": [
+      {
+        "command": "retain",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "download",
+        "is_available": false,
+        "missing_conditions": [
+          "backup_verified"
+        ]
+      },
+      {
+        "command": "restore",
+        "is_available": false,
+        "missing_conditions": [
+          "backup_verified"
+        ]
+      }
+    ]
+  }
+}

@@ -44,7 +44,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { findOffer, type ListedCommand } from "@/components/commands/offer";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 
@@ -62,20 +62,21 @@ import { ActiveState } from "./section";
 /**
  * The commands an object of the reference data lists: the one that changes its state, and, for a
  * nature or a category of cost, the change of its type (`CostTypeCommand`, `CostCategoryCommand`),
- * which its form reads.
+ * which its form reads; for a calendar, its designation by default (`CalendarCommand`).
  */
 export type ReferenceCommands = readonly ListedCommand<
   | components["schemas"]["ReferenceCommand"]
+  | components["schemas"]["CalendarCommand"]
   | components["schemas"]["CostTypeCommand"]
   | components["schemas"]["CostCategoryCommand"]
 >[];
 
 /**
- * The server answered the modification of another object than the one modified: an unexpected error
- * of the service, told as such, which nothing takes the place of the row for — as a cell answered
- * for another row (`cell-writes.ts`).
+ * The server answered the write of another object than the one written: an unexpected error of the
+ * service, told as such, which nothing takes the place of the row for — as a cell answered for
+ * another row (`cell-writes.ts`); a backup marked too (`backup-commands.tsx`).
  */
-const ANOTHER_OBJECT: Outcome<never> = {
+export const ANOTHER_OBJECT: Outcome<never> = {
   kind: "refused",
   problem: { code: "INTERNAL_ERROR", status: 500 },
   conflictingObjectId: null,
@@ -95,7 +96,7 @@ interface Opened {
 }
 
 /** What a write of a list did, said in its region, and the how-many-th it was. */
-interface Said {
+export interface Said {
   readonly text: string;
   readonly count: number;
 }
@@ -142,7 +143,10 @@ export function useAnswered<Row extends ReferenceObject>(rows: readonly Row[]): 
  * Give the focus back to what opened a form: the cell of a command of a row, or the command — the list
  * when the page read anew no longer holds it.
  */
-function focusBack({ trigger }: Opened, list: (() => void) | undefined) {
+export function focusBack(
+  { trigger }: { readonly trigger: HTMLElement },
+  list: (() => void) | undefined,
+) {
   if (!trigger.isConnected) {
     list?.();
     return;
@@ -275,6 +279,10 @@ export function useRowCommand(
   const list = useListReport();
   const commands = useContext(ListCommands);
   const [pending, startTransition] = useTransition();
+  // The list, which tells the refusal, holds the navigations while the command answers: the row
+  // may be gone meanwhile (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const run = (
     action: () => Promise<Outcome<readonly ReferenceObject[]>>,
     said: (rows: readonly ReferenceObject[]) => string,
@@ -283,14 +291,14 @@ export function useRowCommand(
       return;
     }
     // The reading the command is pressed on: its refusal is told on it alone.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const outcome = await action().catch(rejected);
+      const outcome = await held(action());
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
         commands?.say(said(outcome.data));
       } else {
-        list?.report({ outcome, reading, names, target });
+        list?.report({ outcome, generation, names, target });
       }
     });
   };
@@ -298,11 +306,10 @@ export function useRowCommand(
 }
 
 /**
- * The region that says what the last write of the list did, rendered from the start so that a reader
- * of the screen hears what is put in it, and taking no room while it says nothing.
+ * The region that says what the last write of a list did, rendered from the start so that a reader of
+ * the screen hears what is put in it, and taking no room while it says nothing.
  */
-function Written() {
-  const said = useContext(ListCommands)?.said;
+export function WrittenRegion({ said }: { readonly said: Said | undefined }) {
   return (
     <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
       {said === undefined ? null : <span key={said.count}>{said.text}</span>}
@@ -318,7 +325,7 @@ export function CreateCommand({ label }: { readonly label: string }) {
   const commands = useContext(ListCommands);
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Written />
+      <WrittenRegion said={commands?.said} />
       <Button
         type="button"
         variant="outline"

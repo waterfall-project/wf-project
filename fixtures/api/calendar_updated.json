@@ -1,5 +1,5 @@
 {
-  "summary": "La semaine de quatre jours renommée aujourd'hui « Semaine de quatre jours de dix heures », à partir de la version lue : ses heures restent, sa version avancée d'une ; les révisions marquées sont inchangées (WF-REF-0110, WF-REF-0130).",
+  "summary": "La semaine de quatre jours renommée aujourd'hui « Semaine de quatre jours de dix heures », à partir de la version lue : ses heures restent, sa version avancée d'une, sa désignation par défaut toujours disponible ; les révisions marquées sont inchangées (WF-REF-0110, WF-REF-0130).",
   "value": {
     "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
     "label": "Semaine de quatre jours de dix heures",
@@ -17,6 +17,11 @@
     "available_commands": [
       {
         "command": "deactivate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "set_default",
         "is_available": true,
         "missing_conditions": []
       }

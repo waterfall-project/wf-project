@@ -1,5 +1,5 @@
 {
-  "summary": "Le même plan de charge sur le reste à engager de la révision en cours, restreint au nœud « Atelier de câblage » (`org_node_id`) et à ses descendants : le monteur câbleur, sans charge, avec sa capacité seule ; l'ingénieur électricien et le technicien de mise en service, d'autres nœuds, n'y figurent pas ; le plan nomme le nœud retenu, que l'en-tête affiche sans lire l'arbre d'organisation (WF-DEV-0070, WF-REF-0070, WF-ARC-0020).",
+  "summary": "Le même plan de charge sur le reste à engager de la révision en cours, restreint au nœud « Atelier de câblage » (`org_node_id`) et à ses descendants : le monteur câbleur, 13 352,00 h de septembre 2027 à avril 2028, en regard de sa capacité de 216 662,50 h par mois ; l'ingénieur électricien et le technicien de mise en service, d'autres nœuds, n'y figurent pas ; le plan nomme le nœud retenu, que l'en-tête affiche sans lire l'arbre d'organisation (WF-DEV-0070, WF-REF-0070, WF-ARC-0020).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
@@ -7,7 +7,7 @@
     "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
     "org_node_label": "Atelier de câblage",
     "roles": [
-      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","capacity_monthly_hours":"216662.5","months":[]}
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","capacity_monthly_hours":"216662.5","months":[{"month":"2027-09","hours":"726.88","zone":"nominal"},{"month":"2027-10","hours":"1817.2","zone":"nominal"},{"month":"2027-11","hours":"2785.23","zone":"nominal"},{"month":"2027-12","hours":"3298.64","zone":"nominal"},{"month":"2028-01","hours":"3181.1","zone":"nominal"},{"month":"2028-02","hours":"972.83","zone":"nominal"},{"month":"2028-03","hours":"560.98","zone":"nominal"},{"month":"2028-04","hours":"9.14","zone":"nominal"}]}
     ]
   }
 }

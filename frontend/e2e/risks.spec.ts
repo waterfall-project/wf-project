@@ -36,14 +36,14 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
   }
   // The grid holds in the window: its totals, the general total the server gives, are in view.
   const total = grid.getByRole("row").last();
-  await expect(total).toHaveText(/^Total général\s*1\s160,00$/);
+  await expect(total).toHaveText(/^Total général\s*1\s100\s060,00$/);
   expect(await withinBox(grid, total)).toBe(true);
   await expect(page.getByRole("region", { name: "Provisions des risques retenus" })).toHaveText(
-    /^Risques identifiés\s*500,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600,00\s*Total général\s*1\s160,00$/,
+    /^Risques identifiés\s*500\s000,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600\s000,00\s*Total général\s*1\s100\s060,00$/,
   );
   // The coverage of the risks, each amount as the server computes it, the variance signed.
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*910,00\s*Provisions restantes\s*500,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*210,00/,
+    /Réserve pour risques\s*850\s060,00\s*Provisions restantes\s*500\s000,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*349\s860,00/,
   );
 
   // The matrix, each cell named by its signal, never by its colour alone.
@@ -95,4 +95,16 @@ test("leads from the label of a risk to its detail from the keyboard alone [WF-I
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(`${RISKS}?risk=${CABLING}`, { timeout: WORKING });
   await expect(page.getByRole("region", { name: "Risque de reprise du câblage" })).toBeVisible();
+});
+
+test("names the category and the sub-project a risk designates for its provision, in its detail (EP-14/L42p)", async ({
+  page,
+}) => {
+  await openHydrated(page, `${RISKS}?risk=${CABLING}`);
+  const provision = page
+    .getByRole("region", { name: "Risque de reprise du câblage" })
+    .getByRole("region", { name: "Ligne de provision" });
+  await expect(provision).toContainText(
+    /Catégorie\s*Provisions pour risques\s*Sous-projet\s*Hors sous-projet/,
+  );
 });

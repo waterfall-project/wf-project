@@ -6,9 +6,10 @@
  * bounds (#533, #545, WF-IHM-0130): the nodes of the organisation, as a tree that folds, read whole — each by its
  * label set in by its depth under the node it is attached to, its code and its depth, in the order of
  * the tree the server gives (WF-REF-0070) —, filtered by code, depth and state, the ancestors of the
- * nodes retained shown; the resource roles, with their node, their category and their calendar, and
- * their single capacity (WF-REF-0090, WF-REF-0100), filtered by node, category, calendar and state,
- * and bounded on its monthly hours and its headcount, a page of the list the server pages; the
+ * nodes retained shown; the resource roles, by their label and their code, with their node, their
+ * category and their calendar, and their single capacity (WF-REF-0090, WF-REF-0100), filtered by
+ * code, node, category, calendar and state, and bounded on its monthly hours and its headcount, a
+ * page of the list the server pages; the
  * calendars, seven values of hours, the default one marked (WF-REF-0110, WF-REF-0120), filtered by
  * state and bounded on the hours of each day, a page too; the constants the units of duration
  * convert by (WF-PLA-0160). An object attached is named as the server resolves it. Every figure as
@@ -26,8 +27,10 @@
  */
 import { CalendarDays, Network, Timer, Users } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { KnownNames } from "@/components/commands/outcome-notice";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import {
   type Bounds,
@@ -66,6 +69,7 @@ import {
   type OrgNode,
   RESOURCE_ROLE_ADDRESS,
   ROLE_CALENDAR,
+  ROLE_CODE,
   ROLE_COST_CATEGORY,
   ROLE_HEADCOUNT,
   ROLE_MONTHLY_HOURS,
@@ -230,6 +234,7 @@ export function OrgNodeList({
 
 /** What the roles are filtered on, as the address asks it. */
 export interface RoleFilters {
+  readonly code: string | undefined;
   readonly orgNode: string | undefined;
   readonly category: string | undefined;
   readonly calendar: string | undefined;
@@ -241,6 +246,7 @@ export interface RoleFilters {
 /** The parameters of the address the roles read, their filters among them. */
 const ROLE_READS = listReads(
   RESOURCE_ROLE_ADDRESS,
+  ROLE_CODE,
   ROLE_ORG_NODE,
   ROLE_COST_CATEGORY,
   ROLE_CALENDAR,
@@ -249,11 +255,11 @@ const ROLE_READS = listReads(
 );
 
 /**
- * The resource roles of a page of the list, each with its node, its category and its calendar —
- * named as the server resolves them, active or not (WF-REF-0150) —, its capacity in hours a month
- * and the headcount they stand for, and its state; filtered by the node, the category, the calendar
- * and the state the address names, and bounded on the monthly hours and the headcount. A list of
- * choices the API refuses (`undefined`) offers no filter.
+ * The resource roles of a page of the list, each by its label and its code, with its node, its
+ * category and its calendar — named as the server resolves them, active or not (WF-REF-0150) —, its
+ * capacity in hours a month and the headcount they stand for, and its state; filtered by the code,
+ * the node, the category, the calendar and the state the address names, and bounded on the monthly
+ * hours and the headcount. A list of choices the API refuses (`undefined`) offers no filter.
  */
 export function ResourceRoleList({
   rows,
@@ -275,9 +281,10 @@ export function ResourceRoleList({
   /** The categories of cost the roles may be restricted to, in the order of the server. */
   readonly categories: readonly Choice[] | undefined;
   /**
-   * The categories of cost of labour a role may be attached to (WF-REF-0090); none when the session
-   * reads neither them nor the natures, and the creation, which a role cannot do without one, is not
-   * offered (WF-IHM-0090).
+   * The categories of cost of labour a role may be attached to (WF-REF-0090), among the categories
+   * read (`categories`), which say the state of the one a role keeps; none when the session
+   * does not read them, and the creation, which a role cannot do without one, is not offered
+   * (WF-IHM-0090).
    */
   readonly labour: readonly Choice[] | undefined;
   /** The calendars the roles may be restricted or attached to, in the order of the server. */
@@ -291,7 +298,14 @@ export function ResourceRoleList({
   const title = t("resourceRoles.title");
   const offset = RESOURCE_ROLE_ADDRESS.offset;
   const narrowed =
-    some(query.search, filters.orgNode, filters.category, filters.calendar, filters.state) ||
+    some(
+      query.search,
+      filters.code,
+      filters.orgNode,
+      filters.category,
+      filters.calendar,
+      filters.state,
+    ) ||
     bounded(filters.monthlyHours) ||
     bounded(filters.headcount);
   return (
@@ -313,10 +327,24 @@ export function ResourceRoleList({
           }
           refused={refused !== undefined}
           reads={ROLE_READS}
-          dialog={<ResourceRoleDialog nodes={nodes} categories={labour} calendars={calendars} />}
+          dialog={
+            <ResourceRoleDialog
+              nodes={nodes}
+              categories={labour}
+              read={categories}
+              calendars={calendars}
+            />
+          }
           filters={
             <>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <TextFilter
+                  name={ROLE_CODE}
+                  label={t("resourceRoles.codeFilter")}
+                  value={filters.code}
+                  length={ORG_CODE_LENGTH}
+                  page={offset}
+                />
                 <OrgNodeFilter
                   name={ROLE_ORG_NODE}
                   nodes={nodes}
@@ -401,6 +429,31 @@ export function ResourceRoleList({
   );
 }
 
+/** A role, as a refusal names it by its identifier: by its label and its code. */
+type NamedRole = Pick<ResourceRole, "resource_role_id" | "code" | "label">;
+
+/**
+ * Lend every notice of the lists under it the names of every role the page read, by identifier, each
+ * by its label and its code: what names the roles a refusal of a calendar gives by their identifiers
+ * alone (`resource_role_ids`, WF-PLA-0010, EP-14/L42r); none when the page did not read them.
+ */
+export function RoleNames({
+  roles = [],
+  children,
+}: {
+  readonly roles?: readonly NamedRole[] | undefined;
+  readonly children: ReactNode;
+}) {
+  const t = useTranslations("problemDetails");
+  const names = Object.fromEntries(
+    roles.map(({ resource_role_id, code, label }) => [
+      resource_role_id,
+      t("codedName", { code, label }),
+    ]),
+  );
+  return <KnownNames names={names}>{children}</KnownNames>;
+}
+
 /** The parameters of the address the calendars read, their filters among them. */
 const CALENDAR_READS = listReads(
   CALENDAR_ADDRESS,
@@ -451,7 +504,11 @@ export function CalendarList({
           }
           refused={refused !== undefined}
           reads={CALENDAR_READS}
-          dialog={<CalendarDialog />}
+          dialog={
+            <CalendarDialog
+              names={Object.fromEntries(rows.map((row) => [row.calendar_id, row.label]))}
+            />
+          }
           filters={
             <>
               {readsInactive ? (

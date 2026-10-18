@@ -1,0 +1,57 @@
+{
+  "summary": "Le compte désactivé d'Alix Moreau anonymisé aujourd'hui par Camille Martin, à partir de la version lue, à la demande de la personne : son nom, son prénom et son adresse sont nuls, et le front le présente sous le libellé neutre de son catalogue ; son identifiant, son rattachement et ses rôles demeurent, et sa réactivation comme son anonymisation sont indisponibles, is_not_anonymized manquante (WF-ADM-0060).",
+  "value": {
+    "user_id": "01926f3a-7c00-7000-8000-000000000303",
+    "last_name": null,
+    "first_name": null,
+    "email": null,
+    "anonymized_at": "2026-06-03T14:05:00Z",
+    "is_active": false,
+    "origin": "local",
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+    "org_node_label": "Bureau d'études électricité",
+    "access_role_ids": [
+      "01926f3a-7c00-7000-8000-000000000703"
+    ],
+    "access_role_labels": [
+      "Chef de projet"
+    ],
+    "has_avatar": false,
+    "available_commands": [
+      {
+        "command": "reactivate",
+        "is_available": false,
+        "missing_conditions": [
+          "is_not_anonymized"
+        ]
+      },
+      {
+        "command": "anonymize",
+        "is_available": false,
+        "missing_conditions": [
+          "is_not_anonymized"
+        ]
+      },
+      {
+        "command": "set_access_roles",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2026-01-12T10:00:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 5
+  }
+}

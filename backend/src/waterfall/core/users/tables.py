@@ -1,0 +1,163 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The table of the accounts, private to the module (§4.4.1, regime "platform").
+
+An account is never deleted: its state says whether it may sign in, and an anonymised one keeps its
+row, without its names, its address nor its avatar (WF-ADM-0060). Its address does not
+identify it for the rest of the database, its identifier does: every row that refers to an
+account holds the identifier, so changing the address changes nothing else (WF-DAT-0060). The
+table of the accounts sorts on the name, the first name and the address, in the order of the code
+points: their collation is ``C``.
+"""
+
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    LargeBinary,
+    Text,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from waterfall.platform.database import CODE_POINTS, EVERY_LETTER, Base, UtcDateTime
+from waterfall.platform.installation import AVATAR_MAX_BYTES
+from waterfall.platform.tasks import BackgroundTask
+from waterfall.platform.uploads import FileUpload
+
+ORIGINS = ("local", "directory", "identity_provider")
+STATES = ("active", "deactivated")
+AVATAR_MEDIA_TYPES = ("image/png", "image/jpeg")
+# The unique index of the addresses, whatever their case: what refuses an address taken.
+ADDRESS_INDEX = "uq_user_account_email_lower"
+IDENTITY = ("last_name", "first_name", "email")
+
+
+def _in(column: str, values: tuple[str, ...]) -> str:
+    return f"{column} IN ({', '.join(repr(value) for value in values)})"
+
+
+class UserAccount(Base):
+    """A person who may sign in to the platform."""
+
+    __tablename__ = "user_account"
+    __table_args__ = (
+        CheckConstraint("char_length(last_name) BETWEEN 1 AND 100", name="last_name_length"),
+        CheckConstraint("char_length(first_name) BETWEEN 1 AND 100", name="first_name_length"),
+        CheckConstraint("char_length(email) >= 1", name="email_not_empty"),
+        CheckConstraint("char_length(idp_subject) >= 1", name="idp_subject_not_empty"),
+        CheckConstraint(_in("origin", ORIGINS), name="origin_known"),
+        CheckConstraint(_in("state", STATES), name="state_known"),
+        CheckConstraint(
+            _in("avatar_media_type", AVATAR_MEDIA_TYPES), name="avatar_media_type_known"
+        ),
+        CheckConstraint(
+            f"octet_length(avatar) BETWEEN 1 AND {AVATAR_MAX_BYTES}", name="avatar_size"
+        ),
+        CheckConstraint(
+            "(avatar IS NULL) = (avatar_media_type IS NULL)", name="avatar_with_its_media_type"
+        ),
+        CheckConstraint("lock_version >= 0", name="lock_version_not_negative"),
+        # The names and the address are null for an anonymised account, and for it alone; it stays
+        # deactivated, without its avatar (WF-ADM-0060).
+        CheckConstraint(
+            " AND ".join(f"(anonymized_at IS NULL) = ({name} IS NOT NULL)" for name in IDENTITY),
+            name="identity_unless_anonymized",
+        ),
+        CheckConstraint(
+            "anonymized_at IS NULL OR (state = 'deactivated' AND avatar IS NULL)",
+            name="anonymized_deactivated",
+        ),
+        # One address per person, whatever its case (WF-ADM-0050), declared here and not
+        # left to a rule of the services; lowered in every letter, which ``C`` does not.
+        Index(
+            ADDRESS_INDEX,
+            func.lower(text(f'email COLLATE "{EVERY_LETTER}"')),
+            unique=True,
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    # Null for an anonymised account alone, as its address: the index admits several null ones.
+    last_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
+    first_name: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
+    email: Mapped[str | None] = mapped_column(Text(collation=CODE_POINTS))
+    # When the account was anonymised; null while it is not (WF-ADM-0060).
+    anonymized_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    idp_subject: Mapped[str] = mapped_column(Text, unique=True)
+    origin: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text, server_default="active")
+    display_preferences: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
+    # Read only when asked for: up to 8 MiB that reading an account does not need.
+    avatar: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
+    avatar_media_type: Mapped[str | None] = mapped_column(Text)
+    lock_version: Mapped[int] = mapped_column(Integer, server_default="0")
+    # When its sessions were last closed — signed out or deactivated —, null until they first are:
+    # a token of a sign-in before is refused (WF-SEC-0020, #668, #835). Not a change of the
+    # account: neither its version nor its audit columns move.
+    sessions_closed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="RESTRICT")
+    )
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    updated_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="RESTRICT")
+    )
+
+
+class IdentitySyncReport(Base):
+    """What a reading of the accounts of the provider did, by the task that read (WF-ADM-0070).
+
+    The accounts it created, changed and deactivated, the local ones whose identity it gives the
+    provider back (#919), what it left as it was with the code of why — an account of Waterfall by
+    its identifier alone, a person of the provider as it holds her (#918, #920) —, and the addresses
+    of the local accounts it removes from the provider (#811). What is given back or removed is, or
+    is to be — it follows the commit of the reading; one that fails is logged, and the next reading
+    tells it again.
+    """
+
+    __tablename__ = "identity_sync_report"
+    __table_args__ = (
+        CheckConstraint(
+            "created >= 0 AND updated >= 0 AND deactivated >= 0", name="counts_not_negative"
+        ),
+        CheckConstraint("restored >= 0", name="restored_not_negative"),
+        CheckConstraint("jsonb_typeof(skipped) = 'array'", name="skipped_array"),
+        CheckConstraint("jsonb_typeof(removed) = 'array'", name="removed_array"),
+    )
+
+    # One report per task, however many attempts it took.
+    task_id: Mapped[UUID] = mapped_column(
+        ForeignKey(BackgroundTask.id, ondelete="RESTRICT"), primary_key=True
+    )
+    # The latest is read first.
+    finished_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
+    created: Mapped[int] = mapped_column(Integer)
+    updated: Mapped[int] = mapped_column(Integer)
+    deactivated: Mapped[int] = mapped_column(Integer)
+    # Added after the others (0015): a report kept before says none.
+    restored: Mapped[int] = mapped_column(Integer, server_default="0")
+    skipped: Mapped[list[dict[str, str | None]]] = mapped_column(JSONB)
+    removed: Mapped[list[str]] = mapped_column(JSONB)
+
+
+# The requester of a background task, like the one who opened a deposit, is an account
+# (WF-DAT-0090): the platform knows no table of the core, and the reference is declared with the
+# accounts, in each process that has them.
+Base.metadata.tables[BackgroundTask.__tablename__].append_constraint(
+    ForeignKeyConstraint(["requested_by"], [UserAccount.id], ondelete="RESTRICT")
+)
+Base.metadata.tables[FileUpload.__tablename__].append_constraint(
+    ForeignKeyConstraint(["uploaded_by"], [UserAccount.id], ondelete="RESTRICT")
+)

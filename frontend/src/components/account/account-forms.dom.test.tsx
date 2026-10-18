@@ -1,20 +1,21 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { updateDisplay } from "@/api/actions/preferences";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import type { components } from "@/api/generated/schema";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
-import { PasswordForm } from "./password-form";
 import { PreferencesForm } from "./preferences-form";
 
 // The server of Next, as far as the forms need it: the fake back behind serverClient, and the
@@ -24,6 +25,11 @@ const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
+// The server action of the preferences as it is, save where a test makes it reject.
+vi.mock("@/api/actions/preferences", async (original) => {
+  const actual = await original<typeof import("@/api/actions/preferences")>();
+  return { ...actual, updateDisplay: vi.fn(actual.updateDisplay) };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ refresh: () => undefined }),
@@ -99,6 +105,15 @@ describe("the preferences on the screen of the account", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Vos préférences sont enregistrées.");
   });
 
+  it("sends the mode alone when the language is left as it was: the language goes to the identity provider (#877)", async () => {
+    const client = serve({ [PREFERENCES]: "preferences_dark" });
+    render(inFrench(<PreferencesForm language="fr" theme="default" />));
+    await userEvent.click(screen.getByRole("radio", { name: "Sombre" }));
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark" }]);
+  });
+
   it("sends nothing while the keyboard moves through the values", async () => {
     const client = serve({ [PREFERENCES]: "preferences" });
     render(inFrench(<PreferencesForm language="default" theme="default" />));
@@ -138,6 +153,17 @@ describe("the preferences on the screen of the account", () => {
     expect(screen.getByRole("radio", { name: "Clair" })).toBeChecked();
   });
 
+  it("says a deactivated account instead of leading to the sign-in page, which would loop", async () => {
+    serve({ [PREFERENCES]: { problem: { code: "ACCOUNT_DEACTIVATED", status: 401 } } });
+    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    await userEvent.click(screen.getByRole("radio", { name: "Français" }));
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Ce compte est désactivé ; contactez un administrateur.");
+    expect(within(alert).queryByRole("link", { name: "Se connecter" })).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("leads to the sign-in page when the session is gone, and keeps the choice", async () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
     render(inFrench(<PreferencesForm language="default" theme="default" />));
@@ -151,43 +177,42 @@ describe("the preferences on the screen of the account", () => {
     expect(screen.getByRole("radio", { name: "Français" })).toBeChecked();
     expect(refresh).not.toHaveBeenCalled();
   });
-});
-
-describe("the change of the password", () => {
-  it("sends the current and the new password as typed, says it is changed, and empties the form", async () => {
-    const client = serve({ "PUT /me/password": { status: 204 } });
-    const { container } = render(inFrench(<PasswordForm />));
-    await expectAccessible(container);
-    await userEvent.type(screen.getByLabelText("Mot de passe actuel"), "ancien mot de passe");
-    await userEvent.type(screen.getByLabelText("Nouveau mot de passe"), "court");
-    await userEvent.click(screen.getByRole("button", { name: "Changer le mot de passe" }));
-
-    expect(sent(client, "PUT /me/password")).toEqual([
-      { current_password: "ancien mot de passe", new_password: "court" },
-    ]);
-    expect(screen.getByRole("status")).toHaveTextContent("Votre mot de passe est changé.");
-    expect(screen.getByLabelText("Mot de passe actuel")).toHaveValue("");
-    expect(screen.getByLabelText("Nouveau mot de passe")).toHaveValue("");
+  it("holds a link clicked while the choice is recorded, and does not follow it when the session is gone: the refusal is told under the form (#688)", async () => {
+    const release = holding({
+      [PREFERENCES]: { problem: { code: "SESSION_EXPIRED", status: 401 } },
+    });
+    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    const link = heldLink();
+    try {
+      await userEvent.click(screen.getByRole("radio", { name: "Français" }));
+      await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+      link.click();
+      await act(async () => {
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      const alert = await screen.findByRole("alert");
+      expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 
-  it("tells a password the API refuses by the code of the catalogue, and keeps what was typed", async () => {
-    serve({ "PUT /me/password": { problem: { code: "VALIDATION_FAILED", status: 422 } } });
-    render(inFrench(<PasswordForm />));
-    await userEvent.type(screen.getByLabelText("Mot de passe actuel"), "ancien mot de passe");
-    await userEvent.type(screen.getByLabelText("Nouveau mot de passe"), "court");
-    await userEvent.click(screen.getByRole("button", { name: "Changer le mot de passe" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Les données saisies ne sont pas valides.",
-    );
-    expect(screen.getByLabelText("Nouveau mot de passe")).toHaveValue("court");
-    expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    // The focus stays on the button pressed, from which the refusal is read next.
-    expect(screen.getByRole("button", { name: "Changer le mot de passe" })).toHaveFocus();
+  it("says the service out of reach when the server action itself fails, rather than lose the choice", async () => {
+    // The browser cannot reach the server of Next: its fetch of the action rejects.
+    serve({});
+    vi.mocked(updateDisplay).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    await userEvent.click(screen.getByRole("radio", { name: "Français" }));
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(CATALOGUES.fr.outcome.unreachable);
+    expect(screen.getByRole("radio", { name: "Français" })).toBeChecked();
   });
 });
 
 describe("the avatar of the account", () => {
-  it("puts the PNG or JPEG image chosen, and says it is saved", async () => {
+  it("puts the PNG or JPEG image chosen, and says it is saved [WF-ADM-0080-A]", async () => {
     const client = serve({ "PUT /me/avatar": { status: 204 } });
     const { container } = render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
     await expectAccessible(container);
@@ -292,7 +317,7 @@ describe("the avatar of the account", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("withdraws the avatar the account has, and says it is withdrawn", async () => {
+  it("withdraws the avatar the account has, and says it is withdrawn [WF-ADM-0080-A]", async () => {
     const client = serve({ "DELETE /me/avatar": { status: 204 } });
     render(inFrench(<AvatarForm hasAvatar maxBytes={MAX_BYTES} />));
     await userEvent.click(screen.getByRole("button", { name: "Retirer l’avatar" }));
@@ -301,6 +326,26 @@ describe("the avatar of the account", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est retiré.");
     // Its button goes with the avatar: the focus goes to the choice of an image.
     expect(screen.getByLabelText("Image PNG ou JPEG")).toHaveFocus();
+  });
+  it("holds a link clicked while the avatar is withdrawn, and does not follow it when the server refuses (#688)", async () => {
+    const release = holding({
+      "DELETE /me/avatar": { problem: { code: "SESSION_EXPIRED", status: 401 } },
+    });
+    render(inFrench(<AvatarForm hasAvatar maxBytes={MAX_BYTES} />));
+    const link = heldLink();
+    try {
+      await userEvent.click(screen.getByRole("button", { name: "Retirer l’avatar" }));
+      link.click();
+      await act(async () => {
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      const alert = await screen.findByRole("alert");
+      expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 });
 
@@ -320,7 +365,7 @@ describe("the picture of the avatar", () => {
     decoded.mockRestore();
   });
 
-  it("shows the initials of an account without an image", () => {
+  it("shows the initials of an account without an image, its default image [WF-ADM-0080-A]", () => {
     render(
       inFrench(
         <AvatarPicture

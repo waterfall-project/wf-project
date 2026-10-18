@@ -1,0 +1,24 @@
+{
+  "summary": "L'offre en chiffrage, sa probabilité de gain envoyée à 40 — un pourcentage pour un rapport — et son taux d'inflation à -0,01 : refusés, l'un au-dessus du plus grand rapport admis, l'autre au-dessous du plus petit, chaque champ désigné avec la borne franchie ; rien n'est écrit (WF-PRJ-0090, WF-PRJ-0040).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/win_probability",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "maximum": "1"
+        }
+      },
+      {
+        "pointer": "/inflation_rate",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "0"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001064"
+  }
+}

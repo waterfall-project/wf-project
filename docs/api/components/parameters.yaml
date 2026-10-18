@@ -165,6 +165,19 @@ BackupId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+ChunkedUploadId:
+  name: chunked_upload_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+ChunkedUploadPartNumber:
+  name: part_number
+  in: path
+  required: true
+  description: Le numéro du morceau, à partir de 1 (`ChunkedUpload.part_count`).
+  schema: { type: integer, minimum: 1 }
+
 ExternalBackupLocationName:
   name: location_name
   in: path
@@ -276,3 +289,78 @@ PortfolioOrgNode:
     lui ou à l'un de ses descendants ; un projet n'appartient à aucun service
     (WF-PTF-0010).
   schema: { $ref: common.yaml#/Uuid }
+
+# Les colonnes d'audit d'une table plate (WF-DAT-0070), chacune triée et filtrée (WF-IHM-0060,
+# WF-IHM-0130) : une période par colonne de date, nommée d'après elle comme les bornes d'une
+# colonne de nombres (README, « Une période… »), et l'auteur comme celui du journal d'audit
+# (`user_id`, `actor_kind` de `listAuditEvents`).
+
+CreatedAtFrom:
+  name: created_at_from
+  in: query
+  description: >-
+    Début, inclus, de la période de création : restreint aux lignes créées à cet instant ou après
+    lui (`audit.created_at`, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Timestamp }
+
+CreatedAtTo:
+  name: created_at_to
+  in: query
+  description: >-
+    Fin, exclue, de la période de création : restreint aux lignes créées avant cet instant
+    (WF-IHM-0130). Antérieure à `created_at_from`, elle est refusée par 422, `fields[]`
+    désignant `/query/created_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ;
+    égale, la période est vide.
+  schema: { $ref: common.yaml#/Timestamp }
+
+CreatedByUserId:
+  name: created_by_user_id
+  in: query
+  description: >-
+    Restreint aux lignes créées par ce compte (`audit.created_by.user_id`), désactivé ou anonymisé
+    compris : ses actes lui restent attribués (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne
+    désigne aucun compte ne retient rien.
+  schema: { $ref: common.yaml#/Uuid }
+
+CreatedByKind:
+  name: created_by_kind
+  in: query
+  description: >-
+    Restreint aux lignes créées par un compte (`user`) ou par la plateforme (`platform`), un
+    traitement automatique (`audit.created_by.kind`, WF-DAT-0070) ; absent, les deux.
+  schema: { $ref: schemas/audit.yaml#/AuditActorKind }
+
+UpdatedAtFrom:
+  name: updated_at_from
+  in: query
+  description: >-
+    Début, inclus, de la période de dernière modification : restreint aux lignes modifiées en
+    dernier à cet instant ou après lui (`audit.updated_at`, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Timestamp }
+
+UpdatedAtTo:
+  name: updated_at_to
+  in: query
+  description: >-
+    Fin, exclue, de la période de dernière modification : restreint aux lignes modifiées en
+    dernier avant cet instant (WF-IHM-0130). Antérieure à `updated_at_from`, elle est refusée par
+    422, `fields[]` désignant `/query/updated_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum`
+    le début donné ; égale, la période est vide.
+  schema: { $ref: common.yaml#/Timestamp }
+
+UpdatedByUserId:
+  name: updated_by_user_id
+  in: query
+  description: >-
+    Restreint aux lignes modifiées en dernier par ce compte (`audit.updated_by.user_id`), désactivé
+    ou anonymisé compris (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne
+    retient rien.
+  schema: { $ref: common.yaml#/Uuid }
+
+UpdatedByKind:
+  name: updated_by_kind
+  in: query
+  description: >-
+    Restreint aux lignes modifiées en dernier par un compte (`user`) ou par la plateforme
+    (`platform`) (`audit.updated_by.kind`, WF-DAT-0070) ; absent, les deux.
+  schema: { $ref: schemas/audit.yaml#/AuditActorKind }

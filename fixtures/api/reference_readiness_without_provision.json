@@ -1,0 +1,9 @@
+{
+  "summary": "Un référentiel dont la seule catégorie de type provision pour risques, PRV-001, a été désactivée : il manque une catégorie de coût active de type provision pour risques, et aucun risque ne pourrait être déclaré ; le calendrier par défaut, les catégories de main-d'œuvre et les rôles de ressources sont là. Une variante contrefactuelle : la provision pour risques du témoin est active (WF-CYC-0120, WF-REF-0030, WF-RIS-0010).",
+  "value": {
+    "is_complete": false,
+    "missing": [
+      "active_provision_category"
+    ]
+  }
+}

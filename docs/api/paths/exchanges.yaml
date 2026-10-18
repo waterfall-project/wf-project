@@ -9,14 +9,15 @@
     description: >-
       Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import :
       il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
-      Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse
-      pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des
-      imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration
-      désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413,
-      `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration
-      que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le
-      champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`,
-      `startRestore`).
+      Le dépôt dit son usage (`purpose`) : le fichier d'un import ne dépasse pas 10 Mio
+      (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports
+      (§4.6.2) ; au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import,
+      une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422,
+      `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH`
+      (`openImport`, `startRestore`). Le dépôt d'une sauvegarde ne passe pas par ici, mais par
+      morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`) : `purpose` à
+      `external_backup` est refusé par 422, `VALIDATION_FAILED`, `fields` désignant `/purpose`
+      par `UPLOAD_PURPOSE_MISMATCH`.
     requestBody:
       required: true
       content:
@@ -35,8 +36,162 @@
             schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
             examples:
               estimate: { $ref: ../../../fixtures/api/file_upload.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/chunked-uploads:
+  post:
+    operationId: openChunkedUpload
+    tags: [exchanges]
+    summary: Ouvrir le dépôt par morceaux d'une sauvegarde
+    description: >-
+      Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera
+      (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine
+      (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le
+      fichier se découpe. La taille annoncée est bornée par
+      `Installation.external_backup_max_bytes`, et par les 10 000 morceaux que le stockage objet
+      admet : le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000
+      morceaux, et une taille qui n'y tient pas même à 10 Mio le morceau (10 000 × 10 Mio) est
+      refusée comme celle qui dépasse le réglage. Dans les deux cas, 413, `FILE_TOO_LARGE`, avant
+      qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit
+      que le temps de sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme
+      (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi
+      interrompu — par un rechargement de page — recommence par une ouverture, le dépôt
+      précédent expirant ; aucune opération ne lit un dépôt.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUploadOpen }
+    responses:
+      '201':
+        description: Dépôt ouvert, sans aucun morceau reçu.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUpload }
+            examples:
+              opened: { $ref: ../../../fixtures/api/chunked_upload.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : un nom vide,
+          `/filename` par `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par
+          `VALUE_TOO_LONG` ; une taille hors de ses bornes, `/size_bytes` par
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie,
+          comme toute borne d'une écriture. Rien n'est ouvert.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              size_out_of_range: { $ref: ../../../fixtures/api/chunked_upload_size_out_of_range.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/chunked-uploads/{chunked_upload_id}/parts/{part_number}:
+  put:
+    operationId: uploadChunk
+    tags: [exchanges]
+    summary: Déposer un morceau
+    description: >-
+      Reçoit le morceau de ce numéro de la sauvegarde à restaurer (WF-ADM-0160), en octets
+      bruts, de la taille exacte que le dépôt attend : `ChunkedUpload.part_size_bytes` pour tout
+      morceau sauf le dernier, le reste du fichier (`size_bytes` moins les morceaux qui le
+      précèdent) pour le dernier. Autrement, 422, `VALIDATION_FAILED`, `fields` désignant `/body`
+      par `VALUE_OUT_OF_RANGE`, `params.minimum` et `params.maximum` disant la taille attendue ;
+      rien n'est reçu. Redéposer un morceau déjà reçu le remplace, ce qui rend un envoi
+      interrompu reprenable avec la dernière réponse ; les morceaux peuvent arriver dans un
+      ordre quelconque. Un numéro que le dépôt ne compte pas, ou un dépôt terminé, expiré ou
+      inconnu, est un 404. Sous la permission de restaurer la plateforme (`platform_restore`),
+      comme `startRestore` : sans elle, 403. Le morceau est écrit sur le stockage objet avant la
+      réponse, qui dit les morceaux reçus.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ChunkedUploadId
+      - $ref: ../components/parameters.yaml#/ChunkedUploadPartNumber
+    requestBody:
+      required: true
+      content:
+        application/octet-stream:
+          schema: { type: string, format: binary }
+    responses:
+      '200':
+        description: Morceau reçu.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUpload }
+            examples:
+              received: { $ref: ../../../fixtures/api/chunked_upload_part.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          Un morceau qui n'a pas la taille attendue : `VALIDATION_FAILED`, `fields` désignant
+          `/body` par `VALUE_OUT_OF_RANGE`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              part_size_mismatch: { $ref: ../../../fixtures/api/chunked_upload_part_size_mismatch.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/chunked-uploads/{chunked_upload_id}/completion:
+  post:
+    operationId: completeChunkedUpload
+    tags: [exchanges]
+    summary: Terminer le dépôt par morceaux
+    description: >-
+      Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur
+      le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` :
+      son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`), et son
+      `backup_taken_at` la date que dit le manifeste de la sauvegarde, que la confirmation de la
+      restauration nomme (`acknowledged_backup_taken_at`). Refusé
+      par 422, `FILE_FORMAT_UNREADABLE`, quand le fichier assemblé n'est pas une archive dont le
+      manifeste, son premier membre, dit la date de la sauvegarde : un dépôt dont la date ne se
+      lit pas n'est jamais restaurable, et reste inachevé. Le dépôt ne vérifie pas l'archive
+      au-delà de son manifeste : la restauration la vérifie, avant de déconnecter quiconque
+      (`startRestore`). Refusé
+      par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts`
+      dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà
+      terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme
+      (`platform_restore`), comme `startRestore` : sans elle, 403.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ChunkedUploadId
+    responses:
+      '201':
+        description: Fichier assemblé et déposé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
+            examples:
+              completed: { $ref: ../../../fixtures/api/chunked_upload_completed.json }
+              external_backup: { $ref: ../../../fixtures/api/file_upload_external_backup.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un morceau manque : `STATE_FORBIDS_OPERATION`, `params.missing_parts` les numéros des
+          morceaux que le dépôt n'a pas reçus, en tableau d'entiers.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              missing_part: { $ref: ../../../fixtures/api/chunked_upload_incomplete.json }
+      '422':
+        description: >-
+          Le fichier assemblé n'est pas une archive de sauvegarde dont le manifeste, son premier
+          membre, dit la date, avec son fuseau : `FILE_FORMAT_UNREADABLE`, sans paramètre.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unreadable: { $ref: ../../../fixtures/api/chunked_upload_unreadable.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports:
@@ -71,6 +226,8 @@
               empty: { $ref: ../../../fixtures/api/imports_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: openImport
     tags: [exchanges]
@@ -83,10 +240,13 @@
       (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels
       (WF-INTF-0140). Un planning MS Project met à jour une tâche existante sans toucher à son
       rattachement au lotissement ; sur la structure principale, seule à porter des
-      rattachements, une tâche que le fichier placerait hors du sous-arbre de la tâche du poste
-      de son lot est rejetée au compte rendu (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-      `ImportRejection`), et la suppression d'une tâche rattachée est appliquée (WF-INTF-0040,
-      WF-PLA-0170). Confiée au worker (WF-ARC-0090).
+      rattachements, un fichier qui placerait la tâche d'un lot hors du sous-arbre de la tâche de
+      son poste est rejeté entier au compte rendu, qui nomme les deux tâches, comme un planning
+      qui porterait la durée du projet au-delà de quinze ans (`ImportReport.refusals`,
+      `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150 ; EP-14/L42s),
+      et la suppression d'une tâche rattachée est appliquée, le compte rendu
+      nommant le poste ou le lot qui perd sa tâche (`ImportDifference.work_breakdown_label`,
+      WF-INTF-0040, WF-PLA-0170). Confiée au worker (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -102,6 +262,7 @@
             schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
             examples:
               analysing: { $ref: ../../../fixtures/api/import_analysing.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -124,6 +285,7 @@
             examples:
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports/{import_id}:
   get:
@@ -150,8 +312,10 @@
               planning_mismatch: { $ref: ../../../fixtures/api/import_planning_mismatch.json }
               remaining_analysed: { $ref: ../../../fixtures/api/import_remaining_analysed.json }
               actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
+              planning_rejected: { $ref: ../../../fixtures/api/import_planning_rejected.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: abandonImport
     tags: [exchanges]
@@ -167,6 +331,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports/{import_id}/apply:
   post:
@@ -195,16 +360,30 @@
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
             examples:
               queued: { $ref: ../../../fixtures/api/task_import_queued.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
           Compte rendu expiré, déjà appliqué, ou condition de droits ou d'état qui a
-          cessé d'être vraie depuis l'analyse (WF-ARC-0100).
+          cessé d'être vraie depuis l'analyse (WF-ARC-0100). Ou un compte rendu qui rejette le
+          fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `import_file_accepted`, et
+          rien n'est appliqué (EP-14/L42s). Un compte rendu expiré ou déjà appliqué l'emporte — il
+          n'y a plus rien à appliquer —, puis `import_file_accepted`, puis les conditions de
+          droits et d'état revérifiées. Refusé, le fichier est supprimé, comme celui de tout import
+          refusé à l'application (WF-ARC-0100), et seul l'abandon reste offert. Les refus se
+          rejugent à l'exécution : un fichier que l'analyse acceptait et qu'une saisie faite depuis
+          ferait rejeter n'est pas appliqué, la tâche de fond échouant sur le motif du refus, avec
+          les paramètres que le compte rendu lui donnerait.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              file_rejected: { $ref: ../../../fixtures/api/import_apply_rejected.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/exports:
   post:
@@ -235,6 +414,7 @@
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
             examples:
               queued: { $ref: ../../../fixtures/api/task_export_queued.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404':
@@ -247,7 +427,12 @@
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422':
         description: >-
-          Un corps sans révision : `VALIDATION_FAILED`, `fields` sur `/revision_id`.
+          `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un corps sans révision,
+          `/revision_id` ; un niveau d'arborescence sous le premier, `/depth`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` à `1` (WF-PLA-0120).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              depth_out_of_range: { $ref: ../../../fixtures/api/export_depth_out_of_range.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

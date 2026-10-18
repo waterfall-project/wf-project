@@ -4,8 +4,10 @@
  * What the commands and the forms of every list of the reference data share (EP-02/L43): the objects
  * as the server answers a write of them, their kinds, and the objects a form offers to attach one to
  * — among the active ones alone, a deactivated one being no longer offered to an entry (WF-REF-0010),
- * save the one the object is attached to, marked deactivated; named without a mark when the list was
- * not read, its state unknown —, the categories of labour among them (WF-REF-0090).
+ * save the one the object is attached to, marked deactivated when it is; named without a mark when
+ * the list was not read, its state unknown, or when it is active though not offered — a category
+ * of a role whose nature left labour, which the contract forbids since EP-14/L42r and the screen
+ * holds as a guard alone (#714) —, the categories of labour among them (WF-REF-0090).
  *
  * Neither server nor client: the lists and the components of the browser read it alike.
  */
@@ -61,28 +63,32 @@ export interface Attached {
 }
 
 /**
- * The objects offered to an entry, in the order given: the active ones — every one read with
- * `every`, a deactivated one marked —, and the one the object is attached to, by the name its row
- * gives it, marked deactivated when the list read does not offer it. A list not read offers nothing
- * but the one attached, named without a mark: nothing says it is deactivated.
+ * The objects offered to an entry, in the order given: the active ones, and the one the object is
+ * attached to, by the name its row gives it, when the list read does not offer it — marked
+ * deactivated, unless the objects read, of every kind (`read`, the choices themselves by default),
+ * hold it active: a category of cost active whose nature left labour is no deactivated one (#714) —
+ * a guard alone, the contract forbidding the category of a role to leave labour since EP-14/L42r
+ * (`cost_category_without_role`, `cost_type_without_role`). A
+ * list not read offers nothing but the one attached, named without a mark: nothing says it is
+ * deactivated.
  */
 export function offered(
   choices: readonly Choice[] | undefined,
   attached: Attached | undefined,
-  every = false,
+  read: readonly Choice[] | undefined = choices,
 ): Offered[] {
   if (choices === undefined) {
     return attached === undefined ? [] : [{ ...attached, active: false, deactivated: false }];
   }
-  const shown = (every ? choices : choices.filter((choice) => choice.active)).map((choice) => ({
-    ...choice,
-    deactivated: !choice.active,
-  }));
+  const shown = choices
+    .filter((choice) => choice.active)
+    .map((choice) => ({ ...choice, deactivated: false }));
   if (attached === undefined || shown.some((choice) => choice.id === attached.id)) {
     return shown;
   }
-  const read = choices.find((choice) => choice.id === attached.id);
-  return [...shown, { ...read, ...attached, active: false, deactivated: true }];
+  const known = read?.find((choice) => choice.id === attached.id);
+  const active = known?.active === true;
+  return [...shown, { ...known, ...attached, active, deactivated: !active }];
 }
 
 /** A category of cost as a choice: its identifier, its code, its name and its state. */
@@ -97,18 +103,10 @@ export function categoryChoice(category: components["schemas"]["CostCategory"]):
 
 /**
  * The categories of cost a role may be attached to: those whose nature is of labour (WF-REF-0090),
- * as the natures read say — the contract filters the categories by no type of nature (#507); none
- * when either list was not read.
+ * as each says the type of its nature (`cost_type_kind`, EP-14/L42j); none when they were not read.
  */
 export function labourOf(
   categories: readonly components["schemas"]["CostCategory"][] | undefined,
-  natures: readonly components["schemas"]["CostType"][] | undefined,
 ): Choice[] | undefined {
-  if (categories === undefined || natures === undefined) {
-    return undefined;
-  }
-  const labour = new Set(
-    natures.filter((nature) => nature.kind === "labor").map((nature) => nature.cost_type_id),
-  );
-  return categories.filter((category) => labour.has(category.cost_type_id)).map(categoryChoice);
+  return categories?.filter((category) => category.cost_type_kind === "labor").map(categoryChoice);
 }

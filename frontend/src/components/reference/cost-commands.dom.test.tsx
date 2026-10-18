@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -17,8 +17,8 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
-  type Problem,
 } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import type { CostCategory, CostType } from "./cost-grids";
 import { type NatureChoice, natureChoice } from "./cost-kinds";
@@ -29,6 +29,8 @@ import { CostCategoryList, CostTypeList } from "./cost-lists";
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+/** The query of the address the lists read, none save where a test reads them otherwise. */
+const address = vi.hoisted(() => ({ query: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
@@ -36,7 +38,7 @@ vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => "/reference/costs",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(address.query),
 }));
 
 const TYPES = "POST /reference/cost-types";
@@ -57,16 +59,6 @@ const first = (example("volume/cost_categories") as { items: CostCategory[] }).i
 
 /** A category the server created today under the disbursements, attached to no line nor rate. */
 const created = example("cost_category_created") as CostCategory;
-
-/** The last category of the natures of provision, as the volumes give it. */
-const provision = (example("volume/cost_categories") as { items: CostCategory[] }).items.find(
-  (category) => category.code === "PRV-001",
-);
-
-/** A refusal of the contract, by the name of its example and its status. */
-function refusal<S extends number>(name: string, status: S): Problem & { status: S } {
-  return { ...(example(name) as Problem), status };
-}
 
 /** The natures of the witness, as the page offers them to a category: the labour one deactivated. */
 const NATURES: readonly NatureChoice[] = types.items.map((nature) => ({
@@ -160,6 +152,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  address.query = "";
   refresh.mockClear();
   router.refresh.mockClear();
 });
@@ -168,7 +161,7 @@ describe("the creation of a nature or a category", () => {
   it.each([
     ["Main-d’œuvre", "labor"],
     ["Hors main-d’œuvre", "non_labor"],
-    ["Provision", "provision"],
+    ["Provision pour risques", "provision"],
   ])(
     "creates a nature of the type %s the form offers, and reads the page anew [WF-REF-0030-A]",
     async (shown, kind) => {
@@ -182,7 +175,7 @@ describe("the creation of a nature or a category", () => {
         within(type)
           .getAllByRole("option")
           .map((option) => option.textContent),
-      ).toEqual(["Choisir…", "Main-d’œuvre", "Hors main-d’œuvre", "Provision"]);
+      ).toEqual(["Choisir…", "Main-d’œuvre", "Hors main-d’œuvre", "Provision pour risques"]);
       expect(within(form).getByRole("textbox", { name: "Code" })).toHaveFocus();
       await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), " FRN ");
       await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Fournitures");
@@ -303,7 +296,7 @@ describe("the creation of a nature or a category", () => {
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Fournitures");
     await userEvent.selectOptions(
       within(form).getByRole("combobox", { name: "Type" }),
-      "Provision",
+      "Provision pour risques",
     );
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     const code = within(form).getByRole("textbox", { name: "Code" });
@@ -500,6 +493,106 @@ describe("a write whose dialog is closed, and the focus", () => {
       "Vous n’avez pas la permission nécessaire.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("holds a link clicked once the dialog is closed while it sends, and does not follow it when the server refuses the write: the refusal is told above the list (#688)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      const alert = await screen.findByRole("alert");
+      expect(within(alert).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
+  });
+
+  it("follows a link clicked once the list is read otherwise, the refusal of a write sent from the reading before told on the list no more — the bar of the shell tells it (#688, #863)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    const { rerender } = render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // The deactivated categories hidden: the list reads otherwise.
+      address.query = "category_is_active=true";
+      rerender(categoryList());
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      await vi.waitFor(() => {
+        expect(link.followed).toHaveBeenCalledOnce();
+      });
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      link.remove();
+    }
+  });
+
+  it("follows a link clicked once the list is back on the reading a write was sent from, its clicks released when it was left, and tells its refusal on the list no more (#688)", async () => {
+    const answer = held();
+    serve(
+      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
+      { hold: () => answer.until },
+    );
+    const { rerender } = render(categoryList());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
+      );
+      const form = dialog("Modifier «\u00a0Sous-traitance\u00a0»");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // The deactivated categories hidden, then shown again: the list is back on its reading.
+      address.query = "category_is_active=true";
+      rerender(categoryList());
+      address.query = "";
+      rerender(categoryList());
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      await vi.waitFor(() => {
+        expect(link.followed).toHaveBeenCalledOnce();
+      });
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      link.remove();
+    }
   });
 
   it("tells a refusal answered once the dialog is closed beside another refusal of the list, neither in the place of the other", async () => {
@@ -729,77 +822,6 @@ describe("the activation of a nature or a category", () => {
       screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }),
     ).toBeInTheDocument();
   });
-
-  it("presents the deactivation of the last nature of provision unavailable with its condition, and a press says it without asking anything [WF-IHM-0090-A]", async () => {
-    const client = serve();
-    render(natures());
-    // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
-    const command = screen.getByRole("button", { name: "Désactiver «\u00a0Provision\u00a0»" });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription(
-      "Condition non remplie\u00a0: une autre nature provision active portant une catégorie active.",
-    );
-    expect(
-      screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }),
-    ).not.toHaveAttribute("aria-disabled");
-    await userEvent.click(command);
-    expect(
-      within(screen.getByRole("region", { name: "Natures de coût" }))
-        .getAllByRole("status")
-        .map((status) => status.textContent),
-    ).toContain(
-      "La désactivation de «\u00a0Provision\u00a0» est indisponible. Condition non remplie\u00a0: une autre nature provision active portant une catégorie active.",
-    );
-    expect(client.calls).toEqual([]);
-  });
-
-  it("presents the deactivation of the last category of provision unavailable with its condition [WF-IHM-0090-A]", async () => {
-    const client = serve();
-    if (provision === undefined) {
-      throw new Error("the volumes hold the provisions for risks");
-    }
-    render(categoryList([provision]));
-    const command = screen.getByRole("button", {
-      name: "Désactiver «\u00a0Provisions pour risques\u00a0»",
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription(
-      "Condition non remplie\u00a0: une autre catégorie active sous une nature provision active.",
-    );
-    await userEvent.click(command);
-    expect(client.calls).toEqual([]);
-  });
-
-  it.each([
-    [
-      "natures",
-      "Débours",
-      "cost_type_last_provision_refused",
-      "une autre nature provision active portant une catégorie active",
-    ],
-    [
-      "categories",
-      "Sous-traitance",
-      "cost_category_last_provision_refused",
-      "une autre catégorie active sous une nature provision active",
-    ],
-  ])(
-    "says above the list of the %s the refusal of a deactivation the server finds the last of provision meanwhile, naming its condition [WF-IHM-0090-A]",
-    async (list, name, refused, condition) => {
-      serve({
-        [TYPE_ACTIVATION]: { problem: refusal(refused, 409) },
-        [CATEGORY_ACTIVATION]: { problem: refusal(refused, 409) },
-      });
-      render(list === "natures" ? natures() : categoryList());
-      await userEvent.click(
-        screen.getByRole("button", { name: `Désactiver «\u00a0${name}\u00a0»` }),
-      );
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        `L’état actuel ne permet pas cette opération. Condition non remplie : ${condition}.`,
-      );
-      expect(refresh).not.toHaveBeenCalled();
-    },
-  );
 
   it("presses the deactivation from the keyboard, Enter on the cell of the state, the grid one stop", async () => {
     const client = serve();

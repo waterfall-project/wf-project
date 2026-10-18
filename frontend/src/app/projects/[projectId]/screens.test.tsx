@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ComponentProps, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import type { Project } from "@/components/context/reading";
 import { TransitionList } from "@/components/projects/project-tables";
 import {
   ContributorList,
@@ -47,7 +48,7 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const BANNER = '<section aria-label="Reading context"';
 
 type StateTransition = components["schemas"]["StateTransition"];
-type WorkBreakdown = components["schemas"]["WorkBreakdown"];
+type WorkBreakdown = components["schemas"]["WorkBreakdownReading"];
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -67,9 +68,9 @@ function html(page: ReactNode): string {
 }
 
 /** What Next hands a page of the project, at the query given. */
-function at(search: Record<string, string> = {}) {
+function at(search: Record<string, string> = {}, projectId: string = PROJECT) {
   return {
-    params: Promise.resolve({ projectId: PROJECT }),
+    params: Promise.resolve({ projectId }),
     searchParams: Promise.resolve(search),
   };
 }
@@ -113,6 +114,28 @@ function sortable(markup: string, name?: string): string[] {
     .map((header) => text(header[1] ?? ""));
 }
 
+/**
+ * The first element of a type a page hands down, its props as the page gave them — before anything
+ * renders it.
+ */
+function handed<P>(node: ReactNode, type: (props: P) => ReactNode): ReactElement<P> | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node as readonly ReactNode[]) {
+      const found = handed(child, type);
+      if (found !== undefined) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+  if (!isValidElement(node)) {
+    return undefined;
+  }
+  return node.type === type
+    ? (node as ReactElement<P>)
+    : handed((node.props as { readonly children?: ReactNode }).children, type);
+}
+
 /** The names of the buttons of a page. */
 function buttons(markup: string): string[] {
   return [...markup.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((match) => text(match[1] ?? ""));
@@ -121,13 +144,15 @@ function buttons(markup: string): string[] {
 beforeEach(() => {
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/contributors": "contributors",
+    "GET /projects/{project_id}/contributors/suggestions": "contributor_suggestions",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /projects/{project_id}/state-transitions": "state_transitions",
+    "GET /projects/{project_id}/next-state": "next_state",
   };
 });
 
@@ -173,13 +198,48 @@ describe("the screen of a project", () => {
 });
 
 describe("the settings of a project", () => {
+  it("hands the sub-projects the revision in progress whose estimate a deletion leads to, the session reading the estimate (EP-14/L53)", async () => {
+    const list = handed<ComponentProps<typeof SubprojectList>>(
+      await SettingsPage(at()),
+      SubprojectList,
+    );
+    expect(list?.props.editing?.estimated).toBe(
+      (example("project") as Project).current_revision_id,
+    );
+  });
+
+  it("hands the work breakdown the command `update_work_breakdown` the project lists, and the reading whole its commands write from — none to a project that lists it unavailable (EP-14/L44c)", async () => {
+    const open = handed<ComponentProps<typeof WorkBreakdownList>>(
+      await SettingsPage(at()),
+      WorkBreakdownList,
+    );
+    expect(open?.props.editing).toEqual({
+      project: PROJECT,
+      offer: { command: "update_work_breakdown", is_available: true, missing_conditions: [] },
+      counter: 1,
+      whole: example("work_breakdown"),
+    });
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
+    const closed = handed<ComponentProps<typeof WorkBreakdownList>>(
+      await SettingsPage(at()),
+      WorkBreakdownList,
+    );
+    expect(closed?.props.editing?.offer?.is_available).toBe(false);
+    expect(closed?.props.editing?.whole).toBeUndefined();
+    // Read whole, the work breakdown is read once a page.
+    expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toHaveLength(2);
+  });
+
   it("shows the inflation rate and the probability of winning as the API gives them", async () => {
     const page = html(await SettingsPage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
     expect(page).toMatch(
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Project settings<\/h1>/,
     );
-    expect(text(page)).toContain("Annual inflation rate 3% Probability of winning 100%");
+    expect(text(page)).toContain(
+      "Label Modernisation du poste de commande Code PRJ-001 Order received on 15 Jan 2026 " +
+        "Description Not set Annual inflation rate 3% Probability of winning 100%",
+    );
   });
 
   it("shows the work breakdown of the project, read by the server, in a region of its own: a tree of each order item, its work packages under it and their deliverables under them, which sorts nothing and folds", async () => {
@@ -196,7 +256,7 @@ describe("the settings of a project", () => {
       "Fourniture et montage des armoires Order item",
       "Armoires Work package",
       "Procès-verbal de réception usine des armoires Deliverable",
-      "1 order item",
+      "1 order item, 1 work package and 1 deliverable",
     ]);
     expect(region).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Work breakdown"/);
     expect(region).toContain('aria-level="3"');
@@ -208,10 +268,14 @@ describe("the settings of a project", () => {
     expect(text(region ?? "")).not.toContain("show only what the search and the filter retain");
   });
 
-  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, and says the order items and work packages kept partial", async () => {
+  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, says the order items and work packages kept partial, and counts the elements retained alone (#574)", async () => {
+    // Read filtered, then whole besides, for the commands of the grid to write from.
     server.answers = {
       ...server.answers,
-      "GET /projects/{project_id}/work-breakdown": "work_breakdown_work_packages",
+      "GET /projects/{project_id}/work-breakdown": [
+        "work_breakdown_work_packages",
+        "work_breakdown",
+      ],
     };
     const page = html(
       await SettingsPage(
@@ -225,12 +289,15 @@ describe("the settings of a project", () => {
     );
     expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toEqual([
       { search: "Armoires", kinds: "work_package,deliverable" },
+      {},
     ]);
-    // The order item kept for its work package holds it alone: the list says so.
+    // The order item kept for its work package holds it alone: the list says so; and it is there
+    // for the context alone: the totals count the work package the filter retains, and no order
+    // item — le front affiche le total des seuls retenus.
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
       "Fourniture et montage des armoires Order item",
       "Armoires Work package",
-      "1 order item",
+      "1 work package",
     ]);
     expect(text(page)).toContain(
       "The order items and work packages show only what the search and the filter retain.",
@@ -272,26 +339,33 @@ describe("the settings of a project", () => {
     expect(text(none)).not.toContain("This project has no order item.");
   });
 
-  it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable", async () => {
+  it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable, both bearing the label of the project", async () => {
+    // The project created today, its first revision opened, its order not entered.
+    const project = example("project_revision_opened") as Project;
     server.answers = {
       ...server.answers,
+      "GET /projects/{project_id}": "project_revision_opened",
       "GET /projects/{project_id}/work-breakdown": "work_breakdown_default",
     };
-    const page = html(await SettingsPage(at()));
+    const page = html(await SettingsPage(at({}, project.project_id)));
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
-      "Commande Order item",
-      "Lot unique Work package",
-      "1 order item",
+      `${project.label} Order item`,
+      `${project.label} Work package`,
+      "1 order item and 1 work package",
     ]);
   });
 
   it("shows an order item without a work package alone, and says a work breakdown without an order item empty", () => {
     const fallback = example("work_breakdown_default") as WorkBreakdown;
+    const project = example("project_created") as Project;
     const [item] = fallback.order_items;
     const bare = { ...fallback, order_items: item ? [{ ...item, work_packages: [] }] : [] };
     expect(
-      rows(html(<WorkBreakdownList breakdown={bare} project={PROJECT} />), "Work breakdown"),
-    ).toEqual(["Label Kind", "Commande Order item", "1 order item"]);
+      rows(
+        html(<WorkBreakdownList breakdown={bare} project={project.project_id} />),
+        "Work breakdown",
+      ),
+    ).toEqual(["Label Kind", `${project.label} Order item`, "1 order item"]);
     expect(
       text(
         html(<WorkBreakdownList breakdown={{ ...fallback, order_items: [] }} project={PROJECT} />),
@@ -300,15 +374,20 @@ describe("the settings of a project", () => {
   });
 
   it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched, sorted and filtered by the server on each column", async () => {
+    // Each sub-project of the witness is cited by the reference revision and charged (EP-14/L42l),
+    // and borne by lines of the current revision (EP-14/L42q).
+    const undeletable =
+      "Unmet conditions: subproject cited by no marked revision, no actual cost booked against " +
+      "the subproject and no estimate line of the current revision bearing the subproject.";
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/subprojects"]).toBe(
       `/projects/${PROJECT}/subprojects`,
     );
     expect(page).toMatch(/<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Subprojects<\/h2>/);
     expect(rows(page, "Subprojects")).toEqual([
-      "ERP code Label Actual costs",
-      "SP-CMD Poste de commande Charged",
-      "SP-ESS Essais et mise en service None",
+      "ERP code Label Actual costs Modify Delete",
+      `SP-CMD Poste de commande Charged Modify Delete ${undeletable}`,
+      `SP-ESS Essais et mise en service Charged Modify Delete ${undeletable}`,
       "2 subprojects",
     ]);
     expect(sortable(page, "Subprojects")).toEqual(["ERP code", "Label", "Actual costs"]);
@@ -341,7 +420,7 @@ describe("the settings of a project", () => {
     expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
     expect(capacities.slice(1).every((cell) => !cell.includes("<svg"))).toBe(true);
     expect(text(page)).toContain(
-      "Contributors Every capacity Project manager Contributor Account state Every account Active accounts Deactivated accounts",
+      "Every capacity Project manager Contributor Account state Every account Active accounts Deactivated accounts",
     );
   });
 
@@ -421,15 +500,107 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
+  it("offers the commands of the sub-projects and the contributors as the project lists them, and says the fake back keeps nothing [WF-PRJ-0050-A]", async () => {
     const page = html(await SettingsPage(at()));
-    expect(buttons(page).filter((name) => /Create|Add|Modify|Delete|Edit/.test(name))).toEqual([]);
-    // The forms are the searches of the work breakdown, the sub-projects and the contributors.
+    expect(text(page)).toContain("Mock-up:");
+    expect(buttons(page)).toEqual(
+      expect.arrayContaining([
+        "Edit the project",
+        "New subproject",
+        "Modify",
+        "Delete",
+        "Modify the contributors",
+      ]),
+    );
+    // A sub-project charged with actual costs no longer deletes: its deletion says why. Both are,
+    // the tests and commissioning by the invoices of the drawn tasks of its lots (EP-14/L45a).
+    expect(page).toMatch(/aria-label="Delete “SP-CMD”" aria-disabled="true"/);
+    expect(page).toMatch(/aria-label="Delete “SP-ESS”" aria-disabled="true"/);
+    expect(text(page)).toContain(
+      "Proposed from the roles of the estimate, to be confirmed: Sacha Lefèvre.",
+    );
+    // The list shown is whole, with its counter: it is not read twice.
+    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([{}]);
+  });
+
+  it("reads the contributors whole besides a reading filtered, which has no counter to write from", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/contributors": ["contributors_search", "contributors"],
+    };
+    const page = html(await SettingsPage(at({ contributor_search: "Petit" })));
+    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([{ search: "Petit" }, {}]);
+    expect(rows(page, "Contributors")).toHaveLength(3);
+    expect(buttons(page)).toContain("Modify the contributors");
+  });
+
+  it("says nothing of the fake back on a terminal project, whose commands it presents unavailable, those of its sub-projects' rows too", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_completed",
+      "GET /projects/{project_id}/subprojects": "subprojects_completed",
+    };
+    const page = html(await SettingsPage(at()));
+    expect(text(page)).not.toContain("Mock-up:");
+    const every = [...page.matchAll(/<button([^>]*)>(.*?)<\/button>/g)];
+    const named = (unavailable: boolean) =>
+      every
+        .filter(
+          ([, attributes = ""]) => attributes.includes('aria-disabled="true"') === unavailable,
+        )
+        .map(([, , content = ""]) => text(content));
+    expect(named(true)).toEqual(
+      expect.arrayContaining(["Edit the project", "New subproject", "Modify the contributors"]),
+    );
+    // Nothing is offered that writes, the commands of the sub-projects' rows neither.
+    expect(named(false).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
+    for (const code of ["SP-CMD", "SP-ESS"]) {
+      for (const command of ["Modify", "Delete"]) {
+        expect(page).toContain(`aria-label="${command} “${code}”" aria-disabled="true"`);
+      }
+    }
+    expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
+  });
+
+  it("offers no command to a session the project lists none to, and reads nothing it would propose", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
+    const read = html(await SettingsPage(at()));
+    expect(buttons(read).filter((name) => /New|Modify|Delete|Edit/.test(name))).toEqual([]);
+    expect(text(read)).not.toContain("Mock-up:");
+    expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
+  });
+
+  it("offers to modify the project as it lists the command, besides the commands of its lists, saying once that the fake back keeps nothing (EP-02/L44a)", async () => {
+    const page = html(await SettingsPage(at()));
+    expect(buttons(page)).toContain("Edit the project");
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toMatch(/<p role="note"[^>]*>.*Mock-up: the simulated service/);
+    // The forms are the searches of the work breakdown, the sub-projects and the contributors: the
+    // commands open theirs in a dialog.
     expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
       expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
       expect.stringContaining('role="search"'),
     ]);
+  });
+
+  it("offers no modification to a session the project lists none for, nor says the fake back keeps nothing", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
+    const page = html(await SettingsPage(at()));
+    expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
+    expect(page).not.toContain('role="note"');
+  });
+
+  it("presents the modification of a terminal project unavailable, naming the condition it lacks [WF-CYC-0100-A]", async () => {
+    // Toute modification d'un projet terminal est refusée : la commande le dit d'avance.
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
+    const page = html(await SettingsPage(at()));
+    expect(page).toMatch(
+      /<button[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Edit the project/,
+    );
+    expect(text(page)).toContain("Edit the project Unmet condition: project not closed.");
+    // Nothing can be written: the screen says nothing of what the fake back keeps.
+    expect(page).not.toContain('role="note"');
   });
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {
@@ -504,8 +675,89 @@ describe("the lifecycle of a project", () => {
     ]);
   });
 
+  it("says the next state of a project before it is in progress, its trigger and the conditions it lacks, one by one, without trying anything [WF-CYC-0050-A]", async () => {
+    // Pour un projet dans chacun des états Créé et Chiffrage, l'utilisateur consulte le prochain
+    // état, son déclencheur et les conditions restantes, sans avoir tenté d'action.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/next-state": "next_state_pricing",
+    };
+    const pricing = html(await LifecyclePage(at()));
+    expect(paths()["GET /projects/{project_id}/next-state"]).toBe(
+      `/projects/${PROJECT}/next-state`,
+    );
+    expect(text(pricing)).toContain(
+      "Next state State ahead In progress Trigger Reference revision designated and project code " +
+        "filled in Remaining conditions reference revision designated History of states",
+    );
+    expect(pricing).toMatch(/<ul[^>]*><li>reference revision designated<\/li><\/ul>/);
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_created",
+      "GET /projects/{project_id}/next-state": "next_state_created",
+    };
+    const created = html(await LifecyclePage(at()));
+    expect(text(created)).toContain(
+      "Next state State ahead Pricing Trigger First revision created Remaining conditions None",
+    );
+  });
+
+  it("offers no command that leads to pricing or in progress, whichever state the project is in [WF-CYC-0020-A]", async () => {
+    // Aucun écran ne propose de commande menant à Chiffrage ou En cours.
+    for (const [project, next] of [
+      ["project_created", "next_state_created"],
+      ["project_pricing", "next_state_pricing"],
+      ["project", "next_state"],
+    ] as const) {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}": project,
+        "GET /projects/{project_id}/next-state": next,
+      };
+      const page = html(await LifecyclePage(at()));
+      expect(buttons(page)).toEqual([
+        "Complete the project",
+        "Declare the project lost",
+        "Abandon the project",
+      ]);
+    }
+  });
+
+  it("says a terminal project closed, no state following it, and refuses every exit [WF-CYC-0080-A]", async () => {
+    // Aucune transition ne part d'un état terminal : toute tentative de transition depuis Terminé
+    // est refusée, chacune des trois sorties présentée indisponible.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_completed",
+      "GET /projects/{project_id}/next-state": "next_state_completed",
+    };
+    const page = html(await LifecyclePage(at()));
+    expect(text(page)).toContain("Next state The project is closed: no state follows it.");
+    for (const exit of [
+      "Complete the project",
+      "Declare the project lost",
+      "Abandon the project",
+    ]) {
+      const button = new RegExp(
+        `<button[^>]*aria-disabled="true"[^>]*>(?:(?!</button>).)*${exit}</button>`,
+      ).exec(page);
+      expect(button, exit).not.toBeNull();
+    }
+  });
+
+  it("says a project in progress awaits no next state: only the exits of its lifecycle remain", async () => {
+    const page = html(await LifecyclePage(at()));
+    expect(text(page)).toContain(
+      "Next state No fact leads the project to another state any more: only the exits of the " +
+        "lifecycle remain.",
+    );
+    expect(text(page)).not.toContain("Trigger");
+  });
+
   it.each([
     ["the history of its states", "GET /projects/{project_id}/state-transitions"],
+    ["its next state", "GET /projects/{project_id}/next-state"],
     ["the project", "GET /projects/{project_id}"],
   ] as const)(
     "is not found when the API does not find %s, as the other screens of a project",

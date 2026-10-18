@@ -70,7 +70,7 @@ function queryOf(route: string): Record<string, string> | undefined {
 beforeEach(() => {
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
@@ -132,13 +132,26 @@ describe("the screen of the timelines", () => {
     // Deux chronologies d'un même projet portent des sélections distinctes: the customer's, the
     // two receptions alone, the core read whole.
     server.answers = { ...server.answers, [NODES]: "nodes_core" };
-    const table = text(
-      (await timelinesAt({ timeline: CUSTOMER })).split('aria-label="Revue client"')[1] ?? "",
-    );
+    const page = await timelinesAt({ timeline: CUSTOMER });
+    // The table, and the group it scrolls in, both bear the name of the timeline.
+    const table = text(page.slice(page.indexOf('aria-label="Revue client"')));
     expect(table).toContain("6 Réception des études");
     expect(table).toContain("18 Réception usine");
     expect(table).not.toContain("Études 02/03/2026");
     expect(table).not.toContain("Mise en service");
+  });
+
+  it("offers the commands of the timelines as the project lists `manage_timelines`, and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
+    const page = await timelinesAt();
+    expect(page).toMatch(/<button[^>]*>.*?New timeline<\/button>/);
+    expect(page).toContain('aria-label="Delete the timeline “Comité de pilotage”"');
+    expect(page).toContain('role="note"');
+    // A terminal project lists the command unavailable: presented, it writes nothing to warn of.
+    server.clients = [];
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
+    const closed = await timelinesAt();
+    expect(closed).toMatch(/<button[^>]*aria-disabled="true"[^>]*>.*?New timeline<\/button>/);
+    expect(closed).not.toContain('role="note"');
   });
 
   it("says a timeline holds no task of the revision read", async () => {

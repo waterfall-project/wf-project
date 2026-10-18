@@ -151,7 +151,7 @@ type CitedRead = {
 
 /** The examples the reads of a revision answer, by the end of their path, the others aside. */
 const EXAMPLE_BY_END = {
-  "/session": ["GET /session", "session"],
+  "/me": ["GET /me", "me"],
   "/structures": ["GET /projects/{project_id}/revisions/{revision_id}/structures", "structures"],
   "/nodes": [
     "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",
@@ -240,7 +240,7 @@ beforeEach(() => {
   server.undeclared = undefined;
   server.timing = {};
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
     "GET /projects/{project_id}": "project",
@@ -253,6 +253,7 @@ beforeEach(() => {
     "GET /reference/cost-categories": "volume/cost_categories",
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
   };
 });
 
@@ -357,7 +358,7 @@ describe("the witness path", () => {
       [NODES_READ]: "nodes_estimate",
     });
     // The hours, the amount at the year of reference and the one corrected for inflation.
-    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 2,934\.56 2,934\.56$/);
+    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56 502,434\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
@@ -365,14 +366,14 @@ describe("the witness path", () => {
     const held = new Promise<void>((resolve) => {
       answer = resolve;
     });
-    server.timing = { hold: (route) => (route === "GET /session" ? held : undefined) };
+    server.timing = { hold: (route) => (route === "GET /me" ? held : undefined) };
     const routes = () => server.clients.flatMap((client) => client.calls).map((call) => call.route);
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const page = EstimatePage({ params, searchParams: NO_SEARCH });
     await vi.waitFor(() => {
       expect(routes()).toEqual(
         expect.arrayContaining([
-          "GET /session",
+          "GET /me",
           "GET /projects/{project_id}/revisions/{revision_id}/structures",
           "GET /projects/{project_id}",
           "GET /projects/{project_id}/revisions/{revision_id}",
@@ -386,14 +387,14 @@ describe("the witness path", () => {
   });
 
   it("asks no sort when the address lifted it, whatever the account keeps", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "" }) });
     expect(Object.keys(nodesQuery())).toEqual([]);
   });
 
   it("hands the grid the settings of the account the session read", async () => {
-    const { html } = await estimateWith({ "GET /session": "session_grid_settings" });
+    const { html } = await estimateWith({ "GET /me": "me_grid_settings" });
     // The quantity hidden, the label widened.
     expect(html).not.toContain(">Qty<");
     expect(html).toContain('<col style="width:400px"/>');
@@ -466,7 +467,7 @@ describe("the witness path", () => {
   it("keeps no sort by a column the grid no longer presents, and sorts by the address otherwise", async () => {
     // The account keeps the sort by the budgeted amount, which the grid no longer presents
     // (WF-DEV-0050): the plan order, as for any column the grid does not sort.
-    const { html } = await estimateWith({ "GET /session": "session_grid_settings" });
+    const { html } = await estimateWith({ "GET /me": "me_grid_settings" });
     expect(Object.keys(nodesQuery())).toEqual([]);
     expect(html).not.toContain("aria-sort");
 
@@ -494,11 +495,11 @@ describe("the witness path", () => {
     });
     // The session alone is read, to know what it may read; nothing of the revision yet.
     const routes = server.clients.flatMap((client) => client.calls).map((call) => call.route);
-    expect(new Set(routes)).toEqual(new Set(["GET /session"]));
+    expect(new Set(routes)).toEqual(new Set(["GET /me"]));
   });
 
   it("leads an estimator who may not read the planning from a revision to its estimate", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: expect.stringContaining(
@@ -508,7 +509,7 @@ describe("the witness path", () => {
   });
 
   it("leads from a revision to its planning without a session, whose page leads to the sign-in", async () => {
-    server.answers = { ...server.answers, "GET /session": UNAUTHORIZED };
+    server.answers = { ...server.answers, "GET /me": UNAUTHORIZED };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: expect.stringContaining(
@@ -580,7 +581,7 @@ describe("the witness path", () => {
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {
     server.answers = {
-      "GET /session": "session",
+      "GET /me": "me",
       "GET /projects/{project_id}": NOT_FOUND,
       "GET /projects/{project_id}/revisions": NOT_FOUND,
     };
@@ -603,10 +604,7 @@ describe("the grid of the planning", () => {
   const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
 
   beforeEach(() => {
-    server.answers = {
-      ...server.answers,
-      [NODES_READ]: "nodes_planning",
-    };
+    server.answers = { ...server.answers, [NODES_READ]: "nodes_planning" };
   });
 
   it("shows the tasks of the main structure, asking the server for the tasks alone, the same grid as the estimate", async () => {
@@ -712,7 +710,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 121,534.56 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 66,105,223.89 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
     expect(html).toMatch(
@@ -751,7 +749,7 @@ describe("the indicators and the missing rates of the estimate", () => {
     );
     expect(links(html)).toContain("/reference/costs");
 
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const estimator = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
@@ -896,7 +894,7 @@ describe("the empty states of the shell", () => {
   it("does not offer the way to the revisions to a session that may not read them", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": UNAUTHORIZED,
+      "GET /me": UNAUTHORIZED,
       "GET /projects/{project_id}": "project_pricing",
       "GET /projects/{project_id}/revisions": "revisions_empty",
     };

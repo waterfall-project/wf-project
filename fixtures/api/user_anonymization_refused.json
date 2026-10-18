@@ -1,0 +1,11 @@
+{
+  "summary": "L'anonymisation du compte actif de Noé Vidal refusée : seul un compte désactivé s'anonymise, is_deactivated_account manquante, et rien n'est écrit (WF-ADM-0060).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "is_deactivated_account"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001162"
+  }
+}

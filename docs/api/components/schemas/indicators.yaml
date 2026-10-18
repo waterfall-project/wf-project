@@ -83,7 +83,9 @@ NotComputableReason:
     (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant
     du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence
     empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et
-    `params.missing_rates` nomme les catégories et les années (WF-DEV-0010).
+    `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ; ni
+    `order_item_without_task`, le total d'un poste du lotissement qu'aucune tâche ne porte :
+    « un poste sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
   enum:
     - no_actual_cost
     - no_earned_value
@@ -94,6 +96,7 @@ NotComputableReason:
     - no_capacity
     - no_offer_out_of_pricing
     - hourly_rate_missing
+    - order_item_without_task
 
 CalculationContext:
   type: object
@@ -139,15 +142,18 @@ EstimateIndicators:
       type: array
       items: { $ref: '#/ComputableAmountByKey' }
     by_order_item:
-      anyOf:
-        - type: array
-          items: { $ref: '#/ComputableAmountByKey' }
-        - type: 'null'
+      type: array
+      minItems: 1
+      items: { $ref: '#/ComputableAmountByKey' }
       description: >-
-        Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche,
-        récapitulative ou feuille, qui porte chacun — le total de son sous-arbre
-        (WF-PLA-0170) ; nul quand le planning n'est pas structuré en postes — absents plutôt
-        que nuls (WF-DEV-0060).
+        Chaque poste du lotissement (WF-PRJ-0020), dans l'ordre saisi, et son total, lu à
+        travers la tâche, récapitulative ou feuille, qui le porte — le total de son sous-arbre
+        (WF-PLA-0170). « Un poste sans tâche rattachée est présenté sans total » (WF-DEV-0060) :
+        son montant et sa part ne se calculent pas, motif `order_item_without_task` — absents
+        plutôt que nuls, comme le veut le Vérif. Jamais vide : un projet sans lotissement saisi
+        en a un par défaut, d'un poste (EP-14/L42s). Les indicateurs conservés d'une révision
+        marquée rendent les postes de son marquage, tels qu'elle les a figés (WF-DAT-0040), un
+        poste marqué supprimé depuis compris (WF-DAT-0080).
     provisions_identified: { $ref: ../common.yaml#/Money }
     delta_to_reference:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
@@ -166,12 +172,18 @@ ComputableAmountByKey:
   required: [key, amount]
   description: >-
     Un montant par clé — nature de coût, sous-projet, poste —, qui peut ne pas se calculer
-    (`hourly_rate_missing`), et sa part du total, qui ne se calcule pas sans lui.
+    (`hourly_rate_missing` ; pour un poste qu'aucune tâche ne porte, `order_item_without_task`),
+    et sa part du total, qui ne se calcule pas sans lui.
   properties:
     key: { type: string }
     label: { type: string }
     amount: { $ref: '#/ComputableMoney' }
-    share: { $ref: '#/Computable' }
+    share:
+      allOf: [{ $ref: '#/Computable' }]
+      description: >-
+        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ;
+        les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande
+        portant le reste des arrondis, celles des postes non (README, « Une part… »).
 
 RemainingIndicators:
   type: object
@@ -243,7 +255,12 @@ AmountByKey:
     key: { type: string }
     label: { type: string }
     amount: { $ref: ../common.yaml#/Money }
-    share: { $ref: ../common.yaml#/Percent }
+    share:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: >-
+        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas,
+        les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis
+        (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`).
 
 ProjectIndicators:
   type: object
@@ -279,7 +296,8 @@ ProjectIndicators:
       allOf: [{ $ref: '#/Computable' }]
       description: >-
         Rapport du coût réel à la somme du coût réel et du reste à engager ; non
-        calculable lorsque les deux sont nuls (WF-IND-0040).
+        calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la
+        consommation du budget et l'avancement physique (README, « Une part… »).
     budget_consumption: { $ref: '#/Computable' }
     physical_progress: { $ref: '#/Computable' }
     cost_index: { $ref: '#/IndexValue' }

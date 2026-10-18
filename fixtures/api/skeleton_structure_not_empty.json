@@ -1,0 +1,11 @@
+{
+  "summary": "La génération du squelette de planning demandée sur la révision courante du projet témoin, refusée : sa structure principale comporte déjà ses mille tâches, et la génération n'est plus proposée dès qu'elle en comporte une — la condition que sa commande generate_skeleton disait d'avance ; rien n'est écrit (WF-PRJ-0030, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "main_structure_without_tasks"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001132"
+  }
+}

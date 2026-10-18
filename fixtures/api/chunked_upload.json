@@ -1,0 +1,12 @@
+{
+  "summary": "Le dépôt de la sauvegarde waterfall-2026-06-02.tar, de 12 Mio, ouvert aujourd'hui, 3 juin 2026, à 13 h 50 pour une restauration : trois morceaux de 5 Mio, le dernier de 2 Mio, aucun encore reçu ; le dépôt expire demain à la même heure (WF-ADM-0160, WF-DAT-0120).",
+  "value": {
+    "chunked_upload_id": "01926f3a-7c00-7000-8000-000000000a02",
+    "filename": "waterfall-2026-06-02.tar",
+    "size_bytes": 12582912,
+    "part_size_bytes": 5242880,
+    "part_count": 3,
+    "received_parts": [],
+    "expires_at": "2026-06-04T13:50:00Z"
+  }
+}

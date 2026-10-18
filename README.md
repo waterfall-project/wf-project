@@ -98,6 +98,8 @@ decision.
 
 ## Commands
 
+To set up a workstation, read [`INSTALL.md`](INSTALL.md) (in French).
+
 ```bash
 make                      # list the commands
 make check-tools          # tell me what is missing
@@ -138,4 +140,11 @@ conventions that are not negotiable file by file.
 
 ## Licence
 
-[GNU Affero General Public License v3.0](LICENSE) only.
+The code is under the [GNU Affero General Public License v3.0](LICENSE) only.
+
+The specification — `docs/spec/stb-waterfall.docx`, its sources `waterfall.visuels.drawio` and
+`figures/`, and the projection `waterfall-spec.md` — is published under the
+[Creative Commons Attribution-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
+licence (CC BY-SA 4.0), © 2026 Projet Waterfall. Attribution: « Projet Waterfall,
+https://www.waterfall-project.pro ». The name and the logo « Waterfall » are not covered by this
+licence. [REUSE.toml](REUSE.toml) states the licence of every file.

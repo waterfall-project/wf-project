@@ -17,6 +17,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  type Problem,
   unreachable,
 } from "@/test/fixtures";
 
@@ -430,6 +431,25 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).getByText("Suivi interrompu")).toBeVisible();
     expect(within(entries()).getByRole("link", { name: "Se connecter" })).toBeVisible();
   });
+
+  it.each([
+    [
+      "session_revoked",
+      `/login?next=${encodeURIComponent(`/projects/${PROJECT}/revisions`)}&reauthenticate=1`,
+    ],
+    ["session_expired", `/login?next=${encodeURIComponent(`/projects/${PROJECT}/revisions`)}`],
+  ] as const)(
+    "leads a follow-up refused as %s to a sign-in that asks for the identifiers again for a session closed only (#855) [WF-SEC-0020-A]",
+    async (name, href) => {
+      serve({ [TASK]: { problem: example(name) as Problem & { readonly status: 401 } } });
+      await started(task("task_mark_queued"));
+      await tick();
+      expect(within(entries()).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+        "href",
+        href,
+      );
+    },
+  );
 
   it("keeps a task interrupted for want of a session, and follows it on after a reload", async () => {
     serve({ [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });

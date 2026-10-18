@@ -1,5 +1,5 @@
 {
-  "summary": "Un projet en chiffrage, sans révision : sa terminaison est indisponible tant qu'il n'est pas en cours ; un planning, un devis, un reste à engager s'y importent, l'import créant la révision (WF-INTF-0090) ; sans révision, il porte lui-même la saisie des risques, dont la première crée la révision en cours (WF-RIS-0020).",
+  "summary": "Un projet en chiffrage, sans révision : sa terminaison est indisponible tant qu'il n'est pas en cours ; un planning, un devis, un reste à engager s'y importent, l'import créant la révision (WF-INTF-0090) ; sans révision, il porte lui-même la saisie des risques, dont la première crée la révision en cours (WF-RIS-0020), et la déclaration d'un risque, qui attend une tâche, la révision qu'elle créerait n'en ayant aucune, at_least_one_task manquante (WF-RIS-0010).",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000002",
     "label": "Extension de la ligne d'essais",
@@ -18,7 +18,22 @@
         "missing_conditions": []
       },
       {
+        "command": "update_win_probability",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "update_work_breakdown",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
         "command": "manage_contributors",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "manage_timelines",
         "is_available": true,
         "missing_conditions": []
       },
@@ -48,6 +63,13 @@
         "command": "edit_risks",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "declare_risk",
+        "is_available": false,
+        "missing_conditions": [
+          "at_least_one_task"
+        ]
       },
       {
         "command": "declare_risk_occurrence",

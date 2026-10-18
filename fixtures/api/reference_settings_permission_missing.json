@@ -1,0 +1,11 @@
+{
+  "summary": "La matrice de risques envoyée par une session qui ne porte que la permission des paramètres d'indicateurs (indicator_settings.write) : refusée, la permission des paramètres de risques nommée ; rien n'est écrit (WF-ADM-0100, WF-ADM-0110).",
+  "value": {
+    "code": "PERMISSION_MISSING",
+    "status": 403,
+    "params": {
+      "missing_permission": "risk_settings.write"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001052"
+  }
+}
