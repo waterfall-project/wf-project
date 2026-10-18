@@ -1,26 +1,26 @@
 # Engagements envers l'édition communautaire
 
-> **Brouillon, sans effet.** Ce texte est un projet, à faire relire avec l'accord de
-> contribution ([`CLA.md`](CLA.md)), dont il est la contrepartie (article 6.2). Les notes
-> « À trancher » posent une décision à l'auteur ; [`README.md`](README.md) dit ce qu'elles
-> engagent.
+Version : 1.0 du 18 octobre 2026, applicable à compter de sa fusion dans `main`, avec
+l'accord de contribution ([`CLA.md`](CLA.md)) dont il est la contrepartie (article 6.2).
+[`README.md`](README.md) dit ce que chaque engagement écarte, et pourquoi il a été retenu.
 
 Waterfall pourra avoir des offres payantes. Ce document dit ce qu'elles ne feront jamais à
-l'édition communautaire : celle que ce dépôt publie, sous AGPL-3.0-only. Chaque engagement est
-écrit comme une exigence de la spécification — on doit pouvoir constater qu'il est tenu, ou qu'il
-ne l'est pas — et porte sa raison, parce qu'un engagement dont on ne sait plus pourquoi il a été
-pris finit par être lu comme une gêne.
+l'édition communautaire : celle que ce dépôt publie, sous ses licences libres. Chaque engagement
+est écrit comme une exigence de la spécification — on doit pouvoir constater qu'il est tenu, ou
+qu'il ne l'est pas — et porte sa raison, parce qu'un engagement dont on ne sait plus pourquoi il
+a été pris finit par être lu comme une gêne.
 
 L'accord de contribution les rend opposables pour chaque contribution, dans leur rédaction du
-jour où elle a été soumise (CLA, article 6.2).
+jour où elle a été soumise (CLA, article 6.2), et dit ce que le contributeur peut faire s'ils ne
+sont pas tenus (CLA, article 6.4).
 
 ## E-01 — Le produit reste libre
 
 Le noyau métier, le service d'API, le worker, le front, le contrat d'interface, la
-spécification et l'outillage du dépôt sont publiés en entier dans ce dépôt public, sous
-AGPL-3.0-only — ou, pour ce qui sert à s'intégrer à Waterfall, comme le contrat d'interface,
-sous une licence libre plus permissive. Toute version que le Mainteneur distribue ou héberge
-a son code source publié ici, à l'identique.
+spécification et l'outillage du dépôt sont publiés en entier dans ce dépôt public, sous une
+licence libre : AGPL-3.0-only pour le code et l'outillage, CC BY-SA 4.0 pour la spécification,
+Apache-2.0 pour le contrat d'interface, qui sert à s'intégrer à Waterfall. Toute version que le
+Mainteneur distribue ou héberge a son code source publié ici, à l'identique.
 
 **Pourquoi.** Waterfall pilote des projets de dix ou quinze ans. Une organisation ne peut y
 confier ses budgets de référence que si elle sait pouvoir faire tourner le logiciel, le
@@ -35,10 +35,9 @@ propre spécification, publiée ou non.
 **Pourquoi.** La spécification décrit un produit complet, de la tâche au portefeuille : c'est ce
 produit que les contributeurs améliorent, et c'est lui qu'une organisation évalue. Une
 édition communautaire amputée de ce que la spécification promet ne serait ni l'un ni l'autre.
-
-> À trancher : cet engagement écarte un découpage par acheteur, où le portefeuille (FBS-2) ou
-> l'exploitation (FBS-1) seraient payants. Il laisse au payant ce qui est aujourd'hui hors de la
-> spécification : les connecteurs aux outils d'exécution et à l'ERP, et les services.
+Cet engagement écarte donc un découpage par acheteur, où le portefeuille (FBS-2) ou
+l'exploitation (FBS-1) seraient payants ; il laisse au payant ce qui est hors de la
+spécification : les connecteurs aux outils d'exécution et à l'ERP, et les services.
 
 ## E-03 — Rien ne quitte l'édition communautaire
 
@@ -60,12 +59,9 @@ ni clé de licence, ni fonction masquée, ni opération réservée à une offre 
 **Pourquoi.** Une frontière que le contrat trace se vérifie : il suffit de lire les appels
 d'une offre payante. Et tout ce qu'une offre payante fait, un tiers peut le faire aussi, par le
 même contrat ; l'édition communautaire ne dépend donc jamais du Mainteneur pour s'ouvrir à
-d'autres outils.
-
-> À trancher : cet engagement écarte des modules payants dans le noyau, activés par une clé de
-> licence, sur le modèle de Plane ou de GitLab EE. Les admettre demanderait de le réécrire, et
-> de prévoir dans le noyau les points d'extension que la spécification ne prévoit pas
-> (WF-ARC-0010).
+d'autres outils. Cet engagement écarte des modules payants dans le noyau, activés par une clé
+de licence : avec eux, E-03 ne se vérifierait plus, et le noyau devrait porter des points
+d'extension que la spécification ne prévoit pas (WF-ARC-0010).
 
 ## E-05 — Les données restent à leur propriétaire
 
@@ -79,9 +75,10 @@ Elle ne le serait plus si une partie de ce qu'elle porte dépendait d'un abonnem
 
 ## E-06 — Une contribution reste libre
 
-Toute contribution reçue sous l'accord de contribution est publiée sous AGPL-3.0-only, ou sous
-une autre licence approuvée par l'Open Source Initiative, y compris lorsqu'elle est aussi
-intégrée à une offre payante (CLA, article 6.1).
+Toute contribution reçue sous l'accord de contribution est publiée sous la licence libre du
+dépôt qui la régit — AGPL-3.0-only, CC BY-SA 4.0 ou Apache-2.0 selon ce qu'elle touche —, ou
+sous une autre licence libre au sens de l'accord, y compris lorsqu'elle est aussi intégrée à
+une offre payante (CLA, article 6.1).
 
 **Pourquoi.** L'accord donne au Mainteneur le droit de distribuer une contribution sous
 d'autres conditions ; cet engagement garantit que ce droit s'ajoute à la licence libre, et ne la
@@ -90,9 +87,9 @@ remplace jamais.
 ## E-07 — Ces engagements ne reculent pas
 
 Ce document peut s'enrichir à tout moment. Un engagement ne peut être affaibli ou retiré que par
-une modification de ce document, publiée dans ce dépôt [SIX MOIS] avant de prendre effet, et
-jamais pour les contributions soumises avant elle (CLA, article 6.2).
+une modification de ce document, publiée dans ce dépôt six mois avant de prendre effet, et
+jamais pour les contributions soumises avant sa prise d'effet (CLA, article 6.2).
 
-**Pourquoi.** Un engagement qu'on peut retirer du jour au lendemain n'engage à rien.
-
-> À trancher : la durée du préavis.
+**Pourquoi.** Un engagement qu'on peut retirer du jour au lendemain n'engage à rien. Six mois
+laissent à chaque contributeur le temps de lire la modification et de décider s'il continue ;
+ce qu'il a déjà soumis reste couvert par le texte qu'il a lu.

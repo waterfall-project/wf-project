@@ -2096,8 +2096,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 dans la syntaxe de commentaire du langage. Le nom du fichier n'y figure pas : il deviendrait
 faux au premier renommage ; la première ligne de la docstring du module dit à quoi il sert.
 Ce qui ne peut pas porter de commentaire, ou n'y gagnerait rien — documentation, figures,
-contrat, gabarits, images, fichiers engendrés — est déclaré dans `REUSE.toml`. Le code de
-conduite garde sa propre licence, CC BY 4.0.
+contrat, gabarits, images, fichiers engendrés — est déclaré dans `REUSE.toml`. La
+spécification y est déclarée sous CC BY-SA 4.0 et le contrat d'interface sous Apache-2.0
+(`docs/legal/README.md`, « Les décisions prises ») ; le code de conduite garde sa propre
+licence, CC BY 4.0.
 
 Un document qui cite ces deux lignes, comme celui-ci, les encadre de
 `REUSE-IgnoreStart` et `REUSE-IgnoreEnd`, faute de quoi l'outil les lirait comme la licence
