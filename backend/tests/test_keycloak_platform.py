@@ -60,11 +60,14 @@ SPENT = "Ce lien a déjà servi"
 EXPIRED = "Action expirée"
 # The refusal of a password to an account of a directory or of a provider, in its theme (#650).
 LOCAL_ACCOUNT_ONLY = "ce compte se connecte par son annuaire ou par son fournisseur"
-# The same refusal, as the administration API says it, in the words of the admin theme.
+# The same refusal, as the administration API says it, in the words of the admin theme, in the
+# default language of the realm of the platform (French): Keycloak 26.8 follows it, not the
+# language the request asks for.
 LOCAL_ACCOUNT_ONLY_REFUSAL = {
     "error": "invalidPasswordLocalAccountOnlyMessage",
     "error_description": (
-        "Invalid password: the account signs in with its directory or its identity provider."
+        "Mot de passe invalide : le compte se connecte par son annuaire ou par son fournisseur "
+        "d'identité."
     ),
 }
 MAILPIT_PORT_VARIABLE = "WATERFALL_MAILPIT_PORT"
@@ -436,8 +439,9 @@ def test_the_password_policy_holds_the_rule_of_the_extension(
 
     last_name = refusal("montgolfier-DURAND")
     assert last_name["error"] == "invalidPasswordNotLastNameMessage"
-    # The words of the administration theme of Waterfall, not the bare key.
-    assert last_name["error_description"] == "Invalid password: must not be the last name."
+    # The words of the administration theme of Waterfall, not the bare key, in the default language
+    # of the realm.
+    assert last_name["error_description"] == "Mot de passe invalide : ne doit pas être le nom."
     assert refusal("eleven-char")["error"] == "invalidPasswordMinLengthMessage"
 
 
@@ -709,7 +713,7 @@ def test_an_account_of_a_provider_is_refused_a_password_by_the_console(
     )
     assert response.status_code == 400, response.text
     assert response.json() == LOCAL_ACCOUNT_ONLY_REFUSAL
-    assert password_grant(keycloak, local_account, PASSWORD).status_code == 401
+    assert password_grant(keycloak, local_account, PASSWORD).status_code == 400
 
 
 @contextmanager
@@ -793,4 +797,4 @@ def test_an_account_of_a_provider_is_refused_a_password_by_a_forgotten_one(
     refused = browser.submit(form, {"password-new": PASSWORD, "password-confirm": PASSWORD})
     assert refused.status_code == 200, refused.text
     assert LOCAL_ACCOUNT_ONLY in html.unescape(refused.text)
-    assert password_grant(keycloak, local_account, PASSWORD).status_code == 401
+    assert password_grant(keycloak, local_account, PASSWORD).status_code == 400

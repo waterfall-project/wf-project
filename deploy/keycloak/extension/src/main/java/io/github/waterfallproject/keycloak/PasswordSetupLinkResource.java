@@ -190,7 +190,7 @@ public final class PasswordSetupLinkResource {
   }
 
   private static int expiration(RealmModel realm) {
-    return Time.currentTime() + realm.getActionTokenGeneratedByAdminLifespan();
+    return (int) Time.currentTimeSeconds() + realm.getActionTokenGeneratedByAdminLifespan();
   }
 
   /** Makes a link that expires at {@code expiration}, the only valid one of the account. */

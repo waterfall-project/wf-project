@@ -337,7 +337,7 @@ services:
 
   # Creates the buckets of the platform when missing, then stops: the backups, and the imports.
   storage-buckets:
-    image: curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6
+    image: curlimages/curl:8.23.0@sha256:a134550be58ab783810e613ae96fd253c38f7bdd16d9bf9be350700c7a29ac06
     entrypoint: ["/bin/sh", "/storage-buckets.sh"]
     environment:
       STORAGE_ADDRESS: http://storage:3900

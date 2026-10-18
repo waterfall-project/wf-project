@@ -41,7 +41,7 @@ s'écrit dans `deploy/keycloak/realm/waterfall.yaml`, jamais dans le code.
 Les dépendances sont celles de Keycloak, en portée `provided` : rien d'autre n'entre dans le
 jar. `keycloak.version` du `pom.xml` est la version de l'image du Dockerfile ; elles montent
 ensemble, keycloak-config-cli avec elles, dans la construction la plus proche qu'il publie (26.5.5
-pour Keycloak 26.5.7). Les interfaces que l'extension implémente sont
+pour Keycloak 26.8.1). Les interfaces que l'extension implémente sont
 internes à Keycloak (il le dit au démarrage, `KC-SERVICES0047`) : une montée de version se fait
 avec `make check-keycloak`, qui éprouve l'extension sur la plateforme.
 

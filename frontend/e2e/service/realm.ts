@@ -686,6 +686,15 @@ export async function setPassword(page: Page, password: string): Promise<void> {
   await page.getByRole("button", { name: "Soumettre" }).click();
 }
 
+/**
+ * The page of the realm once a password is set: Keycloak 26.8 titles it « Compte mis à jour » and
+ * says the update below, where 26.5 made the message its title.
+ */
+export async function expectPasswordSet(page: Page): Promise<void> {
+  await expect(page.getByRole("heading", { name: "Compte mis à jour" })).toBeVisible();
+  await expect(page.getByText("Votre compte a été mis à jour.")).toBeVisible();
+}
+
 /** Open the link of a local account, as its holder does, up to the form of its password. */
 export async function openLink(page: Page, link: string): Promise<void> {
   await page.goto(link);
@@ -710,7 +719,7 @@ export async function localAccount(
   const page = await browser.newPage({ locale: "fr-FR", ignoreHTTPSErrors: true });
   await openLink(page, await administrator.link(id));
   await setPassword(page, LOCAL_PASSWORD);
-  await expect(page.getByRole("heading", { name: "Votre compte a été mis à jour." })).toBeVisible();
+  await expectPasswordSet(page);
   await page.close();
   return { id, login: email, email, password: LOCAL_PASSWORD, name: "Jeanne Montgolfier" };
 }

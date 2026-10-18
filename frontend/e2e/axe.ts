@@ -4,6 +4,11 @@
  * The rules of axe for WCAG A and AA, run in the browser of a journey: where the colours are those the
  * browser paints, which the document of a unit test does not compute — the contrast of a text on
  * its background among them (WF-IHM-0100).
+ *
+ * axe-core is held at 4.13.0, without a range: 4.14 judges the button of the account against
+ * « Label in Name » (WCAG 2.5.3, `label-content-name-mismatch`) — its visible initials are not in
+ * its name, « Compte de … » — on every screen. Adopting 4.14 is a change of that name, and of the
+ * tests that look the button up by it, not of a dependency.
  */
 import { createRequire } from "node:module";
 
