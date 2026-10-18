@@ -65,7 +65,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-CYC-0120-A` | Référentiel minimal requis pour créer un projet | entière | — |
 | `WF-CYC-0010-A` | États du cycle de vie | entière | — |
 | `WF-CYC-0020-A` | Progression automatique | début — close en EP-07 | — |
-| `WF-CYC-0030-A` | Conditions du passage à En cours | début — close en EP-07 | — |
+| `WF-CYC-0030-A` | Conditions du passage à En cours | début — close en EP-07, amorcée aussi en EP-15 | — |
 | `WF-CYC-0050-A` | Conditions de progression consultables | début — close en EP-07 | — |
 | `WF-CYC-0060-A` | Sorties manuelles | entière | — |
 | `WF-CYC-0080-A` | Irréversibilité des états terminaux | entière | — |
@@ -74,17 +74,17 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-CYC-0110-A` | Consultation des projets terminaux | entière | — |
 | `WF-CYC-0130-A` | Datation des transitions | entière | — |
 | `WF-ADM-0110-A` | Évaluation d’une action | fin — amorcée en EP-03 | — |
-| `WF-REV-0010-A` | Unicité de la révision en cours | entière | — |
+| `WF-REV-0010-A` | Unicité de la révision en cours | fin — amorcée en EP-15 | — |
 | `WF-REV-0020-A` | Marquage d’une révision | entière | — |
 | `WF-REV-0030-A` | Contenu de l’instantané | début — close en EP-07 | — |
-| `WF-REV-0040-A` | Désignation de la révision de référence | début — close en EP-08 | — |
+| `WF-REV-0040-A` | Désignation de la révision de référence | début — close en EP-08, amorcée aussi en EP-15 | — |
 | `WF-REV-0070-A` | Historique des révisions | entière | — |
 | `WF-REV-0090-A` | Attributs d’une révision | entière | — |
-| `WF-REV-0100-A` | Structures de coûts d'une révision | début — close en EP-08 | — |
+| `WF-REV-0100-A` | Structures de coûts d'une révision | début — close en EP-08, amorcée aussi en EP-15 | — |
 | `WF-PRJ-0010-A` | Code projet | début — close en EP-07 | — |
 | `WF-PRJ-0080-A` | Attributs d’un projet | entière | — |
-| `WF-PRJ-0020-A` | Lotissement | entière | — |
-| `WF-PRJ-0050-A` | Sous-projets | entière | — |
+| `WF-PRJ-0020-A` | Lotissement | fin — amorcée en EP-15 | — |
+| `WF-PRJ-0050-A` | Sous-projets | fin — amorcée en EP-15 | — |
 | `WF-PRJ-0060-A` | Liste des contributeurs | entière | — |
 | `WF-PRJ-0090-A` | Probabilité de gain | début — close en EP-11 | — |
 | `WF-ARC-0070-A` | Autorité du serveur | début — close en EP-10 | — |
@@ -97,7 +97,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0050-A` | Partitionnement par projet | entière | — |
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | fin — amorcée en EP-03, EP-05 | — |
 | `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13 | — |
-| `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02 | — |
+| `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02, EP-15 | — |
 | `WF-ADM-0040-A` | Préférences d’affichage | fin — amorcée en EP-02, EP-03 | — |
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | fin — amorcée en EP-03 | — |
 | `WF-ADM-0070-A` | Lecture des comptes du fournisseur d’identité | fin — amorcée en EP-03 | — |

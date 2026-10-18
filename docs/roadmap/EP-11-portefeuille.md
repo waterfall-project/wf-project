@@ -53,7 +53,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PTF-0030-A` | Vues en consultation seule | entière | — |
 | `WF-PTF-0040-A` | Liste des projets | entière | — |
 | `WF-PTF-0050-A` | Valeur du portefeuille | entière | — |
-| `WF-PTF-0060-A` | Plan de charge agrégé | entière | — |
+| `WF-PTF-0060-A` | Plan de charge agrégé | fin — amorcée en EP-15 | — |
 | `WF-PTF-0070-A` | Indices et projections du portefeuille | entière | — |
 | `WF-PTF-0080-A` | Structure des coûts du portefeuille | entière | — |
 | `WF-PTF-0090-A` | Risques du portefeuille | entière | — |
@@ -63,8 +63,8 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PRJ-0090-A` | Probabilité de gain | fin — amorcée en EP-04 | — |
 | `WF-ARC-0010-A` | Un noyau, un service, un worker | fin — amorcée en EP-01 | — |
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | fin — amorcée en EP-01 | — |
-| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03 | — |
-| `WF-IHM-0140-A` | Aide en ligne | entière | — |
+| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03, EP-15 | — |
+| `WF-IHM-0140-A` | Aide en ligne | fin — amorcée en EP-15 | — |
 | `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
 
 ## Opérations du contrat

@@ -122,7 +122,8 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | livré | EP-01 |
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | livré | EP-01, EP-02 |
 | [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | livré | EP-02 |
-| [EP-15](EP-15-maquette-durcissement.md) | Maquette et contrat : durcissement après validation | à planifier | EP-14 |
+| [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | à planifier | EP-14 |
+| [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | à planifier | EP-15 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
@@ -149,8 +150,10 @@ sauvegardable dès le premier service, pour des démonstrations.
 EP-14 achève les écrans d'EP-02, fusionné dans `main` le 2026-10-09 pour qu'EP-03 démarre sans
 attendre : il avance en parallèle d'EP-03, sans toucher à son domaine. EP-15 suit la
 validation, par l'auteur, de la spécification 1.0, de la maquette et du contrat, faite après la
-fusion d'EP-03 puis d'EP-14 : il verrouille ce qu'EP-14 a reporté (décision de l'auteur du
-2026-10-11).
+fusion d'EP-03 puis d'EP-14 (décision de l'auteur du 2026-10-11) : il réalise les ajustements
+qu'elle a décidés, de sorte que chaque opération d'écriture du contrat ait un geste dans la
+maquette. EP-16 le suit et durcit — mineurs, accessibilité des dialogues, navigateurs, reliquats de
+tests — ce qu'EP-14 puis EP-15 ont reporté (décision de l'auteur du 2026-10-18).
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
@@ -245,6 +248,11 @@ US passée `en cours` ou `fini` ; constat ouvert ou tranché. Il a deux parties 
   eu une ;
 - **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
   sa décision.
+
+**Les labels.** Une issue d'un EPIC — son issue propre, ses US, ses lots, ses constats — porte le
+préfixe `[EP-nn]`, `[US-nnnn]` ou `[US-nnnn/Ln]` dans son titre **et** le label `EP-nn` de son EPIC,
+toujours les deux : le titre se lit dans une liste, le label se filtre ; un constat reporté vers un
+autre EPIC change de label en changeant de titre.
 
 **Un constat** — de revue, de contrat, de spécification, d'outil — relevé pendant un EPIC
 s'ouvre en sous-issue du lot qui le relève, ou de l'EPIC s'il ne vient d'aucun lot, sous le

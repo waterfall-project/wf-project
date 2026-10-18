@@ -53,16 +53,16 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-REV-0040-A` | Désignation de la révision de référence | fin — amorcée en EP-04 | — |
-| `WF-REV-0050-A` | Fusion d’un différentiel | entière | — |
+| `WF-REV-0040-A` | Désignation de la révision de référence | fin — amorcée en EP-04, EP-15 | — |
+| `WF-REV-0050-A` | Fusion d’un différentiel | fin — amorcée en EP-15 | — |
 | `WF-PLA-0170-A` | Rattachement au lotissement | fin — amorcée en EP-06 | — |
-| `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04 | — |
-| `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02 | — |
+| `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04, EP-15 | — |
+| `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15 | — |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | — |
-| `WF-RIS-0010-A` | Attributs d’un risque | entière | — |
-| `WF-RIS-0020-A` | États d’un risque | entière | — |
-| `WF-RIS-0030-A` | Devis propre d’un risque | entière | — |
-| `WF-RIS-0040-A` | Grille de suivi des risques | entière | — |
+| `WF-RIS-0010-A` | Attributs d’un risque | fin — amorcée en EP-15 | — |
+| `WF-RIS-0020-A` | États d’un risque | fin — amorcée en EP-15 | — |
+| `WF-RIS-0030-A` | Devis propre d’un risque | fin — amorcée en EP-15 | — |
+| `WF-RIS-0040-A` | Grille de suivi des risques | fin — amorcée en EP-15 | — |
 | `WF-RIS-0050-A` | Réserve pour risques et couverture | entière | — |
 | `WF-RIS-0060-A` | Survenance d’un risque | entière | — |
 | `WF-ADM-0100-A` | Catalogue des permissions | fin — amorcée en EP-03 | — |
@@ -106,13 +106,7 @@ avenant.
 
 ## Constats reçus
 
-- #763 [EP-14] front : les formulaires du risque (provision de L42p, exemples de succès de
-  `createRisk`, `updateRisk`, `reviewRisk`) — reporté d'EP-14/L53 (#760) : l'écran des risques de
-  la maquette est en lecture seule. Les formulaires de déclaration, de modification et de réexamen
-  suivront les règles de la provision qu'EP-14/L42p a écrites au contrat — la catégorie choisie
-  parmi les catégories actives de type provision pour risques dont la nature est active, non
-  demandée s'il n'y en a qu'une ; le sous-projet facultatif ; leur changement selon
-  `update_provision` ; la catégorie redemandée au retour à l'état identifié quand
-  `provision_cost_category_is_active` est faux ; les refus `PROVISION_CATEGORY_REQUIRED`,
-  `INACTIVE_REFERENCE_OBJECT` et `active_provision_category` —, après que le contrat aura reçu les
-  exemples de succès de ces trois opérations.
+Aucun. #763, les formulaires du risque, reporté ici par EP-14/L53, est ramené en EP-15 le
+2026-10-18 (décision de l'auteur) : le parcours du risque est montré dans la maquette pour
+validation (#1062, US-0520) ; le comportement réel — provision, réserve, fusion à la survenance —
+reste ici.
