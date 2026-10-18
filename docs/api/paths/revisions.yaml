@@ -52,7 +52,7 @@
     description: >-
       Un projet comporte au plus une révision en cours ; sa création copie les structures de la
       dernière révision marquée et les valeurs du référentiel qu'elles emploient (WF-REV-0010,
-      WF-DAT-0010), rattachements des tâches au lotissement compris, sauf à un poste ou à un lot
+      WF-DAT-0010), rattachements des tâches au lotissement compris, sauf à un lot ou à un poste
       marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). La révision retient pour année
       de référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
       révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
@@ -411,12 +411,12 @@
       structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune
       heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en
       échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et
-      les tâches en cause (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un lot hors du
-      sous-arbre de la tâche de son poste est refusée en nommant la tâche » (WF-PLA-0170) : elle
-      échoue de même sans rien fusionner, `problem.code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-      `params.order_item_task` nommant la tâche du poste et `work_package_tasks` celles des lots
+      les tâches en cause (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un poste hors du
+      sous-arbre de la tâche de son lot est refusée en nommant la tâche » (WF-PLA-0170) : elle
+      échoue de même sans rien fusionner, `problem.code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+      `params.work_package_task` nommant la tâche du lot et `order_item_tasks` celles des postes
       qui en sortiraient, chacune par son nœud et son libellé (`Problem.params`), comme
-      `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_order_item`). Le compte
+      `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_work_package`). Le compte
       rendu préalable (`getStructureMergeReport`, WF-REV-0050) dit ces motifs avant la
       confirmation, qui porte les compteurs des deux structures qu'il a lus : refusée par 412 si
       l'une a changé depuis, elle n'applique jamais un compte rendu que personne n'a vu
@@ -484,9 +484,9 @@
       elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus
       sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie
       n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140).
-      Les totaux sont ceux des lignes retenues. Le filtre par poste ou par lot
-      (`order_item_id`, `work_package_id`) retient le sous-arbre de la tâche rattachée au poste
-      ou au lot : le lotissement sert de grille de lecture par ce seul rattachement, que seule
+      Les totaux sont ceux des lignes retenues. Le filtre par lot ou par poste
+      (`work_package_id`, `order_item_id`) retient le sous-arbre de la tâche rattachée au lot
+      ou au poste : le lotissement sert de grille de lecture par ce seul rattachement, que seule
       la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
       que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent
       pas avec lui.
@@ -538,15 +538,15 @@
       - name: order_item_id
         in: query
         description: >-
-          Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, elle
-          comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient
-          rien.
+          Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, au niveau 2,
+          elle comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne
+          retient rien.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: work_package_id
         in: query
         description: >-
-          Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, elle comprise
-          — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
+          Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, au niveau 1, elle
+          comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
           WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: cost_category_id
@@ -673,7 +673,7 @@
       — son calendrier ne recoupe jamais celui d'un autre rôle de la tâche, ou, sur une tâche
       dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) — est refusée
       par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ;
-      une tâche créée rattachée à un poste ou à un lot suit les règles du rattachement
+      une tâche créée rattachée à un lot ou à un poste suit les règles du rattachement
       (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type
       provision n'est créée que par la déclaration d'un risque : sa création à la main est
       refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif
@@ -813,7 +813,7 @@
       récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle
       (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps
       écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser
-      quinze ans (WF-PLA-0150). Le rattachement à un poste ou à un lot du lotissement se pose,
+      quinze ans (WF-PLA-0150). Le rattachement à un lot ou à un poste du lotissement se pose,
       se change et se retire ici, sur une tâche récapitulative, feuille ou jalon, aux règles
       de `TaskFacetUpdate` (WF-PLA-0170). Seul le compteur lu est exigé : seul ce qui est
       envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
@@ -840,6 +840,7 @@
             examples:
               renamed: { $ref: ../../../fixtures/api/task_renamed.json }
               lengthened: { $ref: ../../../fixtures/api/volume/task_lengthened.json }
+              attached: { $ref: ../../../fixtures/api/task_attached.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -850,16 +851,16 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
           calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé —
-          tâche hors de la structure principale, poste ou lot inconnu, poste et lot ensemble,
-          poste ou lot déjà porté par une autre tâche, nommée par son nœud et son libellé, tâche
-          d'un lot sortie du sous-arbre de la tâche de son poste, les tâches du poste et des lots
+          tâche hors de la structure principale, lot ou poste inconnu, lot et poste ensemble,
+          lot ou poste déjà porté par une autre tâche, nommée par son nœud et son libellé, tâche
+          d'un poste sortie du sous-arbre de la tâche de son lot, les tâches du lot et des postes
           nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
-              attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_order_item.json }
+              attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_work_package.json }
               attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }
               attach_main_structure_only: { $ref: ../../../fixtures/api/task_attach_main_structure_only.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -1108,8 +1109,8 @@
       l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont
       rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated`
       (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
-      rattachement au lotissement ; un déplacement qui sortirait la tâche d'un lot du
-      sous-arbre de la tâche de son poste est refusé (WF-PLA-0170, `NodeMove`).
+      rattachement au lotissement ; un déplacement qui sortirait la tâche d'un poste du
+      sous-arbre de la tâche de son lot est refusé (WF-PLA-0170, `NodeMove`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1135,10 +1136,10 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Le déplacement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste
+          Le déplacement sortirait la tâche d'un poste du sous-arbre de la tâche de son lot
           (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif
-          `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `fields[].params.order_item_task` et
-          `work_package_tasks` nommant la tâche du poste et celles des lots par leur nœud et leur
+          `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `fields[].params.work_package_task` et
+          `order_item_tasks` nommant la tâche du lot et celles des postes par leur nœud et leur
           libellé, comme l'échec d'une fusion (`NodeMove`, WF-IHM-0080). Ou une ligne de
           main-d'œuvre déplacée
           change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
@@ -1151,7 +1152,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               position_out_of_range: { $ref: ../../../fixtures/api/nodes_move_position_out_of_range.json }
-              outside_order_item: { $ref: ../../../fixtures/api/nodes_move_outside_order_item.json }
+              outside_work_package: { $ref: ../../../fixtures/api/nodes_move_outside_work_package.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
@@ -1323,9 +1324,10 @@
     tags: [planning]
     summary: Engendrer le squelette de planning depuis le lotissement
     description: >-
-      Une récapitulative par poste et par lot, chacune rattachée au poste ou au lot qu'elle
-      représente (`TaskFacet.order_item_id`, `work_package_id`, WF-PLA-0170), une feuille par
-      livrable, un jalon de fin par lot et par poste, avec leurs liaisons. Engendré sur la
+      Une récapitulative par lot et par poste, chacune rattachée au lot ou au poste qu'elle
+      représente (`TaskFacet.work_package_id`, `order_item_id`, WF-PLA-0170), celle d'un poste
+      subordonnée à celle de son lot, une feuille par livrable, un jalon de fin par poste et par
+      lot, avec leurs liaisons. Engendré sur la
       structure principale de la révision, seule à porter des rattachements — jamais sur un
       différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et
       proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le
@@ -1343,8 +1345,8 @@
       '201':
         description: >-
           Squelette engendré : ses tâches dans `nodes`, dans l'ordre du plan — la récapitulative
-          d'un poste, puis celle de chacun de ses lots suivie de ses livrables et de son jalon de
-          fin, puis le jalon de fin du poste —, sans ancêtre à recalculer ni tâche redatée.
+          d'un lot, puis celle de chacun de ses postes suivie de ses livrables et de son jalon de
+          fin, puis le jalon de fin du lot —, sans ancêtre à recalculer ni tâche redatée.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }

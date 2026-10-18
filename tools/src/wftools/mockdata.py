@@ -113,7 +113,6 @@ from wftools.mockstructure import (
 )
 from wftools.mocktext import PAGE
 from wftools.mockwitness import (
-    ASSEMBLY,
     COMMISSIONING,
     CONTROL_STATION,
     CORE,
@@ -122,6 +121,8 @@ from wftools.mockwitness import (
     DEFAULT_BREAKDOWN,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
+    FIRST_ITEM,
+    FIRST_LOT,
     FIXTURES,
     INSTALLATION,
     INSTALLED,
@@ -423,8 +424,8 @@ def readings() -> dict[str, JsonObject]:
             mockcore.subtree(rows, STUDIES.number, _TASKS),
         ),
         "nodes_estimate.json": _example(
-            f"Le devis du lot « Poste de commande », récapitulative rattachée au poste "
-            f"« {ASSEMBLY.label} » du lotissement (WF-PLA-0130), lu avec ses lignes (subtree_of) "
+            f"Le devis de la récapitulative « Poste de commande », rattachée au lot "
+            f"« {FIRST_LOT.label} » du lotissement (WF-PLA-0130), lu avec ses lignes (subtree_of) "
             f"le {day} : "
             f"sous le câblage des armoires, démarré le 4 mai et qui s'achève le 30 juin, une "
             f"ligne de main-d'œuvre de 12,5 h à {_amount(ELECTRICAL_RATE)} — "
@@ -531,16 +532,18 @@ def readings() -> dict[str, JsonObject]:
             [{"timeline_id": timeline, "label": label} for timeline, label in TIMELINES],
         ),
         "work_breakdown.json": _example(
-            f"Le lotissement du projet témoin le {day} (WF-PRJ-0020) : un poste, « Fourniture et "
-            f"montage des armoires », que porte la récapitulative « Poste de commande » ; son lot "
-            f"« Armoires », qu'aucune tâche ne porte (WF-PLA-0130) ; et le livrable de ce lot.",
-            mocklists.breakdown_reading(WORK_BREAKDOWN, 1),
+            f"Le lotissement du projet témoin le {day} (WF-PRJ-0020) : un lot, "
+            f"« {FIRST_LOT.label} », que porte la récapitulative « {CONTROL_STATION.label} » ; "
+            f"son poste « {FIRST_ITEM.label} », qu'aucune tâche ne porte (WF-PLA-0130) ; et le "
+            f"livrable de ce poste. Chaque lot et chaque poste disent la tâche qui les porte, "
+            f"par son nœud et son libellé, ou aucune (attached_task, WF-PLA-0170, #802).",
+            mocklists.breakdown_reading(WORK_BREAKDOWN, 1, CORE),
         ),
         "work_breakdown_default.json": _example(
             f"Le lotissement du projet créé le {day}, « {CREATED_PROJECT[1]} », dont la "
-            f"commande n'est pas saisie : le lotissement par défaut, un poste comprenant un lot "
+            f"commande n'est pas saisie : le lotissement par défaut, un lot comprenant un poste "
             f"sans livrable, qui portent le libellé du projet (WF-PRJ-0020), que rien n'a encore "
-            f"écrit.",
+            f"écrit, et qu'aucune tâche ne porte : sa révision n'en a pas.",
             mocklists.breakdown_reading(DEFAULT_BREAKDOWN, 0),
         ),
         "timelines_empty.json": _example(

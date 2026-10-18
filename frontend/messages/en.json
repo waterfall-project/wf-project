@@ -1734,10 +1734,10 @@
     "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "The threshold must lie between 0 and 1, both excluded.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This item is not part of the work breakdown read: unknown, of another kind, or deleted.",
-    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
-    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
-    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
-    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears an order item or a work package.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears a work package or an order item, never both.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This work package or order item is already borne by another task.",
+    "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "The task of an order item must stay within the subtree of the task of its work package.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears a work package or an order item.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
@@ -2164,8 +2164,8 @@
       "contributor": "Contributor"
     },
     "WorkBreakdownKind": {
-      "order_item": "Order item",
       "work_package": "Work package",
+      "order_item": "Order item",
       "deliverable": "Deliverable"
     },
     "RevisionStatus": {
@@ -2325,7 +2325,7 @@
       "total_float": "Total float",
       "is_critical": "Critical path",
       "predecessors": "Predecessors",
-      "work_breakdown": "Order item or work package",
+      "work_breakdown": "Work package or order item",
       "cost_category": "Cost category",
       "resource_role": "Resource role",
       "quantity": "Quantity",
@@ -2410,7 +2410,7 @@
       "no_capacity": "No capacity for this role over the period.",
       "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
       "hourly_rate_missing": "Hourly rate missing for the reference year.",
-      "order_item_without_task": "No task bears this order item."
+      "work_package_without_task": "No task bears this work package."
     },
     "CurveSeries": {
       "series": {

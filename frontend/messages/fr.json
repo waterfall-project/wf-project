@@ -1734,10 +1734,10 @@
     "THRESHOLD_NOT_BELOW_WATCH": "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "Le seuil doit être compris entre 0 et 1, l’un et l’autre exclus.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Cet élément ne fait pas partie du lotissement lu : inconnu, d’une autre nature ou supprimé.",
-    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
-    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
-    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
-    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un poste ou un lot.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un lot ou un poste, jamais les deux.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce lot ou ce poste est déjà porté par une autre tâche.",
+    "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un lot ou un poste.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
@@ -2164,8 +2164,8 @@
       "contributor": "Contributeur"
     },
     "WorkBreakdownKind": {
-      "order_item": "Poste",
       "work_package": "Lot",
+      "order_item": "Poste",
       "deliverable": "Livrable"
     },
     "RevisionStatus": {
@@ -2325,7 +2325,7 @@
       "total_float": "Marge totale",
       "is_critical": "Chemin critique",
       "predecessors": "Prédécesseurs",
-      "work_breakdown": "Poste ou lot",
+      "work_breakdown": "Lot ou poste",
       "cost_category": "Catégorie de coût",
       "resource_role": "Rôle de ressource",
       "quantity": "Quantité",
@@ -2410,7 +2410,7 @@
       "no_capacity": "Aucune capacité pour ce rôle sur la période.",
       "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période.",
       "hourly_rate_missing": "Taux horaire manquant pour l’année de référence.",
-      "order_item_without_task": "Aucune tâche ne porte ce poste."
+      "work_package_without_task": "Aucune tâche ne porte ce lot."
     },
     "CurveSeries": {
       "series": {

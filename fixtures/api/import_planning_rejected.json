@@ -1,5 +1,5 @@
 {
-  "summary": "Une variante déclarée : le lot « Armoires » porté par « Câblage des armoires », sous la récapitulative « Poste de commande », qui porte son poste — dans le témoin, aucune tâche ne porte ce lot —, et l'import, analysé aujourd'hui à 13 h 51, d'un planning MS Project exporté de Waterfall puis retravaillé, que la liste des imports ne reprend pas. Le fichier range « Câblage des armoires » sous « Installation sur site », hors du sous-arbre de la tâche du poste, et donne à la « Mise en service » quatre mille jours de travail, qui porteraient la fin du projet en 2042, plus de quinze ans après le début de sa première tâche : il est rejeté entier, le compte rendu nommant les deux tâches du lotissement, puis la tâche qui dépasse l'horizon ; rien ne s'appliquera, pas même l'allongement que le compte rendu présente, et seul l'abandon reste offert (WF-INTF-0040, WF-PLA-0150, WF-PLA-0170).",
+  "summary": "Une variante déclarée : le poste « Poste 1.1 » porté par « Câblage des armoires », sous la récapitulative « Poste de commande », qui porte son lot — dans le témoin, aucune tâche ne porte ce poste —, et l'import, analysé aujourd'hui à 13 h 51, d'un planning MS Project exporté de Waterfall puis retravaillé, que la liste des imports ne reprend pas. Le fichier range « Câblage des armoires » sous « Installation sur site », hors du sous-arbre de la tâche du lot, et donne à la « Mise en service » quatre mille jours de travail, qui porteraient la fin du projet en 2042, plus de quinze ans après le début de sa première tâche : il est rejeté entier, le compte rendu nommant les deux tâches du lotissement, puis la tâche qui dépasse l'horizon ; rien ne s'appliquera, pas même l'allongement que le compte rendu présente, et seul l'abandon reste offert (WF-INTF-0040, WF-PLA-0150, WF-PLA-0170).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a16",
     "kind": "ms_project_schedule",
@@ -13,13 +13,13 @@
       "rejected": [],
       "refusals": [
         {
-          "code": "WORK_PACKAGE_OUTSIDE_ORDER_ITEM",
+          "code": "ORDER_ITEM_OUTSIDE_WORK_PACKAGE",
           "params": {
-            "order_item_task": {
+            "work_package_task": {
               "node_id": "01926f3a-7c00-7000-8000-000000000551",
               "label": "Poste de commande"
             },
-            "work_package_tasks": [
+            "order_item_tasks": [
               {
                 "node_id": "01926f3a-7c00-7000-8000-000000000552",
                 "label": "Câblage des armoires"

@@ -142,10 +142,10 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
         assert all(part["amount"]["is_computable"] for part in parts)
         assert sum(Decimal(part["amount"]["value"]) for part in parts) == Decimal(total["value"])
         assert sum(Decimal(part["share"]["value"]) for part in parts) == 1
-    # The order item the lot « Poste de commande » bears holds its lines (WF-DEV-0060).
-    [item] = indicators["by_order_item"]
-    assert (item["label"], item["amount"]) == (
-        "Fourniture et montage des armoires",
+    # The lot the summary « Poste de commande » bears holds its lines (WF-DEV-0060).
+    [lot] = indicators["by_work_package"]
+    assert (lot["label"], lot["amount"]) == (
+        "Lot 1",
         mockstructure.computable("502434.56"),
     )
     unassigned = sum(

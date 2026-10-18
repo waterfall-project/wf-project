@@ -1,11 +1,11 @@
 {
-  "summary": "La saisie work_breakdown_entered, le lot « Mise en service sur site » envoyé avec l'identifiant du livrable « Procès-verbal de réception usine des armoires », refusée : le lotissement lu ne porte aucun lot de cet identifiant, et le client n'en forge aucun ; rien n'est écrit (WF-DAT-0060, WF-PRJ-0020).",
+  "summary": "La saisie work_breakdown_entered, le poste « Poste 1.2 » envoyé avec l'identifiant du livrable « Procès-verbal de réception usine des armoires », refusée : le lotissement lu ne porte aucun poste de cet identifiant, et le client n'en forge aucun ; rien n'est écrit (WF-DAT-0060, WF-PRJ-0020).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,
     "fields": [
-      {"pointer":"/order_items/0/work_packages/1/work_package_id","code":"UNKNOWN_WORK_BREAKDOWN_ITEM"}
+      {"pointer":"/work_packages/0/order_items/1/order_item_id","code":"UNKNOWN_WORK_BREAKDOWN_ITEM"}
     ],
     "correlation_id": "01926f3a-7c00-7000-8000-000000001133"
   }

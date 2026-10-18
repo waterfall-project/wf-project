@@ -14,8 +14,8 @@
       {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","amount":{"is_computable":true,"value":"20807656.85","reason":null},"share":{"is_computable":true,"value":"0.3148","reason":null}},
       {"key":"unassigned","amount":{"is_computable":true,"value":"23021050.58","reason":null},"share":{"is_computable":true,"value":"0.3482","reason":null}}
     ],
-    "by_order_item": [
-      {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","amount":{"is_computable":true,"value":"502434.56","reason":null},"share":{"is_computable":true,"value":"0.0076","reason":null}}
+    "by_work_package": [
+      {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Lot 1","amount":{"is_computable":true,"value":"502434.56","reason":null},"share":{"is_computable":true,"value":"0.0076","reason":null}}
     ],
     "provisions_identified": "500000.00",
     "delta_to_reference": {"is_computable":true,"value":"-349860.00","reason":null},

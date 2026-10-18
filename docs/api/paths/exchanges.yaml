@@ -240,12 +240,12 @@
       (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels
       (WF-INTF-0140). Un planning MS Project met à jour une tâche existante sans toucher à son
       rattachement au lotissement ; sur la structure principale, seule à porter des
-      rattachements, un fichier qui placerait la tâche d'un lot hors du sous-arbre de la tâche de
-      son poste est rejeté entier au compte rendu, qui nomme les deux tâches, comme un planning
+      rattachements, un fichier qui placerait la tâche d'un poste hors du sous-arbre de la tâche de
+      son lot est rejeté entier au compte rendu, qui nomme les deux tâches, comme un planning
       qui porterait la durée du projet au-delà de quinze ans (`ImportReport.refusals`,
-      `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150 ; EP-14/L42s),
+      `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150 ; EP-14/L42s),
       et la suppression d'une tâche rattachée est appliquée, le compte rendu
-      nommant le poste ou le lot qui perd sa tâche (`ImportDifference.work_breakdown_label`,
+      nommant le lot ou le poste qui perd sa tâche (`ImportDifference.work_breakdown_label`,
       WF-INTF-0040, WF-PLA-0170). Confiée au worker (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId

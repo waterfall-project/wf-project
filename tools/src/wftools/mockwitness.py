@@ -294,7 +294,7 @@ class Task:
     converted into hours by ``mockcalendar.to_hours`` (WF-PLA-0160); its lines and its
     subordinates. The progress of a task in automatic mode is read from its dates at TODAY; a
     task in manual mode carries the dates its user entered, and the progress its user declared.
-    A summary may bear an order item of the work breakdown (WF-PLA-0130).
+    A task may bear a lot or a post of the work breakdown, never both (WF-PLA-0130, WF-PLA-0170).
     """
 
     number: int
@@ -306,12 +306,12 @@ class Task:
     children: tuple[Task, ...] = ()
     manual: tuple[date, date] | None = None
     progress: str | None = None
-    order_item: OrderItem | None = None
+    bears: WorkPackage | OrderItem | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class WorkPackage:
-    """A work package of an order item of the work breakdown, and its deliverables."""
+class OrderItem:
+    """A post of a lot of the work breakdown (`OrderItem`), and its deliverables."""
 
     identifier: str
     label: str
@@ -319,12 +319,12 @@ class WorkPackage:
 
 
 @dataclass(frozen=True, slots=True)
-class OrderItem:
-    """An order item of the work breakdown of the witness, which a summary bears."""
+class WorkPackage:
+    """A lot of the work breakdown (`WorkPackage`), its first level, and its posts (C-350)."""
 
     identifier: str
     label: str
-    work_packages: tuple[WorkPackage, ...] = ()
+    order_items: tuple[OrderItem, ...] = ()
 
 
 class N:
@@ -364,18 +364,18 @@ class N:
     SITE_TRIALS_LINE = 569
 
 
-CABINETS = WorkPackage(
+FIRST_ITEM = OrderItem(
     universe(712),
-    "Armoires",
+    "Poste 1.1",
     ((universe(713), "Procès-verbal de réception usine des armoires"),),
 )
-"""The one work package of the witness, which no task bears (WF-PLA-0130), and its deliverable."""
+"""The one post of the witness, which no task bears today (WF-PLA-0130), and its deliverable."""
 
-ASSEMBLY = OrderItem(universe(711), "Fourniture et montage des armoires", (CABINETS,))
-"""The one order item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130),
+FIRST_LOT = WorkPackage(universe(711), "Lot 1", (FIRST_ITEM,))
+"""The one lot of the witness, which the summary « Poste de commande » bears (WF-PLA-0130),
 and whose total the estimate presents (`estimate_indicators_breakdown`, WF-DEV-0060)."""
 
-WORK_BREAKDOWN = (ASSEMBLY,)
+WORK_BREAKDOWN = (FIRST_LOT,)
 """The work breakdown of the witness, as its order was entered (WF-PRJ-0020)."""
 
 CREATED_PROJECT = (universe(3), "Rénovation du poste de livraison")
@@ -383,26 +383,26 @@ CREATED_PROJECT = (universe(3), "Rénovation du poste de livraison")
 the one by default, and the revision opened after it has no task (EP-14/L42k)."""
 
 DEFAULT_BREAKDOWN = (
-    OrderItem(
+    WorkPackage(
         universe(714),
         CREATED_PROJECT[1],
-        (WorkPackage(universe(715), CREATED_PROJECT[1]),),
+        (OrderItem(universe(715), CREATED_PROJECT[1]),),
     ),
 )
 """The work breakdown of a project whose order was not entered: « en son absence, le lotissement
-vaut un poste et un lot qui portent le libellé du projet, sans livrable » (WF-PRJ-0020) — that of
+vaut un lot et un poste qui portent le libellé du projet, sans livrable » (WF-PRJ-0020) — that of
 the project created today."""
 
-ON_SITE = WorkPackage(
+SECOND_ITEM = OrderItem(
     universe(716),
-    "Mise en service sur site",
+    "Poste 1.2",
     ((universe(717), "Procès-verbal de mise en service"),),
 )
-"""A work package entered today under the one order item of the witness, after « Armoires », with
-its deliverable (`work_breakdown_saved`, `setWorkBreakdown`, EP-14/L42k): no task bears it."""
+"""A post entered today in the one lot of the witness, after « Poste 1.1 », with its deliverable
+(`work_breakdown_saved`, `setWorkBreakdown`, EP-14/L42k): no task bears it."""
 
-SAVED_BREAKDOWN = (OrderItem(ASSEMBLY.identifier, ASSEMBLY.label, (CABINETS, ON_SITE)),)
-"""The work breakdown of the witness once that work package is entered (WF-PRJ-0020)."""
+SAVED_BREAKDOWN = (WorkPackage(FIRST_LOT.identifier, FIRST_LOT.label, (FIRST_ITEM, SECOND_ITEM)),)
+"""The work breakdown of the witness once that post is entered (WF-PRJ-0020)."""
 
 STEERING = universe(1000)
 CUSTOMER = universe(1001)
@@ -477,7 +477,7 @@ detailed studies finish, with float (WF-PLA-0030, WF-PLA-0080, WF-PLA-0100)."""
 CONTROL_STATION = Task(
     N.CONTROL_STATION,
     "Poste de commande",
-    order_item=ASSEMBLY,
+    bears=FIRST_LOT,
     children=(
         Task(
             N.WIRING,
@@ -550,11 +550,12 @@ CONTROL_STATION = Task(
         Task(N.FACTORY_ACCEPTANCE, "Réception usine", is_milestone=True, links=(Link(N.WIRING),)),
     ),
 )
-"""The lot of the control station: the wiring of the cabinets a week after the reception of the
-studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of
-500,000 of the risk 751, at the scale of the structure, budgeted at the 250,000 the reference knew;
-the subtree merged into the current revision by the occurrence of the risk 752, its lines of 120
-and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at the end of the wiring."""
+"""The summary of the control station, which bears the lot 1: the wiring of the cabinets a week
+after the reception of the studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56
+and the provision of 500,000 of the risk 751, at the scale of the structure, budgeted at the
+250,000 the reference knew; the subtree merged into the current revision by the occurrence of the
+risk 752, its lines of 120 and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at
+the end of the wiring."""
 
 OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
 """The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025

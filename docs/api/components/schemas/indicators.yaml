@@ -84,8 +84,8 @@ NotComputableReason:
     du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence
     empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et
     `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ; ni
-    `order_item_without_task`, le total d'un poste du lotissement qu'aucune tâche ne porte :
-    « un poste sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
+    `work_package_without_task`, le total d'un lot du lotissement qu'aucune tâche ne porte :
+    « un lot sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
   enum:
     - no_actual_cost
     - no_earned_value
@@ -96,7 +96,7 @@ NotComputableReason:
     - no_capacity
     - no_offer_out_of_pricing
     - hourly_rate_missing
-    - order_item_without_task
+    - work_package_without_task
 
 CalculationContext:
   type: object
@@ -118,17 +118,17 @@ CalculationContext:
 
 EstimateIndicators:
   type: object
-  required: [context, total, by_cost_type, by_subproject, by_order_item, delta_to_reference]
+  required: [context, total, by_cost_type, by_subproject, by_work_package, delta_to_reference]
   description: >-
     Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque
     montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de
     taux horaire pour l'année de référence, les montants qui en dépendent — le total, la
-    nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui
+    nature, le sous-projet et le lot qui portent ses lignes, les écarts, et les parts qui
     se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories
     et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à
     zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont à l'année de
     référence de la révision — `total`, ses ventilations par nature, par sous-projet et par
-    poste, et les deux écarts —, `total` valant le `base_amount` des totaux de la structure :
+    lot, et les deux écarts —, `total` valant le `base_amount` des totaux de la structure :
     seul le montant corrigé de l'inflation de la grille (`NodeTotals.inflated_amount`,
     WF-DEV-0040, WF-DEV-0050) porte l'inflation, et les indicateurs n'en ont pas de second
     total, la somme des parts ne valant cent que sur une même base (WF-DEV-0060).
@@ -141,19 +141,20 @@ EstimateIndicators:
     by_subproject:
       type: array
       items: { $ref: '#/ComputableAmountByKey' }
-    by_order_item:
+    by_work_package:
       type: array
       minItems: 1
       items: { $ref: '#/ComputableAmountByKey' }
       description: >-
-        Chaque poste du lotissement (WF-PRJ-0020), dans l'ordre saisi, et son total, lu à
-        travers la tâche, récapitulative ou feuille, qui le porte — le total de son sous-arbre
-        (WF-PLA-0170). « Un poste sans tâche rattachée est présenté sans total » (WF-DEV-0060) :
-        son montant et sa part ne se calculent pas, motif `order_item_without_task` — absents
-        plutôt que nuls, comme le veut le Vérif. Jamais vide : un projet sans lotissement saisi
-        en a un par défaut, d'un poste (EP-14/L42s). Les indicateurs conservés d'une révision
-        marquée rendent les postes de son marquage, tels qu'elle les a figés (WF-DAT-0040), un
-        poste marqué supprimé depuis compris (WF-DAT-0080).
+        Chaque lot du lotissement, son niveau 1 (WF-PRJ-0020), dans l'ordre saisi, et son total,
+        lu à travers la tâche, récapitulative ou feuille, qui le porte — le total de son
+        sous-arbre (WF-PLA-0170). « Pour chaque lot du lotissement porté par une tâche rattachée
+        […], il présente le total du sous-arbre de cette tâche ; un lot sans tâche rattachée est
+        présenté sans total » (WF-DEV-0060) : son montant et sa part ne se calculent pas, motif
+        `work_package_without_task` — absents plutôt que nuls, comme le veut le Vérif. Jamais
+        vide : un projet sans lotissement saisi en a un par défaut, d'un lot (EP-14/L42s). Les
+        indicateurs conservés d'une révision marquée rendent les lots de son marquage, tels
+        qu'elle les a figés (WF-DAT-0040), un lot marqué supprimé depuis compris (WF-DAT-0080).
     provisions_identified: { $ref: ../common.yaml#/Money }
     delta_to_reference:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
@@ -171,8 +172,8 @@ ComputableAmountByKey:
   type: object
   required: [key, amount]
   description: >-
-    Un montant par clé — nature de coût, sous-projet, poste —, qui peut ne pas se calculer
-    (`hourly_rate_missing` ; pour un poste qu'aucune tâche ne porte, `order_item_without_task`),
+    Un montant par clé — nature de coût, sous-projet, lot —, qui peut ne pas se calculer
+    (`hourly_rate_missing` ; pour un lot qu'aucune tâche ne porte, `work_package_without_task`),
     et sa part du total, qui ne se calcule pas sans lui.
   properties:
     key: { type: string }
@@ -183,7 +184,7 @@ ComputableAmountByKey:
       description: >-
         Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ;
         les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande
-        portant le reste des arrondis, celles des postes non (README, « Une part… »).
+        portant le reste des arrondis, celles des lots non (README, « Une part… »).
 
 RemainingIndicators:
   type: object

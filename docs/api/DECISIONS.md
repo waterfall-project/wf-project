@@ -6106,6 +6106,62 @@ d'attribution) ; deux tâches d'EP-03 (`task_restore_backup_newer_version`,
 file à 14 h 08, et la lecture des comptes (`identity_sync_queued`, `identity_sync_succeeded`) à
 14 h 03 min 30 s : chaque tâche à son instant (`test_mockuniverse.py`).
 
+## Le lotissement en lots, postes et livrables (EP-15/US-0450)
+
+**Le lotissement découpe la commande en lots, qui contiennent des postes, qui contiennent des
+livrables** (C-350, WF-PRJ-0020 : « Le lotissement découpe la commande en lots, chaque lot contenant
+des postes, chaque poste contenant des livrables »). La spécification inversait les deux premiers
+niveaux, et le contrat l'avait suivie (#1054). Les identifiants gardent leur sens, comme le tableau
+du §4.4.1 le dit désormais — « Lot, Poste, Livrable — work_package, order_item, deliverable » — :
+`WorkPackage` désigne toujours un lot et `OrderItem` un poste ; c'est leur imbrication qui s'inverse
+(décision 2 de #1054). `WorkBreakdown` et `WorkBreakdownReading` portent `work_packages` au
+niveau 1, chaque lot ses `order_items`, chaque poste ses `deliverables` ; `WorkBreakdownKind` liste
+`[work_package, order_item, deliverable]`, dans l'ordre des niveaux, et les pointeurs des refus de
+`setWorkBreakdown` suivent (`/work_packages/<i>/order_items/<j>/…`). Chaque règle reste attachée à
+son niveau : « la suppression d'un lot emporte ses postes » (WF-DAT-0080), « lorsque le lot d'un
+poste est rattaché, la tâche de ce poste se trouve dans le sous-arbre de la tâche de ce lot »
+(WF-PLA-0170), et le squelette engendre la récapitulative d'un poste sous celle de son lot
+(WF-PRJ-0030). Écarté : échanger les identifiants avec les noms, `order_items` au niveau 1, qui
+ferait lire « poste » là où le code dit `work_package` et changerait le sens de chaque rattachement
+déjà écrit.
+
+**Ce qui s'attache à un niveau le suit, nom compris** (défaut n° 10 du guide : un nom qui dit autre
+chose que la cause). Le total par niveau de WF-DEV-0060 est celui des lots, au niveau 1 :
+`EstimateIndicators.by_order_item` devient `by_work_package`, et son motif
+`order_item_without_task` devient `work_package_without_task` (« un lot sans tâche rattachée est
+présenté sans total »). La règle du sous-arbre prend le code `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, à la
+place de `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, et ses paramètres `params.work_package_task` — la tâche
+du lot — et `params.order_item_tasks` — celles des postes qui en sortiraient —, partout où elle
+refuse : `updateTaskFacet`, `createNode`, `moveNodes`, l'échec de `mergeCostStructure`, les
+`refusals` de `ImportReport` et de `StructureMergeReport`, `PasteRejection`. Écarté : garder les
+codes et les noms d'ancienne lecture avec une description inversée. Les clés des deux catalogues
+qui nomment un niveau suivent : `errors.ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+`enums.NotComputableReason.work_package_without_task`, `enums.WorkBreakdownKind` dans l'ordre des
+niveaux ; « poste » au sens du poste de travail ou d'un rôle de ressource ne bouge pas.
+
+**Chaque lot et chaque poste lus disent la tâche qui les porte** (#802 ; WF-PLA-0170 : « un lot ou
+un poste n'y est porté que par une tâche à la fois »). `WorkPackageReading` et `OrderItemReading`
+portent `attached_task`, exigé, `AttachedTask` — le nœud et le libellé de la tâche de la structure
+principale de la révision en cours qui porte l'élément, comme les refus du rattachement nomment une
+tâche — ou nul : l'écran qui supprime un lot ou un poste ne confirme que ce qui est porté, et nomme
+la tâche qui perdra son rattachement. Un livrable n'en porte pas : aucune tâche ne porte un
+livrable. L'écriture ne le porte pas, comme `is_match` : un renvoi de la lecture le laisse. Écarté :
+un booléen `is_attached`, qui obligerait l'écran à relire le planning pour nommer la tâche.
+
+**Les exemples suivent le témoin renommé** : son lot 711, « Lot 1 », porté par la récapitulative
+« Poste de commande », son poste 712, « Poste 1.1 », qu'aucune tâche ne porte, et le livrable 713 ;
+le poste 716, « Poste 1.2 », ajouté par `work_breakdown_entered`. `work_breakdown_work_packages`
+devient `work_breakdown_order_items` (`kinds=order_item`, les postes sous leur lot), et les variantes
+`task_attach_outside_order_item`, `task_merge_outside_order_item`, `nodes_move_outside_order_item`
+deviennent `…_outside_work_package`, leurs noms d'exemple aussi (`outside_work_package`,
+`merge_outside_work_package`). Exemples ajoutés ou repris pour `updateTaskFacet` (#817 point 2a,
+#819 points 9 et 10) : `task_attached`, engendré, le succès d'un rattachement — le jalon
+« Réception usine » porte le poste 1.1, une feuille sous la récapitulative qui porte le lot ;
+`task_attach_refused` refuse désormais sur `/work_package_id` le lot déjà porté par « Poste de
+commande » ; `task_attach_exclusive` refuse `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` sur `/order_item_id`,
+le scénario que le front produit : une grille lue avant que la récapitulative porte son lot, qui
+envoie le poste sans mettre le lot à nul.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

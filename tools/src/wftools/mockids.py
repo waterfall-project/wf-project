@@ -75,7 +75,7 @@ IDENTIFIERS = (
     Family("nœuds de la structure", 500, 599),
     Family("lignées, celle du nœud 5nn en 6nn", 600, 699),
     Family("rôles d'habilitation", 700, 709),
-    Family("postes, lots et livrables du lotissement", 710, 749),
+    Family("lots, postes et livrables du lotissement", 710, 749),
     Family("risques", 750, 799),
     Family("sous-projets", 800, 899),
     Family("sauvegardes", 900, 919),
@@ -99,13 +99,13 @@ IDENTIFIERS = (
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 
-Every example keeps to it (#287, C16; DECISIONS, EP-02/L25 and L27). The order item 711,
-« Fourniture et montage des armoires », is the one order item of the witness, which the lot
-« Poste de commande » bears (WF-PLA-0130); its work package 712, « Armoires », is borne by no task:
-the refusal to attach it outside the subtree of the task of its order item speaks of it
-(`task_attach_outside_order_item`), and the work breakdown names it, with its one deliverable 713
-(`work_breakdown`, WF-PRJ-0020). The order item 714 and its work package 715 make the work
-breakdown of a project whose order was not entered (`work_breakdown_default`). The correlations
+Every example keeps to it (#287, C16; DECISIONS, EP-02/L25 and L27). The lot 711, « Lot 1 », is
+the one lot of the witness, at the first level of its work breakdown, which the summary « Poste de
+commande » bears (WF-PLA-0130); its post 712, « Poste 1.1 », is borne by no task: the refusal to
+attach it outside the subtree of the task of its lot speaks of it
+(`task_attach_outside_work_package`), and the work breakdown names it, with its one deliverable
+713 (`work_breakdown`, WF-PRJ-0020, C-350). The lot 714 and its post 715 make the work breakdown
+of a project whose order was not entered (`work_breakdown_default`). The correlations
 written by hand go on past the chronologies, their first range being full (EP-02/L42d)."""
 
 

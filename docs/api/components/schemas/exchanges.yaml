@@ -191,8 +191,8 @@ ImportReport:
       type: array
       description: >-
         Les motifs qui rejettent le fichier entier, au lieu d'une ligne (`ReportRefusal`) : un
-        planning MS Project qui déplacerait la tâche d'un lot hors du sous-arbre de la tâche de
-        son poste — sur la structure principale, seule à porter des rattachements —, « rejeté au
+        planning MS Project qui déplacerait la tâche d'un poste hors du sous-arbre de la tâche de
+        son lot — sur la structure principale, seule à porter des rattachements —, « rejeté au
         compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon »
         (WF-INTF-0040, WF-PLA-0170), et un planning qui porterait la durée du projet au-delà de
         quinze ans (WF-PLA-0150). Vide quand le fichier s'applique (EP-14/L42s).
@@ -313,7 +313,7 @@ ImportRejection:
     `project_id`, `node_id` et `label`), une ligne de devis d'une catégorie de type provision
     pour risques, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`,
     WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus. Une tâche que le fichier
-    placerait hors du sous-arbre de la tâche du poste de son lot ne rejette pas sa ligne mais le
+    placerait hors du sous-arbre de la tâche du lot de son poste ne rejette pas sa ligne mais le
     fichier entier (`ImportReport.refusals` ; EP-14/L42s).
   properties:
     row: { type: integer, minimum: 1 }
@@ -329,8 +329,8 @@ ReportRefusal:
     Un motif qui refuse un import ou une fusion entière, présenté au compte rendu avant
     l'application (WF-INTF-0040, WF-REV-0050 ; EP-14/L42s) : son code et les paramètres qu'il
     porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure
-    principale et leur libellé. Ainsi `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, la tâche d'un lot sortie
-    du sous-arbre de la tâche de son poste, `params.order_item_task` et `work_package_tasks`
+    principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie
+    du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks`
     (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans,
     `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS`, sur
     lequel sa tâche de fond échoue déjà (WF-PLA-0010). Un cycle de liaisons (WF-PLA-0030) et
@@ -384,9 +384,9 @@ ImportDifference:
     work_breakdown_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du poste ou du lot
+        Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste
         qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte
-        rendu nomme le poste ou le lot qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou
+        rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou
         absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k).
     fields:
       type: array

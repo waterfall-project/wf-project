@@ -26,14 +26,14 @@ screens ask them:
 - ``access_roles_composed.json``, ``listAccessRoles`` restricted to the roles composed since the
   installation; ``access_roles_unheld.json``, to those no account holds, an upper bound of none;
   ``access_roles_by_updated_by.json``, sorted by the author of their last change (#936);
-- ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: an order item, without what it
-  holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item,
-  which it gives for the context alone (#574); ``work_breakdown_entered.json`` and
-  ``work_breakdown_saved.json``, ``setWorkBreakdown``: the work breakdown entered whole from its
-  whole reading, a work package added without identifier, and the answer that gives it one;
-  ``work_breakdown_label_required.json``, ``work_breakdown_unknown_item.json`` and
-  ``work_breakdown_duplicate_item.json``, its refusals: the work package added without a label,
-  with the identifier of a deliverable, with that of a work package the write bears already;
+- ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: a lot, without what it holds;
+  ``work_breakdown_order_items.json``, its posts alone, under their lot, which it gives for the
+  context alone (#574); ``work_breakdown_entered.json`` and ``work_breakdown_saved.json``,
+  ``setWorkBreakdown``: the work breakdown entered whole from its whole reading, a post added
+  without identifier, and the answer that gives it one; ``work_breakdown_label_required.json``,
+  ``work_breakdown_unknown_item.json`` and ``work_breakdown_duplicate_item.json``, its refusals:
+  the post added without a label, with the identifier of a deliverable, with that of a post the
+  write bears already;
 - ``backups_reader.json``, ``listBackups`` read by a session that may neither modify the backups
   nor restore the platform: no command; ``backups_during_backup.json``, read while a backup runs:
   the restoration unavailable on each; ``backups_manual.json``, the manual backups alone;
@@ -54,13 +54,20 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockids import universe
-from wftools.mockwitness import ON_SITE, SAVED_BREAKDOWN, WORK_BREAKDOWN, fixture
+from wftools.mockwitness import (
+    CORE,
+    SAVED_BREAKDOWN,
+    SECOND_ITEM,
+    WORK_BREAKDOWN,
+    fixture,
+    node_id,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
     from wftools.mockstructure import JsonObject, JsonValue
-    from wftools.mockwitness import OrderItem, WorkPackage
+    from wftools.mockwitness import OrderItem, Task, WorkPackage
 
 PROJECT_STATES = ("created", "pricing", "in_progress", "completed", "lost", "abandoned")
 """The states of a project in the order of `ProjectState`, that of the life cycle (WF-CYC-0010)."""
@@ -90,17 +97,21 @@ SEARCHED_ACCOUNT = "ines roux"
 """The text of ``users_search``: the displayed name of Inès Roux, without its accent nor its case,
 which no column holds whole and which her address, « ines.roux », does not hold either."""
 
-SEARCHED_LABEL = "Montage"
-"""The text of ``work_breakdown_search``: in the label of the order item alone, in another case."""
+SEARCHED_LABEL = "lot"
+"""The text of ``work_breakdown_search``: in the label of the lot alone, in another case."""
 
-BREAKDOWN_KINDS = ("order_item", "work_package", "deliverable")
-"""The kinds of an element of a work breakdown in the order of `WorkBreakdownKind`."""
+BREAKDOWN_KINDS = ("work_package", "order_item", "deliverable")
+"""The kinds of an element of a work breakdown in the order of `WorkBreakdownKind`, that of its
+levels: lots, posts, deliverables (C-350)."""
 
 BREAKDOWN_HELD = {
-    "order_item": ("work_packages", "work_package"),
-    "work_package": ("deliverables", "deliverable"),
+    "work_package": ("order_items", "order_item"),
+    "order_item": ("deliverables", "deliverable"),
 }
 """What an element of a work breakdown holds, by its kind: the field, and the kind it holds."""
+
+_READ_ONLY = frozenset({"is_match", "attached_task"})
+"""What a reading of a work breakdown says and its write does not carry."""
 
 BACKUP_ORIGINS = ("manual", "scheduled")
 """The origins of a backup in the order of `BackupOrigin`: by hand first."""
@@ -452,26 +463,26 @@ def while_backup_runs(backups: Iterable[JsonObject]) -> list[JsonObject]:
 # --- The work breakdown -------------------------------------------------------------------------
 
 
-def work_breakdown(items: tuple[OrderItem, ...], lock_version: int) -> JsonObject:
-    """Return a work breakdown: its order items, their packages and deliverables, its version."""
+def work_breakdown(lots: tuple[WorkPackage, ...], lock_version: int) -> JsonObject:
+    """Return a work breakdown: its lots, their posts and deliverables, its version (C-350)."""
     return {
-        "order_items": [
+        "work_packages": [
             {
-                "order_item_id": item.identifier,
-                "label": item.label,
-                "work_packages": [
+                "work_package_id": lot.identifier,
+                "label": lot.label,
+                "order_items": [
                     {
-                        "work_package_id": package.identifier,
-                        "label": package.label,
+                        "order_item_id": item.identifier,
+                        "label": item.label,
                         "deliverables": [
                             {"deliverable_id": deliverable, "label": label}
-                            for deliverable, label in package.deliverables
+                            for deliverable, label in item.deliverables
                         ],
                     }
-                    for package in item.work_packages
+                    for item in lot.order_items
                 ],
             }
-            for item in items
+            for lot in lots
         ],
         "lock_version": lock_version,
     }
@@ -483,11 +494,11 @@ def filtered_breakdown(
     """Return what the filters of `getWorkBreakdown` retain of a work breakdown, in its order.
 
     An element is retained if its kind is one of `kinds` — any, when none is named — and its
-    label holds `text` — any, when none is given. The order items and the work packages that hold
-    a retained element are given for the tree to stay readable, without the others they hold.
-    Each element given says whether it is retained (`is_match`) or given for the context alone,
-    so that the grid counts the retained alone (WF-IHM-0130, #574); without a filter, every one
-    is. A filtered reading — a text or kinds given — has no counter, which `setWorkBreakdown`
+    label holds `text` — any, when none is given. The lots and the posts that hold a retained
+    element are given for the tree to stay readable, without the others they hold. Each element
+    given says whether it is retained (`is_match`) or given for the context alone, so that the
+    grid counts the retained alone (WF-IHM-0130, #574); without a filter, every one is. A
+    filtered reading — a text or kinds given — has no counter, which `setWorkBreakdown`
     requires: sent back as it is, it would remove what it leaves out (#560).
     """
     unknown = set(kinds) - set(BREAKDOWN_KINDS)
@@ -499,34 +510,70 @@ def filtered_breakdown(
         return (not kinds or kind in kinds) and (text is None or holds(element["label"], text))
 
     def marked(element: JsonObject, kind: str, below: str, held: list[JsonValue]) -> JsonObject:
-        """Return an element given, its mark after its label and before what it holds."""
-        rest = {key: value for key, value in element.items() if key != below}
-        return {**rest, "is_match": retained(kind, element), below: held}
+        """Return an element given, its mark after its label, then the task that bears it."""
+        head = {key: element[key] for key in (f"{kind}_id", "label")}
+        rest = {
+            key: value for key, value in element.items() if key not in {*head, "is_match", below}
+        }
+        return {**head, "is_match": retained(kind, element), **rest, below: held}
 
-    items: list[JsonValue] = []
-    for item in cast("list[JsonObject]", breakdown["order_items"]):
-        packages: list[JsonValue] = []
-        for package in cast("list[JsonObject]", item["work_packages"]):
+    lots: list[JsonValue] = []
+    for lot in cast("list[JsonObject]", breakdown["work_packages"]):
+        items: list[JsonValue] = []
+        for item in cast("list[JsonObject]", lot["order_items"]):
             deliverables: list[JsonValue] = [
                 {**each, "is_match": True}
-                for each in cast("list[JsonObject]", package["deliverables"])
+                for each in cast("list[JsonObject]", item["deliverables"])
                 if retained("deliverable", each)
             ]
-            if deliverables or retained("work_package", package):
-                packages.append(marked(package, "work_package", "deliverables", deliverables))
-        if packages or retained("order_item", item):
-            items.append(marked(item, "order_item", "work_packages", packages))
+            if deliverables or retained("order_item", item):
+                items.append(marked(item, "order_item", "deliverables", deliverables))
+        if items or retained("work_package", lot):
+            lots.append(marked(lot, "work_package", "order_items", items))
     filtered = text is not None or bool(kinds)
-    return {"order_items": items, "lock_version": None if filtered else breakdown["lock_version"]}
+    return {"work_packages": lots, "lock_version": None if filtered else breakdown["lock_version"]}
 
 
-def breakdown_reading(items: tuple[OrderItem, ...], lock_version: int) -> JsonObject:
-    """Return a work breakdown as `getWorkBreakdown` reads it whole: every element retained."""
-    return filtered_breakdown(work_breakdown(items, lock_version))
+def attached_tasks(roots: Iterable[Task]) -> dict[str, JsonValue]:
+    """Return the task of a structure that bears each lot and each post, by its identifier.
+
+    Each by its node and its label (`AttachedTask`): « un lot ou un poste n'y est porté que par
+    une tâche à la fois » (WF-PLA-0170, #802).
+    """
+    found: dict[str, JsonValue] = {}
+
+    def walk(task: Task) -> None:
+        if task.bears is not None:
+            found[task.bears.identifier] = {"node_id": node_id(task.number), "label": task.label}
+        for child in task.children:
+            walk(child)
+
+    for root in roots:
+        walk(root)
+    return found
+
+
+def breakdown_reading(
+    lots: tuple[WorkPackage, ...], lock_version: int, tasks: Iterable[Task] = ()
+) -> JsonObject:
+    """Return a work breakdown as `getWorkBreakdown` reads it whole: every element retained.
+
+    Each lot and each post says the task of the current revision that bears it, among ``tasks``,
+    or none (`attached_task`, #802).
+    """
+    bearers = attached_tasks(tasks)
+    breakdown = work_breakdown(lots, lock_version)
+    for lot in cast("list[JsonObject]", breakdown["work_packages"]):
+        for element in (lot, *cast("list[JsonObject]", lot["order_items"])):
+            key = "work_package_id" if element is lot else "order_item_id"
+            element["attached_task"] = bearers.get(cast("str", element[key]))
+    return filtered_breakdown(breakdown)
 
 
 def written(reading: JsonValue) -> JsonValue:
-    """Return what a screen sends back to `setWorkBreakdown` from a reading: its marks left out.
+    """Return what a screen sends back to `setWorkBreakdown` from a reading, as it writes it.
+
+    What the reading alone says — its marks and the tasks that bear its elements — is left out.
 
     Only a whole reading is written back: a filtered one has no counter (#560).
     """
@@ -537,20 +584,20 @@ def written(reading: JsonValue) -> JsonValue:
     if reading.get("lock_version", 0) is None:
         message = "a filtered reading of a work breakdown is never written back"
         raise ValueError(message)
-    return {key: written(value) for key, value in reading.items() if key != "is_match"}
+    return {key: written(value) for key, value in reading.items() if key not in _READ_ONLY}
 
 
 def entered_with(entered: JsonObject, change: JsonObject) -> JsonObject:
-    """Return a write of the work breakdown, its last work package changed: a variant refused."""
-    items = cast("list[JsonObject]", entered["order_items"])
-    *before, last = items
-    packages = cast("list[JsonObject]", last["work_packages"])
-    *kept, package = packages
-    rest = {key: value for key, value in package.items() if key not in change}
+    """Return a write of the work breakdown, the last post of its last lot changed: a variant."""
+    lots = cast("list[JsonObject]", entered["work_packages"])
+    *before, last = lots
+    items = cast("list[JsonObject]", last["order_items"])
+    *kept, item = items
+    rest = {key: value for key, value in item.items() if key not in change}
     changed = {**change, **rest}
     return {
         **entered,
-        "order_items": [*before, {**last, "work_packages": [*kept, changed]}],
+        "work_packages": [*before, {**last, "order_items": [*kept, changed]}],
     }
 
 
@@ -585,8 +632,8 @@ def breakdown_refusal(read: JsonObject, entered: JsonObject, correlation: str) -
                 walk(each, inner, f"{at}/{name}/{index}", judged=judged)
 
     for judged, breakdown in ((False, read), (True, entered)):
-        for index, item in enumerate(cast("list[JsonObject]", breakdown["order_items"])):
-            walk(item, "order_item", f"/order_items/{index}", judged=judged)
+        for index, lot in enumerate(cast("list[JsonObject]", breakdown["work_packages"])):
+            walk(lot, "work_package", f"/work_packages/{index}", judged=judged)
     return {
         "code": "VALIDATION_FAILED",
         "status": 422,
@@ -595,15 +642,15 @@ def breakdown_refusal(read: JsonObject, entered: JsonObject, correlation: str) -
     }
 
 
-def added(package: WorkPackage) -> JsonObject:
-    """Return a work package a screen adds: its label and its deliverables, without identifier.
+def added(item: OrderItem) -> JsonObject:
+    """Return a post a screen adds: its label and its deliverables, without identifier.
 
     The server engenders the identifier of an element written without one (WF-DAT-0060,
     EP-14/L42k): the client forges none.
     """
     return {
-        "label": package.label,
-        "deliverables": [{"label": label} for _, label in package.deliverables],
+        "label": item.label,
+        "deliverables": [{"label": label} for _, label in item.deliverables],
     }
 
 
@@ -767,69 +814,71 @@ def backups() -> dict[str, JsonObject]:
 
 def breakdowns() -> dict[str, JsonObject]:
     """Return the readings of the work breakdown of the witness, filtered, and its write."""
-    breakdown = work_breakdown(WORK_BREAKDOWN, 1)
-    [item] = cast("list[JsonObject]", breakdown["order_items"])
-    [package] = cast("list[JsonObject]", item["work_packages"])
-    read = breakdown_reading(WORK_BREAKDOWN, 1)
+    read = breakdown_reading(WORK_BREAKDOWN, 1, CORE)
+    [lot] = cast("list[JsonObject]", read["work_packages"])
+    [item] = cast("list[JsonObject]", lot["order_items"])
+    bearer = cast("JsonObject", lot["attached_task"])
     entered = cast("JsonObject", written(read))
-    [kept] = cast("list[JsonObject]", entered["order_items"])
-    kept["work_packages"] = [*cast("list[JsonValue]", kept["work_packages"]), added(ON_SITE)]
-    [(deliverable, label)] = WORK_BREAKDOWN[0].work_packages[0].deliverables
+    [kept] = cast("list[JsonObject]", entered["work_packages"])
+    kept["order_items"] = [*cast("list[JsonValue]", kept["order_items"]), added(SECOND_ITEM)]
+    [(deliverable, label)] = WORK_BREAKDOWN[0].order_items[0].deliverables
     return {
         "work_breakdown_search.json": _example(
             f"Le lotissement du projet témoin cherché par « {SEARCHED_LABEL} », quels que soient "
-            f"la casse et les accents : le poste « {item['label']} », dont le libellé le "
-            f"contient, sans son lot « {package['label']} » ni son livrable, qui ne le "
-            f"contiennent pas ; une lecture "
+            f"la casse et les accents : le lot « {lot['label']} », dont le libellé le contient, "
+            f"que porte la récapitulative « {bearer['label']} », sans son poste "
+            f"« {item['label']} » ni son livrable, qui ne le contiennent pas ; une lecture "
             f"filtrée n'a pas de compteur, pour qu'on ne la renvoie pas à setWorkBreakdown, "
             f"qui écrit le lotissement entier (WF-IHM-0130, WF-PRJ-0020, WF-IHM-0110).",
-            filtered_breakdown(breakdown, SEARCHED_LABEL),
+            filtered_breakdown(read, SEARCHED_LABEL),
         ),
-        "work_breakdown_work_packages.json": _example(
-            f"Les lots du lotissement du projet témoin (kinds=work_package) : « "
-            f"{package['label']} », sans son livrable, sous le poste « {item['label']} » qui le "
+        "work_breakdown_order_items.json": _example(
+            f"Les postes du lotissement du projet témoin (kinds=order_item) : « "
+            f"{item['label']} », sans son livrable, sous le lot « {lot['label']} » qui le "
             f"contient, rendu pour que l'arbre reste lisible et marqué non retenu (is_match), "
-            f"pour que la grille compte un lot et aucun poste (WF-IHM-0130, WF-IHM-0060).",
-            filtered_breakdown(breakdown, kinds=("work_package",)),
+            f"pour que la grille compte un poste et aucun lot (WF-IHM-0130, WF-IHM-0060).",
+            filtered_breakdown(read, kinds=("order_item",)),
         ),
         "work_breakdown_entered.json": _example(
             f"Le lotissement du projet témoin saisi aujourd'hui, entier, depuis sa lecture "
-            f"entière, ses marques laissées : le lot « {ON_SITE.label} » ajouté sous le poste "
-            f"« {item['label']} », après « {package['label']} », avec son livrable, l'un et "
-            f"l'autre sans identifiant — le serveur les engendre (WF-PRJ-0020, WF-DAT-0060).",
+            f"entière, ses marques et ses tâches laissées : le poste « {SECOND_ITEM.label} » "
+            f"ajouté dans le lot « {lot['label']} », après « {item['label']} », avec son "
+            f"livrable, l'un et l'autre sans identifiant — le serveur les engendre (WF-PRJ-0020, "
+            f"WF-DAT-0060).",
             entered,
         ),
         "work_breakdown_unknown_item.json": _example(
-            f"La saisie work_breakdown_entered, le lot « {ON_SITE.label} » envoyé avec "
+            f"La saisie work_breakdown_entered, le poste « {SECOND_ITEM.label} » envoyé avec "
             f"l'identifiant du livrable « {label} », refusée : le "
-            f"lotissement lu ne porte aucun lot de cet identifiant, et le client n'en forge "
+            f"lotissement lu ne porte aucun poste de cet identifiant, et le client n'en forge "
             f"aucun ; rien n'est écrit (WF-DAT-0060, WF-PRJ-0020).",
             breakdown_refusal(
-                read, entered_with(entered, {"work_package_id": deliverable}), universe(1133)
+                read, entered_with(entered, {"order_item_id": deliverable}), universe(1133)
             ),
         ),
         "work_breakdown_duplicate_item.json": _example(
-            f"La saisie work_breakdown_entered, le lot « {ON_SITE.label} » envoyé avec "
-            f"l'identifiant du lot « {package['label']} », que la saisie porte déjà, refusée à sa "
+            f"La saisie work_breakdown_entered, le poste « {SECOND_ITEM.label} » envoyé avec "
+            f"l'identifiant du poste « {item['label']} », que la saisie porte déjà, refusée à sa "
             f"seconde occurrence : un élément du lotissement ne s'écrit qu'une fois ; rien n'est "
             f"écrit (WF-PRJ-0020).",
             breakdown_refusal(
                 read,
-                entered_with(entered, {"work_package_id": package["work_package_id"]}),
+                entered_with(entered, {"order_item_id": item["order_item_id"]}),
                 universe(1135),
             ),
         ),
         "work_breakdown_label_required.json": _example(
-            "La saisie work_breakdown_entered, le lot ajouté envoyé sans libellé, refusée : "
-            "chaque poste, lot et livrable porte un libellé ; rien n'est écrit (WF-PRJ-0020).",
+            "La saisie work_breakdown_entered, le poste ajouté envoyé sans libellé, refusée : "
+            "chaque lot, poste et livrable porte un libellé ; rien n'est écrit (WF-PRJ-0020).",
             breakdown_refusal(read, entered_with(entered, {"label": ""}), universe(1134)),
         ),
         "work_breakdown_saved.json": _example(
             f"La réponse à cette saisie : le lotissement entier, lu comme après une lecture "
-            f"entière, chaque élément retenu ; le lot « {ON_SITE.label} » et son livrable "
-            f"portent les identifiants que le serveur leur a donnés, et le compteur suivant, "
-            f"jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110).",
-            breakdown_reading(SAVED_BREAKDOWN, 2),
+            f"entière, chaque élément retenu, le lot « {lot['label']} » porté par "
+            f"« {bearer['label']} » ; le poste « {SECOND_ITEM.label} » et son livrable "
+            f"portent les identifiants que le serveur leur a donnés, aucune tâche ne le porte, "
+            f"et le compteur suivant, jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110, #802).",
+            breakdown_reading(SAVED_BREAKDOWN, 2, CORE),
         ),
     }
 
