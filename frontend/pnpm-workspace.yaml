@@ -9,3 +9,8 @@ allowBuilds:
   "@parcel/watcher": false
   "@swc/core": false
   unrs-resolver: false
+
+# The versions below which a dependency is flawed, whichever dependency asks for it: raised here
+# because a transitive range (css-tree, optional) keeps the lock file on the flawed one otherwise.
+overrides:
+  source-map-js: ">=1.2.2"
