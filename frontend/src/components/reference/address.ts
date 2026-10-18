@@ -18,7 +18,7 @@ import { type RefusedBounds, refusedBounds } from "@/components/grid/filters";
 import { type GridAddress, pagedList } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 import type { ListPage } from "@/navigation/pages";
-import type { Permission, Session } from "@/session/request";
+import type { Account, Permission } from "@/session/request";
 
 /** The parameter of the contract that asks for the deactivated objects too. */
 export const INCLUDE_INACTIVE = "include_inactive";
@@ -99,7 +99,7 @@ export function listReads(address?: GridAddress, ...filters: readonly string[]):
 
 /** The settings of the grids the account keeps, by the key of each grid. */
 export type KeptGrids = NonNullable<
-  NonNullable<NonNullable<Session["user"]["display_preferences"]>["grids"]>
+  NonNullable<NonNullable<Account["display_preferences"]>["grids"]>
 >;
 
 /** A value of the address under the name of the contract: none when the address holds none. */

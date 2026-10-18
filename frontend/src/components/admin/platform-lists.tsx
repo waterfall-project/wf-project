@@ -10,9 +10,9 @@
  * (WF-ADM-0150): a page of their list on the dense grid, sorted and filtered by the server as the
  * address asks (WF-IHM-0130, EP-14/L42h) — by period, origin, verification, marking and size —,
  * with the commands each backup lists (`available_commands`, WF-IHM-0090) — mark it to be kept or
- * no longer, download it, restore the platform from it — and, for a session that may modify the
- * backups, the command that starts one (EP-02/L43c, `backup-commands.tsx`). Their schedule, their
- * retention and its form are `backup-schedule.tsx` (EP-14/L43d).
+ * no longer, download it (US-0440), restore the platform from it — and, for a session that may
+ * modify the backups, the command that starts one (EP-02/L43c, `backup-commands.tsx`). Their
+ * schedule, their retention and its form are `backup-schedule.tsx` (EP-14/L43d).
  */
 import {
   Bell,
@@ -191,7 +191,7 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
         label={t("operations")}
         columns={[t("operation"), t("at"), t("outcome"), t("motive")]}
       >
-        <OperationRow name={t("directorySync")} outcome={status.last_directory_sync} />
+        <OperationRow name={t("identitySync")} outcome={status.last_identity_sync} />
         <OperationRow name={t("backup")} outcome={status.last_backup} />
         <OperationRow name={t("backupCopy")} outcome={status.last_backup_copy} />
         <OperationRow name={t("restoreTest")} outcome={status.last_restore_test} />
@@ -366,7 +366,8 @@ function BackupFilterBar({
  * filters the API refused (422) leave the list unread, the bound said at its field, a sentence
  * standing for the grid — that of the period when the API refused it, that of the bounds otherwise. The head of the list says what the last command did, and offers to start a
  * backup to who may modify them (`startable`); the refusals, and that of a download the browser came
- * back with, are told above the list. The commands of each backup are those it lists.
+ * back with, are told above the list. The commands of each backup are those it lists. The list
+ * keeps its height — the grid no taller than the window —: the deposit comes under it (`BackupsPage`).
  */
 export function BackupList({
   read,
@@ -412,7 +413,6 @@ export function BackupList({
           icon={DatabaseBackup}
           empty={empty ? t("none") : undefined}
           commands={startable || listed ? <BackupHead startable={startable} /> : undefined}
-          fill
         >
           <BackupFilterBar
             filters={filters}

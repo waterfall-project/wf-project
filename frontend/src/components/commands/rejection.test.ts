@@ -3,8 +3,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ACCOUNT_DEACTIVATED_DIGEST,
+  ACCOUNT_NOT_ADMITTED_DIGEST,
   correlationDigest,
+  SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
+  SESSION_REVOKED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "@/components/system/failure";
 
@@ -37,12 +41,37 @@ describe("a server action whose promise rejected", () => {
 
   it("is classed by its digest as the screen of failure classes it: out of reach, signed out", () => {
     expect(rejected(thrown(UNREACHABLE_DIGEST))).toEqual({ kind: "unreachable" });
-    expect(rejected(thrown(SESSION_REQUIRED_DIGEST))).toEqual({
+    // A session the front held no more is told as signed out too: the notice leads away on a click.
+    for (const digest of [SESSION_REQUIRED_DIGEST, SESSION_LOST_DIGEST]) {
+      expect(rejected(thrown(digest))).toEqual({
+        kind: "signed_out",
+        problem: { code: "SESSION_REQUIRED", status: 401 },
+        conflictingObjectId: null,
+      });
+    }
+  });
+
+  it("is signed out as of a session closed by its digest, which the notice says, its sign-in asking for the identifiers again (#855)", () => {
+    expect(rejected(thrown(SESSION_REVOKED_DIGEST))).toEqual({
       kind: "signed_out",
-      problem: { code: "SESSION_REQUIRED", status: 401 },
+      problem: { code: "SESSION_REVOKED", status: 401 },
       conflictingObjectId: null,
     });
   });
+
+  it.each([
+    ["ACCOUNT_DEACTIVATED", ACCOUNT_DEACTIVATED_DIGEST],
+    ["ACCOUNT_NOT_ADMITTED", ACCOUNT_NOT_ADMITTED_DIGEST],
+  ] as const)(
+    "is a refusal that says the account refused (%s), not a session lost, by its digest",
+    (code, digest) => {
+      expect(rejected(thrown(digest))).toEqual({
+        kind: "refused",
+        problem: { code, status: 401 },
+        conflictingObjectId: null,
+      });
+    },
+  );
 
   it("is the unexpected error with the correlation identifier of the API, its prefix left out", () => {
     expect(rejected(thrown(correlationDigest("req-01926f3a.7c00")))).toEqual(

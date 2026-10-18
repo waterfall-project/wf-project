@@ -3,9 +3,10 @@
 /**
  * The configuration of the dense grid of the journal of audit (FBS-1.5, WF-SEC-0030), alone on its
  * screen, with the key of its settings in the account (WF-ADM-0040): each inscription with its
- * date, its author, its action, the nature and the label of its object, its project and the
- * correlation of the request that produced it — every name as the inscription keeps it, that of the
- * moment of the action —, and the link to the history of its object. Read only: no cell is entered,
+ * date, its author, its action and, under it, what it did — composed in the language of the reader from the
+ * parameters the inscription keeps (WF-ARC-0110) —, the nature and the label of its object, its
+ * project and the correlation of the request that produced it — every name as the inscription keeps
+ * it, that of the moment of the action —, and the link to the history of its object. Read only: no cell is entered,
  * and nothing modifies nor deletes an inscription. The server searches the inscriptions on the label
  * of their object (`search`).
  *
@@ -181,10 +182,10 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
         key: "action",
         label: "auditAction",
         format: "text",
-        width: 250,
+        width: 320,
         contract: "action",
         value: (event) => event.action,
-        render: (event) => <ActionCell action={event.action} />,
+        render: (event) => <ActionCell event={event} />,
       },
       {
         key: "object_kind",

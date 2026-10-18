@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A backup, downloaded (`downloadBackup`, WF-ADM-0150), under the permission of the restoration
- * (`platform_restore`), which the server judges. The server of Next hands it on as a stream, never
- * held whole in memory — a backup weighs gigabytes —, out of the queue of the server actions
+ * A backup, downloaded (`downloadBackup`, WF-ADM-0150): the copy out of the platform that protects
+ * from its loss, under the permissions of reading and of modifying the backups (`backups.read`,
+ * `backups.write`, EP-03/US-0440, #705), which the server judges. The browser calls no API
+ * (§4.3.1): the server of Next hands it on as a stream, never held whole in memory — a backup weighs
+ * gigabytes —, out of the queue of the server actions
  * (`relay.ts`): bytes, the one type the contract declares, under the name the API gives it
  * (`Content-Disposition`, which the contract requires: `waterfall-backup-`, the instant of the backup
  * and the extension of its archive, EP-14/L42h), of its length when the body comes as it was sent,

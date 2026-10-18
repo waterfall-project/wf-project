@@ -75,13 +75,15 @@ export type KeptGridSort = GridPreferences["sort"];
 
 /**
  * The preferences to record for a grid: its settings, the sort to keep — the one a header just
- * asked, or the one the account kept, as it came —, and what the account kept of it besides,
- * as it came: the grid is replaced whole.
+ * asked, or the one the account kept, as it came —, the filters to keep — those the page last
+ * showed (`kept-filters.ts`), or, for a grid whose screen keeps none, those the account kept, as
+ * they came —, and what the account kept of it besides, as it came: the grid is replaced whole.
  */
 export function recordedPreferences(
   preferences: GridPreferences | undefined,
   settings: GridSettings,
   sort: KeptGridSort,
+  filters?: Readonly<Record<string, string>>,
 ): GridPreferences {
   const recorded: GridPreferences = {
     ...preferences,
@@ -92,7 +94,8 @@ export function recordedPreferences(
       Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width)]),
     ),
   };
-  return sort === undefined ? recorded : { ...recorded, sort };
+  const sorted = sort === undefined ? recorded : { ...recorded, sort };
+  return filters === undefined ? sorted : { ...sorted, filters };
 }
 
 /** What the writer of the settings gives the grid. */

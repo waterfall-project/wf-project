@@ -91,13 +91,14 @@
         in: query
         description: >-
           Colonne du tri ; absente, la date. Les colonnes du journal qui se trient
-          (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, la plateforme, qui n'en a pas,
-          après les comptes dans l'ordre croissant ; l'action et la nature de l'objet, dans
-          l'ordre de leur énumération (`AuditAction`, celui où WF-SEC-0030 les nomme, et
-          `AuditObjectKind`) — l'API ne rend pas leur libellé, que le front choisit dans la langue
-          du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le libellé de l'objet que
-          l'inscription garde, un objet sans libellé — une sauvegarde — après les autres dans
-          l'ordre croissant ; le projet, par son code, une inscription sans projet après les
+          (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, dans l'ordre croissant un
+          compte anonymisé, qui n'en a plus, après les noms, et la plateforme, qui n'en a pas,
+          après les comptes ; l'action et la nature de l'objet, dans l'ordre de leur énumération
+          (`AuditAction`, celui où WF-SEC-0030 les nomme, et `AuditObjectKind`) — l'API ne rend
+          pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne
+          trie pas par lui — ; le libellé de l'objet que l'inscription garde, un objet sans
+          libellé — une sauvegarde, un compte anonymisé — après les autres dans l'ordre
+          croissant ; le projet, par son code, une inscription sans projet après les
           autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par
           caractère dans l'ordre des points de code Unicode.
         schema:
@@ -133,6 +134,9 @@
               by_object_label: { $ref: ../../../fixtures/api/audit_events_by_object_label.json }
               correlation: { $ref: ../../../fixtures/api/audit_events_correlation.json }
               search: { $ref: ../../../fixtures/api/audit_events_search.json }
+              anonymized_object: { $ref: ../../../fixtures/api/audit_events_anonymized_object.json }
+              anonymized_actor: { $ref: ../../../fixtures/api/audit_events_anonymized_actor.json }
+              administration: { $ref: ../../../fixtures/api/audit_events_administration.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -146,6 +150,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/audit_events_period_inverted.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /audit-events/facets:
   get:
@@ -175,5 +180,7 @@
             schema: { $ref: ../components/schemas/audit.yaml#/AuditFacets }
             examples:
               witness: { $ref: ../../../fixtures/api/audit_facets.json }
+              anonymized: { $ref: ../../../fixtures/api/audit_facets_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

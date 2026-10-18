@@ -1,0 +1,8 @@
+{
+  "summary": "La fin du dépôt d'un fichier waterfall-2026-06-02.tar dont l'archive ne commence pas par son manifeste : la date de la sauvegarde ne se lit pas, la confirmation ne pourrait pas la nommer ; le dépôt est refusé et reste inachevé (WF-ADM-0160).",
+  "value": {
+    "code": "FILE_FORMAT_UNREADABLE",
+    "status": 422,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001058"
+  }
+}

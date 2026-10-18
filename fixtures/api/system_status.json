@@ -1,5 +1,5 @@
 {
-  "summary": "L'état de l'installation au 3 juin 2026 à 14 h 05 : tous les composants disponibles, l'annuaire relu, la plateforme sauvegardée dans la nuit et sa sauvegarde copiée vers le site de secours, le dernier test de restauration du 1er juin réussi, aucune alerte (WF-ADM-0130, WF-EXP-0050).",
+  "summary": "L'état de l'installation au 3 juin 2026 à 14 h 05 : tous les composants disponibles, les comptes du fournisseur d'identité relus, la plateforme sauvegardée dans la nuit et sa sauvegarde copiée vers le site de secours, le dernier test de restauration du 1er juin réussi, aucune alerte (WF-ADM-0130, WF-EXP-0050).",
   "value": {
     "version": "1.0.0",
     "components": [
@@ -34,7 +34,7 @@
         "version": null
       },
       {
-        "component": "directory",
+        "component": "identity_provider",
         "is_available": true,
         "checked_at": "2026-06-03T14:04:30Z",
         "version": "26.0.5"
@@ -50,7 +50,7 @@
       "used_bytes": 41875931136,
       "available_bytes": 172922789888
     },
-    "last_directory_sync": {
+    "last_identity_sync": {
       "at": "2026-06-03T02:00:00Z",
       "succeeded": true,
       "problem": null

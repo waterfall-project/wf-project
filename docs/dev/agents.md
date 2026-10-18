@@ -3,7 +3,7 @@
 Ce fichier est lu par chacun des agents de `.claude/agents/` avant tout travail ; aucun ne
 le recopie. Il ne dit que ce qui est propre au travail d'un agent : pour le reste, il
 renvoie au [guide](README.md), aux règles de codage ([Python](python.md),
-[TypeScript](typescript.md)) et au [README de la roadmap](../roadmap/README.md), qui font
+[TypeScript](typescript.md), [Java](java.md)) et au [README de la roadmap](../roadmap/README.md), qui font
 foi.
 
 ## Les agents

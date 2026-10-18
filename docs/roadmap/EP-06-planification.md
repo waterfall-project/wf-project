@@ -137,3 +137,10 @@ EP-04 livré : les tâches vivent dans la structure principale d'une révision e
   vrai service, du temps entre la validation d'une cellule de la grille (`updateEstimateLine`,
   `updateTaskFacet`) et l'application de la ligne rendue revient à EP-06, et s'écrit au relevé
   de livraison.
+- #496 [EP-02] retirer les replis de `listNodes` du front — décidé pendant EP-02/L36 (#475) :
+  le faux back ignore les filtres `summaries_only`, `max_level`, `timeline_id` et `kinds` de
+  `listNodes`, et le front les applique aussi à la réponse. Quand le back d'EP-06, premier à
+  servir `listNodes`, tiendra ces filtres et que les parcours tourneront contre lui : retirer
+  ces replis, vérifier que les parcours de l'arborescence et des chronologies restent verts, et
+  retirer l'écart du fichier d'EP-02. Reporté d'EP-03, qui ne sert pas `listNodes`
+  (2026-10-10).

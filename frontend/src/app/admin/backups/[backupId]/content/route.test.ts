@@ -127,7 +127,7 @@ describe("a backup, downloaded", () => {
     expect((await download()).headers.get("content-length")).toBeNull();
   });
 
-  it("sends the browser back to the screen of the backups, its page kept, saying a session that may not download them, without the permission of the restoration (403) [WF-ADM-0100-A]", async () => {
+  it("sends the browser back to the screen of the backups, its page kept, saying a session that may not download them, without the permissions of reading and of modifying the backups (403) [WF-ADM-0100-A]", async () => {
     serve({ [CONTENT]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
     expect(sentBackTo(await download())).toBe(
       `/admin/backups?offset=50&refused_backup=${BACKUP}&refusal=403%3APERMISSION_MISSING`,

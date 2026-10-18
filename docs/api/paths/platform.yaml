@@ -107,6 +107,7 @@
               retained: { $ref: ../../../fixtures/api/backups_retained.json }
               period: { $ref: ../../../fixtures/api/backups_period.json }
               by_size: { $ref: ../../../fixtures/api/backups_by_size.json }
+              unverified: { $ref: ../../../fixtures/api/backups_unverified.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -124,18 +125,22 @@
             examples:
               period_inverted: { $ref: ../../../fixtures/api/backups_period_inverted.json }
               bounds_inverted: { $ref: ../../../fixtures/api/backups_bounds_inverted.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: startBackup
     tags: [platform]
     summary: Déclencher une sauvegarde
     description: >-
-      Sauvegarde complète de la base dans un état cohérent, vérifiée après sa
-      production (WF-ADM-0150). Confiée au worker (WF-ARC-0090). Une seule à la fois : une
-      sauvegarde ou une restauration qui s'exécute déjà la fait refuser par 409. Une sauvegarde
-      s'exécute de sa mise en file à la production du fichier ; la vérification qui suit
-      n'empêche rien, et une sauvegarde en attente de vérification (`backup_pending`) en laisse
-      déclencher une autre. Sous la permission de modifier les sauvegardes (`backups.write`,
-      WF-ADM-0100).
+      Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du
+      fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état
+      cohérent, le journal d'audit compris, sauvegardé avec la base de Waterfall (WF-SEC-0030) ;
+      l'archive est vérifiée après sa production, et la sauvegarde apparaît dans la liste avec le
+      résultat de sa vérification (WF-ADM-0150). Confiée au worker (WF-ARC-0090), qui l'inscrit au
+      journal d'audit. Une seule à la fois : une sauvegarde ou une restauration qui s'exécute déjà
+      la fait refuser par 409. Une sauvegarde s'exécute de sa mise en file à la production du
+      fichier ; la vérification qui suit n'empêche rien, et une sauvegarde en attente de
+      vérification (`backup_pending`) en laisse déclencher une autre. Sous la permission de
+      modifier les sauvegardes (`backups.write`, WF-ADM-0100).
     responses:
       '202':
         description: Sauvegarde mise en file.
@@ -182,6 +187,7 @@
               pending: { $ref: ../../../fixtures/api/backup_pending.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: retainBackup
     tags: [platform]
@@ -207,6 +213,7 @@
             examples:
               retained: { $ref: ../../../fixtures/api/backup_retained.json }
               released: { $ref: ../../../fixtures/api/backup_released.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -220,6 +227,8 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               restore_running: { $ref: ../../../fixtures/api/backup_retain_refused.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backups/{backup_id}/content:
   get:
@@ -227,11 +236,13 @@
     tags: [platform]
     summary: Copier une sauvegarde hors de la plateforme
     description: >-
-      La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
-      Sous la permission de restaurer la plateforme (`platform_restore`, WF-ADM-0100) : une
-      sauvegarde porte toute la base, comptes et projets compris. Seule une sauvegarde vérifiée
-      se télécharge, comme sa commande `download` le dit d'avance (`BackupCommand`,
-      WF-IHM-0090) ; le fichier vient nommé et mesuré, en pièce jointe.
+      La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150) :
+      l'archive telle que le stockage objet la garde, rendue en flux. Elle porte les deux bases
+      entières, comptes et réglages du fournisseur d'identité compris : sous la permission de
+      consulter les sauvegardes et celle de les modifier (`backups.read`, `backups.write`,
+      WF-ADM-0100). Seule une sauvegarde vérifiée se télécharge, comme sa commande `download` le
+      dit d'avance (`BackupCommand`, WF-IHM-0090) ; le fichier vient nommé et mesuré, en pièce
+      jointe.
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     responses:
@@ -281,6 +292,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unverified: { $ref: ../../../fixtures/api/backup_download_refused.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backup-schedule:
   get:
@@ -303,6 +315,7 @@
               disabled: { $ref: ../../../fixtures/api/backup_schedule_disabled.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setBackupSchedule
     tags: [platform]
@@ -352,6 +365,7 @@
               retention_too_short: { $ref: ../../../fixtures/api/backup_schedule_retention_too_short.json }
               retention_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_retention_out_of_range.json }
               weekday_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_weekday_out_of_range.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations:
   get:
@@ -378,6 +392,7 @@
               none: { $ref: ../../../fixtures/api/external_backup_locations_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations/{location_name}/test:
   post:
@@ -427,6 +442,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               path_invalid: { $ref: ../../../fixtures/api/external_backup_location_test_path_invalid.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /restores:
   post:
@@ -434,27 +450,49 @@
     tags: [platform]
     summary: Restaurer la plateforme
     description: >-
-      Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les
-      utilisateurs, vide le cache, et n'est appliquée qu'après confirmation
-      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Confiée au worker
-      (WF-ARC-0090). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit
-      d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune sauvegarde ni restauration
-      en cours — sinon 409. La date confirmée est celle de la sauvegarde désignée, sinon 422 :
-      celle que la liste donne (`Backup.taken_at`), ou, pour une sauvegarde déposée, celle que
-      le dépôt a lue dans son archive (`FileUpload.backup_taken_at`). Une sauvegarde déposée
-      n'est vérifiée qu'ici, par la restauration même, avant que les utilisateurs soient
-      déconnectés — la vérification qu'une sauvegarde de la liste a passée après sa production
-      (WF-ADM-0150), qui confirme aussi l'instant que le dépôt a lu (`backup_taken_at`) : une
-      archive qui ne la passe pas fait échouer la tâche (`failed`), son `problem` à
-      `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `backup_verified`, comme une
-      sauvegarde de la liste non vérifiée ; aucun utilisateur n'est déconnecté, aucune base
-      remplacée. Le dépôt qu'une restauration acceptée désigne est gardé jusqu'à la fin de sa
-      tâche, même au-delà de son jour (WF-DAT-0120). Pendant qu'une restauration s'exécute, de
-      sa mise en file à la déconnexion des utilisateurs, toute autre écriture des sauvegardes
-      est refusée de même par 409 — en déclencher une (`startBackup`), en marquer une
-      (`retainBackup`), en restaurer une autre — ; le téléchargement d'une sauvegarde vérifiée
-      (`downloadBackup`) reste possible. Sous la permission de restaurer la plateforme
-      (`platform_restore`, WF-ADM-0100).
+      Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur
+      d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation
+      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste
+      en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de
+      restaurer la plateforme (`platform_restore`). Une sauvegarde de la liste se restaure comme
+      sa commande `restore` le dit d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune
+      sauvegarde ni restauration en cours — sinon 409. Une archive d'une version plus récente que
+      l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive :
+      la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`,
+      `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc
+      sans qu'aucune session soit fermée ni rien écrit. Une sauvegarde déposée n'est vérifiée
+      qu'ici, par la restauration même, avant la mise en maintenance — la vérification qu'une
+      sauvegarde de la liste a passée après sa production (WF-ADM-0150), qui confirme aussi
+      l'instant que le dépôt a lu (`backup_taken_at`) : une archive qui ne la passe pas fait
+      échouer la tâche (`failed`), son `problem` à `STATE_FORBIDS_OPERATION`,
+      `params.missing_condition` à `backup_verified`, comme une sauvegarde de la liste non
+      vérifiée ; aucune session n'est fermée, aucune base remplacée. Le dépôt qu'une restauration
+      acceptée désigne est gardé jusqu'à la fin de sa tâche, même au-delà de son jour
+      (WF-DAT-0120). La tâche (`BackgroundTaskRef.kind` à
+      `restore`) met ensuite la plateforme en maintenance : toutes les sessions
+      sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration
+      — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la
+      maintenance n'est levée qu'une fois la tâche passée à `succeeded` et la restauration
+      inscrite, et une restauration interrompue reprend depuis le début (WF-ARC-0090). Pendant la maintenance, la tâche n'est
+      pas lisible : `getLiveness` dit la maintenance et sa levée (#604). La confirmation nomme la
+      date de la sauvegarde : `acknowledged_backup_taken_at` est celle de la sauvegarde désignée
+      — celle que la liste donne (`Backup.taken_at`), ou, pour une sauvegarde déposée, celle que
+      le dépôt a lue dans son manifeste (`FileUpload.backup_taken_at`) —, et une autre date est
+      une confirmation qui ne la nomme pas, refusée par 400 `CONFIRMATION_REQUIRED` ; une
+      sauvegarde ou un dépôt inconnus, 404 ; une restauration déjà en file ou en cours, ou une
+      sauvegarde de la liste que sa commande `restore` dit indisponible, 409
+      `STATE_FORBIDS_OPERATION`. Pendant qu'une restauration s'exécute, de sa mise en file à la
+      mise en maintenance, toute autre écriture des sauvegardes est refusée de même par 409 — en
+      déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre — ;
+      le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Les tâches
+      restaurées encore en file ou
+      en cours échouent par `TASK_INTERRUPTED_BY_RESTORE`, sans reprendre (#892), sauf celles que
+      la restauration garde — la sienne, celles des sauvegardes —, qui reprennent l'état gardé
+      (#987) ; la liste des
+      sauvegardes et le journal d'audit gardent ce qu'ils tenaient avant la restauration (#893,
+      #894). Le royaume du fournisseur d'identité garde la configuration de l'installation qui
+      restaure — ses clients et ses adresses — ; ses comptes et leurs mots de passe sont ceux de
+      la sauvegarde (#955).
     requestBody:
       required: true
       content:
@@ -468,16 +506,27 @@
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
             examples:
               queued: { $ref: ../../../fixtures/api/task_restore_queued.json }
-      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '400':
+        description: >-
+          Requête mal formée (`MALFORMED_REQUEST`), ou une confirmation qui ne nomme pas la date
+          de la sauvegarde désignée (`CONFIRMATION_REQUIRED`, WF-ADM-0160) : de la liste
+          (`Backup.taken_at`) ou déposée (`FileUpload.backup_taken_at`). Rien n'est mis en file.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              confirmation_mismatch: { $ref: ../../../fixtures/api/restore_confirmation_mismatch.json }
+              external_date_mismatch: { $ref: ../../../fixtures/api/restore_external_date_mismatch.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404':
         description: >-
-          Une sauvegarde que la liste n'a pas (`backup_id`), ou un dépôt inconnu ou expiré
+          Une sauvegarde que la liste n'a pas (`backup_id`), ou que l'appelant ne peut pas lire
+          faute de la permission de consulter les sauvegardes, ou un dépôt inconnu ou expiré
           (`external_backup_upload_id`) — un dépôt ne vit qu'un jour (WF-DAT-0120) — :
           `NOT_FOUND`, sans paramètre ni `fields`, comme pour l'ouverture d'un import
-          (`openImport`) ; le refus ne distingue pas l'objet inconnu de l'objet disparu
-          (WF-ADM-0110). Rien n'est mis en file.
+          (`openImport`) ; le refus ne distingue pas l'objet inconnu de l'objet disparu ni de
+          l'objet que l'appelant ne voit pas (WF-ADM-0110). Rien n'est mis en file.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -490,7 +539,7 @@
           sauvegarde disait manquante (`BackupCommand`) — `backup_verified`, la sauvegarde
           désignée n'étant pas vérifiée, en attente ou échouée (WF-ADM-0150) ;
           `no_backup_running`, une sauvegarde s'exécutant ; `no_restore_running`, une
-          restauration s'exécutant déjà (WF-ADM-0160). Rien n'est mis en file.
+          restauration déjà en file ou en cours (WF-ADM-0160). Rien n'est mis en file.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -500,11 +549,8 @@
               restore_running: { $ref: ../../../fixtures/api/restore_during_restore_refused.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant le champ en défaut : une date confirmée qui
-          n'est pas celle de la sauvegarde désignée — de la liste (`Backup.taken_at`) ou déposée
-          (`FileUpload.backup_taken_at`) —, `/acknowledged_backup_taken_at` par
-          `BACKUP_DATE_MISMATCH`, sans paramètre (WF-ADM-0160) ; un dépôt qui n'a pas été fait
-          pour une restauration — le fichier d'un import (`FileUploadPurpose`) —,
+          Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import
+          (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant
           `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`, seul : la date ne se
           compare qu'à un dépôt de sauvegarde, le dépôt d'un import n'en ayant pas
           (`backup_taken_at` nul). Rien n'est mis en file.
@@ -512,6 +558,5 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              date_mismatch: { $ref: ../../../fixtures/api/restore_date_mismatch.json }
-              external_date_mismatch: { $ref: ../../../fixtures/api/restore_external_date_mismatch.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

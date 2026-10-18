@@ -168,7 +168,7 @@ beforeEach(() => {
   server.clients = [];
   withdrawn.permissions = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /reference/org-nodes": "org_nodes",
     "GET /reference/resource-roles": "resource_roles",
     "GET /reference/calendars": "calendars",
@@ -233,7 +233,7 @@ describe("the settings of the resources", () => {
     server.clients = [];
     server.answers = {
       ...server.answers,
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
       "GET /reference/org-nodes": "org_nodes_reader",
       "GET /reference/resource-roles": "resource_roles_reader",
       "GET /reference/calendars": "calendars_reader",
@@ -627,7 +627,7 @@ describe("the settings of the resources", () => {
   it("never ask the deactivated objects of a session that may not read the settings of the resources, which the contract refuses, nor offer to show them, to filter on them or to reactivate them [WF-IHM-0090-A]", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
       "GET /reference/org-nodes": "org_nodes_reader",
       "GET /reference/resource-roles": "resource_roles_reader",
       "GET /reference/calendars": "calendars_reader",

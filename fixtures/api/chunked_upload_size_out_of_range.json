@@ -1,0 +1,17 @@
+{
+  "summary": "L'ouverture du dépôt d'un fichier waterfall-2026-06-02.tar annoncé vide, zéro octet : refusée, la taille sous la plus petite admise, un octet, le champ désigné avec la borne franchie ; aucun dépôt n'est ouvert (WF-ADM-0160).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/size_bytes",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 1
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001167"
+  }
+}

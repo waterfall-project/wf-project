@@ -8,11 +8,12 @@ examples written by hand, not the Vérif of a requirement: none cites one (WF-QU
 """
 
 import json
+import re
 from typing import Any, cast
 
 import pytest
 
-from wftools import mockaudit, mockcosts, mockdata, mockhistory, mocktext, mockwitness
+from wftools import REPOSITORY, mockaudit, mockcosts, mockdata, mockhistory, mocktext, mockwitness
 from wftools.mockids import hex_identifier, universe
 from wftools.mocktext import PAGE
 from wftools.mockwitness import INSTALLED, TODAY, fixture
@@ -31,6 +32,16 @@ def journal() -> dict[str, Node]:
 
 def _events(answer: Node) -> list[Node]:
     return cast("list[Node]", answer["items"])
+
+
+def _answered(operation: str, status: str) -> list[Node]:
+    """Return the values of the examples the contract gives for one answer of an operation."""
+    text = (REPOSITORY / "docs/api/paths/access.yaml").read_text(encoding="utf-8")
+    block = text.split(f"operationId: {operation}\n", 1)[1].split(f"'{status}':", 1)[1]
+    block = re.split(r"\n      '\d{3}':", block, maxsplit=1)[0]
+    names = re.findall(r"fixtures/api/(\w+)\.json", block)
+    assert names, operation
+    return [cast("Node", fixture(name)) for name in names]
 
 
 def test_the_journal_reads_the_latest_first_each_inscription_once_since_the_installation(
@@ -163,6 +174,32 @@ def test_an_account_is_given_the_roles_created_after_it_once_they_exist(
         created = max(roles[role]["audit"]["created_at"] for role in user["access_role_ids"])
         assert event["occurred_at"] == created > user["audit"]["created_at"]
     assert [event["object"]["label"] for event in given] == ["Camille Martin"]
+
+
+def test_each_inscription_says_what_its_action_did_in_codes_and_identifiers(
+    journal: dict[str, Node],
+) -> None:
+    # The origin of an account created, the permissions of a role created, the roles given to an
+    # account by their identifiers and labels; nothing for any other action of the universe (#706).
+    users = {user["user_id"]: user for user in fixture("users")["items"]}
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    for event in _events(journal["audit_events"]):
+        named = event["object"]["object_id"]
+        if event["action"] == "user_create":
+            assert event["params"] == {"origin": users[named]["origin"]}
+        elif event["action"] == "access_role_create":
+            assert event["params"] == {"permissions": roles[named]["permissions"]}
+        elif event["action"] == "user_access_roles_set":
+            granted = [
+                {"access_role_id": held, "label": roles[held]["label"]}
+                for held in users[named]["access_role_ids"]
+            ]
+            assert event["params"] == {
+                "access_roles_granted": granted,
+                "access_roles_withdrawn": [],
+            }
+        else:
+            assert event["params"] == {}, event["action"]
 
 
 def test_the_other_readings_are_pages_and_filters_of_the_one_journal(
@@ -312,16 +349,16 @@ def test_the_roles_are_inscribed_before_the_accounts_that_hold_them(
 def test_an_account_updated_by_its_holder_alone_is_no_inscription(
     journal: dict[str, Node],
 ) -> None:
-    # The session's own account was last updated today by its holder, its preferences of display:
+    # The witness account was last updated today by its holder, its preferences of display:
     # no administrator modified it, and the journal says nothing of it (WF-SEC-0030).
-    session = fixture("session")["user"]
-    audit = session["audit"]
+    account = fixture("me")
+    audit = account["audit"]
     assert audit["updated_at"] == mockhistory.stamp(TODAY)
-    assert audit["updated_by"]["user_id"] == session["user_id"]
+    assert audit["updated_by"]["user_id"] == account["user_id"]
     about = [
         e
         for e in _events(journal["audit_events"])
-        if e["object"]["object_id"] == session["user_id"]
+        if e["object"]["object_id"] == account["user_id"]
         and e["occurred_at"] == audit["updated_at"]
     ]
     assert about == []
@@ -553,12 +590,12 @@ def test_the_estimate_applied_today_heads_the_journal_of_the_witness_with_its_re
     # The import of the estimate analysed this morning, applied by its task, which succeeds just
     # after today: one inscription of its own request, on the import under its file name, in the
     # revision in progress where an estimate applies (WF-INTF-0090), by the account of the
-    # session; the rest is the journal of the witness as it was.
+    # witness; the rest is the journal of the witness as it was.
     imported = _events(journal["audit_events_import_applied"])
     head, rest = imported[0], imported[1:]
     analysed = fixture("import_analysed")
     task = fixture("task_import_succeeded")
-    session = fixture("session")["user"]
+    account = fixture("me")
     current = fixture("project")["current_revision_id"]
     assert analysed["kind"] == "estimate"
     assert task["kind"] == "import_apply"
@@ -572,8 +609,8 @@ def test_the_estimate_applied_today_heads_the_journal_of_the_witness_with_its_re
     }
     assert head["actor"] == {
         "kind": "user",
-        "user_id": session["user_id"],
-        "display_name": mockaudit.display_name(session),
+        "user_id": account["user_id"],
+        "display_name": mockaudit.display_name(account),
     }
     assert head["project"] is not None
     assert head["project"]["project_id"] == fixture("project")["project_id"]
@@ -588,3 +625,173 @@ def test_the_estimate_applied_today_heads_the_journal_of_the_witness_with_its_re
     assert all(
         event["object"]["revision"] is None for event in rest if event["action"] == "import_apply"
     )
+
+
+def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_role_did(
+    journal: dict[str, Node],
+) -> None:
+    # Each write of today the examples of the accounts and the roles answer, inscribed as the
+    # service inscribes it: in codes, identifiers and labels of the moment (#706, #961).
+    administration = _events(journal["audit_events_administration"])
+    created, renamed = fixture("access_role_created"), fixture("access_role_renamed")
+    account, cleared = fixture("user_created"), fixture("user_access_roles_cleared")
+    camille, platform = created["audit"]["created_by"], mockaudit.PLATFORM
+    chiffreur = {"access_role_id": universe(705), "label": "Chiffreur"}
+    pilotage = {"access_role_id": universe(706), "label": "Pilotage de projet"}
+    role, user = created["access_role_id"], account["user_id"]
+    expected: list[tuple[Node, str, str, str, Node]] = [
+        (camille, "access_role_create", role, "Contrôle de gestion", {"permissions": []}),
+        (
+            camille,
+            "access_role_update",
+            role,
+            "Contrôle de gestion",
+            {"permissions_granted": [], "permissions_withdrawn": []},
+        ),
+        (
+            camille,
+            "access_role_update",
+            renamed["access_role_id"],
+            "Responsable d'équipe",
+            {
+                "previous_label": "Manager",
+                "permissions_granted": ["planning.write"],
+                "permissions_withdrawn": ["cost_settings.write", "resource_settings.write"],
+            },
+        ),
+        (camille, "user_create", user, "Léa Garnier", {"origin": "local"}),
+        (
+            camille,
+            "user_access_roles_set",
+            user,
+            "Léa Garnier",
+            {"access_roles_granted": [chiffreur], "access_roles_withdrawn": []},
+        ),
+        (camille, "user_update", universe(305), "Lucas Petit-Laurent", {"fields": ["last_name"]}),
+        (
+            platform,
+            "user_update",
+            universe(307),
+            "Noé Vidal-Roux",
+            {"fields": ["last_name"], "attached": True},
+        ),
+        (
+            camille,
+            "user_access_roles_set",
+            cleared["user_id"],
+            "Inès Roux",
+            {"access_roles_granted": [], "access_roles_withdrawn": [pilotage]},
+        ),
+    ]
+    assert [
+        (
+            event["actor"],
+            event["action"],
+            event["object"]["object_id"],
+            event["object"]["label"],
+            event["params"],
+        )
+        for event in administration[::-1]
+    ] == expected
+    # Today, on no project, in no revision; the roles withdrawn are those « Manager » held.
+    assert {event["occurred_at"] for event in administration} == {mockhistory.stamp(TODAY)}
+    assert all(event["project"] is None for event in administration)
+    assert all(event["object"]["revision"] is None for event in administration)
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    assert set(mockaudit.WITHDRAWN) <= set(roles[renamed["access_role_id"]]["permissions"])
+
+
+def test_the_administration_of_today_is_numbered_apart_from_every_other_example(
+    journal: dict[str, Node],
+) -> None:
+    # One request a write, save the first role of an account created, inscribed by the request that
+    # creates it; and no identifier nor correlation another example of the contract gives.
+    administration = _events(journal["audit_events_administration"])[::-1]
+    requests = [event["correlation_id"] for event in administration]
+    assert requests[3] == requests[4]
+    assert len(set(requests)) == len(requests) - 1
+    written = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in mockwitness.FIXTURES.glob("*.json")
+        if path.name != "audit_events_administration.json"
+    }
+    for event in administration:
+        for name, text in written.items():
+            assert event["audit_event_id"] not in text, name
+            assert event["correlation_id"] not in text, name
+
+
+def test_the_combined_modification_of_manager_is_a_variant_whose_changes_add_up(
+    journal: dict[str, Node],
+) -> None:
+    # No example of updateAccessRole renames a role and changes its permissions at once: the
+    # modification of « Manager » that does both is a variant, its state after written by
+    # mockaudit, and what it grants and withdraws is read from it as the service reads it (#961).
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    for answer in _answered("updateAccessRole", "200"):
+        held = roles[answer["access_role_id"]]
+        assert answer["label"] == held["label"] or answer["permissions"] == held["permissions"]
+    administration = _events(journal["audit_events_administration"])[::-1]
+    [combined] = [event for event in administration if "previous_label" in event["params"]]
+    before = cast("list[str]", roles[combined["object"]["object_id"]]["permissions"])
+    updated = cast("list[str]", fixture("access_role_updated")["permissions"])
+    after = [code for code in updated if code not in mockaudit.WITHDRAWN]
+    granted = combined["params"]["permissions_granted"]
+    withdrawn = combined["params"]["permissions_withdrawn"]
+    assert withdrawn == list(mockaudit.WITHDRAWN)
+    assert set(withdrawn) <= set(before)
+    assert not set(granted) & set(before)
+    kept = [code for code in before if code not in withdrawn]
+    assert sorted([*kept, *granted], key=updated.index) == after
+
+
+def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
+    journal: dict[str, Node],
+) -> None:
+    # Each example of createUser creates its account without any role, and none of
+    # setUserAccessRoles answers the account created: the first role the administration gives it,
+    # under the correlation of its creation, is a liberty of the variant, not read from them (#961).
+    created = _answered("createUser", "201")
+    assert all(answer["access_role_ids"] == [] for answer in created)
+    account = fixture("user_created")["user_id"]
+    set_roles = _answered("setUserAccessRoles", "200")
+    assert account not in {answer["user_id"] for answer in set_roles}
+    administration = _events(journal["audit_events_administration"])[::-1]
+    creation = next(i for i, event in enumerate(administration) if event["action"] == "user_create")
+    first = administration[creation + 1]
+    assert first["action"] == "user_access_roles_set"
+    assert first["object"]["object_id"] == account
+    assert first["correlation_id"] == administration[creation]["correlation_id"]
+    [granted] = first["params"]["access_roles_granted"]
+    assert all(granted["access_role_id"] not in answer["access_role_ids"] for answer in created)
+
+
+def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it(
+    journal: dict[str, Node],
+) -> None:
+    # An inscription derived from an example is of its object and by the author of its last
+    # update; the others — the unchanged save, the first role, the attachment — are declared
+    # liberties of the variant, and the attachment, by the platform, is read from no example of an
+    # account, none of which the platform last updated (#961).
+    administration = _events(journal["audit_events_administration"])[::-1]
+    derived = {
+        0: ("access_role_created", "access_role_id"),
+        2: ("access_role_renamed", "access_role_id"),
+        3: ("user_created", "user_id"),
+        5: ("user_renamed", "user_id"),
+        7: ("user_access_roles_cleared", "user_id"),
+    }
+    for index, (name, key) in derived.items():
+        example, event = fixture(name), administration[index]
+        assert event["object"]["object_id"] == example[key], name
+        assert event["actor"] == example["audit"]["updated_by"], name
+    attached = administration[6]
+    assert attached["params"]["attached"] is True
+    assert attached["actor"] == mockaudit.PLATFORM
+    written = [
+        cast("Node", json.loads(path.read_text(encoding="utf-8"))["value"])
+        for path in mockwitness.FIXTURES.glob("user*.json")
+    ]
+    accounts = [each for each in written if each.get("user_id") == attached["object"]["object_id"]]
+    assert accounts
+    assert all(each["audit"]["updated_by"] != mockaudit.PLATFORM for each in accounts)

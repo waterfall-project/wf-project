@@ -149,7 +149,7 @@ beforeEach(() => {
   grids.rates = [];
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /reference/settings": "reference_settings",
     "GET /reference/cost-types": "cost_types",
     "GET /reference/cost-categories": "volume/cost_categories",
@@ -208,7 +208,7 @@ describe("the settings of the costs", () => {
   it("offer no entry of a rate, nor a reactivation the server does not list, to a session that may only read the cost settings [WF-IHM-0090-A]", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
       "GET /reference/cost-types": "cost_types_reader",
       "GET /reference/cost-categories": "volume/cost_categories_reader",
     };
@@ -229,7 +229,7 @@ describe("the settings of the costs", () => {
     expect(page).toMatch(/<p role="note"[^>]*>.*?Maquette\u00a0: le service simulé répond/);
     server.answers = {
       ...server.answers,
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
       "GET /reference/cost-types": "cost_types_reader",
       "GET /reference/cost-categories": "volume/cost_categories_reader",
     };

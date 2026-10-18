@@ -6,13 +6,29 @@ name = "waterfall"
 version = "0.1.0"
 description = "Waterfall: the business core, the API service and the worker, in one package."
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "alembic>=1.18",
+    "boto3>=1.40",
+    "email-validator>=2.3.0",
+    "fastapi>=0.143.0",
+    "httpx2>=2.13.1",
+    "psycopg[binary]>=3.3",
+    "pydantic-settings>=2.15.0",
+    "pyjwt[crypto]>=2.10",
+    "redis>=8.1",
+    "sqlalchemy>=2.1",
+    "structlog>=26.1.0",
+    "uuid-utils>=0.14",
+    "uvicorn>=0.54.0",
+]
 
 # One package, two processes: the API and the worker start from the same distribution, and
 # so carry the same version by construction (WF-ARC-0010).
 [project.scripts]
-waterfall-api = "waterfall.api.main:main"
+waterfall-api = "waterfall.bootstrap:main"
 waterfall-worker = "waterfall.worker.main:main"
+waterfall-migrate = "waterfall.migrations.runner:main"
+waterfall-restore = "waterfall.restore.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]
@@ -20,24 +36,46 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "boto3-stubs-lite[s3]>=1.40",
+    "datamodel-code-generator>=0.83.0",
+    "grimp>=3.17",
     "import-linter>=2.15",
+    "openapi-core>=0.23.1",
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-socket>=0.8.1",
+    "pyyaml>=6.0",
     "ruff>=0.16.9",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--strict-markers", "--strict-config"]
-markers = ["requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)"]
+# The tests of Keycloak need its platform: `make test-keycloak` selects them, `-m keycloak`
+# overriding the selection below.
+addopts = ["--strict-markers", "--strict-config", "-m", "not keycloak"]
+markers = [
+    "requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)",
+    "keycloak: runs against the Keycloak of the service platform (make test-keycloak)",
+]
 xfail_strict = true
 filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true
-source = ["waterfall"]
+source_dirs = ["src/waterfall"]
+omit = [
+    # The models engendered from the contract are written by a tool, not by us (US-0060).
+    "src/waterfall/api/contract/models.py",
+    # The administration API of Keycloak, which only Keycloak answers: the tests of the service
+    # platform try it, and `make test-keycloak` measures it to the same thresholds
+    # (coverage-keycloak.toml); this measure runs no Keycloak.
+    "src/waterfall/platform/keycloak_admin.py",
+    # The reading of the accounts, which asks Keycloak at each step: measured with it.
+    "src/waterfall/worker/identity_sync.py",
+    # The bootstrap, which creates the administrator in Keycloak: tried and measured likewise.
+    "src/waterfall/bootstrap.py",
+]
 
 [tool.coverage.report]
 # The guard that runs a module as a script is run by the entry points, in their own
@@ -48,6 +86,10 @@ exclude_also = ["if __name__ == .__main__.:"]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
 include = ["src", "tests"]
+# The tests share what ``tests/conftest.py`` holds.
+extraPaths = ["src", "tests"]
+# The models engendered from the contract are written by a tool, not by us.
+exclude = ["src/waterfall/api/contract/models.py"]
 # `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).
 enableTypeIgnoreComments = false
 reportUnnecessaryTypeIgnoreComment = "error"
@@ -57,9 +99,9 @@ reportUnnecessaryTypeIgnoreComment = "error"
 root_package = "waterfall"
 
 [[tool.importlinter.contracts]]
-name = "The core imports neither the API nor the worker, which do not import each other"
+name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them; the bootstrap and the service of the restoration, which apply the migrations, are imported by none"
 type = "layers"
-layers = ["waterfall.api | waterfall.worker", "waterfall.core"]
+layers = ["waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"
@@ -67,3 +109,9 @@ type = "independence"
 modules = ["waterfall.core.*"]
 ignore_imports = ["waterfall.core.** -> waterfall.core.*.interface"]
 unmatched_ignore_imports_alerting = "none"
+
+# The generator of the models of the contract (`make generate-server-models`), which reads this
+# section besides its command line: every model it engenders refuses a text that holds a NUL,
+# which PostgreSQL would refuse later as a failure (waterfall.api.contract.base).
+[tool.datamodel-codegen]
+base-class = "waterfall.api.contract.base.ContractModel"

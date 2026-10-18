@@ -8,16 +8,16 @@ import { example } from "@/test/fixtures";
 
 import { estimatedRevision, leadsToEstimate } from "./estimate-lead";
 
-type Session = components["schemas"]["Session"];
+type Session = components["schemas"]["UserSelf"];
 
 const witness = example("project") as Project;
 
 describe("where the deletion of a sub-project estimate lines bear leads", () => {
   it.each([
-    ["session", "project", witness.current_revision_id],
+    ["me", "project", witness.current_revision_id],
     // No role, and so no permission to read the estimate.
-    ["session_without_roles", "project", undefined],
-    ["session", "project_without_current_revision", undefined],
+    ["me_without_roles", "project", undefined],
+    ["me", "project_without_current_revision", undefined],
   ])(
     "to the estimate of the revision in progress, read by the session (%s, %s)",
     (session, project, revision) => {

@@ -800,7 +800,7 @@ describe("the resource roles", () => {
     await vi.waitFor(() => {
       expect(node).toHaveFocus();
     });
-    expect(node).toHaveAccessibleDescription("Nœud d’organisation inconnu.");
+    expect(node).toHaveAccessibleDescription("Ce nœud d’organisation n’existe pas.");
     expect(category).toHaveAccessibleDescription(
       "Une catégorie de coût de main-d’œuvre est requise.",
     );

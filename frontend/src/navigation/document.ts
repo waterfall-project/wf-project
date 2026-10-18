@@ -8,7 +8,7 @@
  * interrupted (`src/components/tasks/storage.ts`).
  */
 
-/** Load the document at an address of the front. */
+/** Load the document at an address of the front, or of the sign-out of the realm. */
 export function loadDocument(address: string): void {
   window.location.assign(address);
 }

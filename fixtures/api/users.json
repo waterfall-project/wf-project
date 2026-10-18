@@ -1,5 +1,5 @@
 {
-  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, de l'atelier de câblage, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin. Lus par Camille Martin, qui peut les modifier : chacun porte sa désactivation, ou sa réactivation s'il est désactivé, et l'attribution de ses rôles ; Camille Martin, le seul compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, a sa désactivation indisponible, last_administrator manquante, l'attribution de ses rôles restant disponible : seul le retrait de ces permissions lui est refusé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180, WF-ADM-0120, WF-IHM-0090).",
+  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, de l'atelier de câblage, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin. Lus par Camille Martin, qui peut les modifier : chacun porte sa désactivation, ou sa réactivation et son anonymisation s'il est désactivé, et l'attribution de ses rôles ; Camille Martin, le seul compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, a sa désactivation indisponible, last_administrator manquante, l'attribution de ses rôles restant disponible : seul le retrait de ces permissions lui est refusé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180, WF-ADM-0120, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -7,6 +7,7 @@
         "last_name": "Bernard",
         "first_name": "Dominique",
         "email": "dominique.bernard@example.com",
+        "anonymized_at": null,
         "is_active": true,
         "origin": "directory",
         "org_node_id": null,
@@ -47,6 +48,7 @@
         "last_name": "Lefèvre",
         "first_name": "Sacha",
         "email": "sacha.lefevre@example.com",
+        "anonymized_at": null,
         "is_active": true,
         "origin": "identity_provider",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
@@ -83,6 +85,7 @@
         "last_name": "Martin",
         "first_name": "Camille",
         "email": "camille.martin@example.com",
+        "anonymized_at": null,
         "is_active": true,
         "origin": "local",
         "org_node_id": null,
@@ -127,6 +130,7 @@
         "last_name": "Moreau",
         "first_name": "Alix",
         "email": "alix.moreau@example.com",
+        "anonymized_at": null,
         "is_active": false,
         "origin": "local",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
@@ -141,6 +145,11 @@
         "available_commands": [
           {
             "command": "reactivate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "anonymize",
             "is_available": true,
             "missing_conditions": []
           },
@@ -171,6 +180,7 @@
         "last_name": "Petit",
         "first_name": "Lucas",
         "email": "lucas.petit@example.com",
+        "anonymized_at": null,
         "is_active": true,
         "origin": "local",
         "org_node_id": null,
@@ -215,6 +225,7 @@
         "last_name": "Roux",
         "first_name": "Inès",
         "email": "ines.roux@example.com",
+        "anonymized_at": null,
         "is_active": true,
         "origin": "local",
         "org_node_id": null,
@@ -259,6 +270,7 @@
         "last_name": "Vidal",
         "first_name": "Noé",
         "email": "noe.vidal@example.com",
+        "anonymized_at": null,
         "is_active": true,
         "origin": "local",
         "org_node_id": null,

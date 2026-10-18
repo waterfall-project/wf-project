@@ -1,0 +1,17 @@
+{
+  "summary": "Les comptes demandés créés du 1er mars 2026 au 1er janvier 2026, en temps universel : la fin de la période de création précède son début, et le paramètre created_at_to est refusé, désigné par /query/created_at_to, le début nommé (WF-IHM-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/created_at_to",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "2026-03-01T00:00:00Z"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001056"
+  }
+}

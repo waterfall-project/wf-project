@@ -3,18 +3,34 @@
     operationId: getLiveness
     tags: [system]
     security: []
-    summary: Sonde de vivacité
-    description: Répond dès que le processus est démarré, sans toucher aucun composant de données.
+    summary: Sonde de vivacité, et la maintenance d'une restauration
+    description: >-
+      Répond dès que le processus est démarré, sans toucher aucun composant de données. Elle dit
+      aussi la maintenance d'une restauration (`startRestore`, WF-ADM-0160) : `status` vaut
+      `maintenance` tant que la plateforme est en maintenance, toute autre opération répondant
+      alors 503 `COMPONENT_UNAVAILABLE`, et `ok` une fois la maintenance levée, la restauration
+      aboutie. Le front l'interroge pour savoir quand la restauration a abouti : l'état de
+      maintenance ne dépend pas de la base que la restauration recrée, et la tâche de la
+      restauration n'est pas lisible pendant la maintenance (#604). Une plateforme en
+      maintenance est vivante : la sonde répond 200.
     responses:
       '200':
-        description: Le processus répond.
+        description: Le processus répond ; en maintenance ou non.
         content:
           application/json:
             schema:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [ok] }
+                status:
+                  type: string
+                  enum: [ok, maintenance]
+                  description: >-
+                    `ok` : la plateforme sert ses opérations ; `maintenance` : une restauration
+                    la tient en maintenance, et seule cette sonde répond.
+            examples:
+              ok: { $ref: ../../../fixtures/api/liveness.json }
+              maintenance: { $ref: ../../../fixtures/api/liveness_maintenance.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /installation:
@@ -26,8 +42,9 @@
     description: >-
       La langue par défaut de l'installation, sur laquelle le front se replie quand le
       compte suit le navigateur et que celui-ci ne demande aucune langue offerte
-      (WF-INTF-0160) — y compris sur les pages sans session : connexion, mot de passe
-      oublié.
+      (WF-INTF-0160) — y compris avant toute connexion. Avant l'amorçage de l'installation
+      (WF-EXP-0020), qui en crée la ligne, l'opération répond 503 `COMPONENT_UNAVAILABLE`,
+      `component` à `database`.
     responses:
       '200':
         description: Paramètres publics de l'installation.
@@ -103,6 +120,7 @@
               copy_failed: { $ref: ../../../fixtures/api/system_status_copy_failed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks:
   get:
@@ -150,6 +168,8 @@
               none: { $ref: ../../../fixtures/api/tasks_none.json }
               running: { $ref: ../../../fixtures/api/tasks_running.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}:
   get:
@@ -172,13 +192,17 @@
               succeeded: { $ref: ../../../fixtures/api/task_succeeded.json }
               running: { $ref: ../../../fixtures/api/task_running.json }
               failed: { $ref: ../../../fixtures/api/task_failed.json }
+              restore_backup_newer_version: { $ref: ../../../fixtures/api/task_restore_backup_newer_version.json }
+              interrupted_by_restore: { $ref: ../../../fixtures/api/task_interrupted_by_restore.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }
               restore_verification_failed: { $ref: ../../../fixtures/api/task_restore_verification_failed.json }
               merge_outside_order_item: { $ref: ../../../fixtures/api/task_merge_outside_order_item.json }
+              identity_sync_succeeded: { $ref: ../../../fixtures/api/identity_sync_succeeded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}/result:
   get:
@@ -220,3 +244,4 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

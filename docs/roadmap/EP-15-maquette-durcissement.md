@@ -103,6 +103,53 @@ d'EP-15 à son ouverture :
 - #806 — front : les mineurs de la relecture 1 d'EP-14/L44c, le lotissement dans sa grille ;
 - #92 [US-0290] et #127.
 
+Reportés d'EP-03, par EP-14, le 2026-10-17 : les vingt-cinq constats qu'EP-03 avait reportés vers
+EP-14, reportés → EP-15 par la décision de l'auteur du 2026-10-17, EP-14 resserrant son périmètre
+avant la validation (EP-14/L56) ; leurs issues sont retitrées « [EP-15] … » et portent la
+décision. Les dix-neuf premiers sont décrits dans les « Constats reçus » d'EP-14, « Reportés
+d'EP-03 », qui en garde la trace.
+
+- #846 — doc : le guide dit encore à venir la confirmation de #836 ;
+- #847 — front : la source commune des rôles répondus n'est éprouvée que dans un sens, et le test
+  d'axe de la matrice en fait deux ;
+- #872 — défaut : un import refusé après la fermeture de son formulaire n'est dit nulle part ;
+- #888 — front : trois mineurs du tour 3 d'US-0350/L5b (test sans Redis, own inconditionnel, use
+  client d'un utilitaire de test) ;
+- #889 — front : les écritures des rôles et de la matrice ne retiennent pas la navigation (#688) ;
+- #901 — front : la liste garde les refus des lectures passées, qui ne s'affichent plus (#849) ;
+- #902 — front : un test importe RouterContext d'un module privé de Next ;
+- #905 — test : des tests du front écrivent des espaces insécables littéraux, qu'ESLint ne relève
+  pas ;
+- #937 — front : le refus d'une écriture lancée avant un changement de lecture n'est dit nulle part
+  ;
+- #941 — front : une confirmation d'anonymisation n'écrit rien sans le dire quand la ligne est
+  occupée ;
+- #942 — front : la confirmation d'anonymisation n'énumère pas tout ce que l'anonymisation fait ;
+- #949 — front : la désactivation reste offerte pendant que le lien de la même ligne est en route ;
+- #951 — front : aucun test ne dit où tombe le focus quand le dialogue d'un lien se ferme par-dessus
+  la création ;
+- #959 — front : le focus tombe sur la page quand on ferme l'avis des écritures refusées de la barre
+  ;
+- #960 — front : l'avis de la barre dit le nombre des écritures refusées, sans dire laquelle,
+  pourquoi ni ce qui reste possible ;
+- #963 — front : deux finitions de l'écran et du parcours du journal d'audit ;
+- #967 — front : deux finitions du parcours et de la cellule de l'action du journal ;
+- #984 — front : le test de l'aboutissement de la lecture des comptes montre un compte rendu d'une
+  autre tâche ;
+- #990 — front : « Adresse portée par le compte Compte anonymisé » ;
+- #1005 — front : la liste des refus de compte est recopiée dans refusedState au lieu de passer par
+  ACCOUNT_REFUSALS ;
+- #1010 — front : un auteur choisi que le journal d'audit ne retient plus s'affiche par son
+  identifiant ;
+- #1012 — front : la documentation de la page des comptes dit encore qu'un refus ne vise qu'une
+  période ;
+- #1021 — test : citations manquantes et test de flux trop rigide (US-0440/L3) ;
+- #1023 — écran : « en attente » affiché un rendu avant la page du refus (US-0440/L3b) ;
+- #1024 — écran : « Session terminée » renvoie à une reconnexion qui ne dit pas l'issue de la
+  restauration (US-0440/L3b) ;
+- #1033 — front : sur un écran rempli, le plancher de la grille ne remonte pas la chaîne des
+  `min-h-0` ; `/admin/backups` ne remplit plus la fenêtre (reprise de main, #1032).
+
 ## Conception
 
 À écrire après la validation de l'auteur. Celle des navigateurs, validée au cadrage d'EP-14

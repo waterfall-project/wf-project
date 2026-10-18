@@ -33,10 +33,12 @@
  *
  * The button that sends says the write under way. The dialog may be closed meanwhile: the answer of
  * the server is handed back all the same (`onDone`), and a refusal is told above the list, on the
- * reading the form was sent from (`useListReport`) — what the server did is never left unsaid. A
- * form that writes from the version it opened on tells its write under way (`onWriting`), for the
- * command that opens it to wait for the answer rather than open it anew on the version the answer
- * replaces.
+ * reading the form was sent from (`useListReport`), or by the bar of the shell once the list is read
+ * otherwise (#863) — what the server did is never left unsaid. The list, which tells it, holds the
+ * navigations of the page while the write answers: a link pressed once the dialog is closed waits
+ * for it, and is not followed when it is refused (#688). A form that writes from the version it
+ * opened on tells its write under way (`onWriting`), for the command that opens it to wait for the
+ * answer rather than open it anew on the version the answer replaces.
  */
 "use client";
 
@@ -55,7 +57,7 @@ import {
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -423,6 +425,10 @@ export function ReferenceForm<T = ReferenceObject>({
   const [problems, setProblems] = useState<ReadonlyMap<string, FieldProblem>>(() => new Map());
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // The list holds the navigations while the write answers, when it is the one that may tell the
+  // refusal: the dialog closed meanwhile, its click is held all the same (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const controls = useRef<Partial<Record<string, HTMLInputElement | HTMLSelectElement | null>>>({});
   const open = useRef(true);
   useEffect(() => {
@@ -461,15 +467,17 @@ export function ReferenceForm<T = ReferenceObject>({
       return;
     }
     // The reading the form is sent from: a refusal answered once the dialog is gone is told on it.
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     onWriting?.(true);
     startTransition(async () => {
       try {
-        const answer = answering(await ask(values).catch(rejected));
+        // Open as the refusal arrives, the dialog tells it at its fields: the bar of the shell says
+        // nothing of it.
+        const answer = answering(await held(ask(values), () => open.current));
         if (answer.kind === "done") {
           onDone(answer.data);
         } else if (!open.current) {
-          list?.report({ outcome: answer, reading, names, target });
+          list?.report({ outcome: answer, generation, names, target });
         } else {
           const told = placed(fields, answer);
           refuse(told.refused);

@@ -12,7 +12,6 @@ import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import AvatarPage, { generateMetadata as avatarMetadata } from "./avatar/page";
 import AccountPage, { generateMetadata as accountMetadata } from "./page";
-import PasswordPage, { generateMetadata as passwordMetadata } from "./password/page";
 
 const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
   answers: {},
@@ -71,7 +70,6 @@ function choices(markup: string): (string | undefined)[] {
 beforeEach(() => {
   server.answers = {
     "GET /me": "me",
-    "GET /session": "session",
     "GET /installation": "installation",
   };
   server.clients = [];
@@ -87,11 +85,31 @@ describe("the screen of the account", () => {
     expect(choices(page)).toEqual(["default", "default"]);
     expect(page).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Mon compte<\/h1>/);
     expect([...page.matchAll(/<a [^>]*href="([^"]*)"/g)].map(([, href]) => href)).toEqual([
-      "/account/password",
       "/account/avatar",
     ]);
     expect(routes()).toEqual(["/me"]);
     expect(await accountMetadata()).toEqual({ title: "Mon compte — Waterfall" });
+  });
+
+  it.each([
+    ["a local account, to its page at the realm, which holds its password", "me", true],
+    ["an account of the directory, which has no password there to change", "me_directory", false],
+  ] as const)("leads %s", async (_, me, offered) => {
+    vi.stubEnv("WATERFALL_KEYCLOAK_ADDRESS", "https://keycloak.example/auth/");
+    try {
+      server.answers = { ...server.answers, "GET /me": me };
+      const page = html(await AccountPage());
+      const realm = "https://keycloak.example/auth/realms/waterfall/account";
+      const links = [...page.matchAll(/<a [^>]*>/g)].map(([tag]) => tag);
+      // Another site, in another tab, which gets no hold on this one.
+      const apart = /^(?=.* target="_blank")(?=.* rel="[^"]*\b(noopener|noreferrer)\b)/;
+      expect(links.filter((tag) => tag.includes(`href="${realm}"`))).toEqual(
+        offered ? [expect.stringMatching(apart)] : [],
+      );
+      expect(text(page).includes("Ouvrir mon compte du fournisseur d’identité")).toBe(offered);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("offers the preferences the account chose", async () => {
@@ -105,25 +123,6 @@ describe("the screen of the account", () => {
     const failure = AccountPage();
     await expect(failure).rejects.toBeInstanceOf(SignedOut);
     await expect(failure).rejects.toMatchObject({ digest: SESSION_REQUIRED_DIGEST });
-  });
-});
-
-describe("the change of the password", () => {
-  it("offers a local account its current and its new password", async () => {
-    const page = html(await PasswordPage());
-    expect(page).toMatch(/autoComplete="current-password"/i);
-    expect(page).toMatch(/autoComplete="new-password"/i);
-    expect(text(page)).toContain("Changer le mot de passe");
-    expect(await passwordMetadata()).toEqual({ title: "Changer le mot de passe — Waterfall" });
-  });
-
-  it("offers no form to an account of the directory, whose password the API would not change, and says where it is changed", async () => {
-    server.answers = { ...server.answers, "GET /me": "me_directory" };
-    const page = html(await PasswordPage());
-    expect(page).not.toMatch(/type="password"/);
-    expect(text(page)).toContain(
-      "Votre mot de passe est celui de l’annuaire ou du fournisseur d’identité dont vient votre compte : il ne se change pas dans Waterfall.",
-    );
   });
 });
 

@@ -41,6 +41,24 @@ describe("createApiClient", () => {
     expect(new URL(urls[0] ?? "").search).toBe("?status=queued,running");
   });
 
+  it("sends the bearer token it is given, asked for at each request, none otherwise", async () => {
+    const { send, requests } = recorder();
+    const tokens = ["t0k", undefined, "t1k"];
+    const bearer = () => Promise.resolve(tokens.shift());
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send, bearer });
+    await client.GET("/health");
+    await client.GET("/health");
+    await client.GET("/health");
+    const bare = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await bare.GET("/health");
+    expect(requests.map((request) => request.headers.get("Authorization"))).toEqual([
+      "Bearer t0k",
+      null,
+      "Bearer t1k",
+      null,
+    ]);
+  });
+
   it("keeps the prefix when the address ends with a slash", async () => {
     const { send, urls } = recorder();
     const client = createApiClient({ address: "http://api.example/", fetch: send });
@@ -52,12 +70,12 @@ describe("createApiClient", () => {
     const { send, urls, requests } = recorder();
     const client = createApiClient({ address: "http://localhost:4010", fetch: send });
     const { data, response } = await client.POST("/projects", { body: { label: "Poste" } });
-    await client.DELETE("/session");
+    await client.DELETE("/me/sessions");
 
     expect(requests.map((request) => request.method)).toEqual(["POST", "DELETE"]);
     expect(urls).toEqual([
       `http://localhost:4010${API_PREFIX}/projects`,
-      `http://localhost:4010${API_PREFIX}/session`,
+      `http://localhost:4010${API_PREFIX}/me/sessions`,
     ]);
     expect(requests[0]?.headers.get("content-type")).toBe("application/json");
     expect(await requests[0]?.json()).toEqual({ label: "Poste" });

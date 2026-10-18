@@ -1,41 +1,64 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The way back from the sign-in page: a refusal for want of a session (401) leads to
- * `/login?next=<the screen aimed at>`, and the sign-in page, once signed in again, goes to
- * the screen `next` names (US-0320). `next` is the path of the screen with its query — the
+ * The way back from the sign-in: a refusal for want of a session (401) leads to
+ * `/login?next=<the screen aimed at>`, and the route `/login`, once the session is open, goes
+ * to the screen `next` names (US-0320). `next` is the path of the screen with its query — the
  * reading context of a project lives in the address, so the screen comes back as it was.
  *
- * The address is anyone's to write: the sign-in page follows only a path of this front, never
- * another site (`returnTarget`), or a link could send a user who just signed in elsewhere.
+ * The address is anyone's to write: `/login` follows only a path of this front, never another
+ * site (`returnTarget`), or a link could send a user who just signed in elsewhere.
  *
- * The sign-in page and the password forgotten are the way in: they stand outside the shell.
+ * `/login` is a route handler (`src/app/login/route.ts`), not a page: the identity provider
+ * shows the screens of the sign-in, and Waterfall asks for no password (WF-ADM-0140).
  */
 import { HOME } from "./home";
 
-/** The route of the sign-in page. */
+/** The route that opens the session, and comes back to the screen aimed at. */
 export const LOGIN_ROUTE = "/login";
 
-/**
- * The route of the password forgotten: without a token, the request of a link; with the token
- * of the link, the new password (`requestPasswordReset`, then `confirmPasswordReset`).
- */
-export const PASSWORD_RESET_ROUTE = "/login/reset";
-
-/** The parameter of the link of a password reset that carries its token. */
-export const TOKEN_PARAMETER = "token";
-
-/** The parameter of the sign-in page that names the screen to come back to. */
+/** The parameter of the sign-in route that names the screen to come back to. */
 export const NEXT_PARAMETER = "next";
 
-// The pages of the way in, which stand outside the shell: no navigation, no account, no task
-// before a session is open.
-const OUTSIDE_SHELL: ReadonlySet<string> = new Set([LOGIN_ROUTE, PASSWORD_RESET_ROUTE]);
+/**
+ * The parameter of the sign-in route that makes it the sign-out of a session the front lost
+ * (#689): a sign-in the realm answers silently, whose token closes the sessions of the account.
+ * It carries the ticket the server action of the sign-out armed, which the route takes once: a
+ * link of another site, which names none, is a sign-in like any other.
+ */
+export const SIGN_OUT_PARAMETER = "sign_out";
 
-/** Whether a path is a page of the way in, which the shell leaves bare. */
-export function isOutsideShell(pathname: string): boolean {
-  return OUTSIDE_SHELL.has(pathname);
+/**
+ * The parameter of the sign-in route that has the realm ask for the identifiers again
+ * (`prompt=login`), even though its session in the browser lives: the API refused a token of a
+ * sign-in that precedes the closing of the sessions of the account (401 `SESSION_REVOKED`, #855),
+ * which a sign-in of the same session would only bring again. Anyone may write it: it does no more
+ * than ask for the identifiers.
+ */
+export const REAUTHENTICATE_PARAMETER = "reauthenticate";
+
+/**
+ * Whether the sign-in a refusal of the API leads to asks for the identifiers again: on
+ * `SESSION_REVOKED` only. An expired token (`SESSION_EXPIRED`), or none, does not: the session of
+ * the realm signs the user in again without them.
+ */
+export function asksIdentifiers(code: unknown): boolean {
+  return code === "SESSION_REVOKED";
 }
+
+/** Where the sign-out of a session the front lost leads the browser: the ticket it armed. */
+export function signOutHref(ticket: string): string {
+  return `${LOGIN_ROUTE}?${new URLSearchParams({ [SIGN_OUT_PARAMETER]: ticket }).toString()}`;
+}
+
+/**
+ * The route that ends the session of the realm of an account Waterfall does not admit, which the
+ * API does not close (#664): the screen of failure offers it.
+ */
+export const REALM_SIGN_OUT_ROUTE = "/auth/sign-out";
+
+/** The page that says a sign-in could not be made, the service out of reach (#687). */
+export const SIGN_IN_UNAVAILABLE_ROUTE = `${LOGIN_ROUTE}/unavailable`;
 
 // An origin nobody serves, to resolve `next` as a browser would: only the path is kept.
 const FRONT = "http://front.invalid";
@@ -66,8 +89,27 @@ function staysOnFront(path: string): boolean {
   return URL.canParse(path, FRONT) && new URL(path, FRONT).origin === FRONT;
 }
 
-/** The address of the sign-in page, which comes back to a screen: its path and its query. */
-export function loginHref(screen: string): string {
+/**
+ * The page that says a sign-in could not be made, which offers it again for a screen; with
+ * `reauthenticate`, a sign-in that asks for the identifiers again, as the one that failed did:
+ * the session of the realm would still bring a token of the same sign-in (#855).
+ */
+export function signInUnavailableHref(screen: string, reauthenticate = false): string {
   const query = new URLSearchParams({ [NEXT_PARAMETER]: returnTarget(screen) });
+  if (reauthenticate) {
+    query.set(REAUTHENTICATE_PARAMETER, "1");
+  }
+  return `${SIGN_IN_UNAVAILABLE_ROUTE}?${query.toString()}`;
+}
+
+/**
+ * The address of the sign-in route, which comes back to a screen: its path and its query; with
+ * `reauthenticate`, a sign-in that asks for the identifiers again — on `SESSION_REVOKED` only.
+ */
+export function loginHref(screen: string, reauthenticate = false): string {
+  const query = new URLSearchParams({ [NEXT_PARAMETER]: returnTarget(screen) });
+  if (reauthenticate) {
+    query.set(REAUTHENTICATE_PARAMETER, "1");
+  }
   return `${LOGIN_ROUTE}?${query.toString()}`;
 }

@@ -93,7 +93,7 @@ function calls(route: string): string[] {
 beforeEach(() => {
   server.clients = [];
   server.answers = {
-    "GET /session": "session",
+    "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     [GET_REVISION]: "revision",
@@ -106,7 +106,7 @@ beforeEach(() => {
 describe("the screen of the imports and exports", () => {
   it("shows to a costing engineer who does not read the planning, the project listing them the imports, guarded by the commands it exercises (#521)", async () => {
     // A session without `planning.read`, the import of an estimate listed to it.
-    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const markup = await exchangesAt();
     expect(text(markup)).toContain("Import an estimate");
   });
@@ -114,7 +114,7 @@ describe("the screen of the imports and exports", () => {
   it("shows to a costing engineer to whom the project lists an import, even unavailable: its permission guards the screen, its availability the command (#521)", async () => {
     server.answers = {
       ...server.answers,
-      "GET /session": "session_estimator",
+      "GET /me": "me_estimator",
       // The import of an estimate listed, unavailable: the project has no revision the session may
       // create.
       "GET /projects/{project_id}": "project_pricing_estimator",
@@ -129,14 +129,14 @@ describe("the screen of the imports and exports", () => {
     // the project, which is not found either way.
     server.answers = {
       ...server.answers,
-      "GET /session": "session_without_roles",
+      "GET /me": "me_without_roles",
       "GET /projects/{project_id}": "project_reader",
     };
     await expect(exchangesAt()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
     // A manager reads the planning and the same project, no command listed to him: the screen
     // shows all the same, no import offered — it is the leaf of the planning.
     server.clients = [];
-    server.answers = { ...server.answers, "GET /session": "session_manager" };
+    server.answers = { ...server.answers, "GET /me": "me_manager" };
     const markup = await exchangesAt();
     expect(text(markup)).toContain("Imports and exports");
     expect(text(markup)).not.toContain("Import an estimate");

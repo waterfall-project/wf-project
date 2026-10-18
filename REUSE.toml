@@ -29,6 +29,7 @@ path = [
     "frontend/src/app/icon.svg",
     "frontend/src/navigation/functions.json",
     "frontend/src/api/generated/**",
+    "backend/src/waterfall/api/contract/models.py",
     "fixtures/**",
     "tools/src/wftools/py.typed",
 ]

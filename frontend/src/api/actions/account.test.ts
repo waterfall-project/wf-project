@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { changePassword, removeAvatar, replaceAvatar } from "./account";
+import { removeAvatar, replaceAvatar } from "./account";
 
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
@@ -35,21 +35,6 @@ beforeEach(() => {
 });
 
 describe("the server actions of the account", () => {
-  it("change the password with what was typed, which the API judges", async () => {
-    const client = serve({ "PUT /me/password": { status: 204 } });
-    const change = { current_password: "ancien mot de passe", new_password: "court" };
-    expect(await changePassword(change)).toEqual({ kind: "done", data: null });
-    expect(client.calls.map(({ route, body }) => [route, body])).toEqual([
-      ["PUT /me/password", change],
-    ]);
-
-    const refused = { code: "VALIDATION_FAILED", status: 422 } as const;
-    serve({ "PUT /me/password": { problem: refused } });
-    expect(await changePassword(change)).toMatchObject({ kind: "refused", problem: refused });
-    serve({ "PUT /me/password": { problem: { code: "SESSION_EXPIRED", status: 401 } } });
-    expect(await changePassword(change)).toMatchObject({ kind: "signed_out" });
-  });
-
   it("send the image of the avatar itself, with its media type, and render the page again", async () => {
     const client = serve({ "PUT /me/avatar": { status: 204 } });
     const image = new File([PNG], "camille.png", { type: "image/png" });

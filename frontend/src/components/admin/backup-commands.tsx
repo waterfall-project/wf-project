@@ -1,8 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The commands of the backups (FBS-1.4, EP-02/L43c, EP-14/L42h): start one, under the permission of
- * the catalogue that guards it (`backups.write`, WF-ADM-0100); and, on each backup, those it lists
+ * The commands of the backups (FBS-1.4, EP-02/L43c, EP-14/L42h, US-0440): start one, under the
+ * permission of the catalogue that guards it (`backups.write`, WF-ADM-0100); deposit a backup copied
+ * out of another installation, in the parts the server cuts it into (#350), then restore the
+ * platform from it, under the permission of the restoration (`platform_restore`) — the deposit is
+ * no command of a backup of the list, which none lists —; and, on each backup, those it lists
  * (`available_commands`, WF-IHM-0090) — mark it to be kept or no longer, whichever changes its
  * marking; download it; restore the platform from it —, each absent when the backup does not list
  * it, available, or unavailable with the conditions it lacks, as the server says them: a backup not
@@ -19,11 +22,13 @@
  *
  * A backup has no counter: a marking answered shows the backup as the server answered it while each
  * reading anew of the page reads it as the one before did (`BackupCommands`) — against the fake back,
- * which keeps nothing, for as long as the screen stays.
+ * which keeps nothing, for as long as the screen stays. A restoration, from a backup of the list or
+ * from a deposit, is confirmed in the one dialog (`RestoreDialog`), then followed by the screen of
+ * its maintenance (`Restoration`).
  */
 "use client";
 
-import { Archive, ArchiveRestore, DatabaseBackup, Download, History } from "lucide-react";
+import { Archive, ArchiveRestore, DatabaseBackup, Download, History, Upload } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -39,11 +44,19 @@ import {
   useTransition,
 } from "react";
 
-import { retainBackup, startBackup } from "@/api/actions/backups";
+import {
+  completeBackupDeposit,
+  type FileUpload,
+  openBackupDeposit,
+  retainBackup,
+  sendBackupPart,
+  startBackup,
+} from "@/api/actions/backups";
+import type { Outcome } from "@/api/problem";
+import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
-import { useLocalTimestamp } from "@/components/local-time";
+import { LocalTime, useLocalTimestamp } from "@/components/local-time";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import {
   ANOTHER_OBJECT,
@@ -55,11 +68,13 @@ import { useListReport } from "@/components/reference/reactivation";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
 import { afterReveal, useTrackTask } from "@/components/tasks/task-tracker";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/components/ui/utils";
 import { formatTimestamp } from "@/i18n/format";
 
 import { type Backup, downloadHref, withoutDownloadRefusal } from "./backup-address";
-import { RestoreDialog } from "./restore-dialog";
+import { RestoreDialog, type RestoreSubject } from "./restore-dialog";
 
 /** A command a backup lists, as the contract names it. */
 type BackupCommand = Backup["available_commands"][number]["command"];
@@ -159,6 +174,8 @@ function StartBackupButton() {
   const commands = useContext(ListCommands);
   const list = useListReport();
   const track = useTrackTask();
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const [pending, startTransition] = useTransition();
   return (
     <Button
@@ -170,14 +187,14 @@ function StartBackupButton() {
         if (pending) {
           return;
         }
-        const reading = list?.reading ?? "";
+        const generation = list?.generation ?? 0;
         startTransition(async () => {
-          const outcome = await startBackup().catch(rejected);
+          const outcome = await held(startBackup());
           if (outcome.kind === "done") {
             track(outcome.data, { command: startBackup });
             commands?.say(t("started"));
           } else {
-            list?.report({ outcome, reading, names: {}, target: "start" });
+            list?.report({ outcome, generation, names: {}, target: "start" });
           }
         });
       }}
@@ -248,6 +265,8 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
   const commands = useContext(ListCommands);
   const list = useListReport();
   const date = useLocalTimestamp(backup.taken_at);
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const [pending, startTransition] = useTransition();
   const retained = backup.is_retained;
   const offer = offerOf(backup, retained ? "release" : "retain");
@@ -257,9 +276,9 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
     if (pending) {
       return;
     }
-    const reading = list?.reading ?? "";
+    const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const answer = await retainBackup(backup.backup_id, !retained).catch(rejected);
+      const answer = await held(retainBackup(backup.backup_id, !retained));
       const outcome =
         answer.kind === "done" && answer.data.backup_id !== backup.backup_id
           ? ANOTHER_OBJECT
@@ -272,7 +291,7 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
           }),
         );
       } else {
-        list?.report({ outcome, reading, names: {}, target: `retain ${backup.backup_id}` });
+        list?.report({ outcome, generation, names: {}, target: `retain ${backup.backup_id}` });
       }
     });
   };
@@ -371,9 +390,19 @@ export function RestoreCell({ backup }: { readonly backup: Backup }) {
   );
 }
 
+/** What the confirmation of the restoration from a backup of the list states and sends. */
+function listed(backup: Backup): RestoreSubject {
+  return {
+    source: { backup_id: backup.backup_id },
+    takenAt: backup.taken_at,
+    identifier: backup.backup_id,
+    verification: backup.verification,
+  };
+}
+
 /**
  * The restoration open, within the list, on the backup as the page shows it now — the one read anew
- * after a date refused (`BACKUP_DATE_MISMATCH`), so that the dialog states and sends the date read,
+ * after a date refused (`CONFIRMATION_REQUIRED`), so that the dialog states and sends the date read,
  * never again the one captured at the press; the one of the press when the page no longer holds it.
  * Closed, it gives the focus back to the cell of its command, or to the list when the page read anew
  * no longer holds it (`focusBack`).
@@ -388,8 +417,7 @@ export function RestoreOpened() {
   const shown = commands.shown.find((backup) => backup.backup_id === opened.backup.backup_id);
   return (
     <RestoreDialog
-      backup={shown ?? opened.backup}
-      onStarted={commands.say}
+      subject={listed(shown ?? opened.backup)}
       onClose={() => {
         commands.open(undefined);
       }}
@@ -463,5 +491,164 @@ export function DownloadRefusal({
         dismissible
       />
     </div>
+  );
+}
+
+/** How far a deposit has come: the part being sent, of how many. */
+interface Sending {
+  readonly part: number;
+  readonly count: number;
+}
+
+/**
+ * Deposit an archive, part after part, as the server cut it: the parts it says received are not
+ * sent again. The first refusal stops the deposit.
+ */
+async function deposit(
+  file: File,
+  held: ReturnType<typeof useHeldCommand>,
+  progress: (sending: Sending) => void,
+): Promise<Outcome<FileUpload>> {
+  const opened = await held(openBackupDeposit(file.name, file.size));
+  if (opened.kind !== "done") {
+    return opened;
+  }
+  const { chunked_upload_id: id, part_count: count, part_size_bytes: size } = opened.data;
+  const received = new Set(opened.data.received_parts);
+  for (let part = 1; part <= count; part += 1) {
+    if (!received.has(part)) {
+      progress({ part, count });
+      const form = new FormData();
+      form.set("part", file.slice((part - 1) * size, part * size));
+      const sent = await held(sendBackupPart(id, part, form));
+      if (sent.kind !== "done") {
+        return sent;
+      }
+    }
+  }
+  return held(completeBackupDeposit(id));
+}
+
+/**
+ * What the confirmation of the restoration from a deposit states and sends: the date its manifest
+ * says, and the identifier of the deposit to type; its verification to come, by its restoration
+ * (EP-14/L42o). None for the file of an import, which dates no backup.
+ */
+function deposited(upload: FileUpload): RestoreSubject | undefined {
+  const takenAt = upload.backup_taken_at;
+  return takenAt === null
+    ? undefined
+    : {
+        source: { external_backup_upload_id: upload.upload_id },
+        takenAt,
+        identifier: upload.upload_id,
+        verification: "pending",
+      };
+}
+
+/**
+ * The deposit of a backup copied out of another installation, then the restoration of the platform
+ * from it, at the date its manifest says, confirmed as that of a backup of the list
+ * (`RestoreDialog`) — the whole platform replaced (WF-ADM-0160). Closed, the confirmation gives the
+ * focus back to the command that opened it.
+ */
+export function BackupDeposit() {
+  const t = useTranslations("admin.deposit");
+  const held = useHeldCommand();
+  const field = useId();
+  const restore = useRef<HTMLButtonElement>(null);
+  const [file, setFile] = useState<File>();
+  const [sending, setSending] = useState<Sending>();
+  const [upload, setUpload] = useState<FileUpload>();
+  const [confirming, setConfirming] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  const [pending, startTransition] = useTransition();
+  const send = () => {
+    if (pending || file === undefined) {
+      return;
+    }
+    setUpload(undefined);
+    setOutcome(undefined);
+    startTransition(async () => {
+      const result = await deposit(file, held, setSending);
+      setSending(undefined);
+      if (result.kind === "done") {
+        setUpload(result.data);
+      } else {
+        setOutcome(result);
+      }
+    });
+  };
+  const subject = upload === undefined ? undefined : deposited(upload);
+  return (
+    <section aria-label={t("title")} className="shrink-0 space-y-2 text-sm">
+      <h2 className="text-base font-semibold">{t("title")}</h2>
+      <p className="text-muted-foreground">{t("explanation")}</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="space-y-1">
+          <Label htmlFor={field}>{t("file")}</Label>
+          <Input
+            id={field}
+            type="file"
+            disabled={pending}
+            onChange={(event) => {
+              setFile(event.target.files?.[0]);
+              setUpload(undefined);
+            }}
+          />
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-busy={pending}
+          disabled={file === undefined}
+          onClick={send}
+        >
+          <Upload aria-hidden="true" />
+          {t("send")}
+        </Button>
+      </div>
+      {sending === undefined ? null : <p role="status">{t("sending", { ...sending })}</p>}
+      <OutcomeNotice
+        outcome={outcome}
+        onClear={() => {
+          setOutcome(undefined);
+        }}
+      />
+      {upload === undefined || subject === undefined ? null : (
+        <div className="flex flex-wrap items-center gap-2">
+          <p role="status">
+            {t.rich("deposited", {
+              name: upload.filename,
+              time: () => <LocalTime value={subject.takenAt} />,
+            })}
+          </p>
+          <Button
+            ref={restore}
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setConfirming(true);
+            }}
+          >
+            <History aria-hidden="true" />
+            {t("restore")}
+          </Button>
+        </div>
+      )}
+      {confirming && subject !== undefined ? (
+        <RestoreDialog
+          subject={subject}
+          onClose={() => {
+            setConfirming(false);
+          }}
+          onClosed={() => {
+            restore.current?.focus();
+          }}
+        />
+      ) : null}
+    </section>
   );
 }
