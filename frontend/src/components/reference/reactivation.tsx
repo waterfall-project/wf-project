@@ -6,10 +6,11 @@
  * after the row that knows it; the version stale (412), with the offer to reload; a form whose dialog
  * is gone — is told above the list (`Reactivations`), which a cell of a dense grid has no room for;
  * and a command the server lists unavailable — a node under a deactivated parent, a role under a
- * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120) — stays
- * presented, marked `aria-disabled` and described by the conditions it lacks, as the deletion of a
- * role an account holds is (`role-commands.tsx`): a press does not run it, and says in the region of
- * the list the conditions it lacks (`UnavailableActivation`). The commands themselves are those of
+ * deactivated node (WF-REF-0080), the deactivation of the default calendar (WF-REF-0120), the
+ * designation by default of a deactivated calendar (`calendar-default.tsx`) — stays presented, marked
+ * `aria-disabled` and described by the conditions it lacks, as the deletion of a role an account
+ * holds is (`role-commands.tsx`): a press does not run it, and says in the region of the list the
+ * conditions it lacks (`UnavailableActivation`). The commands themselves are those of
  * `commands.tsx`.
  *
  * Every prop is data — the name of the object, its commands —, never a function: a server component
@@ -27,21 +28,21 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useId,
   useMemo,
   useRef,
   useState,
 } from "react";
 
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
-import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
+import type { CommandOffer } from "@/components/commands/offer";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
 import { cn } from "@/components/ui/utils";
 import { readingOf } from "@/navigation/pages";
 
-import { CellCommand } from "./cell-command";
+import { UnavailableCellCommand } from "./cell-command";
 
 /** The outcome of a reactivation, and the reading of the list it was asked from. */
 interface Reported {
@@ -65,12 +66,23 @@ interface Reported {
 /** A command that changes the state of an object of the reference data. */
 type ActivationCommand = "deactivate" | "reactivate";
 
+/** A command of a row whose unavailability a press tells: an activation, or a designation. */
+type ToldCommand =
+  ActivationCommand | Extract<components["schemas"]["CalendarCommand"], "set_default">;
+
+/** The sentence that tells what an unavailable command lacks, by command. */
+const TOLD = {
+  reactivate: "unavailable",
+  deactivate: "deactivationUnavailable",
+  set_default: "designationUnavailable",
+} as const satisfies Readonly<Record<ToldCommand, string>>;
+
 /**
  * What a press of an unavailable command says, the how-many-th press it was, and the reading of the
  * list it was pressed on.
  */
 interface Told {
-  readonly command: ActivationCommand;
+  readonly command: ToldCommand;
   readonly name: string;
   readonly offer: CommandOffer;
   readonly press: number;
@@ -83,7 +95,7 @@ interface Told {
  */
 interface ListReport {
   readonly report: (reported: Reported) => void;
-  readonly tell: (name: string, offer: CommandOffer, command: ActivationCommand) => void;
+  readonly tell: (name: string, offer: CommandOffer, command: ToldCommand) => void;
   /**
    * The reading the list is on: counted anew each time the list is read otherwise, so that a
    * reading left and come back to is another — the clicks its commands held were released when it
@@ -130,7 +142,7 @@ function ToldConditions({ told }: { readonly told: Told | undefined }) {
     <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
       {told === undefined ? null : (
         <span key={told.press}>
-          {t(told.command === "reactivate" ? "unavailable" : "deactivationUnavailable", {
+          {t(TOLD[told.command], {
             name: told.name,
             unmet: unmet(told.offer),
           })}
@@ -151,8 +163,9 @@ interface Kept extends Reported {
  * the refusal of the same command on the same object, which replaces the one before —: a
  * success after them does not take them away, and the focus goes back to the control that asked the
  * write, when the refusal names one — a checkbox of the matrix —, else to the active cell of the grid
- * — or to the list, ringed — once one is. What an unavailable reactivation pressed
- * lacks is said in the region of the list, on the same reading alone. A refusal is told only on the reading it
+ * — or to the list, ringed — once one is. What an unavailable command pressed — a reactivation, a
+ * deactivation or a designation by default — lacks is said in the region of the list, on the same
+ * reading alone. A refusal is told only on the reading it
  * was asked from: an answer that arrives after the list is read otherwise — the deactivated ones
  * hidden, a search of its own — says nothing of the list now shown (défaut n° 1 de
  * `typescript.md`), nor of the list back on that reading, whose clicks it no longer holds (#688); a
@@ -203,7 +216,7 @@ export function Reactivations({
   const value = useMemo(
     () => ({
       report,
-      tell: (name: string, offer: CommandOffer, command: ActivationCommand) => {
+      tell: (name: string, offer: CommandOffer, command: ToldCommand) => {
         setTold((before) => ({
           command,
           name,
@@ -250,8 +263,8 @@ export function Reactivations({
 }
 
 /**
- * The activation of an object the server lists unavailable, with the conditions it lacks: marked
- * `aria-disabled`, described by them, and, pressed, saying them in the region of the list.
+ * The activation of an object the server lists unavailable, with the conditions it lacks
+ * (`UnavailableCellCommand`): pressed, it says them in the region of the list.
  */
 export function UnavailableActivation({
   command,
@@ -264,27 +277,16 @@ export function UnavailableActivation({
 }) {
   const t = useTranslations("reference.state");
   const list = useContext(Report);
-  const unmet = useUnmet()(offer);
-  const described = `${useId()}-unmet`;
   return (
-    <>
-      <CellCommand
-        aria-label={t(command, { name })}
-        aria-disabled
-        aria-describedby={described}
-        title={unmet}
-        className={UNAVAILABLE}
-        onClick={() => {
-          // An unavailable command never runs: the press says the conditions it lacks.
-          list?.tell(name, offer, command);
-        }}
-      >
-        {command === "reactivate" ? <RotateCcw aria-hidden="true" /> : <Ban aria-hidden="true" />}
-        {t(`${command}Short`)}
-      </CellCommand>
-      <span id={described} className="sr-only">
-        {unmet}
-      </span>
-    </>
+    <UnavailableCellCommand
+      name={t(command, { name })}
+      offer={offer}
+      onPress={() => {
+        list?.tell(name, offer, command);
+      }}
+    >
+      {command === "reactivate" ? <RotateCcw aria-hidden="true" /> : <Ban aria-hidden="true" />}
+      {t(`${command}Short`)}
+    </UnavailableCellCommand>
   );
 }

@@ -6,7 +6,7 @@
  * backs the platform up and the tracker follows the task to its end (WF-ADM-0150); the screen read
  * anew lists the backup, which the administrator downloads, then deposits as the archive of another
  * installation would be (#350), and the deposit says the date its manifest says. The backup of the
- * list is then restored at its date, confirmed (WF-ADM-0160). The screen gives way to that of the
+ * list is then restored, its identifier typed, the confirmation naming its date (WF-ADM-0160). The screen gives way to that of the
  * maintenance, every user signed out, until the restoration is done; the administrator signs in
  * again, with the password of the backup, and finds the screen.
  *
@@ -74,7 +74,7 @@ test(
     await handOver(page.getByRole("button", { name: "Sauvegarder maintenant" }), entries);
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 180_000 });
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
-    const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
+    const newest = page.getByRole("grid", { name: "Sauvegardes" }).getByRole("row").nth(1);
     // Listed first, once the screen is read anew, with its date, the instant it was taken, which
     // the browser writes in its local time — a backup of a run before may be listed until then —,
     // and with its size.
@@ -85,13 +85,11 @@ test(
     await expect(taken).not.toBeEmpty();
     const takenIso = (await taken.getAttribute("datetime")) ?? "";
     const takenAt = Date.parse(takenIso);
-    await expect(newest.getByRole("cell").nth(1)).toHaveText(
-      /^\d+(,\d)?\s(octet|kilooctet|mégaoctet|gigaoctet)s?$/,
-    );
+    await expect(newest).toContainText(/\d+(,\d)?\s(octet|kilooctet|mégaoctet|gigaoctet)s?/);
 
     // Downloaded through the front, which hands the archive on under its name.
     const downloading = page.waitForEvent("download");
-    await newest.getByRole("link", { name: "Télécharger" }).click();
+    await newest.getByRole("link", { name: /^Télécharger la sauvegarde du / }).click();
     const download = await downloading;
     expect(download.suggestedFilename()).not.toBe("");
     const archive = testInfo.outputPath(download.suggestedFilename());
@@ -109,13 +107,23 @@ test(
     const deposited = await deposit.getByRole("time").getAttribute("datetime");
     expect(Date.parse(deposited ?? "")).toBe(takenAt);
 
-    // The backup of the list restored once its date is confirmed — not the deposit, whose dumps
-    // Prism altered —: first the restoration waiting, no one signed out yet.
+    // The backup of the list restored once its identifier is typed, the confirmation naming its
+    // date — not the deposit, whose dumps Prism altered —: first the restoration waiting, no one
+    // signed out yet.
+    // The date as the list writes it, read before the dialog opens: modal, it hides the page
+    // behind it, the grid with it.
+    const takenText = await taken.innerText();
     const confirmed = Date.now();
-    await newest.getByRole("button", { name: "Restaurer", exact: true }).click();
-    const dialog = page.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
-    await expect(dialog.getByRole("time").first()).toHaveAttribute("datetime", takenIso);
-    await dialog.getByRole("button", { name: /^Restaurer la sauvegarde du/ }).click();
+    await newest
+      .getByRole("button", { name: /^Restaurer la plateforme depuis la sauvegarde du / })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Restaurer la plateforme" });
+    await expect(dialog).toContainText(`sauvegarde du ${takenText}`);
+    const identifier = await dialog.locator("code").innerText();
+    await dialog
+      .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
+      .fill(identifier);
+    await dialog.getByRole("button", { name: "Restaurer", exact: true }).click();
     const maintenance = page.getByRole("status", {
       name: "Restauration de la plateforme en cours",
     });
@@ -136,7 +144,7 @@ test(
     await page.getByRole("link", { name: "Se connecter" }).click();
     await giveIdentifiers(page, ADMINISTRATOR);
     await expect(page).toHaveURL(BACKUPS);
-    await expect(page.getByRole("table", { name: "Sauvegardes" })).toBeVisible();
+    await expect(page.getByRole("grid", { name: "Sauvegardes" })).toBeVisible();
 
     // Whatever end the screen saw, the restoration took place and succeeded: the last inscription
     // of the journal of audit is the restoration itself, of the backup, which the service writes

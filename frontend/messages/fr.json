@@ -105,7 +105,8 @@
       "auditLog": "Journal d’audit",
       "portfolioProjects": "Projets du portefeuille",
       "remaining": "Grille de reste à engager",
-      "projects": "Liste des projets"
+      "projects": "Liste des projets",
+      "backups": "Sauvegardes"
     },
     "columns": {
       "rowNumber": "N°",
@@ -205,6 +206,13 @@
       "objectHistory": "Histoire de l’objet",
       "project": "Projet",
       "correlation": "Corrélation",
+      "takenAt": "Date",
+      "size": "Taille",
+      "verification": "Vérification",
+      "backupOrigin": "Déclenchement",
+      "retention": "Conservation",
+      "download": "Téléchargement",
+      "restore": "Restauration",
       "passwordLink": "Lien de fixation"
     },
     "computed": "Calculé",
@@ -260,11 +268,13 @@
       "block": "Bloc de {rows, plural, one {# ligne} other {# lignes}} sur {columns, plural, one {# colonne} other {# colonnes}}, à partir de la ligne {row}, colonne « {column} » : rien n’est écrit avant votre confirmation.",
       "reading": "Lecture du compte rendu…",
       "accepted": "{count, plural, =0 {Aucune ligne ne sera écrite.} one {# ligne sera écrite.} other {# lignes seront écrites.}}",
-      "validRows": "{count, plural, =0 {Aucune ligne n’est valide} one {# ligne est valide} other {# lignes sont valides}} ; rien ne sera écrit tant qu’une ligne est refusée.",
       "noneRejected": "Aucune ligne n’est refusée.",
+      "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
+      "rejectedListed": "{count, plural, one {# ligne est refusée, listée ci-dessous.} other {# lignes sont refusées, listées ci-dessous.}}",
       "rejectedRow": "Ligne {row} du bloc — {reason}",
-      "blocked": "Un collage dont une ligne est refusée ne s’applique pas : la grille reste inchangée. Corrigez le bloc dans le tableur, puis collez-le à nouveau.",
+      "appliedFrom": "Collage appliqué à partir de la ligne {row}, colonne « {column} » : {count, plural, =0 {aucune ligne n’a été écrite} one {# ligne a été écrite} other {# lignes ont été écrites}}.",
+      "refusedRows": "Lignes refusées par le collage",
       "apply": "Appliquer le collage",
       "abandon": "Abandonner",
       "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
@@ -308,7 +318,8 @@
     "critical": "Chemin critique",
     "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
-    "notComputableReason": " — {reason}"
+    "notComputableReason": " — {reason}",
+    "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille."
   },
   "gantt": {
     "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}"
@@ -321,10 +332,19 @@
     "noSummary": "Ce planning n’a aucune tâche récapitulative : l’arborescence se réduit au projet."
   },
   "timelines": {
-    "summary": "Les tâches et les jalons inscrits à chaque chronologie du projet — en lecture.",
+    "summary": "Les tâches et les jalons inscrits à chaque chronologie du projet, qui s’y inscrivent depuis le planning.",
     "choice": "Chronologie affichée",
     "none": "Ce projet n’a aucune chronologie.",
-    "empty": "Aucune tâche de cette révision n’est inscrite à cette chronologie."
+    "empty": "Aucune tâche de cette révision n’est inscrite à cette chronologie.",
+    "create": "Nouvelle chronologie",
+    "labelField": "Nom",
+    "formHint": "Une chronologie porte un nom, que d’autres peuvent partager ; les tâches et les jalons s’y inscrivent ensuite depuis le planning.",
+    "created": "Chronologie « {label} » créée.",
+    "delete": "Supprimer",
+    "deleteNamed": "Supprimer la chronologie « {label} »",
+    "deleteTitle": "Supprimer la chronologie « {label} » ?",
+    "deleteHint": "La chronologie et ses inscriptions seront supprimées ; les tâches et les jalons gardent leurs dates.",
+    "deleted": "Chronologie « {label} » supprimée."
   },
   "remainingGrid": {
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
@@ -368,7 +388,10 @@
         "title": "Ligne de provision",
         "present": "Présente dans la structure principale : la provision pèse sur le devis.",
         "withdrawn": "Retirée de la structure principale à la survenance : les lignes fusionnées de son devis propre portent la provision.",
-        "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis."
+        "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis.",
+        "category": "Catégorie",
+        "subproject": "Sous-projet",
+        "outOfSubproject": "Hors sous-projet"
       },
       "reviews": {
         "title": "Historique des réexamens",
@@ -679,6 +702,10 @@
     "notComputable": "Non calculable",
     "computedAt": "Calculé le <time></time>"
   },
+  "share": {
+    "below": "< {share}",
+    "above": "> {share}"
+  },
   "chart": {
     "values": "Valeurs du graphique",
     "exportPng": "Exporter en PNG",
@@ -842,6 +869,8 @@
     "reload": "Recharger",
     "signIn": "Se connecter",
     "dismiss": "Fermer l’avis",
+    "namedLines": "Lignes de devis nommées par le refus",
+    "namedProjects": "Projets nommés par le refus",
     "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
@@ -890,6 +919,7 @@
   "projectFacts": {
     "label": "Le projet",
     "settings": "Paramètres du projet",
+    "projectLabel": "Libellé",
     "code": "Code",
     "state": "État",
     "orderReceivedOn": "Commande reçue le",
@@ -898,6 +928,19 @@
     "inflationRate": "Taux d’inflation annuel",
     "winProbability": "Probabilité de gain",
     "revisions": "Révisions"
+  },
+  "projectForm": {
+    "create": "Créer un projet",
+    "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",
+    "modifyTitle": "Modifier « {name} »",
+    "modifyHint": "Le taux d’inflation ne touche aucune révision marquée.",
+    "label": "Libellé",
+    "code": "Code projet",
+    "description": "Description",
+    "orderReceivedOn": "Commande reçue le",
+    "inflationRate": "Taux d’inflation annuel (%)",
+    "winProbability": "Probabilité de gain (%)",
+    "saved": "Paramètres du projet enregistrés."
   },
   "projectLists": {
     "subprojects": {
@@ -909,7 +952,19 @@
       "actualCostsFilter": "Coûts réels",
       "everyActualCosts": "Tous les sous-projets",
       "withActualCosts": "Avec coûts réels imputés",
-      "withoutActualCosts": "Sans coût réel imputé"
+      "withoutActualCosts": "Sans coût réel imputé",
+      "create": "Nouveau sous-projet",
+      "createTitle": "Nouveau sous-projet",
+      "formHint": "Un sous-projet se désigne par le code que lui donne l’ERP, unique dans le projet.",
+      "modify": "Modifier",
+      "modifyNamed": "Modifier « {code} »",
+      "delete": "Supprimer",
+      "deleteNamed": "Supprimer « {code} »",
+      "deleteTitle": "Supprimer le sous-projet « {code} » ?",
+      "deleteHint": "Le sous-projet « {code} », {label}, sera supprimé. Un sous-projet auquel des coûts réels sont imputés, ou qu’une révision marquée cite, ne se supprime pas.",
+      "deleted": "« {code} » supprimé.",
+      "unavailable": "{command} : indisponible. {unmet}",
+      "estimateLines": "Voir au devis les lignes de la structure principale qui portent « {code} »"
     },
     "contributors": {
       "title": "Contributeurs",
@@ -920,17 +975,46 @@
       "accountFilter": "État du compte",
       "everyAccount": "Tous les comptes",
       "activeAccounts": "Comptes actifs",
-      "inactiveAccounts": "Comptes désactivés"
+      "inactiveAccounts": "Comptes désactivés",
+      "modify": "Modifier les contributeurs",
+      "formHint": "Chaque contributeur est chef de projet ou simple contributeur ; un projet garde au moins un chef de projet. Rien n’est écrit avant l’enregistrement de la liste.",
+      "draft": "Contributeurs à enregistrer",
+      "kindOf": "Qualité de {name}",
+      "withdraw": "Retirer {name}",
+      "refusedFor": "{name} : {problem}",
+      "proposals": "Contributeurs proposés",
+      "proposedFrom": "{node} : {count, plural, one {rôle} other {rôles}} {roles}",
+      "inscribe": "Inscrire {name}",
+      "suggested": "{count, plural, one {Proposé d’après les rôles du devis, à confirmer :} other {Proposés d’après les rôles du devis, à confirmer :}} {names}.",
+      "saved": "Liste des contributeurs enregistrée."
     },
     "workBreakdown": {
       "title": "Lotissement",
       "none": "Ce projet n’a aucun poste.",
-      "count": "{count, plural, =0 {Aucun poste} one {# poste} other {# postes}}",
       "kindFilter": "Filtrer par nature",
       "everyKind": "Toutes les natures",
       "partial": "Les postes et les lots ne montrent que ce que la recherche et le filtre retiennent.",
       "partialSearch": "Les postes et les lots ne montrent que ce que la recherche retient.",
-      "partialKinds": "Les postes et les lots ne montrent que ce que le filtre par nature retient."
+      "partialKinds": "Les postes et les lots ne montrent que ce que le filtre par nature retient.",
+      "retained": "{kind, select, order_item {{count, plural, one {# poste} other {# postes}}} work_package {{count, plural, one {# lot} other {# lots}}} other {{count, plural, one {# livrable} other {# livrables}}}}",
+      "noneRetained": "Aucun élément retenu",
+      "element": "{kind, select, order_item {le poste} work_package {le lot} other {le livrable}} « {label} »",
+      "createItem": "Nouveau poste",
+      "add": "{kind, select, order_item {Ajouter un lot} other {Ajouter un livrable}}",
+      "addUnder": "{kind, select, order_item {Ajouter un lot au poste} other {Ajouter un livrable au lot}} « {label} »",
+      "rename": "Renommer",
+      "renameNamed": "Renommer {element}",
+      "delete": "Supprimer",
+      "deleteNamed": "Supprimer {element}",
+      "addTitle": "{kind, select, order_item {Nouveau lot du poste « {label} »} work_package {Nouveau livrable du lot « {label} »} other {Nouveau poste}}",
+      "labelField": "Libellé",
+      "formHint": "Le lotissement s’enregistre entier, depuis sa dernière lecture entière ; chaque poste, lot et livrable porte un libellé.",
+      "deleteTitle": "Supprimer {element} ?",
+      "deleteHint": "{kind, select, order_item {Le poste, ses lots et leurs livrables seront supprimés. Les tâches de la révision en cours qui portent le poste ou l’un de ses lots restent et perdent leur rattachement ; les révisions marquées le gardent.} work_package {Le lot et ses livrables seront supprimés. Les tâches de la révision en cours qui portent le lot restent et perdent leur rattachement ; les révisions marquées le gardent.} other {Le livrable sera supprimé.}}",
+      "added": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » ajouté.",
+      "renamed": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} renommé « {label} ».",
+      "deleted": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » supprimé.",
+      "refusedFor": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » : {problem}"
     },
     "transitions": {
       "title": "Historique des états",
@@ -1005,6 +1089,15 @@
     "cancel": "Annuler",
     "done": "Le projet est passé à l’état « {state} »."
   },
+  "nextState": {
+    "title": "Prochain état",
+    "none": "Aucun fait ne mène plus le projet vers un autre état : seules les sorties du cycle de vie restent.",
+    "closed": "Le projet est clos : aucun état ne le suit.",
+    "state": "État visé",
+    "trigger": "Déclencheur",
+    "conditions": "Conditions restantes",
+    "noCondition": "Aucune"
+  },
   "notFound": {
     "title": "Introuvable",
     "explanation": "Cette adresse ne mène à rien que vous puissiez consulter.",
@@ -1063,7 +1156,8 @@
       "unavailable": "La réactivation de « {name} » est indisponible. {unmet}",
       "deactivate": "Désactiver « {name} »",
       "deactivateShort": "Désactiver",
-      "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}"
+      "deactivationUnavailable": "La désactivation de « {name} » est indisponible. {unmet}",
+      "designationUnavailable": "La désignation de « {name} » par défaut est indisponible. {unmet}"
     },
     "inactive": {
       "show": "Afficher aussi les désactivés",
@@ -1088,10 +1182,11 @@
       "choose": "Choisir…",
       "deactivatedChoice": "{choice} ({kind, select, cost_type {désactivée} cost_category {désactivée} other {désactivé}})",
       "takenBy": "Déjà porté par « {name} ».",
-      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} other {Déjà porté par un autre objet.}}",
+      "takenByAnother": "{kind, select, cost_type {Déjà porté par une autre nature.} cost_category {Déjà porté par une autre catégorie.} org_node {Déjà porté par un autre nœud.} resource_role {Déjà porté par un autre rôle.} calendar {Déjà porté par un autre calendrier.} project {Déjà porté par un autre projet.} subproject {Déjà porté par un autre sous-projet.} other {Déjà porté par un autre objet.}}",
       "create": "Créer",
       "save": "Enregistrer",
       "sending": "Envoi…",
+      "writing": "Enregistrement en cours…",
       "cancel": "Annuler",
       "created": "« {name} » {kind, select, cost_type {créée} cost_category {créée} other {créé}}.",
       "saved": "« {name} » {kind, select, cost_type {enregistrée} cost_category {enregistrée} other {enregistré}}.",
@@ -1114,15 +1209,15 @@
     },
     "orgNodeForm": {
       "create": "Nouveau nœud d’organisation",
-      "createHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Un nœud actif ne prend place que sous un nœud actif.",
-      "modifyHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Déplacé, il emmène ses descendants ; actif, il ne prend place que sous un nœud actif.",
+      "createHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Un nœud ne prend place que sous un nœud actif.",
+      "modifyHint": "Le code, unique, et le libellé sont requis ; sans parent, le nœud est une racine. Déplacé, il emmène ses descendants, et ne prend place que sous un nœud actif ; son parent désactivé se garde.",
       "parent": "Parent",
       "root": "Aucun — racine"
     },
     "roleForm": {
       "create": "Nouveau rôle de ressource",
-      "createHint": "Le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
-      "modifyHint": "Le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
+      "createHint": "Le code, unique, le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
+      "modifyHint": "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
     },
     "calendarForm": {
       "create": "Nouveau calendrier",
@@ -1173,6 +1268,7 @@
     "resourceRoles": {
       "title": "Rôles de ressources",
       "none": "Aucun rôle de ressource.",
+      "codeFilter": "Code du rôle",
       "orgNodeFilter": "Nœud d’organisation",
       "everyNode": "Tous les nœuds",
       "costCategoryFilter": "Catégorie de coût",
@@ -1223,6 +1319,20 @@
     "reviews": {
       "title": "Rythme des revues",
       "maxWeeks": "Délai maximal entre deux révisions marquées d’un projet en cours : {weeks, plural, one {# semaine} other {# semaines}}."
+    },
+    "riskForm": {
+      "modify": "Modifier la matrice de risques",
+      "hint": "Les trois bornes de chaque axe, strictement croissantes, et la zone de chacune des seize cases ; la matrice vaut pour tous les projets.",
+      "probability": "Bornes de probabilité (%)",
+      "severity": "Bornes de gravité (% du budget de référence)",
+      "saved": "Matrice de risques enregistrée."
+    },
+    "indicatorForm": {
+      "modify": "Modifier les seuils et le délai",
+      "hint": "Chaque seuil est une valeur de l’indice comprise entre 0 et 1, exclus, le seuil d’alerte sous le seuil de vigilance ; le délai se compte en semaines entières.",
+      "weeks": "Délai maximal entre deux révisions marquées (semaines)",
+      "weeksInvalid": "Le délai est un nombre entier de semaines.",
+      "saved": "Seuils et délai enregistrés."
     },
     "boundsOf": "Bornes de « {list} »",
     "boundsRefused": "La liste n’est pas lue : le serveur refuse les bornes demandées."
@@ -1376,18 +1486,46 @@
     },
     "backups": {
       "title": "Sauvegardes",
-      "takenAt": "Date",
-      "size": "Taille",
-      "verification": "Vérification",
-      "origin": "Déclenchement",
-      "retention": "Conservation",
       "retained": "Marquée à conserver",
       "none": "Aucune sauvegarde.",
       "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}",
-      "commands": "Commandes",
+      "periodRefused": "La liste n’est pas lue : le serveur refuse la période demandée.",
       "start": "Sauvegarder maintenant",
+      "started": "Sauvegarde lancée : son avancement se suit dans les tâches de fond.",
+      "retain": "Conserver",
+      "retainNamed": "Conserver la sauvegarde du {date}",
+      "release": "Ne plus conserver",
+      "releaseNamed": "Ne plus conserver la sauvegarde du {date}",
+      "retainedSaid": "La sauvegarde du {date} est marquée à conserver.",
+      "releasedSaid": "La sauvegarde du {date} n’est plus marquée à conserver.",
       "download": "Télécharger",
-      "restore": "Restaurer"
+      "downloadNamed": "Télécharger la sauvegarde du {date}",
+      "restore": "Restaurer",
+      "restoreNamed": "Restaurer la plateforme depuis la sauvegarde du {date}",
+      "downloadRefused": "Le téléchargement d’une sauvegarde n’a pas pu se faire.",
+      "downloadRefusedNamed": "Le téléchargement de la sauvegarde du {date} n’a pas pu se faire.",
+      "unavailable": "{command} : indisponible. {unmet}",
+      "period": "Période des sauvegardes",
+      "originFilter": "Filtrer par déclenchement",
+      "everyOrigin": "Tous les déclenchements",
+      "verificationFilter": "Filtrer par vérification",
+      "everyVerification": "Toutes les vérifications",
+      "retentionFilter": "Conservation",
+      "everyRetention": "Toutes les sauvegardes",
+      "retainedOnes": "Marquées à conserver",
+      "rotatingOnes": "Soumises à la rotation",
+      "bounds": "Bornes des sauvegardes",
+      "sizeBytes": "Taille (octets)",
+      "commands": "Commandes"
+    },
+    "restore": {
+      "title": "Restaurer la plateforme",
+      "warning": "La plateforme entière sera remplacée par la sauvegarde du {date}, {verification, select, passed {vérifiée} pending {dont la vérification est en attente} other {dont la vérification a échoué}} : tout ce qui a été saisi depuis sera perdu, sans retour possible. Les utilisateurs sont déconnectés pendant la restauration, qui sera inscrite au journal d’audit.",
+      "confirm": "Pour confirmer, saisissez l’identifiant de la sauvegarde",
+      "identifier": "Identifiant : <code></code>",
+      "submit": "Restaurer",
+      "sending": "Envoi en cours…",
+      "cancel": "Annuler"
     },
     "deposit": {
       "title": "Restaurer une sauvegarde d’une autre installation",
@@ -1398,17 +1536,11 @@
       "deposited": "Sauvegarde du <time></time> déposée : {name}.",
       "restore": "Restaurer cette sauvegarde"
     },
-    "restoration": {
-      "confirmTitle": "Restaurer la plateforme entière",
-      "confirmText": "La plateforme entière — projets, comptes, rôles et réglages — sera remplacée par la sauvegarde du <time></time>, et tout ce qui a été fait depuis sera perdu, hors le journal d’audit. Tous les utilisateurs seront déconnectés pendant la restauration. Cette opération est irréversible.",
-      "keep": "Annuler",
-      "confirm": "Restaurer la sauvegarde du <time></time>"
-    },
     "schedule": {
       "title": "Planification",
       "state": "État",
       "enabled": "Active",
-      "disabled": "Désactivée",
+      "disabled": "Suspendue",
       "frequency": "Fréquence",
       "weekday": "Jour",
       "at": "Heure",
@@ -1418,6 +1550,35 @@
       "externalCopy": "Copie externe",
       "externalCopyNone": "Aucune",
       "externalCopyTo": "Vers {location}, dossier {path} — {count, plural, one {# copie gardée} other {# copies gardées}}",
+      "form": {
+        "modify": "Modifier la planification",
+        "hint": "La planification s’enregistre entière. L’heure et le jour s’entendent en temps universel (UTC). L’emplacement externe garde au moins autant de copies que la plateforme garde de sauvegardes.",
+        "at": "Heure (UTC)",
+        "atInvalid": "Une heure, au format HH:MM.",
+        "localTime": "Soit {time} à l’heure de ce poste.",
+        "localWeekTime": "Soit {day, select, monday {lundi} tuesday {mardi} wednesday {mercredi} thursday {jeudi} friday {vendredi} saturday {samedi} other {dimanche}} {time} à l’heure de ce poste.",
+        "noWeekday": "Aucun (quotidienne)",
+        "weekdayNote": "Pour une sauvegarde hebdomadaire seulement.",
+        "retained": "Sauvegardes conservées",
+        "retainedInvalid": "Un nombre entier de sauvegardes.",
+        "location": "Copie externe vers",
+        "noCopy": "Aucune copie",
+        "locationChoice": "{name} ({kind})",
+        "undeclared": "{name} (non déclaré par l’installation)",
+        "path": "Dossier dans l’emplacement",
+        "pathNote": "Un chemin relatif, sans « / » en tête ni « .. ».",
+        "copies": "Copies gardées",
+        "copiesNote": "Au moins autant que les sauvegardes conservées.",
+        "copiesInvalid": "Un nombre entier de copies.",
+        "copying": "État de la copie",
+        "copyOn": "Active",
+        "copySuspended": "Suspendue",
+        "test": "Tester l’emplacement",
+        "testing": "Test en cours…",
+        "tested": "« {location} » éprouvé le {at}{folder, select, root {, à sa racine} other {, dossier {path}}} : le fichier témoin a été écrit puis effacé.",
+        "testFailed": "« {location} » éprouvé le {at}{folder, select, root {, à sa racine} other {, dossier {path}}} : échec — {failure}.",
+        "saved": "Planification enregistrée."
+      },
       "externalCopySuspended": "Suspendue — vers {location}, dossier {path}, {count, plural, one {# copie gardée} other {# copies gardées}}",
       "weekdays": {
         "monday": "Lundi",
@@ -1531,10 +1692,8 @@
     "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
     "LAST_PROJECT_MANAGER": "Un projet garde au moins un chef de projet.",
     "ACCESS_ROLE_IN_USE": "Ce rôle d’habilitation est encore attribué à des comptes.",
-    "HAS_ACTUAL_COSTS": "Des coûts réels y sont imputés.",
     "TASK_ALREADY_STARTED": "La tâche a déjà démarré.",
     "TASK_COMPLETED": "La tâche est terminée.",
-    "WIN_PROBABILITY_FROZEN": "La probabilité de gain ne se modifie plus une fois le projet en cours.",
     "REFERENCE_INCOMPLETE": "Le référentiel minimal est incomplet.",
     "STALE_LOCK_VERSION": "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
     "FILE_TOO_LARGE": "Le fichier dépasse la taille admise.",
@@ -1549,7 +1708,7 @@
     "PROJECT_CODE_REQUIRED": "Le code projet doit être renseigné.",
     "PASTE_TOO_WIDE": "Les données collées ont plus de colonnes que la grille.",
     "FILE_FORMAT_UNREADABLE": "Le format du fichier est illisible.",
-    "TASK_WITHOUT_WORKING_HOURS": "Les calendriers des rôles de cette tâche ne se recoupent aucun jour : elle n’aurait aucune heure travaillée dans la semaine.",
+    "TASK_WITHOUT_WORKING_HOURS": "Une tâche n’aurait plus aucune heure travaillée dans la semaine.",
     "VALUE_REQUIRED": "Une valeur est requise.",
     "VALUE_TOO_LONG": "La valeur est trop longue.",
     "VALUE_OUT_OF_RANGE": "La valeur sort des limites admises.",
@@ -1557,19 +1716,31 @@
     "DATE_INVALID": "Ce n’est pas une date valide.",
     "UNKNOWN_COST_CATEGORY": "Catégorie de coût inconnue.",
     "UNKNOWN_COST_TYPE": "Nature de coût inconnue.",
+    "UNKNOWN_CALENDAR": "Calendrier inconnu.",
     "UNKNOWN_RESOURCE_ROLE": "Rôle de ressource inconnu.",
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
+    "UNKNOWN_USER": "Compte inconnu.",
+    "USER_INACTIVE": "Ce compte est désactivé.",
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
+    "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
+    "PROVISION_CATEGORY_REQUIRED": "La provision d’un risque porte une catégorie de type provision pour risques.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
     "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
-    "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
+    "BOUNDS_NOT_ORDERED": "Les bornes doivent être strictement croissantes.",
+    "THRESHOLD_NOT_BELOW_WATCH": "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
+    "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "Le seuil doit être compris entre 0 et 1, l’un et l’autre exclus.",
+    "UNKNOWN_WORK_BREAKDOWN_ITEM": "Cet élément ne fait pas partie du lotissement lu : inconnu, d’une autre nature ou supprimé.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
     "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un poste ou un lot.",
+    "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
+    "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
+    "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
@@ -1585,12 +1756,26 @@
     "missing_permission": "Permission requise : {permission}.",
     "missing_condition": "Condition non remplie : {condition}.",
     "missing_prerequisites": "À compléter : {prerequisites}.",
+    "estimate_lines": "Lignes de devis de la révision en cours qui portent le sous-projet : {lines}. Une ligne de provision change de sous-projet par son risque.",
+    "estimate_lines_listed": "{count, number} lignes de devis de la révision en cours portent le sous-projet, listées ci-dessous. Une ligne de provision change de sous-projet par son risque.",
+    "estimateLine": "ligne {row} « {label} »",
+    "resource_roles": "Rôles à rattacher d’abord {of, select, cost_type {à une catégorie de main-d’œuvre d’une autre nature} other {à une autre catégorie de main-d’œuvre}} : {roles}.",
+    "resource_role_ids": "{count, plural, one {Rôle dont le calendrier n’a aucune heure : {roles}.} other {Rôles dont les calendriers ne se recoupent aucun jour : {roles}.}}",
+    "resource_role_ids_unnamed": "{count, plural, one {Le calendrier de son rôle n’a aucune heure.} other {Les calendriers de ses rôles ne se recoupent aucun jour.}}",
+    "resource_role_ids_none": "Tâches sans ligne de main-d’œuvre, sur le calendrier par défaut.",
+    "projects": "Projets en cause : {projects}.",
+    "projects_listed": "{count, number} projets en cause, listés ci-dessous.",
+    "codedName": "{label} ({code})",
     "projectState": "État du projet : {state}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "minimum": "Valeur minimale : {minimum}.",
+    "maximum": "Valeur maximale : {maximum}.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
-    "expected_version": "Version attendue : {version}."
+    "expected_version": "Version attendue : {version}.",
+    "order_item_task": "Tâche du poste : {task}.",
+    "work_package_tasks": "{count, plural, one {Tâche du lot en cause} other {Tâches des lots en cause}} : {tasks}.",
+    "taskName": "« {label} »"
   },
   "permissions": {
     "users": {
@@ -1786,18 +1971,24 @@
       }
     },
     "Backup": {
-      "verification": {
-        "pending": "Vérification en attente",
-        "passed": "Vérifiée",
-        "failed": "Vérification échouée"
-      },
       "scope": {
         "database": "Base de données"
-      },
-      "origin": {
-        "manual": "Manuelle",
-        "scheduled": "Planifiée"
       }
+    },
+    "BackupVerification": {
+      "pending": "Vérification en attente",
+      "passed": "Vérifiée",
+      "failed": "Vérification échouée"
+    },
+    "BackupOrigin": {
+      "manual": "Manuelle",
+      "scheduled": "Planifiée"
+    },
+    "BackupCommand": {
+      "retain": "Conserver",
+      "release": "Ne plus conserver",
+      "download": "Télécharger",
+      "restore": "Restaurer la plateforme"
     },
     "BackupSchedule": {
       "frequency": {
@@ -1863,14 +2054,15 @@
     "ReferenceReadiness": {
       "missing": {
         "default_calendar_with_hours": "un calendrier par défaut pourvu d’heures travaillées",
-        "active_cost_category": "une catégorie de coût active",
+        "active_cost_category": "une catégorie de main-d’œuvre active",
+        "active_provision_category": "une catégorie de provision pour risques active",
         "active_resource_role": "un rôle de ressource actif"
       }
     },
     "CostTypeKind": {
       "labor": "Main-d’œuvre",
       "non_labor": "Hors main-d’œuvre",
-      "provision": "Provision"
+      "provision": "Provision pour risques"
     },
     "StateEnumeration": {
       "ProjectState": "État du projet"
@@ -1885,12 +2077,16 @@
     },
     "ProjectCommand": {
       "update": "Modifier le projet",
+      "update_win_probability": "Modifier la probabilité de gain",
+      "update_work_breakdown": "Saisir le lotissement",
       "manage_contributors": "Gérer les contributeurs",
+      "manage_timelines": "Gérer les chronologies",
       "create_revision": "Créer une révision",
       "complete": "Terminer le projet",
       "lose": "Déclarer le projet perdu",
       "abandon": "Abandonner le projet",
       "edit_risks": "Modifier les risques",
+      "declare_risk": "Déclarer un risque",
       "declare_risk_occurrence": "Déclarer la survenance d’un risque",
       "import_actual_costs": "Importer les coûts réels",
       "exclude_cost_lines": "Exclure des lignes de coût",
@@ -1917,18 +2113,32 @@
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
       "may_create_revision": "avoir la permission de créer une révision",
+      "restored_subproject_exists": "sous-projet rendu par l’annulation encore existant",
       "risk_not_cited": "risque cité par aucune révision marquée",
       "risk_not_occurred": "risque non survenu",
       "risk_identified": "risque identifié",
+      "active_provision_category": "une catégorie de provision pour risques active",
       "org_node_parent_active": "nœud parent actif",
       "org_node_active": "nœud d’organisation actif",
       "calendar_not_default": "calendrier autre que celui par défaut",
+      "calendar_active": "calendrier actif",
+      "cost_type_active": "nature de coût active",
       "cost_type_unused": "aucune catégorie de la nature employée",
+      "cost_type_unrated": "aucune catégorie de la nature portant un taux horaire",
+      "cost_type_without_role": "aucune catégorie de la nature rattachée à un rôle de ressource",
       "cost_category_unused": "catégorie employée par aucune ligne",
       "cost_category_unrated": "catégorie sans taux horaire",
-      "cost_type_not_last_provision": "une autre nature provision active portant une catégorie active",
-      "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
+      "cost_category_without_role": "catégorie rattachée à aucun rôle de ressource",
       "last_administrator": "un autre compte actif portant les permissions d’administration",
+      "backup_verified": "sauvegarde vérifiée",
+      "no_backup_running": "aucune sauvegarde en cours",
+      "no_restore_running": "aucune restauration en cours",
+      "project_before_in_progress": "projet non encore en cours",
+      "subproject_not_cited": "sous-projet cité par aucune révision marquée",
+      "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
+      "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
+      "main_structure_without_tasks": "structure principale sans aucune tâche",
+      "import_file_accepted": "fichier accepté par le compte rendu",
       "is_local_account": "compte créé dans Waterfall",
       "is_active_account": "compte actif",
       "is_deactivated_account": "compte désactivé",
@@ -1940,6 +2150,14 @@
         "lost": "Perdu",
         "abandoned": "Abandonné"
       }
+    },
+    "LifecycleTrigger": {
+      "first_revision_created": "Première révision créée",
+      "reference_designated_and_code_set": "Révision de référence désignée et code projet renseigné"
+    },
+    "SubprojectCommand": {
+      "update": "Modifier le sous-projet",
+      "delete": "Supprimer le sous-projet"
     },
     "ContributorKind": {
       "project_manager": "Chef de projet",
@@ -1956,9 +2174,11 @@
     },
     "RevisionCommand": {
       "edit_planning": "Modifier le planning",
+      "generate_skeleton": "Engendrer le squelette de planning",
       "edit_estimate": "Modifier le devis",
       "edit_remaining": "Réestimer le reste à engager",
       "edit_risks": "Modifier les risques",
+      "declare_risk": "Déclarer un risque",
       "create_structure": "Créer une structure",
       "merge_structure": "Fusionner une structure",
       "mark": "Marquer la révision",
@@ -2066,7 +2286,8 @@
       "estimate_line": {
         "quantity": "Quantité",
         "hours": "Heures",
-        "unit_disbursement": "Débours unitaire"
+        "unit_disbursement": "Débours unitaire",
+        "subproject_id": "Sous-projet"
       }
     },
     "EditableField": {
@@ -2139,6 +2360,7 @@
         "quantity": "Quantité de la ligne",
         "hours": "Charge de la ligne",
         "unit_disbursement": "Débours unitaire de la ligne",
+        "subproject_id": "Sous-projet de la ligne",
         "base_amount": "Montant à l’année de référence de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
         "reestimated_amount": "Montant réestimé de la ligne",
@@ -2154,7 +2376,7 @@
       "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
       "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
       "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire.",
-      "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
+      "risk": "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
       "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",
@@ -2187,7 +2409,8 @@
       "no_actual_or_remaining": "Ni coût réel ni reste à engager.",
       "no_capacity": "Aucune capacité pour ce rôle sur la période.",
       "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période.",
-      "hourly_rate_missing": "Taux horaire manquant pour l’année de référence."
+      "hourly_rate_missing": "Taux horaire manquant pour l’année de référence.",
+      "order_item_without_task": "Aucune tâche ne porte ce poste."
     },
     "CurveSeries": {
       "series": {
@@ -2221,9 +2444,15 @@
     },
     "RiskCommand": {
       "update": "Modifier le risque",
+      "update_provision": "Changer la catégorie ou le sous-projet de la provision",
       "review": "Réexaminer le risque",
       "declare_occurrence": "Déclarer le risque survenu",
       "delete": "Supprimer le risque"
+    },
+    "CalendarCommand": {
+      "deactivate": "Désactiver le calendrier",
+      "reactivate": "Réactiver le calendrier",
+      "set_default": "Désigner le calendrier par défaut"
     },
     "ReferenceCommand": {
       "deactivate": "Désactiver",

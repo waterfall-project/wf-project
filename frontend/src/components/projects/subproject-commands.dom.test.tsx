@@ -1,0 +1,592 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { render, screen, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
+import type { CommandOffer } from "@/components/commands/offer";
+import type { Project } from "@/components/context/reading";
+import { PendingAddress } from "@/components/grid/pending-address";
+import { CATALOGUES } from "@/i18n/catalogues";
+import { expectAccessible } from "@/test/axe";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+  held,
+} from "@/test/fixtures";
+
+import type { Subproject } from "./settings-grids";
+import { SubprojectList } from "./settings-lists";
+
+// The server of Next, as far as the list needs it: the fake back, the page read anew once a write is
+// answered, the address it reads.
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const refresh = vi.hoisted(() => vi.fn());
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// A write whose server action rejects once `until` settles — the API out of reach, as `fetch`
+// rejects in the browser —; none, and the action asks the fake back.
+const failing = vi.hoisted((): { until: Promise<void> | undefined } => ({ until: undefined }));
+vi.mock("@/api/actions/projects", async (original) => {
+  const actual = await original<typeof import("@/api/actions/projects")>();
+  return {
+    ...actual,
+    writeSubproject: async (...asked: Parameters<typeof actual.writeSubproject>) => {
+      if (failing.until === undefined) {
+        return actual.writeSubproject(...asked);
+      }
+      await failing.until;
+      throw new TypeError("Failed to fetch");
+    },
+  };
+});
+vi.mock("next/cache", () => ({ refresh }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => router,
+  usePathname: () => "/projects/01926f3a-7c00-7000-8000-000000000001/settings",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+type Problem = components["schemas"]["Problem"];
+
+const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+// The revision in progress of the witness, whose estimate the session reads.
+const REVISION = (example("project") as Project).current_revision_id ?? "";
+const CREATE = "POST /projects/{project_id}/subprojects";
+const UPDATE = "PATCH /projects/{project_id}/subprojects/{subproject_id}";
+const DELETE = "DELETE /projects/{project_id}/subprojects/{subproject_id}";
+const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
+const SUBPROJECTS = example("subprojects") as Subproject[];
+// Both sub-projects of the example are charged with actual costs and cited by the reference revision
+// (EP-14/L45a, L42l): none deletes. The one a test deletes is a counterfactual variant of the
+// sub-project created (`subproject_created`), « SP-REC », which no marked revision cites, relieved of
+// its costs and its deletion listed available as the server would then list it, the rest of the
+// example kept; it is listed after the two of `subprojects`.
+const CREATED = example("subproject_created") as Subproject;
+const DELETABLE: Subproject[] = [
+  ...SUBPROJECTS,
+  {
+    ...CREATED,
+    has_actual_costs: false,
+    available_commands: CREATED.available_commands.map((each) =>
+      each.command === "delete" ? { ...each, is_available: true, missing_conditions: [] } : each,
+    ),
+  },
+];
+
+/** Serve the fake back, and give it back to read its calls. */
+function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient(
+    {
+      [CREATE]: { example: "subproject_created", status: 201 },
+      [UPDATE]: "subproject_updated",
+      [DELETE]: { status: 204 },
+      ...answers,
+    },
+    timing,
+  );
+  server.client = client;
+  return client;
+}
+
+/**
+ * The list of the sub-projects, in French, as the project lists `update` — or does not —, and the
+ * revision in progress whose estimate the session reads, if any.
+ */
+function list(offer: CommandOffer | null = AVAILABLE, rows = SUBPROJECTS, estimated?: string) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <PendingAddress>
+        <SubprojectList
+          subprojects={rows}
+          editing={{ project: PROJECT, offer: offer ?? undefined, estimated }}
+        />
+      </PendingAddress>
+    </NextIntlClientProvider>
+  );
+}
+
+/** The calls the list made of the fake back. */
+function writes(client: FakeClient) {
+  return client.calls.map(({ route, path, body }) => ({ route, path, body }));
+}
+
+/** What the regions of the list announce. */
+function announced(): (string | null)[] {
+  return screen.getAllByRole("status").map((status) => status.textContent);
+}
+
+/** The grid of the sub-projects. */
+function grid(): HTMLElement {
+  return screen.getByRole("grid", { name: "Sous-projets" });
+}
+
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+  sessionStorage.clear();
+});
+
+afterEach(() => {
+  failing.until = undefined;
+  vi.restoreAllMocks();
+  refresh.mockClear();
+  router.refresh.mockClear();
+});
+
+describe("the creation and the modification of a sub-project", () => {
+  it("creates a sub-project from a project that has none, its code and its label required before anything is asked [WF-PRJ-0050-A]", async () => {
+    const client = serve();
+    const { container } = render(list(AVAILABLE, []));
+    // Un projet se chiffre sans aucun sous-projet : the list says so, and offers to create one.
+    expect(screen.getByText("Ce projet n’a aucun sous-projet.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
+    const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    const code = within(form).getByRole("textbox", { name: "Code ERP" });
+    expect(code).toHaveAccessibleDescription("Une valeur est requise.");
+    expect(code).toHaveFocus();
+    expect(client.calls).toEqual([]);
+    await userEvent.type(code, " SP-REC ");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Réception");
+    await expectAccessible(container);
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    expect(writes(client)).toEqual([
+      {
+        route: CREATE,
+        path: `/projects/${PROJECT}/subprojects`,
+        body: { code: "SP-REC", label: "Réception" },
+      },
+    ]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(announced()).toContain("« SP-REC » créé.");
+  });
+
+  it("modifies a sub-project from the version read, and shows its row as the server answered it", async () => {
+    const client = serve();
+    render(list());
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
+    const form = screen.getByRole("dialog", { name: "Modifier « SP-ESS »" });
+    const label = within(form).getByRole("textbox", { name: "Libellé" });
+    expect(label).toHaveValue("Essais et mise en service");
+    await userEvent.clear(label);
+    await userEvent.type(label, "Essais, mise en service et réception");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(writes(client)[0]?.body).toEqual({
+      code: "SP-ESS",
+      label: "Essais, mise en service et réception",
+      lock_version: 1,
+    });
+    expect(within(grid()).getByRole("row", { name: /^SP-ESS/ })).toHaveTextContent(
+      "Essais, mise en service et réception",
+    );
+    expect(announced()).toContain("« SP-ESS » enregistré.");
+  });
+
+  it("closes on an answer only the form it was sent from: a late one shows, and leaves the form opened since open, its entry kept (#672)", async () => {
+    const { timing, release } = held();
+    const client = serve({}, timing);
+    render(list());
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
+    const first = screen.getByRole("dialog", { name: "Modifier « SP-ESS »" });
+    await userEvent.click(within(first).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await userEvent.click(within(first).getByRole("button", { name: "Annuler" }));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-CMD »" }));
+    const label = within(screen.getByRole("dialog", { name: "Modifier « SP-CMD »" })).getByRole(
+      "textbox",
+      { name: "Libellé" },
+    );
+    await userEvent.type(label, " principal");
+    release();
+    // Said and shown behind the form opened since, which hides the rest of the screen from its
+    // readers — a text found with its no-break spaces read as plain ones.
+    expect(await screen.findByText("« SP-ESS » enregistré.")).toBeInTheDocument();
+    expect(screen.getByText("Essais, mise en service et réception")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Modifier « SP-CMD »" })).toBeVisible();
+    expect(label).toHaveValue("Poste de commande principal");
+  });
+
+  it("keeps the modification of a sub-project waiting while its write of the dialog closed is under way, then opens on the version the answer brings (#661, #734)", async () => {
+    const { timing, release } = held();
+    const client = serve({}, timing);
+    render(list());
+    const command = () =>
+      within(grid()).getByRole("button", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    await userEvent.click(command());
+    const form = screen.getByRole("dialog", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    // Opened anew now, the form would write from the version 1, which its own answer replaces: the
+    // command, whose cell has the focus back, waits and says why — that of another row does not.
+    expect(command().closest("td")).toHaveFocus();
+    expect(command()).toHaveAttribute("aria-disabled", "true");
+    expect(command()).toHaveAttribute("aria-busy", "true");
+    expect(command()).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(
+      within(grid()).getByRole("button", { name: "Modifier «\u00a0SP-CMD\u00a0»" }),
+    ).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(command());
+    expect(screen.queryByRole("dialog")).toBeNull();
+    release();
+    await vi.waitFor(() => {
+      expect(command()).not.toHaveAttribute("aria-disabled");
+    });
+    await userEvent.click(command());
+    const reopened = screen.getByRole("dialog", { name: "Modifier «\u00a0SP-ESS\u00a0»" });
+    await userEvent.click(within(reopened).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    expect(client.calls[1]?.body).toMatchObject({ lock_version: 2 });
+  });
+
+  it.each([
+    ["answered", {}, "status", "«\u00a0SP-ESS\u00a0» enregistré."],
+    [
+      "refused",
+      { [UPDATE]: { problem: example("subproject_code_taken") as Problem & { status: 409 } } },
+      "alert",
+      "Cet élément existe déjà.",
+    ],
+    ["rejected, the API out of reach", {}, "alert", "Le service est injoignable"],
+  ] satisfies [string, FakeAnswers, "status" | "alert", string][])(
+    "frees the modification of a sub-project once its write of the dialog closed is %s, says it, and opens its form again (#734)",
+    async (outcome, answers, role, said) => {
+      const { timing, until, release } = held();
+      failing.until = outcome.startsWith("rejected") ? until : undefined;
+      const client = serve(answers, timing);
+      render(list());
+      const name = "Modifier «\u00a0SP-ESS\u00a0»";
+      const command = () => within(grid()).getByRole("button", { name });
+      await userEvent.click(command());
+      const form = screen.getByRole("dialog", { name });
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(command()).toHaveAttribute("aria-disabled", "true");
+      release();
+      // What the answer did, said in the region of the list or above it, the form gone.
+      await vi.waitFor(() => {
+        expect(screen.getAllByRole(role).map((region) => region.textContent)).toContainEqual(
+          expect.stringContaining(said),
+        );
+      });
+      // A server action rejected asked nothing of the fake back.
+      expect(client.calls).toHaveLength(outcome.startsWith("rejected") ? 0 : 1);
+      await vi.waitFor(() => {
+        expect(command()).not.toHaveAttribute("aria-disabled");
+      });
+      await userEvent.click(command());
+      expect(screen.getByRole("dialog", { name })).toBeVisible();
+    },
+  );
+
+  it("tells the modification of a sub-project answered for another one as a failure of the service, the form kept open", async () => {
+    const client = serve();
+    render(list());
+    // The example answers « SP-ESS », whatever sub-project was modified: here « SP-CMD ».
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-CMD »" }));
+    const form = screen.getByRole("dialog", { name: "Modifier « SP-CMD »" });
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "Erreur inattendue du service.",
+    );
+    expect(client.calls).toHaveLength(1);
+    // Nothing takes the place of any row: the form closed, « SP-ESS » keeps its label read,
+    // and nothing is said saved.
+    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(within(grid()).getByRole("row", { name: /^SP-ESS/ })).toHaveTextContent(
+      "Essais et mise en service",
+    );
+    expect(within(grid()).getByRole("row", { name: /^SP-CMD/ })).toHaveTextContent(
+      "Poste de commande",
+    );
+    expect(announced()).not.toContain("« SP-ESS » enregistré.");
+    expect(announced()).not.toContain("« SP-CMD » enregistré.");
+  });
+
+  it("says at the code a code another sub-project of the project bears, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
+    serve({
+      [UPDATE]: { problem: example("subproject_code_taken") as Problem & { status: 409 } },
+    });
+    render(list());
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
+    const form = screen.getByRole("dialog", { name: "Modifier « SP-ESS »" });
+    const code = within(form).getByRole("textbox", { name: "Code ERP" });
+    await userEvent.clear(code);
+    await userEvent.type(code, "SP-CMD");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    // La création de deux sous-projets de même code dans un même projet est refusée.
+    // Said at its field, which takes the focus — the holder named by the label the refusal gives it
+    // (EP-14/L42i), the form not knowing the rows the list shows —; the refusal is not told again
+    // under the form.
+    await vi.waitFor(() => {
+      expect(code).toHaveFocus();
+    });
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(code).toHaveAccessibleDescription(
+      "Cet élément existe déjà. Déjà porté par « Poste de commande ».",
+    );
+    expect(within(form).queryByRole("alert")).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("says the version stale under the form, with the offer to read the page anew", async () => {
+    serve({ [UPDATE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
+    render(list());
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
+    const form = screen.getByRole("dialog", { name: "Modifier « SP-ESS »" });
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the deletion of a sub-project", () => {
+  it("deletes a sub-project once confirmed, saying which ones never delete, and takes its row away; cancelled, asks nothing", async () => {
+    const client = serve();
+    render(list(AVAILABLE, DELETABLE));
+    const command = within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" });
+    await userEvent.click(command);
+    const title = "Supprimer le sous-projet « SP-REC » ?";
+    expect(screen.getByRole("dialog", { name: title })).toHaveAccessibleDescription(
+      "Le sous-projet « SP-REC », Réception sur site, sera supprimé. " +
+        "Un sous-projet auquel des coûts réels sont imputés, ou qu’une révision marquée cite, ne se " +
+        "supprime pas.",
+    );
+    await userEvent.click(
+      within(screen.getByRole("dialog", { name: title })).getByRole("button", { name: "Annuler" }),
+    );
+    expect(client.calls).toEqual([]);
+    await userEvent.click(command);
+    const confirmation = screen.getByRole("dialog", { name: title });
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    expect(writes(client)).toEqual([
+      {
+        route: DELETE,
+        path: `/projects/${PROJECT}/subprojects/${CREATED.subproject_id}`,
+        body: undefined,
+      },
+    ]);
+    expect(within(grid()).queryByText("SP-REC")).toBeNull();
+    expect(announced()).toContain("« SP-REC » supprimé.");
+  });
+
+  it("closes on an answer only the confirmation it was sent from: a late deletion takes its row away, and leaves the form opened since open (#672)", async () => {
+    const { timing, release } = held();
+    const client = serve({}, timing);
+    render(list(AVAILABLE, DELETABLE));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
+    const confirmation = screen.getByRole("dialog", {
+      name: "Supprimer le sous-projet « SP-REC » ?",
+    });
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Supprimer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Annuler" }));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" }));
+    release();
+    // Said behind the form opened since, which hides the rest of the screen from its readers — a
+    // text found with its no-break spaces read as plain ones.
+    expect(await screen.findByText("« SP-REC » supprimé.")).toBeInTheDocument();
+    expect(screen.queryByText("SP-REC")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Modifier « SP-ESS »" })).toBeVisible();
+  });
+
+  it.each([
+    // Charged, cited by the reference revision and borne by lines of the current revision
+    // (EP-14/L45a, L42l, L42q).
+    [
+      "SP-CMD",
+      "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût réel " +
+        "imputé au sous-projet et aucune ligne de devis de la révision en cours portant le " +
+        "sous-projet.",
+    ],
+    // Created charged with an invoice, cited by no marked revision (`subproject_created`).
+    ["SP-REC", "Condition non remplie : aucun coût réel imputé au sous-projet."],
+  ])(
+    "presents unavailable the deletion of %s, charged with actual costs, naming each condition its row lists, and asks nothing [WF-PRJ-0050-A]",
+    async (code, unmet) => {
+      // La suppression d'un sous-projet portant des coûts réels est refusée : the row lists
+      // `delete` unavailable, `subproject_without_actual_costs` lacking — and
+      // `subproject_not_cited` for the one a marked revision cites.
+      const client = serve();
+      render(list(AVAILABLE, [...SUBPROJECTS, CREATED]));
+      const charged = within(grid()).getByRole("button", {
+        name: `Supprimer «\u00a0${code}\u00a0»`,
+      });
+      expect(charged).toHaveAttribute("aria-disabled", "true");
+      expect(charged).toHaveAccessibleDescription(unmet);
+      await userEvent.click(charged);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(announced()).toContain(
+        `Supprimer «\u00a0${code}\u00a0»\u00a0: indisponible. ${unmet}`,
+      );
+      expect(client.calls).toEqual([]);
+    },
+  );
+
+  it("leads from a deletion the estimate lines alone keep to the estimate filtered on the sub-project, and from no other", async () => {
+    // A counterfactual variant of `subprojects`: « SP-ESS » lacking only the passing of the lines
+    // that bear it, the rest of the example kept. The lines of its main structure show in the
+    // estimate, to be passed out of it (EP-14/L42q); those of another structure, the link does not
+    // reach.
+    const passable: Subproject[] = SUBPROJECTS.map((row) =>
+      row.code === "SP-ESS"
+        ? {
+            ...row,
+            available_commands: row.available_commands.map((each) =>
+              each.command === "delete"
+                ? { ...each, missing_conditions: ["subproject_without_estimate_lines"] }
+                : each,
+            ),
+          }
+        : row,
+    );
+    const client = serve();
+    render(list(AVAILABLE, [...passable, CREATED], REVISION));
+    // « SP-CMD », cited by the reference revision, and « SP-REC », charged with an invoice: no line
+    // passed lifts what they lack, and they lead nowhere.
+    for (const code of ["SP-CMD", "SP-REC"]) {
+      await userEvent.click(
+        within(grid()).getByRole("button", { name: `Supprimer «\u00a0${code}\u00a0»` }),
+      );
+      expect(screen.queryByRole("link")).toBeNull();
+    }
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00a0SP-ESS\u00a0»" }),
+    );
+    const ess = SUBPROJECTS.find((row) => row.code === "SP-ESS")?.subproject_id ?? "";
+    expect(
+      screen.getByRole("link", {
+        name: "Voir au devis les lignes de la structure principale qui portent «\u00a0SP-ESS\u00a0»",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/${REVISION}/estimate?subproject_id=${ess}`,
+    );
+    expect(client.calls).toEqual([]);
+  });
+
+  it("tells above the list a deletion the server refuses, naming the first condition it misses [WF-PRJ-0050-A]", async () => {
+    // La suppression d'un sous-projet cité par une révision marquée est refusée : listed available
+    // on the reading, refused by the server, a marked revision citing the sub-project meanwhile
+    // (§4.4.1, EP-14/L42l).
+    serve({
+      [DELETE]: { problem: example("subproject_delete_cited") as Problem & { status: 409 } },
+    });
+    render(list(AVAILABLE, DELETABLE));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
+    );
+    const refusal = await screen.findByRole("alert");
+    expect(refusal).toHaveTextContent(
+      "Condition non remplie : sous-projet cité par aucune révision marquée.",
+    );
+    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+  });
+
+  it("tells above the list a deletion refused for the estimate lines that bear the sub-project, naming them [WF-DAT-0080-A]", async () => {
+    // Celle d'un sous-projet que portent des lignes de devis de la révision en cours est refusée
+    // et nomme ces lignes — passées à « SP-REC » depuis la lecture (EP-14/L42q).
+    serve({
+      [DELETE]: {
+        problem: example("subproject_delete_estimated") as Problem & { status: 409 },
+      },
+    });
+    render(list(AVAILABLE, DELETABLE));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Lignes de devis de la révision en cours qui portent le sous-projet : ligne 10 " +
+        "« Raccordement des borniers » et ligne 11 « Borniers ». Une ligne de " +
+        "provision change de sous-projet par son risque.",
+    );
+    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+  });
+});
+
+describe("the commands a sub-project lists", () => {
+  it("offers on a row only the commands it lists", () => {
+    // A counterfactual variant of the example: « SP-CMD » listing no command, the rest kept.
+    const rows: Subproject[] = SUBPROJECTS.map((row) =>
+      row.code === "SP-CMD" ? { ...row, available_commands: [] } : row,
+    );
+    serve();
+    render(list(AVAILABLE, rows));
+    // The grid has no row header: the row is the one of the code's cell.
+    const cmd = within(grid()).getByText("SP-CMD").closest("tr");
+    expect(cmd).not.toBeNull();
+    expect(within(cmd as HTMLElement).queryByRole("button")).toBeNull();
+    expect(within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+  });
+});
+
+describe("the commands a project lists", () => {
+  it("presents on a terminal project the creation and the commands of each row unavailable, naming the conditions, and asks nothing", async () => {
+    // The sub-projects of the witness terminated: each command unavailable, `project_not_terminal`
+    // last (EP-14/L42o).
+    const rows = example("subprojects_completed") as Subproject[];
+    const client = serve();
+    render(list({ is_available: false, missing_conditions: ["project_not_terminal"] }, rows));
+    const create = screen.getByRole("button", { name: "Nouveau sous-projet" });
+    expect(create).toHaveAttribute("aria-disabled", "true");
+    expect(create).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
+    const modify = within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" });
+    expect(modify).toHaveAttribute("aria-disabled", "true");
+    expect(modify).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
+    const remove = within(grid()).getByRole("button", { name: "Supprimer « SP-ESS »" });
+    expect(remove).toHaveAttribute("aria-disabled", "true");
+    expect(remove).toHaveAccessibleDescription(
+      "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût " +
+        "réel imputé au sous-projet, aucune ligne de devis de la révision en cours portant le " +
+        "sous-projet et projet non clos.",
+    );
+    await userEvent.click(modify);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(announced()).toContain(
+      `Modifier «\u00a0SP-ESS\u00a0»\u00a0: indisponible. Condition non remplie\u00a0: projet non clos.`,
+    );
+    expect(client.calls).toEqual([]);
+  });
+
+  it("offers nothing when the project lists no command `update`", () => {
+    serve();
+    render(list(null));
+    expect(screen.queryAllByRole("button", { name: /Nouveau|Modifier|Supprimer/ })).toEqual([]);
+  });
+});

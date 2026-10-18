@@ -272,16 +272,30 @@ export type PastedBlock = readonly (readonly string[])[];
 /** What the server would write and refuse of a block pasted (WF-IHM-0050). */
 export type PastePlan = components["schemas"]["PastePlan"];
 
+/** A row of a block pasted the server refuses, with its reason (WF-IHM-0050). */
+export type PasteRejection = components["schemas"]["PasteRejection"];
+
+/**
+ * What a paste confirmed answered: the rows the server wrote, as the grid reads them, and those it
+ * did not write, each with its reason — the preview's, and those the confirmation adds judging the
+ * accepted rows again (EP-14/L42q).
+ */
+export interface PasteWritten<Row, Totals> {
+  readonly written: RowsWritten<Row, Totals>;
+  readonly rejected: readonly PasteRejection[];
+}
+
 /**
  * How a block pasted from a spreadsheet is written in a grid, in two steps (WF-IHM-0050): the
  * server says what it would write and refuse — nothing is written yet —, then applies the plan
- * once the user confirmed it, in one operation. The grid judges nothing of what is pasted.
+ * once the user confirmed it, in one operation, the valid rows written and the refused ones not.
+ * The grid judges nothing of what is pasted.
  */
 export interface GridPaste<Row, Sort extends string = string, Totals = unknown> {
   /** Ask the plan of a block pasted from the cell of a row, in a column, named by the contract. */
   readonly preview: (row: Row, column: Sort, block: PastedBlock) => Promise<Outcome<PastePlan>>;
-  /** Apply a plan confirmed: what the server wrote, as the grid reads it. */
-  readonly apply: (plan: PastePlan) => Promise<Outcome<RowsWritten<Row, Totals>>>;
+  /** Apply a plan confirmed: what the server wrote, as the grid reads it, and what it refused. */
+  readonly apply: (plan: PastePlan) => Promise<Outcome<PasteWritten<Row, Totals>>>;
   /**
    * The columns a block pasted on the cell of a row fills, from its column, in the order the
    * server fills them — those of the contract, whether the grid shows them or not (#223) —; none

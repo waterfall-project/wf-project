@@ -140,6 +140,22 @@ describe("the result of a task, downloaded", () => {
     },
   );
 
+  it("lets go the body of a result it does not hand on", async () => {
+    const cancel = vi.fn();
+    const upstream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("<html>"));
+      },
+      cancel,
+    });
+    answering(upstream, {
+      "content-type": "text/html",
+      "content-disposition": 'attachment; filename="devis.xlsx"',
+    });
+    expect(sentBackTo(await download())).toContain("refusal=502%3AINTERNAL_ERROR");
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it("sends the browser back saying the API out of reach", async () => {
     server.client = unreachable();
     expect(sentBackTo(await download())).toContain("refusal=unreachable");

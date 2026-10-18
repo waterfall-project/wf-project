@@ -1,0 +1,12 @@
+{
+  "summary": "La saisie work_breakdown_entered, le lot « Mise en service sur site » envoyé avec l'identifiant du lot « Armoires », que la saisie porte déjà, refusée à sa seconde occurrence : un élément du lotissement ne s'écrit qu'une fois ; rien n'est écrit (WF-PRJ-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/order_items/0/work_packages/1/work_package_id","code":"DUPLICATE_WORK_BREAKDOWN_ITEM"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001135"
+  }
+}

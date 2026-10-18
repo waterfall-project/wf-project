@@ -61,7 +61,7 @@ describe("an indicator", () => {
     const { container } = render(page("indicator.names.physicalProgress", PHYSICAL_PROGRESS));
     expect(screen.getByRole("term")).toHaveTextContent("Avancement physique");
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
-      "82,96\u00a0%",
+      "2,22\u00a0%",
       "Calculé le 3 juin 2026, 07:05",
     ]);
     const time = container.querySelector("time");
@@ -81,8 +81,21 @@ describe("an indicator", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["82.96%"]);
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["2.22%"]);
   });
+
+  it.each([
+    ["indicator.names.financialProgress", held(INDICATORS.financial_progress)],
+    ["indicator.names.budgetConsumption", held(INDICATORS.budget_consumption)],
+    ["indicator.names.physicalProgress", PHYSICAL_PROGRESS],
+  ] as const)(
+    "shows %s too small to show below the smallest share, never « 0 % » (#626, #699)",
+    (label, value) => {
+      // A variant of `project_indicators`: the value of the indicator changed to 0.00003.
+      render(page(label, { ...value, value: "0.00003" }, "en"));
+      expect(screen.getAllByRole("definition")[0]).toHaveTextContent("<0.01%");
+    },
+  );
 
   it("shows a cost index without actual cost as not computable, with its reason and its date", async () => {
     const { container } = render(
@@ -131,6 +144,6 @@ describe("an indicator", () => {
         .getAllByRole("definition")
         .map((item) => item.textContent)
         .filter((text) => !text.startsWith("Computed")),
-    ).toEqual(["12.5%", "0.9879"]);
+    ).toEqual(["12.5%", "0.8674"]);
   });
 });

@@ -105,7 +105,7 @@ describe("the decoder of an answer of the API", () => {
   });
 
   it("names the object that holds a value already taken, which a 409 says at its first field", async () => {
-    const taken = { ...(example("cost_category_codes_taken") as Problem), status: 409 } as const;
+    const taken = example("cost_category_codes_taken") as Problem & { status: 409 };
     const client = fakeClient({ "POST /reference/cost-categories": { problem: taken } });
     const outcome = await decode(() =>
       client.POST("/reference/cost-categories", {

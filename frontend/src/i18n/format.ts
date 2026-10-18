@@ -177,6 +177,60 @@ export function formatPercent(value: Decimal, locale: Locale): string {
   }).format(exact);
 }
 
+/** The places of a percentage a share is shown to: hundredths, the fourth place of the ratio. */
+const SHARE_PLACES = 2;
+
+/** The smallest share shown, a hundredth of a percent, by which a smaller one is said: `0.0001`. */
+const SMALLEST_SHARE = shiftPoint("1", -(SHARE_PLACES + 2));
+
+/** The side of zero a share lies on, when rounding would show it as nil: below or above its bound. */
+export type ShareSide = "below" | "above";
+
+/**
+ * The words of the catalogue that put a share on its side of a bound — « < 0,01 % » in French,
+ * `<0.01%` in English —: the translator of `share`, `useTranslations("share")`.
+ */
+export type ShareWords = (side: ShareSide, values: { readonly share: string }) => string;
+
+/** A ratio rounded to the places a share is shown to, in their units: `0.12345` is `1235`. */
+function shareUnits(value: DecimalString): bigint {
+  const [whole = "0", fraction = ""] = shiftPoint(value, SHARE_PLACES + 2).split(".");
+  // Half a unit rounds away from zero, as `Intl` rounds (`halfExpand`).
+  const away = /^[5-9]/.test(fraction);
+  return BigInt(whole) + (away ? (value.startsWith("-") ? -1n : 1n) : 0n);
+}
+
+/**
+ * Format a share — a ratio of the contract, `0.0076`, the part a nature takes of a total — as a
+ * percentage to the hundredth: « 0,76 % ». The places shown are those `formatPercent` showed, up to
+ * the second — `0.337` is « 33,7 % », `0.1300` « 13,00 % » —, so that a share given to its fourth
+ * place shows as before. A share that the rounding would show as nil while it is not says so by the
+ * catalogue (#626): `0.00003` is « < 0,01 % », `-0.00003` « > -0,01 % »; a nil share is « 0 % »,
+ * however many zeros it is written with. Near the whole, the ordinary rounding is kept, the author
+ * having decided the side of zero only (#626). A share the contract gives nil is nil: one that is
+ * not is never given nil, but to its first significant digit (EP-14/L42o, #694).
+ * No float: the rounding moves the point of the decimal string and compares its digits.
+ */
+export function formatShare(value: Decimal, locale: Locale, words: ShareWords): string {
+  const exact = decimal(value);
+  const percent = (ratio: Decimal, places: number) =>
+    numberFormat(locale, {
+      style: "percent",
+      minimumFractionDigits: places,
+      maximumFractionDigits: SHARE_PLACES,
+      signDisplay: "negative",
+    }).format(decimal(ratio));
+  if (shareUnits(exact) !== 0n) {
+    return percent(exact, Math.min(SHARE_PLACES, Math.max(0, fractionDigits(exact) - 2)));
+  }
+  const side = compareDecimals(exact, "0");
+  if (side === 0) {
+    return percent("0", 0);
+  }
+  const bound = percent(side > 0 ? SMALLEST_SHARE : `-${SMALLEST_SHARE}`, SHARE_PLACES);
+  return words(side > 0 ? "below" : "above", { share: bound });
+}
+
 /**
  * Format an amount, `Money` of the contract, with its two decimals: `1234.56` is
  * « 1 234,56 » in French and `1,234.56` in English. Given the currency of the installation,
@@ -208,6 +262,66 @@ function separators(locale: Locale): { readonly point: string; readonly group: s
  */
 export function editableDecimal(value: Decimal, locale: Locale): string {
   return decimal(value).replace(".", separators(locale).point);
+}
+
+/**
+ * A decimal string with its point moved — to the right for `places` above zero —, its digits kept:
+ * a hundredth is a matter of where the point stands, never of a product, which a float would round.
+ * Leading zeros before the units and trailing zeros after the point go.
+ */
+function shiftPoint(value: Decimal, places: number): Decimal {
+  const exact = decimal(value);
+  const negative = exact.startsWith("-");
+  const [whole = "", fraction = ""] = (negative ? exact.slice(1) : exact).split(".");
+  const digits = whole + fraction;
+  const point = whole.length + places;
+  const padded =
+    point < 1 ? "0".repeat(1 - point) + digits : digits.padEnd(Math.max(point, digits.length), "0");
+  const at = Math.max(point, 1);
+  const units = padded.slice(0, at).replace(/^0+(?=\d)/, "");
+  const decimals = padded.slice(at).replace(/0+$/, "");
+  const shifted = decimals === "" ? units : `${units}.${decimals}`;
+  return negative && /[1-9]/.test(shifted) ? `-${shifted}` : shifted;
+}
+
+/**
+ * A `Percent` of the contract — a ratio, `0.035` — as one enters it in a language, a percentage:
+ * « 3,5 » in French, `3.5` in English.
+ */
+export function editablePercent(value: Decimal, locale: Locale): string {
+  return editableDecimal(shiftPoint(value, 2), locale);
+}
+
+/**
+ * The percentage a ratio of the contract stands for — `0.035` read, `3.5` said —, the point moved,
+ * never through a float (WF-DAT-0100): a bound the server gives in ratios, said where one enters
+ * percentages; `undefined` for a text that is no decimal of the contract.
+ */
+export function ratioPercent(value: string): Decimal | undefined {
+  return isDecimal(value, DECIMAL) ? shiftPoint(value, 2) : undefined;
+}
+
+/**
+ * The `Percent` of the contract a percentage entered stands for — `3.5` entered, `0.035` sent —, the
+ * point moved, never through a float (WF-DAT-0100).
+ */
+export function percentRatio(entered: Decimal): Decimal {
+  return shiftPoint(entered, -2);
+}
+
+/**
+ * The order of two `Decimal`s of the contract — below zero when the first is the smaller, zero when
+ * they are equal, above zero otherwise —, their digits compared as whole numbers once their decimals
+ * are made as many, never through a float: `0.3` and `0.30` are equal, `0.1` is below `0.25`.
+ */
+export function compareDecimals(left: Decimal, right: Decimal): number {
+  const [leftWhole = "", leftFraction = ""] = decimal(left).split(".");
+  const [rightWhole = "", rightFraction = ""] = decimal(right).split(".");
+  const places = Math.max(leftFraction.length, rightFraction.length);
+  const difference =
+    BigInt(leftWhole + leftFraction.padEnd(places, "0")) -
+    BigInt(rightWhole + rightFraction.padEnd(places, "0"));
+  return difference < 0n ? -1 : difference > 0n ? 1 : 0;
 }
 
 /** A text of a pattern, as a regular expression matches it literally. */
@@ -299,4 +413,53 @@ export function formatTimestamp(value: Timestamp, locale: Locale, timeZone?: str
       ? new Intl.DateTimeFormat(formatLocale(locale), options)
       : dateFormat(locale, { ...options, timeZone });
   return format.format(new Date(value));
+}
+
+// A time of day of the contract, on 24 hours: `BackupSchedule.at_time`.
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** The local time a time of day in universal time stands for, and the day it falls on. */
+export interface LocalTimeOfDay {
+  /** The time of day in the zone, `HH:MM` on 24 hours, as both languages write it. */
+  readonly time: string;
+  /** How many days the local date lies from the universal one: -1, 0 or 1. */
+  readonly shift: number;
+}
+
+/**
+ * The time of day of the zone of the workstation — or of the zone named — that a time of day in
+ * universal time stands for, on the universal date of a given day: `01:00` UTC is `03:00` in Paris in
+ * June, `02:00` in January — a time of day alone has no offset, which only a day gives it, and a
+ * change of summer time moves it. The day it falls on matters only where the universal day does — the
+ * day of a weekly schedule, which the local day then names. `undefined` for what is no time of day.
+ * It runs in the browser, which alone knows its zone; nothing is ever sent from it.
+ */
+export function localTimeOfDay(
+  time: string,
+  day: Date,
+  timeZone?: string,
+): LocalTimeOfDay | undefined {
+  if (!TIME_OF_DAY.test(time)) {
+    return undefined;
+  }
+  const date = day.toISOString().slice(0, 10);
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    ...(timeZone === undefined ? {} : { timeZone }),
+  };
+  const parts = new Intl.DateTimeFormat("en-GB", options).formatToParts(
+    new Date(`${date}T${time}:00Z`),
+  );
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  const local = Date.UTC(Number(part("year")), Number(part("month")) - 1, Number(part("day")));
+  return {
+    time: `${part("hour")}:${part("minute")}`,
+    shift: Math.round((local - Date.parse(`${date}T00:00:00Z`)) / 86_400_000),
+  };
 }

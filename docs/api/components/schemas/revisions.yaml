@@ -66,9 +66,11 @@ RevisionCommand:
   type: string
   enum:
     - edit_planning
+    - generate_skeleton
     - edit_estimate
     - edit_remaining
     - edit_risks
+    - declare_risk
     - create_structure
     - merge_structure
     - mark
@@ -109,6 +111,29 @@ RevisionCommand:
     créant la révision en cours (WF-RIS-0020).
     La déclaration de survenance n'en relève pas : c'est une commande du projet et du risque
     (`ProjectCommand.declare_risk_occurrence`, `RiskCommand.declare_occurrence`).
+
+    `declare_risk` dit d'avance si la déclaration d'un risque (`createRisk`) aboutirait,
+    toujours listée juste après `edit_risks`, là où elle l'est et sous la même permission,
+    `risks.write` (EP-14/L42s), ses conditions dans l'ordre où le 409 de `createRisk` les juge :
+    les conditions d'état d'`edit_risks` d'abord — `project_not_terminal` sur un projet terminal,
+    puis `no_background_task_running` pendant un traitement de fond qui écrit dans la révision
+    en cours ou la fige —, comme `ProjectCommand.update_work_breakdown` ; puis ses conditions
+    propres — `at_least_one_task`, une structure principale sans tâche, puis
+    `active_provision_category`, aucune catégorie active de type provision pour risques
+    (WF-RIS-0010) — ; puis les autres conditions d'`edit_risks`. La modification, le réexamen
+    et la suppression, qui n'en dépendent pas, restent sous `edit_risks`.
+
+    `generate_skeleton` engendre le squelette de planning depuis le lotissement
+    (`generatePlanningSkeleton`, WF-PRJ-0030), une saisie du planning gardée par la même
+    permission, `planning.write`, et listée juste après elle. « La génération n'est proposée
+    que sur la structure principale (WF-PLA-0170), et seulement lorsqu'elle ne comporte aucune
+    tâche » : la commande est indisponible dès que la structure principale de la révision
+    comporte une tâche, `main_structure_without_tasks` manquante, la condition propre d'abord,
+    puis celles de toute saisie de la révision en cours — `no_background_task_running` pendant
+    un marquage, un import, le traitement d'une survenance de risque ou une fusion. Sur une
+    révision marquée, elle ne manque que de `revision_draft`, comme `merge_structure`. Elle ne
+    se dit d'aucun différentiel ni d'aucun devis propre d'un risque : c'est une commande de la
+    révision, que l'opération applique à sa structure principale.
 
 RevisionCommandAvailability:
   type: object
@@ -275,17 +300,79 @@ StructureCreate:
 
 StructureMerge:
   type: object
-  required: [confirmed, version_name]
+  required: [confirmed, version_name, main_structure_lock_version, amendment_lock_version]
   description: >-
     Fusionne le différentiel dans la structure principale : la fusion ne touche que
     les montants budgétés des lignes qu'il désigne. Elle s'applique à la révision en
     cours et la marque dans la même opération, d'où le nom de version exigé, et la
-    révision produite devient la référence (WF-REV-0050). Confiée au worker.
+    révision produite devient la référence (WF-REV-0050). Confiée au worker. La confirmation
+    suit le compte rendu préalable (`getStructureMergeReport`), qui dit d'avance ce qui la
+    refuserait, et porte les deux compteurs qu'il a lus : la structure principale ou le
+    différentiel changés depuis, elle est refusée par 412 et rien n'est fusionné — c'est ce
+    compte rendu que l'utilisateur a confirmé (WF-REV-0050, WF-IHM-0110 ; EP-14/L42s).
   properties:
     confirmed:
       type: boolean
       const: true
     version_name: { type: string, minLength: 1, maxLength: 100 }
+    main_structure_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la structure principale que le compte rendu a lu
+        (`StructureMergeReport.main_structure_lock_version`).
+    amendment_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du différentiel que le compte rendu a lu
+        (`StructureMergeReport.amendment_lock_version`).
+
+StructureMergeReport:
+  type: object
+  required:
+    - main_structure_lock_version
+    - amendment_lock_version
+    - differences
+    - completed_tasks
+    - refusals
+  description: >-
+    Compte rendu de la fusion d'un différentiel, présenté avant son application (WF-REV-0050 ;
+    EP-14/L42s) : ses écarts avec la structure principale — tâches et lignes ajoutées,
+    modifiées, retirées —, les tâches démarrées qu'elle terminera, et les motifs qui la refusent.
+    Il reprend les éléments du compte rendu d'un import, et se lit de même : une tâche démarrée
+    ou terminée que le différentiel retire n'est jamais retirée, mais conservée et signalée
+    (`kept`) ; la démarrée paraît aussi parmi `completed_tasks`, son reste à engager porté à zéro
+    (`completed_on` nul tant que la fusion n'est pas appliquée). Les trois tableaux sont toujours
+    rendus, vides quand il n'y a rien à dire ; la fusion ne s'applique que si `refusals` est vide.
+    Il rend les compteurs des deux structures lues, que la confirmation renvoie (`StructureMerge`).
+  properties:
+    main_structure_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie
+        qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412.
+    amendment_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: Le compteur du différentiel lu (`CostStructure.lock_version`), de même.
+    differences:
+      type: array
+      description: >-
+        Les écarts du différentiel avec la structure principale, tâches, lignes de devis et
+        liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée
+        dans la structure principale.
+      items: { $ref: exchanges.yaml#/ImportDifference }
+    completed_tasks:
+      type: array
+      description: >-
+        Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur
+        reste à engager à zéro (WF-REV-0050, WF-RAE-0040).
+      items: { $ref: exchanges.yaml#/ImportCompletedTask }
+    refusals:
+      type: array
+      description: >-
+        Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150,
+        WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue
+        (`ReportRefusal`). Vide quand la fusion s'applique.
+      items: { $ref: exchanges.yaml#/ReportRefusal }
 
 NodeKind:
   type: string
@@ -329,7 +416,8 @@ Node:
         Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa
         commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en
         mode automatique, les dates, la durée et l'avancement d'une récapitulative, les
-        grandeurs d'une ligne de provision. Le front les présente
+        grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne
+        (WF-RIS-0010). Le front les présente
         comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit
         rien du mode ni de la nature du nœud.
       items: { $ref: '#/ComputedField' }
@@ -340,7 +428,9 @@ Node:
         Champs de la facette que ce nœud-ci accepte en écriture, symétrique de
         `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne
         hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la
-        main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ;
+        main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni
+        son sous-projet, que son risque désigne et ne change que tant qu'il est identifié
+        (`RiskCommand.update_provision`, WF-RIS-0010) ;
         une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à
         saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ
         calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si
@@ -378,6 +468,7 @@ ComputedField:
     - estimate_line.quantity
     - estimate_line.hours
     - estimate_line.unit_disbursement
+    - estimate_line.subproject_id
 
 EditableField:
   type: string
@@ -385,8 +476,11 @@ EditableField:
     Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou
     la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il
     accepte (`editable_fields`, WF-IHM-0040). Le rattachement à un poste ou à un lot du
-    lotissement (`task.order_item_id`, `task.work_package_id`) est accepté de toute tâche,
-    récapitulative ou feuille (WF-PLA-0170).
+    lotissement (`task.order_item_id`, `task.work_package_id`) est accepté de toute tâche de la
+    structure principale, récapitulative, feuille ou jalon, et d'aucune autre : « Le
+    rattachement n'existe que dans la structure principale », « les structures différentielles
+    et les devis propres des risques n'en portent pas » (WF-PLA-0170) — leurs tâches ne le
+    nomment pas, et le portent toujours nul.
   enum:
     - task.label
     - task.description
@@ -474,6 +568,7 @@ ComputedValueField:
     - estimate_line.quantity
     - estimate_line.hours
     - estimate_line.unit_disbursement
+    - estimate_line.subproject_id
     - estimate_line.base_amount
     - estimate_line.budgeted_amount
     - estimate_line.reestimated_amount
@@ -493,7 +588,7 @@ ComputedDependency:
     (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de
     sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`, celui d'une ligne
     hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les
-    grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ;
+    grandeurs, le sous-projet et le montant d'une ligne de provision (WF-RIS-0010) ;
     `reference_revision`, le montant budgété, fixé par la révision de référence
     (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
     reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du
@@ -630,8 +725,9 @@ NodesWritten:
     ancestors:
       type: array
       description: >-
-        Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`) — ceux du nœud
-        supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants,
+        Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds
+        écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —,
+        recalculés : montants,
         dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre
         du plan ; vide quand aucun de ces nœuds n'a de parent.
       items: { $ref: '#/Node' }
@@ -863,8 +959,9 @@ TaskFacet:
       description: >-
         Avancement physique d'une récapitulative, calculé : le rapport des montants
         budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce
-        sous-arbre (WF-IND-0060), non calculable quand ce total est nul
-        (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative.
+        sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable
+        quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui
+        n'est pas récapitulative.
     base_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
@@ -972,7 +1069,9 @@ EstimateLineFacet:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
       description: >-
         Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne
-        quand elle présente les décaissements (WF-IND-0100).
+        quand elle présente les décaissements (WF-IND-0100). Nul pour une ligne de provision, qui
+        n'en porte pas et reste à la date de la tâche qui la porte (WF-DEV-0020, WF-IND-0100 ;
+        EP-14/L42s).
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020).
@@ -1133,9 +1232,9 @@ TaskFacetWrite:
     Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
     refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
     saisissables en mode manuel, sont une date et des heures de travail écoulées
-    (WF-DAT-0100). Le rattachement à un poste ou à un lot est accepté de toute tâche et suit
-    les règles de `TaskFacetUpdate`, le parent de la tâche créée (`NodeCreate.parent_id`)
-    disant si la tâche d'un lot reste sous celle de son poste.
+    (WF-DAT-0100). Le rattachement à un poste ou à un lot est accepté de toute tâche de la
+    structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée
+    (`NodeCreate.parent_id`) disant si la tâche d'un lot reste sous celle de son poste.
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -1159,24 +1258,35 @@ TaskFacetUpdate:
     Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est
     exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent
     reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) ; une valeur
-    que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030).
+    que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030), et un champ
+    que le nœud n'accepte pas, ni saisi ni calculé pour lui — la durée d'un jalon, qui n'en a pas
+    à saisir (WF-PLA-0050) —, par `FIELD_NOT_ACCEPTED` (`editable_fields` ; EP-14/L42s).
 
     Le rattachement au lotissement (WF-PLA-0170) : `order_item_id` ou `work_package_id`
-    rattache la tâche, récapitulative ou feuille, à ce poste ou à ce lot, `null` retire le
-    rattachement. L'échange se fait en une écriture : `{order_item_id: null, work_package_id:
+    rattache la tâche, récapitulative, feuille ou jalon, à ce poste ou à ce lot, `null` retire
+    le rattachement. L'échange se fait en une écriture : `{order_item_id: null, work_package_id:
     X}` sur une tâche qui porte un poste retire le poste et rattache le lot. Le refus est un
-    422 `VALIDATION_FAILED`, `fields` sur le champ envoyé : `UNKNOWN_WORK_BREAKDOWN_ITEM` quand
-    le lotissement du projet n'a pas ce poste ou ce lot ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` quand
-    les deux sont envoyés non nuls, ou que l'un est envoyé non nul quand l'autre est porté et
-    n'est pas mis à `null` dans le même corps — « le rattachement d'une même tâche à un poste et
-    à un lot » ; `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre tâche porte déjà ce
-    poste ou ce lot, `fields[].params.attached_node_id` la nommant — « le rattachement d'une
-    tâche à un lot déjà porté par une autre est refusé » ; `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`
-    quand le rattachement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste —
-    un lot rattaché à une tâche hors du sous-arbre de la tâche de son poste, ou un poste
-    rattaché à une tâche dont le sous-arbre ne contient pas la tâche de l'un de ses lots —,
-    `fields[].params.order_item_node_id` nommant la tâche du poste et `work_package_node_ids`
-    celles des lots en cause (Vérif de WF-PLA-0170).
+    422 `VALIDATION_FAILED`, `fields` sur le champ envoyé, une entrée par motif qui s'applique —
+    `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` et `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` rendus ensemble
+    quand l'un et l'autre s'appliquent :
+    `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` quand la tâche n'est pas de la structure principale —
+    d'un différentiel ou du devis propre d'un risque, qui n'en portent pas ; `null` y est
+    accepté, qui ne change rien — ; `UNKNOWN_WORK_BREAKDOWN_ITEM` quand le lotissement du
+    projet n'a pas ce poste ou ce lot ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, sans paramètre, quand
+    les deux sont envoyés non nuls — chacun refusé à son champ —, ou que l'un est envoyé non nul
+    quand l'autre est porté et n'est pas mis à `null` dans le même corps — « jamais aux deux »,
+    « le rattachement d'une même tâche à un poste et à un lot » est refusé ;
+    `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre tâche porte déjà ce poste ou ce lot —
+    « un poste ou un lot n'y est porté que par une tâche à la fois », « le rattachement d'une
+    tâche à un lot déjà porté par une autre est refusé » —, `fields[].params.conflicting_object_id`
+    nommant le nœud de cette tâche et `conflicting_object_label` son libellé, la grille de
+    planning, filtrée, pouvant ne pas la lire ; `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` quand le
+    rattachement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste — un lot
+    rattaché à une tâche hors du sous-arbre de la tâche de son poste, ou un poste rattaché à une
+    tâche dont le sous-arbre ne contient pas la tâche de l'un de ses lots —,
+    `fields[].params.order_item_task` nommant la tâche du poste et `work_package_tasks` celles des
+    lots en cause, chacune par son nœud et son libellé, comme l'échec d'une fusion (Vérif de
+    WF-PLA-0170 ; WF-IHM-0080 ; EP-14/L42s).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -1200,7 +1310,9 @@ EstimateLineWrite:
   required: [label, cost_category_id, quantity]
   description: >-
     Champs saisissables d'une ligne de devis, à sa création (WF-DEV-0020) : le rôle et la
-    charge pour une catégorie de main-d'œuvre, le débours unitaire pour une autre.
+    charge pour une catégorie de main-d'œuvre, le débours unitaire pour une autre ; un champ que
+    la ligne n'accepte pas — le débours d'une ligne de main-d'œuvre, le rôle ou la charge d'une
+    autre — est refusé par 422, motif `FIELD_NOT_ACCEPTED` sur son champ (EP-14/L42s).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
@@ -1224,9 +1336,12 @@ EstimateLineUpdate:
     Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur
     lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un
     champ absent reste ce qu'il était. Les mêmes champs qu'à la création
-    (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours ou le délai de
-    paiement d'une ligne de main-d'œuvre, le rôle ou la charge d'une autre — est refusé par
-    422 (WF-DEV-0020, §3.2.5), et le nœud dit lesquels il accepte (`editable_fields`).
+    (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours d'une ligne de
+    main-d'œuvre, le rôle ou la charge d'une autre, le délai de paiement d'une ligne de
+    provision, qui n'en porte pas (WF-DEV-0020, WF-IND-0100 ; EP-14/L42s) — est refusé par 422
+    `VALIDATION_FAILED`, `fields` sur son champ, motif `FIELD_NOT_ACCEPTED`, et le nœud dit
+    lesquels il accepte (`editable_fields`). Le délai de paiement d'une ligne de main-d'œuvre,
+    que la spécification veut saisissable et que le nœud n'offre pas encore, est suivi par #785.
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
@@ -1241,6 +1356,11 @@ EstimateLineUpdate:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Le sous-projet de la ligne, ou `null` pour la passer hors sous-projet. Celui d'une ligne de
+        provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par
+        422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque
+        (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 NodeMove:
@@ -1251,8 +1371,9 @@ NodeMove:
     sous-arbre de la tâche de son poste rattaché — la tâche du lot, ou une tâche qui la
     contient — est refusé (WF-PLA-0170) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le
     nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-    `fields[].params.order_item_node_id` et `work_package_node_ids` nommant les tâches du
-    poste et des lots.
+    `fields[].params.order_item_task` et `work_package_tasks` nommant la tâche du poste et celles
+    des lots, chacune par son nœud et son libellé (`node_id`, `label`) : la grille, filtrée, peut
+    ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s).
   properties:
     node_ids:
       type: array
@@ -1324,6 +1445,11 @@ UndoResult:
     postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque — création,
     modification, réexamen, suppression — sont dans le même historique que celles des
     grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent.
+    Toute annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la
+    provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la
+    grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par
+    409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et
+    ne défont ni ne rétablissent rien (décision de l'auteur, #732).
   properties:
     undone:
       type: object
@@ -1346,7 +1472,8 @@ PastePreview:
   description: >-
     Bloc collé depuis un tableur, sur la cellule visée : le nœud et sa colonne. L'aperçu dit
     ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit
-    sans confirmation (WF-IHM-0050).
+    sans confirmation, et la confirmation écrit les lignes valides, jamais les lignes refusées
+    (WF-IHM-0050).
 
     La première colonne du bloc remplit `target_column` ; chacune des suivantes remplit la
     colonne suivante de la facette du nœud visé, dans l'ordre de `NodeColumn` — pour une
@@ -1354,10 +1481,11 @@ PastePreview:
     le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la
     description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la
     grille à la même distance sous le nœud visé, dans l'ordre du plan. Aucune cellule n'est
-    décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas — un champ
-    calculé pour ce nœud, un champ que sa nature refuse, une colonne qu'aucune écriture ne
-    porte comme les montants — est refusée, la ligne et la colonne nommées
-    (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien. Un bloc plus large que
+    décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas est refusée, la
+    ligne et la colonne nommées (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien —
+    un champ calculé pour ce nœud par `COMPUTED_VALUE`, un champ que sa nature refuse ou une
+    colonne qu'aucune écriture ne porte, comme les montants, par `FIELD_NOT_ACCEPTED`
+    (EP-14/L42s). Un bloc plus large que
     les colonnes de la facette à partir de la colonne visée est refusé par 422
     (`PASTE_TOO_WIDE`, `params.max_columns`).
   properties:
@@ -1377,38 +1505,88 @@ PastePlan:
   required: [paste_id, accepted, rejected]
   description: >-
     Ce qu'un collage écrira et ce qu'il refusera, chaque refus avec son motif et, quand il
-    tient à une cellule, sa colonne (WF-IHM-0050).
+    tient à une cellule, sa colonne (WF-IHM-0050). Une ligne du bloc dont une cellule est
+    refusée est refusée entière : confirmé, le collage écrit les autres lignes et non celle-ci
+    (`applyPaste`, `PasteApplied`) ; abandonné, il n'écrit rien.
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
-    accepted: { type: integer, minimum: 0 }
+    accepted:
+      type: integer
+      minimum: 0
+      description: Le nombre de lignes du bloc que la confirmation écrira.
     rejected:
       type: array
-      items:
-        type: object
-        required: [row, code]
-        properties:
-          row:
-            type: integer
-            minimum: 0
-            description: La ligne du bloc refusée, comptée de zéro.
-          column:
-            allOf: [{ $ref: '#/NodeColumn' }]
-            description: >-
-              La colonne de la cellule refusée ; absente quand le refus porte sur la ligne
-              entière.
-          code: { $ref: ../common.yaml#/ErrorCode }
-          params:
-            type: object
-            additionalProperties: true
+      description: >-
+        Les refus, dans l'ordre des lignes du bloc puis des colonnes ; une ligne refusée par
+        plusieurs cellules y paraît pour chacune.
+      items: { $ref: '#/PasteRejection' }
+
+PasteRejection:
+  type: object
+  required: [row, code]
+  description: >-
+    Le refus d'une ligne d'un bloc collé, que l'aperçu annonce et que la confirmation redit :
+    la ligne, et, quand il tient à une cellule, sa colonne, avec son motif (WF-IHM-0050). Une
+    cellule de la colonne `work_breakdown` collée sur une tâche d'un différentiel ou du devis
+    propre d'un risque est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` : le rattachement
+    n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche
+    de la structure principale, elle suit les règles du rattachement (`TaskFacetUpdate`), et
+    `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` porte dans `params` la tâche du poste et celles des lots
+    (`order_item_task`, `work_package_tasks`), comme le refus d'une cellule (EP-14/L42s).
+  properties:
+    row:
+      type: integer
+      minimum: 0
+      description: La ligne du bloc refusée, comptée de zéro.
+    column:
+      allOf: [{ $ref: '#/NodeColumn' }]
+      description: >-
+        La colonne de la cellule refusée ; absente quand le refus porte sur la ligne
+        entière.
+    code: { $ref: ../common.yaml#/ErrorCode }
+    params:
+      type: object
+      additionalProperties: true
+
+PasteApplied:
+  description: >-
+    Ce que rend la confirmation d'un collage (WF-IHM-0050) : un succès partiel quand l'aperçu
+    a refusé des lignes. Les lignes valides sont écrites en une seule opération et rendues comme
+    toute écriture de grille (`NodesWritten`) ; les lignes refusées ne le sont pas, et chacune
+    est redite avec son motif (`rejected`). Le plan retient le compteur de la structure lu à
+    l'aperçu, et la confirmation est refusée par 412 si la structure a changé depuis, quel que
+    soit le compteur envoyé (`PasteApply`) : la structure est celle que l'aperçu a jugée. Le
+    référentiel, lui, a pu changer — une catégorie ou un rôle désactivés entre-temps — : les lignes
+    acceptées du plan sont donc jugées de nouveau, et une ligne devenue invalide passe dans
+    `rejected` avec son motif, sans être écrite. Sans aucune
+    ligne valide, rien n'est écrit : `nodes`, `ancestors`, `rescheduled` et `reinflated` sont
+    vides, le compteur de la structure reste celui qui a été envoyé, et aucune entrée d'annulation
+    n'est créée (WF-IHM-0110).
+  allOf:
+    - $ref: '#/NodesWritten'
+    - type: object
+      required: [rejected]
+      properties:
+        rejected:
+          type: array
+          description: >-
+            Les refus de l'aperçu et ceux que la confirmation y ajoute en jugeant de nouveau les
+            lignes acceptées, aucun écrit, dans l'ordre des lignes du bloc ; vide quand toutes les
+            lignes du bloc sont écrites.
+          items: { $ref: '#/PasteRejection' }
 
 PasteApply:
   type: object
   required: [paste_id, confirmed, lock_version]
   description: >-
-    Confirme un plan de collage. Le compteur est celui de la structure dans laquelle le bloc
+    Confirme un plan de collage : ses lignes acceptées sont écrites, ses lignes refusées ne le
+    sont pas (WF-IHM-0050). Le compteur est celui de la structure dans laquelle le bloc
     s'écrit (`CostStructure.lock_version`), lu avec la page ou rendu par la dernière écriture
     (`NodesWritten.structure_lock_version`) ; périmé, le collage est refusé par 412 et rien
-    n'est écrit (WF-IHM-0050, WF-IHM-0110).
+    n'est écrit (WF-IHM-0050, WF-IHM-0110). Le plan retient aussi le compteur de la structure lu
+    à l'aperçu (`previewPaste`) : la structure changée depuis l'aperçu, la confirmation est
+    refusée par 412 quel que soit le compteur envoyé, le plan ayant été jugé sur une autre
+    structure (`params.expected_lock_version`, le compteur courant).
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
     confirmed:

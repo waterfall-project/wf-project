@@ -78,13 +78,18 @@ def test_the_nodes_render_the_payment_delays_the_curve_of_the_disbursements_appl
         for node in mockwitness.fixture("nodes_core")["items"]
         if node["kind"] == mockcore.ESTIMATE_LINE
     }
-    # Every line has its delay (WF-DEV-0020): a month for the subcontracting and the terminal
-    # blocks, nought for the others, labour and provision included.
+    # Every line has its delay (WF-DEV-0020): in the core, a month for the subcontracting and the
+    # terminal blocks, nought for the others, labour included; drawn about it, a month for every
+    # disbursement, nought for the labour. A provision carries none, and stays at the date of its
+    # task (WF-IND-0100, EP-14/L42s): it renders nil, which the curve reads as nought.
     expected = {
         number: PAYMENT_DELAY if number in {STUDIES_LINE, BLOCKS} else 0 for number in rendered
     }
-    assert rendered == expected
-    assert {number: reading.delays[number] for number in rendered} == expected
+    assert rendered == {**expected, mockwitness.N.PROVISION: None}
+    for row in reading.lines:
+        if row.number >= mockwitness.GENERATED:
+            expected[row.number] = 0 if row.hours else PAYMENT_DELAY
+    assert reading.delays == expected
     lines = [row.number for row in mockindicators.budgeted(reading)]
     flows = dict(zip(lines, mockcurves.budget_flows(reading, delays=True), strict=True))
     assert {number: flow.delay for number, flow in flows.items()} == {
@@ -330,14 +335,43 @@ def test_the_anonymization_of_today_follows_the_account_the_list_reads() -> None
 # --- The actual costs (C3) ----------------------------------------------------------------------
 
 
-def test_a_subproject_has_actual_costs_when_a_line_is_imputed_to_it() -> None:
-    imputed = {mockcosts.imputed(line) for line in COSTS}
-    for subproject in fixture("subprojects"):
-        assert subproject["has_actual_costs"] == (subproject["subproject_id"] in imputed)
+CHARGED = (
+    "subprojects",
+    "subprojects_by_label",
+    "subprojects_completed",
+    "subproject_updated",
+    "subprojects_with_actual_costs",
+    "subproject_created",
+)
+"""The examples that render a subproject, each confronted to the lines imputed to it: the lists
+read today, the one a rename answers, and the subproject created today under a code lines already
+bore (#625). Otherwise the row read anew would become deletable in the mockup."""
+
+
+def test_both_subprojects_of_the_witness_are_charged() -> None:
+    # The screens of the control station, and the invoices of the drawn tasks of the lots « Ligne
+    # d'essais » completed: both subprojects are charged (EP-14/L45a).
+    imputed = {mockcosts.imputed(line) for line in mockcosts.lines()}
+    assert imputed == {None, universe(801), universe(802)}
+
+
+@pytest.mark.parametrize("name", CHARGED)
+def test_a_subproject_has_actual_costs_when_a_line_is_imputed_to_it(name: str) -> None:
+    # A line is imputed to the subproject of its code the day it is created (WF-CRE-0020).
+    lines = mockcosts.lines()
+    codes = {line.code for line in lines}
+    imputed = {mockcosts.imputed(line) for line in lines}
+    value = fixture(name)
+    subprojects = cast("list[Node]", value if isinstance(value, list) else [value])
+    for subproject in subprojects:
+        charged = subproject["code"] in codes
+        assert subproject["has_actual_costs"] is charged, (name, subproject["code"])
+        if name != "subproject_created":
+            assert (subproject["subproject_id"] in imputed) is charged, (name, subproject["code"])
 
 
 def test_each_line_is_dated_in_the_period_of_each_import_that_brought_it_and_before_it() -> None:
-    for line in COSTS:
+    for line in mockcosts.lines():
         creating = line.imports[0]
         for each in line.imports:
             start, end = each.period
@@ -496,12 +530,61 @@ def test_the_external_copy_names_a_location_the_installation_declares() -> None:
 def test_the_copies_outside_the_platform_keep_at_least_its_retention() -> None:
     # WF-EXP-0050: « une rétention au moins égale à celle configurée sur la plateforme ». Every
     # schedule that copies keeps as many copies; the refusal names the retention of the platform.
-    for name in ("backup_schedule", "backup_schedule_disabled", "backup_schedule_weekly"):
+    for name in (
+        "backup_schedule",
+        "backup_schedule_disabled",
+        "backup_schedule_weekly",
+        "backup_schedule_set",
+    ):
         schedule = fixture(name)
         copy = schedule.get("external_copy")
         assert copy is None or copy["retained_count"] >= schedule["retained_count"], name
     [refused] = fixture("backup_schedule_retention_too_short")["fields"]
     assert refused["params"]["minimum"] == fixture("backup_schedule")["retained_count"]
+
+
+def _retention_bounds(schema: str) -> tuple[int, int]:
+    text = (REPOSITORY / "docs" / "api" / "components" / "schemas" / "platform.yaml").read_text(
+        encoding="utf-8"
+    )
+    block = text.split(f"\n{schema}:\n", 1)[1].split("\n\n", 1)[0]
+    found = re.search(
+        r"\n    retained_count:\n      type: integer\n      minimum: (\d+)\n"
+        r"      maximum: (\d+)\n",
+        block,
+    )
+    assert found is not None, schema
+    return int(found[1]), int(found[2])
+
+
+def test_a_retention_out_of_its_range_is_refused_with_the_one_bound_it_crosses() -> None:
+    # EP-14/L42m: the twin of #659 for the backups. Each retention the schedule publishes, on the
+    # platform and on the location, is refused out of its bounds by VALUE_OUT_OF_RANGE, the bound
+    # crossed that of the schema; every schedule of the examples keeps within them.
+    platform, copy = _retention_bounds("BackupSchedule"), _retention_bounds("BackupExternalCopy")
+    assert platform == copy == (1, 365)
+    refused = fixture("backup_schedule_retention_out_of_range")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert [(f["pointer"], f["code"], f["params"]) for f in refused["fields"]] == [
+        ("/retained_count", "VALUE_OUT_OF_RANGE", {"minimum": platform[0]}),
+        ("/external_copy/retained_count", "VALUE_OUT_OF_RANGE", {"maximum": copy[1]}),
+    ]
+    for name in (
+        "backup_schedule",
+        "backup_schedule_disabled",
+        "backup_schedule_weekly",
+        "backup_schedule_set",
+    ):
+        schedule = fixture(name)
+        assert platform[0] <= schedule["retained_count"] <= platform[1], name
+        if "external_copy" in schedule:
+            assert copy[0] <= schedule["external_copy"]["retained_count"] <= copy[1], name
+    # Cited under the 422 of the operation, after the refusal the fake back serves first.
+    text = (REPOSITORY / "docs" / "api" / "paths" / "platform.yaml").read_text(encoding="utf-8")
+    block = text.split("operationId: setBackupSchedule\n", 1)[1].split("operationId:", 1)[0]
+    cited = re.findall(r"fixtures/api/(\w+)\.json", block.split("'422':", 1)[1])
+    assert cited[0] == "backup_schedule_unknown_location"
+    assert "backup_schedule_retention_out_of_range" in cited[1:]
 
 
 def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
@@ -520,9 +603,149 @@ def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
             assert copied < status["last_backup"]["at"], name
 
 
+def test_a_deposited_backup_is_a_copy_the_external_location_keeps_and_names_its_instant() -> None:
+    # EP-14/L42m (#628): the deposit reads in the archive the instant it bears, the date the
+    # confirmation of the restore states (WF-ADM-0160). The copy deposited is one the location of
+    # Lyon keeps and the platform no longer does: a scheduled night, older than the list, within
+    # the thirty copies of the schedule; named and sized as the platform writes its backups.
+    deposited = fixture("file_upload_external_backup")
+    taken = _instant(deposited["backup_taken_at"])
+    assert deposited["purpose"] == "external_backup"
+    assert deposited["filename"] == f"waterfall-backup-{taken:%Y%m%dT%H%M%SZ}.tar"
+    assert deposited["size_bytes"] <= fixture("installation")["external_backup_max_bytes"]
+    schedule = fixture("backup_schedule")
+    scheduled = sorted(
+        _instant(each["taken_at"])
+        for each in fixture("backups")["items"]
+        if each["origin"] == "scheduled"
+    )
+    assert taken < scheduled[0]
+    assert TODAY - taken <= timedelta(days=schedule["external_copy"]["retained_count"])
+    assert taken.time() == scheduled[0].time()
+    # The nights of the list grow by one step a day; the copy of an older night is on that line.
+    sizes = [
+        each["size_bytes"]
+        for each in sorted(fixture("backups")["items"], key=lambda each: each["taken_at"])
+        if each["origin"] == "scheduled"
+    ]
+    [daily] = {later - earlier for earlier, later in pairwise(sizes)}
+    assert deposited["size_bytes"] == sizes[0] - daily * (scheduled[0] - taken).days
+    assert _instant(deposited["uploaded_at"]) <= TODAY
+    # The file of an import has no date of backup.
+    assert fixture("file_upload")["backup_taken_at"] is None
+
+
+def _block_of(operation: str, file: str) -> str:
+    text = (REPOSITORY / "docs" / "api" / "paths" / file).read_text(encoding="utf-8")
+    return text.split(f"operationId: {operation}\n", 1)[1].split("operationId:", 1)[0]
+
+
+def test_a_confirmation_that_is_not_the_date_of_the_deposit_names_no_backup() -> None:
+    # The refusal of a backup of the list (`restore_confirmation_mismatch`, EP-03/US-0440/L2), for
+    # a deposit: the date confirmed is the one of a backup of the list, not the date the manifest
+    # of the archive says. A confirmation that does not name the date is a 400, not a refusal of
+    # a field (reprise of main after EP-03).
+    refused = fixture("restore_external_date_mismatch")
+    assert set(refused) == {"code", "status", "correlation_id"}
+    assert (refused["status"], refused["code"]) == (400, "CONFIRMATION_REQUIRED")
+    listed_refusal = fixture("restore_confirmation_mismatch")
+    assert (listed_refusal["status"], listed_refusal["code"]) == (400, "CONFIRMATION_REQUIRED")
+    listed = {each["taken_at"] for each in fixture("backups")["items"]}
+    assert fixture("file_upload_external_backup")["backup_taken_at"] not in listed
+    told = _block_of("startRestore", "platform.yaml").split("'400':", 1)[1].split("'401':", 1)[0]
+    assert "fixtures/api/restore_external_date_mismatch.json" in told
+
+
+def test_a_restore_on_the_deposit_of_an_import_is_refused_by_its_purpose_alone() -> None:
+    # The date compares only to the deposit of a backup: the deposit of an import has none
+    # (`backup_taken_at` null), and its refusal names the deposit, never the date confirmed.
+    assert fixture("file_upload")["purpose"] == "import"
+    assert fixture("file_upload")["backup_taken_at"] is None
+    refused = fixture("restore_upload_purpose_mismatch")
+    assert refused["fields"] == [
+        {"pointer": "/external_backup_upload_id", "code": "UPLOAD_PURPOSE_MISMATCH"}
+    ]
+
+
+def test_a_deposited_archive_whose_date_does_not_read_is_refused_without_parameter() -> None:
+    # No kind of exchange names the format of the backups: `expected_format` stays absent. A
+    # backup is deposited by parts (EP-03, #350), its date read at the completion; the deposit of
+    # a file serves the imports alone.
+    unreadable = fixture("chunked_upload_unreadable")
+    assert set(unreadable) == {"code", "status", "correlation_id"}
+    assert (unreadable["status"], unreadable["code"]) == (422, "FILE_FORMAT_UNREADABLE")
+    completion = _block_of("completeChunkedUpload", "exchanges.yaml")
+    for name in (
+        "chunked_upload_completed",
+        "file_upload_external_backup",
+        "chunked_upload_unreadable",
+    ):
+        assert f"fixtures/api/{name}.json" in completion, name
+    assert "fixtures/api/file_upload.json" in _block_of("uploadFile", "exchanges.yaml")
+
+
+def test_a_restore_on_a_deposit_expired_or_unknown_is_not_found_without_parameter() -> None:
+    # EP-14/L42o (#679): a deposit lives a day (WF-DAT-0120); expired, it is no more, refused as an
+    # unknown deposit or backup is, without telling them apart, as `openImport` refuses.
+    missing = fixture("restore_not_found")
+    assert set(missing) == {"code", "status", "correlation_id"}
+    assert (missing["status"], missing["code"]) == (404, "NOT_FOUND")
+    deposit = fixture("file_upload_external_backup")
+    assert _instant(deposit["expires_at"]) - _instant(deposit["uploaded_at"]) == timedelta(days=1)
+    told = _block_of("startRestore", "platform.yaml").split("'404':", 1)[1].split("'409':", 1)[0]
+    assert "fixtures/api/restore_not_found.json" in told
+
+
+def test_a_deposit_that_fails_its_verification_fails_its_restore_before_any_disconnection() -> None:
+    # The restore verifies the archive deposited before disconnecting anyone (WF-ADM-0150,
+    # WF-ADM-0160): failed, the task names the condition a backup of the list unverified misses —
+    # the archive is recognised, but altered: not a format unreadable (review 1).
+    failed = fixture("task_restore_verification_failed")
+    assert (failed["kind"], failed["status"], failed["progress"]) == ("restore", "failed", 0)
+    unverified = fixture("restore_unverified_refused")
+    assert failed["problem"] == {
+        "code": unverified["code"],
+        "status": unverified["status"],
+        "params": unverified["params"],
+    }
+    assert failed["problem"]["params"] == {"missing_condition": "backup_verified"}
+    assert failed["problem"]["code"] != "FILE_FORMAT_UNREADABLE"
+    deposit = fixture("file_upload_external_backup")
+    assert deposit["uploaded_at"] < failed["submitted_at"] < failed["finished_at"]
+    assert failed["finished_at"] < deposit["expires_at"]
+    tasks = _block_of("getBackgroundTask", "system.yaml")
+    assert "fixtures/api/task_restore_verification_failed.json" in tasks
+    # The verification confirms the instant the deposit read; the deposit lasts the task.
+    told = " ".join(_block_of("startRestore", "platform.yaml").split())
+    assert "confirme aussi l'instant que le dépôt a lu (`backup_taken_at`)" in told
+    assert "gardé jusqu'à la fin de sa tâche" in told
+
+
 def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() -> None:
     assert (
         fixture("actual_costs")["totals"]["tracked"] == fixture("project_indicators")["actual_cost"]
+    )
+    # The consultation holds every line retained, the drawn invoices among them, in one page.
+    consulted = fixture("actual_costs")
+    assert consulted["meta"]["total"] == len(consulted["items"]) == len(mockcosts.lines()) == 27
+
+
+def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() -> None:
+    # The witness sums its whole structure since EP-14/L45a: the estimate of the volume of §4.6.2
+    # and the estimate of the witness are one reading, and the total is that of the grid.
+    volume, witness = fixture("volume/estimate_indicators_volume"), fixture("estimate_indicators")
+    assert volume == witness
+    totals = fixture("volume/nodes_thousand")["totals"]
+    assert volume["total"]["value"] == totals["base_amount"]
+    # The reference budget is the budgeted amounts of the grid, but the provision's (WF-RIS-0050).
+    provisions = sum(
+        Decimal(node["estimate_line"]["budgeted_amount"])
+        for node in fixture("volume/nodes_thousand")["items"]
+        if node["kind"] == mockcore.ESTIMATE_LINE and node["estimate_line"]["is_computed"]
+    )
+    assert provisions == Decimal("250000.00")
+    assert Decimal(fixture("project_indicators")["reference_budget"]) == (
+        Decimal(totals["budgeted_amount"]) - provisions
     )
 
 
@@ -662,6 +885,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "access_roles": ("/query/updated_at_to", "minimum", datetime),
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
+        "backups": ("/query/to", "minimum", datetime),
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
@@ -729,6 +953,7 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "listAccessRoles",
         "listActualCosts",
         "listAuditEvents",
+        "listBackups",
         "listProjects",
         "listUsers",
     ]

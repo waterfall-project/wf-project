@@ -1,0 +1,11 @@
+{
+  "summary": "Un risque déclaré alors que la seule catégorie de type provision pour risques, PRV-001, a été désactivée : refusé, la condition manquante nommée — aucune catégorie de coût active de type provision pour risques ; rien n'est écrit. Une variante contrefactuelle : la provision pour risques du témoin est active (WF-RIS-0010, WF-REF-0030).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "active_provision_category"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001103"
+  }
+}

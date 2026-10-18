@@ -4,7 +4,8 @@
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
  * `updateEstimateLine`, `setLineRemaining`), a block pasted from a spreadsheet (`previewPaste`,
- * `applyPaste`), the totals of a filtered reading read anew (`listNodes`) —:
+ * `applyPaste`), the totals of a filtered reading read anew (`listNodes`), the skeleton of the planning
+ * generated on an empty main structure (`generatePlanningSkeleton`) —:
  * the grid asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the
  * one decoder makes of its answer (`src/api/problem.ts`).
  */
@@ -145,14 +146,16 @@ export async function previewPaste(
 
 /**
  * Apply a paste once confirmed, with the version of the structure read, in one operation
- * (WF-IHM-0050): the API answers the nodes it wrote, as they now are, with their ancestors, the
- * totals and the version the structure moved on to — or refuses the whole of it, a stale version
- * among its reasons (412).
+ * (WF-IHM-0050): the API writes the valid rows of the plan and not the refused ones, and answers
+ * the nodes it wrote, as they now are, with their ancestors, the totals and the version the
+ * structure moved on to, and the rows it did not write, each with its reason — those of the
+ * preview and those it refuses judging the accepted rows again (`PasteApplied`, EP-14/L42q) —; or
+ * it refuses the whole of it, a stale version among its reasons (412).
  */
 export async function applyPaste(
   structure: StructurePath,
   confirmation: components["schemas"]["PasteApply"],
-): Promise<Outcome<NodesWritten>> {
+): Promise<Outcome<components["schemas"]["PasteApplied"]>> {
   return decode(() =>
     serverClient().POST(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste",
@@ -178,4 +181,21 @@ export async function readNodeTotals(
     ),
   );
   return outcome.kind === "done" ? { kind: "done", data: outcome.data.totals } : outcome;
+}
+
+/**
+ * Generate the skeleton of the planning of a revision from the work breakdown of its project, on its
+ * main structure still without a task (WF-PRJ-0030): the API answers the tasks it created, as any
+ * write of a grid, with the totals and the version the structure moved on to — or refuses it, naming
+ * the first condition it lacks (409).
+ */
+export async function generatePlanningSkeleton(
+  projectId: string,
+  revisionId: string,
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().POST("/projects/{project_id}/revisions/{revision_id}/skeleton", {
+      params: { path: { project_id: projectId, revision_id: revisionId } },
+    }),
+  );
 }

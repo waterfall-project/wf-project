@@ -1,0 +1,18 @@
+{
+  "summary": "La liste enregistrée avec Alix Moreau, dont le compte est désactivé, passé chef de projet à la deuxième ligne, et, à la cinquième, un compte que l'installation n'a pas : refusée, chaque compte désigné à sa ligne par son motif, les autres contributeurs n'étant pas en cause ; rien n'est écrit (WF-PRJ-0060, WF-ADM-0060).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/contributors/1/user_id",
+        "code": "USER_INACTIVE"
+      },
+      {
+        "pointer": "/contributors/4/user_id",
+        "code": "UNKNOWN_USER"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001067"
+  }
+}

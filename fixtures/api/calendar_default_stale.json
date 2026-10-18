@@ -1,0 +1,11 @@
+{
+  "summary": "La semaine de quatre jours désignée par défaut avec la version 1, quand une autre session l'a déjà renommée en version 2 : rien n'est écrit, la semaine standard reste par défaut, et la version courante est nommée (WF-IHM-0110).",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {
+      "expected_lock_version": 2
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001090"
+  }
+}

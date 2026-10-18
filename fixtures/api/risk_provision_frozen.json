@@ -1,0 +1,11 @@
+{
+  "summary": "L'indisponibilité de l'automaticien, écartée le 2 février 2026, dont la provision serait passée aux essais et à la mise en service : refusé, la catégorie et le sous-projet d'une provision ne changeant que tant que le risque est identifié — la condition que sa commande update_provision dit manquante ; rien n'est écrit (WF-RIS-0010, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "risk_identified"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001104"
+  }
+}

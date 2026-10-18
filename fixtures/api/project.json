@@ -18,7 +18,24 @@
         "missing_conditions": []
       },
       {
+        "command": "update_win_probability",
+        "is_available": false,
+        "missing_conditions": [
+          "project_before_in_progress"
+        ]
+      },
+      {
+        "command": "update_work_breakdown",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
         "command": "manage_contributors",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "manage_timelines",
         "is_available": true,
         "missing_conditions": []
       },

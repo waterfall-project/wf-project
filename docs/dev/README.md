@@ -397,16 +397,26 @@ lue, et une phrase tient la place de la grille. Sa ligne de totaux dit combien d
 retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-delà de sa fin le dit,
 et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
 recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
-sous-projets et ses contributeurs, son cycle de vie — sont en lecture ; la sortie du cycle de vie
-est la seule commande qu'ils exercent (`ExitCommand`), confirmée dans la page avant que son action
-serveur ne la demande. Les tables de données des paramètres sont trois grilles denses (#301,
+sous-projets et ses contributeurs, son cycle de vie — exercent la sortie du cycle de vie
+(`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, la
+modification du projet, sur ses paramètres (EP-02/L44a, plus bas), et, sur ses paramètres encore, les
+commandes de ses sous-projets et de ses contributeurs (EP-02/L44b, plus bas). Les tables de données des
+paramètres sont trois grilles denses (#301,
 `settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
 `subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque poste, ses lots
 sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie, cherchée
 par le serveur sur ses libellés (`breakdown_search`) et filtrée par nature (`breakdown_kinds`,
 EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses postes et
 ses lots ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
-à `setWorkBreakdown` ; les
+à `setWorkBreakdown` ; sa ligne de totaux compte les seuls éléments retenus, par nature (`is_match`,
+#574), et il se saisit dans sa grille comme le projet liste `update_work_breakdown`, indisponible
+aussi pendant un traitement de fond (EP-14/L42s ; `breakdown-commands.tsx`, EP-14/L44c) : chaque
+geste — un élément ajouté, renommé ou supprimé, du menu d'une cellule sur sa ligne ou de la barre
+sur la ligne de la cellule active (`RowCommands` de `DenseGrid`) — envoie le lotissement entier
+depuis sa lecture entière, que la page relit quand la grille le lit filtré, l'élément ajouté sans
+identifiant ; une suppression se confirme, celle d'un poste ou d'un lot en disant que les tâches qui
+le portent restent et perdent leur rattachement (WF-PLA-0170) ; un refus par champ qui vise
+l'élément du dialogue est dit à son champ, celui qui en vise un autre le nomme ; les
 sous-projets, cherchés par le serveur sur leur code et leur libellé (`subproject_search`), triés par
 lui sur chaque colonne (`subproject_sort_by`) et filtrés sur leurs coûts réels
 (`subproject_has_actual_costs`) ; les contributeurs, cherchés par le serveur sur le nom du compte
@@ -416,7 +426,110 @@ qualité (`contributor_kinds`, `kinds` du contrat), un bouton pressé par qualit
 par un choix (`ChoiceFilter`), `true` ou `false`, aucun retenant toutes les lignes (`readBoolean`) ;
 chaque table plate se filtre ainsi sur chacune de ses colonnes (WF-IHM-0130, EP-02/L42e). Les
 volumes du §4.6.2 — dix sous-projets, cinquante contributeurs par projet — tiennent en une page.
-L'historique des états, une liste de lecture, reste une table simple.
+L'historique des états, une liste de lecture, reste une table simple. Les sous-projets offrent leurs
+commandes comme le projet liste `update` (`subproject-commands.tsx`) — absente, rien ; indisponible,
+« Nouveau sous-projet » présenté `aria-disabled` avec ses conditions ; disponible ou non, sur chaque
+ligne, la modification et la suppression comme la ligne les liste (`Subproject.available_commands`,
+EP-14/L44e) — absente, rien ; indisponible, présentée `aria-disabled`, décrite par ses conditions, et
+un appui les dit dans la région de la liste (`UnavailableCellCommand`) : sur un projet clos, chacune
+nomme `project_not_terminal` (WF-IHM-0090). La création et la modification ouvrent le formulaire du
+référentiel (`ReferenceForm`), le code et le libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`,
+`fields[]`) dit au champ, son porteur nommé par le libellé que le refus donne
+(`conflicting_object_label`) ; la suppression, confirmée dans la page, est indisponible — ou refusée
+par le serveur, 409 `STATE_FORBIDS_OPERATION` nommant la première condition qui manque, dit au-dessus
+de la liste (`Reactivations`) — pour un sous-projet qu'une révision marquée cite
+(`subproject_not_cited`, §4.4.1), auquel des coûts réels sont imputés
+(`subproject_without_actual_costs`, WF-PRJ-0050) ou que portent des lignes de devis de la révision en
+cours (`subproject_without_estimate_lines`, EP-14/L42q) ; l'écran n'en déduit rien de
+`has_actual_costs`. Lue indisponible faute de cette seule dernière condition — `project_not_terminal`
+mise à part —, la suppression mène de plus, à une session qui lit le devis, au devis de la révision en
+cours filtré sur le sous-projet (`subproject_id`, `leadsToEstimate`), le lien dit dans la région de la
+liste avec ses conditions ; il n'est pas offert quand manque aussi la citation ou les coûts, qu'aucune
+ligne déplacée ne lève. Il atteint les lignes de la structure principale, jamais celles d'une autre
+structure, la structure propre d'un risque.
+Les lignes ne sont nommées une à une que lorsque le serveur refuse une suppression lue disponible
+(`params.estimate_lines`) : chacune par son numéro dans sa structure, tel que la grille le montre, et
+son libellé, dans la phrase jusqu'à cinq, en liste sous elle au-delà, une liste nommée qui défile,
+hors de l'alerte, qui la lirait d'un trait, et décrite par sa phrase (`LINES_IN_SENTENCE`,
+`OutcomeNotice`, #765), et le refus rappelle qu'une ligne de provision change de
+sous-projet par son risque (`problemMessage`, WF-DAT-0080) ; le refus donne la structure d'une ligne
+par son identifiant (`structure_id`), non par son libellé, que l'écran ne lit pas (`structure_label`,
+demandé dans #764). Les
+contributeurs, comme le projet liste `manage_contributors` (`contributor-commands.tsx`), se modifient
+en une liste entière dans un dialogue (`setContributors`) : la qualité de chacun, son retrait, et
+l'inscription, une à une, des propositions du serveur (`listContributorSuggestions`, WF-PRJ-0070),
+chacune avec le nœud et les rôles qui la font proposer (`org_node_label`, `resource_role_labels`),
+inscrite active comme le serveur le dit (`is_active`), rien n'étant écrit avant l'enregistrement ; une
+liste sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un refus par champ
+(`/contributors/<n>/…`) — un compte inconnu (`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) — dit à la
+ligne du compte qu'il désigne, en le nommant. L'écriture part d'une
+lecture entière, avec son compteur : quand la grille lit la liste filtrée, la page la relit entière
+pour le dialogue, et la grille garde ce que sa lecture retient. Une modification répondue remplace sa
+ligne, une suppression l'ôte, une liste répondue remplace celle d'une lecture entière, tant que leur
+compteur est plus récent — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, sous
+l'en-tête) ; une création n'ajoute aucune ligne, la page relue la range. Une réponse ne ferme que le
+formulaire, la confirmation ou le dialogue d'où elle est partie, jamais un autre ouvert depuis
+(compteur d'ouvertures, `key`, #672). La commande qui ouvre une modification attend, inactive,
+`aria-busy` et décrite par « Enregistrement en cours… », la réponse d'une écriture du dialogue fermé,
+quelle qu'elle soit, pour que le dialogue s'ouvre sur la version qu'elle apporte (#661, #734) : celle
+d'un sous-projet tant que la modification de ce sous-projet est en route, les autres lignes restant
+offertes (`onWriting` de `ReferenceForm`, `writing` de `SubprojectCommands`, la description cachée
+mais pour un lecteur d'écran dans la cellule, son titre la disant à l'œil) ; celle des contributeurs
+tant que la liste s'écrit — le compteur d'ouvertures y reste en garde-fou. Les pièces communes du
+référentiel (`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont
+les leurs, sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
+
+Le projet se crée et se modifie dans la maquette (EP-02/L44a, décision de l'auteur du 2026-10-08,
+#513, #524 ; `project-form.tsx`), par le formulaire du référentiel (`ReferenceForm`, qui écrit aussi
+un autre objet que ceux du référentiel et saisit une date de planning). L'accueil offre « Créer un
+projet » à une session qui porte la permission de le créer (`project_create`, `platformOffer`,
+WF-ADM-0100), indisponible, décrite par le refus qu'elle rencontrerait, tant que le référentiel
+minimal est incomplet (`getReferenceReadiness`, WF-CYC-0120) — l'accueil nomme chaque prérequis
+manquant, la catégorie de main-d'œuvre active et, depuis EP-14/L42p, la catégorie de provision pour
+risques active (`active_provision_category`) comprises, et mène aux paramètres de coûts, comme le
+refus `REFERENCE_INCOMPLETE` les nomme sous le formulaire ; le formulaire prend ce que
+`ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
+(WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
+sert sous les traits du témoin, tant que l'accueil est encore montré : une réponse arrivée après
+qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
+dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
+succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien
+taire. Les paramètres du projet présentent son identité et ses faits — le libellé, le code, la date
+de réception de la commande, la description, le taux d'inflation et la probabilité de gain — et leur
+modification (`updateProject`) comme le projet liste sa commande (`update`) : absente, disponible,
+ou indisponible avec ses conditions — un projet terminal (WF-CYC-0100). Les deux taux se saisissent
+en pourcentages et partent en rapports du contrat, la virgule déplacée sans flottant
+(`editablePercent`, `percentRatio`) ; la probabilité de gain suit sa propre commande
+(`update_win_probability`, EP-14/L44e) : indisponible — à partir de En cours,
+`project_before_in_progress` manquante (WF-PRJ-0090) —, elle est montrée figée (`control: "fixed"`),
+ses conditions dites sous elle, et n'est pas envoyée ; une date ou un texte laissés vides partent
+nuls, une date à moitié saisie, que son champ rend vide (`validity.badInput`), est refusée avant
+tout appel. Une réponse ne ferme que l'ouverture du formulaire d'où elle est partie : arrivée après
+que le dialogue a été fermé puis rouvert, elle s'affiche et laisse le nouveau dialogue ouvert
+(#660) ; et tant qu'une modification envoyée d'un dialogue fermé est en route, « Modifier le projet »
+est inactive (`aria-disabled`, `aria-busy`, décrite par « Enregistrement en cours… », `WritingNote` ;
+`onWriting` du formulaire) : rouvert, le formulaire écrirait depuis la version que sa propre réponse
+remplace, et le serveur le refuserait (412) — il s'ouvre sur la version qu'elle apporte (#661, #673).
+Elle se libère à la réponse, quelle qu'elle soit — un succès, un refus, une action serveur rejetée,
+l'API injoignable — ; une action serveur qui ne répond jamais la laisse inactive jusqu'au
+rechargement de la page. Le compteur d'ouvertures reste, en garde-fou : la commande attendant
+l'écriture, aucune autre ouverture ne vient avant la réponse. La réponse prend la place des faits lus tant qu'elle est plus récente que le projet lu
+(`lock_version`) — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, dit tant que la
+modification est disponible) —, la page relue ; la section est remontée quand l'écran montre un
+autre projet. Un refus par champ se dit au champ, tout autre sous le formulaire — la probabilité
+figée entre-temps (409 `STATE_FORBIDS_OPERATION`, la condition nommée), la version périmée avec
+l'offre de relire ; un taux hors de ses bornes (422 `VALUE_OUT_OF_RANGE`, `params.minimum` ou
+`maximum`, en rapports) se dit au champ, la borne en pourcentage comme le champ la saisit
+(`ratioPercent`) ; le code déjà porté par un autre projet (409 `ALREADY_EXISTS`, `fields[]`) se dit
+au champ, le projet qui le porte nommé par le libellé que le refus donne
+(`conflicting_object_label`), l'écran ne montrant pas les autres projets — génériquement sans lui
+(`kind="project"`, EP-02/L42g). Le cycle de vie dit le prochain état du projet, son déclencheur et
+les conditions qui lui restent, une par une (`getProjectNextState`, `NextStateFacts`, WF-CYC-0050),
+qu'aucune commande ne mène à Chiffrage ni à En cours (WF-CYC-0020) ; le déclencheur est l'un des
+deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
+(`enums.LifecycleTrigger`). Un projet qu'aucun fait ne mène plus loin — le serveur répond sans
+prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
+mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
 
 Une période d'une liste prend l'une des trois formes du contrat (`period.ts`), toutes saisies dans
 le même filtre (`PeriodFilter` de `frontend/src/components/grid/`) : deux jours de planning, bornes
@@ -561,7 +674,10 @@ seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâch
 comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
 l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
 nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
-désactivé (`cost_category_label`, `resource_role_label`, #305) — les listes du référentiel ne
+désactivé (`cost_category_label`, `resource_role_label`, #305) ; le sous-projet d'une ligne de
+provision, celui que son risque désigne, y est une cellule calculée, que le nœud nomme
+(`estimate_line.subproject_id` de `computed_fields`, EP-14/L42p), et son refus demande au serveur
+ce dont il dépend, comme ses grandeurs — les listes du référentiel ne
 servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent ; elles ne
 demandent les objets désactivés (`include_inactive`) qu'à une session qui porte la permission de
 lecture de leur partie du référentiel, que le contrat exige, et un chiffreur sans elle saisit sur
@@ -642,12 +758,24 @@ dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâ
 sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
 « critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
 seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
-déplier. Les autres feuilles du planning ont leur écran, où son en-tête mène : l'arborescence de
+déplier. Sa colonne « Rattachement » présente le poste ou le lot que porte une tâche, par le libellé
+que le serveur résout (`work_breakdown_label`) ; là où la révision liste `edit_planning`, la cellule le
+choisit parmi les postes et les lots du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
+— le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte
+(`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
+déjà l'élément ou celles qui sortiraient du sous-arbre de leur poste (WF-PLA-0170) ; comme tout refus
+de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est décrite
+(`aria-invalid`, `aria-describedby`). Dans la grille vide, le squelette s'offre comme la révision
+liste `generate_skeleton`, indisponible avec sa condition dès que la structure comporte une tâche
+(WF-PRJ-0030) ; engendré, ses tâches remplissent la grille tant que le compteur de la structure
+qu'il rend est plus récent que celui de la lecture (EP-14/L44d). Les autres feuilles du planning ont
+leur écran, où son en-tête mène : l'arborescence de
 tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
 (FBS-4.3.1, `…/timelines`), une par lien (`timeline`), leurs tâches sur l'axe qu'elles partagent,
-dessinées comme le Gantt. Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
+dessinées comme le Gantt ; elles se créent par leur nom et la chronologie montrée se supprime après
+confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
 demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
 chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
 chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
@@ -667,7 +795,11 @@ gravité et la provision sont des colonnes calculées entières — aucun champ 
 (`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
 par les bornes que rend le serveur, chaque case par son signal et son nombre de risques ; et,
 quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provision présente ou
-retirée à la survenance, historique des réexamens. Le libellé d'un risque est un lien hors de la
+retirée à la survenance, avec la catégorie et le sous-projet que le risque désigne pour elle, par les
+libellés que le serveur résout — la catégorie dite désactivée quand elle ou sa nature l'est
+(`provision_cost_category_is_active`), la provision hors sous-projet quand il n'en désigne aucun
+(EP-14/L42p) —, historique des réexamens. L'écran ne déclare, ne modifie ni ne réexamine aucun
+risque : la maquette n'en a pas le formulaire. Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 
@@ -753,8 +885,9 @@ ne se pagine pas, dans l'ordre de `listOrgNodes`, chaque nœud par son libellé 
 profondeur (`level`), qui plie ce qui est sous lui comme les grilles de tâches (`GridTree.parent`,
 `fold.tsx`), son code et son niveau, filtrée par code (`code`), par niveau (`level`, offert parmi
 ceux de l'arbre entier) et par état, le serveur rendant les nœuds retenus et leurs ancêtres, qu'un
-filtre déplie une fois ; les rôles, triés par le serveur sur chacune de leurs colonnes, filtrés par
-nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
+filtre déplie une fois ; les rôles, chacun par son libellé et son code (EP-14/L42r), triés par le
+serveur sur chacune de leurs colonnes, cherchés par lui sur le libellé et le code, filtrés par code
+(`code`, comme celui des nœuds), par nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
 calendrier (`calendar_id`) — chacun offert parmi tous ceux que la session lit, lus comme une liste
 de choix (#303), les catégories absentes quand l'API les refuse — et par état, et paginés ; les
 calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, filtrés par
@@ -830,10 +963,11 @@ leurs (EP-02/L43b, plus bas), par les mêmes pièces. À une session qui porte `
 (`platformOffer`), chaque liste offre « Nouvelle nature » ou « Nouvelle catégorie » à côté de son
 titre — liste vide comprise —, et chaque ligne « Modifier », dans une colonne à elle ; l'état de la
 ligne porte la désactivation ou la réactivation comme l'objet la liste (`available_commands`,
-`StateCell`), indisponible avec ses conditions comme la réactivation — la dernière nature provision
-et sa dernière catégorie active, PRV et PRV-001 dans le témoin (#578) ; aucune commande ne
-supprime (WF-REF-0010, WF-DAT-0080). Une autre session n'en voit aucune. La création et la
-modification ouvrent un dialogue (`ReferenceForm`, `ui/dialog.tsx`), que chaque liste rend par celui
+`StateCell`), et la présente indisponible avec ses conditions quand elle l'est — la dernière
+nature de type provision pour risques et sa dernière catégorie se désactivent comme les autres
+depuis EP-14/L42p, qui retire la règle de #578 ; aucune commande ne supprime (WF-REF-0010,
+WF-DAT-0080). Une autre session n'en voit aucune. La création et la modification ouvrent un
+dialogue (`ReferenceForm`, `ui/dialog.tsx`), que chaque liste rend par celui
 de sa nature (`CostDialog`, `useListForm`) : le code, le libellé et le type
 d'une nature, choisi parmi les trois du contrat ; le code, le libellé, la nature — parmi les actives,
 et celle de la catégorie modifiée, marquée désactivée — et le code comptable d'une catégorie, exigé,
@@ -841,11 +975,13 @@ d'un à vingt caractères (WF-REF-0040, décision de l'auteur du 2026-10-09). Ce
 change suit les commandes de l'objet (EP-02/L42g, WF-IHM-0090) : le type d'une nature n'est offert
 que si elle liste `change_kind` disponible, et se présente sinon figé, en lecture seule
 (`control: "fixed"` d'un `FormField`), ses conditions dites sous lui (`note`) — une catégorie
-employée (`cost_type_unused`), la dernière nature provision (`cost_type_not_last_provision`) —, la
-description du dialogue le disant aussi ; une catégorie ne se voit proposer une nature d'un autre
-type que si elle liste `change_cost_type` disponible, et sinon les natures de son type seules, ses
-conditions dites sous le choix — employée, porteuse de taux, dernière catégorie provision (#577,
-#578). Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
+employée (`cost_type_unused`) —, la description du dialogue le disant aussi ; une catégorie ne se
+voit proposer une nature d'un autre type que si elle liste `change_cost_type` disponible, et sinon
+les natures de son type seules, ses conditions dites sous le choix — employée, porteuse de taux
+(#577), rattachée à un rôle (EP-14/L42r) ; le refus du serveur d'un changement de type, la
+condition levée depuis la lecture, nomme les rôles en cause, par leur libellé et leur code, à
+rattacher d'abord à une autre catégorie de main-d'œuvre — d'une autre nature, pour une nature —
+(`params.resource_roles`, `problemMessage`, WF-IHM-0090), que l'écran des coûts ne lit pas. Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
 qui écrit, la page lit toutes les natures avec `include_inactive=true` (`every` de `CostDialog`),
 une lecture entière distincte des choix du filtre, qu'elle ne fait pas quand ceux-ci comprennent déjà
 les désactivées ; une catégorie sous une nature désactivée se voit ainsi proposer les natures
@@ -856,7 +992,8 @@ catégorie sa seule nature, et la note le dit à part (« Le type de la nature d
 lisible : seule elle est proposée. »). `costs/page.test.tsx` éprouve ce que la page passe au
 formulaire, les natures servies par `cost_types_with_inactive`, la lecture avec les désactivées, qui
 ne vaut que pour elle.
-Un nœud dont le code est pris est nommé de même, d'après l'arbre ou la liste (`OrgNodeDialog`). Le
+Un nœud dont le code est pris est nommé de même, d'après l'arbre ou la liste, sinon par le libellé que
+le refus donne (`OrgNodeDialog`). Le
 formulaire refuse à son champ ce qui manque, ou un nombre qui n'en est pas un dans la langue du
 lecteur (`parseDecimal`), avant toute demande, et le champ prend le focus ; le
 serveur juge le reste : un refus par champ (422, `fields[]`, convention #293) se dit au champ qu'il
@@ -878,8 +1015,7 @@ la cellule, écrit dans la langue du lecteur (« Valeur minimale : 0,01. »). To
 relit la page (`refresh`) : les natures sont ce par quoi les catégories se filtrent et se rattachent,
 les catégories de main-d'œuvre les lignes de la grille des taux, et un choix qui offrirait encore une
 nature désactivée serait une commande que le serveur refuserait (WF-REF-0010) ; une écriture change
-aussi les commandes d'autres objets — la désactivation d'une nature provision celles des autres
-natures et catégories provision (#578), le rattachement d'une catégorie le type de l'ancienne et de
+aussi les commandes d'autres objets — le rattachement d'une catégorie le type de l'ancienne et de
 la nouvelle nature (#577) —, que sa réponse ne porte pas. Un taux ne relit la page qu'à sa première
 saisie : la catégorie qui porte des taux ne se rattache plus à une nature d'un autre type
 (`cost_category_unrated`) ; une première saisie refusée comme un second taux de l'année (409
@@ -919,33 +1055,88 @@ porte `resource_settings.write` : « Nouveau nœud », « Nouveau rôle », « N
 modification de chaque ligne, la désactivation ou la réactivation comme l'objet la liste — un nœud
 avec ses descendants, que la réponse remplace dans l'arbre (WF-REF-0080), les rôles qu'elle désactive
 avec lui étant ceux de l'autre liste, que la page relue montre. Un nœud s'écrit par son code, son
-libellé et son parent — aucun pour une racine —, choisi dans l'ordre de l'arbre, chaque nœud décalé de
-sa profondeur (`treeLabel`) : un nœud actif, ou créé, parmi les actifs seuls, un désactivé parmi tous
-ceux que l'arbre lit, les désactivés marqués (WF-REF-0080, `updateOrgNode`), jamais sous lui-même ni
-sous l'un de ses descendants, qu'il emmène ; son parent est toujours offert, d'après `parent_id` et
-`parent_label`, marqué désactivé quand l'arbre lu ne le compte pas parmi les actifs — lu sans les
-désactivés, sous `org_is_active=false` —, et la liste le montre choisi ; absent de l'arbre lu, il se
-place sous son propre parent quand la ligne de la liste le nomme, sinon à la fin, sans décalage. Un rôle s'écrit par son
-libellé, son nœud, une catégorie de main-d'œuvre et son calendrier — parmi les actifs, celui du rôle
-modifié marqué désactivé (WF-REF-0090), nommé sans marque quand la liste n'est pas lue, faute de savoir
-s'il l'est — et sa
+libellé et son parent — nul pour une racine, envoyé à la modification comme à la création (`OrgNodeUpdate`) —, choisi dans l'ordre de l'arbre, chaque nœud
+décalé de sa profondeur (`treeLabel`) : parmi les nœuds actifs seuls, que le nœud soit actif ou
+désactivé (WF-REF-0070, EP-14/L43g), jamais sous lui-même ni sous l'un de ses descendants, qu'il
+emmène ; son parent est toujours offert, d'après `parent_id` et `parent_label`, marqué désactivé quand
+il l'est, et la liste le montre choisi — le contrat ne refuse un parent désactivé que si la
+modification le change ; désactivé, il garde sa profondeur
+quand le nœud au-dessus de lui est offert, ou qu'il est une racine, et alors sa place — dans l'arbre
+lu, le front ne réordonnant rien, ou sous son propre parent quand la ligne de la liste le nomme — ; à
+la fin sans décalage sinon. Un rôle s'écrit par son code, unique, désactivés compris (EP-14/L42r),
+son libellé, son nœud, une catégorie de main-d'œuvre et son calendrier — parmi les actifs, celui du
+rôle modifié marqué désactivé quand il l'est (WF-REF-0090), nommé sans marque quand la liste n'est pas
+lue, faute de savoir s'il l'est, ou quand toutes les catégories lues le disent actif, une catégorie
+dont la nature a quitté la main-d'œuvre (`read` d'`offered`, #714) : un garde-fou seul, le contrat
+interdisant ce cas depuis EP-14/L42r (`docs/api/DECISIONS.md`, la mention de L42r dans la section de
+L42j) — et sa
 capacité, heures par mois et effectif, saisis dans la langue du lecteur (WF-REF-0100) ; son nœud se
 fixe à la création, et sa modification le nomme sans l'offrir : un rôle se recrée sous un autre nœud
-(§3.4.4.2.1). La catégorie de main-d'œuvre se reconnaît à sa nature, que la page lit aussi
-(`listCostTypes`, `labourOf` de `kinds.ts`) : le contrat ne filtre pas les catégories par le type de
-leur nature — un rapprochement de deux listes, faute de mieux, signalé sous #507. Une session qui ne lit
-ni les catégories ni les natures (`cost_settings.read`) ne peut choisir aucune catégorie : « Nouveau
+(§3.4.4.2.1). La catégorie de main-d'œuvre se reconnaît au type de sa nature, que chaque catégorie dit
+(`cost_type_kind`, `labourOf` de `kinds.ts`, EP-14/L43g) : la page ne lit pas les natures pour cela.
+Une session à qui l'API refuse les catégories ne peut en choisir aucune : « Nouveau
 rôle » ne lui est pas offert (WF-IHM-0090), et la modification nomme la catégorie du rôle comme sa ligne
-la nomme. La modification d'un objet répondue pour un autre objet est une panne du service
+la nomme. Un code pris se dit au champ, le rôle qui le porte nommé par le libellé que le refus donne
+(`conflicting_object_label`), la liste lue sans les désactivés pouvant ne pas le montrer. La modification d'un objet répondue pour un autre objet est une panne du service
 (`INTERNAL_ERROR`), dite sous le formulaire comme la réponse d'une cellule pour une autre ligne. Un
 calendrier s'écrit par son libellé
-et ses sept valeurs d'heures, du lundi au dimanche, rien d'autre (WF-REF-0110). Un calendrier actif
-et non par défaut se désigne par défaut depuis sa ligne (`setDefaultCalendar`, WF-REF-0120), la page
-relue montrant le précédent sans la désignation ; le contrat ne listant pas cette commande
-(`ReferenceCommand`), le front l'offre sur l'état que la ligne lit, par la seule règle qu'il donne. Un
-refus par champ — un parent ou un nœud désactivé entre-temps, `INACTIVE_REFERENCE_OBJECT` sur
-`/parent_id` ou `/org_node_id` — se dit au champ, le reste comme pour les coûts ; l'écran dit que le
-faux back ne garde rien (`MockupNotice`).
+et ses sept valeurs d'heures, du lundi au dimanche, rien d'autre (WF-REF-0110). Un calendrier se désigne
+par défaut depuis sa ligne comme il en liste la commande
+(`CalendarCommand.set_default`, `setDefaultCalendar`, WF-REF-0120, EP-14/L43g), depuis la version lue,
+la page relue montrant le précédent sans la désignation : absente — sur le calendrier par défaut, ou
+pour une session qui ne modifie pas —, rien, le front ne déduisant rien de l'état de la ligne ;
+indisponible pour un calendrier désactivé, présentée `aria-disabled`, décrite par sa condition
+(`calendar_active`), et un appui la dit dans la région de la liste sans rien demander
+(`UnavailableCellCommand`) ; le refus du serveur — le calendrier désactivé entre-temps (409), la
+version périmée (412), avec l'offre de relire — se dit au-dessus de la liste. Un refus par champ se
+dit au champ (`ReferenceForm`) : une référence inconnue (`UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY`,
+`UNKNOWN_CALENDAR`), un nœud placé sous lui-même ou l'un de ses descendants (`ORG_NODE_CYCLE`), une
+catégorie hors main-d'œuvre (`LABOUR_CATEGORY_REQUIRED`), un parent, un nœud ou un rattachement
+désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des heures hors de 0 à 24 ou une capacité
+négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un calendrier,
+désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon générique
+sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre de relire ;
+l'écran dit que le faux back ne garde rien (`MockupNotice`). Une écriture qui laisserait une tâche sans
+heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est refusée
+(`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la semaine. »)
+en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par son seul
+libellé sans code (`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste hors de
+l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de `resource_role_ids` : les
+rôles dont les calendriers ne se recoupent aucun jour, que le refus ne donne que par leurs
+identifiants — la page, pour une session qui écrit, lit tous les rôles, désactivés compris comme elle
+le peut (`readEveryRole`), et les prête à chaque avis de leurs deux listes (`RoleNames`, `KnownNames`
+d'`outcome-notice.tsx`), chacun par son libellé et son code, et la cause se dit sans nom quand elle
+n'en a lu aucun — ; aucun rôle donné, les tâches sans ligne de main-d'œuvre, sur le calendrier par
+défaut vidé ou désigné.
+
+Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
+#512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
+`risk_settings.write`, par « Modifier les seuils et le délai » à une session qui porte
+`indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules, sans avis de
+la maquette. L'un saisit les six bornes, en pourcentages (`editablePercent`, `percentRatio`), et les
+seize zones, un choix par case ; l'autre les quatre seuils, en valeurs de l'indice, et le délai, en
+semaines entières (`control: "whole"`, un nombre entier, signe compris, ses bornes au serveur, jugé
+au champ avec les autres, dit par le texte propre au champ, `invalid`). Chaque écran suit sa seule permission : une session qui porte
+l'une sans l'autre lit l'autre écran sans commande ni avis. Chacun envoie par `updateReferenceSettings` le seul sous-objet de son écran et la
+version lue (`RiskMatrixWrite`, `IndicatorWrite`), jamais un champ de l'autre écran, que garde une
+autre permission ; ni la devise (WF-REF-0140) ni la langue de l'installation, qui est à EP-03, n'y
+sont offertes. Le formulaire du référentiel range côte à côte, sous une légende, les champs qui vont
+ensemble (`group` d'un `FormField`, un `fieldset` qui se replie sur deux colonnes dans une fenêtre
+étroite) : les bornes d'un axe, les zones d'un niveau de probabilité, les deux seuils d'un indice,
+chaque champ nommé par la légende de son groupe puis par son libellé (`aria-labelledby`), que les
+groupes répètent ; et il juge, dans le même envoi que les champs, sur ceux qui sont passés, les règles
+qui lient des champs entre eux (`rules`), avant toute demande — un champ refusé n'a pas de valeur,
+qu'une règle laisse sans jugement, et son propre refus l'emporte ; tout ce qui est refusé se dit en une
+fois (EP-14/L52) — : chaque borne qui n'est pas strictement
+au-dessus de la précédente, à son rang (`BOUNDS_NOT_ORDERED`), chaque seuil d'alerte qui n'est pas
+sous son seuil de vigilance (`THRESHOLD_NOT_BELOW_WATCH`), dits au champ que le serveur désignerait,
+les décimaux comparés sans flottant (`compareDecimals`). Le refus du serveur se dit de même : par
+champ au champ, la permission manquante (403) et la version périmée (412, les deux écrans partageant
+le compteur) sous le formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus
+récente qu'eux, la page relue, comme les paramètres du projet, et ne ferme que le dialogue d'où elle
+est partie, jamais un dialogue rouvert depuis ; la commande qui l'ouvre attend, inactive, la réponse
+d'une écriture d'un dialogue fermé (#661) ; face au faux back, qui répond par le
+premier exemple de l'opération — les seuils écrits —, la matrice montrée reste celle d'avant.
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule hors
@@ -975,8 +1166,8 @@ permission dans l'ordre du catalogue, les permissions consécutives d'une même 
 niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
 (`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
 qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
-accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
-aucune commande. Les deux tables finissent sur leurs colonnes d'audit (#936, `audit-columns.tsx`) :
+accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, dont
+les commandes sont branchées au contrat (EP-02/L43c, plus bas). Les tables des comptes et des rôles finissent sur leurs colonnes d'audit (#936, `audit-columns.tsx`) :
 « Créé le », « Créé par », « Modifié le », « Modifié par », chacune triée par le serveur sous le nom
 de son champ (`created_at`, `created_by`…), un instant en heure locale (`LocalTime`), un auteur par
 le nom que la ligne garde du compte — désactivé depuis, toujours nommé ; anonymisé, le libellé
@@ -1071,7 +1262,111 @@ les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montr
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
 règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
-heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.
+heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été. Son formulaire la
+saisit de même, et dit à côté l'heure du poste qu'elle donne la semaine où il est ouvert — l'heure seule
+pour une planification quotidienne, le jour local aussi pour une hebdomadaire, qui peut être la veille
+ou le lendemain du jour universel (`localTimeOfDay` de `format.ts`, dans le navigateur) : rien n'est
+converti à l'envoi.
+
+L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519, EP-14/L43f, EP-14/L43d)
+présente leur planification (`backup-schedule.tsx`) et une page de leur liste sur la
+grille dense (`backup-columns.tsx`, `backup-grid.tsx`, préférences sous la clé `backups`) : la date,
+en heure locale, la taille, la vérification, le déclenchement et la conservation, dans l'ordre du
+serveur, la ligne des totaux disant combien il en retient (`meta.total`). Le serveur trie chaque
+colonne dans les deux sens (WF-IHM-0060), les plus récentes d'abord quand l'adresse et le compte ne
+disent rien, et le tri ne se lève jamais, comme celui du journal ; il filtre sur chaque colonne
+(WF-IHM-0130, `backup-address.ts`), sous les noms du contrat : la période de la prise, deux jours du
+lecteur tirés en instants, `from` compris et `to` exclu, comme l'accueil (`PeriodFilter`, `day`) ;
+le déclenchement et la vérification, par leurs valeurs (`origins`, `verifications`,
+`ValuesFilter`) ; la conservation, par un choix (`is_retained`, `ChoiceFilter`) ; la taille, par ses
+deux bornes en octets, incluses (`size_bytes_min`, `size_bytes_max`, `RangeFilter`, sorte `bytes` :
+un entier qui a plus de chiffres qu'un compte). Une liste filtrée ne se dit jamais vide, et une
+borne que le serveur refuse (422) — une fin avant le début, un maximum sous le minimum — laisse la
+liste non lue, les filtres gardés, la borne dite à son champ. « Sauvegarder maintenant », dans la
+tête de la liste, liste vide comprise — une tâche de fond remise au suivi avec sa commande —, suit
+la permission `backups.write` (WF-ADM-0100, `platformOffer`) ; les autres commandes sont celles que
+chaque sauvegarde liste (`Backup.available_commands`, WF-IHM-0090, `backup-commands.tsx`), le front
+n'en déduisant rien de la session ni de l'état de la sauvegarde : « Conserver » ou « Ne plus
+conserver », celle des deux qui change son marquage, dans la colonne de la conservation ;
+« Télécharger » et « Restaurer », chacune dans sa colonne dès qu'une sauvegarde de la page la
+liste — le serveur ne liste le marquage que sous `backups.write`, le téléchargement que sous
+`backups.read` et `backups.write` (décision de l'auteur du 2026-10-10, #705, qui remplace celle du
+2026-10-09, #588), la restauration que sous `platform_restore` —, et aucune ne supprime. Une commande absente n'est pas présentée ; une indisponible l'est, `aria-disabled` et
+décrite par la condition qui lui manque (`enums.CommandCondition`) — `backup_verified` au
+téléchargement et à la restauration d'une sauvegarde non vérifiée, `no_backup_running` à la
+restauration pendant qu'une sauvegarde court, `no_restore_running` au marquage et à la restauration
+pendant qu'une restauration court —, et un clic la dit dans la tête de la liste sans rien demander,
+comme les activations du référentiel. La tête de la liste dit ce que la dernière commande a fait dès
+qu'une commande est offerte. Une sauvegarde n'ayant pas de compteur, la réponse d'un marquage reste
+montrée tant que chaque relecture lit la sauvegarde comme la précédente ; une relecture qui l'a
+changée l'emporte pour de bon, et une démarque par un tiers que la relecture ne montre pas reste
+invisible (#588). Le téléchargement est un lien vers la route `/admin/backups/[backupId]/content`,
+qui relaie `downloadBackup` en flux comme le résultat d'une tâche (`src/api/relay.ts`, commun aux
+deux routes) : des octets, seul type que le contrat déclare, sous le nom que l'API donne
+(`Content-Disposition`, que le contrat exige : `waterfall-backup-`, l'instant de la sauvegarde et
+l'extension de son archive), avec sa longueur quand le corps arrive sans `Content-Encoding` — tout
+autre type, ou un fichier sans nom, renvoie l'erreur d'une mauvaise passerelle (502). Un refus —
+403, 404 sans distinction (WF-ADM-0110), 409 d'une sauvegarde non vérifiée, 502, l'API
+injoignable — renvoie à l'écran des sauvegardes, sa page et ses filtres gardés, l'adresse nommant la
+sauvegarde et le refus (`refused_backup`, `refusal`, les noms paramétrés de `result-refusal.ts`) :
+l'écran le dit au-dessus de la liste jusqu'à ce qu'on ferme son avis — le téléchargement nommé, la
+sauvegarde par sa date quand la page la porte —, et l'avis, rendu avec la page, prend le focus au
+montage, sans quoi aucun lecteur d'écran ne l'annoncerait ; l'adresse est rendue sans le refus une
+fois la page révélée (`afterReveal`), l'avis fermé ou non. « Restaurer » ouvre un dialogue
+(`restore-dialog.tsx`) qui énonce la date de la sauvegarde et sa vérification, la perte sans retour
+de ce qui a été saisi depuis, la déconnexion des utilisateurs et l'inscription au journal d'audit
+(WF-ADM-0160, WF-SEC-0030) ; le bouton ne s'active qu'une fois l'identifiant de la sauvegarde
+saisi, sans égard à la casse, et la demande énonce la date dite (`acknowledged_backup_taken_at`).
+Pendant la demande, ni Échap, ni un clic au-dehors, ni « Annuler » ne ferment le dialogue : un
+refus s'y dit — un état qui l'interdit (409), la condition nommée comme tout refus ; une date
+confirmée qui n'est pas celle de la sauvegarde (400, `CONFIRMATION_REQUIRED`, EP-03/US-0440/L2),
+dite à la date que le dialogue énonce, la liste lue n'étant plus celle de la sauvegarde, et la page
+relue —, et rien ne part qu'on croie abandonné. Mise en file, la restauration fait place à l'écran
+de sa maintenance (`restoration.tsx`, `maintenance.tsx`, US-0440), qui suit sa tâche tant que la
+plateforme sert, puis la sonde de vie, et dit la déconnexion des utilisateurs, puis la fin ; le suivi
+de la coquille ne la reçoit pas : une restauration ne se relance que depuis cette confirmation. Le refus
+d'une commande de la liste se dit au-dessus d'elle (`Reactivations`), la condition nommée pour un
+409 ; l'écran dit que le faux back ne garde rien (`MockupNotice`) dès qu'une commande est offerte.
+La restauration depuis un fichier passe par le dépôt par morceaux d'EP-03 (#350,
+`completeChunkedUpload`), offert à qui porte `platform_restore` sous la liste, dont la date lue dans
+le manifeste est celle que la confirmation nomme : le même dialogue, l'identifiant du dépôt saisi, sa
+vérification dite en attente — sa restauration la fait (EP-14/L42o). La planification et les
+emplacements externes, que le service ne sert pas encore (404), sont laissés de côté sans emporter
+la liste.
+
+La planification se modifie, à une session qui porte `backups.write` (`platformOffer`), dans le
+formulaire du référentiel (`ReferenceForm`), qui la renvoie **entière** depuis la version où il s'est
+ouvert (`setBackupSchedule` est un `PUT`) : activée ou suspendue, la fréquence et l'heure en UTC (un
+champ `time` : une heure à moitié saisie, que son champ rend vide, `validity.badInput`, est refusée
+avant tout appel par la phrase propre à son champ, `invalid`, jamais envoyée comme « aucune heure ») —
+exigées d'une planification activée seulement, le contrat ne les exigeant pas d'une
+suspendue —, le jour — exigé d'une planification hebdomadaire, nul d'une quotidienne —, le nombre de
+sauvegardes conservées, un nombre entier dont le serveur juge les bornes, signe compris ; un champ
+exigé selon le brouillon le dit (`required` d'un `FormField`, une fonction du brouillon, qui donne
+aussi `aria-required`, #678) ; puis la copie externe, offerte quand l'installation déclare un emplacement
+ou que la planification en règle une : l'emplacement, choisi parmi ceux que la page lit pour cette
+seule session (`listExternalBackupLocations`) par son nom et sa nature, sa description sous le champ,
+jamais un secret ni une adresse — un emplacement réglé que l'installation ne déclare plus reste offert
+par son nom, refusé au champ avant l'envoi (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`) plutôt que retiré en
+silence —, « Aucune copie » la retirant ; le dossier
+relatif ; le nombre de copies, au moins celui des sauvegardes conservées (WF-EXP-0050), vérifié avant
+l'envoi et dit au champ avec ce minimum, comme le serveur le dirait — pour une rétention dans ses
+bornes, de 1 à 365 (`RETENTION`), le reste revenant au serveur, qui donne alors le minimum des
+copies à 1 — ; la copie active ou suspendue.
+Les règles entre champs passent par `rules` du formulaire, une note qui suit la saisie par une
+fonction du brouillon (`note`), et ce qui suit les champs sans en être un par `after` : « Tester
+l'emplacement » (`testExternalBackupLocation`), offert pour un emplacement que l'installation
+déclare, qui dit l'emplacement éprouvé, l'instant du test en
+heure locale, le dossier ou la racine, et la réussite ou le motif de l'échec
+(`enums.ExternalBackupFailure`) dans une région annoncée ; un dossier refusé (422, `/path`) se dit sous
+le bouton par la phrase de son propre code ; seule la réponse du dernier test demandé est dite, tant
+que le dossier saisi est celui qu'il a éprouvé, et un autre emplacement choisi fait tomber le test en
+route. La réponse d'un enregistrement remplace la planification affichée tant que son `lock_version`
+est plus récent que la lecture, la page relue, et ne ferme que le dialogue ouvert d'où elle est partie
+(compteur d'ouvertures, comme les paramètres du référentiel), la commande attendant, inactive, la
+réponse d'une écriture d'un dialogue fermé (#661, #678) ; un refus par champ (422 : emplacement inconnu, chemin
+invalide, rétention trop courte) se dit au champ, tout autre sous le formulaire, la version périmée
+(412) avec l'offre de relire.
 
 Le journal d'audit (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
 #517) est un écran de l'administration à lui ; la table « Dernières opérations » de l'état du
@@ -1226,19 +1521,33 @@ plan — une grille qui colle lit tous les genres de nœud, et ses numéros se s
 ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527).
 Sinon `previewPaste` rend le plan, que
 montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans une seule région
-annoncée — ce qui sera écrit, chaque ligne refusée par sa place dans le bloc, ses cellules
-telles que copiées et son motif ; un plan qui refuse une ligne n'annonce que des lignes valides,
-rien ne sera écrit —, et `applyPaste` l'applique sur confirmation, en une seule opération ; ce
-qu'il rend prend la place de ce qui était lu (`CellWrites.applied`) ; une écriture de cellule
-partie avant le collage et répondue après se prend comme toute réponse, le compteur de la
-structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et seul son refus se
-tait quand le collage a écrit sa ligne depuis. Un plan qui refuse
-une ligne ne s'applique pas : la boîte n'offre que l'abandon. Échap abandonne, une réponse
-arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien du
-contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
-la trie ou non, et la confirmation porte la version
-de la structure lue (`structureVersion`) — deux points que le contrat ne dit pas encore (#200,
-#201). Une grille sans `paste` dans sa configuration, en lecture seule, ne prend aucun collage.
+annoncée — combien de lignes seront écrites, chaque ligne refusée par sa place dans le bloc, ses
+cellules telles que copiées et son motif, une ligne refusée pour plusieurs cellules comptée une
+fois —, et `applyPaste` l'applique sur confirmation, en une seule opération : les lignes valides sont
+écrites, les lignes refusées ne le sont pas (WF-IHM-0050, EP-14/L42q). Un plan qui refuse des lignes
+et en écrit d'autres le dit, et se confirme ; un plan qui n'écrit aucune ligne n'offre que
+l'abandon. Ce que la confirmation rend prend la place de ce qui était lu (`CellWrites.applied`) ; une
+écriture de cellule partie avant le collage et répondue après se prend comme toute réponse, le
+compteur de la structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et seul son
+refus se tait quand le collage a écrit sa ligne depuis. Ce qu'elle n'a pas écrit
+(`PasteApplied.rejected`) — les refus de l'aperçu, et ceux que le serveur ajoute en jugeant de
+nouveau les lignes acceptées, une catégorie ou un rôle désactivés entre-temps — est dit au-dessus de
+la grille avec la cellule d'où le bloc a été collé et le nombre de lignes écrites
+(`PasteAppliedNotice`), chaque refus comme à l'aperçu, lu dans la réponse et jamais dans le plan,
+jusqu'à ce que l'utilisateur ferme l'avis ou colle à nouveau ; les refus y sont une région nommée,
+atteinte au clavier, dont la hauteur est bornée — ils défilent, la grille reste dans la fenêtre
+(défaut n° 13), la phrase et la fermeture hors du défilement —, hors de l'alerte, qui ne dit que la
+cellule, le nombre de lignes écrites et celui des lignes refusées, « listées ci-dessous » — une phrase
+à elle, l'aperçu gardant la sienne —, et qui la décrit (#765). Un collage entièrement écrit ne dit
+rien de plus que sa grille. Échap abandonne, une
+réponse arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien
+du contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
+la trie ou non, et la confirmation porte la version de la structure lue (`structureVersion`), le
+serveur refusant par 412 un plan jugé sur une structure qui a changé depuis l'aperçu (#200, #201).
+Le faux back ne sert que le premier exemple de chaque opération, le plan qui ne refuse rien : le
+collage partiel n'est éprouvé que par les tests de la grille (`paste-applied.dom.test.tsx`,
+`paste-dialog.dom.test.tsx`), et la hauteur réelle de l'avis ne se prouvera qu'en parcours. Une grille sans
+`paste` dans sa configuration, en lecture seule, ne prend aucun collage.
 
 Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
 toute grille dont la révision en cours se saisit par sa commande `edit_*` les pose (`undoable`
@@ -1253,7 +1562,9 @@ elles restent atteignables au clavier, `aria-disabled`, décrites par leur raiso
 dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une cellule, la
 recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 les branche sur
 `undoLastChange` et `redoLastUndo`, une annulation portée par le serveur, jamais une pile dans le
-navigateur.
+navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
+annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
+(EP-14/L42p).
 
 Les grilles arborescentes — planning, devis, reste à engager — se plient et se déplient
 (WF-PLA-0080, WF-PLA-0090, EP-02/L40, `frontend/src/components/grid/fold.tsx`) : une grille dont
@@ -1299,14 +1610,16 @@ sans révision en cours que l'appelant ne pourrait pas créer, listé indisponib
 `aria-disabled` et décrite par le texte visible des conditions qui lui manquent
 (`enums.CommandCondition.*`). `LifecycleCommands` rend, dans l'ordre du serveur, les sorties
 du cycle de vie d'un projet — les autres commandes du projet appartiennent aux formulaires de
-leur domaine —, et `RevisionCommands` celles d'une révision, chacune selon son
+leur domaine, sa modification à celui de ses paramètres (`ProjectIdentity`) —, et `RevisionCommands` celles d'une révision, chacune selon son
 `is_available` et ses conditions — une révision marquée les liste indisponibles, faute d'être
 en cours d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre
-(`ExportForm`) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
+(`ExportForm`), ses saisies (`edit_*`) à leurs grilles et le squelette à la grille de planning vide
+(EP-14/L44d) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
 l'offre d'un formulaire qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel,
 sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
-`platform` (`PlatformFunction`) dans `Session.permissions`, ou `platform_restore` pour la
-restauration. Griser n'est qu'une
+`platform` (`PlatformFunction`) dans `Session.permissions`, ou `project_create` pour la création
+d'un projet, qu'aucun projet ne liste ; les commandes d'une sauvegarde sont celles qu'elle liste
+(`Backup.available_commands`, EP-14/L43f), le téléchargement et la restauration comprises. Griser n'est qu'une
 commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
 par `OutcomeNotice`.
 
@@ -1415,8 +1728,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   chaque tâche par `wftools.mocksort`) ; les réponses des
   écritures de grille, différence de deux lectures (`wftools.mockwrites`) ; son histoire, ses
   révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
-  son plan de charge aujourd'hui (`wftools.mocktoday`, `wftools.mockindicators`,
-  `wftools.mockcurves`) ; ses coûts réels et le journal de leurs imports (`wftools.mockcosts`) ;
+  son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
+  `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
+  les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`) ;
   et les vues du portefeuille dans le temps — plan de charge agrégé, courbe en S et sa variante
   au 31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres projets par des
   formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de
@@ -1714,11 +2028,13 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   la mesure du §4.6.2 sur un quatrième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
   est annulé, et la porte avec lui. Trois, parce que Playwright répartit des fichiers entiers
-  de parcours, à nombre de tests égal, et que les plus longs pèsent : en octobre 2026, le plus
-  long de trois morceaux jouait environ 140 s de parcours sur deux workers, celui de quatre
-  130 s, quand chaque morceau paie environ deux minutes d'image, d'installation et de
-  serveurs. Ce choix se revoit quand les parcours s'allongent : les durées par fichier se
-  lisent dans le journal de chaque morceau.
+  de parcours, à nombre de tests égal, et que les plus longs pèsent — sauf un fichier joué test
+  par test (`mode: "parallel"`), comme `accessibility.spec.ts`, dont les tests se répartissent un
+  à un : avant ce fichier, en octobre 2026, le plus long de trois morceaux jouait environ 140 s
+  de parcours sur deux workers, celui de quatre 130 s, quand chaque morceau paie environ deux
+  minutes d'image, d'installation et de serveurs. Ce que le fichier ajoute se lit sur la chaîne de
+  la pull request d'US-0200, et le choix se revoit quand les parcours s'allongent : les durées
+  par fichier se lisent dans le journal de chaque morceau.
 
 Le back suit le même modèle (#492, levier 5) :
 
@@ -1914,11 +2230,21 @@ les migrations et les verrous.
 - **Un test contre Redis** — voir ci-dessous.
 - **Un test contre le stockage objet** — voir ci-dessous.
 
-Les réponses du faux back sont les exemples du contrat, tels quels. Une seule exception : un test peut
-retirer une permission d'une session d'exemple pour éprouver une combinaison qu'aucun compte du
-témoin ne porte (décision de l'auteur, 2026-10-09) ; il n'ajoute ni ne réécrit rien d'autre. Il la
-retire de la session que lit la page (`requestSession` doublé, comme le fait L43c pour
-les sauvegardes, `app/reference/costs/page.test.tsx`), jamais en réécrivant une réponse du client.
+Les réponses du faux back sont les exemples du contrat, tels quels. Deux exceptions, et seulement
+elles. Un test peut retirer une permission d'une session d'exemple pour éprouver une combinaison
+qu'aucun compte du témoin ne porte (décision de l'auteur, 2026-10-09) ; il n'ajoute ni ne réécrit
+rien d'autre. Il la retire de la session que lit la page (`requestSession` doublé, comme le fait L43c
+pour les sauvegardes, `app/reference/costs/page.test.tsx`), jamais en réécrivant une réponse du
+client. Et un test peut rendre un composant sur une variante contrefactuelle d'une ligne d'exemple
+— une valeur changée, le reste de la ligne gardé —, quand aucun exemple du contrat ne porte le cas
+qu'il éprouve : la variante se passe en prop au composant, jamais servie comme réponse du client, et
+le test dit de quel exemple elle vient et ce qu'il change (EP-14/L45a). Précédents : « SP-REC », le
+sous-projet créé, qu'aucune révision marquée ne cite, déchargé de ses coûts réels, sa suppression
+listée disponible comme le serveur la listerait alors, pour la suppression d'un sous-projet, les deux
+du témoin étant cités et chargés (EP-14/L42l) ; les commandes des sous-projets ôtées d'une ligne
+(EP-14/L44e, `subproject-commands.dom.test.tsx`) — celles d'un projet clos, toutes indisponibles,
+ont leur exemple depuis L42o (`subprojects_completed`), qui remplace la variante (EP-14/L52) — ; et l'écart à la revue précédente absent du reste à engager
+(`remaining-summary.test.tsx`).
 
 ### Un test qui cite son exigence
 
@@ -2043,8 +2369,20 @@ jusqu'à ce que React y réponde, sans défaire celui qu'il a déjà reçu (`set
 la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419), qu'un clic l'atteigne ou le
 relise (un tri, un filtre, une recherche, le détail d'une ligne). Un écran de grille est une grille
 dense — devis, planning, reste à engager, risques, coûts réels, portefeuille —, ou un écran qui lit
-la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. Les
-risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
+la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. La
+comparaison de deux révisions s'y ajoute, le temps d'une décision : elle rend ses 2 770
+modifications en une table simple, rendue au serveur, qui dépasse cinq secondes en développement
+(constat #624 d'EP-14/L45a, à trancher — admise, ou portée sur la grille dense) : du clic à
+l'adresse, pour cinq mégaoctets de réponse, environ quatre secondes au serveur, jusqu'à dix quand un
+autre parcours le charge, et trois ou quatre au navigateur, le faux back répondant en quelques
+dizaines de millisecondes (#729). Un parcours qui rend ainsi des milliers de lignes hors d'une
+grille virtualisée peut garder sa trace sans instantanés du DOM (`snapshots: false`), et seulement
+après une mesure qui montre ce qu'ils coûtent dans la borne — pour la comparaison, deux secondes
+environ, qui la portaient jusqu'à onze secondes sur quinze sur un poste au repos. La trace perd le
+DOM, le réseau, l'arbre d'accessibilité et la capture de chaque action, et ne garde que les actions,
+leurs sources et le film de l'écran : le parcours dit lui-même, en annotation, la durée de ce qu'il
+attend (`test.info().annotations`). Le remède atténue, il ne solde rien : le reste tient à l'écran.
+Les risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
 consignées dans #500, qui reste à trancher. Tout autre écran garde les cinq secondes d'une
 assertion. Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
 secondes d'un test, et prend `test.slow()`. Une ligne de grille vérifiée est dans la fenêtre :
@@ -2255,6 +2593,73 @@ sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API 
 serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
 contrat par `frontend/src/test/fixtures.ts`, les mêmes données que sert le faux back.
 
+L'accessibilité minimale de chaque écran (US-0200, WF-IHM-0100) se contrôle dans
+`frontend/e2e/accessibility.spec.ts`, sur les écrans de `frontend/e2e/routes.ts` : ceux de la table
+de `functions.json`, que lit aussi `screens.spec.ts`, et ceux qu'aucune table ne nomme — le projet
+lui-même, les pages du compte, la connexion et le mot de passe oublié, l'écran « introuvable ».
+`frontend/src/app/screens.test.ts` (`make test-front`) confronte chaque page de `frontend/src/app`
+à ces écrans et aux pages qui ne font que rediriger (`REDIRECTS`) : une page ajoutée sans son écran
+le fait échouer, comme une page de `REDIRECTS` qui ne fait pas que rediriger, ou une route qui en
+intercepte une autre. Chaque écran s'ouvre par son adresse dans une fenêtre de 1366 × 768 points,
+hydraté (`untilHydrated`, qui attend les clés que React pose sur chaque élément qu'atteint le
+clavier), puis se rétrécit à 911 × 512 — ce qu'un agrandissement de 150 % laisse de 1366 points, la
+page remise en page comme le navigateur la remet quand on agrandit ; un facteur d'échelle de
+l'appareil changerait les pixels, pas la mise en page. Trois tests par écran contrôlent chacun les
+deux largeurs :
+
+- les règles d'axe pour WCAG A et AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe n'est pas WCAG —,
+  contraste compris, une fois en mode clair et une fois en mode sombre (`colorScheme`), chaque test
+  constatant d'abord le mode peint — aucun `data-theme`, le fond de la charte. Un texte qu'axe laisse
+  « incomplet » avec ses deux couleurs mesurées et une mesure qui échoue — un seul caractère sous le
+  rapport attendu, qu'il ne veut pas appeler un texte, ou un texte de la couleur de son fond — est un
+  écart, ses couleurs dites ; ce qu'axe laisse sans mesure (`unmeasured`), le test le note en
+  annotation, raison par raison (`elmPartiallyObscured`, `bgOverlap`…), les figures de courbe à part — un caractère seul
+  dont axe n'a pas mesuré les couleurs y compte sous sa brièveté, axe l'écrivant par-dessus la raison
+  qui l'a empêché de mesurer. En mode clair, les
+  règles des libellés des champs et des descriptions des images — `label`, `image-alt` et leurs
+  parentes — sont dites à part ;
+- le parcours au clavier (`walkByTab`, `frontend/e2e/tab-walk.ts`, la mesure dans la page par
+  `frontend/e2e/focus-probe.ts`) : à 1366 points, Tab depuis le haut de la page, à 911 points depuis
+  là où le premier parcours s'est arrêté, chaque fois jusqu'au retour au premier élément atteint.
+  Chaque élément atteint est vu — affiché, non transparent, et le milieu de ce qui en reste, coupé
+  par la fenêtre et par la boîte de remplissage de chaque boîte qui le rogne le long de ses blocs
+  conteneurs, est l'élément lui-même : rien qui peigne n'est dessiné par-dessus, une couche que le
+  pointeur traverse comprise —, et rien d'autre n'y prend le pointeur, une couche transparente qui
+  capte les clics comprise (`covered`). Il porte un indicateur du focus : un contour ou une ombre
+  qu'il ne portait pas avant le parcours, quand rien n'avait le focus — ou, pour un élément né
+  depuis, qu'il ne porte plus une fois quitté ; un élément né depuis et disparu une fois quitté ne
+  se juge pas, et se dit (`unjudged`) —, non transparent, un côté au moins hors de ce que coupent
+  les boîtes qui le rognent et, à l'intérieur, pas sous ce qui le recouvre : ce que l'élément contient pour une ombre intérieure, un
+  élément positionné pour un contour. Un élément atteint deux fois avant le retour au premier est
+  un piège, comme un élément qui garde le focus d'un Tab à l'autre plus longtemps qu'un champ fait
+  de champs — le jour, le mois et l'année d'une date. Chaque élément que Tab peut atteindre —
+  affiché, actif, d'ordre clavier non négatif — doit être atteint lui-même, ou, pour un widget qui
+  déplace lui-même le focus (grille, arbre, menu, liste, groupe de radios, onglets, barre d'outils),
+  le focus doit entrer en lui ; chacun de ces widgets doit être entré (`stopless`) ; aucun élément
+  ne doit se trouver entier au-delà du bord d'une boîte qui cache ce qui la déborde, que le
+  navigateur fait défiler au focus mais que le pointeur n'atteint pas — une boîte que l'utilisateur
+  fait défiler n'est jamais un bord : ce qu'elle cache, elle le montre en défilant, et c'est elle qui
+  doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
+  l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
+  l'atteint encore à 911 (`lost`).
+
+`frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
+d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
+nommer y est nommé, et ce qu'ils doivent laisser passer passe. Les outils du serveur de
+développement de Next (`nextjs-portal`), que le front construit n'a pas, sont écartés d'axe et du
+parcours. Le fichier se joue test par test (`mode: "parallel"`) : Playwright répartit ses tests un à
+un entre les workers et les morceaux de la chaîne, et non le fichier en bloc ; chacun prend
+`test.slow()`, car il ouvre un écran à froid, que le serveur de développement compile à sa première
+visite, puis le contrôle deux fois. Un écart relevé se corrige dans l'écran, jamais en écartant une
+règle.
+
+Le harnais ne contrôle que les écrans tels qu'ils s'ouvrent : ce qu'un geste ouvre — un dialogue,
+un menu, le refus d'une cellule, l'éditeur d'une cellule — n'est pas parcouru, ni ce qu'un
+`details` fermé contient, ni un état qu'un geste atteint (un refus, `?import=`) ; axe ne juge pas le
+contraste d'un texte posé sur le dessin d'une courbe, et le contraste de l'indicateur du focus
+(WCAG 1.4.11) n'est mesuré que par les jetons de `contrast.test.ts`. Ce qui les couvre ailleurs, et
+ce qui reste, est dit dans la note d'US-0200 (EP-14) et dans #782.
+
 *Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
 échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
 
@@ -2329,10 +2734,14 @@ ses paramètres, jamais une phrase.
   service plus récent que le front —, vaut `INTERNAL_ERROR`, « erreur inattendue », au
   statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
-  `problemMessage` ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
+  `problemMessage`, qui nomme aussi les objets que le refus ne donne que par leurs identifiants
+  quand l'écran les a lus (`names`, et `KnownNames` pour tous les avis d'un écran) ; les lignes
+  ou les projets nommés au-delà de la phrase, hors de l'alerte et décrits par sa phrase (#765) ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
   (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme un,
   `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de
-  `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names` ; sur 401, le
+  `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names`, ou à défaut par le
+  libellé que le refus lui donne (`conflicting_object_label`) — un projet, un sous-projet que
+  l'écran ne montre pas, dont le code pris revient le dialogue fermé (#714) ; sur 401, le
   lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc ; l'erreur
   inattendue avec sa référence (`correlation_id`), comme l'écran de panne. Une action serveur
   dont la promesse est rejetée n'a rendu aucun `Outcome` : le composant le tient par `rejected`
@@ -2510,9 +2919,16 @@ langue se choisit.
   décimal, des heures depuis la chaîne exacte du contrat (`formatMoney`, `formatDecimal`),
   jamais par un flottant ; une date de planning telle quelle, sans fuseau
   (`formatPlanningDate`) ; un horodatage en heure locale du poste, écrit dans le navigateur
-  (`LocalTime`) ; un rapport — un avancement — en pourcentage, depuis sa chaîne exacte
-  (`formatPercent`). En français, `Intl` sépare les milliers par une fine insécable
-  (U+202F) : « 1 234,56 » ne se coupe pas en fin de ligne. L'anglais se formate en anglais
+  (`LocalTime`) ; un rapport saisi ou réglé — un taux, une probabilité, une borne — en
+  pourcentage, depuis sa chaîne exacte, chaque chiffre gardé (`formatPercent`) ; une part que le
+  serveur calcule — la part d'une nature ou d'un poste, un avancement, un taux de charge — au
+  centième de pourcentage (`formatShare`) : une part non nulle que l'arrondi dirait nulle se dit
+  « < 0,01 % », ou « > -0,01 % », par le catalogue (`share`) ; une part nulle, quel que soit le
+  nombre de ses zéros, se lit « 0 % » ; près de 100 %, l'arrondi ordinaire (EP-14/L51). Une part
+  que le contrat donne nulle l'est : une part non nulle n'est jamais donnée nulle, mais à son
+  premier chiffre significatif (EP-14/L42o, #694), et le pont de L51, qui jugeait une part nulle
+  par son montant, est retiré (EP-14/L52). En français, `Intl` sépare les milliers par une fine
+  insécable (U+202F) : « 1 234,56 » ne se coupe pas en fin de ligne. L'anglais se formate en anglais
   britannique (`en-GB`), comme ses catalogues s'écrivent : « 31 May 2026, 16:30 », les
   nombres restant « 1,234.56 ».
 
@@ -2642,7 +3058,8 @@ les couleurs d'un SVG, tout littéral ou gabarit sans expression autre que `curr
 qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
 `contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
 compare les logos et l'icône à ceux de `docs/assets`. Le contraste des écrans rendus se
-contrôle dans le navigateur (US-0200) ; le reste de l'accessibilité d'un composant, dans ses
+contrôle dans le navigateur, sur chaque écran de la table, en clair et en sombre
+(`frontend/e2e/accessibility.spec.ts`, US-0200) ; le reste de l'accessibilité d'un composant, dans ses
 tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
 calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
 ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt qu'un

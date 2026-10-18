@@ -87,13 +87,17 @@ export const BREAKDOWN_KINDS = Object.keys(EVERY_BREAKDOWN_KIND) as readonly Bre
 /** The kinds the work breakdown is restricted to, in the address: `kinds` of the contract. */
 export const BREAKDOWN_KIND_FILTER = "breakdown_kinds";
 
-/** A row of the tree of the work breakdown, with the identity of the row it is under. */
+/**
+ * A row of the tree of the work breakdown, with the identity of the row it is under, and whether the
+ * filters of the reading retain it — or it is there for the context of what they retain (#574).
+ */
 export interface BreakdownRow {
   readonly id: string;
   readonly parent: string | null;
   readonly level: number;
   readonly kind: BreakdownKind;
   readonly label: string;
+  readonly matched: boolean;
 }
 
 /** The keys of the settings of the three grids in the account: stable. */
@@ -139,6 +143,7 @@ export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
       level: 1,
       kind: "order_item",
       label: item.label,
+      matched: item.is_match,
     },
     ...item.work_packages.flatMap((workPackage): BreakdownRow[] => [
       {
@@ -147,6 +152,7 @@ export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
         level: 2,
         kind: "work_package",
         label: workPackage.label,
+        matched: workPackage.is_match,
       },
       ...workPackage.deliverables.map((deliverable): BreakdownRow => ({
         id: deliverable.deliverable_id,
@@ -154,6 +160,7 @@ export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
         level: 3,
         kind: "deliverable",
         label: deliverable.label,
+        matched: deliverable.is_match,
       })),
     ]),
   ]);

@@ -7,10 +7,10 @@
  * server computes and never lets anyone enter, of a line as of a task, summary included — the
  * amount at the year of reference (`base_amount`, WF-DEV-0030) and the amount corrected for
  * inflation, projected on the year of consumption (WF-DEV-0040) —, never the budgeted nor the
- * re-estimated amount (#235). The figures of a provision are computed too, from its risk, which
- * its node says (`computed_fields`, WF-IHM-0030). The totals are those of the answer: the hours
- * and the two amounts of the lines retained, never the amounts of the tasks, which would count
- * them twice.
+ * re-estimated amount (#235). The figures and the sub-project of a provision are computed too,
+ * from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of the
+ * answer: the hours and the two amounts of the lines retained, never the amounts of the tasks, which
+ * would count them twice.
  *
  * Each column sorts by the column of the contract of the same name. The category, the role and
  * the sub-project of a line are named by the labels the server resolves, the object active or
@@ -145,13 +145,15 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       contract: "unit_disbursement",
       value: (node) => node.estimate_line?.unit_disbursement,
     },
-    // The sub-project is named by the label the server resolves (#349); the payment delay is a
+    // The sub-project is named by the label the server resolves (#349), computed where the node
+    // says so — a provision's, the one its risk designates (EP-14/L42p); the payment delay is a
     // whole number of days, which the cumulative cost curve shifts the line by (WF-IND-0100).
     {
       key: "subproject",
       label: "subproject",
       format: "text",
       width: 160,
+      computed: computedWhereNamed("estimate_line.subproject_id"),
       contract: "subproject",
       value: (node) => node.estimate_line?.subproject_label ?? null,
     },

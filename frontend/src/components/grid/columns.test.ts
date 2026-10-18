@@ -151,10 +151,10 @@ describe("the columns of the grid of the estimate", () => {
     const totals = ESTIMATE_GRID.columns
       .filter((column) => column.key === "base_amount" || column.key === "inflated_amount")
       .map((column) => column.total?.(volume.totals));
-    expect(totals).toEqual(["65605723.89", "68424191.06"]);
+    expect(totals).toEqual(["66105223.89", "68923691.06"]);
   });
 
-  it("have the label alone pinned, the two amounts computed whole, and the figures of a line where its node says so", () => {
+  it("have the label alone pinned, the two amounts computed whole, and the figures and the sub-project of a line where its node says so", () => {
     const keys = (keep: (column: (typeof ESTIMATE_GRID.columns)[number]) => boolean) =>
       ESTIMATE_GRID.columns.filter(keep).map((column) => column.key);
     expect(keys((column) => column.pinned === true)).toEqual(["label"]);
@@ -166,6 +166,7 @@ describe("the columns of the grid of the estimate", () => {
       "quantity",
       "hours",
       "unit_disbursement",
+      "subproject",
     ]);
   });
 });

@@ -15,10 +15,10 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { buttons, instants, links, rows, sortable, text } from "@/test/markup";
 
 import SystemStatusPage, { generateMetadata as statusMetadata } from "../system/page";
 import AccessRolesPage, { generateMetadata as rolesMetadata } from "./access-roles/page";
-import BackupsPage, { generateMetadata as backupsMetadata } from "./backups/page";
 import UsersPage, { generateMetadata as usersMetadata } from "./users/page";
 
 const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
@@ -42,20 +42,32 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => shown.path,
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, some of its permissions withdrawn for a test: no example lacks the
+// modification of the backups alone, and one would ripple through the accounts, the roles and the
+// journal of the witness.
+const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            permissions: session.permissions.filter(
+              (permission) => !withdrawn.permissions.includes(permission),
+            ),
+          };
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));
 
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
-
-/** What a page says, its tags left out: the texts a reader reads, one space apart. */
-function text(markup: string): string {
-  return markup
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** Render a page of the administration in French, within the shell that follows the tasks. */
 function rendered(page: unknown): string {
@@ -79,42 +91,8 @@ function queriesOf(route: string) {
     .map((call) => Object.fromEntries(call.query));
 }
 
-/** The texts of the rows of a table of a page, by its name. */
-function rows(markup: string, table: string): string[] {
-  const found = [...markup.matchAll(/<table[^>]*aria-label="([^"]*)"[^>]*>(.*?)<\/table>/g)].find(
-    (match) => match[1] === table,
-  );
-  expect(found).toBeDefined();
-  return [...(found?.[2] ?? "").matchAll(/<tr[^>]*>(.*?)<\/tr>/g)].map((row) => text(row[1] ?? ""));
-}
-
-/** The instants a page writes for the browser to show in its local time. */
-function instants(markup: string): string[] {
-  return [...markup.matchAll(/<time datetime="([^"]*)"/gi)].map((match) => match[1] ?? "");
-}
-
-/** The addresses the links of a page lead to. */
-function links(markup: string): string[] {
-  return [...markup.matchAll(/<a [^>]*href="([^"]*)"/g)].map((match) => match[1] ?? "");
-}
-
-/** The headings of the columns a grid of a page sorts: those whose header holds a button. */
-function sortable(markup: string, table: string): string[] {
-  const found = [...markup.matchAll(/<table[^>]*aria-label="([^"]*)"[^>]*>(.*?)<\/table>/g)].find(
-    (match) => match[1] === table,
-  );
-  const head = /<thead[^>]*>(.*?)<\/thead>/.exec(found?.[2] ?? "")?.[1] ?? "";
-  return [...head.matchAll(/<th[^>]*>(.*?)<\/th>/g)]
-    .filter((header) => (header[1] ?? "").includes("<button"))
-    .map((header) => text(header[1] ?? ""));
-}
-
-/** The names of the buttons of a page. */
-function buttons(markup: string): string[] {
-  return [...markup.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((match) => text(match[1] ?? ""));
-}
-
 beforeEach(() => {
+  withdrawn.permissions = [];
   shown.path = "/admin/users";
   server.clients = [];
   server.answers = {
@@ -127,6 +105,7 @@ beforeEach(() => {
     "GET /system/status": "system_status",
     "GET /backups": "backups",
     "GET /backup-schedule": "backup_schedule",
+    "GET /external-backup-locations": "external_backup_locations",
   };
 });
 
@@ -169,7 +148,7 @@ describe("the accounts", () => {
     expect(rows(page, "Comptes utilisateurs")).toEqual([
       "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par",
       "Bernard Dominique dominique.bernard@example.com Importé de l’annuaire Aucun Manager Actif La plateforme La plateforme",
-      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun Aucun rôle Actif La plateforme La plateforme",
+      "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Atelier de câblage Aucun rôle Actif La plateforme La plateforme",
       "Martin Camille camille.martin@example.com Créé dans Waterfall Aucun Direction de projet Actif La plateforme Camille Martin",
       "Moreau Alix alix.moreau@example.com Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Camille Martin Camille Martin",
       "Petit Lucas lucas.petit@example.com Créé dans Waterfall Aucun Chiffreur Actif Camille Martin Camille Martin",
@@ -838,133 +817,4 @@ describe("the state of the system", () => {
   });
 });
 
-describe("the backups", () => {
-  it("title the tab with the function", async () => {
-    expect((await backupsMetadata()).title).toBe("Sauvegarde et restauration — Waterfall");
-  });
-
-  it("present each backup with its date, its size and its verification [WF-ADM-0150-A]", async () => {
-    server.answers = { ...server.answers, "GET /me": "me_auditor" };
-    const page = rendered(await BackupsPage(searched()));
-    const backups = rows(page, "Sauvegardes");
-    expect(backups).toHaveLength(9);
-    expect(backups.slice(0, 2)).toEqual([
-      "Date Taille Vérification Déclenchement Conservation",
-      "1,2 gigaoctet Vérifiée Planifiée",
-    ]);
-    expect(backups[8]).toBe("900 mégaoctets Vérifiée Manuelle Marquée à conserver");
-    expect(instants(page)[0]).toBe("2026-06-03T01:00:00Z");
-    expect(text(page)).toContain("8 sauvegardes");
-  });
-
-  it("present their schedule and retention, and to a session that may not modify them, no command", async () => {
-    server.answers = { ...server.answers, "GET /me": "me_auditor" };
-    const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toContain(
-      "Planification État Active Fréquence Quotidienne Heure 01:00 UTC Rétention 7 sauvegardes conservées",
-    );
-    expect(rows(page, "Sauvegardes")[0]).toBe(
-      "Date Taille Vérification Déclenchement Conservation",
-    );
-    expect(buttons(page)).toEqual([]);
-    expect(links(page)).toEqual([]);
-  });
-
-  it("offer an administrator to back up now, to download or restore each verified backup, and to deposit one of another installation [WF-ADM-0150-A]", async () => {
-    shown.path = "/admin/backups";
-    const page = rendered(await BackupsPage(searched()));
-    const backups = rows(page, "Sauvegardes");
-    expect(backups[0]).toBe("Date Taille Vérification Déclenchement Conservation Commandes");
-    expect(backups[1]).toBe("1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer");
-    expect(buttons(page)).toEqual([
-      "Sauvegarder maintenant",
-      ...Array<string>(8).fill("Restaurer"),
-      "Déposer",
-    ]);
-    // Downloaded by the route of the front that hands the archive on, never from the API itself.
-    expect(links(page)).toHaveLength(8);
-    // It names the page of the list it leaves from, which a refusal comes back to.
-    expect(links(page)[0]).toBe(
-      "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
-    );
-    expect(text(page)).toContain(
-      "Restaurer une sauvegarde d’une autre installation Déposez l’archive d’une sauvegarde",
-    );
-  });
-
-  it("list the backups and offer their commands without a schedule the API does not find [WF-ADM-0150-A]", async () => {
-    // The service answers 404 to the schedule until it serves it (EP-13).
-    shown.path = "/admin/backups";
-    server.answers = { ...server.answers, "GET /backup-schedule": NOT_FOUND };
-    const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).not.toContain("Planification");
-    expect(rows(page, "Sauvegardes")[1]).toBe(
-      "1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer",
-    );
-    expect(buttons(page)).toEqual([
-      "Sauvegarder maintenant",
-      ...Array<string>(8).fill("Restaurer"),
-      "Déposer",
-    ]);
-  });
-
-  it("offer the download and the restoration of a verified backup alone, never of one in verification or whose verification failed [WF-ADM-0150-A]", async () => {
-    shown.path = "/admin/backups";
-    server.answers = { ...server.answers, "GET /backups": "backups_unverified" };
-    const page = rendered(await BackupsPage(searched()));
-    expect(rows(page, "Sauvegardes").slice(1)).toEqual([
-      "1,2 gigaoctet Vérification en attente Manuelle",
-      "1,2 gigaoctet Vérification échouée Planifiée",
-      "1,2 gigaoctet Vérifiée Planifiée Télécharger Restaurer",
-    ]);
-    expect(links(page)).toEqual([
-      "/admin/backups/01926f3a-7c00-7000-8000-000000000906/content?from=%2Fadmin%2Fbackups",
-    ]);
-  });
-
-  it("tell the refusal of a download the route carried back in the address", async () => {
-    shown.path = "/admin/backups";
-    const page = rendered(await BackupsPage(searched({ download_refusal: "404:NOT_FOUND" })));
-    expect(page).toContain('role="alert"');
-    expect(text(page)).toContain(
-      "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès. Fermer l’avis",
-    );
-  });
-
-  it("present the external copy of the scheduled backups, the location by the name the installation declares", async () => {
-    // The screen reads the copy the schedule sets; the form comes with the commands (#519).
-    const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toContain(
-      "Copie externe Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées",
-    );
-  });
-
-  it("name the day of a weekly schedule, and say it has no external copy", async () => {
-    server.answers = { ...server.answers, "GET /backup-schedule": "backup_schedule_weekly" };
-    const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toContain(
-      "Fréquence Hebdomadaire Jour Dimanche Heure 02:30 UTC Rétention 4 sauvegardes conservées Copie externe Aucune",
-    );
-  });
-
-  it("say there is none yet, once", async () => {
-    server.answers = { ...server.answers, "GET /backups": "backups_empty" };
-    const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).toContain("Sauvegardes Aucune sauvegarde. Restaurer une sauvegarde");
-    expect(text(page).split("Aucune sauvegarde").length - 1).toBe(1);
-    expect(page).not.toContain('<table aria-label="Sauvegardes"');
-  });
-
-  it("say a page asked beyond the end of the list is no empty list, and lead back to its last page", async () => {
-    server.answers = { ...server.answers, "GET /backups": "backups_beyond" };
-    shown.path = "/admin/backups";
-    const page = rendered(await BackupsPage(searched({ offset: "50" })));
-    expect(queriesOf("GET /backups")).toEqual([{ offset: "50" }]);
-    expect(text(page)).not.toContain("Aucune sauvegarde.");
-    expect(page).not.toContain('<table aria-label="Sauvegardes"');
-    expect(text(page)).toContain(
-      "8 sauvegardes Cette page est au-delà de la fin de la liste. Page précédente",
-    );
-    expect(links(page)).toEqual(["/admin/backups"]);
-  });
-});
+/** The sort the server gives the backups unasked, which the page asks when the address says nothing. */

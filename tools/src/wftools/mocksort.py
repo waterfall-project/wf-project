@@ -10,8 +10,9 @@ both in the order of the code points of Unicode; a line without a value after th
 ascending order, before them in the descending one; lines of one value in the order of the plan.
 
 And the two examples it orders, read on the estimate of the control station: by the amount at the
-year of reference, ascending, where the milestone of no amount stays last; by the hours,
-descending, where the disbursement and the provision, which have none, come first.
+year of reference, descending, which reverses the lines under the wiring — the provision of 751 at
+the scale of the structure first (EP-14/L45b) —; by the hours, descending, where the disbursement
+and the provision, which have none, come first.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Literal, cast, get_args
 
 from wftools import mockcore, mocktext
-from wftools.mockwitness import CONTROL_STATION, TODAY
+from wftools.mockwitness import CONTROL_STATION, TODAY, N
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject
@@ -91,30 +92,55 @@ class LineSort:
         return sorted(lines, key=key, reverse=self.descending)
 
 
+def _wiring(answer: JsonObject) -> list[JsonObject]:
+    """Return the lines under the wiring of the cabinets, in the order read."""
+    items = cast("list[JsonObject]", answer["items"])
+    wiring = mockcore.lineage(N.WIRING)
+    [parent] = [item["node_id"] for item in items if item["lineage_id"] == wiring]
+    return [
+        cast("JsonObject", item[mockcore.ESTIMATE_LINE])
+        for item in items
+        if item["kind"] == mockcore.ESTIMATE_LINE and item["parent_id"] == parent
+    ]
+
+
+def _said(line: JsonObject) -> str:
+    """Return a line of the estimate as a summary names it: its label, then its amount."""
+    return f"« {line['label']} » ({mocktext.amount(Decimal(cast('str', line['base_amount'])))})"
+
+
 def examples(rows: list[mockcore.Row]) -> dict[str, JsonObject]:
-    """Return the examples of the estimate of the control station sorted, by file name."""
+    """Return the examples of the estimate of the control station sorted, by file name.
+
+    What each says of the order of the lines under the wiring is read from its answer.
+    """
     day = mocktext.day(TODAY.date())
     amount = mocktext.amount
+    [provision] = [row.amounts.base for row in rows if row.number == N.PROVISION]
+    by_amount = mockcore.subtree(
+        rows, CONTROL_STATION.number, sort=LineSort("base_amount", descending=True)
+    )
+    by_hours = mockcore.subtree(
+        rows, CONTROL_STATION.number, sort=LineSort("hours", descending=True)
+    )
+    *first, last = map(_said, _wiring(by_amount))
     return {
         "nodes_estimate_sorted.json": mocktext.example(
             f"Le devis du lot « Poste de commande » trié par montant à l'année de référence, "
-            f"croissant (subtree_of, sort_by=base_amount, sort_order=asc), le {day} : sous le "
-            f"câblage des armoires, la provision de {amount(Decimal(500))}, la main-d'œuvre de "
-            f"{amount(Decimal(1_000))}, puis le débours de {amount(Decimal('1234.56'))}. Les "
-            f"tâches gardent l'ordre de l'arbre — le jalon de réception usine, de montant nul, "
-            f"reste le dernier —, chaque nœud son numéro de ligne, et les totaux sont ceux du "
-            f"devis : une grille arborescente ne trie que les lignes de devis sous chaque tâche "
-            f"(WF-IHM-0060).",
-            mockcore.subtree(rows, CONTROL_STATION.number, sort=LineSort("base_amount")),
+            f"décroissant (subtree_of, sort_by=base_amount, sort_order=desc), le {day} : sous le "
+            f"câblage des armoires, {', '.join(first)}, puis {last}. Les tâches gardent l'ordre "
+            f"de l'arbre, chaque nœud son numéro de ligne, et les totaux sont ceux du devis : une "
+            f"grille arborescente ne trie que les lignes de devis sous chaque tâche (WF-IHM-0060).",
+            by_amount,
         ),
         "nodes_estimate_hours.json": mocktext.example(
             f"Le devis du lot « Poste de commande » trié par heures, décroissant (subtree_of, "
             f"sort_by=hours, sort_order=desc), le {day} : sous le câblage des armoires, le débours "
-            f"de {amount(Decimal('1234.56'))} et la provision de {amount(Decimal(500))}, qui "
+            f"de {amount(Decimal('1234.56'))} et la provision de {amount(provision)}, qui "
             f"n'ont pas d'heures, d'abord, dans l'ordre du plan — une ligne sans valeur vient "
             f"après les autres dans l'ordre croissant, avant dans le décroissant —, puis la "
             f"main-d'œuvre de 12,5 h. Les tâches gardent l'ordre de l'arbre, et les lignes sans "
             f"heures des autres tâches leur place (WF-IHM-0060).",
-            mockcore.subtree(rows, CONTROL_STATION.number, sort=LineSort("hours", descending=True)),
+            by_hours,
         ),
     }

@@ -1,0 +1,13 @@
+{
+  "summary": "Un projet créé alors que la seule catégorie de type provision pour risques, PRV-001, a été désactivée : refusé, le prérequis manquant nommé — aucune catégorie de coût active de type provision pour risques, sans laquelle aucun risque ne pourrait être déclaré ; rien n'est écrit. Une variante contrefactuelle : la provision pour risques du témoin est active (WF-CYC-0120, WF-RIS-0010).",
+  "value": {
+    "code": "REFERENCE_INCOMPLETE",
+    "status": 409,
+    "params": {
+      "missing_prerequisites": [
+        "active_provision_category"
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001100"
+  }
+}

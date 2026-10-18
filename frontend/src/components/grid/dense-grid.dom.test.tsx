@@ -918,10 +918,10 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1,234.56",
       "1,234.56",
     ]);
-    // The totals of the lot are those the server gave, 2934.56 at the year of reference and
+    // The totals of the lot are those the server gave, 502434.56 at the year of reference and
     // corrected for inflation, every line being of that year, in either language.
-    expect(french.totals.slice(-2)).toEqual(["2 934,56", "2 934,56"]);
-    expect(english.totals.slice(-2)).toEqual(["2,934.56", "2,934.56"]);
+    expect(french.totals.slice(-2)).toEqual(["502 434,56", "502 434,56"]);
+    expect(english.totals.slice(-2)).toEqual(["502,434.56", "502,434.56"]);
     expect(english.totals[1]).toBe("Total — 6 tasks, 5 lines");
   });
 

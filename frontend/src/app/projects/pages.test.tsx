@@ -253,6 +253,7 @@ beforeEach(() => {
     "GET /reference/cost-categories": "volume/cost_categories",
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
   };
 });
 
@@ -357,7 +358,7 @@ describe("the witness path", () => {
       [NODES_READ]: "nodes_estimate",
     });
     // The hours, the amount at the year of reference and the one corrected for inflation.
-    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 2,934\.56 2,934\.56$/);
+    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56 502,434\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
@@ -603,10 +604,7 @@ describe("the grid of the planning", () => {
   const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
 
   beforeEach(() => {
-    server.answers = {
-      ...server.answers,
-      [NODES_READ]: "nodes_planning",
-    };
+    server.answers = { ...server.answers, [NODES_READ]: "nodes_planning" };
   });
 
   it("shows the tasks of the main structure, asking the server for the tasks alone, the same grid as the estimate", async () => {
@@ -712,7 +710,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 121,534.56 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 66,105,223.89 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
     expect(html).toMatch(

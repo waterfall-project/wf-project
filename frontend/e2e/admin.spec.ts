@@ -113,7 +113,10 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   await expect(page.getByText("Aucune alerte en cours.")).toBeVisible();
 
   await page.goto("/admin/backups");
-  await expect(page.getByRole("table", { name: "Sauvegardes" }).getByRole("row")).toHaveCount(9);
+  // The header, the eight backups, the totals: how many the server retained.
+  const backups = page.getByRole("grid", { name: "Sauvegardes" });
+  await expect(backups.getByRole("row")).toHaveCount(10);
+  await expect(backups.getByRole("row").last()).toHaveText("8 sauvegardes");
   await expect(page.getByText("7 sauvegardes conservées")).toBeVisible();
   // Each scheduled backup copied to the location the installation declares, read only (#488).
   await expect(
@@ -121,44 +124,131 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   ).toBeVisible();
 });
 
-test("asks a backup from its screen, which the tracker follows, lists it and offers a verified one for download through the front, and a restoration only once the date of its backup is confirmed [WF-ADM-0150-A] [WF-ADM-0160-A]", async ({
+test("starts a backup, marks one to be kept, downloads one and restores the platform from one, confirmed by its identifier typed [WF-ADM-0160-A]", async ({
   page,
 }) => {
   await page.goto("/admin/backups");
-  const start = page.getByRole("button", { name: "Sauvegarder maintenant" });
-  const entries = page.getByRole("region", { name: "Tâches de fond" }).getByRole("listitem");
-  // Pressed again until React answers it, the page hydrated (défaut n° 19 de `typescript.md`).
-  await expect(async () => {
-    if ((await entries.count()) === 0 && (await start.getAttribute("aria-busy")) !== "true") {
-      await start.click();
-    }
-    await expect(entries).toHaveCount(1, { timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
-  await expect(entries.first()).toContainText("Sauvegarde");
+  const backups = page.getByRole("grid", { name: "Sauvegardes" });
+  const lastNight = backups.getByRole("row").nth(1);
+  // A command names its backup by its date once the browser has written it: the page is hydrated.
+  const keep = lastNight.getByRole("button", { name: /^Conserver la sauvegarde du \d/ });
+  await expect(keep).toBeVisible();
+  const told = page.getByRole("main").getByRole("status").filter({ hasText: /\S/ });
+  const tasks = page.getByRole("region", { name: "Tâches de fond" });
 
-  const newest = page.getByRole("table", { name: "Sauvegardes" }).getByRole("row").nth(1);
-  // Listed with its date, written by the browser in its local time, its size and its verification.
-  await expect(newest.locator("time")).toHaveAttribute("datetime", "2026-06-03T01:00:00Z");
-  await expect(newest.locator("time")).not.toBeEmpty();
-  await expect(newest).toContainText("1,2 gigaoctet");
-  await expect(newest).toContainText("Vérifiée");
+  // A backup started now goes to the tracker of the shell, as any background task.
+  await page.getByRole("button", { name: "Sauvegarder maintenant" }).click();
+  await expect(told).toHaveText(/^Sauvegarde lancée/);
+  await expect(tasks).toBeVisible();
 
-  // The restoration of a backup of the list asks a confirmation that names its date.
-  await newest.getByRole("button", { name: "Restaurer" }).click();
-  const dialog = page.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
-  await expect(dialog.getByRole("time").first()).toHaveAttribute(
-    "datetime",
-    "2026-06-03T01:00:00Z",
+  // Marked to be kept, the backup is shown as the server answered it: the fake back keeps nothing.
+  await keep.click();
+  await expect(told).toHaveText(/^La sauvegarde du .+ est marquée à conserver\.$/);
+  await expect(
+    lastNight.getByRole("button", { name: /^Ne plus conserver la sauvegarde du / }),
+  ).toBeVisible();
+  await expect(lastNight).toContainText("Marquée à conserver");
+
+  // Downloaded as an attachment, by the route of the front that hands it on as a stream,
+  // under the name the contract gives it (the example of Content-Disposition, L42h).
+  const downloaded = page.waitForEvent("download");
+  await lastNight.getByRole("link", { name: /^Télécharger la sauvegarde du / }).click();
+  expect((await downloaded).suggestedFilename()).toBe("waterfall-backup-20260603T010000Z.tar");
+
+  // Restored only once its identifier is typed, the dialog naming its date and what is lost.
+  const kept = backups.getByRole("row").nth(8);
+  await kept
+    .getByRole("button", { name: /^Restaurer la plateforme depuis la sauvegarde du / })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Restaurer la plateforme" });
+  await expect(dialog).toContainText(/sauvegarde du .*2026.*sans retour possible/);
+  const restore = dialog.getByRole("button", { name: "Restaurer" });
+  await expect(restore).toBeDisabled();
+  await dialog
+    .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
+    .fill("01926f3a-7c00-7000-8000-000000000900");
+  await restore.click();
+  await expect(dialog).toBeHidden();
+  // Queued, the restoration gives way to the screen of its maintenance (US-0440), which follows
+  // it to its end; the tracker of the shell does not.
+  await expect(
+    page.getByRole("status", { name: "Restauration de la plateforme en cours" }),
+  ).toBeVisible();
+  await expect(tasks.getByRole("progressbar", { name: /^Restauration «/ })).toHaveCount(0);
+});
+
+test("sets the schedule of the backups whole, its time in universal time, after testing the external location of its copy", async ({
+  page,
+}) => {
+  await page.goto("/admin/backups");
+  // A command names its backup by its date once the browser has written it: the page is hydrated.
+  await expect(
+    page.getByRole("button", { name: /^Conserver la sauvegarde du \d/ }).first(),
+  ).toBeVisible();
+  const schedule = page.getByRole("region", { name: "Planification" });
+  await schedule.getByRole("button", { name: "Modifier la planification" }).click();
+  const form = page.getByRole("dialog", { name: "Modifier la planification" });
+  // The time in universal time, as the contract gives it, the local time it stands for beside.
+  await expect(form.getByLabel("Heure (UTC)")).toHaveValue("01:00");
+  await expect(form.getByLabel("Heure (UTC)")).toHaveAccessibleDescription(
+    /^Soit \d\d:\d\d à l’heure de ce poste\.$/,
   );
-  await expect(dialog).toContainText("La plateforme entière");
-  await dialog.getByRole("button", { name: "Annuler" }).click();
-  await expect(dialog).toHaveCount(0);
-
-  // A verified backup is downloaded through the route of the front, never from the API itself.
-  await expect(newest.getByRole("link", { name: "Télécharger" })).toHaveAttribute(
-    "href",
-    "/admin/backups/01926f3a-7c00-7000-8000-000000000907/content?from=%2Fadmin%2Fbackups",
+  // The location the installation declares, tested in the folder of the copies.
+  await expect(form.getByLabel("Copie externe vers")).toHaveValue("secours-lyon");
+  await form.getByRole("button", { name: "Tester l’emplacement" }).click();
+  await expect(form.getByRole("status")).toHaveText(
+    /^«\ssecours-lyon\s» éprouvé le .+, dossier waterfall\/sauvegardes\s: le fichier témoin a été écrit puis effacé\.$/,
   );
+  // Fourteen kept on the platform, the thirty copies outside it at least as many (WF-EXP-0050).
+  await form.getByRole("textbox", { name: "Sauvegardes conservées" }).fill("14");
+  await form.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(form).toBeHidden();
+  await expect(schedule.getByRole("status")).toHaveText("Planification enregistrée.");
+  await expect(schedule).toContainText("14 sauvegardes conservées");
+});
+
+test("sorts and filters the backups by the server, under the names of the contract, back to their first page [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  await page.goto("/admin/backups?offset=5");
+  const backups = page.getByRole("grid", { name: "Sauvegardes" });
+  // The most recent first unless asked (EP-14/L43f); a header asks the server for its sort, back
+  // to the first page.
+  await expect(backups.getByRole("columnheader", { name: /^Date/ })).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
+  await sortUntilAddress(
+    backups.getByRole("columnheader", { name: /^Taille/ }),
+    backups,
+    "/admin/backups?sort_by=size_bytes&sort_order=asc",
+  );
+  // An origin and a marking chosen keep the sort, under the names of the contract.
+  const origins = page.getByRole("group", { name: "Filtrer par déclenchement" });
+  await origins.getByRole("button", { name: "Planifiée" }).click();
+  await expect(page).toHaveURL(
+    "/admin/backups?sort_by=size_bytes&sort_order=asc&origins=scheduled",
+    {
+      timeout: WORKING,
+    },
+  );
+  await expect(origins.getByRole("button", { name: "Planifiée" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const retention = page.getByRole("combobox", { name: "Conservation" });
+  await retention.selectOption({ label: "Marquées à conserver" });
+  await expect(retention).toHaveValue("true");
+  await expect(page).toHaveURL(/origins=scheduled&is_retained=true$/, { timeout: WORKING });
+  // A bound of the size, in bytes, as the contract counts it.
+  const bounds = page.getByRole("form", { name: "Bornes des sauvegardes" });
+  await bounds.getByRole("textbox", { name: "Taille (octets), max." }).fill("2000000000");
+  await bounds.getByRole("button", { name: "Filtrer" }).click();
+  await expect(page).toHaveURL(/is_retained=true&size_bytes_max=2000000000$/, {
+    timeout: WORKING,
+  });
+  // The fake back answers its example whatever is asked: what the screen asks is what this proves.
+  await expect(backups.getByRole("row").last()).toHaveText("8 sauvegardes");
 });
 
 test("sorts, searches and filters the accounts by the server, under the names of the contract, back to their first page [WF-IHM-0060-A]", async ({

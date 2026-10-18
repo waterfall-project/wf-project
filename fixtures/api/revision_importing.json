@@ -18,6 +18,14 @@
         ]
       },
       {
+        "command": "generate_skeleton",
+        "is_available": false,
+        "missing_conditions": [
+          "main_structure_without_tasks",
+          "no_background_task_running"
+        ]
+      },
+      {
         "command": "edit_estimate",
         "is_available": false,
         "missing_conditions": [
@@ -33,6 +41,13 @@
       },
       {
         "command": "edit_risks",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "declare_risk",
         "is_available": false,
         "missing_conditions": [
           "no_background_task_running"

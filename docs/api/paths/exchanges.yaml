@@ -78,7 +78,18 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : un nom vide,
+          `/filename` par `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par
+          `VALUE_TOO_LONG` ; une taille hors de ses bornes, `/size_bytes` par
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie,
+          comme toute borne d'une écriture. Rien n'est ouvert.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              size_out_of_range: { $ref: ../../../fixtures/api/chunked_upload_size_out_of_range.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /chunked-uploads/{chunked_upload_id}/parts/{part_number}:
@@ -142,7 +153,9 @@
       restauration nomme (`acknowledged_backup_taken_at`). Refusé
       par 422, `FILE_FORMAT_UNREADABLE`, quand le fichier assemblé n'est pas une archive dont le
       manifeste, son premier membre, dit la date de la sauvegarde : un dépôt dont la date ne se
-      lit pas n'est jamais restaurable, et reste inachevé. Refusé
+      lit pas n'est jamais restaurable, et reste inachevé. Le dépôt ne vérifie pas l'archive
+      au-delà de son manifeste : la restauration la vérifie, avant de déconnecter quiconque
+      (`startRestore`). Refusé
       par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts`
       dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà
       terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme
@@ -157,6 +170,7 @@
             schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
             examples:
               completed: { $ref: ../../../fixtures/api/chunked_upload_completed.json }
+              external_backup: { $ref: ../../../fixtures/api/file_upload_external_backup.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -226,10 +240,13 @@
       (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels
       (WF-INTF-0140). Un planning MS Project met à jour une tâche existante sans toucher à son
       rattachement au lotissement ; sur la structure principale, seule à porter des
-      rattachements, une tâche que le fichier placerait hors du sous-arbre de la tâche du poste
-      de son lot est rejetée au compte rendu (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-      `ImportRejection`), et la suppression d'une tâche rattachée est appliquée (WF-INTF-0040,
-      WF-PLA-0170). Confiée au worker (WF-ARC-0090).
+      rattachements, un fichier qui placerait la tâche d'un lot hors du sous-arbre de la tâche de
+      son poste est rejeté entier au compte rendu, qui nomme les deux tâches, comme un planning
+      qui porterait la durée du projet au-delà de quinze ans (`ImportReport.refusals`,
+      `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150 ; EP-14/L42s),
+      et la suppression d'une tâche rattachée est appliquée, le compte rendu
+      nommant le poste ou le lot qui perd sa tâche (`ImportDifference.work_breakdown_label`,
+      WF-INTF-0040, WF-PLA-0170). Confiée au worker (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -295,6 +312,7 @@
               planning_mismatch: { $ref: ../../../fixtures/api/import_planning_mismatch.json }
               remaining_analysed: { $ref: ../../../fixtures/api/import_remaining_analysed.json }
               actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
+              planning_rejected: { $ref: ../../../fixtures/api/import_planning_rejected.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -349,10 +367,21 @@
       '409':
         description: >-
           Compte rendu expiré, déjà appliqué, ou condition de droits ou d'état qui a
-          cessé d'être vraie depuis l'analyse (WF-ARC-0100).
+          cessé d'être vraie depuis l'analyse (WF-ARC-0100). Ou un compte rendu qui rejette le
+          fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `import_file_accepted`, et
+          rien n'est appliqué (EP-14/L42s). Un compte rendu expiré ou déjà appliqué l'emporte — il
+          n'y a plus rien à appliquer —, puis `import_file_accepted`, puis les conditions de
+          droits et d'état revérifiées. Refusé, le fichier est supprimé, comme celui de tout import
+          refusé à l'application (WF-ARC-0100), et seul l'abandon reste offert. Les refus se
+          rejugent à l'exécution : un fichier que l'analyse acceptait et qu'une saisie faite depuis
+          ferait rejeter n'est pas appliqué, la tâche de fond échouant sur le motif du refus, avec
+          les paramètres que le compte rendu lui donnerait.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              file_rejected: { $ref: ../../../fixtures/api/import_apply_rejected.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -398,8 +427,12 @@
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422':
         description: >-
-          Un corps sans révision : `VALIDATION_FAILED`, `fields` sur `/revision_id`.
+          `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un corps sans révision,
+          `/revision_id` ; un niveau d'arborescence sous le premier, `/depth`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` à `1` (WF-PLA-0120).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              depth_out_of_range: { $ref: ../../../fixtures/api/export_depth_out_of_range.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

@@ -13,7 +13,10 @@
  * abandon — come with the forms of their domain, which hand each command its server action;
  * until then a command is shown, and pressing it does nothing. The exports of a revision are the
  * screen of the imports and exports' to offer, where they are asked (`ExportForm`): the list of
- * the commands of a revision leaves them out.
+ * the commands of a revision leaves them out. So does it the commands a screen of the revision
+ * offers itself: its entries, which each grid takes as the revision lists them (`edit_planning`,
+ * `edit_estimate`, `edit_remaining`, `edit_risks`), and the skeleton, which the empty grid of the
+ * planning offers (EP-14/L44d).
  */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -71,13 +74,26 @@ function isExport(command: RevisionCommand): boolean {
   return command.startsWith("export_");
 }
 
-/** The commands of a revision the caller may exercise, its exports left out. */
+/**
+ * Whether a command of a revision is offered by a screen of its own — an entry, by its grid; the
+ * skeleton, by the empty grid of the planning —, which the list of the commands leaves out.
+ */
+function isOfferedByItsScreen(command: RevisionCommand): boolean {
+  return command.startsWith("edit_") || command === "generate_skeleton";
+}
+
+/**
+ * The commands of a revision the caller may exercise, its exports and those its screens offer left
+ * out.
+ */
 export function RevisionCommands({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
   const names = {
     [revision.revision_id]: revision.version_name ?? t("contextBanner.currentRevision"),
   };
-  const commands = revision.available_commands.filter((offer) => !isExport(offer.command));
+  const commands = revision.available_commands.filter(
+    (offer) => !isExport(offer.command) && !isOfferedByItsScreen(offer.command),
+  );
   return (
     <CommandList>
       {commands.map((offer) => (

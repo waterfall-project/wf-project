@@ -5,27 +5,36 @@
  * screen of its own, whose head leads here in the same context: the banner of its reading context
  * (WF-IHM-0020); the named timelines of the project (`listTimelines`), each a link that writes the
  * address (`timeline`) — the first when the address names none the project has —; and the tasks of
- * the revision inscribed to the one shown, drawn on their axis of time (`TimelineTable`). Read and
- * never entered: neither the timelines nor the inscriptions are changed here. The tasks are read
+ * the revision inscribed to the one shown, drawn on their axis of time (`TimelineTable`). The
+ * timelines are created and deleted as the project lists `manage_timelines` (`TimelineChoice`,
+ * EP-14/L44f), the screen saying then that the fake back keeps none of it (`MockupNotice`), and the
+ * tasks of a timeline deleted giving way with it (`TimelineBody`); the inscriptions are read, never
+ * entered here. The tasks are read
  * as the grid of the planning reads them — the tasks alone, restricted to the filtered sub-project
  * (`grid-screen.ts`) —, the server selecting those inscribed to the timeline shown (`timeline_id`,
  * #463), once the timelines read say which it is, the screen keeping them once more against the
  * fake back (`inscribedTo`); of each the fields the timeline reads, their inscriptions among them.
  */
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { inscribedTo, type TimelineTask, TimelineTable } from "@/components/gantt/timeline";
+import {
+  TimelineBody,
+  TimelineChoice,
+  TimelineDeletions,
+} from "@/components/gantt/timeline-commands";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
 
 import { screenMetadata } from "../../../../../title";
@@ -55,50 +64,27 @@ const TIMELINE_FIELDS = {
   line: [],
 } as const;
 
-/** The timelines of the project, each a link to it, the one shown marked as the current one. */
-function Timelines({
-  timelines,
-  shown,
-  href,
-}: {
-  readonly timelines: readonly Timeline[];
-  readonly shown: Timeline | undefined;
-  readonly href: (timeline: Timeline) => string;
-}) {
-  const t = useTranslations("timelines");
-  return (
-    <nav aria-label={t("choice")} className="flex flex-wrap items-center gap-1 text-sm">
-      {timelines.map((timeline) => (
-        <Link
-          key={timeline.timeline_id}
-          href={href(timeline)}
-          aria-current={timeline === shown ? "true" : undefined}
-          className={buttonVariants({
-            variant: timeline === shown ? "default" : "outline",
-            size: "sm",
-          })}
-        >
-          {timeline.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-/** The head of the screen, the timelines, and the tasks of the one shown. */
+/**
+ * The head of the screen — the timelines and their commands, as the project lists `manage_timelines`
+ * —, and the tasks of the one shown, drawn here and given way once it is deleted (`TimelineBody`).
+ */
 function TimelinesScreen({
+  project,
+  offer,
   timelines,
   shown,
   tasks,
-  href,
+  hrefs,
 }: {
+  readonly project: string;
+  readonly offer: CommandOffer | undefined;
   readonly timelines: readonly Timeline[];
   readonly shown: Timeline | undefined;
   readonly tasks: readonly TimelineTask[];
-  readonly href: (timeline: Timeline) => string;
+  readonly hrefs: Readonly<Record<string, string>>;
 }) {
   const t = useTranslations();
-  let body = <p className="text-sm text-muted-foreground">{t("timelines.none")}</p>;
+  let body: ReactNode = null;
   if (shown !== undefined) {
     body =
       tasks.length === 0 ? (
@@ -109,18 +95,29 @@ function TimelinesScreen({
   }
   return (
     <Screen density={FUNCTION_DENSITY.planning}>
-      <PageHeader
-        title={t("functions.timelines")}
-        icon={LEAF_ICONS["FBS-4.3.1"]}
-        density={FUNCTION_DENSITY.planning}
-        subtitle={t("timelines.summary")}
-        actions={
-          timelines.length === 0 ? undefined : (
-            <Timelines timelines={timelines} shown={shown} href={href} />
-          )
-        }
-      />
-      {body}
+      <TimelineDeletions>
+        <PageHeader
+          title={t("functions.timelines")}
+          icon={LEAF_ICONS["FBS-4.3.1"]}
+          density={FUNCTION_DENSITY.planning}
+          subtitle={t("timelines.summary")}
+          actions={
+            timelines.length === 0 && offer === undefined ? undefined : (
+              <TimelineChoice
+                project={project}
+                offer={offer}
+                timelines={timelines}
+                shown={shown?.timeline_id}
+                hrefs={hrefs}
+              />
+            )
+          }
+        />
+        {offer?.is_available === true ? <MockupNotice /> : null}
+        <TimelineBody timelines={timelines} shown={shown?.timeline_id}>
+          {body}
+        </TimelineBody>
+      </TimelineDeletions>
     </Screen>
   );
 }
@@ -177,7 +174,16 @@ export default async function TimelinesPage({
   return (
     <>
       <ContextBanner reading={reading} />
-      <TimelinesScreen timelines={timelines} shown={shown} tasks={tasks} href={href} />
+      <TimelinesScreen
+        project={revision.projectId}
+        offer={findOffer(context.project.available_commands, "manage_timelines")}
+        timelines={timelines}
+        shown={shown}
+        tasks={tasks}
+        hrefs={Object.fromEntries(
+          timelines.map((timeline) => [timeline.timeline_id, href(timeline)]),
+        )}
+      />
     </>
   );
 }

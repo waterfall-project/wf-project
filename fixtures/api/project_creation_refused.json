@@ -1,0 +1,18 @@
+{
+  "summary": "Un projet créé sans libellé, sous un code de cinquante-et-un caractères : refusé, le libellé étant obligatoire dès la création, chaque champ désigné par son motif ; rien n'est écrit (WF-PRJ-0080, WF-PRJ-0010).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/label",
+        "code": "VALUE_REQUIRED"
+      },
+      {
+        "pointer": "/code",
+        "code": "VALUE_TOO_LONG"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001062"
+  }
+}

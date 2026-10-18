@@ -384,7 +384,7 @@ export function PermissionMatrix({
   const holds = roles.map((role) => ({ role, codes: new Set<string>(role.permissions) }));
   return (
     <ReferenceSection title={title} icon={KeyRound}>
-      <Table aria-label={title} className="w-full">
+      <Table aria-label={title} list={title} className="w-full">
         <TableHeader>
           <TableRow>
             <TableHead className={CELL}>{t("admin.permissions.function")}</TableHead>

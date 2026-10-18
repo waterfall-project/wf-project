@@ -1,10 +1,10 @@
 ---
 id: EP-14
 titre: Les écrans de la maquette achevés, commandes branchées et constats du contrat soldés
-statut: à planifier
+statut: en cours
 depend_de: EP-02
 famille: front
-issue: à ouvrir
+issue: 599
 ---
 
 # EP-14 — Maquette du front : finitions
@@ -21,6 +21,16 @@ Cet EPIC avance en parallèle d'EP-03 : il ne touche ni le contrat des comptes, 
 session, ni le journal d'audit, qu'EP-03 réalise. Il reprend les règles, la conception et le faux
 back d'EP-02, qui font foi pour lui.
 
+Le 2026-10-11, l'auteur resserre son périmètre (décision de l'auteur) : EP-14 achève les
+écrans que la maquette doit montrer pour être validée — jusqu'au lotissement, aux chronologies,
+au squelette et au rattachement (L44c, L44d) — et les parties du contrat déjà engagées (L42s),
+puis se fusionne dans `main` après EP-03. L'auteur valide ensuite la spécification 1.0, la
+maquette et le contrat par des pull requests de cadrage et d'ajustement, et le durcissement —
+les mineurs du contrat, l'adoption fine par les écrans de ce que L42s écrit, l'accessibilité des
+dialogues et des menus, les navigateurs — est reporté → EP-15, qui suit cette validation :
+polir un contrat et des écrans encore appelés à changer ferait payer deux fois chaque
+ajustement.
+
 ## Ce qui en fait partie
 
 - l'écran des sauvegardes, sa grille et ses commandes — sauvegarder, conserver, télécharger,
@@ -34,34 +44,48 @@ back d'EP-02, qui font foi pour lui.
   et les contributeurs (#592) — chacune suivie de son adoption par l'écran ;
 - l'univers témoin : les lectures sur toute la structure, et les risques à l'échelle (#528, qui
   ferme #287) ; les relectures lentes sous charge (#500) ;
-- l'accessibilité minimale (US-0200) et les navigateurs (US-0290), reprises d'EP-02 telles
-  quelles.
+- l'accessibilité minimale (US-0200), reprise d'EP-02 telle quelle ; les navigateurs (US-0290),
+  repris d'EP-02 avec elle, sont reportés → EP-15 (décision de l'auteur du 2026-10-11).
 
 ## Ce qui n'en fait pas partie
 
 - le comportement réel des écrans : il arrive avec l'EPIC de leur domaine — EP-04 pour le projet,
   EP-05 pour le référentiel, EP-13 pour les sauvegardes ;
 - les comptes, les rôles, la session et le journal d'audit : EP-03 ;
-- la restauration depuis un fichier déposé (#350) : EP-03, US-0440.
+- la restauration depuis un fichier déposé (#350) : EP-03, US-0440 ;
+- le durcissement après la validation de l'auteur — les constats de contrat reportés, dont
+  L42t (#774), l'adoption fine par les écrans de ce que L42s écrit au contrat, l'extension du
+  harnais d'accessibilité aux dialogues et aux menus (#782), les navigateurs (US-0290), les
+  reliquats des tests — : EP-15.
 
 ## Exigences réalisées
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-IHM-0100-A` | Accessibilité minimale | entière | US-0200 |
-| `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
 Les commandes des écrans ne réalisent aucune exigence en propre : comme en EP-02, leurs tests
 citent les exigences du domaine dont le Vérif tient côté front, et l'EPIC du domaine les clôt.
 
 ## Opérations du contrat
 
-Celles d'EP-02, et les écritures que les écrans branchent : les sauvegardes (`startBackup`,
-`retainBackup`, `downloadBackup`, `startRestore`, `setBackupSchedule`,
-`testExternalBackupLocation`), les réglages (`updateReferenceSettings`), le projet
-(`createProject`, `updateProject`, `getProjectNextState`), les sous-projets et les contributeurs
-(`createSubproject`, `updateSubproject`, `deleteSubproject`, `setContributors`,
-`listContributorSuggestions`), le lotissement (`setWorkBreakdown`, `generatePlanningSkeleton`).
+Celles d'EP-02, et les écritures que les écrans branchent, avec les lectures qui les préparent :
+les sauvegardes (`startBackup`, `retainBackup`, `downloadBackup`, `startRestore`,
+`getBackupSchedule`, `setBackupSchedule`, `listExternalBackupLocations`,
+`testExternalBackupLocation`), les réglages (`getReferenceSettings`, `updateReferenceSettings`),
+le projet (`createProject`, `updateProject`, `getProjectNextState`), les sous-projets et les
+contributeurs (`createSubproject`, `updateSubproject`, `deleteSubproject`, `listContributors`,
+`setContributors`, `listContributorSuggestions`), le lotissement et le squelette
+(`getWorkBreakdown`, `setWorkBreakdown`, `generatePlanningSkeleton`), le rattachement d'une tâche
+au lotissement (`updateTaskFacet`, `listNodes`), les chronologies (`listTimelines`,
+`createTimeline`, `deleteTimeline`).
+
+Ce qui manque au contrat pour ces écrans est connu et se fait en quatre parties de #507, avant
+les écrans qui les consomment (« Conception », « Modifications du contrat ») : les commandes
+qu'une sauvegarde, un sous-projet, une révision — le squelette — et un projet — les chronologies —
+listent, les refus par champ que les écritures ne disent pas ou disent mal, les exemples de succès
+qui manquent, les filtres et le tri des sauvegardes, les nœuds retenus d'un lotissement filtré, la
+catégorie provision par défaut.
 
 ## Préalables
 
@@ -69,31 +93,53 @@ EP-02 fusionné dans `main` ; la branche `epic/EP-14` tirée de `main` après ce
 
 ## Définition de fini
 
-- chaque commande d'écriture qu'un écran de la maquette montre est branchée sur l'opération du
-  contrat, gardée par la permission et les commandes disponibles, et dit son succès et son refus ;
-- un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme en sombre ;
-- les parcours des grilles, du Gantt et des courbes se jouent dans la chaîne sur les quatre
-  navigateurs de la spécification ;
-- les constats du contrat que ces écrans ont faits sont soldés — appliqués dans `docs/api`, ou
-  écartés dans `DECISIONS.md` avec leur raison — et aucun n'est resté dans une tête.
+Réécrite par EP-14/L56 (décision de l'auteur du 2026-10-11) :
+
+- chaque commande d'écriture des écrans du référentiel, des sauvegardes et des paramètres du
+  projet — lotissement, chronologies, squelette et rattachement compris — est branchée sur
+  l'opération du contrat, gardée par la permission et les commandes disponibles, et dit son
+  succès et son refus ; les commandes que L42s ajoute au contrat — la déclaration d'un risque,
+  la fusion et son compte rendu — se montrent sans effet, comme les autres commandes que la
+  maquette ne branche pas, leur adoption reportée → EP-15 ;
+- un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme en
+  sombre, et chaque écran se parcourt au clavier, aux deux largeurs (US-0200), sous l'écart
+  écrit pour les dialogues et les menus ;
+- chaque constat ouvert pendant l'EPIC porte sa décision : soldé — appliqué dans `docs/api`
+  ou dans le front, ou écarté dans `DECISIONS.md` avec sa raison —, ou reporté → EP-15 et noté
+  dans ses « Constats reçus » ; aucun n'est resté dans une tête.
 
 ## Constats reçus
 
-Repris d'EP-02 à la coupure du 2026-10-09, à rattacher à l'issue de cet EPIC à son ouverture :
+Repris d'EP-02 à la coupure du 2026-10-09, renommés `[EP-14/Ln]` en gardant leur numéro de lot,
+et rattachés à #599 :
 
-- #512 [EP-02/L43] — les commandes du référentiel et des sauvegardes, dont #519 ;
-- #513 [EP-02/L44] — les commandes des paramètres du projet : #583, #584, #585, et #524 ;
-- #528 [EP-02/L45] — l'univers témoin à l'échelle, et #287 ;
-- #507 [EP-02/L42] — ses parties de contrat ouvertes : #574, #575, #579, #586, #588, #590, #592 ;
-- #84 [US-0200] et #126 ; #92 [US-0290] et #127 ;
-- #500 — relectures lentes sous charge, à trancher ;
-- #591 — le critère d'US-0210 à réécrire en écart quand les commandes du projet entrent.
+- #512 [EP-14/L43] — les commandes du référentiel et des sauvegardes : L43c (#519, l'écran des
+  sauvegardes) livré par #607 ; restent L43d (la planification et la copie externe, fin de #519),
+  L43e (les paramètres des risques et des indicateurs) et L43f (l'adoption par la grille des
+  sauvegardes des commandes, du tri et des filtres que L42h écrit au contrat) ;
+- #513 [EP-14/L44] — les commandes des paramètres du projet : L44a (#583, #524) livré par #608,
+  L44b (#584) par #609 ; reste #585, découpé au cadrage en L44c (le lotissement et les
+  chronologies) et L44d (le squelette et le rattachement) ;
+- #528 [EP-14/L45] — l'univers témoin à l'échelle, et #287 ; découpé au cadrage en L45a (les
+  lectures sur toute la structure) et L45b (les risques à l'échelle et le Kanban, qui ferme #287) ;
+- #507 [EP-14/L42] — ses parties de contrat ouvertes, regroupées au cadrage par l'écran qui les
+  consomme : L42h (#588, et la part des réglages de #575), L42i (#590, #592), L42j (la part des
+  ressources de #575), L42k (#586, #574, #579) ;
+- #84 [US-0200] et #126 ; #92 [US-0290] et #127 : l'issue de l'US est celle de son lot ;
+- #500 — relectures lentes sous charge : fermé au cadrage, couvert par EP-02/L46 (décision de
+  l'auteur) ;
+- #591 — le critère d'US-0210 réécrit en écart par le lot de cadrage, EP-14/L50, les commandes du
+  projet étant entrées avec L44a et L44b.
 
-Trois lots étaient commencés à la coupure, sur leur branche, et repartent d'`epic/EP-14` :
-EP-02/L43c (l'écran des sauvegardes, revue 1 faite), EP-02/L44a (créer un projet, revue 1 faite)
-et EP-02/L44b (sous-projets et contributeurs, à relire). Relevé par EP-02/L46, sans issue :
+Trois lots étaient commencés à la coupure, sur leur branche, et sont repartis d'`epic/EP-14` :
+EP-14/L43c, EP-14/L44a et EP-14/L44b, livrés. Relevé par EP-02/L46, sans issue à la coupure :
 `DenseGrid` ne mémorise ni ses lignes ni ses cellules, si bien que chaque déplacement de la cellule
-active les rend toutes ; aucun défaut n'est démontré en production.
+active les rend toutes ; aucun défaut n'est démontré en production. Ouvert au cadrage en
+`[EP-14] front : DenseGrid ne mémorise ni ses lignes ni ses cellules` (#620), décision
+reporté → EP-06, qui construit la grille de planning réelle et pourra mesurer.
+
+Reportés → EP-15 par la décision de l'auteur du 2026-10-17 : EP-14 resserre son périmètre avant
+la validation (EP-14/L56) ; voir les « Constats reçus » d'EP-15.
 
 Reportés d'EP-03 le 2026-10-11 :
 
@@ -219,17 +265,1221 @@ Reportés d'EP-03 le 2026-10-13 :
   reste possible. L'avis existe et prévient : EP-14 garde, par écriture libérée, l'écran et la
   nature du refus, et dit le dernier. Reporté d'EP-03 le 2026-10-13, sur décision de l'auteur.
 
+## Reprise de `main` après la livraison d'EP-03
+
+EP-03 (comptes, authentification et habilitations) est fusionné dans `main` avant EP-14. Quand il
+l'est, `epic/EP-14` reprend `main` par une fusion (pas de rebase), comme le veut la section
+« Branches » du README de la roadmap. Cette section dit ce qui attend cette reprise ; elle a été
+écrite le 2026-10-11 d'après une fusion d'essai d'`epic/EP-03` et d'`epic/EP-14` (22 fichiers en
+conflit), alors qu'EP-03 avait encore une douzaine de lots à livrer : refaire l'essai au moment
+de la reprise (`git merge-tree --write-tree --name-only origin/main origin/epic/EP-14`), la liste
+aura grossi.
+
+**Ce qu'EP-03 change au contrat, et qu'EP-14 doit suivre** (`docs/api/DECISIONS.md`, sections
+d'EP-03) :
+
+- l'authentification est déléguée au fournisseur d'identité : schéma `bearer`, famille `session`
+  retirée, remplacée par `me` (`getMe`, `closeMySessions`, `updateMyPreferences`, `putMyAvatar`,
+  `deleteMyAvatar`) ; plus aucun écran de mot de passe ; les exemples `session*` sont devenus
+  `me*` (`fixtures/api/me*.json`) ;
+- toute opération gardée déclare `401` et `503` (`rule/protected-operation-declares-503`), toute
+  opération qui reçoit un corps `400` et `422` (`rule/operation-with-body-declares-400-and-422`) ;
+- tout libellé, nom ou code reçu exige un caractère qui n'est pas un blanc (`pattern: '\S'`) ;
+- le catalogue des permissions compte 51 codes : les fonctions en lecture seule (FBS-1.3, FBS-1.5,
+  FBS-2.1 à FBS-2.7) n'ont plus de permission de modifier ;
+- un tri à égalité se départage par l'ordre de la liste sans tri, puis par l'identifiant ;
+- de nouveaux codes d'erreur (`ACCOUNT_NOT_ADMITTED`…), chacun avec sa phrase dans les deux
+  catalogues du front.
+
+**Les conflits, par nature :**
+
+| Nature | Fichiers (essai du 2026-10-11) | Comment les régler |
+|---|---|---|
+| Engendrés | `frontend/src/api/generated/schema.d.ts`, `examples.d.ts`, `docs/api/INVENTORY.md`, `docs/api/waterfall.bundle.*` | ne pas les fusionner à la main : prendre une version, puis `make generate-client`, `make inventory` (et `make generate-server-models`, `make mock-data` si le contrat ou les exemples ont bougé) |
+| Supprimés d'un côté, modifiés de l'autre | `docs/api/paths/session.yaml`, `fixtures/api/session_without_roles.json` | garder la suppression, et reporter la modification d'EP-14 sur son successeur : le `422` précis d'`updateMyPreferences` (largeur de colonne sous vingt points, exemple `preferences_column_width_out_of_range`, L42r) remplace dans `docs/api/paths/me.yaml` la réponse `422` générique qu'EP-03 y a mise ; le rattachement de Sacha Lefèvre à « Atelier de câblage » (L44b) passe dans `fixtures/api/me_without_roles.json` |
+| Contrat | `docs/api/components/common.yaml`, `schemas/platform.yaml`, `schemas/projects.yaml`, `paths/exchanges.yaml`, `paths/platform.yaml`, `paths/projects.yaml`, `paths/reference.yaml`, `paths/revisions.yaml`, `paths/risks.yaml` | garder les deux côtés : les réponses `400`, `422`, `503` et les motifs `\S` d'EP-03, les opérations et les champs d'EP-14 ; puis `make lint-openapi`, qui signale toute opération d'EP-14 à compléter selon les règles ci-dessus |
+| Décisions | `docs/api/DECISIONS.md` | garder les sections des deux EPIC, dans l'ordre chronologique |
+| Catalogues et outils | `frontend/messages/fr.json`, `en.json`, `tools/paths.toml`, `tools/tests/test_mockhistory.py` | garder les deux côtés ; `make catalogs` dit une clé qui manque ou qui ne correspond plus à un code du contrat |
+| Front | `frontend/src/app/(home)/page.tsx`, `app/reference/pages.test.tsx`, `components/commands/outcome-notice.dom.test.tsx` | relire chaque côté : EP-03 a changé la session (plus de mot de passe, `getMe`, refus `ACCOUNT_DEACTIVATED` et `ACCOUNT_NOT_ADMITTED` sans renvoi à la connexion) |
+
+**Après la fusion**, avant la pull request de reprise : `make check BASE=origin/main`, puis le
+palier complet des deux côtés (`make check-back TIER=full`, `make check-front TIER=full`) ; les
+parcours du faux back échouent parfois par délai sous charge (EP-03, #736) : rejouer seuls ceux
+qui échouent avant de conclure. Le back d'EP-03 demande `WATERFALL_TEST_DATABASE_URL` et
+`WATERFALL_TEST_REDIS_URL` (guide, « Tests »).
+
 ## Conception
 
 Celle d'EP-02, qui fait foi : arborescence du front, faux back et exemples, composants partagés,
 commandes du référentiel (`CommandedList`, `ReferenceForm`, `CellCommand`), refus par champ,
-défauts nommés du guide. Ce qu'EP-14 ajoute s'écrit au cadrage, avant son plan de lots.
+défauts nommés du guide. EP-14 n'a ni table, ni migration, ni module du noyau : il écrit du front,
+des exemples et des parties du contrat, et des générateurs de l'univers témoin (`wftools`) — un
+outil écrit en passant, qui ne change pas sa famille. Ce qui suit est ce qu'il ajoute, validé au
+cadrage du 2026-10-09.
+
+### Ce que le cadrage décide
+
+- **Aucune US pour les commandes d'écriture.** Elles ne réalisent aucune exigence en propre, et
+  une US qui citerait WF-REF, WF-PRJ ou WF-ADM devrait reprendre chaque phrase de leur Vérif et
+  faire passer en « fin — amorcée en EP-14 » des exigences qu'EP-04, EP-05 et EP-13 tiennent pour
+  entières. Les commandes restent des lots techniques, parties des lots repris L42 à L45 et
+  nouveaux lots `[EP-14/Ln]`, sous l'issue de l'EPIC (#599), comme le README le permet pour cet
+  EPIC ; la définition de fini les porte. Écarté : une US sans exigence, sur le modèle d'US-0210 —
+  un statut `fini` de plus à lire, pour des critères qui ne seraient que la définition de fini.
+- **Deux entorses assumées, déjà décidées.** Le critère d'US-0250 qui laissait l'écran des
+  sauvegardes « sans déclencher ni sauvegarde ni restauration », et celui d'US-0210 qui voulait
+  qu'« aucun de ces écrans ne propose de créer ni de modifier », sont contredits par les commandes
+  que la maquette montre depuis la décision de l'auteur du 2026-10-08 : les notes de réalisation
+  d'EP-02 le disent pour le premier, et le second est réécrit en écart dans le fichier d'EP-02
+  (#591), par le lot de cadrage.
+- **La branche du cadrage.** Le fichier d'EP-14 vit sur `epic/EP-14`, où L49, L43c, L44a et L44b
+  l'ont déjà modifié : le cadrage s'écrit sur une branche tirée d'elle et y revient par une pull
+  request, non par `roadmap/EP-14-cadrage` vers `main`. Conséquence : le statut `en cours` du
+  README, les numéros d'issues et l'écart d'US-0210 n'atteignent `main` qu'à la livraison
+  d'EP-14 ; lu depuis `main`, le README dira « à planifier » tant qu'il dure, et c'est accepté.
+- **Taille des lots.** L43c, L44a et L44b ont fait de 1,6 à 2,5 fois leur estimation
+  (2 532, 1 775 et 2 369 lignes réelles) : les lots de ce plan sont coupés à 1 200 lignes
+  estimées, et un lot d'écran qui approche le plafond se découpe plutôt que de grossir.
+
+### Modifications du contrat
+
+Quatre parties de #507, chacune avec son entrée dans `docs/api/DECISIONS.md`, ses exemples,
+`make inventory` et `make generate-client`, faites **avant** le lot d'écran qui les consomme.
+Quand l'écran existe déjà — L43b, L43c, L44a, L44b —, la partie de contrat l'adopte dans le même
+lot, comme EP-02/L42e et L42f l'ont fait ; sinon l'adoption revient au lot d'écran. Écarté : une
+seule partie pour les sept constats, qui dépasserait le plafond ; laisser chaque lot d'écran
+modifier le contrat en passant, contre la règle « le contrat d'abord ».
+
+| Partie | Ce qu'elle ferme | Contenu | Consommateur |
+|---|---|---|---|
+| L42h — sauvegardes et réglages | #588, la part des réglages de #575 | Chaque sauvegarde liste ses commandes (`Backup.available_commands` : conserver, ne plus conserver, télécharger, restaurer), indisponibles avec leur condition pendant qu'une sauvegarde ou une restauration court, ou quand sa vérification a échoué — écarté : les déduire de son état dans le front, que la conception d'EP-02 interdit ; les 409 nommés de `startBackup` et `startRestore` pendant qu'une court ; le refus d'une date confirmée qui n'est pas celle de la sauvegarde ; le nom et la longueur du fichier de `downloadBackup` ; les filtres et le tri de `listBackups` (WF-IHM-0130) ; l'exemple de succès de `setBackupSchedule`. L'exemple de succès d'`updateReferenceSettings`, ses refus par champ — des bornes non ordonnées, un seuil d'alerte qui n'est pas sous son seuil de vigilance, chacun à son champ —, sa version périmée. | L43d, L43e, L43f |
+| L42i — projet, sous-projets, contributeurs | #590, #592 | Le déclencheur du prochain état énuméré, et ce que `getProjectNextState` rend d'un projet en cours ou terminal ; la probabilité de gain annoncée figée, le statut et le pointeur de son refus ; le code pris nommant le projet qui le porte, par son libellé, comme L42g l'a décidé pour le référentiel ; les bornes des deux taux. Un sous-projet liste ses commandes (modifier, supprimer), la suppression indisponible avec sa condition quand des coûts réels lui sont imputés ou qu'une révision marquée le cite, son 409 nommé ; le code pris nommant le sous-projet qui le porte ; le refus par champ d'un compte inconnu ou désactivé dans `setContributors` ; une proposition nomme son nœud et ses rôles, dit si le compte est actif, et `listContributorSuggestions` s'appuie sur les lignes de devis comme WF-PRJ-0070. Les écrans de L44a et L44b l'adoptent dans le lot. | écrans L44a, L44b |
+| L42j — ressources | la part des ressources de #575 | Les refus par champ des écritures de L43b : le code pris nommant l'objet qui le porte, un parent ou un nœud désactivé, un nœud déplacé sous lui-même ou ses descendants, une catégorie hors main-d'œuvre ou un rattachement désactivé d'un rôle (WF-REF-0090), des heures hors bornes, la version périmée. Les écrans de L43b l'adoptent dans un lot propre, L43g (#685), ajouté après la part de contrat pour tenir le plafond. | écrans L43b, par L43g |
+| L42k — lotissement, rattachement, chronologies, provision | #586, #574, #579 | La révision liste le squelette parmi ses commandes (`generate_skeleton`), indisponible dès que la structure principale comporte une tâche, le 409 de `generatePlanningSkeleton` nommé ; les refus par champ du rattachement (WF-PLA-0170) : un lot ou un poste déjà porté, en nommant la tâche qui le porte, une tâche rattachée à un poste et à un lot à la fois — `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` existe ; le projet liste les chronologies parmi ses commandes (`manage_timelines`), `deleteTimeline` restant un 204 sans 409 — WF-DAT-0080 supprime physiquement une chronologie, il ne refuse pas ; les exemples de succès de `setWorkBreakdown`, `createTimeline` et `generatePlanningSkeleton`. Les nœuds retenus d'un lotissement filtré (#574). La catégorie provision par défaut (#579), option (a) de l'auteur — « la même nature si elle est employée » —, **après** que l'auteur a écrit les phrases de WF-REF-0030 et WF-REF-0040 : aucun agent ne modifie la spécification. | L44c, L44d |
+
+Les noms des codes et des conditions ci-dessus sont ceux que le cadrage propose ; chaque partie
+les arrête dans `DECISIONS.md`, avec les options écartées.
+
+### Les écrans
+
+- **La planification et la copie externe des sauvegardes (L43d).** Un formulaire, à une session
+  qui peut modifier les sauvegardes (`backups.write`), qui envoie la planification **entière**
+  depuis la lecture (`setBackupSchedule` est un `PUT`) : activée ou suspendue, fréquence, heure,
+  jour, rétention. La copie externe choisit un emplacement parmi ceux que l'installation déclare
+  (`listExternalBackupLocations`) — jamais un secret ni une adresse —, un chemin relatif et un
+  nombre de copies au moins égal à la rétention de la plateforme, vérifié au front avant l'envoi
+  et dit au champ quand le serveur le refuse (422, exemples existants) ; « Tester l'emplacement »
+  appelle `testExternalBackupLocation` et dit son résultat. L'heure se saisit en temps universel,
+  comme le contrat le dit, l'heure locale équivalente affichée à côté — écarté : convertir au
+  front, où le changement d'heure rend la conversion ambiguë. La grille de L43c adopte les
+  commandes, le tri et les filtres que L42h apporte au contrat dans un lot propre, L43f, ajouté
+  au cadrage après L42h — écarté : les adopter dans L42h, qui aurait dépassé le plafond d'un lot.
+- **Les paramètres des risques et des indicateurs (L43e).** Deux formulaires, un par écran :
+  les six bornes **et les seize zones** de la matrice sur `/reference/risks`, à une session qui
+  porte `risk_settings.write` ; les quatre seuils et le délai entre deux revues sur
+  `/reference/indicators`, sous `indicator_settings.write`. Chacun envoie par
+  `updateReferenceSettings` le seul sous-objet de son écran et la version, vérifie au front que
+  les bornes sont ordonnées et chaque seuil d'alerte sous son seuil de vigilance, dit au champ ce
+  que le serveur refuse. Hors du formulaire : la devise, non modifiable (WF-REF-0140), et la
+  langue par défaut de l'installation, qui est à EP-03 (WF-INTF-0160, ligne `installation`) —
+  EP-14 ne touche pas son domaine : L42h retire `default_language` du schéma d'écriture
+  (`ReferenceSettingsWrite`), aucun écran de la maquette ne l'écrivant et aucune permission du
+  référentiel ne le gardant ; il reste en lecture. Écarté : saisir les bornes seules, la matrice
+  restant à moitié paramétrable.
+- **Le lotissement (L44c)** se saisit **dans la grille arborescente** existante : ajouter,
+  renommer, supprimer un poste, un lot, un livrable, au menu contextuel et à la barre de la
+  grille, chaque geste renvoyant le lotissement **entier** depuis une lecture entière — le
+  compteur d'une lecture filtrée est nul, et « un écran qui filtre relit la liste entière avant
+  d'écrire » (décision de L42f). La suppression d'un poste ou d'un lot que des tâches portent est
+  confirmée, en disant que les tâches restent et perdent leur rattachement (WF-PLA-0170).
+  Écarté : un dialogue qui éditerait tout l'arbre, qui doublerait la grille ; des opérations par
+  élément, que le contrat n'a pas et dont l'écriture entière a été décidée.
+- **Les chronologies (L44f, détachées de L44c par la coupe du 2026-10-11)** se créent par leur libellé dans un dialogue de l'écran des
+  chronologies et se suppriment après confirmation, comme le projet liste `manage_timelines`.
+  Écarté : garder par la seule permission `planning.write` de la session — un objet du projet
+  liste ses commandes, règle d'EP-02.
+- **Le squelette (L44d)** s'offre dans **l'état vide de la grille de planning** — « aucune
+  tâche » —, comme la révision liste `generate_skeleton` : l'opération vise la révision, et
+  WF-PRJ-0030 ne le propose plus dès que la structure principale comporte une tâche. La réponse
+  remplit la grille. Écarté : un bouton dans la section du lotissement, qui ne connaît pas la
+  révision.
+- **Le rattachement (L44d)** est une colonne « Rattachement » de la grille de planning : une
+  cellule qui choisit un poste ou un lot parmi le lotissement lu entier, ou rien, écrite par
+  `updateTaskFacet` (`order_item_id` ou `work_package_id`, jamais les deux), le refus du serveur
+  dit à la cellule en nommant la tâche qui porte déjà le lot. Écarté : rattacher depuis le
+  lotissement, qui ne connaît pas la révision.
+- **Le porteur d'un code pris** — projet, sous-projet — est nommé par son libellé dans les
+  paramètres du refus, et le formulaire le dit au champ, comme L42g l'a fait pour le référentiel.
+
+### L'univers témoin à l'échelle (L45)
+
+La décision 4 du cadrage de #287, option (a) de l'auteur du 2026-10-07, s'applique : les risques
+751 et 753 sont portés à l'échelle de la structure de mille tâches, et les lectures qui sommaient
+le seul cœur — les indicateurs du projet, la courbe des coûts, le registre des risques et sa
+couverture, le Kanban, la liste du portefeuille — somment toute la structure ; les résumés « sur
+le seul cœur, jusqu'à EP-02/L45 » disparaissent. Les tests du front qui assertent des valeurs du
+témoin sont réécrits sur les nouvelles valeurs, dans le même lot. Écarté : un second jeu
+d'exemples figé pour les tests, qui ferait deux univers.
+
+### L'accessibilité (US-0200)
+
+Le contrôle axe réemploie `frontend/e2e/axe.ts` et la boucle de `screens.spec.ts` sur chaque
+route de `functions.json`, en clair et en sombre, à 1366 points et à **911 points** — ce que
+donne un agrandissement de 150 % sur 1366, émulé par la fenêtre ; écarté : `deviceScaleFactor`,
+qui ne change pas la mise en page. Un parcours clavier générique par route : Tab jusqu'au retour
+au premier élément, chaque élément focalisé visible dans la fenêtre, aucune boucle fermée. Les
+libellés des champs et les descriptions des images sont les règles `label` et `image-alt` d'axe.
+Les écarts que le contrôle relève se corrigent dans le lot ; si leur nombre l'impose, l'US se
+découpe en deux lots, harnais et écrans du référentiel et de l'administration, puis écrans du
+projet. Ce harnais arrive **avant** les lots d'écran : il garde ensuite chacun d'eux.
+
+### Les navigateurs (US-0290)
+
+Reportée → EP-15 par EP-14/L56 (décision de l'auteur du 2026-10-11) ; cette conception, validée
+au cadrage du 2026-10-09, est celle qu'EP-15 reprendra.
+
+Des projets Playwright `chrome` et `msedge` (canaux), `firefox` et `webkit`, à 1366 × 768, qui
+jouent les seuls parcours étiquetés des grilles, du Gantt et des courbes ; un projet `mobile` à
+360 points de large qui lit les vues d'indicateurs et du portefeuille : lisibles sans défilement
+horizontal, et **sans aucune saisie** — ni champ, ni cellule saisissable, ni commande
+d'écriture ; les filtres de lecture restent. `make e2e-browsers` installe tous les navigateurs,
+et une part `browsers` de la chaîne les joue au palier complet sur un exécuteur à part : l'image
+Playwright porte Firefox et WebKit, Chrome et Edge s'installent dans le travail. Écarté : rejouer
+tous les parcours sur quatre navigateurs, quatre fois le temps de chaîne ; le Safari réel et la
+version majeure précédente, qui restent à la recette d'EP-13 (écarts d'US-0290).
+
+### Ordre de construction
+
+1. Le lot de cadrage : ce fichier, l'écart d'US-0210, les constats reçus d'EP-13, le README.
+2. En parallèle : US-0200 et US-0290, dont le harnais garde ensuite chaque lot d'écran ; les
+   quatre parties du contrat, L42h à L42k ; l'univers témoin, L45a puis L45b, avant que les lots
+   d'écran n'assertent d'autres valeurs.
+3. Les écrans, chacun après sa partie de contrat : L43d, L43e et L43f après L42h ; L43g après
+   L42j ; L44c puis L44d après L42k.
+4. La clôture : la définition de fini constatée, chaque constat de #507 appliqué dans `docs/api`
+   ou écarté dans `DECISIONS.md`. Depuis EP-14/L56 (décision de l'auteur du 2026-10-11) :
+   L44c, coupé à sa réalisation, puis sa part détachée L44f (les chronologies, #801) et L44d, la
+   synchronisation avec `main` après EP-03, et la clôture ; US-0290 et le durcissement passent à
+   EP-15.
+
+## Notes de réalisation
+
+L'écran des sauvegardes (#519), commencé en EP-02/L43c et repris ici (#599), reçoit sa grille et
+ses commandes, la même entorse assumée au cadrage d'US-0250, qui le laissait en lecture : la liste
+passe sur la grille dense, paginée par le serveur, ses colonnes choisies et élargies — le contrat ne
+trie, ne cherche ni ne filtre les sauvegardes, et la grille n'en simule rien (WF-IHM-0090) —, et
+chaque commande suit la permission du catalogue qui la garde (WF-ADM-0100) : à une session qui peut
+modifier les sauvegardes, en déclencher une, une tâche de fond suivie comme les autres
+(`startBackup`), en marquer une à conserver ou ne plus la conserver (`retainBackup`) ; à une session
+qui peut restaurer la plateforme, la télécharger par une route du front qui relaie `downloadBackup`
+en flux, jamais par une action serveur — le téléchargement est gardé par la permission de la
+restauration (décision de l'auteur du 2026-10-09, #588) —, et la restaurer depuis une sauvegarde de
+la liste (`startRestore`), après une confirmation qui énonce la date de la sauvegarde, sa
+vérification et le caractère irréversible de l'opération, et exige la saisie de son identifiant
+(WF-ADM-0160) ; aucune commande ne supprime une sauvegarde. Le refus d'un téléchargement ramène à
+l'écran, qui le dit au-dessus de la liste et y porte le focus ; l'écran dit que le faux back ne
+garde rien (`MockupNotice`). Les exemples de succès de ces écritures entrent au contrat
+(`task_backup_queued`, `backup_retained`, `backup_released`, `task_restore_queued`). Ce que le
+contrat ne porte pas est signalé pour #507 : les filtres et le tri de `listBackups`, le nom et la
+longueur du fichier de `downloadBackup`, les commandes qu'une sauvegarde offre, et ce que refusent
+`startBackup` et `startRestore` pendant qu'une sauvegarde ou une restauration court, comme une date
+confirmée qui n'est pas celle de la sauvegarde. Le formulaire de la planification, de la rétention
+et de la copie externe vient avec la partie suivante, L43d.
+
+EP-02/L44, sur la décision de l'auteur du 2026-10-08 qui fait montrer à la maquette ses commandes
+d'écriture (#513) — une entorse assumée au critère qui laissait les formulaires du projet à EP-04 —,
+est découpé en trois parties menées en parallèle (décision de l'auteur du 2026-10-09), reprises ici
+sous EP-14 : L44a (#583) le projet lui-même, L44b (#584) ses sous-projets et ses contributeurs,
+L44c (#585) son lotissement et son jalonnement. L44a offre « Créer un projet » sur l'accueil (#524),
+à la seule session qui porte la permission de le créer (WF-ADM-0100), indisponible tant que le
+référentiel minimal est incomplet (WF-CYC-0120) : un formulaire validé côté front appelle
+`createProject` — le libellé exigé (WF-PRJ-0080), le code facultatif (WF-PRJ-0010), la description —
+et mène à l'écran du projet créé, que le faux back sert sous les traits du témoin. Les paramètres du
+projet présentent son identité et ses faits, et leur modification (`updateProject`) comme le projet
+liste sa commande `update` : le libellé, le code, la date de réception de la commande, la
+description, le taux d'inflation et la probabilité de gain, saisis en pourcentages et envoyés en
+rapports, celle-ci figée à partir de En cours (WF-PRJ-0090). La réponse prend la place des faits lus
+tant qu'elle est plus récente, la page relue ; un refus par champ est dit au champ — le code déjà
+porté par un autre projet (409) compris, depuis EP-02/L42g, qui le décrit au contrat et l'apprend au
+formulaire —, la version périmée avec l'offre de relire ; l'écran dit que le faux back ne garde rien
+(`MockupNotice`). Le cycle de vie, dont la sortie, irréversible, était déjà confirmée, dit le prochain
+état du projet, son déclencheur et ses conditions restantes (`getProjectNextState`, WF-CYC-0050),
+sans commande vers Chiffrage ni En cours (WF-CYC-0020). Les exemples de succès de ces écritures et
+du prochain état entrent au contrat. Écarts au contrat relevés par L44a, pour #507 : le déclencheur
+du prochain état n'est pas énuméré ; rien ne dit d'avance que la probabilité de gain est figée, ni
+sous quel statut et quel pointeur `WIN_PROBABILITY_FROZEN` la refuse ; le prochain état d'un projet
+en cours ou terminal n'est pas décrit ; le refus d'un code de projet déjà porté nomme le projet par
+son seul identifiant, que l'écran ne connaît pas ; les bornes des deux taux ne sont pas dites.
+
+EP-02/L44, sa partie L44b (#584), donne aux sous-projets et aux contributeurs du projet leurs
+commandes, sur la décision de l'auteur du 2026-10-08 qui fait montrer à la maquette ses commandes
+d'écriture (#513) — une entorse assumée au critère qui laissait ces formulaires à EP-04. Comme le
+projet liste sa commande `update` — le paramétrage du projet, réservé à ses chefs de projet
+(WF-PRJ-0060), indisponible sur un projet terminal —, la liste des sous-projets offre « Nouveau
+sous-projet » et, sur chaque ligne, la modification et la suppression : un formulaire validé côté
+front, le code et le libellé exigés (`createSubproject`, `updateSubproject`), un code qu'un autre
+sous-projet porte (409 `ALREADY_EXISTS`) dit au champ ; la suppression confirmée dans la page
+(`deleteSubproject`), indisponible, sa raison dite, pour un sous-projet auquel des coûts réels sont
+imputés (WF-PRJ-0050). Comme le projet liste `manage_contributors`, la liste des contributeurs se
+modifie entière dans un dialogue (`setContributors`) : la qualité de chacun, chef de projet ou
+contributeur, son retrait, et l'inscription des comptes que le serveur propose d'après les rôles du
+devis (`listContributorSuggestions`, WF-PRJ-0070), chacun confirmé, rien n'étant écrit avant
+l'enregistrement ; une liste sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un
+refus par champ dit à la ligne du compte qu'il désigne, en le nommant. L'écriture part d'une lecture
+entière, avec son compteur : la page relit la liste entière quand la grille la lit filtrée. Un
+succès remplace la ligne ou la liste affichée tant qu'il est plus récent, la page relue ; le refus
+d'une suppression se dit au-dessus de la liste, la version périmée avec l'offre de relire ; l'écran
+dit que le faux back ne garde rien (`MockupNotice`). Les exemples de succès de ces écritures et des
+propositions entrent au contrat, et le 409 d'unicité du code d'un sous-projet y est décrit dans les
+termes d'EP-02/L42g ; Sacha Lefèvre, le compte proposé, est rattaché à l'atelier de câblage. Écarts
+au contrat relevés par L44b, pour #507 : un sous-projet ne liste pas ses commandes, si bien que la
+suppression d'un sous-projet qu'une révision marquée cite (WF-DAT-0080) n'est pas dite d'avance, et
+que son refus (409) n'a ni code nommé ni exemple ; aucune commande du projet ne nomme les sous-projets,
+que le front garde par `update` ; le refus par 422 d'un compte inconnu ou désactivé dans
+`setContributors` n'a ni pointeur ni code nommés ; aucune opération ne liste à un chef de projet les
+comptes qu'il peut inscrire sans `users.read`, si bien que l'écran n'inscrit que des propositions ;
+une proposition ne nomme ni son nœud ni ses rôles, et `listContributorSuggestions` dit s'appuyer sur
+le planning là où WF-PRJ-0070 nomme les lignes de devis.
+
+EP-14/L45a (#618), la première partie de l'univers témoin à l'échelle (#528), fait sommer toute la
+structure de mille tâches par les lectures qui ne sommaient que le cœur — indicateurs du projet, du
+devis et du reste à engager, courbes, plan de charge, coûts réels, histoire des révisions et leur
+comparaison, ligne du témoin au portefeuille —, depuis la seule description du témoin, par les
+générateurs du faux back (`docs/api/DECISIONS.md`, « Les lectures sur toute la structure »). Le
+front ne change pas : ce sont ses tests qui lisent les nouvelles valeurs. Les tests qui assertaient
+une valeur du cœur assertent celle de la structure, dans la forme en place — lue dans l'exemple
+quand le test le lisait déjà, écrite comme la langue la montre quand le parcours de bout en bout le
+faisait, les repères des parcours étant tenus par le générateur (`test_the_marks_*`). Ce qui n'était
+pas une simple valeur a changé de forme sans toucher aux exemples : les deux sous-projets du témoin
+portant désormais des coûts réels, la suppression s'éprouve sur une variante de l'exemple, « SP-ESS »
+déchargé (`subproject-commands.dom.test.tsx`), et le parcours des paramètres éprouve la suppression
+présentée indisponible, sa raison dite, pour l'un et l'autre (`projects.spec.ts`) — une perte de
+couverture assumée : la suppression réussie d'un sous-projet n'est plus éprouvée de bout en bout
+contre le faux back, dont aucun sous-projet ne se supprime, et seul le test dom la porte, sur la
+variante ; la table des modifications de la comparaison, 2 770 lignes, s'affirme par ses quatre
+premières lignes et son compte, lu dans l'exemple, et les écarts de montants se dérivent de l'exemple
+(`revisions/page.test.tsx`) ; le contrôle d'axe du tableau des décaissements devient un test à lui,
+sur une fenêtre de lignes de chaque table (`charts.dom.test.tsx`, défaut n° 23 de
+`docs/dev/typescript.md`). Reste à L45b (#528) ce que la décision laisse : le registre des risques,
+sa matrice et sa couverture sur le budget du seul cœur, et les deux Kanban sur les seules tâches du
+cœur.
 
 ---
 
+EP-14/L42h (#611) écrit au contrat ce que l'écran des sauvegardes et les formulaires des réglages
+attendaient : chaque sauvegarde liste ses commandes, avec trois conditions nommées
+(`backup_verified`, `no_backup_running`, `no_restore_running`) ; `listBackups` se filtre et se
+trie ; `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` refusent par condition
+manquante, jamais par un code d'état ; une date confirmée qui n'est pas celle de la sauvegarde
+est refusée au champ ; le téléchargement nomme son fichier ; `updateReferenceSettings` s'écrit
+par sous-objet, chaque champ sous la permission de sa fonction, et `default_language` sort du
+schéma d'écriture jusqu'à ce qu'EP-03 décide où la langue de l'installation s'écrit. Le lot ne
+touche au front que pour compiler sur le client régénéré ; l'adoption par la grille est L43f.
+
+EP-14/L43f (#627), lot technique ajouté au cadrage après L42h, fait adopter par la grille des
+sauvegardes de L43c ce que L42h a écrit au contrat ; les formulaires restent à L43d et L43e. Les
+commandes : les colonnes des commandes suivent ce que les sauvegardes de la page listent
+(`Backup.available_commands`, `backup-columns.tsx`), et non plus les permissions de la session —
+« Sauvegarder maintenant » seul reste gardé par `backups.write`, le contrat n'ayant pas de commande
+de liste —, une commande indisponible est présentée `aria-disabled`, décrite par sa condition
+(`enums.CommandCondition`), et dite dans la tête de la liste quand on la presse, par
+l'`UnavailableCellCommand` que partagent les sauvegardes et les activations du référentiel ; un 409
+nommé se dit comme tout refus, le refus d'un téléchargement portant sa condition dans l'adresse de
+retour (`409:STATE_FORBIDS_OPERATION:backup_verified`), et le dialogue de la restauration dit
+`BACKUP_DATE_MISMATCH` à la date qu'il énonce, agissant sur la sauvegarde telle que la page relue la
+montre. La route du téléchargement n'invente plus de nom : un fichier que l'API ne nomme pas est une
+mauvaise passerelle, et le parcours de bout en bout attend le nom que le contrat donne au fichier ;
+elle relaie la longueur quand l'API la donne, et rien sinon, le faux back ne la servant pas. Le tri
+et les filtres : la grille trie chaque colonne par le serveur, les plus récentes d'abord sans tri,
+jamais levé comme celui du journal, et filtre par période — les jours du lecteur en instants, fin
+exclue, comme l'accueil —, par déclenchement, par vérification, par conservation et par bornes de
+taille en octets, une sorte de borne `bytes` ajoutée aux filtres partagés ; une borne refusée (422,
+`/query/to`, `/query/size_bytes_max`) est dite à son champ, la liste non lue et les filtres gardés ;
+une lecture filtrée compte ce que le serveur retient et ne se dit jamais vide, et les écritures
+partent de la ligne lue. La mention « le contrat ne trie, ne cherche ni ne filtre » disparaît du
+guide et des tests.
+
+EP-14/L43e (#616), lot technique, donne aux paramètres des risques et des indicateurs leurs
+formulaires, sur la décision de l'auteur du 2026-10-08 qui fait montrer à la maquette ses commandes
+d'écriture (#512). À une session qui porte `risk_settings.write`, l'écran des risques offre de
+modifier la matrice entière — ses six bornes, saisies en pourcentages, et ses seize zones, un choix
+par case, rangées comme la table les montre (WF-REF-0160) — ; à une session qui porte
+`indicator_settings.write`, l'écran des indicateurs offre de modifier les quatre seuils et le délai
+entre deux revues, en semaines entières (WF-REF-0170, WF-REF-0180). Chaque formulaire envoie par
+`updateReferenceSettings` le seul sous-objet de son écran avec la version lue ; ni la devise
+(WF-REF-0140) ni la langue de l'installation ne s'y saisissent. Avant toute demande, le formulaire
+refuse au champ que le serveur désignerait une borne qui n'est pas strictement au-dessus de la
+précédente et un seuil d'alerte qui n'est pas sous son seuil de vigilance ; le serveur dit le reste,
+par champ au champ, la permission manquante et la version périmée — que les deux écrans partagent —
+sous le formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus récente, la
+page relue ; l'écran dit que le faux back ne garde rien (`MockupNotice`). Le formulaire du
+référentiel y gagne trois pièces que d'autres écrans pourront prendre : des champs rangés sous une
+légende commune, qui commence leur nom (`group`) ; des règles qui lient des champs entre eux
+(`rules`) ; un champ de nombre entier, jugé avec les autres (`control: "whole"`), le délai refusé
+s'il n'est pas un nombre entier de semaines. Chaque écran n'est offert qu'à sa permission : une
+session qui ne porte que l'une des deux voit l'autre écran en lecture, ce que les tests de page
+éprouvent en retirant l'autre permission de la session d'exemple. Écartés : un
+formulaire dans la page plutôt qu'un dialogue — les paramètres du projet, seul autre objet unique que
+la maquette modifie, ouvrent le leur depuis une commande, et le dialogue porte déjà les refus par
+champ ; un contrôle de la plage des seuils et du délai au front, que la conception ne demande pas et
+que le serveur juge — le client engendré ne porte ni l'intervalle ]0, 1[ des seuils ni les 1 à 104
+semaines du délai, et le front ne les recopie pas. Le contrat ne décrit pas ce refus hors plage, sans
+code ni exemple : un constat de contrat le suit (#659), et le faux back y répondrait par le premier exemple
+de son 422, les bornes non ordonnées. Le faux back répondant à toute écriture par le premier exemple de l'opération —
+les seuils écrits, la matrice inchangée —, le parcours de bout en bout de la matrice voit le succès
+dit et la matrice d'avant ; la matrice répondue n'est éprouvée que par le test du formulaire.
+
+EP-14/L42i (#612) écrit au contrat ce que les écrans de L44a et L44b attendaient (#590, #592) : le
+déclencheur du prochain état est énuméré (`LifecycleTrigger`) et `getProjectNextState` répond 200,
+sans prochain état, d'un projet en cours ou clos ; le projet dit d'avance que sa probabilité de gain
+est figée (`update_win_probability`, `project_before_in_progress`) et la refuse par cette condition
+(409 `STATE_FORBIDS_OPERATION`, comme le `kind` figé d'une nature ; `WIN_PROBABILITY_FROZEN` retiré) ;
+ses deux taux sont bornés de 0 à 1 (422 `VALUE_OUT_OF_RANGE`, la borne franchie) ; le code pris d'un
+projet ou d'un sous-projet nomme son porteur par son libellé (`conflicting_object_label`) ; chaque
+sous-projet liste ses commandes (`update`, `delete`), la suppression indisponible par
+`subproject_without_actual_costs` seule — un sous-projet qu'une révision marquée cite se supprimait
+alors, marqué supprimé (WF-DAT-0080), comme une chronologie (L42k), ce que L42l renverse —, son 409
+nommé par la condition, et
+`update` du projet couvre ses sous-projets ; `setContributors` refuse à sa ligne un compte inconnu
+(`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) ; une proposition nomme son nœud et ses rôles, et
+`listContributorSuggestions` s'appuie sur les lignes de devis ; `subproject_created` porte déjà la
+facture importée sous son code (#625). Les choix et les options écartées sont dans
+`docs/api/DECISIONS.md`. Le lot ne touche au front que pour compiler sur le client régénéré :
+l'adoption par les écrans de L44a et L44b, que la conception plaçait dans le lot, revient à l'agent
+TypeScript dans un lot propre, L44e (#636), pour tenir le plafond.
+
+EP-14/L45b (#619), la dernière partie de l'univers témoin à l'échelle (#528), applique la décision 4
+du cadrage de #287 : les risques 751 et 753 sont portés à l'échelle de la structure de mille
+tâches — leurs chiffres du cœur multipliés par mille, une fois dans la description du témoin —, 752
+garde ceux de son Vérif, et le registre des risques, sa matrice et leur couverture lisent la gravité
+sur le budget de référence de toute la structure ; la réserve, les totaux, la couverture et la
+provision de 751 dans toutes les lectures de la révision courante suivent, et les deux Kanban
+présentent toutes les tâches de la structure (`docs/api/DECISIONS.md`, « Les risques à l'échelle et
+le Kanban de toute la structure »). L'exemple trié du devis du poste de commande se trie par montant
+décroissant, le tri croissant ne déplaçant plus aucune ligne : il renverse les lignes du câblage et
+éprouve encore le Vérif de WF-IHM-0060-A. Le front ne change pas : ses tests lisent les nouvelles
+valeurs, et ceux dont la forme tenait au cœur — le tri par montant, un Kanban de quinze tâches —
+sont repris par le lot TypeScript : le Kanban s'affirme par colonne, les tâches du cœur en tête puis
+la première tirée, et le nombre de ses cartes, celui de l'exemple ; le devis trié par montant, par
+ses numéros de ligne et ses montants lus dans l'exemple ; le collage sous un tri, sur le devis trié
+par heures, depuis la provision déplacée (refusé) et depuis « Borniers » (accepté). Le Kanban rend
+ses 960 cartes sans fenêtre ni page, en quatre secondes environ en développement après le clic,
+dans la borne des écrans de grille où il était déjà (`WORKING`). #528 et #287 sont soldés.
+
+EP-14/L42l (#647) corrige L42i sur la décision de l'auteur du 2026-10-10 (#634) : un sous-projet
+qu'une révision marquée cite **ne se supprime pas** (§4.4.1), les sous-projets déterminant la courbe
+de la valeur acquise. La condition que le cadrage prévoyait et que L42i avait retirée en suivant le
+Vérif de WF-DAT-0080 revient, `subproject_not_cited`, listée avant `subproject_without_actual_costs`
+quand les deux manquent et nommée par le 409 de `deleteSubproject` ; aucun sous-projet n'est plus
+marqué supprimé. Le Vérif de WF-DAT-0080 dit encore le contraire : sa correction attend l'auteur
+(`docs/spec/TODO.md`, § 2). Depuis L45a, la référence porte toute la structure : elle cite les deux
+sous-projets du témoin, et non le seul Poste de commande ; seul le sous-projet créé ne l'est pas. La
+phrase de la note de L42i qui disait qu'un tel sous-projet se supprime est mise au passé. Le front ne
+change pas : l'écran des sous-projets, et sa variante « SP-ESS » déchargée, que la citation garde
+désormais indisponible, reviennent à L44e.
+
+EP-14/L44e (#636), lot technique, fait lire aux écrans du projet ce que L42i a écrit au contrat. Le
+cycle de vie nomme le déclencheur par `enums.LifecycleTrigger` : la liste locale et « déclencheur non
+reconnu » quittent l'écran et les catalogues, et un projet en cours ou clos, que le serveur répond sans
+prochain état ni déclencheur, le dit comme avant. Les paramètres du projet : la probabilité de gain suit
+`update_win_probability` — indisponible, le champ est montré figé, ses conditions dites sous lui, et la
+valeur n'est pas envoyée ; figée entre-temps, le 409 `STATE_FORBIDS_OPERATION` est dit sous le
+formulaire, comme le `kind` figé d'une nature —, et un taux hors de ses bornes est dit au champ, la
+borne que le serveur donne en rapport dite en pourcentage, comme le champ la saisit (`ratioPercent`) ;
+le front ne vérifie pas les bornes avant l'envoi, le serveur seul les juge. `problem.ts` lit `maximum`
+comme `minimum`, un décimal du contrat seulement, une date bornant une période restant au filtre de
+la période. Le code déjà porté, d'un projet comme d'un sous-projet, nomme son porteur par
+`conflicting_object_label` dans le formulaire partagé (`ReferenceForm`), après les noms de la liste et
+avant le repli générique. Chaque sous-projet offre la modification et la suppression qu'il liste,
+indisponibles avec leurs conditions comme les commandes des sauvegardes (`UnavailableCellCommand`) —
+la suppression d'un sous-projet qu'une révision marquée cite (`subproject_not_cited`, L42l) ou auquel
+des coûts réels sont imputés (`subproject_without_actual_costs`), et, sur un projet clos, chaque
+commande (`project_not_terminal`) —, la suppression n'étant plus déduite de `has_actual_costs` ; les
+colonnes des commandes paraissent dès que le projet liste `update`, disponible ou non, comme « Nouveau
+sous-projet » (WF-IHM-0090). Une réponse à la modification du projet ne ferme que l'ouverture du
+formulaire d'où elle est partie (#660, ajouté au lot). Les propositions de
+contributeurs disent leur nœud et leurs rôles, l'inscrit prend `is_active` du contrat, et
+`UNKNOWN_USER` et `USER_INACTIVE` sont dits à la ligne du compte, par la lecture des refus par champ
+de L44b. Les tests reprennent les exemples de refus du contrat (`project_code_taken`,
+`project_win_probability_frozen`, `project_rates_out_of_range`, `subproject_code_taken`,
+`subproject_delete_cited`, `contributors_accounts_refused`, `contributors_without_manager_refused`) ;
+la suppression éprouvée part du sous-projet créé, non cité, déchargé (`subproject_created`), et des
+variantes contrefactuelles de `subprojects`, déclarées dans le test, éprouvent une ligne sans commande
+et les commandes indisponibles d'un projet clos.
+
+EP-14/L43d (#615), lot technique, donne à l'écran des sauvegardes le formulaire de leur planification
+et de leur copie externe, et ferme #519 : à une session qui porte `backups.write`, « Modifier la
+planification » ouvre le formulaire du référentiel (`ReferenceForm`), qui envoie la planification
+entière depuis la version où il s'est ouvert (`setBackupSchedule`) — activée ou suspendue, fréquence,
+jour, heure, rétention, et la copie : un emplacement parmi ceux que l'installation déclare
+(`listExternalBackupLocations`, lu pour cette seule session), un dossier relatif, un nombre de copies
+au moins égal à la rétention, vérifié avant l'envoi. « Tester l'emplacement » dit l'issue de
+`testExternalBackupLocation`. Le succès remplace la planification affichée tant qu'il est plus récent
+que la lecture ; les trois refus de copie du contrat se disent au champ, la version périmée avec
+l'offre de relire ; l'avis de la maquette était déjà dit à cette session. L'heure se saisit en UTC et
+l'heure du poste qu'elle donne se dit à côté — le jour local aussi pour une planification
+hebdomadaire —, sans conversion à l'envoi. Les bornes d'un nombre de sauvegardes ou de copies (1 à 365)
+ne sont pas vérifiées au front, comme pour les paramètres de L43e : le refus de `retained_count` hors
+bornes n'est pas décrit au contrat, et part à EP-14/L42m ; seule la règle « copies au moins égales à la
+rétention », que la conception demande et que le contrat décrit avec son minimum, l'est, avec le jour
+d'une planification hebdomadaire, la fréquence et l'heure d'une planification activée. Choix :
+le formulaire du référentiel plutôt qu'un formulaire propre à l'écran, au prix de trois ajouts qu'il
+partage — un champ `time`, une note tirée du brouillon, ce qui suit les champs (`after`) — et des règles
+entre champs et des nombres entiers que L43e lui ajoute aussi, repris ici sous les mêmes noms (`rules`,
+`whole`) pour que les deux lots se rejoignent ; le refus d'un dossier par le test se dit sous le bouton
+du test, non au champ, le test n'écrivant rien de la planification ; un jour hebdomadaire laissé vide
+est refusé avant l'envoi, un jour quotidien part nul. Une planification déjà réglée vers un emplacement
+que l'installation ne déclare plus le garde offert, par son nom, refusé au champ avant l'envoi, plutôt
+que de retirer la copie en silence. Une réponse tardive ne ferme que le dialogue d'où elle est partie
+(revue 1, #660). L'état suspendu se dit « Suspendue » et non plus « Désactivée », comme le contrat le nomme.
+
+EP-14/L42m (#663), lot de contrat ajouté le 2026-10-10, ferme deux constats de #507. Pour #628, la
+date qu'énonce la confirmation d'une restauration depuis une sauvegarde déposée est l'instant que
+porte son archive, lu au dépôt et rendu par lui (`FileUpload.backup_taken_at`, nul pour le fichier
+d'un import), auquel `startRestore` compare la date confirmée, refusée comme pour une sauvegarde de
+la liste (`BACKUP_DATE_MISMATCH`) ; une archive sans instant lisible est refusée au dépôt
+(`FILE_FORMAT_UNREADABLE`, sans paramètre) — écartée, la date attendue rendue par le seul refus de
+`startRestore`, que la confirmation n'aurait connue qu'après coup. Pour #659,
+`updateReferenceSettings` refuse un délai hors de 1 à 104 semaines par `VALUE_OUT_OF_RANGE`, la
+borne franchie, et un seuil hors de ]0, 1[ par un motif propre aux seuils,
+`THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre — une décision de l'agent de livraison à la
+relecture : restreindre le seuil à deux décimales pour nommer des bornes admises aurait restreint
+WF-REF-0170 ; et la réponse de la matrice met en alerte la case de la plus faible probabilité et de
+la plus forte gravité, celle que le test du formulaire de L43e change. Le jumeau du refus hors plage
+pour les sauvegardes, relevé par la relecture de L43d, suit : `setBackupSchedule` refuse de même une
+rétention hors de 1 à 365, sur la plateforme ou sur l'emplacement externe. Les choix et les options
+écartées sont dans `docs/api/DECISIONS.md`. Le front reçoit la phrase du nouveau motif et compile sur
+le client régénéré ; les tests que #659 annonce — un délai de zéro refusé au champ, la zone répondue
+vérifiée — et la restauration depuis un fichier, avec la date du dépôt (L43d), viennent ensuite.
+
+EP-14/L42j (#613), sa part de contrat, écrit ce que l'écran des paramètres de ressources de L43b
+attendait (#575, points 1 à 7). Les choix et les options écartées sont dans
+`docs/api/DECISIONS.md`.
+
+Les commandes et le type d'une catégorie :
+- un calendrier liste sa désignation par défaut (`CalendarCommand.set_default`), indisponible pour
+  un calendrier désactivé, faute de la condition `calendar_active` ;
+- `setDefaultCalendar` porte la version lue, refuse une version périmée (412) et un calendrier
+  désactivé (409, la même condition) ;
+- une catégorie dit le type de sa nature (`cost_type_kind`).
+
+Chaque écriture de l'organisation, des rôles et des calendriers décrit ses refus par champ :
+- une référence inconnue, par `UNKNOWN_ORG_NODE`, `UNKNOWN_CALENDAR` ou `UNKNOWN_COST_CATEGORY` ;
+- un nœud créé ou déplacé sous un nœud désactivé — déplacé, même désactivé lui-même —, par
+  `INACTIVE_REFERENCE_OBJECT` ; déplacé sous lui-même ou ses descendants, par `ORG_NODE_CYCLE` —
+  WF-REF-0070, révisé le 2026-10-09 ;
+- la catégorie hors main-d'œuvre d'un rôle (`LABOUR_CATEGORY_REQUIRED`), ou son rattachement
+  désactivé, refusé à la modification quand elle le change (WF-REF-0090) ;
+- les heures d'un jour hors de 0 à 24 et une capacité négative, par `VALUE_OUT_OF_RANGE` et la borne
+  franchie ;
+- le code pris d'un nœud, son porteur nommé par son libellé, et le libellé pris d'un calendrier
+  (WF-REF-0110, révisé de même) ;
+- la version périmée.
+
+Le client est régénéré. Le front ne change que pour compiler : la désignation envoie la version
+lue, les catalogues reçoivent les codes, la condition et les commandes nouvelles. L'adoption par les
+écrans de L43b, que la conception plaçait dans le lot, revient à un lot propre, L43g (#685), pour
+tenir le plafond. Trois règles de la
+même révision sortent du périmètre de #575 et attendent une décision (#684) : le code unique d'un
+rôle, sa catégorie gardée dans la main-d'œuvre, le projet que nomme le refus d'un calendrier.
+
+EP-14/L51 (#648), lot technique, applique la décision de l'auteur du 2026-10-10 (#626) : une part
+non nulle n'est jamais lue « 0 % ». Une seule fonction, `formatShare` (`src/i18n/format.ts`), montre
+une part que le serveur calcule au centième de pourcentage, arrondie comme `Intl` arrondit, sans
+flottant ; une part que l'arrondi dirait nulle sans l'être se dit du côté de zéro où elle tombe —
+« < 0,01 % », « > -0,01 % » —, par le catalogue (`share`, l'espace insécable du français comme devant
+le signe pour cent, aucune en anglais) ; une part nulle se lit « 0 % », quel que soit le nombre de ses
+zéros. Près de 100 %, l'arrondi ordinaire reste (revue 1), l'auteur n'ayant tranché que le côté de
+zéro (#626). Les décimales montrées
+restent celles de `formatPercent`, jusqu'à la deuxième : une part à quatre décimales se montre comme
+avant. Une part que le serveur donne nulle à côté d'un montant qui ne l'est pas est de même trop
+petite pour se montrer : un pont provisoire, le faux back arrondissant les parts à leur quatrième
+décimale sans que le contrat en dise la précision (#694), à retirer ou à officialiser quand il aura
+tranché. Le résumé du devis la dit « < 0,01 % » pour le poste de l'offre v1.0
+(`estimate_indicators_breakdown`, 2 019,56 sur 65 427 832,64), seul exemple du contrat dont une part
+montrée s'arrondit à zéro, le poste d'`estimate_indicators` valant 0,76 % depuis L45b ; la part de
+gravité « moins de 0,01 % » du registre des risques n'est que dans le résumé de l'exemple, aucun
+écran ne la montre. Passent par `formatShare` les parts du résumé du devis et du reste à engager par
+nature (leur montant donné), de la structure des coûts du portefeuille, le taux de transformation et
+les taux de charge du portefeuille, les avancements et la consommation du budget des indicateurs, et
+l'avancement physique du planning, chaque appel éprouvé sur une variante déclarée quand aucun exemple
+ne porte le cas ; restent à `formatPercent`, chaque chiffre gardé, les rapports saisis ou réglés, que
+rien n'arrondit — taux d'inflation, probabilités de gain et de risque, bornes de la matrice, seuils
+des indicateurs et du portefeuille. Le reste à engager par sous-projet ne montre aucune part. Aucun
+texte de pourcentage des parcours de bout en bout ne change.
+
+EP-14/L42o (#698), lot de contrat ajouté le 2026-10-10, regroupe cinq constats de #507. Pour #677,
+les bornes que le constat relève ont leur refus : le jour d'une sauvegarde hebdomadaire, la position
+d'un nœud créé ou déplacé, le délai de paiement d'une ligne créée ou modifiée et le niveau d'une
+image d'arborescence sont refusés hors de leurs bornes par `VALUE_OUT_OF_RANGE`, la borne franchie,
+chacun avec son exemple — en dernier sous le 422 de `setBackupSchedule` et de `createNode`, le
+premier inchangé, et premier sous ceux de `updateEstimateLine`, `moveNodes` et `requestExport`, qui
+n'en avaient aucun. Pour #679, une sauvegarde déposée est vérifiée par sa restauration même, dans le
+worker, avant toute déconnexion, la vérification confirmant l'instant que le dépôt a lu : une
+archive qui ne la passe pas fait échouer la tâche par `STATE_FORBIDS_OPERATION`, `backup_verified`
+manquante, comme une sauvegarde de la liste non vérifiée, personne n'étant déconnecté ni rien
+remplacé ; le dépôt désigné est gardé jusqu'à la fin de la tâche — écartées, une vérification au
+dépôt, longue dans la requête ou à attendre par un état du dépôt, et `FILE_FORMAT_UNREADABLE`, qui
+n'aurait pas dit la vraie cause (relecture 1) — ; et `startRestore` déclare son 404, `NOT_FOUND`,
+pour une sauvegarde inconnue ou un dépôt inconnu ou expiré, comme `openImport`. Pour #694, une part,
+un avancement ou un taux calculé est donné à quatre décimales, arrondi au plus proche, une demie
+s'éloignant de zéro, et une valeur non nulle n'est jamais donnée nulle : celle que l'arrondi
+annulerait l'est à son premier chiffre significatif ; les parts d'une répartition somment exactement
+à 1, le reste des arrondis porté sur la plus grande, comme les Vérif de WF-DEV-0060 et WF-PTF-0080
+l'exigent (décision de l'agent de livraison à la relecture 1) — écartées, la somme libre, douze
+décimales, que l'écran aurait toutes montrées avant `formatShare` (L51), et la plus petite part pour
+toute part minuscule, qui aurait confondu 0,003 % et 0,01 %. Pour #673, `subprojects_completed` lit
+les sous-projets du témoin terminé, toutes leurs commandes indisponibles, `project_not_terminal` en
+dernier ; pour #683, le motif de chaque seuil est dit, `0.` refusé par la forme et `00.5` admis. Les
+choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front n'est touché que par le
+client régénéré et par la valeur attendue d'un test de `formatShare`, la part du poste n'étant plus
+nulle ; l'adoption — l'exemple du projet clos dans son test, la restauration depuis un
+fichier, la branche du montant de `formatShare` qui n'a plus d'objet — revient aux lots du front.
+
+EP-14/L43g (#685), lot technique, fait adopter par les écrans des paramètres de ressources ce que
+L42j a écrit au contrat. « Désigner » suit la commande que le calendrier liste
+(`CalendarCommand.set_default`), et non plus l'état de la ligne : absente, rien ; indisponible pour
+un calendrier désactivé, présentée `aria-disabled` avec sa condition (`calendar_active`), un appui la
+disant dans la région de la liste (`UnavailableCellCommand`) ; le 409 et le 412 de la désignation
+sont dits au-dessus de la liste. Le formulaire du rôle ne propose que les catégories dont la nature
+est de main-d'œuvre d'après `cost_type_kind` : la page ne lit plus les natures, et une session qui
+lit les catégories actives sans les paramètres de coûts peut créer un rôle, ce que
+`resources/page.test.tsx` éprouve (revue 1). Le formulaire du nœud
+ne propose comme parents que les nœuds actifs, hors du nœud et de ses descendants, qu'il soit actif
+ou désactivé, et garde, marqué et choisi, le parent désactivé qu'il a, à sa place dans l'arbre lu
+(revue 1) ; le parent est envoyé, nul
+pour une racine. Les refus par champ de L42j — `UNKNOWN_*`, `ORG_NODE_CYCLE`,
+`LABOUR_CATEGORY_REQUIRED`, `INACTIVE_REFERENCE_OBJECT`, `VALUE_OUT_OF_RANGE` avec sa borne — sont
+dits au champ par le formulaire du référentiel, sans code propre ; le code pris d'un nœud nomme son
+porteur d'après l'arbre ou la liste, sinon par `conflicting_object_label`, et le libellé pris d'un
+calendrier d'après la page, par son identifiant, sinon de façon générique (« Déjà porté par un
+autre calendrier. ») ; la version périmée se dit sous le formulaire avec l'offre de relire. Choix :
+garder les noms tirés de l'arbre avant le libellé du refus — écarté : ne plus lire que le libellé,
+qui ferait perdre le nom de l'objet en conflit quand la réponse arrive le dialogue fermé
+(`OutcomeNotice` ne lit que les noms de l'écran) ; une phrase propre à la désignation indisponible
+(`reference.state.designationUnavailable`) dans la région des activations plutôt qu'une région à
+part. Le contrat n'a pas d'exemple de `UNKNOWN_CALENDAR`, de `UNKNOWN_COST_CATEGORY`, ni de
+`UNKNOWN_ORG_NODE` sur `/parent_id` : ils passent par le même chemin que les codes éprouvés, sans
+test propre. Les tests reprennent les exemples `org_node_code_taken`, `org_node_move_cycle_refused`,
+`org_node_update_stale`, `org_node_renamed_under_inactive`, `resource_role_attachments_refused`,
+`resource_role_update_refused`, `calendar_label_taken`, `calendar_hours_refused`,
+`calendar_update_stale`, `calendar_default_refused`, `calendar_default_stale` et `calendars_reader` ;
+un arbre déclaré dans le test, le service des achats désactivé, éprouve qu'un nœud désactivé ne se
+voit pas proposer un parent désactivé, le témoin n'en ayant aucun ; un deuxième, le bureau d'études
+automatismes actif et celui d'électricité désactivé avec son atelier, que le parent gardé prend sa
+place dans l'arbre ; un troisième, sur cinq niveaux, le bureau d'électricité rattaché sous la cellule
+robotique désactivée, qu'un parent gardé dont le parent n'est pas offert vient en dernier, sans
+décalage (revue 2). Les tests des calendriers
+passent dans `calendar-commands.dom.test.tsx`, ceux des nœuds et des rôles dépassant sinon le
+plafond de mille lignes d'un fichier. Les tests des refus propres au contrat de L42j — la boucle,
+les heures hors bornes, l'effectif négatif, la désignation refusée ou indisponible — ne citent aucune
+exigence : les Vérif de WF-REF-0070 à 0120 n'en disent rien (revue 1).
+
+EP-14/L52 (#723), lot technique ajouté le 2026-10-10, solde les constats mineurs que les relectures
+des lots du front ont renvoyés. Pour #661, #673 et #678, la commande qui ouvre un formulaire écrit
+depuis la version où il s'est ouvert — les paramètres des risques et des indicateurs, l'identité du
+projet, la planification des sauvegardes — est inactive (`aria-disabled`, `aria-busy`, décrite par
+« Enregistrement en cours… ») tant qu'une écriture d'un dialogue fermé est en route, le formulaire
+disant l'écriture partie puis répondue, quelle que soit la réponse (`onWriting` de `ReferenceForm`) :
+rouvert, il s'ouvre sur la version que la réponse apporte (décision de l'agent de livraison ; écartée,
+la reprise de la réponse par un dialogue rouvert au brouillon intact). Le compteur d'ouvertures de
+ces trois écrans reste, en garde-fou que le blocage laisse sans usage. Pour #672, les dialogues des
+sous-projets et des contributeurs ne ferment que l'ouverture d'où leur demande est partie, comme
+#660 ; leur problème de version, rouverts pendant une écriture, reste ouvert en #734. Le défaut n° 24
+des règles TypeScript nomme les deux cas. Pour #673, le test du projet clos sert `subprojects_completed` et affirme les
+commandes des lignes, qui remplace aussi la variante de `subproject-commands.dom.test.tsx` ; le repli
+sans libellé du code pris suit le résumé de l'exemple, et WF-PRJ-0050-A est éprouvé ligne par
+ligne : « SP-CMD », chargé et cité, ses deux conditions, et « SP-REC », chargé seulement, tel que
+`subproject_created` le donne. Pour #678, un champ exigé selon le brouillon le
+dit (`required` d'un `FormField`, une fonction du brouillon, qui donne `aria-required`) : la fréquence
+et l'heure d'une planification activée, le jour d'une hebdomadaire, le dossier et le nombre de copies
+d'une copie ; les règles entre champs se jugent dans le même envoi que les champs, sur ceux qui sont
+passés, tout refus se disant en une fois (relecture 1, option (a)) ; un nombre entier garde son signe,
+ses bornes étant au serveur, « -30 » copies se disant sous le minimum plutôt que « pas un nombre
+entier », le minimum des copies n'étant jugé que pour une rétention dans ses bornes, de 1 à 365 (relecture 2) ; le lendemain et le passage de minuit d'un fuseau
+à demi-heure ont leur test, et le dernier test d'emplacement demandé affirme l'emplacement. Le
+compteur `settled` de ce dernier fichier reste un `vi.mock` : le loger dans `fakeClient` ne marquerait
+l'appel répondu qu'avant que le client lise la réponse, et le test attendrait moins qu'il ne lui faut
+(#678, point 6, gain jugé faible par l'issue). Pour #699 et #717, la branche du montant de
+`formatShare`, le pont de L51, est retirée — depuis L42o, une part non nulle n'est jamais donnée
+nulle, et une part nulle reste « 0 % » —, la plus petite part se tire de `SHARE_PLACES`, les trois
+indicateurs qui la montrent sont éprouvés un par un, et les tests qui disaient nulle la part du poste
+sont réécrits. Pour #714, point 2, `OutcomeNotice` nomme le porteur d'un code pris par le libellé que
+le refus donne quand l'écran ne le montre pas ; le point 1 attend #684.
+
+EP-14/L42p (#712), lot de contrat ajouté le 2026-10-10, fait suivre au contrat la spécification de
+#708, reprise par #710, et remplace la part de #579 que portait L42k, dont l'option (a) est devenue
+sans objet :
+- une catégorie de coût active de type provision pour risques est un prérequis de la création d'un
+  projet (`ReferenceReadiness.missing`, `active_provision_category`), et la règle de #578 — la
+  dernière nature ou catégorie de provision gardée — disparaît avec ses deux conditions, ses 409 et
+  ses exemples ;
+- le risque désigne la catégorie de sa provision, retenue sans être demandée quand il n'y en a
+  qu'une, et facultativement son sous-projet (C-299) ; il les change tant qu'il est identifié, ce que
+  sa commande `update_provision` dit d'avance ; redevenu identifié, il reprend sa catégorie si elle
+  est encore active (C-261) ; sans catégorie active de ce type, la déclaration et ce retour sont
+  refusés par `active_provision_category` ;
+- le type « provision » se dit « provision pour risques » (C-258) dans le contrat et les catalogues.
+
+La revue 1 a ajouté : le sous-projet d'une ligne de provision, celui que son risque désigne, est
+calculé, la grille et le collage ne l'écrivant plus ; jusqu'à C-291 (#728), une catégorie active de
+type provision pour risques est une catégorie active sous une nature active ; la suppression d'un
+sous-projet passe à nul la désignation des risques non identifiés (décision de l'auteur, #732) ; le
+risque dit si sa catégorie est encore active (`provision_cost_category_is_active`). La revue 2 :
+une catégorie dit si sa nature est active (`cost_type_is_active`) ; un risque dont la désignation
+passe à nul avance, son audit nommant l'auteur de la suppression ; l'annulation d'une modification de
+risque qui rendrait un sous-projet supprimé depuis est refusée (`restored_subproject_exists`, #732).
+
+Les points 3 et 5 de son périmètre — la suppression d'un sous-projet que portent des lignes de devis
+de la révision en cours (C-273) et le collage partiellement invalide (WF-IHM-0050) — sont partis dans
+EP-14/L42q (#727), le lot ayant atteint deux fois son estimation. Les choix et les options écartées
+sont dans `docs/api/DECISIONS.md`. Le front ne change que pour compiler et tenir ses catalogues — le
+libellé du type, la condition et la commande nouvelles, la désactivation de la provision désormais
+disponible ; l'adoption suit dans un lot du front : le prérequis à l'accueil, la catégorie et le
+sous-projet au formulaire du risque.
+
+EP-14/L42q (#727), lot de contrat coupé d'EP-14/L42p le 2026-10-10 pour tenir sa taille, en porte
+les points 3 et 5 (#712) :
+- la suppression d'un sous-projet que portent des lignes de devis de la révision en cours est
+  refusée (C-273), `subproject_without_estimate_lines` venant après la citation et les coûts, et le
+  409 nomme ces lignes (`params.estimate_lines`) ;
+- un collage partiellement invalide écrit ses lignes valides : `applyPaste` rend les lignes écrites
+  et les refus de l'aperçu, ligne par ligne (`PasteApplied`, WF-IHM-0050).
+
+Les choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front ne change que pour
+compiler, tenir ses catalogues et ses tests, qui lisent la troisième condition des sous-projets ;
+l'adoption suit dans un lot du front : les lignes que nomme le refus de la suppression d'un
+sous-projet, la confirmation d'un collage partiellement refusé — le guide du front
+(`docs/dev/README.md`, § « Le front », le collage) décrit encore le collage d'avant, qui refusait la
+confirmation d'un plan portant un refus, et revient à ce lot. La revue 1 a ajouté : les lignes
+acceptées sont jugées de nouveau à la confirmation, le compteur de la structure ne couvrant pas le
+référentiel ; un collage sans ligne valide ne crée pas d'entrée d'annulation ; `params.estimate_lines`
+n'a pas de borne. La revue 2 : le plan retient le compteur de la structure lu à l'aperçu, et
+`applyPaste` répond 412 si la structure a changé depuis ; l'annulation d'une saisie de la grille qui
+rendrait un sous-projet supprimé depuis est refusée (`restored_subproject_exists`, la condition de
+L42p, portée à l'identique ici). La revue 3 : cette condition vaut pour toute annulation et tout
+rétablissement qui rendraient un sous-projet supprimé depuis, dans les mêmes mots que L42p
+(`CommandCondition`, les 409 d'`undoLastChange` et de `redoLastUndo`).
+
+L42p, fusionné avant lui (#757), a été fusionné dans le lot, sans rebase. DECISIONS.md et ces notes
+gardent les deux apports, L42p d'abord. La description de `deleteSubproject` garde le texte de L42q,
+sans « la décision contredit le Vérif » ni « qu'aucun coût réel ne charge est retiré de la base » de
+l'ancien texte, dit qu'une ligne de provision se passe par son risque (`updateRisk`,
+`provision_subproject_id`), et reprend mot pour mot la phrase de L42p : la suppression passe à nul la
+désignation des risques non identifiés, dont le `lock_version` avance et l'audit nomme l'auteur de la
+suppression (WF-DAT-0070, WF-IHM-0110 ; décision de l'auteur, #732). Le client, les exemples et
+l'inventaire sont régénérés après la fusion.
+
+EP-14/L53 (#760), lot technique ajouté le 2026-10-10, fait adopter par les écrans ce que L42p et
+L42q ont écrit au contrat, et solde les points 1 et 10 de #747 :
+- le prérequis : L42p le nommait déjà, à l'accueil comme dans le refus `REFERENCE_INCOMPLETE` ; L53
+  l'éprouve sur ses exemples, `reference_readiness_without_provision` et
+  `project_reference_without_provision`, et dit le prérequis de la main-d'œuvre « une catégorie de
+  main-d'œuvre active », le libellé que L42p laissait au lot du front ;
+- la grille du devis : le sous-projet d'une ligne de provision, celui que son risque désigne, est une
+  cellule calculée (`estimate_line.subproject_id`), son refus demandant au serveur ce dont il dépend,
+  et la phrase de la dépendance `risk` nomme le sous-projet avec les grandeurs, comme le contrat ;
+- la suppression d'un sous-projet que portent des lignes de devis : lue indisponible faute de
+  `subproject_without_estimate_lines` seule, `project_not_terminal` mise à part, elle mène, à une
+  session qui lit le devis, au devis de la révision en cours filtré sur le sous-projet
+  (`subproject_id`, décision de la relecture 1) — les lignes de sa structure principale, jamais
+  celles d'une autre structure —, et nulle part quand manque aussi la citation ou les coûts, qu'aucune
+  ligne déplacée ne lève (relecture 2), si bien qu'aucun sous-projet du témoin, cités et chargés tous
+  deux, n'y mène et que le parcours n'éprouve que cette absence ; les lignes ne sont nommées une à une que lorsque le serveur refuse
+  une suppression lue disponible (`params.estimate_lines`), chacune par son numéro, tel que la grille
+  le montre, et son libellé, dans la phrase jusqu'à cinq et en liste au-delà, le refus rappelant
+  qu'une ligne de provision change de sous-projet par son risque (`problemMessage`) ;
+- le collage : un aperçu qui refuse des lignes et en écrit d'autres se confirme, les lignes valides
+  écrites ; la réponse dit au-dessus de la grille d'où le bloc a été collé, le nombre de lignes
+  écrites et chaque refus de `PasteApplied.rejected`, ceux que la confirmation ajoute compris, dans
+  une région nommée, atteinte au clavier et de hauteur bornée, jusqu'à ce que l'avis soit fermé ou
+  qu'un autre bloc soit collé ; le guide du front décrit ce collage ;
+- le détail d'un risque nomme la catégorie et le sous-projet de sa provision, la catégorie dite
+  désactivée quand le serveur le dit (`provision_cost_category_is_active`).
+
+Choix, faute d'une règle de la spécification ou du contrat : le refus ne disant pas quelle ligne est
+une provision ni de quel risque, la phrase du risque suit les lignes plutôt que de renvoyer chacune à
+son risque ; les lignes sont toutes nommées, sans borne, comme le contrat les donne, sans leur
+structure, que le refus ne donne que par son identifiant (`structure_id`) — son libellé
+(`structure_label`) est demandé au contrat dans #764 ; un plan qui n'écrit
+aucune ligne n'offre que l'abandon ; un collage entièrement écrit ne dit rien de plus que sa grille ;
+le nombre de lignes refusées compte une fois une ligne refusée pour plusieurs cellules.
+
+Ce que les tests ne peuvent pas encore prouver : le faux back servant toujours le plan qui ne refuse
+rien, le collage partiel n'est éprouvé que par les tests de la grille, et la hauteur réelle de son
+avis ne se prouvera qu'en parcours, quand le faux back servira `paste_applied_partial` ; le refus
+qu'ajoute le rejugement s'éprouve en appariant `paste_plan` et `paste_applied_partial`, un
+appariement contrefactuel déclaré dans son test, l'exemple propre étant demandé dans #764, comme la
+réponse de dépendance du sous-projet d'une provision, que son test remplace par
+`dependencies_provision`. Sans objet dans ce lot : le formulaire du risque — la déclaration, la
+modification et le réexamen, que le point 2 de #760 voulait adapter — n'existe pas dans la maquette,
+l'écran des risques étant en lecture, et le contrat n'a pas d'exemple de succès de `createRisk`,
+`updateRisk` ni `reviewRisk` : #763, reporté → EP-08, noté dans ses « Constats reçus » ; le refus
+d'une annulation par `restored_subproject_exists`, Annuler et Rétablir n'étant pas branchées (EP-06),
+sa condition déjà nommée par le catalogue.
+
+EP-14/L42r (#759), lot de contrat ajouté le 2026-10-10, fait suivre au contrat les trois règles de
+la révision du 2026-10-09 que L42j avait laissées (#684, que l'auteur a décidé de traiter dans
+EP-14), solde les mineurs de L42j (#691) et le refus de la largeur d'une colonne (#711) :
+- un rôle porte un code unique, désactivés compris (WF-REF-0090), exigé à son image, à sa création
+  et à sa modification ; un code pris est refusé par 409 `ALREADY_EXISTS`, son porteur nommé par
+  son libellé, et la liste des rôles cherche, filtre et trie le code ;
+- une catégorie qui porte des taux, ou à laquelle un rôle est rattaché, ne quitte pas la
+  main-d'œuvre, et le type de sa nature se fige (WF-REF-0030, WF-REF-0040) : trois conditions,
+  `cost_type_unrated`, `cost_type_without_role` et `cost_category_without_role`, le 409 nommant la
+  première qui manque, et les rôles en cause pour les deux dernières ;
+- le refus d'un calendrier qui laisserait une tâche sans heure nomme les rôles, et chaque projet
+  par son libellé et son code seuls (`params.projects`), sans tâche ni identifiant (WF-PLA-0010) —
+  option (a) de #762, tranchée à la relecture 1 ; les saisies d'une révision gardent leurs tâches ;
+- `updateMyPreferences` refuse une colonne de moins de vingt points, et le test des bornes parcourt
+  les corps de toutes les écritures.
+
+Les choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front compile et tient ses
+catalogues, et le formulaire du rôle saisit le code, exigé : le faux back valide les corps d'après
+le contrat et refusait une création sans lui. Le lot du front qui suit montre le code dans la
+grille, le cherche, le filtre et le trie, éprouve le code pris au champ, dit les rôles que nomme le
+refus d'une nature ou d'une catégorie et les projets du refus d'un calendrier, et reprend #714
+point 1.
+
+L42q (#758) puis L53 (#767), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
+DECISIONS.md, ces notes, `Problem.params` et les catalogues gardent les apports de chacun, les leurs
+d'abord, et le client, les exemples et l'inventaire sont régénérés après chaque fusion.
+
+EP-14/L55 (#769), lot technique d'outillage ajouté le 2026-10-10, reprend les constats d'outillage
+que les relectures ont renvoyés : il solde #653, #657 et le point 2 de #765, garde l'outil de lever
+sur un total nul en laissant au contrat la question de #718, et atténue #729 :
+- #653 : le résumé du Kanban accorde chaque compte à son mot — une colonne d'une tâche, une tâche
+  tirée, une seule signalée se disent au singulier, comme le français sous deux (`mocktext.kanban`) ;
+  aucun exemple ne change, aucun ne comptant zéro ni un. Le test des deux calculs dit ce qu'il
+  compare : l'assemblage des exemples, le second calcul relisant les caches du processus
+  (`functools.cache`), qu'il coûterait une trentaine de secondes de vider ;
+- #657 : le test de l'ordre des conditions d'un sous-projet lit cet ordre dans la description de
+  `SubprojectCommand` et dans celle du 409 de `deleteSubproject` — `subproject_not_cited`,
+  `subproject_without_actual_costs`, `subproject_without_estimate_lines`, `project_not_terminal` —
+  avant d'y confronter `subprojects_completed` ; les résumés de `subprojects`,
+  `subprojects_completed`, `subproject_delete_cited` et `subproject_updated` citent la décision
+  entière (§4.4.1, décision de l'auteur du 2026-10-10, #634) ;
+- #718 : `partition` ne lève plus sur une répartition sans montant ni sur un total nul. La part d'un
+  total nul reste à dire au contrat : WF-IND-0010 la veut non calculable, jamais nulle, et la
+  décision « Une enveloppe `Computable`… » de `DECISIONS.md` en fait une règle ; L42t (#774) l'y
+  écrira, puis un lot du front l'adoptera (relecture 1, décision de l'agent de livraison). En
+  attendant, et provisoirement, l'outil ne donne aucune part d'un total nul : le devis, le reste à
+  engager et la structure des coûts du portefeuille omettent alors `share` ; aucun exemple n'a de
+  total nul, et le contrat n'est pas touché ;
+- #729, atténué : la comparaison de `revisions.spec.ts` n'écrivait pas toujours son adresse en quinze
+  secondes. `openHydrated` attend l'hydratation, et le clic atteint un bouton hydraté ; le faux back
+  répond en quelques dizaines de millisecondes, et son arrêt (« Terminated ») est celui de la fin de
+  chaque passage, que le rapporteur de la chaîne écrit avant le détail des échecs. C'est l'écran,
+  qui rend ses 2 770 nœuds en développement — cinq mégaoctets de réponse, environ quatre secondes au
+  serveur, jusqu'à dix quand un autre parcours le charge, et trois ou quatre au navigateur —, et les
+  instantanés du DOM de la trace, qui y ajoutaient deux secondes environ. Le parcours garde sa trace
+  sans eux, mesure faite — elle perd alors le DOM, le réseau, l'arbre d'accessibilité et la capture
+  de chaque action, et le parcours dit en annotation la durée de la réponse du serveur et de
+  l'adresse : de neuf à onze secondes du clic à l'adresse sur un poste au repos, il passe à sept ou
+  huit, la borne inchangée. Le remède atténue sans solder : #729 reste ouverte, dépendante de #624,
+  qui doit trancher l'écran ;
+- #765, point 2 : le kit des tests du front (`frontend/src/test/`) compte parmi leurs tests dans
+  `tools/paths.toml`, et `make lot-size` ne le compte plus en production.
+
+EP-14/L42k (#614), lot de contrat au périmètre revu le 2026-10-10 — la part #579 sortie, réalisée
+par L42p —, écrit au contrat ce que L44c et L44d consomment, d'après la spécification à jour depuis
+#708 :
+
+- la révision liste le squelette parmi ses commandes (`generate_skeleton`, après `edit_planning`),
+  indisponible dès que sa structure principale comporte une tâche (`main_structure_without_tasks`),
+  et le 409 de `generatePlanningSkeleton` nomme la première condition qui manque ; la génération
+  rend `NodesWritten`, comme toute écriture de grille, avec un exemple sur le lotissement par défaut
+  (WF-PRJ-0030) ;
+- le rattachement (#586, WF-PLA-0170) : le poste ou le lot déjà porté nomme la tâche qui le porte
+  par `conflicting_object_id` et `conflicting_object_label`, qui remplacent `attached_node_id` ; la
+  tâche rattachée à un poste et à un lot est refusée par `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, une tâche
+  hors de la structure principale par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` ; `setWorkBreakdown`
+  retire le rattachement d'un lot rangé sous un autre poste au lieu de le refuser ; une fusion qui
+  sortirait la tâche d'un lot du sous-arbre de son poste échoue par
+  `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` ; le compte rendu d'import nomme le poste ou le lot qui perd sa
+  tâche (`ImportDifference.work_breakdown_label`) ;
+- le projet liste les chronologies parmi ses commandes (`manage_timelines`) ; `deleteTimeline` reste
+  un 204 sans 409, WF-DAT-0080 supprimant physiquement une chronologie — la phrase du cadrage qui la
+  disait marquée supprimée précède #708 — ; les exemples de succès de `createTimeline` et de
+  `setWorkBreakdown` ;
+- chaque élément d'une lecture du lotissement dit s'il est retenu ou rendu pour le contexte
+  (`is_match`, #574).
+
+La relecture 1 a ajouté : la fusion refusée nomme la tâche du poste et celles des lots par leur nœud
+et leur libellé ; le lotissement par défaut porte le libellé du projet (WF-PRJ-0020) ; l'état où le
+squelette est proposé a ses exemples — une révision sans tâche, sa structure et sa lecture vide ;
+`setWorkBreakdown` ne fait forger aucun identifiant au client — un élément envoyé sans identifiant
+est nouveau, le serveur le lui donne (WF-DAT-0060) — et rend sa lecture entière. La relecture 2 :
+les refus de l'écriture du lotissement — un identifiant d'une autre nature, un libellé vide — ont
+leurs exemples, et le projet créé, passé en Chiffrage, porte sa révision sans tâche. La relecture 3
+: un identifiant que la saisie du lotissement envoie deux fois est refusé à chaque occurrence après
+la première (`DUPLICATE_WORK_BREAKDOWN_ITEM`). Les choix et les options écartées sont dans
+`docs/api/DECISIONS.md`. Ni #574 ni #586 ne se ferment par ce lot : la troisième Vérif de #574, le
+total des seuls retenus à l'écran, revient à L44c, et #586 garde ce que #771 reprend — le compte
+rendu préalable de la fusion (WF-REV-0050), le rejet entier d'un fichier d'import qui sortirait la
+tâche d'un lot du sous-arbre de son poste ou dépasserait l'horizon, et le total d'un poste sans
+tâche rattachée (`EstimateIndicators.by_order_item`, WF-DEV-0060). Deux constats antérieurs au lot
+sont ouverts en #775 : `setWorkBreakdown` pendant un traitement de fond, et le refus de `moveNodes`
+qui nomme la tâche par son seul nœud. Le front ne change que pour compiler, tenir ses catalogues et
+ses tests : la révision montre « Engendrer le squelette de planning » parmi ses commandes,
+indisponible, sans action. L'adoption revient à L44c — la grille du lotissement, qui compte les
+seuls éléments retenus, ses écritures entières, leurs éléments nouveaux sans identifiant et leurs
+exemples, les chronologies créées et supprimées sous `manage_timelines` — et à L44d — le squelette
+offert dans l'état vide de la grille de planning, la réponse qui la remplit, la colonne du
+rattachement et ses refus, nommant la tâche qui porte déjà le poste ou le lot.
+
+EP-14/L54 (#772), lot technique ajouté le 2026-10-10, fait adopter par les écrans ce que L42r a écrit
+au contrat, et solde des mineurs du front :
+- le code d'un rôle : la grille des rôles le montre, le serveur le cherche avec le libellé, le filtre
+  (`role_code`, le `code` du contrat) et le trie ; un code pris se dit au champ, le rôle qui le porte
+  nommé par le libellé que le refus donne (`resource_role_code_taken`) ;
+- les refus nommés : celui du changement de type d'une nature ou d'une catégorie nomme les rôles en
+  cause par leur libellé et leur code, à rattacher d'abord à une autre catégorie de main-d'œuvre
+  (`params.resource_roles`) ; celui d'une écriture qui laisserait une tâche sans heure nomme chaque
+  projet par son libellé et son code, par son seul libellé sans code (`params.projects`), et les
+  rôles, que la page des ressources lit tous pour une session qui les écrit, désactivés compris autant
+  qu'elle le peut, et prête aux avis de ses listes (`resource_role_ids`, `RoleNames`, `KnownNames`) ;
+- #714, point 1 : au formulaire d'un rôle, une catégorie active dont la nature a quitté la
+  main-d'œuvre n'est plus dite « (désactivée) », toutes les catégories lues disant son état — un
+  garde-fou seul, le contrat interdisant ce cas depuis L42r (`DECISIONS.md`, la mention de L42r dans
+  la section de L42j) ;
+- #734 : la décision de #661, par le mécanisme de L52 — la modification d'un sous-projet attend la
+  réponse d'une écriture de ce sous-projet, la cellule de la commande gardant le focus et les autres
+  lignes restant offertes ; celle des contributeurs, la réponse d'une écriture de la liste, dont le
+  compteur d'ouvertures devient un garde-fou ;
+- #738 : la seconde phrase de WF-PRJ-0050-A citée par le test du sous-projet cité ; une borne qui
+  n'est pas un nombre laisse l'ordre sans jugement, pour elle et pour la suivante ; le refus d'un
+  champ l'emporte sur celui d'une règle (`reference-form.dom.test.tsx`) ; aucun test ne réécrit plus
+  le statut que son exemple porte ;
+- #765, point 1 : la liste qui défile sort de la région vivante — les lignes nommées d'`OutcomeNotice`,
+  les lignes refusées d'un collage —, nommée et décrite par ce que dit l'alerte.
+
+Choix, faute d'une règle de la spécification ou du contrat : un rôle se nomme par son libellé et son
+code dans les deux refus, et un rôle que la page n'a pas lu ne se nomme pas ; le refus d'une nature
+dit « une catégorie de main-d'œuvre d'une autre nature » ; la catégorie active hors main-d'œuvre se
+nomme sans marque, plutôt qu'avec une marque propre ; seule la modification d'un sous-projet attend,
+et seulement celle de ce sous-projet, la création et la suppression n'écrivant aucune version ;
+l'alerte d'un collage dit le nombre de lignes refusées et la fermeture suit leur liste, hors de
+l'alerte, quand les commandes d'`OutcomeNotice` restent dans la sienne, avant la liste ; le code pris
+d'un rôle a sa phrase générique (« Déjà porté par un autre rôle. »).
+
+La relecture 1 a ajouté : la phrase de `TASK_WITHOUT_WORKING_HOURS` est vraie partout (« Une tâche
+n'aurait plus aucune heure travaillée dans la semaine. »), sa cause en détail — les rôles dont les
+calendriers ne se recoupent aucun jour, nommés quand l'écran les a lus, ou, aucun rôle donné, les
+tâches sans ligne de main-d'œuvre, sur le calendrier par défaut vidé ou désigné — ; les projets d'un
+refus au-delà de cinq sont comptés dans la phrase et listés hors de l'alerte, comme les lignes d'un
+sous-projet ; l'avis d'un collage appliqué a sa phrase du nombre de lignes refusées, « listées
+ci-dessous » ; les preuves de #734 passent par un succès, un refus et une action rejetée ; les tests
+de la page des ressources quittent `pages.test.tsx` pour `resources/page.test.tsx`, et `held()` le kit
+des tests ; aucun test ne réécrit plus le statut d'un exemple, ceux des paramètres de coûts et des
+sauvegardes compris. La relecture 2 : la cause d'un seul rôle se dit au singulier — son calendrier
+n'a aucune heure — ; les preuves de #734 disent ce que l'écran annonce de la réponse ; la liste des
+rôles ramène son filtre du code à la première page ; cinq projets se nomment dans la phrase, sans
+liste.
+
+Ce que les tests ne prouvent pas : le contrat n'illustre le refus d'une tâche sans heure que sous la
+modification d'un calendrier ; celui d'un rôle modifié ou d'une désignation par défaut suit le même
+chemin, sans exemple propre. Le refus d'une nature n'a pas d'exemple non plus : sa phrase est éprouvée
+sur une variante déclarée de celui d'une catégorie.
+
+L55 (#778) puis L42k (#780), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase : ces
+notes gardent les apports dans l'ordre des fusions.
+
+US-0200 (#84), réalisée par un seul lot, pose le harnais d'accessibilité et corrige ce qu'il relève.
+`frontend/e2e/accessibility.spec.ts` contrôle chaque écran de `frontend/e2e/routes.ts` : ceux de la
+table de `functions.json`, que `screens.spec.ts` lit aussi, et ceux qu'aucune table ne nomme — le
+projet lui-même, les trois pages du compte, la connexion, le mot de passe oublié et l'écran
+« introuvable » ; `frontend/src/app/screens.test.ts` confronte chaque page de l'application à ces
+écrans et aux deux pages qui ne font que rediriger, et échoue sur une page ajoutée sans son écran, sur
+une page de redirection qui fait autre chose, et sur une route qui en intercepte une autre. Trois
+tests par écran, chacun à 1366 puis à 911 points — l'écran ouvert par son adresse, puis la fenêtre
+rétrécie comme le navigateur remet la page quand on l'agrandit à 150 % : les règles d'axe pour WCAG A
+et AA — axe n'est pas WCAG —, contraste compris, en mode clair puis en mode sombre, le mode peint
+constaté d'abord, un texte qu'axe laisse « incomplet » avec ses deux couleurs mesurées et un rapport
+qui échoue compté pour un écart, ce qu'il laisse sans mesure noté raison par raison, les libellés des
+champs et les descriptions des images (`label`, `image-alt` et leurs parentes) dits à part en mode
+clair ; et le parcours au clavier (`walkByTab`) — Tab jusqu'au retour au premier élément atteint,
+chaque élément atteint vu — non transparent, et le milieu de ce qui en reste, coupé par la fenêtre et
+par les boîtes qui le rognent, est l'élément lui-même : rien de peint par-dessus, rien qui y prenne le
+pointeur —, portant un indicateur du focus qu'il ne portait pas sans lui, non transparent, un côté au
+moins hors de ce que coupent les boîtes qui le rognent et, à l'intérieur, pas sous ce qui le recouvre,
+aucun piège, chaque élément que Tab peut atteindre atteint et chaque widget qui déplace lui-même le
+focus entré, aucun élément entier au-delà du bord d'une boîte qui cache ce qui la déborde, aucun lien
+ni bouton sorti de l'ordre du clavier hors d'un tel widget, et, à 911 points, tout ce qu'il atteignait
+à 1366. `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et
+l'audit d'axe sur des pages écrites pour eux. Les outils du serveur de développement de Next, que le
+front construit n'a pas, sont écartés d'axe et du parcours. Les 38 écrans donnent 114 tests, joués un
+à un entre les workers et les morceaux de la chaîne (`mode: "parallel"`), chacun sous `test.slow()`.
+Le harnais n'a relevé aucun écart de contraste mesuré, en clair comme en sombre, ni de libellé ou de
+description. Il a relevé des listes plus larges que leur boîte que le clavier ne pouvait pas faire
+défiler (`scrollable-region-focusable`) : la matrice des permissions dès 1366 points, le journal des
+imports des coûts réels aux deux largeurs, les dernières opérations de l'état du système, les tables
+du référentiel des risques et le plan de charge du portefeuille à 911 points. La boîte où défile une
+liste — `ListTable`, la matrice des permissions, la table d'une chronologie, les valeurs d'une
+courbe — est désormais un groupe nommé comme elle, que Tab atteint, son focus un contour tracé à
+l'intérieur de son bord (`list` de `Table`, `scrollingList`) : un groupe, non une région, la liste
+étant déjà dans la région de sa section sous le même nom ; Chromium et Firefox rendent focalisable de
+lui-même un conteneur qui défile, Safari non. Le parcours au clavier n'a relevé aucun piège, aucun
+élément caché ou recouvert, aucun focus invisible, aucun widget sans arrêt ni aucune commande perdue
+à 911 points. Le guide (« Un parcours de bout en bout ») et les règles TypeScript (« Accessibilité »)
+disent le harnais et la règle des listes.
+
+Ce que les tests ne prouvent pas. Le harnais contrôle chaque écran tel qu'il s'ouvre, et rien de ce
+qu'un geste y ouvre : les dialogues, les menus, le Popover d'un refus et l'éditeur d'une cellule ne
+sont pas parcourus ; le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — n'est pas
+contrôlé ; un état qu'un geste atteint, un refus, une adresse `?import=`, non plus. Axe ne mesure pas
+le contraste d'un texte qu'il ne sait pas situer — posé sur le dessin d'une courbe, en partie hors de
+la boîte qui le fait défiler, sous un autre — : le test de ses règles le note en annotation, raison
+par raison, les figures de courbe à part, et un caractère seul dont il n'a pas mesuré les couleurs y
+compte sous sa brièveté, non comme un écart. Le contraste de l'indicateur du focus (WCAG 1.4.11)
+n'est mesuré que par les jetons de `contrast.test.ts`, pas sur les écrans. Ce qui les couvre
+ailleurs : `expectAccessible`, axe sous happy-dom sans le contraste, dans 58 fichiers de tests de
+composants, dont 21 ouvrent un dialogue ou un menu ; les jetons de la charte, mesurés deux à deux par
+`contrast.test.ts`, les séries des courbes et l'anneau du focus compris ; Radix et les tests de
+composants pour le focus qu'un dialogue ou un menu rend en se fermant. Les dialogues, les menus et les
+éditeurs hors du harnais sont suivis par #782.
+
+EP-14/L42s (#773), lot de contrat ajouté le 2026-10-10, auquel #775 s'est joint le même jour, solde
+les écarts du contrat à la spécification que L42p, L42r et L42k ont relevés, et ferme ce qui restait
+de #586 :
+
+- #728 : désactiver une nature désactive ses catégories, et une catégorie ne se réactive pas sous
+  une nature désactivée (C-291, `cost_type_active`) — la définition provisoire
+  d'`active_provision_category` disparaît — ; une installation neuve manque de la catégorie de
+  main-d'œuvre et du rôle (`reference_readiness_incomplete`) ; la déclaration d'un risque sur une
+  structure principale sans tâche est refusée par `at_least_one_task` (`risk_without_task`) ;
+- #733 : la ligne de provision ne porte pas de délai de paiement — ni à la saisie, ni à la lecture,
+  qui le rend nul —, et l'envoyer est refusé par `FIELD_NOT_ACCEPTED` ;
+- #766 : le 422 d'`updateResourceRole` couvre la tâche dont le rôle est le seul ; le refus d'un
+  changement de type nomme les catégories en cause de `cost_type_unused` et `cost_type_unrated`
+  (`params.cost_categories`) ;
+- #771 : la fusion a son compte rendu préalable (`getStructureMergeReport`) ; un fichier d'import
+  qui sortirait la tâche d'un lot du sous-arbre de son poste, ou dépasserait l'horizon, est rejeté
+  entier (`ImportReport.refusals`, `PROJECT_HORIZON_EXCEEDED`, `import_file_accepted`) ; chaque
+  poste du lotissement a son total, celui qu'aucune tâche ne porte présenté sans total
+  (`order_item_without_task`) ;
+- #775 : la saisie du lotissement attend la fin d'un traitement de fond (`update_work_breakdown`,
+  `no_background_task_running`) et dit les compteurs qu'elle avance ; le refus d'un lot hors de son
+  poste nomme la tâche du poste et celles des lots par leur libellé, dans `moveNodes` comme dans
+  `updateTaskFacet`, `createNode` et l'import.
+
+La relecture 1 a ajouté : la confirmation d'une fusion porte les compteurs des deux structures que
+le compte rendu a lus, refusée par 412 si l'une a changé ; la déclaration d'un risque a sa commande,
+`declare_risk`, qui dit d'avance `at_least_one_task` puis `active_provision_category` (décision de
+l'agent de livraison) ; le 409 de `setWorkBreakdown` nomme `project_not_terminal` avant
+`no_background_task_running` ; le rôle seul sur sa tâche vaut aussi pour `createNode` et
+`updateEstimateLine` ; `FIELD_NOT_ACCEPTED` vaut pour tout champ qu'un nœud n'accepte pas, sauf le
+délai de paiement d'une ligne de main-d'œuvre (#785) ; le refus de la réactivation d'une catégorie
+nomme sa nature ; `by_order_item` a au moins un poste. Les constats hors du lot sont ouverts en
+sous-issues de #773 : #785 à #792. La relecture 2 : le 412 de la confirmation d'une fusion nomme
+toujours le compteur du différentiel, l'objet que le chemin nomme (#296), le contrôle des deux
+compteurs et le dépôt de la tâche se faisant en une seule transaction ; `declare_risk` et le 409 de
+`createRisk` nomment d'abord les conditions d'état de la saisie des risques, `project_not_terminal`
+puis `no_background_task_running`, puis `at_least_one_task` et `active_provision_category` ; les
+conditions qui suspendent `edit_risks` ou exigent `may_create_revision` nomment aussi
+`declare_risk`.
+
+Les choix et les options écartées sont dans `docs/api/DECISIONS.md`. Le front ne change que pour
+compiler, tenir ses catalogues et ses tests : la ligne de provision n'offre plus son délai de
+paiement, le résumé du devis présente toujours ses postes, l'accueil d'une installation neuve
+nomme la catégorie de main-d'œuvre et le rôle, et le bouton « Déclarer un risque » paraît désormais,
+sans effet, dans la région « Commandes » d'une révision, comme les autres commandes non câblées.
+L'adoption revient à un lot du front : la
+réactivation d'une catégorie dite indisponible sous une nature désactivée, et la désactivation d'une
+nature confirmée en disant ses catégories ; les catégories que nomme le refus d'un changement de
+type ; la déclaration d'un risque offerte selon `declare_risk` ; le compte rendu préalable de la
+fusion, sa confirmation offerte seulement sans motif de refus et renvoyant les compteurs lus ; le
+compte rendu d'un import rejeté entier, l'abandon seul offert ; le poste sans tâche présenté sans
+total ; la saisie du lotissement indisponible pendant un traitement de fond ; les tâches nommées par
+le refus d'un lot hors de son poste.
+
+L54 (#783) puis US-0200 (#798), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
+ces notes gardent leurs apports d'abord.
+
+EP-14/L56, lot de cadrage du 2026-10-11, resserre le périmètre de l'EPIC sur la décision de
+l'auteur : il réécrit l'objet, ce qui en fait partie et la définition de fini ; il écrit sous
+US-0200 l'écart des dialogues, des menus et des éditeurs (#782, option (b), à titre
+provisoire) ; il déplace US-0290 et son exigence vers EP-15, créé `à planifier` pour le
+durcissement qui suit la validation de l'auteur, avec ses « Constats reçus » : L42t (#774) et
+les constats de contrat ouverts pendant L42s (#785 à #792, #795), l'extension du harnais
+(#782), les reliquats des tests (#781, #784), l'e2e instable de la grille (#776), le refus d'une
+saisie sans heure (#779), les constats de contrat de L44c (#802, #803) et les mineurs de sa
+relecture (#806). Les relectures de L44c et de L44d ne corrigent plus que les
+bloquants et les majeurs ; leurs mineurs sont reportés → EP-15.
+
+EP-14/L44c (#585), lot technique, fait adopter par les paramètres du projet ce que L42k a écrit au
+contrat pour le lotissement ; les chronologies, qu'il portait aussi, sont reportées à EP-14/L44f
+(#801), le lot ayant dépassé deux fois son estimation (coupe du 2026-10-11) :
+- le lotissement se saisit dans sa grille arborescente, comme le projet liste
+  `update_work_breakdown` — indisponible sur un projet terminal et pendant un traitement de fond
+  (L42s, #775) : un poste ajouté, un lot ajouté à un poste, un livrable à un lot, un élément renommé
+  ou supprimé, du menu d'une cellule, sur sa ligne, et de la barre de la grille, sur la ligne de la
+  cellule active (`RowCommands` de `DenseGrid`, `MenuCommands` de `CellMenu`) ; chaque geste envoie
+  le lotissement entier (`setWorkBreakdown`), fait sur sa lecture entière et avec son compteur — la
+  page la relit quand la grille la lit filtrée —, l'élément ajouté sans identifiant (WF-DAT-0060) ;
+  la lecture répondue remplace les lignes d'une lecture entière tant que son compteur est plus
+  récent ;
+- la suppression d'un élément est confirmée, et celle d'un poste ou d'un lot dit que les tâches de la
+  révision en cours qui le portent restent et perdent leur rattachement, les révisions marquées le
+  gardant (WF-PLA-0170) ;
+- un refus par champ qui vise l'élément du dialogue — son libellé, son identifiant — est dit à son
+  champ ; celui qui vise un autre élément le nomme, par sa nature et son libellé
+  (`UNKNOWN_WORK_BREAKDOWN_ITEM`, `DUPLICATE_WORK_BREAKDOWN_ITEM`) ; le reste — la version périmée
+  avec l'offre de relire — sous le dialogue, ou au-dessus de la grille une fois le dialogue fermé,
+  comme tout refus d'une suppression ; pendant une écriture, les commandes attendent, inactives,
+  `aria-busy` et décrites par « Enregistrement en cours… » (le mécanisme de L52) ;
+- la ligne des totaux compte les seuls éléments retenus, par nature (`is_match`, troisième Vérif de
+  #574) : lue par `kinds=work_package`, elle dit « 1 lot », non « 1 poste ».
+
+Choix, faute d'une règle de la spécification ou du contrat : la lecture ne disant pas si une tâche
+porte un poste ou un lot — constat ouvert en #802, reporté → EP-15 —, toute suppression d'un poste
+ou d'un lot se confirme en disant le sort de ses tâches, et celle d'un livrable se confirme aussi,
+par le même chemin ; un refus qui vise un autre élément que celui du dialogue se dit en le nommant,
+sous le dialogue ou au-dessus de la grille, non à sa ligne ; l'élément d'un pointeur est le plus
+profond dont le pointeur le préfixe ; l'offre du lotissement suit `update_work_breakdown`, que L42s,
+fusionné avant le lot, a écrite — aucun exemple ne listant cette commande indisponible faute de
+`no_background_task_running`, le test l'éprouve sur une variante déclarée de l'offre du témoin, la
+seule condition changée, et le refus du serveur sur son exemple (`work_breakdown_background_task`).
+
+Ce que les tests ne prouvent pas : aucun exemple ne refuse un élément autre que celui du dialogue —
+le nommage s'éprouve sur `work_breakdown_duplicate_item` après un premier ajout répondu par
+`work_breakdown_saved`, qui fait du lot ajouté le second de l'envoi ; la version périmée de
+`setWorkBreakdown` est une enveloppe écrite dans le test, comme pour les autres écrans, le contrat
+n'en ayant pas d'exemple — constat ouvert en #803, avec ceux des refus des chronologies, reporté →
+EP-15 — ; le faux back répondant `work_breakdown_saved` à toute écriture, le parcours ne voit pas
+une suppression ôter sa ligne, ni un renommage changer son libellé.
+
+US-0200 (#798) puis L42s (#804), fusionnés avant lui, ont été fusionnés dans le lot, sans rebase :
+ces notes gardent leurs apports d'abord.
+
+EP-14/L44f (#801), part détachée de L44c par la coupe du 2026-10-11, fait adopter par l'écran des
+chronologies ce que L42k a écrit au contrat : une chronologie se crée par son nom, dans le dialogue
+du formulaire du référentiel (`ReferenceForm`), et la chronologie montrée se supprime après
+confirmation, comme le projet liste `manage_timelines` (`createTimeline`, `deleteTimeline`) ; une
+chronologie supprimée quitte les liens, et ses tâches avec elle (`TimelineBody`) ; l'avis de la
+maquette le dit. Choix, faute de règle : la chronologie montrée supprimée, l'écran montre la
+première qui reste, ce que la page montre quand l'adresse n'en nomme aucune qui existe, et la
+dernière supprimée, il dit que le projet n'en a aucune ; une réponse arrivée l'écran quitté, ou une
+autre chronologie suivie, ne déplace rien ; une chronologie créée n'ajoute aucun lien, la page relue
+la range, comme un sous-projet créé ; la création et la suppression n'écrivant aucune version,
+aucune commande n'attend leur réponse, comme L54 l'a choisi pour les sous-projets. Ce que les tests
+ne prouvent pas : le contrat n'a d'exemple ni pour le refus de `createTimeline` ni pour celui de
+`deleteTimeline` (#803, reporté → EP-15) ; les tests passent par le refus avant l'envoi et par l'API
+hors d'atteinte. Le travail, fait avec L44c, est repris tel quel par cherry-pick.
+
+EP-14/L44d (#617), lot technique, fait adopter par la grille de planning ce que L42k et L42s ont écrit
+au contrat pour le squelette et le rattachement, et ferme #513, L44f (#801), fusionné avant
+lui, ayant livré les chronologies :
+- la colonne « Rattachement » présente le poste ou le lot que porte une tâche, par le libellé que le
+  serveur résout ; là où la révision liste `edit_planning`, sa cellule le choisit parmi les postes et
+  les lots du lotissement lu entier (`getWorkBreakdown` sans filtre), ou rien, écrit par
+  `updateTaskFacet` — le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le
+  porte, jamais les deux non nuls (WF-PLA-0170) — ; une tâche dont le lotissement lu ne connaît pas
+  l'élément n'est pas saisie ;
+- le refus est dit par le motif de son champ — un élément déjà porté, nommant la tâche qui le porte
+  (`conflicting_object_label`), les deux à la fois, une structure qui n'en porte pas, un lot hors du
+  sous-arbre de son poste, nommant la tâche du poste et celles des lots par leur libellé (L42s) — ;
+  comme tout refus de l'écriture d'une cellule, au-dessus de la grille, la cellule marquée et décrite
+  par lui (`aria-invalid`, `aria-describedby`, `DenseGrid`) ;
+- dans la grille vide, le squelette s'offre comme la révision liste `generate_skeleton` : indisponible
+  avec sa condition dès que la structure comporte une tâche (WF-PRJ-0030), absent à côté des tâches ;
+  `generatePlanningSkeleton` remplit la grille de sa réponse tant que le compteur de la structure
+  qu'elle rend est plus récent que celui de la lecture, jamais la grille d'une autre structure ; son
+  409 nomme la première condition qui manque ; l'écran dit alors, à la place de la commande, combien
+  de tâches il a engendrées, et le focus y passe ;
+- l'avis de la maquette est dit dès que la grille saisit ou offre le squelette (`MockupNotice`).
+
+Choix, faute d'une règle de la spécification ou du contrat : « dit à la cellule » est la cellule
+marquée et décrite par l'avis du refus, au-dessus de la grille, pour toute grille, plutôt qu'une bulle
+propre ; le refus d'un rattachement prend le motif de son premier champ à la place de
+`VALIDATION_FAILED`, les paramètres de chaque champ gardés (`byField`) ; un poste et un lot se nomment
+dans la liste par leur nature avant leur libellé, le lotissement par défaut leur donnant le même ; le
+squelette s'offre au-dessus de la grille vide, non dans sa ligne vide, et sa réponse reste à la
+structure où elle a été engendrée ; le lotissement n'est lu que pour une révision qui liste
+`edit_planning`, et son refus fait tomber l'écran comme toute lecture (`readOrFail`).
+
+La relecture 1 a ajouté : la région « Commandes » d'une révision ne liste plus ce que ses écrans
+offrent eux-mêmes — ses saisies, que chaque grille prend comme la révision les liste (`edit_planning`,
+`edit_estimate`, `edit_remaining`, `edit_risks`), et le squelette, que la grille de planning vide offre
+— ; restent la déclaration d'un risque, la création et la fusion d'une structure, le marquage, la
+désignation comme référence et l'abandon ; une cellule refusée, écrite ensuite avec succès, n'est plus
+marquée, l'avis restant dit jusqu'à ce qu'on le ferme ; la cellule est décrite aussi par le paragraphe
+qui nomme l'objet en conflit, la tâche qui porte déjà le poste ou le lot.
+
+Ce que les tests ne prouvent pas : le contrat n'a pas d'exemple de succès d'un rattachement — la
+réponse éprouvée est le renommage de « Câblage des armoires » (`task_renamed`), et ni le test ni le
+parcours ne voient une cellule changer de poste ou de lot ; le faux back servant la révision du témoin,
+dont la structure porte ses tâches, le parcours ne voit pas le squelette, éprouvé sur les exemples par
+les tests du composant et de la page (`revision_without_tasks`, `nodes_empty`, `skeleton_generated`) ;
+qu'il ne soit jamais proposé sur un différentiel ni sur le devis propre d'un risque tient à ce que seule
+la grille de planning l'offre, sur la structure principale, et que l'opération vise la révision :
+aucun test ne le prouve à part ; un refus qui porte deux motifs à la fois n'a pas d'exemple, et seul le
+premier se dit ; les refus s'éprouvent sur une tâche des études, quelle que soit celle que l'exemple
+nomme.
+
+L44c (#813), fusionné avant lui, a été fusionné dans le lot, sans rebase : ces notes gardent son
+apport d'abord.
+
+Reprise de `main` après EP-03 (#1029), par une fusion, sans rebase, comme le dit « Reprise de
+`main` après la livraison d'EP-03 » : 56 fichiers en conflit, dont 24 du front. La part du contrat,
+des exemples, des outils et des documents garde les deux côtés, et ses choix sont dans
+`DECISIONS.md` (« La reprise de `main` après EP-03 ») : les réponses 400, 422, 503 et les motifs
+`\S` d'EP-03 avec les opérations et les refus d'EP-14, que `make lint-openapi` a fait compléter
+sur deux opérations (`getStructureMergeReport`, `setDefaultCalendar`) ; `session.yaml` et
+`session_without_roles.json` supprimés, leur modification reportée sur `me.yaml` (le 422 de la
+largeur d'une colonne) et `me_without_roles.json` (Sacha Lefèvre à l'atelier de câblage) ; pour les
+sauvegardes, les règles d'EP-03 que le service tient — la date confirmée refusée par 400
+`CONFIRMATION_REQUIRED`, `BACKUP_DATE_MISMATCH` retiré, le téléchargement sous `backups.read` et
+`backups.write`, le dépôt par morceaux — et les ajouts d'EP-14 qu'elles ne contredisent pas — les
+commandes de chaque sauvegarde, les filtres, les 409 nommés ; les numéros de corrélation pris des
+deux côtés renumérotés du côté d'EP-03, comme deux tâches et un instant ; `UNKNOWN_ORG_NODE` une
+seule fois. Les sections de `DECISIONS.md` sont rangées par date, les « Constats reçus » d'EP-04 et
+d'EP-13 réunis, et les constats qu'EP-03 avait reportés ici, venus de `main`, rangés dans les
+« Constats reçus » : par la décision de l'auteur du 2026-10-17, ils sont reportés → EP-15, avec six
+autres (#1005 à #1024), et notés dans ses « Constats reçus ». `test_mocklists.py`, passé au-delà de
+mille lignes, cède ses sauvegardes à `test_mocklistsbackups.py`. Restent au front : ses fichiers en
+conflit, la session devenue `getMe`, et les sauvegardes telles que le contrat les dit désormais.
+Le service, dont les réponses sont éprouvées contre le contrat, rend les commandes de chaque
+sauvegarde (`available_commands`) et la longueur de son téléchargement, que le contrat exige
+désormais. Relevé par la reprise, et non corrigé ici : il ne refuse pas encore par les 409 nommés
+d'EP-14 (`startBackup`, `downloadBackup`, les conditions de `startRestore`) ; reporté à EP-15 (#1035).
+
+La part du front de la reprise fait un seul écran des sauvegardes de ceux que les deux EPIC avaient
+écrits chacun (EP-02/L43c, L43d, L43f ; US-0440/L3, L3b). D'EP-14, il garde la grille dense, son tri,
+ses filtres et ses pages, les commandes que liste chaque sauvegarde (`available_commands`) — le
+téléchargement compris, sous `backups.read` et `backups.write` comme le serveur le liste —,
+« Sauvegarder maintenant » dans la tête de la liste, la planification et son formulaire, et la route
+du téléchargement (`relay.ts`, la sauvegarde et le refus nommés dans l'adresse de retour,
+`refused_backup`, la longueur relayée) ; écartés, le tableau d'EP-03, ses commandes déduites de la
+session et de la vérification, et son refus de téléchargement sans la sauvegarde
+(`download_refusal`). D'EP-03, il garde le dépôt par morceaux (`BackupDeposit`, sous la liste, à qui
+porte `platform_restore`), l'écran de la maintenance qui suit une restauration mise en file
+(`Restoration`, `maintenance.tsx`), et la lecture de la planification qui se passe d'un 404 — étendue
+aux emplacements externes, que le service ne sert pas non plus. La confirmation est une seule, le
+dialogue d'EP-14 (`RestoreDialog`), pour une sauvegarde de la liste comme pour un dépôt : il énonce
+la date et la vérification — celle d'un dépôt en attente, sa restauration la fait (L42o) —, n'agit
+qu'une fois l'identifiant saisi — celui du dépôt pour un dépôt —, dit à la date le 400
+`CONFIRMATION_REQUIRED` et relit la page ; écartés, le dialogue d'alerte d'EP-03 et ses phrases.
+Parce que le dépôt suit la liste, l'écran ne remplit plus la fenêtre (`Screen` sans `fill`, comme
+`/reference/resources`) : rempli, la liste se réduisait sous ses filtres et sa grille débordait sur le
+dépôt à 911 points (`accessibility.spec.ts`, FBS-1.4). La page défile, la grille reste plafonnée à
+la fenêtre ; l'écart à la règle « un écran de grille prend `Screen fill` » est reporté à EP-15 (#1033).
+Branché sur le service d'EP-03, l'écran ne montre plus l'avis de la maquette (`MockupNotice`),
+décision de l'auteur du 2026-10-18 ; le téléchargement reste sous `backups.read` et
+`backups.write`, confirmé le même jour.
+Mise en file, la restauration passe à l'écran de sa maintenance et non plus au suivi de la coquille,
+qui lirait une tâche pendant que l'API ne répond qu'à sa sonde. Les commandes d'EP-14 suivent la
+lecture comptée d'EP-03 (`generation`) et retiennent les navigations le temps de leur réponse
+(`useHeldCommand`, #688), comme celles de `main`. Les tests des pages des sauvegardes passent dans
+`app/admin/backups/page.test.tsx`, ceux des commandes se partagent entre la liste
+(`backup-commands.dom.test.tsx`), la restauration (`restore-dialog.dom.test.tsx`) et le dépôt
+(`backup-deposit.dom.test.tsx`), qui lisent la liste par `src/test/backups.tsx` et les pages par
+`src/test/markup.ts` : chacun sous les mille lignes. Le parcours contre le service
+(`e2e/service/backups.spec.ts`) suit l'écran fusionné ; il n'a pas été rejoué à la reprise.
+
 ## US-0200 — Accessibilité minimale
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #84
@@ -249,45 +1499,22 @@ d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le 
   d'information une description — le quatrième point du corps de WF-IHM-0100, que son Vérif
   ne reprend pas ; un contrôle automatisé d'accessibilité le vérifie dans la chaîne ;
 - propre à l'US : le contrôle de contraste joue en mode clair et en mode sombre — la charte
-  existe dans les deux (US-0090), et un mode qui n'est pas contrôlé dérive.
+  existe dans les deux (US-0090), et un mode qui n'est pas contrôlé dérive ;
+- écart : `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste
+  visible. » : le harnais parcourt chaque écran tel qu'il s'ouvre ; les dialogues, les menus et
+  les éditeurs qu'un geste ouvre ne sont parcourus que par les tests de composants —
+  `expectAccessible`, sans contraste ni mise en page, et le focus que Radix rend —, à titre
+  provisoire (décision de l'auteur du 2026-10-11, #782) : les écrans s'ajustent encore à la
+  validation de l'auteur, et l'extension du harnais est reportée → EP-15.
 
 **Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
 fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée
-(§2.2) : ces quatre points, et rien de plus.
+(§2.2) : ces quatre points, et rien de plus. Le harnais réemploie `frontend/e2e/axe.ts` — les
+règles WCAG A et AA, jouées aujourd'hui sur le seul en-tête des tables de `theme.spec.ts` — et la
+boucle de `screens.spec.ts` sur les routes de `functions.json`, en clair et en sombre
+(`colorScheme`), à 1366 et à 911 points, l'agrandissement de 150 % émulé par la fenêtre ; le
+parcours clavier est générique par route ; les règles `label` et `image-alt` d'axe portent le
+critère propre des libellés et des descriptions (« Conception », « L'accessibilité »). L'US tient
+en un lot, dont l'issue est la sienne ; si les écarts relevés l'imposent, elle se découpe en deux.
 
 **Hors périmètre.** L'aide en ligne, qui n'est pas dans cet EPIC.
-
----
-
-## US-0290 — Navigateurs et largeurs d'affichage
-
-- **statut** : à faire
-- **exigences** : `WF-CMP-0010-A`
-- **opérations** : aucune en propre
-- **issue** : #92
-
-**En tant que** chef de projet, **je veux** que les grilles, le Gantt et les courbes
-fonctionnent sur le navigateur de mon poste, et consulter les indicateurs depuis mon
-téléphone, **afin de** ne rien installer et de répondre à une question sur un projet loin de
-mon bureau.
-
-**Critères d'acceptation.**
-
-- `WF-CMP-0010-A` — « Les vues d'indicateurs se lisent sur un écran de 360 points de large et
-  n'y proposent aucune saisie. »
-- `WF-CMP-0010-A` — « Aucune fonction n'exige une installation sur le poste. »
-- propre à l'US : les parcours des grilles, du Gantt et des courbes se jouent dans la chaîne
-  sur les quatre navigateurs de la spécification — Chrome et Edge par leurs canaux
-  Playwright, Firefox, et WebKit tenant lieu de Safari —, en version courante, à 1366 points
-  de large ;
-- écart : `WF-CMP-0010-A` — « Les grilles, le diagramme de Gantt et les courbes s'affichent et
-  s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
-  à 1366 points de large. » : la version majeure précédente et le Safari réel ne se rejouent
-  pas par l'outillage ; ils se constatent en recette, sur la plateforme déployée — EP-13.
-- écart : `WF-CMP-0010-A` — « Vérifiée en recette pour Safari et les terminaux mobiles. » : la
-  recette se tient sur la plateforme déployée, avec son procès-verbal — EP-13.
-
-**Notes de réalisation.** Le harnais d'EP-01 ne joue que Chromium : c'est cette US qui lui
-ajoute les quatre navigateurs — Chrome et Edge sont des canaux de Chromium dans Playwright,
-Firefox et WebKit ses deux autres moteurs, et le Safari réel reste à la recette (EP-13) —
-et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs.

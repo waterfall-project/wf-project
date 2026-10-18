@@ -422,26 +422,45 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
     return {"paste_id": paste_id, "accepted": len(block) - len(rejected), "rejected": rejected}
 
 
-def paste_applied() -> JsonObject:
-    """Return what applyPaste answers for the block: its rows written on the lines from LINE.
+def paste_applied(block: Sequence[Sequence[str]] = BLOCK) -> JsonObject:
+    """Return what applyPaste answers for a block: its valid rows written on the lines from LINE.
 
     Each line takes the label, the category, the role and the quantity of its row; its amount
     follows its quantity, its budget, the reference's, does not (WF-DEV-0020); its task and the
     summaries above follow its amount, and the totals — read again from the structure written,
     as any write of the structure (#376). The paste follows the label entered on LINE
     (`estimate_line_entered`): it reads the line at the version that write left, so that two
-    answers never render one node at one version with two contents (#421).
+    answers never render one node at one version with two contents (#421). A row the plan refuses
+    is not written, its line left as it was, and the answer says it again as the plan did
+    (`PasteApplied.rejected`, WF-IHM-0050): a partial success.
     """
     entered = amended(described(), line=on_line(LINE, label=ENTERED))
     before = copy.deepcopy(mockcore.whole(mockcore.current(entered)))
     for node in cast("list[Node]", before["items"]):
         if node["node_id"] == mockwitness.node_id(LINE):
             node["lock_version"] += 1
+    roots, targets, rejected = pasted(block)
+    written = volume_write(roots, targets, before=before, structure_version=ENTERED_VERSION + 1)
+    return {**written, "rejected": cast("list[JsonValue]", rejected)}
+
+
+def pasted(block: Sequence[Sequence[str]]) -> tuple[tuple[Task, ...], list[int], list[JsonObject]]:
+    """Return the structure a block leaves, the lines its valid rows write, and its refusals.
+
+    The structure follows the label entered on LINE; a row the plan refuses leaves its line as
+    that write left it (WF-IHM-0050).
+    """
+    entered = amended(described(), line=on_line(LINE, label=ENTERED))
     [task] = [each for each in mockcore.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
-    targets = [line.number for line in task.lines[: len(BLOCK)]]
+    rejected = cast("list[JsonObject]", paste_plan(block, PASTES[0])["rejected"])
+    refused = {cast("int", each["row"]) for each in rejected}
+    rows = list(zip(_numbers(task.lines[: len(block)]), block, strict=True))
+    targets = [number for row, (number, _) in enumerate(rows) if row not in refused]
     categories, roles = _known()
     roots = entered
-    for number, (label, category, role, quantity) in zip(targets, BLOCK, strict=True):
+    for number, (label, category, role, quantity) in (
+        pair for row, pair in enumerate(rows) if row not in refused
+    ):
         roots = amended(
             roots,
             line=on_line(
@@ -452,7 +471,7 @@ def paste_applied() -> JsonObject:
                 quantity=Decimal(quantity),
             ),
         )
-    return volume_write(roots, targets, before=before, structure_version=ENTERED_VERSION + 1)
+    return tuple(roots), targets, rejected
 
 
 def _numbers(lines: Iterable[Line]) -> list[int]:
@@ -718,6 +737,8 @@ def _volume_writes() -> dict[str, JsonObject]:
     [_, _, third] = cast("list[Node]", applied["nodes"])
     line = third["estimate_line"]
     columns = node_columns()
+    partial = paste_applied(UNKNOWN_CATEGORY)
+    [first, last] = cast("list[Node]", partial["nodes"])
     return {
         "estimate_line_entered.json": mocktext.example(
             f"La ligne {ROW} de la structure du témoin, « Heures d'ingénierie », première ligne "
@@ -738,8 +759,9 @@ def _volume_writes() -> dict[str, JsonObject]:
         "paste_plan_unknown_category.json": mocktext.example(
             f"Le même bloc, dont la deuxième ligne porte une catégorie qu'aucune du référentiel "
             f"ne nomme, « {UNKNOWN_CATEGORY[1][1]} » : cette ligne est refusée, sa cellule nommée "
-            f"par sa colonne, et les deux autres seraient écrites ; un collage partiellement "
-            f"invalide ne s'applique pas (WF-IHM-0050).",
+            f"par sa colonne, et les deux autres seraient écrites ; confirmé, le collage écrira "
+            f"les deux autres et non celle-ci (paste_applied_partial), abandonné, il n'écrira "
+            f"rien (WF-IHM-0050).",
             paste_plan(UNKNOWN_CATEGORY, PASTES[1]),
         ),
         "paste_too_wide.json": mocktext.example(
@@ -764,5 +786,18 @@ def _volume_writes() -> dict[str, JsonObject]:
             f"rend à tout collage confirmé, qui ne garde rien de ce qu'on lui envoie "
             f"(WF-IHM-0050, WF-DEV-0020).",
             applied,
+        ),
+        "paste_applied_partial.json": mocktext.example(
+            f"Le même bloc, dont la deuxième ligne porte la catégorie inconnue « "
+            f"{UNKNOWN_CATEGORY[1][1]} » (paste_plan_unknown_category), confirmé : un succès "
+            f"partiel. Les deux lignes valides sont écrites en une seule opération sur les lignes "
+            f"{first['row_number']} et {last['row_number']} de la structure du témoin, « "
+            f"{UNKNOWN_CATEGORY[0][0]} » et « {UNKNOWN_CATEGORY[2][0]} », la quantité de la "
+            f"seconde portée à {last['estimate_line']['quantity']} ; la ligne refusée n'est pas "
+            f"écrite, la ligne {ROW + 1} reste ce qu'elle était, et son refus est redit tel que "
+            f"l'aperçu l'a annoncé, sa cellule nommée par sa colonne (rejected). Avec elles, "
+            f"leurs ancêtres, les totaux de la structure, et son compteur, passé à "
+            f"{ENTERED_VERSION + 1} (WF-IHM-0050, WF-DEV-0020).",
+            partial,
         ),
     }

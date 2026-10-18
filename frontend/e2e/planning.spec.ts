@@ -64,14 +64,46 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
-  // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its twelve headers,
-  // the number and the eleven columns, none holds a button, none says a sort.
+  // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its thirteen headers,
+  // the number and the twelve columns, none holds a button, none says a sort.
   const headers = grid.getByRole("columnheader");
-  await expect(headers).toHaveCount(12);
+  await expect(headers).toHaveCount(13);
   await expect(headers.getByRole("button")).toHaveCount(0);
   for (const header of await headers.all()) {
     await expect(header).not.toHaveAttribute("aria-sort");
   }
+});
+
+test("attaches a leaf to a lot of the work breakdown from its cell, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({
+  page,
+}) => {
+  // Row 8, « Poste de commande », bears the post of the work breakdown of the witness; row 9 under
+  // it, « Câblage des armoires », a leaf, nothing. The fake back answers `updateTaskFacet` by its
+  // first example whatever was written: the task of row 9 renamed — what the grid does with an
+  // attachment answered is proven on the examples by `planning-writes.dom.test.tsx`.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await expect(page.getByRole("note")).toContainText("Maquette");
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { attachment: "Rattachement" });
+  const post = grid.getByRole("row", { name: /^8 .*Poste de commande/ });
+  await expect(post.getByRole("gridcell").nth(at.attachment)).toHaveText(
+    "Fourniture et montage des armoires",
+  );
+  // Une feuille peut être rattachée à un lot: its first letter typed on the cell finds it.
+  const leaf = grid.getByRole("row", { name: /^9 .*Câblage des armoires/ });
+  const cell = leaf.getByRole("gridcell").nth(at.attachment);
+  await cell.click();
+  await expect(cell).toBeFocused();
+  const sent = page.waitForRequest((request) => request.method() === "POST");
+  await page.keyboard.press("A");
+  await expect(page.getByRole("combobox", { name: "Rattachement" })).toHaveValue(
+    "01926f3a-7c00-7000-8000-000000000712",
+  );
+  await page.keyboard.press("Enter");
+  await sent;
+  await expect(
+    grid.getByRole("row", { name: /^9 .*Câblage et repérage des armoires/ }),
+  ).toBeVisible();
 });
 
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({
@@ -223,4 +255,39 @@ test("leads from the planning to the timelines of the project, read only", async
   await expect(
     page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),
   ).toHaveCount(0);
+});
+
+test("creates a timeline by its name, and deletes the one shown once confirmed, the screen showing the first one left (EP-14/L44f)", async ({
+  page,
+}) => {
+  // Two readings of the structure of a thousand tasks, each in the bound of a grid.
+  test.slow();
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  const steering = page.getByRole("link", { name: "Comité de pilotage" });
+  await expect(steering).toHaveAttribute("aria-current", "true", { timeout: WORKING });
+  await expect(page.getByRole("note")).toContainText("Maquette");
+  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
+  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
+  await form.getByRole("textbox", { name: "Nom" }).fill("Réunion de chantier");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(page.getByText("Chronologie « Réunion de chantier » créée.")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Supprimer la chronologie «\u00a0Comité de pilotage\u00a0»" })
+    .click();
+  const confirmation = page.getByRole("dialog", { name: /^Supprimer la chronologie/ });
+  await expect(confirmation).toContainText("les tâches et les jalons gardent leurs dates");
+  await confirmation.getByRole("button", { name: "Supprimer" }).click();
+  await expect(page.getByText("Chronologie « Comité de pilotage » supprimée.")).toBeVisible();
+  await expect(steering).toHaveCount(0);
+  await expect(page).toHaveURL(
+    `${IN_REVISION}/timelines?timeline=01926f3a-7c00-7000-8000-000000001001`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
 });

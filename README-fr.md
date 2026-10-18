@@ -102,6 +102,8 @@ livrer ; fusionner un EPIC dans `main` est toujours la décision d'une personne.
 
 ## Commandes
 
+Pour installer un poste, lire [`INSTALL.md`](INSTALL.md).
+
 ```bash
 make                      # liste les commandes
 make check-tools          # dit ce qui manque

@@ -1,9 +1,10 @@
 {
-  "summary": "Les rôles de ressources de l'installation, lus avec les désactivés (include_inactive) par une session qui peut modifier les paramètres de ressources, chacun nommant son nœud, sa catégorie et son calendrier et portant la commande qui change son état : l'ingénieur électricien et le technicien de mise en service, sur la semaine standard, que portent les lignes de main-d'œuvre des exemples, et le monteur câbleur de l'atelier de câblage, sur la semaine de quatre jours de dix heures, actifs ; l'automaticien, désactivé, rattaché à la semaine de trente-neuf heures, désactivée elle aussi, que la liste des calendriers ne rend pas, et qui se réactive ; le programmeur d'automates, désactivé avec le bureau d'études automatismes, dont la réactivation est indisponible tant que son nœud reste désactivé (WF-REF-0080, WF-REF-0090, WF-REF-0100, WF-REF-0150, WF-IHM-0090).",
+  "summary": "Les rôles de ressources de l'installation, lus avec les désactivés (include_inactive) par une session qui peut modifier les paramètres de ressources, chacun avec son code, unique, et nommant son nœud, sa catégorie et son calendrier et portant la commande qui change son état : l'ingénieur électricien et le technicien de mise en service, sur la semaine standard, que portent les lignes de main-d'œuvre des exemples, et le monteur câbleur de l'atelier de câblage, sur la semaine de quatre jours de dix heures, actifs ; l'automaticien, désactivé, rattaché à la semaine de trente-neuf heures, désactivée elle aussi, que la liste des calendriers ne rend pas, et qui se réactive ; le programmeur d'automates, désactivé avec le bureau d'études automatismes, dont la réactivation est indisponible tant que son nœud reste désactivé (WF-REF-0080, WF-REF-0090, WF-REF-0100, WF-REF-0150, WF-IHM-0090).",
   "value": {
     "items": [
       {
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000453",
+        "code": "AUTOM",
         "label": "Automaticien",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
         "org_node_label": "Bureau d'études électricité",
@@ -41,6 +42,7 @@
       },
       {
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+        "code": "ING-ELEC",
         "label": "Ingénieur électricien",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
         "org_node_label": "Bureau d'études électricité",
@@ -78,6 +80,7 @@
       },
       {
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000454",
+        "code": "MONT-CAB",
         "label": "Monteur câbleur",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
         "org_node_label": "Atelier de câblage",
@@ -115,6 +118,7 @@
       },
       {
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000455",
+        "code": "PROG-AUTO",
         "label": "Programmeur d'automates",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000474",
         "org_node_label": "Bureau d'études automatismes",
@@ -154,6 +158,7 @@
       },
       {
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+        "code": "TECH-MES",
         "label": "Technicien de mise en service",
         "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
         "org_node_label": "Bureau d'études électricité",

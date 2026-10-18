@@ -15,10 +15,10 @@ ReferenceCommand:
   type: string
   enum: [deactivate, reactivate]
   description: >-
-    Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource,
-    calendrier ; une nature et une catégorie de coût les portent sous `CostTypeCommand` et
-    `CostCategoryCommand`, qui leur ajoutent le changement de leur type (WF-IHM-0090) : le
-    désactiver et le réactiver, par
+    Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource ; un
+    calendrier les porte sous `CalendarCommand`, qui leur ajoute sa désignation par défaut, une
+    nature et une catégorie de coût sous `CostTypeCommand` et `CostCategoryCommand`, qui leur
+    ajoutent le changement de leur type (WF-IHM-0090) : le désactiver et le réactiver, par
     l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`,
     `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le
     supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il
@@ -28,9 +28,10 @@ ReferenceCommand:
     réactivation d'un nœud dont le parent est désactivé est indisponible,
     `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé,
     `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut,
-    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute
-    autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation
-    d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120) ; la
+    réactivation d'une catégorie dont la nature est désactivée, `cost_type_active` manquante
+    (WF-REF-0010 ; EP-14/L42s, C-291). Toute autre est disponible dès qu'elle est listée : aucune
+    exigence ne conditionne la réactivation d'un rôle à sa catégorie ou à son calendrier.
 
 ReferenceCommandAvailability:
   type: object
@@ -59,7 +60,7 @@ ReferenceObjectCommands:
   type: object
   required: [available_commands]
   description: >-
-    Ce qu'un objet du référentiel lu aujourd'hui ajoute à son image : ses commandes. Une image
+    Ce qu'un rôle de ressource lu aujourd'hui ajoute à son image : ses commandes. Une image
     figée par une révision marquée n'en porte pas (`EmployedReference`).
   properties:
     available_commands: { $ref: '#/ReferenceCommands' }
@@ -79,7 +80,7 @@ OrgNode:
     - lock_version
   description: >-
     Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte
-    aucune habilitation (WF-REF-0070).
+    aucune habilitation (WF-REF-0070). Ses commandes sont celles de `ReferenceCommand`.
   properties:
     org_node_id: { $ref: ../common.yaml#/Uuid }
     code:
@@ -124,20 +125,34 @@ OrgNodeWrite:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
       description: >-
-        Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous
-        un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080).
-        Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`.
+        Le parent du nœud, absent ou nul à la création pour une racine ; exigé à la modification
+        (`OrgNodeUpdate`), où la racine s'écrit `null` et un parent absent est refusé par
+        `VALUE_REQUIRED`. Un nœud ne se crée ni ne se déplace que sous un
+        nœud actif ou à la racine (WF-REF-0070) : aucun objet actif ne subsiste dans un service
+        fermé (WF-REF-0080). Refusé par 422 sur `/parent_id` : un nœud que le référentiel n'a
+        pas, `UNKNOWN_ORG_NODE` ; le nœud lui-même ou l'un de ses descendants, `ORG_NODE_CYCLE` ;
+        un nœud désactivé, `INACTIVE_REFERENCE_OBJECT` — à la modification, seulement quand elle
+        change le parent, jugé sur la valeur envoyée : un nœud désactivé qui garde son parent
+        désactivé se modifie. Un seul motif, le premier dans cet ordre : inconnu, puis
+        boucle, puis désactivé.
 
 OrgNodeUpdate:
   description: >-
-    Modification d'un nœud d'organisation : porte le compteur lu,
-    qu'une création n'a pas.
+    Modification d'un nœud d'organisation : porte le compteur lu, qu'une création n'a pas, et
+    son parent, exigé — nul pour une racine —, le corps entier étant envoyé : un parent absent ne
+    se lit ni comme la racine ni comme le parent lu : il est refusé, 422 `VALUE_REQUIRED` sur
+    `/parent_id`.
   allOf:
     - $ref: '#/OrgNodeWrite'
     - type: object
-      required: [lock_version]
+      required: [lock_version, parent_id]
       properties:
         lock_version: { $ref: ../common.yaml#/LockVersion }
+        parent_id:
+          anyOf:
+            - $ref: ../common.yaml#/Uuid
+            - type: 'null'
+          description: Le parent envoyé, celui de `OrgNodeWrite`, ici exigé ; `null` pour une racine.
 
 ResourceRole:
   description: >-
@@ -151,6 +166,7 @@ ResourceRoleImage:
   type: object
   required:
     - resource_role_id
+    - code
     - label
     - org_node_id
     - org_node_label
@@ -163,11 +179,20 @@ ResourceRoleImage:
     - audit
     - lock_version
   description: >-
-    Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût
-    et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). L'image
-    seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`).
+    Rôle de ressource, qui porte un code unique et un libellé. Il relève d'un nœud
+    d'organisation, d'une catégorie de coût et d'un calendrier (WF-REF-0090), et porte une
+    capacité unique (WF-REF-0100). L'image seule, sans commandes : celle qu'une révision marquée
+    fige (`EmployedReference`).
   properties:
     resource_role_id: { $ref: ../common.yaml#/Uuid }
+    code:
+      type: string
+      minLength: 1
+      pattern: '\S'
+      maxLength: 20
+      description: >-
+        Code du rôle, unique parmi les rôles, désactivés compris, comme celui d'un nœud : un code
+        déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0090).
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     org_node_id: { $ref: ../common.yaml#/Uuid }
     org_node_label:
@@ -195,15 +220,19 @@ ResourceRoleImage:
 RoleCapacity:
   type: object
   required: [monthly_hours, headcount]
-  description: Capacité unique, sans date de validité (WF-REF-0100).
+  description: >-
+    Capacité unique, sans date de validité (WF-REF-0100) : des heures par mois et un effectif,
+    jamais négatifs. Écrite, une valeur négative est refusée par 422, `VALUE_OUT_OF_RANGE` sur
+    `/capacity/monthly_hours` ou `/capacity/headcount`, `fields[].params.minimum` à `0`.
   properties:
     monthly_hours: { $ref: ../common.yaml#/Hours }
     headcount: { $ref: ../common.yaml#/Decimal }
 
 ResourceRoleWrite:
   type: object
-  required: [label, org_node_id, cost_category_id, calendar_id, capacity]
+  required: [code, label, org_node_id, cost_category_id, calendar_id, capacity]
   properties:
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     org_node_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
@@ -211,19 +240,32 @@ ResourceRoleWrite:
         Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à
         l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif,
         ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur
-        `/org_node_id` (WF-REF-0080).
-    cost_category_id: { $ref: ../common.yaml#/Uuid }
-    calendar_id: { $ref: ../common.yaml#/Uuid }
+        `/org_node_id` (WF-REF-0080) ; un nœud que le référentiel n'a pas, `UNKNOWN_ORG_NODE`.
+    cost_category_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Une catégorie dont la nature relève de la main-d'œuvre, active (WF-REF-0090) : refusée
+        par 422 sur `/cost_category_id`, inconnue, `UNKNOWN_COST_CATEGORY`, hors main-d'œuvre,
+        `LABOUR_CATEGORY_REQUIRED`, désactivée, `INACTIVE_REFERENCE_OBJECT`.
+    calendar_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Un calendrier actif (WF-REF-0090) : refusé par 422 sur `/calendar_id`, inconnu,
+        `UNKNOWN_CALENDAR`, désactivé, `INACTIVE_REFERENCE_OBJECT`.
     capacity: { $ref: '#/RoleCapacity' }
 
 ResourceRoleUpdate:
   type: object
-  required: [label, cost_category_id, calendar_id, capacity, lock_version]
+  required: [code, label, cost_category_id, calendar_id, capacity, lock_version]
   description: >-
-    Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud, et le
-    compteur lu, qu'une création n'a pas. Un rôle ne se déplace pas d'un nœud à l'autre : une
-    réorganisation le recrée sous le nouveau nœud (§3.4.4.2.1, WF-REF-0080).
+    Modification d'un rôle de ressource : ce que sa création écrit, sauf son nœud — son code
+    compris, qui reste unique —, et le compteur lu, qu'une création n'a pas. Un rôle ne se
+    déplace pas d'un nœud à l'autre : une réorganisation le recrée sous le nouveau nœud
+    (§3.4.4.2.1, WF-REF-0080). Sa catégorie et son calendrier se modifient vers des objets
+    actifs, et une catégorie de main-d'œuvre (WF-REF-0090), refusés comme à la création ; un rôle
+    qui garde les siens, désactivés depuis, se modifie.
   properties:
+    code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
@@ -236,19 +278,68 @@ Calendar:
     (`available_commands`, WF-IHM-0090).
   allOf:
     - $ref: '#/CalendarImage'
-    - $ref: '#/ReferenceObjectCommands'
+    - type: object
+      required: [available_commands]
+      properties:
+        available_commands: { $ref: '#/CalendarCommands' }
+
+CalendarCommand:
+  type: string
+  enum: [deactivate, reactivate, set_default]
+  description: >-
+    Commandes portées par un calendrier (WF-IHM-0090) : le désactiver et le réactiver, par
+    `setCalendarActivation`, comme tout objet du référentiel (`ReferenceCommand`) — un calendrier
+    ne porte que celle qui change son état —, et le désigner par défaut, par
+    `setDefaultCalendar`, listée pour tout calendrier qui ne l'est pas : désigner celui qui l'est
+    déjà ne change rien. La désactivation du calendrier par défaut est indisponible,
+    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné ; la désignation d'un
+    calendrier désactivé, `calendar_active` manquante, le calendrier par défaut étant actif
+    (WF-REF-0120). La réactivation est toujours disponible. Toutes relèvent de la permission de
+    modification des paramètres de ressources (`resource_settings.write`, WF-ADM-0100).
+
+CalendarCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/CalendarCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+CalendarCommands:
+  type: array
+  maxItems: 2
+  description: >-
+    Commandes du calendrier que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CalendarCommand` : au
+    plus deux, celle qui change son état et, s'il n'est pas le calendrier par défaut, sa
+    désignation par défaut. Une commande absente de la liste n'est pas présentée ; la liste est
+    vide pour qui lit les calendriers sans la permission de modifier les paramètres de
+    ressources. Un appel envoyé malgré la liste est refusé par son code d'erreur, sauf la
+    désignation du calendrier qui l'est déjà, non listée, qui répond 200 sans rien changer — la
+    version contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée.
+  items: { $ref: '#/CalendarCommandAvailability' }
 
 CalendarImage:
   type: object
   required: [calendar_id, label, weekly_hours, is_default, is_active, audit, lock_version]
   description: >-
-    Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
+    Calendrier : un libellé et sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
     temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut
     (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige
     (`EmployedReference`).
   properties:
     calendar_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
+    label:
+      type: string
+      minLength: 1
+      pattern: '\S'
+      maxLength: 200
+      description: >-
+        Libellé du calendrier, unique parmi les calendriers, désactivés compris : un libellé
+        déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/label` (WF-REF-0110).
     weekly_hours: { $ref: '#/WeeklyHours' }
     is_default: { type: boolean }
     is_active: { type: boolean }
@@ -258,6 +349,11 @@ CalendarImage:
 WeeklyHours:
   type: object
   required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+  description: >-
+    Les heures travaillées de chaque jour de la semaine, de `0` à `24` (WF-REF-0110). Écrite, une
+    valeur hors de ces bornes est refusée par 422, `VALUE_OUT_OF_RANGE` sur
+    `/weekly_hours/<jour>`, `fields[].params.minimum` à `0` ou `maximum` à `24`, la seule borne
+    franchie.
   properties:
     monday: { $ref: ../common.yaml#/Hours }
     tuesday: { $ref: ../common.yaml#/Hours }
@@ -289,8 +385,13 @@ CostTypeKind:
   type: string
   enum: [labor, non_labor, provision]
   description: >-
-    Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une catégorie rattachée
-    est employée : la commande `change_kind` de la nature le dit d'avance (`CostTypeCommand`).
+    Type d'une nature de coût (WF-REF-0030) : main-d'œuvre, hors main-d'œuvre, provision pour
+    risques — `provision`, qui ne porte que les lignes que Waterfall calcule à partir d'un risque,
+    jamais saisies (WF-DEV-0020, WF-RIS-0010) ; une provision saisie et non pondérée, pour aléas
+    par exemple, relève d'une nature hors main-d'œuvre (§3.4.4.1.1). Il ne change plus dès qu'une
+    catégorie rattachée est employée, porte un taux horaire ou est rattachée à un rôle de
+    ressource (WF-REF-0030) : la commande `change_kind` de la nature le dit d'avance
+    (`CostTypeCommand`).
 
 CostTypeCommand:
   type: string
@@ -299,14 +400,17 @@ CostTypeCommand:
     Commandes portées par une nature de coût (WF-IHM-0090) : la désactiver et la réactiver, par
     `setCostTypeActivation`, comme tout objet du référentiel (`ReferenceCommand`) — une nature ne
     porte que celle qui change son état —, et modifier son type, par `updateCostType` avec un
-    autre `kind`, toujours listée. La modification du type est indisponible, `cost_type_unused`
-    manquante, dès qu'une catégorie rattachée à la nature est employée — portée par une ligne
-    d'une révision, marquée ou non (WF-REF-0030) ; le reste de la nature, son code et son libellé,
-    se modifie toujours. Il reste toujours une nature provision active qui porte une catégorie
-    active (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la dernière a sa
-    désactivation et la modification de son type indisponibles, `cost_type_not_last_provision`
-    manquante. La réactivation est toujours disponible. Toutes relèvent de la permission de
-    modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
+    autre `kind`, toujours listée. La modification du type est indisponible dès qu'une catégorie
+    rattachée à la nature est employée — portée par une ligne d'une révision, marquée ou non —,
+    `cost_type_unused` manquante, porte un taux horaire, `cost_type_unrated`, ou est rattachée à
+    un rôle de ressource, actif ou désactivé, `cost_type_without_role` (WF-REF-0030) ; le reste
+    de la nature, son code et son libellé, se modifie toujours. La désactivation et la
+    réactivation sont toujours disponibles : la dernière nature de type provision pour risques se
+    désactive comme une autre, et ses catégories avec elle (WF-REF-0010 ; EP-14/L42s, C-291) — la
+    création d'un projet et la déclaration d'un risque nomment alors ce qui leur manque
+    (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la règle de #578). Toutes
+    relèvent de la permission de modification des paramètres de coûts (`cost_settings.write`,
+    WF-ADM-0100).
 
 CostTypeCommandAvailability:
   type: object
@@ -328,8 +432,8 @@ CostTypeCommands:
     plus deux, celle qui change son état et la modification de son type. Une commande absente de
     la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission
     de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est
-    employée (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son
-    code d'erreur.
+    employée, porte un taux ou sert à un rôle (WF-ARC-0020) : la nature le dit. Un appel envoyé
+    malgré la liste est refusé par son code d'erreur.
   items: { $ref: '#/CostTypeCommandAvailability' }
 
 CostType:
@@ -363,8 +467,9 @@ CostTypeWrite:
 CostTypeUpdate:
   description: >-
     Modification d'une nature de coût : porte le compteur lu, qu'une création n'a pas. Un `kind`
-    autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, ce que
-    sa commande `change_kind` dit d'avance (WF-REF-0030) ; le même `kind` ne change rien.
+    autre que celui de la nature est refusé dès qu'une catégorie rattachée est employée, porte un
+    taux horaire ou est rattachée à un rôle de ressource, ce que sa commande `change_kind` dit
+    d'avance (WF-REF-0030) ; le même `kind` ne change rien.
   allOf:
     - $ref: '#/CostTypeWrite'
     - type: object
@@ -396,14 +501,19 @@ CostCategoryCommand:
     dès que la catégorie est employée — portée par une ligne d'une révision, marquée ou non —, et,
     `cost_category_unrated` manquante, tant qu'elle porte des taux horaires, qu'une catégorie hors
     main-d'œuvre ne porte pas (WF-REF-0030, WF-REF-0050 ; décision de l'auteur du 2026-10-09,
-    #577). Il reste toujours une catégorie active rattachée à une nature provision active
-    (WF-REF-0030 ; décision de l'auteur du 2026-10-09, #578) : la seule a sa désactivation et son
-    rattachement à une nature d'un autre type indisponibles, `cost_category_not_last_provision`
-    manquante ; un rattachement à une autre nature provision active la laisse provision, et reste
-    permis. La réactivation est toujours disponible. Le rattachement à une autre nature du même type n'est pas une commande : rien ne le rend
-    indisponible, employée ou non, et il se fait par `updateCostCategory` comme le reste de la
-    catégorie. Toutes relèvent de la permission de modification des paramètres de coûts
-    (`cost_settings.write`, WF-ADM-0100).
+    #577), et, `cost_category_without_role` manquante, tant qu'un rôle de ressource, actif ou
+    désactivé, lui est rattaché : une catégorie qui porte des taux horaires, ou à laquelle un rôle
+    est rattaché, ne quitte pas la main-d'œuvre (WF-REF-0040, WF-REF-0090). La désactivation est
+    toujours disponible : la dernière catégorie active de type provision pour risques se
+    désactive comme une autre, la création d'un projet et la déclaration d'un risque nommant
+    alors ce qui leur manque (WF-REF-0030, WF-CYC-0120, WF-RIS-0010 ; EP-14/L42p, qui retire la
+    règle de #578). La réactivation est indisponible sous une nature désactivée,
+    `cost_type_active` manquante : « une catégorie ne peut être réactivée que si sa nature est
+    active » (WF-REF-0010 ; EP-14/L42s, C-291). Le rattachement à une autre nature du même type
+    n'est pas une
+    commande : rien ne le rend indisponible, employée ou non, et il se fait par
+    `updateCostCategory` comme le reste de la catégorie. Toutes relèvent de la permission de
+    modification des paramètres de coûts (`cost_settings.write`, WF-ADM-0100).
 
 CostCategoryCommandAvailability:
   type: object
@@ -426,7 +536,8 @@ CostCategoryCommands:
     commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les
     catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit
     la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est
-    employée ni si elle porte des taux (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré
+    employée, ni si elle porte des taux, ni si un rôle lui est rattaché (WF-ARC-0020) : la
+    catégorie le dit. Un appel envoyé malgré
     la liste est refusé par son code d'erreur.
   items: { $ref: '#/CostCategoryCommandAvailability' }
 
@@ -438,6 +549,8 @@ CostCategoryImage:
     - label
     - cost_type_id
     - cost_type_label
+    - cost_type_kind
+    - cost_type_is_active
     - accounting_code
     - is_active
     - audit
@@ -461,6 +574,19 @@ CostCategoryImage:
       minLength: 1
       maxLength: 200
       description: Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150).
+    cost_type_kind:
+      allOf: [{ $ref: '#/CostTypeKind' }]
+      description: >-
+        Le type de la nature, résolu à la lecture comme son libellé : seule une catégorie de
+        main-d'œuvre porte des taux (WF-REF-0050) et se rattache à un rôle (WF-REF-0090), et un
+        formulaire ne propose qu'elles sans relire les natures (WF-ARC-0020).
+    cost_type_is_active:
+      type: boolean
+      description: >-
+        Si la nature est active, résolu à la lecture comme son type. Une catégorie active l'est
+        toujours sous une nature active, la désactivation d'une nature désactivant ses catégories
+        (WF-REF-0010 ; EP-14/L42s, C-291) : faux, la catégorie est désactivée et sa réactivation
+        indisponible tant que la nature l'est (`cost_type_active`).
     accounting_code:
       type: string
       minLength: 1
@@ -488,9 +614,9 @@ CostCategoryWrite:
         désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même,
         `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature
         — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une
-        nature d'un autre type est refusée par 409 quand la catégorie est employée ou porte des
-        taux, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type,
-        elle est toujours permise.
+        nature d'un autre type est refusée par 409 quand la catégorie est employée, porte des
+        taux ou qu'un rôle lui est rattaché, ce que sa commande `change_cost_type` dit d'avance ;
+        vers une nature du même type, elle est toujours permise.
     accounting_code: { type: string, minLength: 1, maxLength: 20 }
 
 CostCategoryUpdate:
@@ -640,11 +766,27 @@ ReferenceSettings:
 ReferenceSettingsWrite:
   type: object
   required: [lock_version]
+  description: >-
+    Ce qu'une écriture des paramètres communs porte : le compteur lu, et ce qu'elle écrit —
+    la matrice de risques (`risk_settings.write`), les seuils des indices et le délai entre
+    deux revues (`indicator_settings.write`), chaque champ sous la permission de sa fonction
+    (WF-ADM-0100) ; un champ absent reste tel qu'il est (WF-IHM-0110). Un écran n'envoie que
+    ce qu'il écrit : la matrice seule, ou les seuils et le délai seuls. Ni la langue par défaut
+    de l'installation (`default_language`, WF-INTF-0160), qui ne relève d'aucune des deux
+    fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise (WF-REF-0140) ne
+    s'écrivent ici : l'une et l'autre se lisent seulement (`ReferenceSettings`).
   properties:
-    default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
-    max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
+    max_weeks_between_reviews:
+      type: integer
+      minimum: 1
+      maximum: 104
+      description: >-
+        De 1 à 104 semaines (WF-REF-0180) : un délai hors de ces bornes est refusé par 422
+        `VALIDATION_FAILED`, `fields` désignant `/max_weeks_between_reviews` par
+        `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `1` ou `maximum` à `104`, la seule
+        borne franchie.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RiskMatrixSettings:
@@ -659,11 +801,18 @@ RiskMatrixSettings:
       type: array
       minItems: 3
       maxItems: 3
+      description: >-
+        Du plus bas au plus haut, strictement croissantes (WF-REF-0160) : une borne qui n'est
+        pas supérieure à la précédente est refusée par 422 `VALIDATION_FAILED`, `fields`
+        désignant son rang (`/risk_matrix/probability_bounds/<rang>`) par `BOUNDS_NOT_ORDERED`.
       items: { $ref: ../common.yaml#/Percent }
     severity_bounds:
       type: array
       minItems: 3
       maxItems: 3
+      description: >-
+        Du plus bas au plus haut, strictement croissantes (WF-REF-0160), refusées de même par
+        `BOUNDS_NOT_ORDERED` sur `/risk_matrix/severity_bounds/<rang>`.
       items: { $ref: ../common.yaml#/Percent }
     zones:
       type: array
@@ -679,12 +828,32 @@ RiskMatrixSettings:
 IndexThresholds:
   type: object
   required: [cost_watch, cost_alert, schedule_watch, schedule_alert]
-  description: Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170).
+  description: >-
+    Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). Le seuil
+    d'alerte de chaque indice est strictement inférieur à son seuil de vigilance : un seuil
+    d'alerte qui ne l'est pas est refusé par 422 `VALIDATION_FAILED`, `fields` le désignant
+    (`/index_thresholds/cost_alert`, `/index_thresholds/schedule_alert`) par
+    `THRESHOLD_NOT_BELOW_WATCH`.
   properties:
-    cost_watch: { $ref: ../common.yaml#/Decimal }
-    cost_alert: { $ref: ../common.yaml#/Decimal }
-    schedule_watch: { $ref: ../common.yaml#/Decimal }
-    schedule_alert: { $ref: ../common.yaml#/Decimal }
+    cost_watch: { $ref: '#/IndexThreshold' }
+    cost_alert: { $ref: '#/IndexThreshold' }
+    schedule_watch: { $ref: '#/IndexThreshold' }
+    schedule_alert: { $ref: '#/IndexThreshold' }
+
+IndexThreshold:
+  allOf:
+    - $ref: ../common.yaml#/Decimal
+  pattern: '^0+\.\d*[1-9]\d*$'
+  description: >-
+    Un seuil d'un indice : une valeur de l'indice strictement entre 0 et 1 (WF-REF-0170), en
+    décimal exact — `0.9`, `0.85`, `0.875` ; ni `0`, ni `1`. La forme se juge d'abord, la
+    plage ensuite, chacune par sa contrainte : un seuil qui n'est pas un décimal (le motif de
+    `Decimal` : `0,9`, `.5`, `abc`) est refusé par 422 `VALIDATION_FAILED`, `fields` le
+    désignant (`/index_thresholds/<seuil>`) par `NUMBER_INVALID` ; un décimal hors de ]0, 1[,
+    que le motif du seuil refuse (`0`, `1`, `1.5`, `-0.5`), par
+    `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre : l'intervalle est ouvert, et n'a ni
+    plus petite ni plus grande valeur admise à nommer. L'ordre des seuils
+    (`THRESHOLD_NOT_BELOW_WATCH`) ne se juge qu'entre seuils dans ]0, 1[.
 
 DurationUnits:
   type: object
@@ -741,6 +910,21 @@ ReferenceReadiness:
     is_complete: { type: boolean }
     missing:
       type: array
+      description: >-
+        Les prérequis manquants, dans l'ordre de l'énumération, celui de WF-CYC-0120 : un calendrier
+        par défaut actif dont au moins un jour de la semaine compte des heures travaillées
+        (`default_calendar_with_hours`) ; une catégorie de main-d'œuvre active — une catégorie de
+        coût active dont la nature relève de la main-d'œuvre (`active_cost_category`) ; une
+        catégorie de coût active dont la nature est de
+        type provision pour risques (`active_provision_category`), sans laquelle aucun risque ne
+        peut être déclaré (EP-14/L42p, #579) ; un rôle de ressource actif
+        (`active_resource_role`). Vide quand `is_complete` est vrai. Une installation neuve,
+        dont la seule catégorie est celle des provisions pour risques, manque de la catégorie de
+        main-d'œuvre et du rôle (Vérif de WF-CYC-0120).
       items:
         type: string
-        enum: [default_calendar_with_hours, active_cost_category, active_resource_role]
+        enum:
+          - default_calendar_with_hours
+          - active_cost_category
+          - active_provision_category
+          - active_resource_role

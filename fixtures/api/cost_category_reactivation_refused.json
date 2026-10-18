@@ -1,0 +1,12 @@
+{
+  "summary": "La réactivation du matériel électrique, désactivé avec la nature des débours, refusée tant que les débours le restent : une catégorie ne se réactive que si sa nature est active, comme sa commande reactivate le disait ; le refus nomme la nature, qui se réactive d'abord, et rien n'est écrit. La suite de la désactivation des débours (`cost_type_deactivated`), qui a désactivé leurs catégories (WF-REF-0010).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "cost_type_active",
+      "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000462"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001151"
+  }
+}

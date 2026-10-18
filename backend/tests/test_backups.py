@@ -256,6 +256,7 @@ def test_a_backup_is_downloaded_whole_as_the_bucket_of_the_backups_keeps_it(
     assert copied.headers["content-disposition"].startswith('attachment; filename="waterfall-')
     assert copied.content == stored(taking.bucket, f"backup-{asked.json()['task_id']}.tar")
     assert len(copied.content) == item["size_bytes"]
+    assert copied.headers["content-length"] == str(item["size_bytes"])
 
 
 @pytest.mark.requirement("WF-ADM-0150-A")
@@ -509,6 +510,29 @@ def test_the_backups_are_listed_by_pages_the_latest_first(
     assert [item["backup_id"] for item in second["items"]] == [older]
     beyond = backups_api.get(f"{BACKUPS}?offset=2", headers=headers).json()
     assert beyond["items"] == []
+
+
+def test_each_backup_lists_the_commands_its_reader_may_exercise_with_what_they_lack(
+    backups_api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # A command the permissions of the caller do not allow is not presented; one that the state of
+    # the platform makes impossible for a while is presented unavailable, with the condition it
+    # lacks (WF-IHM-0090, WF-ADM-0100). The task of the backup recorded stays queued: a backup
+    # runs, and withholds the restoration alone.
+    backup_id = backup_row(database, queue, "listed.tar")
+    _, reader = person(READ)
+    _, keeper = person(READ, WRITE, "platform_restore")
+    [read] = backups_api.get(BACKUPS, headers=reader).json()["items"]
+    assert read["available_commands"] == []
+    expected: list[dict[str, Any]] = [
+        {"command": "retain", "is_available": True, "missing_conditions": []},
+        {"command": "download", "is_available": True, "missing_conditions": []},
+        {"command": "restore", "is_available": False, "missing_conditions": ["no_backup_running"]},
+    ]
+    [kept] = backups_api.get(BACKUPS, headers=keeper).json()["items"]
+    assert kept["available_commands"] == expected
+    alone = backups_api.get(f"{BACKUPS}/{backup_id}", headers=keeper).json()
+    assert alone["available_commands"] == expected
 
 
 def test_a_backup_is_read_and_copied_only_under_the_permissions_of_the_backups(

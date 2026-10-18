@@ -7,8 +7,9 @@
  * marked by the icon of its nature; its label, its description, its scheduling mode, its duration,
  * its dates, its progress, the physical progress of a summary, its total float with the mark of the
  * critical path, and its predecessors — the columns WF-PLA-0080 names, in the order of the contract
- * (`NodeColumn`) —; then the Gantt, row for row (`GanttCell`). The same component as the grid of the
- * estimate (`estimate.ts`): another configuration.
+ * (`NodeColumn`) —, and the post or the lot of the work breakdown the task bears, by the label the
+ * server resolves (WF-PLA-0170); then the Gantt, row for row (`GanttCell`). The same component as the
+ * grid of the estimate (`estimate.ts`): another configuration.
  *
  * Each column but the Gantt shows the column of the contract of the same name, and none sorts: the
  * grid is a tree, whose rows keep the order of the plan (§3.4, WF-IHM-0060) — no header offers a
@@ -25,7 +26,16 @@ import { Contrast, Zap } from "lucide-react";
 
 import { GanttAxis, GanttCell } from "@/components/gantt/gantt";
 
-import { type ComputedCells, type GridConfig, sortColumns } from "./columns";
+import type { Outcome } from "@/api/problem";
+
+import {
+  type Choice,
+  type ComputedCells,
+  type GridColumn,
+  type GridConfig,
+  type RowsWritten,
+  sortColumns,
+} from "./columns";
 import { COMPUTED_FLOAT, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
@@ -39,6 +49,12 @@ import {
   type NodeTotals,
   type RowOf,
 } from "./nodes";
+import {
+  type AttachmentChange,
+  attachmentChange,
+  borne,
+  type BreakdownItem,
+} from "./planning-attachment";
 import {
   DurationCell,
   FloatCell,
@@ -68,6 +84,9 @@ export const PLANNING_FIELDS = {
     "physical_progress",
     "total_float",
     "is_critical",
+    "order_item_id",
+    "work_package_id",
+    "work_breakdown_label",
   ],
   line: [],
 } as const satisfies AnyNodeFields;
@@ -189,6 +208,15 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       value: () => undefined,
       render: (node) => <PredecessorsCell node={node} />,
     },
+    // The post or the lot the task bears, by the label the server resolves (WF-PLA-0170).
+    {
+      key: "work_breakdown",
+      label: "attachment",
+      format: "text",
+      width: 160,
+      contract: "work_breakdown",
+      value: (node) => node.task?.work_breakdown_label,
+    },
     {
       key: "gantt",
       label: "gantt",
@@ -204,3 +232,68 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
 
 /** The columns of the contract the grid of the planning sorts by: none (§3.4, WF-IHM-0060). */
 export const PLANNING_SORT_COLUMNS = sortColumns(PLANNING_GRID);
+
+/**
+ * How the grid of the planning writes the attachment of a task: the posts and the lots it is chosen
+ * among, each named by its kind — a function, never the list (défaut n° 14) —, and the write of the
+ * fields it changes, with the row the server answers.
+ */
+export interface PlanningAttachment {
+  readonly items: ReadonlyMap<string, BreakdownItem>;
+  readonly choices: () => readonly Choice[];
+  readonly write: (
+    node: PlanningNode,
+    change: AttachmentChange,
+  ) => Promise<Outcome<RowsWritten<PlanningNode, NodeTotals>>>;
+}
+
+/** Whether the node accepts the attachment, which it says (`editable_fields`, #219). */
+function attachable(node: PlanningNode): boolean {
+  return (
+    node.editable_fields.includes("task.order_item_id") &&
+    node.editable_fields.includes("task.work_package_id")
+  );
+}
+
+/** The column of the attachment, entered through `attachment`. */
+function attachmentColumn(
+  column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
+  attachment: PlanningAttachment,
+): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
+  return {
+    ...column,
+    entry: {
+      kind: { type: "choice", choices: attachment.choices, nullable: true },
+      // A task whose item the work breakdown read does not know is not entered, so that no first
+      // choice is written for it unseen.
+      in: (node) => {
+        const id = borne(node.task);
+        return attachable(node) && (id === null || attachment.items.has(id));
+      },
+      value: (node) => borne(node.task),
+      write: (node, value) =>
+        attachment.write(
+          node,
+          attachmentChange(node.task, value === null ? undefined : attachment.items.get(value)),
+        ),
+    },
+  };
+}
+
+/**
+ * The grid of the planning: the attachment of its tasks entered through `attachment` — a revision
+ * whose planning may be entered (`edit_planning`), and the work breakdown read whole —; none, and the
+ * grid is read only.
+ */
+export function planningGrid(
+  attachment?: PlanningAttachment,
+): GridConfig<PlanningNode, NodeSortColumn, NodeTotals> {
+  return attachment === undefined
+    ? PLANNING_GRID
+    : {
+        ...PLANNING_GRID,
+        columns: PLANNING_GRID.columns.map((column) =>
+          column.key === "work_breakdown" ? attachmentColumn(column, attachment) : column,
+        ),
+      };
+}

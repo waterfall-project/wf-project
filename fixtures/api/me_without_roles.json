@@ -1,5 +1,5 @@
 {
-  "summary": "Le compte de Sacha Lefèvre, venu du fournisseur d'identité, qui ne porte encore aucun rôle d'habilitation : aucune permission, ni lecture du planning ni import (#521).",
+  "summary": "Le compte de Sacha Lefèvre, de l'atelier de câblage, venu du fournisseur d'identité, qui ne porte encore aucun rôle d'habilitation : aucune permission, ni lecture du planning ni import (#521).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000304",
     "last_name": "Lefèvre",
@@ -8,8 +8,8 @@
     "anonymized_at": null,
     "is_active": true,
     "origin": "identity_provider",
-    "org_node_id": null,
-    "org_node_label": null,
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+    "org_node_label": "Atelier de câblage",
     "access_role_ids": [],
     "access_role_labels": [],
     "has_avatar": false,

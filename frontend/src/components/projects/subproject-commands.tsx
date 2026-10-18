@@ -1,0 +1,596 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The commands of the sub-projects of a project (FBS-4.2.3, EP-02/L44b): create one, modify one,
+ * delete one (WF-PRJ-0050). They follow the command `update` the project lists — the settings of a
+ * project are its project managers' (WF-PRJ-0060), and a terminal project lists it unavailable,
+ * `project_not_terminal` lacking —: absent, nothing is offered; listed, available or not, the list
+ * offers the creation in its head — unavailable, « New sub-project » presented `aria-disabled`,
+ * described by the conditions it lacks — and each row its modification and its deletion as the row
+ * lists them (`Subproject.available_commands`, EP-14/L42i): absent, nothing; unavailable, presented
+ * `aria-disabled`, described by the conditions it lacks — a sub-project a marked revision cites
+ * deletes not, `subproject_not_cited` lacking (§4.4.1), nor one charged with actual costs,
+ * `subproject_without_actual_costs` lacking (WF-PRJ-0050), nor one estimate lines of the current
+ * revision bear, `subproject_without_estimate_lines` lacking (EP-14/L42q), nor any of a terminal
+ * project, `project_not_terminal` lacking —, a press saying them in the region of the list without
+ * asking anything (`UnavailableCellCommand`); a deletion that lacks the passing of the estimate lines
+ * that bear the sub-project alone, `project_not_terminal` aside, leads besides to the estimate of the
+ * revision in progress, filtered on it, where those of its main structure show (`subproject_id`) —
+ * those of another structure it does not reach —, a citation or actual costs, which no line passed
+ * lifts, leading nowhere (`leadsToEstimate`). A deletion is confirmed first, and a refusal of the
+ * server — the first condition it lacks named (409), and the lines that bear the sub-project, one by
+ * one, when they are what it lacks (`params.estimate_lines`, WF-DAT-0080) — is told above the list.
+ *
+ * The creation and the modification open the form of the reference data (`ReferenceForm`): the code
+ * and the label, required, no longer than the contract takes; a code another sub-project bears (409
+ * `ALREADY_EXISTS`) is said at its field, its holder named by the label the refusal gives it
+ * (`conflicting_object_label`), the form not knowing the rows the list shows — generically, « another
+ * sub-project », without it (EP-02/L42g). A modification answered takes the
+ * place of its row while it is newer than the row read (`lock_version`) — answered for another
+ * sub-project, it is a failure of the service (`ANOTHER_OBJECT`), told under the form, and nothing
+ * takes the place of any row —, a deletion answered takes its row away, for as long as the screen
+ * stays — against the fake back, which keeps nothing (`MockupNotice`) —; a creation adds no row: the
+ * page read anew lists the sub-project where the server retains it. What a write did is said in the
+ * region of the list; a refusal of a deletion is told above the list (`Reactivations`). An answer
+ * closes only the form or the confirmation it was sent from, never one opened since (#660, #672). A
+ * modification writes from the version its row had when it opened: the command that opens it waits,
+ * inactive and saying why, while a modification of that sub-project is under way — the dialog
+ * closed —, for the form to open on the version its answer brings (#661, #734).
+ *
+ * The commands of the reference data (`CommandedList`) are bound to its kinds of object: this list has
+ * its own, on the same pieces — the form, the command of a cell, the region of the refusals.
+ */
+"use client";
+
+import { PencilLine, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import {
+  createContext,
+  type MouseEvent,
+  type ReactNode,
+  useContext,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+
+import { deleteSubproject, writeSubproject } from "@/api/actions/projects";
+import { UnmetConditions } from "@/components/commands/command";
+import { useHeldCommand } from "@/components/commands/held";
+import { type CommandOffer, findOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
+import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
+import { ANOTHER_OBJECT } from "@/components/reference/commands";
+import { useListReport } from "@/components/reference/reactivation";
+import { ReferenceForm, required, WritingNote } from "@/components/reference/reference-form";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { functionHref, functionOf } from "@/navigation/functions";
+
+import { leadsToEstimate } from "./estimate-lead";
+import type { Subproject } from "./settings-grids";
+
+/** The longest code and label of a sub-project the contract takes. */
+const CODE_LENGTH = 50;
+const LABEL_LENGTH = 300;
+
+/** A command of a row pressed — its form or its confirmation —, and what opened it. */
+interface Opened {
+  readonly row: Subproject | undefined;
+  readonly trigger: HTMLElement;
+  /** Whether it is the deletion of the row, confirmed first, rather than its form. */
+  readonly deleting: boolean;
+  /** The how-many-th opening it is: what an answer closes, never a later one. */
+  readonly opening: number;
+}
+
+/** A link the region of the list offers after what it says: where to lift a condition. */
+interface Lead {
+  readonly href: string;
+  readonly text: string;
+}
+
+/** What the commands of the list hold: the project, what is open, the answers of the server. */
+interface Commands {
+  readonly project: string;
+  /**
+   * The estimate of the revision in progress filtered on a sub-project, where the lines of its main
+   * structure that bear it show; none when the session may not read it, or no revision is in
+   * progress.
+   */
+  readonly estimate: (subproject: string) => string | undefined;
+  readonly opened: Opened | undefined;
+  readonly said:
+    { readonly text: string; readonly count: number; readonly lead: Lead | undefined } | undefined;
+  readonly answers: ReadonlyMap<string, Subproject>;
+  readonly deleted: ReadonlySet<string>;
+  /** The sub-projects whose modification is under way: their command waits for the answer. */
+  readonly writing: ReadonlySet<string>;
+  readonly answer: (row: Subproject) => void;
+  /** Told that the modification of a sub-project leaves, then that it is answered. */
+  readonly write: (id: string, writing: boolean) => void;
+  readonly remove: (id: string) => void;
+  /** Say a sentence in the region of the list, and the link that follows it, if any. */
+  readonly say: (text: string, lead?: Lead) => void;
+  readonly open: (opened: Omit<Opened, "opening">) => void;
+  /** Close what is open; given an opening, only if it is still the one open. */
+  readonly close: (opening?: number) => void;
+}
+
+/** The commands of the list of the sub-projects; none outside it. */
+const SubprojectContext = createContext<Commands | undefined>(undefined);
+
+/**
+ * The rows of the page, each replaced by the answer of the server to its modification while the
+ * answer is newer than the row read, those whose deletion was answered left out.
+ */
+export function useSubprojectRows(rows: readonly Subproject[]): readonly Subproject[] {
+  const commands = useContext(SubprojectContext);
+  const answers = commands?.answers;
+  const deleted = commands?.deleted;
+  // The rows keep their identity while nothing is answered: a dialog opened reads nothing anew.
+  return useMemo(() => {
+    if (answers === undefined || deleted === undefined || answers.size + deleted.size === 0) {
+      return rows;
+    }
+    return rows
+      .filter((row) => !deleted.has(row.subproject_id))
+      .map((row) => {
+        const answer = answers.get(row.subproject_id);
+        return answer !== undefined && answer.lock_version > row.lock_version ? answer : row;
+      });
+  }, [rows, answers, deleted]);
+}
+
+/**
+ * The estimate of a revision filtered on a sub-project (`subproject_id`), as the navigation leads
+ * to it.
+ */
+function estimateOf(project: string, revision: string, subproject: string): string | undefined {
+  return functionHref(functionOf("estimate"), {
+    projectId: project,
+    revisionId: revision,
+    revisionInPath: true,
+    parameters: new URLSearchParams({ subproject_id: subproject }),
+  });
+}
+
+/** The commands of the sub-projects of a project, for the list they hold; none without a project. */
+export function SubprojectCommands({
+  project,
+  estimated,
+  children,
+}: {
+  readonly project: string | undefined;
+  /** The revision in progress whose estimate the session may read; none, no estimate is led to. */
+  readonly estimated?: string | undefined;
+  readonly children: ReactNode;
+}) {
+  const [opened, setOpened] = useState<Opened>();
+  // How many times a form or a confirmation was opened: what tells an opening from the next.
+  const openings = useRef(0);
+  const [said, setSaid] = useState<Commands["said"]>();
+  const [answers, setAnswers] = useState<ReadonlyMap<string, Subproject>>(() => new Map());
+  const [deleted, setDeleted] = useState<ReadonlySet<string>>(() => new Set());
+  const [writing, setWriting] = useState<ReadonlySet<string>>(() => new Set());
+  const commands = useMemo<Commands | undefined>(
+    () =>
+      project === undefined
+        ? undefined
+        : {
+            project,
+            estimate: (subproject) =>
+              estimated === undefined ? undefined : estimateOf(project, estimated, subproject),
+            opened,
+            said,
+            answers,
+            deleted,
+            writing,
+            answer: (row) => {
+              setAnswers((before) => {
+                const known = before.get(row.subproject_id);
+                return known !== undefined && known.lock_version >= row.lock_version
+                  ? before
+                  : new Map(before).set(row.subproject_id, row);
+              });
+            },
+            remove: (id) => {
+              setDeleted((before) => new Set(before).add(id));
+            },
+            write: (id, under) => {
+              setWriting((before) => {
+                const after = new Set(before);
+                if (under) {
+                  after.add(id);
+                } else {
+                  after.delete(id);
+                }
+                return after;
+              });
+            },
+            say: (text, lead) => {
+              setSaid((before) => ({ text, count: (before?.count ?? 0) + 1, lead }));
+            },
+            open: (next) => {
+              openings.current += 1;
+              setOpened({ ...next, opening: openings.current });
+            },
+            close: (opening) => {
+              setOpened((current) =>
+                opening === undefined || current?.opening === opening ? undefined : current,
+              );
+            },
+          },
+    [project, estimated, opened, said, answers, deleted, writing],
+  );
+  return <SubprojectContext value={commands}>{children}</SubprojectContext>;
+}
+
+/**
+ * Give the focus back to what opened a form or a confirmation: the cell of the command — the grid
+ * being one stop —, or the command; the list when the page read anew no longer holds it.
+ */
+function focusBack(trigger: HTMLElement, list: (() => void) | undefined) {
+  if (!trigger.isConnected) {
+    list?.();
+    return;
+  }
+  (trigger.hasAttribute(CELL_COMMAND) ? (trigger.closest("td") ?? trigger) : trigger).focus();
+}
+
+/**
+ * The head of the list: the region that says what the last write did — or what an unavailable
+ * deletion lacks —, rendered from the start so that a reader of the screen hears it; and the command
+ * that creates a sub-project, as the project lists `update`.
+ */
+export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undefined }) {
+  const t = useTranslations("projectLists.subprojects");
+  const commands = useContext(SubprojectContext);
+  const id = useId();
+  const said = commands?.said;
+  const unmet = offer === undefined ? undefined : unmetId(offer, id);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
+        {said === undefined ? null : (
+          <span key={said.count} className="inline-flex flex-wrap gap-x-1">
+            <span>{said.text}</span>
+            {said.lead === undefined ? null : (
+              <Link href={said.lead.href} className="font-medium text-foreground underline">
+                {said.lead.text}
+              </Link>
+            )}
+          </span>
+        )}
+      </p>
+      {offer === undefined ? null : (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-disabled={offer.is_available ? undefined : true}
+            aria-describedby={unmet}
+            className={UNAVAILABLE}
+            onClick={(event: MouseEvent<HTMLElement>) => {
+              if (offer.is_available) {
+                commands?.open({ row: undefined, trigger: event.currentTarget, deleting: false });
+              }
+            }}
+          >
+            <Plus aria-hidden="true" />
+            {t("create")}
+          </Button>
+          <UnmetConditions id={unmet} offer={offer} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A command of a row the row lists unavailable, with the conditions it lacks
+ * (`UnavailableCellCommand`): pressed, it says them in the region of the list, after the command
+ * named by the code of the row, and offers there the link that lifts one, if any.
+ */
+function UnavailableCommand({
+  name,
+  offer,
+  lead,
+  children,
+}: {
+  /** The accessible name of the command, which names the sub-project by its code. */
+  readonly name: string;
+  readonly offer: CommandOffer;
+  readonly lead?: Lead | undefined;
+  readonly children: ReactNode;
+}) {
+  const t = useTranslations("projectLists.subprojects");
+  const commands = useContext(SubprojectContext);
+  return (
+    <UnavailableCellCommand
+      name={name}
+      offer={offer}
+      onPress={(unmet) => {
+        commands?.say(t("unavailable", { command: name, unmet }), lead);
+      }}
+    >
+      {children}
+    </UnavailableCellCommand>
+  );
+}
+
+/**
+ * The command that opens the modification of a row, named after its code, as the row lists `update`:
+ * absent, nothing; unavailable, with the conditions it lacks; waiting, inactive and saying why, while
+ * a modification of the row is under way — its form would open on the version the answer replaces
+ * (#661, #734).
+ */
+export function ModifySubproject({ row }: { readonly row: Subproject }) {
+  const t = useTranslations("projectLists.subprojects");
+  const form = useTranslations("reference.form");
+  const commands = useContext(SubprojectContext);
+  const why = useId();
+  const offer = findOffer(row.available_commands, "update");
+  const name = t("modifyNamed", { code: row.code });
+  const writing = commands?.writing.has(row.subproject_id) === true;
+  const content = (
+    <>
+      <PencilLine aria-hidden="true" />
+      {t("modify")}
+    </>
+  );
+  if (offer === undefined) {
+    return null;
+  }
+  if (!offer.is_available) {
+    return (
+      <UnavailableCommand name={name} offer={offer}>
+        {content}
+      </UnavailableCommand>
+    );
+  }
+  return (
+    <>
+      <CellCommand
+        aria-label={name}
+        aria-disabled={writing ? true : undefined}
+        aria-busy={writing}
+        aria-describedby={writing ? why : undefined}
+        title={writing ? form("writing") : undefined}
+        className={UNAVAILABLE}
+        onClick={(event: MouseEvent<HTMLElement>) => {
+          if (!writing) {
+            commands?.open({ row, trigger: event.currentTarget, deleting: false });
+          }
+        }}
+      >
+        {content}
+      </CellCommand>
+      <WritingNote id={why} writing={writing} srOnly />
+    </>
+  );
+}
+
+/**
+ * The command that deletes a row, named after its code, as the row lists `delete`: absent, nothing;
+ * unavailable, with the conditions it lacks — a marked revision that cites it (§4.4.1), actual costs
+ * charged to it (WF-PRJ-0050), estimate lines of the revision in progress that bear it, which it
+ * leads to when they alone lack (EP-14/L42q), a terminal project; available, it opens its
+ * confirmation.
+ */
+export function DeleteSubproject({ row }: { readonly row: Subproject }) {
+  const t = useTranslations("projectLists.subprojects");
+  const commands = useContext(SubprojectContext);
+  const offer = findOffer(row.available_commands, "delete");
+  const name = t("deleteNamed", { code: row.code });
+  const content = (
+    <>
+      <Trash2 aria-hidden="true" />
+      {t("delete")}
+    </>
+  );
+  if (offer === undefined) {
+    return null;
+  }
+  if (!offer.is_available) {
+    const estimate = leadsToEstimate(offer.missing_conditions)
+      ? commands?.estimate(row.subproject_id)
+      : undefined;
+    return (
+      <UnavailableCommand
+        name={name}
+        offer={offer}
+        lead={
+          estimate === undefined
+            ? undefined
+            : { href: estimate, text: t("estimateLines", { code: row.code }) }
+        }
+      >
+        {content}
+      </UnavailableCommand>
+    );
+  }
+  return (
+    <CellCommand
+      aria-label={name}
+      onClick={(event: MouseEvent<HTMLElement>) => {
+        commands?.open({ row, trigger: event.currentTarget, deleting: true });
+      }}
+    >
+      {content}
+    </CellCommand>
+  );
+}
+
+/** The confirmation of the deletion of a sub-project, which asks the API once confirmed. */
+function DeleteConfirmation({
+  row,
+  opening,
+  commands,
+  closed,
+}: {
+  readonly row: Subproject;
+  /** The opening of the confirmation, which its answer closes alone. */
+  readonly opening: number;
+  readonly commands: Commands;
+  /** Give the focus back where the confirmation was opened from, once it has closed. */
+  readonly closed: () => void;
+}) {
+  const t = useTranslations("projectLists.subprojects");
+  const form = useTranslations("reference.form");
+  const list = useListReport();
+  // The list, which tells the refusal, holds the navigations while the deletion answers (#688).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
+  const [pending, startTransition] = useTransition();
+  const confirm = () => {
+    if (pending) {
+      return;
+    }
+    // The reading the deletion is confirmed on: its refusal is told on it alone.
+    const generation = list?.generation ?? 0;
+    startTransition(async () => {
+      const outcome = await held(deleteSubproject(commands.project, row.subproject_id));
+      if (outcome.kind === "done") {
+        commands.remove(row.subproject_id);
+        commands.say(t("deleted", { code: row.code }));
+      } else {
+        list?.report({
+          outcome,
+          generation,
+          names: { [row.subproject_id]: row.code },
+          target: `delete subproject ${row.subproject_id}`,
+        });
+      }
+      commands.close(opening);
+    });
+  };
+  return (
+    <DialogContent
+      aria-busy={pending}
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        closed();
+      }}
+    >
+      <DialogHeader>
+        <DialogTitle>{t("deleteTitle", { code: row.code })}</DialogTitle>
+        <DialogDescription>
+          {t("deleteHint", { code: row.code, label: row.label })}
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            commands.close();
+          }}
+        >
+          {form("cancel")}
+        </Button>
+        <Button type="button" aria-busy={pending} onClick={confirm}>
+          <Trash2 aria-hidden="true" />
+          {pending ? form("sending") : t("delete")}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+/**
+ * The form or the confirmation the list has open, rendered within the list, where a refusal answered
+ * once it is gone is told; nothing while none is open.
+ */
+export function SubprojectDialog() {
+  const t = useTranslations("projectLists.subprojects");
+  const columns = useTranslations("grid.columns");
+  const form = useTranslations("reference.form");
+  const commands = useContext(SubprojectContext);
+  const list = useListReport();
+  const opened = commands?.opened;
+  if (commands === undefined || opened === undefined) {
+    return null;
+  }
+  const { row, trigger, opening } = opened;
+  const close = () => {
+    commands.close();
+  };
+  const closed = () => {
+    focusBack(trigger, list?.refocus);
+  };
+  if (opened.deleting && row !== undefined) {
+    return (
+      <Dialog
+        key={opening}
+        open
+        onOpenChange={(opened) => {
+          if (!opened) {
+            close();
+          }
+        }}
+      >
+        <DeleteConfirmation row={row} opening={opening} commands={commands} closed={closed} />
+      </Dialog>
+    );
+  }
+  return (
+    <ReferenceForm<Subproject>
+      key={opening}
+      kind="subproject"
+      title={row === undefined ? t("createTitle") : t("modifyNamed", { code: row.code })}
+      hint={t("formHint")}
+      creating={row === undefined}
+      fields={[
+        required("code", columns("erpCode"), CODE_LENGTH),
+        required("label", columns("label"), LABEL_LENGTH),
+      ]}
+      initial={row === undefined ? {} : { code: row.code, label: row.label }}
+      ask={({ code = "", label = "" }) =>
+        writeSubproject(
+          commands.project,
+          row === undefined
+            ? { id: undefined, body: { code, label } }
+            : { id: row.subproject_id, body: { code, label, lock_version: row.lock_version } },
+        )
+      }
+      target={row === undefined ? undefined : `modify subproject ${row.subproject_id}`}
+      answering={(answer) =>
+        row !== undefined &&
+        answer.kind === "done" &&
+        answer.data.subproject_id !== row.subproject_id
+          ? ANOTHER_OBJECT
+          : answer
+      }
+      onWriting={
+        row === undefined
+          ? undefined
+          : (writing) => {
+              commands.write(row.subproject_id, writing);
+            }
+      }
+      onDone={(answer) => {
+        if (row !== undefined) {
+          commands.answer(answer);
+        }
+        commands.say(
+          form(row === undefined ? "created" : "saved", { name: answer.code, kind: "subproject" }),
+        );
+        commands.close(opening);
+      }}
+      onClose={close}
+      onClosed={closed}
+    />
+  );
+}

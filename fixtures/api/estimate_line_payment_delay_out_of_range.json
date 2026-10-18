@@ -1,0 +1,17 @@
+{
+  "summary": "Les « Borniers », payés un mois après leur travail, dont le délai de paiement est saisi à -30, un paiement d'avance : refusé, au-dessous du plus petit délai admis, 0, le champ désigné avec la borne franchie ; la ligne est inchangée (WF-DEV-0020, WF-IND-0100).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/payment_delay_days",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 0
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001093"
+  }
+}

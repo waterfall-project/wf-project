@@ -1,0 +1,24 @@
+{
+  "summary": "La planification enregistrée aujourd'hui avec aucune sauvegarde gardée sur la plateforme et quatre cents copies gardées sur l'emplacement de Lyon : refusée, la rétention de la plateforme au-dessous de la plus petite admise, une, celle de la copie au-dessus de la plus grande, trois cent soixante-cinq, chaque champ désigné avec la borne franchie ; rien n'est écrit (WF-ADM-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/retained_count",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 1
+        }
+      },
+      {
+        "pointer": "/external_copy/retained_count",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "maximum": 365
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001072"
+  }
+}

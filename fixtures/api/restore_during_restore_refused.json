@@ -1,0 +1,11 @@
+{
+  "summary": "Une seconde restauration de la plateforme, depuis la sauvegarde du 2 juin confirmée à 14 h 04 min 35 s, pendant que la restauration depuis celle de la nuit, mise en file à 14 h 04 min 30 s, s'exécute (task_restore_queued) : refusée, no_restore_running manquante ; rien n'est mis en file (WF-ADM-0160).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "no_restore_running"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001053"
+  }
+}

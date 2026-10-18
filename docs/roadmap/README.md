@@ -121,7 +121,8 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | livré | rien |
 | [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | livré | EP-01 |
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | livré | EP-01, EP-02 |
-| [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | à planifier | EP-02 |
+| [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | en cours | EP-02 |
+| [EP-15](EP-15-maquette-durcissement.md) | Maquette et contrat : durcissement après validation | à planifier | EP-14 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
@@ -146,7 +147,10 @@ le devis en EP-07, le reste à engager en EP-09 —, et EP-03 rend la plateforme
 sauvegardable dès le premier service, pour des démonstrations.
 
 EP-14 achève les écrans d'EP-02, fusionné dans `main` le 2026-10-09 pour qu'EP-03 démarre sans
-attendre : il avance en parallèle d'EP-03, sans toucher à son domaine.
+attendre : il avance en parallèle d'EP-03, sans toucher à son domaine. EP-15 suit la
+validation, par l'auteur, de la spécification 1.0, de la maquette et du contrat, faite après la
+fusion d'EP-03 puis d'EP-14 : il verrouille ce qu'EP-14 a reporté (décision de l'auteur du
+2026-10-11).
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
@@ -213,7 +217,8 @@ l'EPIC ne les recopie pas.
 ## Suivi sur GitHub
 
 Ce suivi vaut à partir d'EP-03 ; les issues d'EP-01 et d'EP-02 gardent leur forme, et leurs
-lots `[EP-nn/Ln]` leur titre, y compris ceux qu'EP-14 reprend d'EP-02.
+lots `[EP-nn/Ln]` leur titre. Les lots qu'EP-14 reprend d'EP-02 sont renommés `[EP-14/Ln]`, en
+gardant leur numéro, et rattachés à son issue (#599).
 
 L'état d'un EPIC se lit en ouvrant une seule issue, la sienne, et la hiérarchie des
 sous-issues suit le découpage :

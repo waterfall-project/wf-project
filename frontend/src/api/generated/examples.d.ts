@@ -21,7 +21,10 @@ export interface Examples {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
-    200: "backups" | "backups_beyond" | "backups_empty" | "backups_unverified";
+    200: "backups" | "backups_beyond" | "backups_by_size" | "backups_during_backup" | "backups_empty" | "backups_manual" | "backups_period" | "backups_reader" | "backups_retained" | "backups_unverified";
+  };
+  "GET /backups/{backup_id}": {
+    200: "backup" | "backup_pending";
   };
   "GET /external-backup-locations": {
     200: "external_backup_locations" | "external_backup_locations_none";
@@ -69,13 +72,16 @@ export interface Examples {
     200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_without_current_revision";
+    200: "project" | "project_completed" | "project_created" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_revision_opened" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
   };
   "GET /projects/{project_id}/contributors": {
     200: "contributors" | "contributors_by_name" | "contributors_inactive" | "contributors_search";
+  };
+  "GET /projects/{project_id}/contributors/suggestions": {
+    200: "contributor_suggestions" | "contributor_suggestions_empty";
   };
   "GET /projects/{project_id}/cost-imports": {
     200: "cost_imports" | "cost_imports_beyond" | "cost_imports_empty";
@@ -90,7 +96,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_remaining_analysed";
+    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_rejected" | "import_remaining_analysed";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked";
@@ -107,6 +113,9 @@ export interface Examples {
   "GET /projects/{project_id}/indicators/milestone-tracking": {
     200: "milestone_tracking" | "milestone_tracking_none";
   };
+  "GET /projects/{project_id}/next-state": {
+    200: "next_state" | "next_state_completed" | "next_state_created" | "next_state_pricing";
+  };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
@@ -120,16 +129,19 @@ export interface Examples {
     200: "comparison" | "comparison_identical";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
-    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader";
+    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader" | "revision_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update" | "rate_update_none";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures": {
-    200: "structures" | "structures_amendments";
+    200: "structures" | "structures_amendments" | "structures_without_tasks";
+  };
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
+    200: "structure_merge_report" | "structure_merge_report_refused";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_core" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
@@ -153,7 +165,7 @@ export interface Examples {
     200: "state_transitions" | "state_transitions_exited";
   };
   "GET /projects/{project_id}/subprojects": {
-    200: "subprojects" | "subprojects_by_label" | "subprojects_with_actual_costs";
+    200: "subprojects" | "subprojects_by_label" | "subprojects_completed" | "subprojects_with_actual_costs";
   };
   "GET /projects/{project_id}/timelines": {
     200: "timelines" | "timelines_empty";
@@ -186,7 +198,7 @@ export interface Examples {
     200: "org_nodes" | "org_nodes_reader" | "org_nodes_with_inactive";
   };
   "GET /reference/readiness": {
-    200: "reference_readiness" | "reference_readiness_incomplete";
+    200: "reference_readiness" | "reference_readiness_incomplete" | "reference_readiness_without_provision";
   };
   "GET /reference/resource-roles": {
     200: "resource_roles" | "resource_roles_bounded" | "resource_roles_reader";
@@ -201,7 +213,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_restore_backup_newer_version" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_outside_order_item" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
@@ -212,14 +224,23 @@ export interface Examples {
   "PATCH /access-roles/{access_role_id}": {
     200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
   };
+  "PATCH /backups/{backup_id}": {
+    200: "backup_released" | "backup_retained";
+  };
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";
+  };
+  "PATCH /projects/{project_id}": {
+    200: "project_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
     200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";
+  };
+  "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
+    200: "subproject_updated";
   };
   "PATCH /reference/calendars/{calendar_id}": {
     200: "calendar_updated";
@@ -231,10 +252,13 @@ export interface Examples {
     200: "cost_type_updated";
   };
   "PATCH /reference/org-nodes/{org_node_id}": {
-    200: "org_node_updated";
+    200: "org_node_renamed_under_inactive" | "org_node_updated";
   };
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
+  };
+  "PATCH /reference/settings": {
+    200: "reference_settings_matrix_updated" | "reference_settings_thresholds_updated";
   };
   "PATCH /users/{user_id}": {
     200: "user_renamed" | "user_renamed_deactivated";
@@ -249,7 +273,7 @@ export interface Examples {
     201: "chunked_upload";
   };
   "POST /chunked-uploads/{chunked_upload_id}/completion": {
-    201: "chunked_upload_completed";
+    201: "chunked_upload_completed" | "file_upload_external_backup";
   };
   "POST /external-backup-locations/{location_name}/test": {
     200: "external_backup_location_test_failed" | "external_backup_location_tested";
@@ -259,6 +283,9 @@ export interface Examples {
   };
   "POST /identity-syncs": {
     202: "identity_sync_queued";
+  };
+  "POST /projects": {
+    201: "project_created";
   };
   "POST /projects/{project_id}/exit": {
     200: "project_completed";
@@ -275,11 +302,20 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/mark": {
     202: "task_mark_queued" | "task_mark_relaunched";
   };
+  "POST /projects/{project_id}/revisions/{revision_id}/skeleton": {
+    201: "skeleton_generated";
+  };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
-    200: "paste_applied";
+    200: "paste_applied" | "paste_applied_partial";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_unknown_category";
+  };
+  "POST /projects/{project_id}/subprojects": {
+    201: "subproject_created";
+  };
+  "POST /projects/{project_id}/timelines": {
+    201: "timeline_created";
   };
   "POST /reference/calendars": {
     201: "calendar_created";
@@ -308,17 +344,26 @@ export interface Examples {
   "POST /users/{user_id}/password-link": {
     201: "password_setup_link";
   };
+  "PUT /backup-schedule": {
+    200: "backup_schedule_set";
+  };
   "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
     200: "chunked_upload_part";
   };
   "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
     200: "actual_cost_excluded" | "actual_cost_reinstated";
   };
+  "PUT /projects/{project_id}/contributors": {
+    200: "contributors_set";
+  };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining": {
     200: "remaining_reestimated";
+  };
+  "PUT /projects/{project_id}/work-breakdown": {
+    200: "work_breakdown_saved";
   };
   "PUT /reference/calendars/{calendar_id}/activation": {
     200: "calendar_deactivated";

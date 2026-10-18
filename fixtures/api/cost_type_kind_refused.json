@@ -1,10 +1,22 @@
 {
-  "summary": "Les débours passés en main-d'œuvre, refusé : la sous-traitance et le matériel électrique, catégories des débours, sont employés par le devis du projet témoin, et le type de la nature est figé, comme sa commande change_kind le disait ; rien n'est écrit (WF-REF-0030, WF-IHM-0090).",
+  "summary": "Les débours passés en main-d'œuvre, refusé : la sous-traitance et le matériel électrique, catégories des débours, sont employés par le devis du projet témoin, et le type de la nature est figé, comme sa commande change_kind le disait ; le refus nomme les deux catégories, qu'il faudrait d'abord rattacher à une autre nature hors main-d'œuvre ; rien n'est écrit (WF-REF-0030, WF-IHM-0090).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,
     "params": {
-      "missing_condition": "cost_type_unused"
+      "missing_condition": "cost_type_unused",
+      "cost_categories": [
+        {
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000401",
+          "code": "ACH-001",
+          "label": "Sous-traitance"
+        },
+        {
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "code": "ACH-002",
+          "label": "Matériel électrique"
+        }
+      ]
     },
     "correlation_id": "01926f3a-7c00-7000-8000-000000001037"
   }

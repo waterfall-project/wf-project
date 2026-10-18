@@ -8,7 +8,7 @@ librement dans le document.
 
 Les trente-six entrées de la passe du 2026-10-03 sont tranchées et intégrées ; leurs
 décisions se lisent dans l'historique Git de ce fichier (dernière version complète au
-commit d314a11). Cinq attendent leur tour.
+commit d314a11). Cinq attendent leur tour ; celle de #634 est intégrée (C-256).
 
 ## 1. Les formats Excel de l'annexe B
 

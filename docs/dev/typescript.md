@@ -128,12 +128,25 @@ jamais un, et un défaut se juge sous le nom qu'on lui donne.
 ### Accessibilité
 
 Un contrôle se trouve par son rôle et son nom accessible : un bouton est un `button`, un
-lien un `a`, une icône seule porte un nom. Tout se fait au clavier.
+lien un `a`, une icône seule porte un nom. Tout se fait au clavier : un lien ou un bouton ne sort
+de l'ordre du clavier (`tabIndex={-1}`) que dans un widget qui déplace lui-même le focus — une
+grille, un arbre, un menu, une barre d'outils. Le focus se voit : ce que Tab atteint prend, au
+focus, un contour ou un anneau qu'il ne porte pas sans lui, sur lui ou sur la boîte où il dessine
+son contenu, peint au-dessus de ce qu'il contient et que nulle boîte qui défile ne coupe. Une liste
+dont les cellules ne prennent pas le focus a la boîte où elle défile dans l'ordre du clavier, un
+groupe nommé comme elle, son focus un contour tracé à l'intérieur de son bord (`list` de `Table`,
+que `ListTable` et `TimelineTable` posent ; `scrollingList` pour une autre boîte, les valeurs d'une
+courbe) : plus large que sa boîte, elle défile alors aux flèches dans tous les navigateurs — Safari
+ne rend pas focalisable de lui-même un conteneur qui défile.
 
 *Pourquoi* : l'accessibilité minimale de la spécification (§3.6), et des parcours qui
 trouvent les éléments comme un utilisateur. *Contrôle* : les quelques règles `jsx-a11y`
-qu'active la configuration de Next.js ; les parcours de bout en bout, par `getByRole` ; le
-reste, la revue.
+qu'active la configuration de Next.js ; les parcours de bout en bout, par `getByRole` ; sur
+chaque écran de l'application, tel qu'il s'ouvre, `e2e/accessibility.spec.ts` (`make e2e`) : les
+règles d'axe pour WCAG A et AA, en clair et en sombre, les libellés et les descriptions, et le parcours
+au clavier, à 1366 et à 911 points (guide, « Un parcours de bout en bout ») ; `expectAccessible`
+dans les tests des composants, pour une partie des dialogues, des menus et des formulaires que le
+harnais n'ouvre pas (#782 pour le reste) ; le reste, la revue.
 
 ### Les tests
 
@@ -364,7 +377,14 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     jugée ligne à ligne, elle ramenait la récapitulative et les totaux à la première réponse. Le rendu ne change rien de ce que l'état tient : il pose une
     copie des réponses sur la relecture ; seuls les rappels changent celles qu'ils écrivent.
     `cell-writes.dom.test.tsx`, `answers.test.ts`, `rate-cells.test.ts` et `entry.dom.test.tsx`
-    relisent la page pendant l'écriture ; aucun outil ne le tient : la revue le cherche.
+    relisent la page pendant l'écriture ; aucun outil ne le tient : la revue le cherche. Une
+    exception est admise, et une seule : la liste des sauvegardes (`BackupCommands`) ajuste son état
+    pendant le rendu quand les sauvegardes lues changent, le motif que React admet pour un état tiré
+    d'une prop qui change. Une sauvegarde n'a pas de compteur, et le repli doit comparer chaque
+    relecture à la précédente, pas à celle du clic : le faire dans le rendu, sur une copie, laisserait
+    reparaître une réponse qu'une relecture intermédiaire a démentie (le marquage d'un autre, puis
+    sa démarque). L'état n'y change que lorsqu'une nouvelle lecture arrive, jamais d'un rendu à
+    l'autre de la même ; la limite du repli est dite en #588.
 23. **Test du front qui fait le travail de plusieurs.** Sous happy-dom et le React de développement,
     chaque touche, chaque clic sur une grille la rend à nouveau entière — près d'une centaine de
     millisecondes de calcul —, le premier contrôle d'axe d'un fichier coûte trois fois les suivants,
@@ -381,3 +401,34 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     que pour un parcours que son Vérif demande d'un seul tenant, la raison écrite au-dessus
     (`entry.dom.test.tsx`, la ligne de devis entière). Aucun outil ne le tient : la revue le cherche,
     et la durée de chaque test que rapporte Vitest le montre.
+24. **Réponse tardive appliquée à une autre ouverture d'un dialogue.** Deux cas, et deux remèdes.
+    Le premier : une écriture part d'un dialogue, l'utilisateur le ferme et en ouvre un autre — le
+    même rouvert, ou celui d'une autre ligne —, la réponse arrive et ferme le dialogue ouvert à ce
+    moment-là ; la saisie est perdue (#660, #672). Une réponse ne ferme que l'ouverture d'où elle est
+    partie : un compteur d'ouvertures (`useRef`), une `key` d'ouverture sur le dialogue, et une
+    fermeture qui compare l'ouverture d'origine à celle qui est ouverte (`SubprojectCommands`,
+    `ContributorCommands` ; gardé en garde-fou là où le second remède s'applique). La preuve :
+    `subproject-commands.dom.test.tsx` retient une modification, puis une suppression confirmée,
+    ferme, ouvre le formulaire d'un autre sous-projet et libère — il reste ouvert, sa saisie gardée.
+    Le second : un formulaire qui écrit depuis la version où il s'est ouvert, rouvert pendant que
+    l'écriture d'un dialogue fermé est en route, part de la version que sa propre réponse va
+    remplacer, et le serveur le refuse (412) (#661). La commande qui l'ouvre est inactive,
+    `aria-busy` et décrite par « Enregistrement en cours… », tant que l'écriture est en route —
+    `onWriting` de `ReferenceForm`, appelé au départ et dans un `finally` à la réponse, quelle
+    qu'elle soit (`settings-forms.tsx`, `project-form.tsx`, `backup-schedule.tsx` ; la modification
+    d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx`), ou
+    son pareil pour un dialogue qui n'est pas un formulaire du référentiel (la liste des
+    contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). La preuve, dans chacun de
+    `settings-forms.dom.test.tsx`, `project-form.dom.test.tsx` et `backup-schedule.dom.test.tsx` :
+    l'écriture retenue, le dialogue fermé, la commande a le focus, inactive, et un clic n'ouvre
+    rien ; libérée, la commande se lève et le formulaire rouvert écrit depuis la version de la
+    réponse — après un succès ; après un refus arrivé le dialogue fermé (les seuils refusés, le code
+    pris d'un projet, le dossier d'une planification), dit au-dessus de l'écran ; et après une action
+    serveur rejetée, l'API hors d'atteinte — chaque fois, la commande se lève et le dialogue se
+    rouvre ; dans `subproject-commands.dom.test.tsx` — la cellule de la commande ayant le focus et
+    la modification d'une autre ligne restant offerte, le formulaire rouvert écrivant depuis la
+    version de la réponse — et dans `contributor-commands.dom.test.tsx`, chacun par un `it.each` sur
+    un succès, un refus et une action rejetée, qui affirme ce que l'écran dit de la réponse — le
+    succès dans la région de la liste, le refus et l'API hors d'atteinte en alerte, l'action rejetée
+    n'ayant rien demandé —, puis la commande levée et le dialogue rouvert. Aucun outil ne le tient :
+    la revue le cherche.

@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import type { BarSeriesOption, LineSeriesOption } from "echarts/charts";
 import { getInstanceByDom } from "echarts/core";
@@ -92,9 +92,9 @@ function english(node: ReactNode) {
   );
 }
 
-/** The workload of the witness project, on the revision under way. */
-function workload() {
-  return english(<WorkloadChart workload={WORKLOAD} provenance={PROVENANCE} />);
+/** The workload of the witness project, on the revision under way, or a variant of it. */
+function workload(variant: (plan: WorkloadPlan) => WorkloadPlan = (plan) => plan) {
+  return english(<WorkloadChart workload={variant(WORKLOAD)} provenance={PROVENANCE} />);
 }
 
 /** The links the export clicked: the file the browser is asked to save. */
@@ -145,31 +145,32 @@ describe("the workload of a project", () => {
     expect(
       series.slice(0, 2).map((each) => (each as BarSeriesOption).itemStyle?.decal),
     ).toMatchObject([{ symbol: "circle" }, { symbol: "triangle" }]);
-    // What is left of the connection of the terminal blocks, in June after the calculation,
-    // then the wiring on site.
+    // What is left of the connection of the terminal blocks and of the drawn tasks under way, in
+    // June after the calculation, then the wiring on site and the tasks that follow.
     expect(series[0]?.data?.slice(0, 2)).toEqual([
-      ["2026-06-01T00:00:00Z", "12.5"],
-      ["2026-07-01T00:00:00Z", "22.44"],
+      ["2026-06-01T00:00:00Z", "1465.75"],
+      ["2026-07-01T00:00:00Z", "2622.38"],
     ]);
     // The bars alone: the capacity of each role, that of the whole installation, is in the table,
     // in regard of its load, never drawn — a line that would crush the bars (#375, option b).
     expect(series.map((each) => each.type)).toEqual(["bar", "bar", "bar"]);
-    // Its months on an axis in UTC, a tick on the first of each, June 2026 to February 2027.
+    // Its months on an axis in UTC, June 2026 to August 2029: a tick every six months over so
+    // long a range, from the first of 2026 to the first of 2030.
     expect(option.useUTC).toBe(true);
     // The instance gives back each of its components as a list.
     const [xAxis] = option.xAxis as { axisLabel: { customValues: number[] } }[];
     const ticks = xAxis?.axisLabel.customValues.map((tick) => new Date(tick).toISOString());
     expect([ticks?.at(0), ticks?.at(-1), ticks?.length]).toEqual([
-      "2026-06-01T00:00:00.000Z",
-      "2027-02-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+      "2030-01-01T00:00:00.000Z",
       9,
     ]);
   });
 
-  it("lists each month of each role, its capacity in regard of its load, and its zone by the one signal, a role without load said so — no ratio [WF-DEV-0070-A] [WF-IHM-0070-A]", async () => {
+  it("lists each month of each role, its capacity in regard of its load, and its zone by the one signal, a role without load said so — no ratio [WF-DEV-0070-A] [WF-IHM-0070-A]", () => {
     // La capacité de chaque rôle est affichée : in the table, against the load of each month; the
     // plan of a project presents no ratio of its load to it (#375, option b).
-    const { container } = workload();
+    workload();
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
       "Role",
       "Month",
@@ -180,17 +181,27 @@ describe("the workload of a project", () => {
     const rows = screen.getAllByRole("row").slice(1);
     const listed = rows.map((row) => row.textContent);
     expect(listed.slice(0, 2)).toEqual([
-      "Ingénieur électricienJune 202612.5658,654Nominal",
-      "Ingénieur électricienJuly 202622.44658,654Nominal",
+      "Ingénieur électricienJune 20261,465.75658,654Nominal",
+      "Ingénieur électricienJuly 20262,622.38658,654Nominal",
     ]);
-    expect(listed).toContain("Technicien de mise en serviceDecember 202676.55485,324Nominal");
+    expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.32485,324Nominal");
     expect(listed.slice(-2)).toEqual([
-      "Technicien de mise en serviceJanuary 20278485,324Nominal",
-      "Monteur câbleurNo load216,662.5",
+      "Monteur câbleurMarch 2028560.98216,662.5Nominal",
+      "Monteur câbleurApril 20289.14216,662.5Nominal",
     ]);
     expect(listed.join("")).not.toContain("%");
-    expect(listed).toHaveLength(7 + 7 + 1);
-    expect(within(container).getByText(/^Computed on/)).toBeInTheDocument();
+    expect(listed).toHaveLength(38 + 38 + 8);
+    expect(screen.getByText(/^Computed on/)).toBeInTheDocument();
+  });
+
+  it("lists the plan in a table a screen reader reads as such", async () => {
+    // The check of the axis on its own, on a window of the rows — three months of each role rather
+    // than the eighty-four of the example (docs/dev/typescript.md, defect 23): the rows are alike.
+    const { container } = workload((plan) => ({
+      ...plan,
+      roles: plan.roles.map((role) => ({ ...role, months: role.months.slice(0, 3) })),
+    }));
+    expect(screen.getAllByRole("row")).toHaveLength(1 + 3 * 3);
     await expectAccessible(container);
   });
 

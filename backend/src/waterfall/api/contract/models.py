@@ -35,10 +35,8 @@ class ErrorCode(StrEnum):
     LAST_ADMINISTRATOR = "LAST_ADMINISTRATOR"
     LAST_PROJECT_MANAGER = "LAST_PROJECT_MANAGER"
     ACCESS_ROLE_IN_USE = "ACCESS_ROLE_IN_USE"
-    HAS_ACTUAL_COSTS = "HAS_ACTUAL_COSTS"
     TASK_ALREADY_STARTED = "TASK_ALREADY_STARTED"
     TASK_COMPLETED = "TASK_COMPLETED"
-    WIN_PROBABILITY_FROZEN = "WIN_PROBABILITY_FROZEN"
     REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
     STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
     FILE_TOO_LARGE = "FILE_TOO_LARGE"
@@ -61,6 +59,7 @@ class ErrorCode(StrEnum):
     DATE_INVALID = "DATE_INVALID"
     UNKNOWN_COST_CATEGORY = "UNKNOWN_COST_CATEGORY"
     UNKNOWN_COST_TYPE = "UNKNOWN_COST_TYPE"
+    UNKNOWN_CALENDAR = "UNKNOWN_CALENDAR"
     UNKNOWN_RESOURCE_ROLE = "UNKNOWN_RESOURCE_ROLE"
     EMAIL_MISSING = "EMAIL_MISSING"
     UNKNOWN_ACCESS_ROLE = "UNKNOWN_ACCESS_ROLE"
@@ -69,17 +68,28 @@ class ErrorCode(StrEnum):
     UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
     UNKNOWN_TASK = "UNKNOWN_TASK"
     INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
+    ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
     UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
     BACKUP_FROM_NEWER_VERSION = "BACKUP_FROM_NEWER_VERSION"
     TASK_INTERRUPTED_BY_RESTORE = "TASK_INTERRUPTED_BY_RESTORE"
     PROVISION_CATEGORY_RESERVED = "PROVISION_CATEGORY_RESERVED"
+    PROVISION_CATEGORY_REQUIRED = "PROVISION_CATEGORY_REQUIRED"
     COMPLETION_DATE_REQUIRED = "COMPLETION_DATE_REQUIRED"
+    UNKNOWN_USER = "UNKNOWN_USER"
+    USER_INACTIVE = "USER_INACTIVE"
     UNKNOWN_EXTERNAL_BACKUP_LOCATION = "UNKNOWN_EXTERNAL_BACKUP_LOCATION"
     PATH_INVALID = "PATH_INVALID"
+    BOUNDS_NOT_ORDERED = "BOUNDS_NOT_ORDERED"
+    THRESHOLD_NOT_BELOW_WATCH = "THRESHOLD_NOT_BELOW_WATCH"
+    THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE = "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE"
     UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
     WORK_BREAKDOWN_ITEMS_EXCLUSIVE = "WORK_BREAKDOWN_ITEMS_EXCLUSIVE"
     WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED = "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED"
     WORK_PACKAGE_OUTSIDE_ORDER_ITEM = "WORK_PACKAGE_OUTSIDE_ORDER_ITEM"
+    WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY = "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY"
+    DUPLICATE_WORK_BREAKDOWN_ITEM = "DUPLICATE_WORK_BREAKDOWN_ITEM"
+    PROJECT_HORIZON_EXCEEDED = "PROJECT_HORIZON_EXCEEDED"
+    FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
     COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
@@ -112,7 +122,7 @@ class Problem(ContractModel):
     params: Annotated[
         Params | None,
         Field(
-            description="Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0170), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160)."
+            description="Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde hebdomadaire, au moins `1`, ou la largeur d'une colonne des préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au plus `24`, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` pour une écriture qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par leurs seuls identifiants, que la session d'une modification du référentiel peut nommer, lisant tous les rôles (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes (`resource_role_label`) ; `resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`, `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature, refusée (WF-IHM-0090) ; `cost_categories` quand `missing_condition` nomme `cost_type_unused` ou `cost_type_unrated` (`updateCostType`, WF-REF-0030) : toutes les catégories de la nature employées pour `cost_type_unused`, toutes celles qui portent un taux horaire pour `cost_type_unrated`, actives ou désactivées, chacune par son identifiant, son code et son libellé (`cost_category_id`, `code`, `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du même type (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) : les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`), l'auteur de la saisie consultant son projet ; `projects` pour une modification du référentiel qui produirait le même effet (`updateCalendar`, `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans identifiant ni tâche — « sans autre détail », l'auteur pouvant ne pas consulter le projet (WF-PLA-0010, WF-ADM-0110) ; `estimate_lines` pour la suppression d'un sous-projet que portent des lignes de devis de la révision en cours (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`, WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `order_item_task` et `work_package_tasks` pour une fusion qui sortirait la tâche d'un lot du sous-arbre de la tâche de son poste (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `mergeCostStructure`, WF-PLA-0170) : la tâche du poste et celles des lots qui en sortiraient, nœuds de la structure principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ; EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif (`ImportReport.refusals`) et le compte rendu préalable d'une fusion (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `conflicting_object_id` et `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170 ; EP-14/L42k) ; `order_item_task` et `work_package_tasks`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre, chacune par son nœud et son libellé (`node_id`, `label`), comme l'échec d'une fusion (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050), celui d'un nœud d'organisation (WF-REF-0070) et celui d'un rôle de ressource (WF-REF-0090) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160)."
         ),
     ] = None
     fields: Annotated[
@@ -475,7 +485,11 @@ type FiltersAdditionalProperty = Annotated[str, Field(max_length=500)]
 class GridPreferences(ContractModel):
     hidden_columns: Annotated[list[HiddenColumn] | None, Field(max_length=64)] = None
     column_widths: Annotated[
-        dict[constr(max_length=64), ColumnWidthsAdditionalProperty] | None, Field(max_length=64)
+        dict[constr(max_length=64), ColumnWidthsAdditionalProperty] | None,
+        Field(
+            description="La largeur de chaque colonne élargie, en points, par sa clé : au moins vingt, une largeur plus étroite étant refusée par 422, `VALUE_OUT_OF_RANGE` sur `/grids/<grille>/column_widths/<colonne>`, `fields[].params.minimum` à `20`.",
+            max_length=64,
+        ),
     ] = None
     sort: Sort | None = None
     filters: Annotated[
@@ -613,18 +627,32 @@ class CommandCondition(StrEnum):
     hourly_rates_set = "hourly_rates_set"
     no_background_task_running = "no_background_task_running"
     may_create_revision = "may_create_revision"
+    restored_subproject_exists = "restored_subproject_exists"
     risk_not_cited = "risk_not_cited"
     risk_not_occurred = "risk_not_occurred"
     risk_identified = "risk_identified"
+    active_provision_category = "active_provision_category"
     org_node_parent_active = "org_node_parent_active"
     org_node_active = "org_node_active"
     calendar_not_default = "calendar_not_default"
+    calendar_active = "calendar_active"
+    cost_type_active = "cost_type_active"
     cost_type_unused = "cost_type_unused"
+    cost_type_unrated = "cost_type_unrated"
+    cost_type_without_role = "cost_type_without_role"
     cost_category_unused = "cost_category_unused"
     cost_category_unrated = "cost_category_unrated"
-    cost_type_not_last_provision = "cost_type_not_last_provision"
-    cost_category_not_last_provision = "cost_category_not_last_provision"
+    cost_category_without_role = "cost_category_without_role"
     last_administrator = "last_administrator"
+    backup_verified = "backup_verified"
+    no_backup_running = "no_backup_running"
+    no_restore_running = "no_restore_running"
+    project_before_in_progress = "project_before_in_progress"
+    subproject_not_cited = "subproject_not_cited"
+    subproject_without_actual_costs = "subproject_without_actual_costs"
+    subproject_without_estimate_lines = "subproject_without_estimate_lines"
+    main_structure_without_tasks = "main_structure_without_tasks"
+    import_file_accepted = "import_file_accepted"
     is_local_account = "is_local_account"
     is_active_account = "is_active_account"
     is_deactivated_account = "is_deactivated_account"
@@ -830,26 +858,62 @@ class AccessRoleUpdate(AccessRoleWrite):
     lock_version: LockVersion
 
 
-class Verification(StrEnum):
+class BackupOrigin(StrEnum):
+    manual = "manual"
+    scheduled = "scheduled"
+
+
+class BackupVerification(StrEnum):
     pending = "pending"
     passed = "passed"
     failed = "failed"
+
+
+class BackupCommand(StrEnum):
+    retain = "retain"
+    release = "release"
+    download = "download"
+    restore = "restore"
+
+
+class BackupCommandAvailability(ContractModel):
+    command: BackupCommand
+    is_available: bool
+    missing_conditions: Annotated[
+        list[CommandCondition], Field(description="Vide lorsque la commande est disponible.")
+    ]
+
+
+class BackupCommands(RootModel[list[BackupCommandAvailability]]):
+    root: Annotated[
+        list[BackupCommandAvailability],
+        Field(
+            description="Commandes de la sauvegarde que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `BackupCommand` : au plus trois, celle qui change son marquage, le téléchargement et la restauration. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les sauvegardes sans pouvoir ni les modifier ni restaurer la plateforme (`backups.read` seule, WF-ADM-0100). Le front n'en déduit rien de l'état de la sauvegarde ni de la session : le serveur dit ce qui se peut.",
+            max_length=3,
+        ),
+    ]
 
 
 class Scope(StrEnum):
     database = "database"
 
 
-class Origin(StrEnum):
-    manual = "manual"
-    scheduled = "scheduled"
-
-
 class Backup(ContractModel):
     backup_id: Uuid
-    taken_at: Timestamp
-    size_bytes: Annotated[int, Field(ge=0)]
-    verification: Verification
+    taken_at: Annotated[
+        Timestamp,
+        Field(
+            description="L'instant où la sauvegarde a été prise ; c'est la date que la confirmation d'une restauration énonce (WF-ADM-0160), et l'ordre de la liste sans tri, les plus récentes d'abord."
+        ),
+    ]
+    size_bytes: Annotated[
+        int,
+        Field(
+            description="La taille du fichier, en octets, qui est la longueur de son téléchargement.",
+            ge=0,
+        ),
+    ]
+    verification: BackupVerification
     is_retained: Annotated[
         bool, Field(description="Marquée à conserver, elle échappe à la rotation (WF-ADM-0170).")
     ]
@@ -859,7 +923,8 @@ class Backup(ContractModel):
             description="Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du fournisseur d'identité (WF-ADM-0150), le journal d'audit de la première compris."
         ),
     ]
-    origin: Origin | None = None
+    origin: BackupOrigin
+    available_commands: BackupCommands
 
 
 class BackupRetain(ContractModel):
@@ -900,7 +965,7 @@ class BackupExternalCopy(ContractModel):
     retained_count: Annotated[
         int,
         Field(
-            description="Le nombre de copies gardées sur l'emplacement, au moins celui des sauvegardes gardées sur la plateforme (`BackupSchedule.retained_count`) : les sauvegardes sont conservées hors de la plateforme selon une rétention au moins égale (WF-EXP-0050). Un nombre moindre est refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/external_copy/retained_count`, `params.minimum` disant la rétention de la plateforme. Au-delà, la plus ancienne copie de ce dossier est supprimée ; le marquage à conserver ne vaut que pour les sauvegardes de la plateforme.",
+            description="Le nombre de copies gardées sur l'emplacement, au moins celui des sauvegardes gardées sur la plateforme (`BackupSchedule.retained_count`) : les sauvegardes sont conservées hors de la plateforme selon une rétention au moins égale (WF-EXP-0050). Un nombre moindre est refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/external_copy/retained_count`, `params.minimum` disant la rétention de la plateforme — `1` quand celle-ci est elle-même hors de ses bornes ; un nombre au-delà de 365, par le même motif, `params.maximum` à `365`. Au-delà du nombre gardé, la plus ancienne copie de ce dossier est supprimée ; le marquage à conserver ne vaut que pour les sauvegardes de la plateforme.",
             ge=1,
             le=365,
         ),
@@ -916,7 +981,7 @@ class Weekday(RootModel[int]):
     root: Annotated[
         int,
         Field(
-            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne.",
+            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la seule borne franchie.",
             ge=1,
             le=7,
         ),
@@ -936,10 +1001,17 @@ class BackupSchedule(ContractModel):
     weekday: Annotated[
         Weekday | None,
         Field(
-            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne."
+            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la seule borne franchie."
         ),
     ] = None
-    retained_count: Annotated[int, Field(ge=1, le=365)]
+    retained_count: Annotated[
+        int,
+        Field(
+            description="Le nombre de sauvegardes planifiées gardées sur la plateforme, de 1 à 365 : hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/retained_count`, `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie.",
+            ge=1,
+            le=365,
+        ),
+    ]
     external_copy: Annotated[
         BackupExternalCopy | None,
         Field(
@@ -1008,7 +1080,7 @@ class RestoreRequest1(ContractModel):
     acknowledged_backup_taken_at: Annotated[
         Timestamp,
         Field(
-            description="Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160)."
+            description="Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160) — `Backup.taken_at` pour une sauvegarde de la liste, `FileUpload.backup_taken_at` pour une sauvegarde déposée, la date que dit son manifeste, lue à l'achèvement du dépôt —, le même instant quelle que soit l'écriture de son fuseau. Une autre date est une confirmation qui ne nomme pas la sauvegarde qu'elle désigne, refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est mis en file."
         ),
     ]
     confirmed: Literal[True]
@@ -1025,7 +1097,7 @@ class RestoreRequest2(ContractModel):
     acknowledged_backup_taken_at: Annotated[
         Timestamp,
         Field(
-            description="Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160)."
+            description="Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160) — `Backup.taken_at` pour une sauvegarde de la liste, `FileUpload.backup_taken_at` pour une sauvegarde déposée, la date que dit son manifeste, lue à l'achèvement du dépôt —, le même instant quelle que soit l'écriture de son fuseau. Une autre date est une confirmation qui ne nomme pas la sauvegarde qu'elle désigne, refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est mis en file."
         ),
     ]
     confirmed: Literal[True]
@@ -1035,7 +1107,7 @@ class RestoreRequest(RootModel[RestoreRequest1 | RestoreRequest2]):
     root: Annotated[
         RestoreRequest1 | RestoreRequest2,
         Field(
-            description="Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130)."
+            description="Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit d'avance (`BackupCommand`) : vérifiée, aucune sauvegarde ni restauration en cours."
         ),
     ]
 
@@ -1240,12 +1312,18 @@ class AuditFacets(ContractModel):
 class MissingEnum(StrEnum):
     default_calendar_with_hours = "default_calendar_with_hours"
     active_cost_category = "active_cost_category"
+    active_provision_category = "active_provision_category"
     active_resource_role = "active_resource_role"
 
 
 class ReferenceReadiness(ContractModel):
     is_complete: bool
-    missing: list[MissingEnum]
+    missing: Annotated[
+        list[MissingEnum],
+        Field(
+            description="Les prérequis manquants, dans l'ordre de l'énumération, celui de WF-CYC-0120 : un calendrier par défaut actif dont au moins un jour de la semaine compte des heures travaillées (`default_calendar_with_hours`) ; une catégorie de main-d'œuvre active — une catégorie de coût active dont la nature relève de la main-d'œuvre (`active_cost_category`) ; une catégorie de coût active dont la nature est de type provision pour risques (`active_provision_category`), sans laquelle aucun risque ne peut être déclaré (EP-14/L42p, #579) ; un rôle de ressource actif (`active_resource_role`). Vide quand `is_complete` est vrai. Une installation neuve, dont la seule catégorie est celle des provisions pour risques, manque de la catégorie de main-d'œuvre et du rôle (Vérif de WF-CYC-0120)."
+        ),
+    ]
 
 
 class Decimal(RootModel[str]):
@@ -1268,8 +1346,22 @@ class Percent(RootModel[Decimal]):
 
 
 class RiskMatrixSettings(ContractModel):
-    probability_bounds: Annotated[list[Percent], Field(max_length=3, min_length=3)]
-    severity_bounds: Annotated[list[Percent], Field(max_length=3, min_length=3)]
+    probability_bounds: Annotated[
+        list[Percent],
+        Field(
+            description="Du plus bas au plus haut, strictement croissantes (WF-REF-0160) : une borne qui n'est pas supérieure à la précédente est refusée par 422 `VALIDATION_FAILED`, `fields` désignant son rang (`/risk_matrix/probability_bounds/<rang>`) par `BOUNDS_NOT_ORDERED`.",
+            max_length=3,
+            min_length=3,
+        ),
+    ]
+    severity_bounds: Annotated[
+        list[Percent],
+        Field(
+            description="Du plus bas au plus haut, strictement croissantes (WF-REF-0160), refusées de même par `BOUNDS_NOT_ORDERED` sur `/risk_matrix/severity_bounds/<rang>`.",
+            max_length=3,
+            min_length=3,
+        ),
+    ]
     zones: Annotated[
         list[AlertZone],
         Field(
@@ -1280,11 +1372,21 @@ class RiskMatrixSettings(ContractModel):
     ]
 
 
+class IndexThreshold(RootModel[Decimal]):
+    root: Annotated[
+        Decimal,
+        Field(
+            description="Un seuil d'un indice : une valeur de l'indice strictement entre 0 et 1 (WF-REF-0170), en décimal exact — `0.9`, `0.85`, `0.875` ; ni `0`, ni `1`. La forme se juge d'abord, la plage ensuite, chacune par sa contrainte : un seuil qui n'est pas un décimal (le motif de `Decimal` : `0,9`, `.5`, `abc`) est refusé par 422 `VALIDATION_FAILED`, `fields` le désignant (`/index_thresholds/<seuil>`) par `NUMBER_INVALID` ; un décimal hors de ]0, 1[, que le motif du seuil refuse (`0`, `1`, `1.5`, `-0.5`), par `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre : l'intervalle est ouvert, et n'a ni plus petite ni plus grande valeur admise à nommer. L'ordre des seuils (`THRESHOLD_NOT_BELOW_WATCH`) ne se juge qu'entre seuils dans ]0, 1[.",
+            pattern="^0+\\.\\d*[1-9]\\d*$",
+        ),
+    ]
+
+
 class IndexThresholds(ContractModel):
-    cost_watch: Decimal
-    cost_alert: Decimal
-    schedule_watch: Decimal
-    schedule_alert: Decimal
+    cost_watch: IndexThreshold
+    cost_alert: IndexThreshold
+    schedule_watch: IndexThreshold
+    schedule_alert: IndexThreshold
 
 
 class ReferenceSettings(ContractModel):
@@ -1303,10 +1405,16 @@ class ReferenceSettings(ContractModel):
 
 
 class ReferenceSettingsWrite(ContractModel):
-    default_language: Language | None = None
     risk_matrix: RiskMatrixSettings | None = None
     index_thresholds: IndexThresholds | None = None
-    max_weeks_between_reviews: Annotated[int | None, Field(ge=1, le=104)] = None
+    max_weeks_between_reviews: Annotated[
+        int | None,
+        Field(
+            description="De 1 à 104 semaines (WF-REF-0180) : un délai hors de ces bornes est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/max_weeks_between_reviews` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `1` ou `maximum` à `104`, la seule borne franchie.",
+            ge=1,
+            le=104,
+        ),
+    ] = None
     lock_version: LockVersion
 
 
@@ -1381,13 +1489,19 @@ class OrgNodeWrite(ContractModel):
     parent_id: Annotated[
         Uuid | None,
         Field(
-            description="Le parent du nœud, nul pour une racine. Un nœud actif ne se crée ni ne se déplace sous un nœud désactivé : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/parent_id`."
+            description="Le parent du nœud, absent ou nul à la création pour une racine ; exigé à la modification (`OrgNodeUpdate`), où la racine s'écrit `null` et un parent absent est refusé par `VALUE_REQUIRED`. Un nœud ne se crée ni ne se déplace que sous un nœud actif ou à la racine (WF-REF-0070) : aucun objet actif ne subsiste dans un service fermé (WF-REF-0080). Refusé par 422 sur `/parent_id` : un nœud que le référentiel n'a pas, `UNKNOWN_ORG_NODE` ; le nœud lui-même ou l'un de ses descendants, `ORG_NODE_CYCLE` ; un nœud désactivé, `INACTIVE_REFERENCE_OBJECT` — à la modification, seulement quand elle change le parent, jugé sur la valeur envoyée : un nœud désactivé qui garde son parent désactivé se modifie. Un seul motif, le premier dans cet ordre : inconnu, puis boucle, puis désactivé."
         ),
     ] = None
 
 
 class OrgNodeUpdate(OrgNodeWrite):
     lock_version: LockVersion
+    parent_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le parent envoyé, celui de `OrgNodeWrite`, ici exigé ; `null` pour une racine."
+        ),
+    ]
 
 
 class Hours(RootModel[Decimal]):
@@ -1401,6 +1515,15 @@ class RoleCapacity(ContractModel):
 
 class ResourceRoleImage(ContractModel):
     resource_role_id: Uuid
+    code: Annotated[
+        str,
+        Field(
+            description="Code du rôle, unique parmi les rôles, désactivés compris, comme celui d'un nœud : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0090).",
+            max_length=20,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     org_node_id: Uuid
     org_node_label: Annotated[
@@ -1444,19 +1567,31 @@ class ResourceRole(ResourceRoleImage, ReferenceObjectCommands):
 
 
 class ResourceRoleWrite(ContractModel):
+    code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     org_node_id: Annotated[
         Uuid,
         Field(
-            description="Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif, ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/org_node_id` (WF-REF-0080)."
+            description="Le nœud dont le rôle relève, fixé à sa création : un rôle ne se déplace pas d'un nœud à l'autre, il est recréé sous le nouveau (§3.4.4.2.1, WF-REF-0080). Un rôle, créé actif, ne naît pas sous un nœud désactivé : refusé par 422, `INACTIVE_REFERENCE_OBJECT` sur `/org_node_id` (WF-REF-0080) ; un nœud que le référentiel n'a pas, `UNKNOWN_ORG_NODE`."
         ),
     ]
-    cost_category_id: Uuid
-    calendar_id: Uuid
+    cost_category_id: Annotated[
+        Uuid,
+        Field(
+            description="Une catégorie dont la nature relève de la main-d'œuvre, active (WF-REF-0090) : refusée par 422 sur `/cost_category_id`, inconnue, `UNKNOWN_COST_CATEGORY`, hors main-d'œuvre, `LABOUR_CATEGORY_REQUIRED`, désactivée, `INACTIVE_REFERENCE_OBJECT`."
+        ),
+    ]
+    calendar_id: Annotated[
+        Uuid,
+        Field(
+            description="Un calendrier actif (WF-REF-0090) : refusé par 422 sur `/calendar_id`, inconnu, `UNKNOWN_CALENDAR`, désactivé, `INACTIVE_REFERENCE_OBJECT`."
+        ),
+    ]
     capacity: RoleCapacity
 
 
 class ResourceRoleUpdate(ContractModel):
+    code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
     cost_category_id: Uuid
     calendar_id: Uuid
@@ -1490,7 +1625,15 @@ class WeeklyHours(ContractModel):
 
 class CalendarImage(ContractModel):
     calendar_id: Uuid
-    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
+    label: Annotated[
+        str,
+        Field(
+            description="Libellé du calendrier, unique parmi les calendriers, désactivés compris : un libellé déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/label` (WF-REF-0110).",
+            max_length=200,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
     weekly_hours: WeeklyHours
     is_default: bool
     is_active: bool
@@ -1498,8 +1641,32 @@ class CalendarImage(ContractModel):
     lock_version: LockVersion
 
 
-class Calendar(CalendarImage, ReferenceObjectCommands):
-    pass
+class CalendarCommand(StrEnum):
+    deactivate = "deactivate"
+    reactivate = "reactivate"
+    set_default = "set_default"
+
+
+class CalendarCommandAvailability(ContractModel):
+    command: CalendarCommand
+    is_available: bool
+    missing_conditions: Annotated[
+        list[CommandCondition], Field(description="Vide lorsque la commande est disponible.")
+    ]
+
+
+class CalendarCommands(RootModel[list[CalendarCommandAvailability]]):
+    root: Annotated[
+        list[CalendarCommandAvailability],
+        Field(
+            description="Commandes du calendrier que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CalendarCommand` : au plus deux, celle qui change son état et, s'il n'est pas le calendrier par défaut, sa désignation par défaut. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les calendriers sans la permission de modifier les paramètres de ressources. Un appel envoyé malgré la liste est refusé par son code d'erreur, sauf la désignation du calendrier qui l'est déjà, non listée, qui répond 200 sans rien changer — la version contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée.",
+            max_length=2,
+        ),
+    ]
+
+
+class Calendar(CalendarImage):
+    available_commands: CalendarCommands
 
 
 class CalendarWrite(ContractModel):
@@ -1535,7 +1702,7 @@ class CostTypeCommands(RootModel[list[CostTypeCommandAvailability]]):
     root: Annotated[
         list[CostTypeCommandAvailability],
         Field(
-            description="Commandes de la nature que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostTypeCommand` : au plus deux, celle qui change son état et la modification de son type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est employée (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
+            description="Commandes de la nature que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostTypeCommand` : au plus deux, celle qui change son état et la modification de son type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les natures sans la permission de modifier les paramètres de coûts. Le front ne cherche pas si une catégorie de la nature est employée, porte un taux ou sert à un rôle (WF-ARC-0020) : la nature le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
             max_length=2,
         ),
     ]
@@ -1589,6 +1756,18 @@ class CostCategoryImage(ContractModel):
             min_length=1,
         ),
     ]
+    cost_type_kind: Annotated[
+        CostTypeKind,
+        Field(
+            description="Le type de la nature, résolu à la lecture comme son libellé : seule une catégorie de main-d'œuvre porte des taux (WF-REF-0050) et se rattache à un rôle (WF-REF-0090), et un formulaire ne propose qu'elles sans relire les natures (WF-ARC-0020)."
+        ),
+    ]
+    cost_type_is_active: Annotated[
+        bool,
+        Field(
+            description="Si la nature est active, résolu à la lecture comme son type. Une catégorie active l'est toujours sous une nature active, la désactivation d'une nature désactivant ses catégories (WF-REF-0010 ; EP-14/L42s, C-291) : faux, la catégorie est désactivée et sa réactivation indisponible tant que la nature l'est (`cost_type_active`)."
+        ),
+    ]
     accounting_code: Annotated[
         str,
         Field(
@@ -1620,7 +1799,7 @@ class CostCategoryCommands(RootModel[list[CostCategoryCommandAvailability]]):
     root: Annotated[
         list[CostCategoryCommandAvailability],
         Field(
-            description="Commandes de la catégorie que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostCategoryCommand` : au plus deux, celle qui change son état et le rattachement à une nature d'un autre type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est employée ni si elle porte des taux (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
+            description="Commandes de la catégorie que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `CostCategoryCommand` : au plus deux, celle qui change son état et le rattachement à une nature d'un autre type. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les catégories sans la permission de modifier les paramètres de coûts — un estimateur qui choisit la catégorie d'une ligne de devis (WF-DEV-0020). Le front ne cherche ni si la catégorie est employée, ni si elle porte des taux, ni si un rôle lui est rattaché (WF-ARC-0020) : la catégorie le dit. Un appel envoyé malgré la liste est refusé par son code d'erreur.",
             max_length=2,
         ),
     ]
@@ -1636,7 +1815,7 @@ class CostCategoryWrite(ContractModel):
     cost_type_id: Annotated[
         Uuid,
         Field(
-            description="La nature de la catégorie, qu'elle exige (WF-REF-0040) : absente ou nulle, elle est refusée par 422, `VALUE_REQUIRED` sur `/cost_type_id`. Une nature que le référentiel n'a pas est refusée par 422, `UNKNOWN_COST_TYPE` sur `/cost_type_id` ; une nature désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même, `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une nature d'un autre type est refusée par 409 quand la catégorie est employée ou porte des taux, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type, elle est toujours permise."
+            description="La nature de la catégorie, qu'elle exige (WF-REF-0040) : absente ou nulle, elle est refusée par 422, `VALUE_REQUIRED` sur `/cost_type_id`. Une nature que le référentiel n'a pas est refusée par 422, `UNKNOWN_COST_TYPE` sur `/cost_type_id` ; une nature désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même, `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une nature d'un autre type est refusée par 409 quand la catégorie est employée, porte des taux ou qu'un rôle lui est rattaché, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type, elle est toujours permise."
         ),
     ]
     accounting_code: Annotated[str, Field(max_length=20, min_length=1)]
@@ -1722,12 +1901,16 @@ class PlanningDate(RootModel[date_aliased]):
 
 class ProjectCommand(StrEnum):
     update = "update"
+    update_win_probability = "update_win_probability"
+    update_work_breakdown = "update_work_breakdown"
     manage_contributors = "manage_contributors"
+    manage_timelines = "manage_timelines"
     create_revision = "create_revision"
     complete = "complete"
     lose = "lose"
     abandon = "abandon"
     edit_risks = "edit_risks"
+    declare_risk = "declare_risk"
     declare_risk_occurrence = "declare_risk_occurrence"
     import_actual_costs = "import_actual_costs"
     exclude_cost_lines = "exclude_cost_lines"
@@ -1766,12 +1949,15 @@ class Project(ContractModel):
     ] = None
     state: ProjectState
     inflation_rate: Annotated[
-        Percent, Field(description="Taux d'inflation annuel, 0 par défaut (WF-PRJ-0040).")
+        Percent,
+        Field(
+            description="Taux d'inflation annuel, 0 par défaut, modifiable à tout moment (WF-PRJ-0040) : un rapport, de `0` à `1` inclus — `0.03` pour 3 % —, hors duquel `updateProject` refuse la valeur (`VALUE_OUT_OF_RANGE`)."
+        ),
     ]
     win_probability: Annotated[
         Percent,
         Field(
-            description="Probabilité de gain, 0 par défaut, figée à partir de En cours et sans effet sur aucun calcul du projet (WF-PRJ-0090)."
+            description="Probabilité de gain, 0 par défaut, sans effet sur aucun calcul du projet (WF-PRJ-0090) : un rapport, de `0` à `1` inclus, hors duquel `updateProject` refuse la valeur (`VALUE_OUT_OF_RANGE`). Modifiable aux états Créé et Chiffrage, figée à partir de En cours : la commande `update_win_probability` le dit d'avance, et la valeur envoyée malgré elle est refusée par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress`."
         ),
     ]
     order_received_on: PlanningDate | None = None
@@ -1813,8 +1999,15 @@ class ProjectUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
     description: str | None = None
     code: Code2 | None = None
-    inflation_rate: Percent | None = None
-    win_probability: Percent | None = None
+    inflation_rate: Annotated[
+        Percent | None, Field(description="De `0` à `1` inclus, un rapport (WF-PRJ-0040).")
+    ] = None
+    win_probability: Annotated[
+        Percent | None,
+        Field(
+            description="De `0` à `1` inclus, un rapport ; refusée dès En cours, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress` (WF-PRJ-0090). Absente, la valeur ne change pas."
+        ),
+    ] = None
     order_received_on: PlanningDate | None = None
     lock_version: LockVersion
 
@@ -1832,11 +2025,17 @@ class StateTransition(ContractModel):
     ]
 
 
+class LifecycleTrigger(StrEnum):
+    first_revision_created = "first_revision_created"
+    reference_designated_and_code_set = "reference_designated_and_code_set"
+
+
 class NextState(ContractModel):
     current_state: ProjectState
     next_state: ProjectState | None
     trigger: Annotated[
-        str | None, Field(description="Code du fait déclencheur, rendu par le front (WF-ARC-0110).")
+        LifecycleTrigger | None,
+        Field(description="Le fait qui mènera au prochain état, nul avec lui (WF-CYC-0050)."),
     ]
     missing_conditions: Annotated[
         list[CommandCondition],
@@ -1874,31 +2073,56 @@ class WorkBreakdownKind(StrEnum):
     deliverable = "deliverable"
 
 
-class Deliverable(ContractModel):
+class DeliverableReading(ContractModel):
     deliverable_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    label: Annotated[str, Field(max_length=300, min_length=1)]
+    is_match: bool
 
 
-class WorkPackage(ContractModel):
+class WorkPackageReading(ContractModel):
     work_package_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    deliverables: list[Deliverable]
+    label: Annotated[str, Field(max_length=300, min_length=1)]
+    is_match: bool
+    deliverables: list[DeliverableReading]
 
 
-class OrderItem(ContractModel):
+class OrderItemReading(ContractModel):
     order_item_id: Uuid
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    work_packages: list[WorkPackage]
+    label: Annotated[str, Field(max_length=300, min_length=1)]
+    is_match: Annotated[
+        bool,
+        Field(
+            description="Vrai quand les filtres de la lecture retiennent l'élément — il les satisfait tous, et toujours sans filtre —, faux quand il n'est rendu que parce qu'il contient un élément retenu : « dans une grille arborescente, le filtre laisse visibles les parents des lignes retenues » (WF-IHM-0060). « Le filtre s'applique aux totaux qu'elle présente » (WF-IHM-0130) : la grille ne compte que les éléments retenus — lue par `kinds=work_package`, celle du témoin compte un lot, et aucun poste (#574)."
+        ),
+    ]
+    work_packages: list[WorkPackageReading]
 
 
 class WorkBreakdownReading(ContractModel):
-    order_items: list[OrderItem]
+    order_items: list[OrderItemReading]
     lock_version: Annotated[
         LockVersion | None,
         Field(
             description="Le compteur du lotissement, que `setWorkBreakdown` exige, rendu par la seule lecture entière ; nul pour une lecture filtrée (`search` ou `kinds`), qui omet des éléments : la renvoyer telle quelle à `setWorkBreakdown` supprimerait ce qu'elle omet, et le compteur nul l'en empêche (422)."
         ),
     ]
+
+
+class Deliverable(ContractModel):
+    deliverable_id: Uuid | None = None
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+
+
+class WorkPackage(ContractModel):
+    work_package_id: Uuid | None = None
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    deliverables: list[Deliverable]
+
+
+class OrderItem(ContractModel):
+    order_item_id: Uuid | None = None
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    work_packages: list[WorkPackage]
 
 
 class WorkBreakdown(ContractModel):
@@ -1911,11 +2135,36 @@ class WorkBreakdown(ContractModel):
     ]
 
 
+class SubprojectCommand(StrEnum):
+    update = "update"
+    delete = "delete"
+
+
+class SubprojectCommandAvailability(ContractModel):
+    command: SubprojectCommand
+    is_available: bool
+    missing_conditions: Annotated[
+        list[CommandCondition], Field(description="Vide lorsque la commande est disponible.")
+    ]
+
+
 class Subproject(ContractModel):
     subproject_id: Uuid
     code: Annotated[str, Field(max_length=50, min_length=1, pattern="\\S")]
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    has_actual_costs: bool
+    has_actual_costs: Annotated[
+        bool,
+        Field(
+            description="Vrai dès qu'une ligne de coût réel lui est imputée, exclue du périmètre suivi ou non (WF-CRE-0020) : la création d'un sous-projet dont des lignes portaient déjà le code le rend vrai aussitôt."
+        ),
+    ]
+    available_commands: Annotated[
+        list[SubprojectCommandAvailability],
+        Field(
+            description="Commandes du sous-projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100), après les conditions propres au sous-projet, comme le projet liste les siennes (`project_completed`). Un appel envoyé malgré la liste est refusé par son code d'erreur.",
+            max_length=2,
+        ),
+    ]
     audit: Audit
     lock_version: LockVersion
 
@@ -1974,8 +2223,21 @@ class ContributorsWrite(ContractModel):
 class ContributorSuggestion(ContractModel):
     user_id: Uuid
     display_name: str
+    is_active: Annotated[
+        bool,
+        Field(
+            description="Toujours vrai : un compte désactivé n'est plus proposé (WF-ADM-0060), et l'inscrire serait refusé (`USER_INACTIVE`). Rendu, comme `Contributor.is_active`, pour que la proposition confirmée prenne place dans la liste telle quelle, sans que l'écran devine rien."
+        ),
+    ]
     org_node_id: Uuid
-    resource_role_ids: list[Uuid]
+    org_node_label: str
+    resource_role_ids: Annotated[list[Uuid], Field(min_length=1)]
+    resource_role_labels: Annotated[
+        list[str],
+        Field(
+            description="Les libellés des rôles, dans l'ordre de `resource_role_ids`.", min_length=1
+        ),
+    ]
 
 
 class Timeline(ContractModel):
@@ -2003,9 +2265,11 @@ class RevisionSnapshot(ContractModel):
 
 class RevisionCommand(StrEnum):
     edit_planning = "edit_planning"
+    generate_skeleton = "generate_skeleton"
     edit_estimate = "edit_estimate"
     edit_remaining = "edit_remaining"
     edit_risks = "edit_risks"
+    declare_risk = "declare_risk"
     create_structure = "create_structure"
     merge_structure = "merge_structure"
     mark = "mark"
@@ -2215,17 +2479,6 @@ class StructureCreate(ContractModel):
     risk_id: Uuid | None = None
 
 
-class StructureMerge(ContractModel):
-    confirmed: Literal[True]
-    version_name: Annotated[str, Field(max_length=100, min_length=1)]
-
-
-class TaskProgress(StrEnum):
-    not_started = "not_started"
-    started = "started"
-    completed = "completed"
-
-
 class NodeColumn(StrEnum):
     label = "label"
     description = "description"
@@ -2255,6 +2508,158 @@ class NodeColumn(StrEnum):
     previous_hours = "previous_hours"
     previous_unit_disbursement = "previous_unit_disbursement"
     previous_reestimated_amount = "previous_reestimated_amount"
+
+
+class ActualCostColumn1(StrEnum):
+    document_date = "document_date"
+    document_number = "document_number"
+    amount = "amount"
+    subproject = "subproject"
+
+
+class ActualCostColumn2(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.",
+            pattern="^passthrough\\..+$",
+        ),
+    ]
+
+
+class ActualCostColumn(RootModel[ActualCostColumn1 | ActualCostColumn2]):
+    root: Annotated[
+        ActualCostColumn1 | ActualCostColumn2,
+        Field(
+            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier."
+        ),
+    ]
+
+
+class Change1(StrEnum):
+    added = "added"
+    removed = "removed"
+    updated = "updated"
+    kept = "kept"
+
+
+class Target(StrEnum):
+    task = "task"
+    estimate_line = "estimate_line"
+    link = "link"
+    actual_cost_line = "actual_cost_line"
+
+
+class ImportDifference(ContractModel):
+    change: Annotated[
+        Change1,
+        Field(
+            description="Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`."
+        ),
+    ]
+    target: Target
+    lineage_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien."
+        ),
+    ] = None
+    label: Annotated[
+        str | None,
+        Field(
+            description="Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une autre ligne."
+        ),
+    ] = None
+    predecessor_label: Annotated[
+        str | None,
+        Field(
+            description="Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet."
+        ),
+    ] = None
+    work_breakdown_label: Annotated[
+        str | None,
+        Field(
+            description="Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du poste ou du lot qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le poste ou le lot qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k)."
+        ),
+    ] = None
+    fields: Annotated[
+        list[NodeColumn | ActualCostColumn] | None,
+        Field(
+            description="Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`."
+        ),
+    ] = None
+
+
+class ImportCompletedTask(ContractModel):
+    lineage_id: Uuid
+    label: str
+    completed_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué."
+        ),
+    ]
+
+
+class ReportRefusal(ContractModel):
+    code: ErrorCode
+    params: dict[str, Any] | None = None
+
+
+class StructureMergeReport(ContractModel):
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
+        ),
+    ]
+    amendment_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du différentiel lu (`CostStructure.lock_version`), de même."
+        ),
+    ]
+    differences: Annotated[
+        list[ImportDifference],
+        Field(
+            description="Les écarts du différentiel avec la structure principale, tâches, lignes de devis et liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée dans la structure principale."
+        ),
+    ]
+    completed_tasks: Annotated[
+        list[ImportCompletedTask],
+        Field(
+            description="Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur reste à engager à zéro (WF-REV-0050, WF-RAE-0040)."
+        ),
+    ]
+    refusals: Annotated[
+        list[ReportRefusal],
+        Field(
+            description="Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue (`ReportRefusal`). Vide quand la fusion s'applique."
+        ),
+    ]
+
+
+class StructureMerge(ContractModel):
+    confirmed: Literal[True]
+    version_name: Annotated[str, Field(max_length=100, min_length=1)]
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale que le compte rendu a lu (`StructureMergeReport.main_structure_lock_version`)."
+        ),
+    ]
+    amendment_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`)."
+        ),
+    ]
+
+
+class TaskProgress(StrEnum):
+    not_started = "not_started"
+    started = "started"
+    completed = "completed"
 
 
 class SchedulingMode(StrEnum):
@@ -2300,6 +2705,7 @@ class NotComputableReason(StrEnum):
     no_capacity = "no_capacity"
     no_offer_out_of_pricing = "no_offer_out_of_pricing"
     hourly_rate_missing = "hourly_rate_missing"
+    order_item_without_task = "order_item_without_task"
 
 
 class MissingRate(ContractModel):
@@ -2398,7 +2804,7 @@ class TaskFacet(ContractModel):
     physical_progress: Annotated[
         Computable | None,
         Field(
-            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
+            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
         ),
     ] = None
     base_amount: Annotated[
@@ -2461,7 +2867,7 @@ class PaymentDelayDays(RootModel[int]):
     root: Annotated[
         int,
         Field(
-            description="Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne quand elle présente les décaissements (WF-IND-0100).",
+            description="Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne quand elle présente les décaissements (WF-IND-0100). Nul pour une ligne de provision, qui n'en porte pas et reste à la date de la tâche qui la porte (WF-DEV-0020, WF-IND-0100 ; EP-14/L42s).",
             ge=0,
         ),
     ]
@@ -2495,7 +2901,7 @@ class EstimateLineFacet(ContractModel):
     payment_delay_days: Annotated[
         PaymentDelayDays | None,
         Field(
-            description="Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne quand elle présente les décaissements (WF-IND-0100)."
+            description="Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne quand elle présente les décaissements (WF-IND-0100). Nul pour une ligne de provision, qui n'en porte pas et reste à la date de la tâche qui la porte (WF-DEV-0020, WF-IND-0100 ; EP-14/L42s)."
         ),
     ] = None
     subproject_id: Annotated[
@@ -2626,6 +3032,7 @@ class ComputedField(StrEnum):
     estimate_line_quantity = "estimate_line.quantity"
     estimate_line_hours = "estimate_line.hours"
     estimate_line_unit_disbursement = "estimate_line.unit_disbursement"
+    estimate_line_subproject_id = "estimate_line.subproject_id"
 
 
 class EditableField(StrEnum):
@@ -2668,13 +3075,13 @@ class Node(ContractModel):
     computed_fields: Annotated[
         list[ComputedField],
         Field(
-            description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision. Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
+            description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
         ),
     ]
     editable_fields: Annotated[
         list[EditableField],
         Field(
-            description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
+            description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
         ),
     ]
     lock_version: LockVersion
@@ -2788,7 +3195,7 @@ class NodesWritten(ContractModel):
     ancestors: Annotated[
         list[Node],
         Field(
-            description="Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`) — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent."
+            description="Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent."
         ),
     ]
     rescheduled: Annotated[
@@ -2831,6 +3238,7 @@ class ComputedValueField(StrEnum):
     estimate_line_quantity = "estimate_line.quantity"
     estimate_line_hours = "estimate_line.hours"
     estimate_line_unit_disbursement = "estimate_line.unit_disbursement"
+    estimate_line_subproject_id = "estimate_line.subproject_id"
     estimate_line_base_amount = "estimate_line.base_amount"
     estimate_line_budgeted_amount = "estimate_line.budgeted_amount"
     estimate_line_reestimated_amount = "estimate_line.reestimated_amount"
@@ -2902,7 +3310,12 @@ class EstimateLineUpdate(ContractModel):
     hours: Hours | None = None
     unit_disbursement: Money | None = None
     payment_delay_days: PaymentDelayDays1 | None = None
-    subproject_id: Uuid | None = None
+    subproject_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le sous-projet de la ligne, ou `null` pour la passer hors sous-projet. Celui d'une ligne de provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par 422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même."
+        ),
+    ] = None
     lock_version: LockVersion
 
 
@@ -2956,7 +3369,7 @@ class PastePreview(ContractModel):
     rows: Annotated[list[list[str]], Field(min_length=1)]
 
 
-class RejectedItem(ContractModel):
+class PasteRejection(ContractModel):
     row: Annotated[int, Field(description="La ligne du bloc refusée, comptée de zéro.", ge=0)]
     column: Annotated[
         NodeColumn | None,
@@ -2970,8 +3383,15 @@ class RejectedItem(ContractModel):
 
 class PastePlan(ContractModel):
     paste_id: Uuid
-    accepted: Annotated[int, Field(ge=0)]
-    rejected: list[RejectedItem]
+    accepted: Annotated[
+        int, Field(description="Le nombre de lignes du bloc que la confirmation écrira.", ge=0)
+    ]
+    rejected: Annotated[
+        list[PasteRejection],
+        Field(
+            description="Les refus, dans l'ordre des lignes du bloc puis des colonnes ; une ligne refusée par plusieurs cellules y paraît pour chacune."
+        ),
+    ]
 
 
 class PasteApply(ContractModel):
@@ -2979,6 +3399,15 @@ class PasteApply(ContractModel):
     confirmed: Literal[True]
     lock_version: Annotated[
         LockVersion, Field(description="Le compteur de la structure lue, que le collage écrit.")
+    ]
+
+
+class PasteApplied(NodesWritten):
+    rejected: Annotated[
+        list[PasteRejection],
+        Field(
+            description="Les refus de l'aperçu et ceux que la confirmation y ajoute en jugeant de nouveau les lignes acceptées, aucun écrit, dans l'ordre des lignes du bloc ; vide quand toutes les lignes du bloc sont écrites."
+        ),
     ]
 
 
@@ -3037,7 +3466,12 @@ class ComputableAmountByKey(ContractModel):
     key: str
     label: str | None = None
     amount: ComputableMoney
-    share: Computable | None = None
+    share: Annotated[
+        Computable | None,
+        Field(
+            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des postes non (README, « Une part… »)."
+        ),
+    ] = None
 
 
 class EstimateIndicators(ContractModel):
@@ -3046,9 +3480,10 @@ class EstimateIndicators(ContractModel):
     by_cost_type: list[ComputableAmountByKey]
     by_subproject: list[ComputableAmountByKey]
     by_order_item: Annotated[
-        list[ComputableAmountByKey] | None,
+        list[ComputableAmountByKey],
         Field(
-            description="Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche, récapitulative ou feuille, qui porte chacun — le total de son sous-arbre (WF-PLA-0170) ; nul quand le planning n'est pas structuré en postes — absents plutôt que nuls (WF-DEV-0060)."
+            description="Chaque poste du lotissement (WF-PRJ-0020), dans l'ordre saisi, et son total, lu à travers la tâche, récapitulative ou feuille, qui le porte — le total de son sous-arbre (WF-PLA-0170). « Un poste sans tâche rattachée est présenté sans total » (WF-DEV-0060) : son montant et sa part ne se calculent pas, motif `order_item_without_task` — absents plutôt que nuls, comme le veut le Vérif. Jamais vide : un projet sans lotissement saisi en a un par défaut, d'un poste (EP-14/L42s). Les indicateurs conservés d'une révision marquée rendent les postes de son marquage, tels qu'elle les a figés (WF-DAT-0040), un poste marqué supprimé depuis compris (WF-DAT-0080).",
+            min_length=1,
         ),
     ]
     provisions_identified: Money | None = None
@@ -3141,7 +3576,12 @@ class AmountByKey(ContractModel):
     key: str
     label: str | None = None
     amount: Money
-    share: Percent | None = None
+    share: Annotated[
+        Decimal | None,
+        Field(
+            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`)."
+        ),
+    ] = None
 
 
 class SubprojectBalance(ContractModel):
@@ -3248,7 +3688,7 @@ class ProjectIndicators(ContractModel):
     financial_progress: Annotated[
         Computable | None,
         Field(
-            description="Rapport du coût réel à la somme du coût réel et du reste à engager ; non calculable lorsque les deux sont nuls (WF-IND-0040)."
+            description="Rapport du coût réel à la somme du coût réel et du reste à engager ; non calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la consommation du budget et l'avancement physique (README, « Une part… »)."
         ),
     ] = None
     budget_consumption: Computable | None = None
@@ -3413,6 +3853,7 @@ class RiskComputedField(ContractModel):
 
 class RiskCommand(StrEnum):
     update = "update"
+    update_provision = "update_provision"
     review = "review"
     declare_occurrence = "declare_occurrence"
     delete = "delete"
@@ -3450,6 +3891,36 @@ class Risk(ContractModel):
         Uuid | None,
         Field(description="Ligne de provision portée par la structure principale (WF-RIS-0010)."),
     ] = None
+    provision_cost_category_id: Annotated[
+        Uuid,
+        Field(
+            description="La catégorie de type provision pour risques que le risque a désignée pour sa provision — à sa déclaration, ou depuis, tant qu'il était identifié —, que porte sa ligne de provision tant qu'il est identifié (WF-RIS-0010, WF-REF-0030). Un risque écarté la garde : redevenu identifié, sa ligne la reprend si elle est encore active, et sinon la catégorie est demandée comme à la déclaration (`RiskReviewWrite.provision_cost_category_id`), ce que `provision_cost_category_is_active` dit d'avance."
+        ),
+    ]
+    provision_cost_category_label: Annotated[
+        str,
+        Field(
+            description="Le libellé de cette catégorie, résolu à la lecture, active ou désactivée, que le registre et le formulaire présentent sans lire le référentiel (WF-ARC-0020, WF-REF-0150)."
+        ),
+    ]
+    provision_cost_category_is_active: Annotated[
+        bool,
+        Field(
+            description="Calculé à la lecture : vrai quand cette catégorie est active — sa nature l'est alors aussi, la désactivation d'une nature désactivant ses catégories (WF-REF-0010 ; EP-14/L42s, C-291). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit, sans comparer la catégorie aux listes du référentiel."
+        ),
+    ]
+    provision_subproject_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le sous-projet que le risque a désigné, facultativement, pour sa provision, et auquel appartient sa ligne de provision ; nul, elle compte dans l'ensemble « hors sous-projet » (WF-RIS-0010, WF-RAE-0020, WF-IND-0020). La suppression du sous-projet passe à nul la désignation de tout risque qui n'est pas identifié : redevenu identifié, sa provision compte hors sous-projet — l'auteur l'a tranché le 2026-10-10 (décision de l'auteur, #732). Le risque touché voit alors son `lock_version` avancer et son audit nommer l'auteur de la suppression (WF-DAT-0070, WF-IHM-0110)."
+        ),
+    ]
+    provision_subproject_label: Annotated[
+        str | None,
+        Field(
+            description="Le libellé de ce sous-projet, résolu à la lecture ; nul pour une provision hors sous-projet."
+        ),
+    ]
     matrix_cell: RiskMatrixCell | None = None
     last_review_on: PlanningDate | None = None
     computed_fields: Annotated[
@@ -3483,6 +3954,18 @@ class RiskWrite(ContractModel):
     description: str | None = None
     mitigation_notes: str | None = None
     probability: Percent
+    provision_cost_category_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La catégorie que porte la ligne de provision (WF-RIS-0010, WF-REF-0030). Omise à la déclaration, elle est la seule catégorie active de type provision pour risques ; omise quand il en existe plusieurs, elle est refusée par 422, `VALUE_REQUIRED` ; inconnue, `UNKNOWN_COST_CATEGORY` ; désactivée, ce qu'est toute catégorie d'une nature désactivée, `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010, C-291) ; d'une nature d'un autre type, `PROVISION_CATEGORY_REQUIRED`. À la modification, omise, elle reste celle du risque ; `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée, comme le parent d'un nœud ou la catégorie d'un rôle (`updateOrgNode`, `updateResourceRole`) ; une autre, envoyée pour un risque qui n'est pas identifié, est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit d'avance."
+        ),
+    ] = None
+    provision_subproject_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le sous-projet auquel appartient la ligne de provision, facultatif ; nul ou omis à la déclaration, elle compte hors sous-projet (WF-RIS-0010, WF-RAE-0020). Un sous-projet que le projet n'a pas est refusé par 422, `UNKNOWN_SUBPROJECT`. À la modification, omis, il reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé pour un risque qui n'est pas identifié, est refusé comme la catégorie, par `risk_identified`."
+        ),
+    ] = None
 
 
 class RiskUpdate(RiskWrite):
@@ -3505,6 +3988,12 @@ class State(StrEnum):
 class RiskReviewWrite(ContractModel):
     probability: Percent
     state: State
+    provision_cost_category_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La catégorie de la provision d'un risque écarté qui redevient identifié, quand celle qu'il désignait n'est plus active (`Risk.provision_cost_category_is_active` faux) : omise, elle est la seule catégorie active de type provision pour risques, et refusée par 422, `VALUE_REQUIRED`, quand il en existe plusieurs ; les autres refus sont ceux de la déclaration (`RiskWrite`). Ignorée quand la catégorie désignée est encore active, ou quand le risque ne redevient pas identifié."
+        ),
+    ] = None
     lock_version: LockVersion
 
 
@@ -3654,9 +4143,9 @@ class FileUpload(ContractModel):
     backup_taken_at: Annotated[
         Timestamp | None,
         Field(
-            description="La date de la sauvegarde déposée, que son manifeste dit en tête de l'archive, lue à l'achèvement (`completeChunkedUpload`), qui refuse une archive qui n'en dit pas. La confirmation de la restauration la nomme (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160). Présente pour un dépôt dont `purpose` est `external_backup` seulement (#1006)."
+            description="D'une sauvegarde déposée pour une restauration (`external_backup`), la date que son manifeste dit en tête de l'archive, lue à l'achèvement du dépôt par morceaux (`completeChunkedUpload`), qui refuse une archive qui n'en dit pas (#1006) : celle de la sauvegarde dont elle est la copie (`Backup.taken_at`), la date que la confirmation de la restauration énonce et que `RestoreRequest.acknowledged_backup_taken_at` doit répéter (WF-ADM-0160). Jamais nulle pour une sauvegarde. Nulle pour le fichier d'un import (`uploadFile`), qui n'a pas de date de sauvegarde."
         ),
-    ] = None
+    ]
 
 
 class ChunkedUploadOpen(ContractModel):
@@ -3727,80 +4216,6 @@ class ImportRejection(ContractModel):
     params: dict[str, Any] | None = None
 
 
-class ActualCostColumn1(StrEnum):
-    document_date = "document_date"
-    document_number = "document_number"
-    amount = "amount"
-    subproject = "subproject"
-
-
-class ActualCostColumn2(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.",
-            pattern="^passthrough\\..+$",
-        ),
-    ]
-
-
-class ActualCostColumn(RootModel[ActualCostColumn1 | ActualCostColumn2]):
-    root: Annotated[
-        ActualCostColumn1 | ActualCostColumn2,
-        Field(
-            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier."
-        ),
-    ]
-
-
-class Change1(StrEnum):
-    added = "added"
-    removed = "removed"
-    updated = "updated"
-    kept = "kept"
-
-
-class Target(StrEnum):
-    task = "task"
-    estimate_line = "estimate_line"
-    link = "link"
-    actual_cost_line = "actual_cost_line"
-
-
-class ImportDifference(ContractModel):
-    change: Annotated[
-        Change1,
-        Field(
-            description="Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100). Un `kept` n'a pas de `fields`."
-        ),
-    ]
-    target: Target
-    lineage_id: Annotated[
-        Uuid | None,
-        Field(
-            description="La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien."
-        ),
-    ] = None
-    label: Annotated[
-        str | None,
-        Field(
-            description="Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une autre ligne."
-        ),
-    ] = None
-    predecessor_label: Annotated[
-        str | None,
-        Field(
-            description="Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet."
-        ),
-    ] = None
-    fields: Annotated[
-        list[NodeColumn | ActualCostColumn] | None,
-        Field(
-            description="Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`."
-        ),
-    ] = None
-
-
 class ImportIgnoredKind(StrEnum):
     resources = "resources"
     calendars = "calendars"
@@ -3819,17 +4234,6 @@ class ImportIgnored(ContractModel):
         list[str],
         Field(
             description="Leurs noms, dans l'ordre du fichier, quand ils en ont — le nom d'une ressource ou d'un calendrier, le libellé d'une tâche à contrainte de date ; vide pour ce qui ne se nomme pas, l'avancement ou les coûts. Jamais plus de `count`."
-        ),
-    ]
-
-
-class ImportCompletedTask(ContractModel):
-    lineage_id: Uuid
-    label: str
-    completed_on: Annotated[
-        PlanningDate | None,
-        Field(
-            description="Le jour de l'application de l'import, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import n'est pas appliqué."
         ),
     ]
 
@@ -3857,7 +4261,18 @@ class RequiresConfirmationReason(StrEnum):
 class ImportReport(ContractModel):
     format_version: str | None = None
     read_count: Annotated[int, Field(ge=0)]
-    rejected: list[ImportRejection]
+    rejected: Annotated[
+        list[ImportRejection],
+        Field(
+            description="Les lignes rejetées, chacune avec son motif ; les autres s'appliquent (WF-INTF-0080)."
+        ),
+    ]
+    refusals: Annotated[
+        list[ReportRefusal],
+        Field(
+            description="Les motifs qui rejettent le fichier entier, au lieu d'une ligne (`ReportRefusal`) : un planning MS Project qui déplacerait la tâche d'un lot hors du sous-arbre de la tâche de son poste — sur la structure principale, seule à porter des rattachements —, « rejeté au compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon » (WF-INTF-0040, WF-PLA-0170), et un planning qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). Vide quand le fichier s'applique (EP-14/L42s)."
+        ),
+    ]
     differences: list[ImportDifference]
     ignored: Annotated[
         list[ImportIgnored],
@@ -4027,7 +4442,9 @@ class PortfolioValue(ContractModel):
     pipeline_gross: Money
     pipeline_weighted: Money
     delivered: Money
-    conversion_rate: Computable
+    conversion_rate: Annotated[
+        Computable, Field(description="À quatre décimales (README, « Une part… »).")
+    ]
 
 
 class Month1(RootModel[str]):
@@ -4037,7 +4454,10 @@ class Month1(RootModel[str]):
 class Month2(ContractModel):
     month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
     hours: Hours
-    load_ratio: Computable
+    load_ratio: Annotated[
+        Computable,
+        Field(description="La charge sur la capacité, à quatre décimales (README, « Une part… »)."),
+    ]
     zone: AlertZone | None = None
 
 

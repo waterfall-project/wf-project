@@ -137,6 +137,15 @@ def test_the_declaration_of_the_repository_reads() -> None:
     assert declaration.is_test("tools/tests/test_paths.py")
 
 
+def test_the_kit_of_the_tests_of_the_front_is_a_test_of_the_front() -> None:
+    # Its fake client, its fixtures and its harness serve the tests alone: the size of a lot counts
+    # them as tests, not as production (#765), as the coverage of the code leaves them out.
+    declaration = paths.read()
+    assert declaration.test_family("frontend/src/test/paste-grid.tsx") == "front"
+    assert declaration.test_family("frontend/src/test/fixtures.ts") == "front"
+    assert declaration.test_family("frontend/src/components/grid/paste-dialog.tsx") is None
+
+
 def test_an_excepted_path_is_named_with_its_reason() -> None:
     declaration = paths.parse('[[exceptions]]\npaths = ["legacy/**"]\nreason = "until #1"\n')
     assert declaration.is_excepted("legacy/old.py")

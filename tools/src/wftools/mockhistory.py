@@ -8,8 +8,8 @@ entry opens the revision 101 (WF-RIS-0020); the amendment 1 merged into it on 1 
 marks it and makes it the reference (WF-REV-0050); the review of the risk 751 the next day, which
 opens the current revision 102; the occurrence of the risk 752 on 20 February, merged into 102 —
 it marks no revision and leaves the reference where it is (WF-RIS-0060). Here the two marked
-revisions are described from the core, as they were marked, and what the examples say of them is
-read from those descriptions:
+revisions are described from the whole structure of the witness, its core first, as they were marked
+(EP-14/L45a), and what the examples say of them is read from those descriptions:
 
 - the comparison of the offer and the reference (``comparison``), the difference of the two
   structures by lineage (WF-REV-0080);
@@ -17,7 +17,8 @@ read from those descriptions:
   risk in its cell of the matrix and give the totals of the provisions (WF-RIS-0040);
 - the register of the risks, a risk alone, the matrix, the reviews of a risk and the coverage of
   the risks (``risks``, ``risk``, ``risk_occurred_detail``, ``risk_matrix``, ``risk_reviews``,
-  ``risk_coverage``), from the risks of ``mockwitness`` and the core read today.
+  ``risk_coverage``), from the risks of ``mockwitness`` and the whole structure read today, 751
+  and 753 at its scale (EP-14/L45b).
 
 The formulas are simple and said here, to be replaced by the kernel of EP-07 and EP-08. Each
 marked revision is priced at the rates of its reference year: the reference at those of 2026, the
@@ -38,10 +39,12 @@ from wftools.mockcalendar import START_TO_START
 from wftools.mockids import universe
 from wftools.mockstructure import (
     LABOR,
+    LABOUR_RATES,
     NON_LABOR,
     PROVISION,
     JsonObject,
     JsonValue,
+    described,
     hourly_rate,
     labels,
     money,
@@ -51,11 +54,13 @@ from wftools.mockwitness import (
     DISMISSED,
     EQUIPMENT,
     FACTORY_ACCEPTANCE,
+    GENERATED,
     IDENTIFIED,
     LABOUR,
     OCCURRED,
     OFFER_MARKED,
     OFFER_OPENED,
+    OFFER_YEAR,
     REGISTER,
     RISK_751_REVIEWED,
     RISKS_IDENTIFIED,
@@ -105,8 +110,6 @@ MOUNTING, TESTS_LINE, DESIGN_FILE, INSTALLATION_TASK = (
 )
 """The nodes of the core the history is about (``mockwitness``)."""
 
-OFFER_YEAR = 2025
-"""The reference year of the offer, marked in December 2025 (WF-REV-0060)."""
 OFFER_LABOUR_HOURS = Decimal(10)
 OFFER_DESIGN_FILE_DAYS = 3
 SITE_TRIALS = Task(
@@ -129,12 +132,15 @@ it added; the factory acceptance, which it added between the wiring and the moun
 design file, three days in the offer; and the preliminary trials on site, which it removed."""
 
 
-def offer() -> tuple[Task, ...]:
-    """Return the offer v1.0 as marked on 15 December 2025.
+def offer(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
+    """Return the offer v1.0 as marked on 15 December 2025, from the whole structure of today.
 
     The reference without the amendment 1, and before any risk was identified: without any line
     of provision. Nor any subproject: their codes come from the ERP with the order, on 15 January
-    2026, and the subprojects were declared after it (WF-PRJ-0050, ``subprojects``).
+    2026, and the subprojects were declared after it (WF-PRJ-0050, ``subprojects``). The factory
+    acceptance, which the amendment added, was not there: what follows it today — the mounting on
+    site, the lots of the control station drawn about the core — followed the wiring of the
+    cabinets, which it ends. From the structure given, the whole one by default.
     """
 
     def change(task: Task) -> Task:
@@ -152,19 +158,21 @@ def offer() -> tuple[Task, ...]:
         children = tuple(child for child in task.children if child.number != MILESTONE)
         if task.number == INSTALLATION_TASK:
             children = (*children, SITE_TRIALS)
-        changed = replace(task, lines=lines, children=children)
-        if task.number == MOUNTING:
-            return replace(changed, links=(Link(WIRING),))
+        links = tuple(
+            replace(link, predecessor=WIRING) if link.predecessor == MILESTONE else link
+            for link in task.links
+        )
+        changed = replace(task, lines=lines, children=children, links=links)
         if task.number == DESIGN_FILE:
             return replace(changed, days=OFFER_DESIGN_FILE_DAYS)
         return changed
 
-    return rewritten(reference(), change)
+    return rewritten(reference(described() if roots is None else roots), change)
 
 
 def reference_rows() -> list[mockcore.Row]:
-    """Return the reference read on the day it was marked."""
-    return mockcore.core(reference(), AMENDMENT_MERGED.on)
+    """Return the reference read on the day it was marked, on the whole structure."""
+    return mockcore.core(mockcore.REFERENCE, AMENDMENT_MERGED.on)
 
 
 def offer_rates() -> dict[str, Decimal]:
@@ -173,9 +181,7 @@ def offer_rates() -> dict[str, Decimal]:
     The rates of 2025 of the volume of rates (``getHourlyRateGrid``), as #232 proposes, for each
     labour category the core employs.
     """
-    return {
-        category: hourly_rate(rate, OFFER_YEAR) for category, rate in mockcore.LABOUR_RATES.items()
-    }
+    return {category: hourly_rate(rate, OFFER_YEAR) for category, rate in LABOUR_RATES.items()}
 
 
 def offer_rows() -> list[mockcore.Row]:
@@ -349,11 +355,13 @@ def commands(risk: Risk) -> list[JsonValue]:
     """Return the commands of a risk, in the order of `RiskCommand`, for a caller who may all.
 
     A risk that occurred is neither updated, reviewed nor deleted (`risk_not_occurred`); only an
-    identified one occurs (`risk_identified`); one a marked revision cites is not deleted
+    identified one occurs, or changes the category or the subproject of its provision
+    (`risk_identified`, WF-RIS-0010); one a marked revision cites is not deleted
     (`risk_not_cited`). The project has a current revision: the occurrence creates none.
     """
     state = risk.last.state
     entries = (("update", ["risk_not_occurred"] if state == OCCURRED else []),)
+    entries += (("update_provision", [] if state == IDENTIFIED else ["risk_identified"]),)
     entries += (("review", ["risk_not_occurred"] if state == OCCURRED else []),)
     entries += (("declare_occurrence", [] if state == IDENTIFIED else ["risk_identified"]),)
     deleted = (["risk_not_occurred"] if state == OCCURRED else []) + (
@@ -370,15 +378,31 @@ def commands(risk: Risk) -> list[JsonValue]:
     ]
 
 
+def is_active_provision(category: str) -> bool:
+    """Whether a category of provision for risks is active (`active_provision_category`).
+
+    An active category is under an active nature, the deactivation of a nature deactivating its
+    categories (WF-REF-0010; EP-14/L42s, C-291).
+    """
+    categories = cast("list[JsonObject]", fixture("volume/cost_categories")["items"])
+    [entry] = [each for each in categories if each["cost_category_id"] == category]
+    return entry["is_active"] is True
+
+
 def _actor() -> JsonObject:
     """Return the user the witness's own examples name: the one who created the project."""
     return cast("JsonObject", fixture("project")["audit"]["created_by"])
 
 
 def risk_item(risk: Risk, budget: Decimal) -> JsonObject:
-    """Return a risk as the register reads it in the current revision (`Risk`)."""
+    """Return a risk as the register reads it in the current revision (`Risk`).
+
+    The category and the subproject of its provision are named by their labels, resolved at the
+    reading (WF-RIS-0010, WF-ARC-0020).
+    """
     last = risk.last
     actor = _actor()
+    named = labels()
     return {
         "risk_id": universe(risk.number),
         "label": risk.label,
@@ -392,6 +416,13 @@ def risk_item(risk: Risk, budget: Decimal) -> JsonObject:
         "provision_node_id": None
         if risk.provision_line is None or last.state != IDENTIFIED
         else universe(risk.provision_line),
+        "provision_cost_category_id": risk.provision_category,
+        "provision_cost_category_label": named[risk.provision_category],
+        "provision_cost_category_is_active": is_active_provision(risk.provision_category),
+        "provision_subproject_id": risk.provision_subproject,
+        "provision_subproject_label": None
+        if risk.provision_subproject is None
+        else named[risk.provision_subproject],
         "matrix_cell": matrix_cell(risk, budget),
         "last_review_on": last.at.date().isoformat(),
         "computed_fields": _COMPUTED,
@@ -423,10 +454,12 @@ def totals(rows: list[mockcore.Row]) -> JsonObject:
     }
 
 
-def matrix(rows: list[mockcore.Row]) -> JsonObject:
-    """Return the matrix of the risks: its levels, its cells counted, the totals (`RiskMatrix`)."""
+def matrix(rows: list[mockcore.Row], budget: Decimal) -> JsonObject:
+    """Return the matrix of the risks: its levels, its cells counted, the totals (`RiskMatrix`).
+
+    Each risk in the cell its probability and its severity on the budget given place it in.
+    """
     settings = fixture("reference_settings")["risk_matrix"]
-    budget = reference_budget(rows)
     cells = [matrix_cell(risk, budget) for risk in REGISTER]
 
     def levels(bounds: list[str]) -> list[JsonValue]:
@@ -497,7 +530,7 @@ def readings() -> dict[str, JsonObject]:
             "items": [risk_item(risk, budget) for risk in REGISTER],
             "totals": totals(rows),
         },
-        "risk_matrix": matrix(rows),
+        "risk_matrix": matrix(rows, budget),
         "risk_coverage": coverage(today, rows),
     }
 
@@ -537,11 +570,18 @@ def _percent(value: Decimal) -> str:
 
 
 def _share(value: Decimal, budget: Decimal) -> str:
-    return f"{mocktext.amount((value / budget * 100).quantize(Decimal('0.01')))} %"
+    """Say a share of a budget in percent, to the hundredth; under a hundredth, said so."""
+    share = (value / budget * 100).quantize(Decimal("0.01"))
+    return f"{mocktext.amount(share)} %" if share else "moins de 0,01 %"
 
 
 _VERBS = {
     "update": ("se modifie", "se modifient", "ne se modifie pas"),
+    "update_provision": (
+        "change la catégorie ou le sous-projet de sa provision",
+        "changent la catégorie ou le sous-projet de leur provision",
+        "ne change ni la catégorie ni le sous-projet de sa provision",
+    ),
     "review": ("se réexamine", "se réexaminent", "ne se réexamine pas"),
     "declare_occurrence": (
         "se déclare survenu",
@@ -600,6 +640,14 @@ def _risk_commands_text(item: JsonObject) -> str:
     return said + " (WF-IHM-0090, WF-RIS-0020)."
 
 
+def _subproject_text(item: JsonObject) -> str:
+    """Say the subproject the provision of a risk belongs to, or that it has none."""
+    label = item["provision_subproject_label"]
+    if label is None:
+        return "hors sous-projet, aucun n'étant désigné"
+    return f"au sous-projet « {label} »"
+
+
 def _percents(bounds: list[str]) -> str:
     """Say bounds of the matrix as percents: 10, 30 et 60 %."""
     values = [mocktext.amount(Decimal(bound) * 100, 0) for bound in bounds]
@@ -625,13 +673,25 @@ def examples() -> dict[str, JsonObject]:
         for entry in cast("list[JsonObject]", compared["amount_deltas"])
     }
     provisions = sum(1 for row in rows if is_provision(row))
-    kept = [
-        f"« {entry['label']} »" for entry in changed if entry["changes"] == ["reestimated_amount"]
+    numbers = {mockcore.lineage(row.number): row.number for row in rows}
+    rerated_lineages = [
+        cast("str", entry["lineage_id"])
+        for entry in changed
+        if entry["changes"] == ["reestimated_amount"]
     ]
+    kept = [
+        f"« {entry['label']} »"
+        for entry in changed
+        if entry["changes"] == ["reestimated_amount"]
+        and numbers[cast("str", entry["lineage_id"])] < GENERATED
+    ]
+    drawn = sum(1 for lineage in rerated_lineages if numbers[lineage] >= GENERATED)
     rerated = (
-        f"{mocktext.listed(kept)}, que l'avenant ne désigne pas, gardent le budget de l'offre "
+        f"les {mocktext.count(len(rerated_lineages))} lignes de main-d'œuvre que l'avenant ne "
+        f"désigne pas — dans le cœur, {mocktext.listed(kept)} ; et les "
+        f"{mocktext.count(drawn)} des tâches tirées autour de lui — gardent le budget de l'offre "
         f"et sont réestimées au taux de 2026 de leur catégorie"
-        if kept
+        if kept and drawn
         else "aucune ligne n'est réestimée sans être désignée"
     )
     reserve_text = (
@@ -655,21 +715,26 @@ def examples() -> dict[str, JsonObject]:
         f"des {identified} risques encore identifiés",
     )
     occurred_text = _agreed(occurred, "du risque survenu", f"des {occurred} risques survenus")
-    cell = cast("dict[str, int]", items[2]["matrix_cell"])
     scale = (
-        f"la gravité lue sur le budget de référence, {_amount(budget)} : "
-        f"{_amount(engineer.last.severity)} pour « {engineer.label} », "
-        f"{_share(engineer.last.severity, budget)}, au niveau {cell['severity_level']}"
+        f"la gravité lue sur le budget de référence de toute la structure, {_amount(budget)} : "
+        + _named(
+            [
+                f"{_amount(risk.last.severity)} pour « {risk.label} », "
+                f"{_share(risk.last.severity, budget)}, au niveau "
+                f"{cast('dict[str, int]', item['matrix_cell'])['severity_level']}"
+                for risk, item in zip(REGISTER, items, strict=True)
+            ]
+        )
     )
     return {
         "comparison.json": mocktext.example(
             f"De l'offre v1.0, marquée le {_day(OFFER_MARKED.on)}, à la révision de référence, "
             f"marquée le {_day(AMENDMENT_MERGED.on)} par la fusion de l'avenant 1, rapprochées "
-            f"par lignée sur le cœur du témoin : {provisions} lignes de provision ajoutées "
-            f"par l'identification des risques le {_day(RISKS_IDENTIFIED.on)}, à la provision "
-            f"de chacun ce jour-là — 751 à {_amount(reference_provision(rework))} —, et, par "
-            f"l'avenant, la réception usine et l'assistance aux essais de câblage ajoutées, "
-            f"« {removed[0]['label']} » retirés avec leur ligne, la durée du dossier de "
+            f"par lignée sur toute la structure du témoin : {provisions} lignes de provision "
+            f"ajoutées par l'identification des risques le {_day(RISKS_IDENTIFIED.on)}, à la "
+            f"provision de chacun ce jour-là — 751 à {_amount(reference_provision(rework))} —, "
+            f"et, par l'avenant, la réception usine et l'assistance aux essais de câblage "
+            f"ajoutées, « {removed[0]['label']} » retirés avec leur ligne, la durée du dossier de "
             f"conception et la charge du raccordement des borniers modifiées ; {rerated} "
             f"(WF-REV-0030, WF-REV-0050, WF-REV-0060). Les écarts du "
             f"devis à l'année de référence, par nature — {_amount(Decimal(deltas[LABOR]))} de "
@@ -678,7 +743,8 @@ def examples() -> dict[str, JsonObject]:
             f"poste nommé par son libellé : l'offre n'en portait aucun, les sous-projets ayant "
             f"été déclarés après la commande, et les lignes du poste de commande passent de "
             f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050). "
-            f"{len(changed)} nœuds modifiés, {len(added)} ajoutés, {len(removed)} retirés.",
+            f"{mocktext.count(len(changed))} nœuds modifiés, {len(added)} ajoutés, "
+            f"{len(removed)} retirés.",
             compared,
         ),
         "risks.json": mocktext.example(
@@ -691,7 +757,7 @@ def examples() -> dict[str, JsonObject]:
             f"case de matrice, {scale} ; avec ses commandes — {commands_text} —, les trois "
             f"totaux de provisions — les survenus et les écartés pour la provision que portait "
             f"la référence — avec leur somme, et {reserve_text} en regard (WF-RIS-0040, "
-            f"WF-RIS-0050). {mocktext.CORE_ONLY}",
+            "WF-RIS-0050).",
             register,
         ),
         "risk.json": mocktext.example(
@@ -699,6 +765,9 @@ def examples() -> dict[str, JsonObject]:
             f"gravité de {_amount(rework.last.severity)}, total de son devis propre, et sa "
             f"provision de {_amount(provision(rework))}, la gravité à "
             f"{_percent(rework.last.probability)} — ni l'une ni l'autre saisies (WF-RIS-0010). "
+            f"Sa ligne de provision porte la catégorie qu'il a désignée, "
+            f"« {items[0]['provision_cost_category_label']} », "
+            f"{_subproject_text(items[0])} (WF-RIS-0010). "
             f"{_risk_commands_text(items[0])}",
             items[0],
         ),
@@ -717,7 +786,7 @@ def examples() -> dict[str, JsonObject]:
             f"gravité bornés à {_percents(severities)} du budget de référence "
             f"(`reference_settings`) ; chaque case avec sa zone et le nombre de ses "
             f"risques — {counted} du registre, {scale} —, et les totaux de provisions "
-            f"(WF-RIS-0040, WF-REF-0160). {mocktext.CORE_ONLY}",
+            "(WF-RIS-0040, WF-REF-0160).",
             read["risk_matrix"],
         ),
         "risk_reviews.json": mocktext.example(
@@ -740,7 +809,7 @@ def examples() -> dict[str, JsonObject]:
             f"{_amount(Decimal(cast('str', covered['occurred_cost'])))} réestimés des lignes "
             f"fusionnées {occurred_text} ; l'écart de couverture vaut "
             f"{_amount(Decimal(cast('str', covered['coverage_variance'])))} (WF-RIS-0050, "
-            f"WF-RAE-0020). {mocktext.CORE_ONLY}",
+            "WF-RAE-0020).",
             covered,
         ),
     }

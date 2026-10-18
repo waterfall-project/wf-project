@@ -3,9 +3,10 @@
 /**
  * The lifecycle of a project (FBS-4.9, US-0210), under the banner of its reading context
  * (WF-IHM-0020): its current state, the exits of its lifecycle the caller may exercise — each
- * available or naming what it lacks (WF-IHM-0090), and confirmed before it is applied —, and the
- * history of its states, dated (WF-CYC-0130). The exits are the one command a screen of a project
- * exercises: the other commands of the project belong to the forms of their domain.
+ * available or naming what it lacks (WF-IHM-0090), and confirmed before it is applied, being
+ * irreversible (WF-CYC-0090) —, its next state, the trigger that leads to it and the conditions it
+ * still lacks, read without trying anything (WF-CYC-0050) — no command leads to pricing or in
+ * progress (WF-CYC-0020) —, and the history of its states, dated (WF-CYC-0130).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -15,6 +16,7 @@ import { serverClient } from "@/api/server";
 import { LifecycleCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Project } from "@/components/context/reading";
+import { NextStateFacts } from "@/components/projects/next-state";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import { TransitionList } from "@/components/projects/project-tables";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -57,15 +59,18 @@ function LifecycleHeader({ project }: { readonly project: Project }) {
   );
 }
 
-/** Render the lifecycle of a project: its state, its exits, and its history. */
+/** Render the lifecycle of a project: its state, its exits, its next state, and its history. */
 export default async function LifecyclePage(props: ProjectPageProps) {
   const address = await projectAddress(props, "lifecycle");
-  const [read, transitions] = await Promise.all([
+  const path = { project_id: address.projectId };
+  const client = serverClient();
+  const [read, next, transitions] = await Promise.all([
     readProjectScreen(address),
+    readOrFail("getProjectNextState", () =>
+      client.GET("/projects/{project_id}/next-state", { params: { path } }),
+    ),
     readOrFail("listProjectStateTransitions", () =>
-      serverClient().GET("/projects/{project_id}/state-transitions", {
-        params: { path: { project_id: address.projectId } },
-      }),
+      client.GET("/projects/{project_id}/state-transitions", { params: { path } }),
     ),
   ]);
   return (
@@ -73,6 +78,7 @@ export default async function LifecyclePage(props: ProjectPageProps) {
       <ContextBanner reading={read} />
       <Screen density={FUNCTION_DENSITY.lifecycle}>
         <LifecycleHeader project={read.project} />
+        <NextStateFacts next={next} />
         <TransitionList transitions={transitions} />
       </Screen>
     </>

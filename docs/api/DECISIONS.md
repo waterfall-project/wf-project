@@ -486,6 +486,9 @@ absents plutôt que nuls, comme le Vérif le veut —, et chaque poste est nomm�
 (WF-PRJ-0020).
 `delta_to_previous_revision` reste : la revue périodique le lit.
 
+*Remplacé en partie par EP-14/L42s : `by_order_item` n'est jamais nul ; chaque poste du lotissement
+y est, celui qu'aucune tâche ne porte sans total (`order_item_without_task`, WF-DEV-0060).*
+
 **Toute opération gardée par la session déclare le 401, et une règle du contrat l'exige**
 (`rule/session-operation-declares-401` de `redocly.yaml`, #141). Le contrat ne le déclarait que sur
 une minorité d'opérations, quand toute opération gardée par la session peut répondre 401 — session
@@ -1214,6 +1217,11 @@ d'identifiants (711, au lieu de 701, que les rôles d'habilitation occupent : l'
 disparaît), et les totaux par poste du devis le nomment ainsi ; les récapitulatives de tous les
 exemples et du volume nomment les deux champs parmi ceux qu'elles acceptent.
 
+*Le paramètre `attached_node_id` est remplacé par EP-14/L42k : le refus nomme la tâche qui porte
+déjà le poste ou le lot par `conflicting_object_id` et `conflicting_object_label`, son nœud et son
+libellé — section « Le squelette, le rattachement, les chronologies et les nœuds retenus d'un
+lotissement filtré (EP-14/L42k) ». Le texte ci-dessus est gardé pour l'histoire.*
+
 **Le compte rendu d'import dit l'aller-retour** (#383 ; WF-INTF-0040, WF-INTF-0060, WF-INTF-0080,
 WF-INTF-0100, WF-INTF-0120, WF-PLA-0130). `ImportDifference.change` gagne `kept` : une tâche
 démarrée ou terminée que le fichier ne porte plus, ou une ligne d'une telle tâche, conservée et
@@ -1352,6 +1360,19 @@ montre. Exemple : `task_attach_outside_order_item`, le groupe « Études » refu
 que porte le « Poste de commande ». Les filtres par poste et par lot de `listNodes` et les totaux par
 poste lisent la tâche rattachée, quelle qu'elle soit.
 
+*Deux points sont remplacés par EP-14/L42k, d'après la spécification acceptée par l'auteur le
+2026-10-09 (WF-PLA-0170). Le refus de `setWorkBreakdown` : « Le déplacement d'un lot sous un autre
+poste retire de même le rattachement de sa tâche lorsqu'elle n'est pas dans le sous-arbre de la
+tâche de ce poste » ; la saisie aboutit et retire le rattachement, et `params.work_package_id`
+disparaît avec le refus. Et « toute tâche » : « Le rattachement n'existe que dans la structure
+principale » ; une tâche d'un différentiel ou du devis propre d'un risque n'en porte pas, et
+l'écriture qui lui en pose un est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY`. Le texte
+ci-dessus est gardé pour l'histoire.*
+
+*Remplacé en partie par EP-14/L42s : la tâche du poste et celles des lots sont nommées par leur nœud
+et leur libellé (`order_item_task`, `work_package_tasks`), et une ligne importée hors du sous-arbre
+rejette le fichier entier (`ImportReport.refusals`).*
+
 **La marge totale est signée** (#402 ; WF-PLA-0100). Une tâche manuelle borne la fin au plus tard
 de ses prédécesseurs : `TaskFacet.total_float` et `NodeSchedule.total_float` peuvent être négatifs,
 sans minimum — `Duration.value` n'en posait pas, sa description disait « jamais négative » et dit
@@ -1375,6 +1396,14 @@ structure principale une telle ligne fait échouer la tâche de fond, `problem.c
 `TASK_WITHOUT_WORKING_HOURS`, sans rien fusionner. Pas d'exemple : aucune tâche du témoin ne porte
 deux rôles, et un calendrier qui ne recouperait celui d'aucun autre n'existe pas au référentiel des
 exemples.
+
+*Remplacé en partie par EP-14/L42r : `updateResourceRole`, `updateCalendar` et `setDefaultCalendar`
+nomment les projets (`params.projects`, sans identifiant ni tâche, #762 option (a)) ; exemple
+`calendar_update_without_hours`.*
+
+*Remplacé en partie par EP-14/L42s : la tâche dont un rôle est le seul, que le calendrier de ce rôle
+laisserait sans heure, est refusée de même — `createNode`, `updateEstimateLine`,
+`updateResourceRole` —, `params.resource_role_ids` nommant ce rôle seul (#766).*
 
 **Les risques ont leurs commandes** (#244 ; WF-IHM-0090, WF-RIS-0020, WF-RIS-0060, WF-ADM-0100).
 `RiskCommand` — `update`, `review`, `declare_occurrence`, `delete`, une par opération —,
@@ -1652,15 +1681,19 @@ C5 et C6 (tâches de fond au même instant, sessions sur un même compte) par L2
 spécification révisée (L23) ; C9 et C10 (écriture qui redate, passage par `reinflated`) par L22 ;
 C11 à C13 (chronologie, comparaison, réception usine) par L23 et L24 ; C14 et C17 par L21 ; C15
 par L24 ; C16 (identifiants à double emploi) par L20 et L25. La structure de mille tâches est
-datée en heures, le cœur incrusté en tête et relié au réseau engendré, depuis EP-02/L27 (#376).
-Reste la décision 4 du cadrage — 751 et 753 à l'échelle de cette structure —, décidée par l'auteur
-le 2026-10-07 (option (a)), et avec elle les lectures du témoin qui somment encore son seul cœur,
-qu'EP-02/L45 (#528) reprend : la sous-section d'EP-02/L27 dit ce qui en reste.
+datée en heures, le cœur incrusté en tête et relié au réseau engendré, depuis EP-02/L27 (#376), et
+les lectures du témoin somment toute cette structure depuis EP-14/L45a (#618) : la sous-section
+« Les lectures sur toute la structure » dit lesquelles, et ce qu'elles valent. La décision 4 du
+cadrage — 751 et 753 à l'échelle de cette structure —, décidée par l'auteur le 2026-10-07
+(option (a)), est appliquée depuis EP-14/L45b (#619, fin de #528), et avec elle le registre des
+risques, sa matrice, leur couverture et le Kanban lisent toute la structure : la sous-section
+« Les risques à l'échelle et le Kanban de toute la structure » le dit. #287 est soldé.
 
 Les sous-sections disent, lot par lot, ce que chacun a fait ; ce qu'une sous-section laisse est
-repris par une suivante, ou renvoyé à EP-02/L27 (#376), puis à EP-02/L45 (#528). Ce qu'une sous-section décrit et qu'une
-suivante a changé — la capacité des rôles, le cours des projets du portefeuille — se lit dans la
-dernière qui en parle.
+repris par une suivante, ou renvoyé à EP-02/L27 (#376), puis à EP-14/L45a (#618) et L45b (#619).
+Ce qu'une sous-section décrit et qu'une suivante a changé — la capacité des rôles, le cours des
+projets du portefeuille, le budget de référence du témoin, la réserve pour risques et les gravités
+de 751 et 753 — se lit dans la dernière qui en parle.
 
 ### Le socle (EP-02/L20)
 
@@ -2059,6 +2092,9 @@ comprises. La lecture des indicateurs tire ses délais des nœuds qu'elle rend, 
 décaissements les applique : une seule source, que le test d'invariants vérifie ligne à ligne. Les
 nœuds du volume ne le rendent pas encore (EP-02/L27).
 
+*Remplacé en partie par EP-14/L42s : une ligne de provision ne porte pas de délai de paiement
+(WF-DEV-0020) ; elle le rend nul, et la courbe la laisse à la date de sa tâche (WF-IND-0100).*
+
 **Le calendrier 481 ne connaît pas de jour férié** : WF-REF-0110 dit qu'un calendrier « ne gère ni
 les jours fériés ni les temps partiels ». Le 25 décembre et le 1er janvier y sont des jours ouvrés,
 et la charge de la mise en service y travaille : rien n'est à corriger.
@@ -2335,6 +2371,151 @@ disent (« sur le seul cœur, jusqu'à EP-02/L45 »). Les écarts de `estimate_i
 rapportent le devis de la structure à la référence du seul cœur, mêlent les deux échelles ; les
 dire non calculables demanderait un motif que `NotComputableReason` n'a pas : ils restent ceux du
 témoin, en attendant L45.
+
+### Les lectures sur toute la structure (EP-14/L45a)
+
+**Ce qui sommait le seul cœur somme la structure de mille tâches** (#618, partie de #528 ; décision
+4 du cadrage de #287, option (a) de l'auteur du 2026-10-07, reprise par la conception d'EP-14,
+« L'univers témoin à l'échelle »). Les indicateurs du projet, du devis et du reste à engager,
+l'histoire — l'offre et la référence décrites sur les mille tâches, leur comparaison —, les courbes
+de coûts et de valeur acquise, le plan de charge, les coûts réels et la ligne du témoin au
+portefeuille lisent la structure entière, le cœur en tête, par les mêmes générateurs
+(`mockindicators`, `mockcurves`, `mocktoday`, `mockhistory`, `mockcosts`), depuis la seule
+description du témoin. Les résumés « sur le seul cœur, jusqu'à EP-02/L45 » de ces exemples
+disparaissent. Écarté : un second jeu d'exemples figé pour les tests du front, qui ferait deux
+univers ; les tests qui assertaient des valeurs du cœur sont réécrits sur celles de la structure.
+
+**L'offre et la référence portent sur les mille tâches.** Toute ligne tirée était dans l'offre, et
+l'avenant 1 n'en désigne aucune : une ligne de main-d'œuvre tirée garde dans la référence le budget
+que l'offre lui avait fixé, ses heures au taux de 2025 de sa catégorie, et est réestimée au taux de
+2026, comme « Câblage sur site » et « Mise en service sur site » (WF-REV-0050, WF-DEV-0020, #467) ;
+une ligne de débours est budgétée à son montant. La marche de l'avenant 1 reste 2 865 ; la
+comparaison de l'offre et de la référence dit 2 768 lignes réestimées sans être désignées, 2 770
+nœuds modifiés, et un écart de main-d'œuvre de 177 541,25 — les 3 515 du cœur et 1,50 de l'heure
+sur les 116 017,5 h tirées. Dans l'offre, la réception usine n'existait pas : ce qui la suit
+aujourd'hui — le montage sur site, les lots du poste de commande tirés autour du cœur — suivait le
+câblage des armoires, qu'elle termine, aux mêmes dates.
+
+**Les tâches tirées déjà terminées reçoivent des coûts réels** (`mockcosts.drawn`, WF-CRE-0010,
+WF-CRE-0020). Chaque tâche de travail tirée et terminée le 3 juin — 21, du 1er mai au 1er juin,
+dans les lots « Ligne d'essais » et « Utilités » de la première phase, ceux du poste de commande
+suivant la réception usine du 30 juin — a reçu la facture de son fournisseur, datée du jour de sa
+fin, à quelques centièmes du montant de la tâche (de 90 à 110 %, tirés), imputée au sous-projet de
+son lot par le code de son OTP (`SP-ESS`) ou au seul projet, apportée par les imports dont la
+période couvre sa date — ceux d'avril et de mai, jamais le fichier sans période —, et numérotée
+dans une famille d'identifiants qui lui est propre (`lignes de coût réel engendrées`). Le
+sous-projet « Essais et mise en service » porte donc des coûts réels, et ne se supprime plus
+(`subprojects`, WF-PRJ-0050) — `subprojects_with_actual_costs`, la lecture filtrée, coïncide depuis
+avec la liste entière, et seul son paramètre la distingue ; `subproject_updated`, le sous-projet
+renommé, le garde chargé, sans quoi la ligne relue serait redevenue supprimable dans la maquette —
+ce que, depuis EP-14/L42l, sa citation par la référence marquée empêche aussi — ; la consultation
+des coûts compte 27 lignes, le journal 22 lignes créées par l'import de mai.
+
+**Ce que les exemples valent.** Le budget de référence passe de 120 534,56 à 65 430 697,64 — les
+budgétés de la grille moins les 250 de la provision — ; la valeur planifiée de 101 223,69 à
+1 671 458,13, la valeur acquise de 100 000 à 1 449 858,33 — les études de détail et les 21 tâches
+tirées terminées —, le coût réel de 105 400 à 1 412 970,20, le reste à engager de 21 234,56 à
+66 793 528,72, les tâches non démarrées y comptant leur budget projeté sur leur année de
+consommation (WF-DEV-0040), d'où une projection du chef de projet de 68 206 498,92 et une marge de
+-2 775 801,28 ; l'indice de coût vaut 1,0261 (nominal), l'indice de délai 0,8674 (vigilance), les
+tâches tirées en cours ayant une valeur planifiée et pas encore de valeur acquise. Le devis vaut
+65 605 723,89, celui de la structure : `estimate_indicators_volume` est désormais la lecture du
+témoin lui-même, et les écarts qu'EP-02/L27 disait mêler deux échelles n'en mêlent plus qu'une
+(−210 à la référence). La révision « Référence » conservait un reste à engager de 68 242 478,05.
+La courbe des coûts porte le budget de référence jusqu'au 30 août 2029, en 756 points — la règle
+d'EP-02/L24, un point par jour où un montant commence ou finit, gardée — ; la couverture des
+risques ne change pas (910 face à 500 et 200). Le plan de charge compte 1 465,75 h d'ingénieur
+électricien en juin 2026, dont les 12,5 du cœur ; la ligne du témoin au portefeuille est celle de
+ses indicateurs, et les vues du portefeuille la somment.
+
+**Les variantes déclarées.** `cost_curve_subproject_empty` et sa variante aux délais de paiement,
+qui montraient un sous-projet dont aucune ligne ne relève, deviennent des variantes
+contrefactuelles lues sur le seul cœur (`mocktoday.alone`), les lots « Ligne d'essais » relevant du
+sous-projet « Essais et mise en service » dans la structure ; `nodes_core`, `nodes_nested` et
+`nodes_summaries` restent celles d'EP-02/L27. Les sommes des courbes par maille retrouvent celle du
+projet au centime de chaque maille près.
+
+**Ce que ce lot laisse**, à EP-14/L45b (#528) : le registre des risques, sa matrice et sa
+couverture lisent la gravité de 751, 752 et 753 sur le budget de référence du seul cœur
+(`mockhistory.register_budget`), 12 000 valant un centième de centième de celui de la structure ;
+les deux Kanban ne présentent que les tâches du cœur. Leurs résumés le disent
+(`mocktext.CORE_ONLY`, « jusqu'à EP-14/L45b »).
+
+**Le générateur à cette échelle.** Une structure est datée et émise une fois pour une date, des taux
+et une revue précédente donnés (`mockcore.core`, `mockcore.schedule`), une révision lue une fois
+(`mockindicators.read`) ; les flux d'une courbe sont sommés d'un coup une fois dépensés en entier et
+lus un à un tant qu'ils courent (`mockcurves.Spread`), les bornes de chacun comptées une fois sur son
+calendrier. `make mock-data` écrit le tout en une quinzaine de secondes.
+
+### Les risques à l'échelle et le Kanban de toute la structure (EP-14/L45b)
+
+**751 et 753 sont portés à l'échelle de la structure de mille tâches ; 752 garde les chiffres de son
+Vérif** (#619, fin de #528 ; décision 4 du cadrage de #287, option (a) de l'auteur du 2026-10-07,
+reprise par la conception d'EP-14, « L'univers témoin à l'échelle »). La gravité reste mesurée en
+part du budget de référence (WF-RIS-0040, décision de #287) — celui de toute la structure,
+65 430 697,64, que la provision ne touche pas (WF-RIS-0050) — ; `mockhistory.register_budget`, le
+budget du seul cœur, disparaît, et avec lui les résumés « Lu sur le seul cœur du témoin, jusqu'à
+EP-14/L45b » (`mocktext.CORE_ONLY`). La description du témoin dit l'échelle une fois
+(`mockwitness.RISK_SCALE`) : les gravités que les réexamens de 751 et 753 retiennent sont leurs
+chiffres du cœur multipliés par mille, et la ligne de provision de 751 dans le cœur porte la
+provision du risque, budgétée à celle que la référence connaissait — un test tient l'une à l'autre.
+« Risque de reprise du câblage » est identifié à 1 000 000 à 25 %, porté à 1 250 000, puis à 40 % :
+sa provision vaut 500 000, et 250 000 au marquage de la référence. « Indisponibilité de
+l'automaticien » est identifié et écarté à 12 000 000 à 5 % : 600 000 dans la référence. « Retard de
+livraison des armoires » reste à 200 à 30 %, survenu, ses lignes de 120 et 80 (WF-RIS-0060).
+
+**Ce que les exemples valent.** La réserve pour risques de la référence passe de 910 à 850 060 ; les
+totaux du registre, de 500, 60 et 600 à 500 000, 60 et 600 000, leur somme de 1 160 à 1 100 060 ; la
+couverture oppose 850 060 aux 500 000 de provision et aux 200 des lignes fusionnées, et l'écart passe
+de 210 à 349 860. Dans la matrice, 751 est à 1,91 % du budget, au niveau 2 de gravité, dans la case
+de vigilance où il était ; 752, sous le centième de pour cent, au niveau 1 ; 753, à 18,34 %, au
+niveau 4, case (1, 4), de vigilance — sur le budget du seul cœur, il était à 9,96 %, au niveau 3,
+case nominale. La provision suit dans toutes les lectures de la révision courante : le devis passe
+de 65 605 723,89 à 66 105 223,89, ses provisions de 500 à 500 000, le lot « Poste de commande » de
+2 934,56 à 502 434,56 ; le reste à engager de 66 793 528,72 à 67 293 028,72, la projection du chef de
+projet de 68 206 498,92 à 68 705 998,92, la marge de -2 775 801,28 à -3 275 301,28, et l'avancement
+financier du projet (`project_indicators`), le coût réel sur la projection, de 0,0207 à 0,0206 ;
+la révision « Référence » conservait un reste à engager de 69 091 628,05, et non plus
+68 242 478,05 ; le budget de référence, les indices et les courbes de valeur acquise ne bougent pas. **Les écarts de
+`estimate_indicators_volume` sont à une seule échelle** : le devis de la structure face à la
+référence de la structure, -349 860 — les 500 000 de provision et les 200 des lignes fusionnées,
+face aux 850 060 de provisions que la référence portait. Le portefeuille somme ces lectures en
+mémoire, comme avant : ses provisions identifiées, sa réserve agrégée et ses écartés suivent, et
+ses projections du chef de projet gagnent les 499 500 de provision ajoutés au poste de commande — de
+2 794 900 868,92 à 2 795 400 368,92 dans `portfolio_performance`, l'écart de 132 280 671,28 à
+132 780 171,28 ; chaque point de la projection de `portfolio_cost_curve` après la date du jour,
+jusqu'à 2 143 593 192,97 fin novembre ; la prévision de juin des décaissements de
+`portfolio_cost_curve_payment_delays`, de 30 915 524,64 à 31 415 024,64.
+
+**Les deux Kanban présentent toute la structure** (`startable_tasks`, `startable_tasks_milestone`,
+WF-RAE-0030) : les 960 tâches qui ne sont pas des récapitulatives — 925 non démarrées, 8 démarrées
+dont les pupitres opérateurs et le câblage des armoires, 27 terminées dont les 21 tâches tirées que
+L45a a terminées —, et après le geste qui termine le câblage, 925, 7 et 28, la réception usine seule
+signalée à terminer. Leur résumé compte chaque colonne et nomme les tâches du cœur, depuis la
+réponse (`mocktext.kanban`) ; `mockdata.of_core` disparaît. Le contrat ne change pas :
+`listStartableTasks` n'a ni filtre ni page, et la conception d'EP-14 veut le Kanban de toute la
+structure.
+
+**L'exemple trié du devis du poste de commande se trie par montant décroissant**
+(`nodes_estimate_sorted`, #526). Trié par montant croissant, il plaçait la provision de 500 avant la
+main-d'œuvre et le débours sous le câblage ; à 500 000, elle vient après eux, et le tri croissant
+laisserait les lignes dans l'ordre du plan : l'exemple ne montrerait plus de tri, ni le Vérif de
+WF-IHM-0060-A, « le tri par montant réordonne les lignes sous chaque tâche sans déplacer les
+tâches ». Trié par montant décroissant, il renverse les trois lignes du câblage — la provision de
+500 000, « Borniers » de 1 234,56, puis la main-d'œuvre de 1 000 — et laisse les tâches à leur
+place ; sa phrase est tirée de sa réponse, comme celle du tri par heures (`nodes_estimate_hours`),
+qui reste. Sous le tri décroissant, aucune ligne du câblage n'est suivie à l'écran de celle qui la
+suit dans le plan : le collage sous un tri, refusé depuis la provision et accepté depuis
+« Borniers », s'éprouve sur l'exemple trié par heures, où le débours et la provision se suivent
+encore. Écarté : le tri par libellé, qui déplaçait aussi les lignes, mais ne prouvait plus le Vérif,
+qui parle du montant, et rendait sous le câblage le même ordre que l'exemple trié par heures, qu'il
+doublait.
+
+**Options écartées.** Porter 751 et 753 à la même part du budget que sur le cœur (× 542,84) : des
+montants sans rondeur, et 753 à 9,96 %, au ras de la borne de 10 % ; mesurer la gravité sur le seul
+cœur, variante déclarée (option (c) soumise sur #376), que l'auteur n'a pas retenue ; porter aussi
+752 à l'échelle, contre la décision 4, qui lui garde les chiffres de son Vérif ; un Kanban filtré au
+cœur, que le contrat ne permet pas et que la conception écarte.
 
 ## Les commandes manquantes et les mineurs des relectures (EP-02/L38)
 
@@ -2691,6 +2872,10 @@ natures et les catégories n'ont pas de 409, à l'écart de l'issue, qui le prop
 aucune exigence ne conditionne leur activation — une catégorie se réactive même sous une nature
 désactivée —, et un 409 déclaré sans cas promettrait un refus que le serveur ne fait jamais.
 
+*Remplacé en partie par EP-14/L42s : C-291 est au contrat — « une catégorie ne peut être réactivée
+que si sa nature est active » (WF-REF-0010) —, et `setCostCategoryActivation` déclare son 409,
+`cost_type_active`.*
+
 **La réactivation ne cascade pas** (WF-REF-0080). L'exigence dit la cascade de la désactivation —
 les descendants du nœud et les rôles rattachés à lui ou à l'un d'eux —, et rien de la
 réactivation. Le contrat la lit sans cascade : réactiver un nœud ne rend actif que lui, et ses
@@ -2771,8 +2956,9 @@ que le planning trie.
 Deux exemples, engendrés par `wftools.mocksort` (`LineSort`, ses colonnes typées comme celles de
 la ligne que nomme `NodeColumn`) et ordonnés par `wftools.mockcore`, lisent le devis du lot
 « Poste de commande » : `estimate_sorted`, trié par montant à l'année de référence, croissant —
-sous le câblage, la provision, la main-d'œuvre puis le débours ; le jalon de réception usine, de
-montant nul, que le tri des frères aurait mis en tête, reste le dernier — et `estimate_hours`,
+sous le câblage, la provision, la main-d'œuvre puis le débours (revu par EP-14/L45b : trié depuis
+par montant décroissant, la provision, le débours puis la main-d'œuvre) ; le jalon de réception
+usine, de montant nul, que le tri des frères aurait mis en tête, reste le dernier — et `estimate_hours`,
 trié par heures, décroissant — le débours et la provision, sans heures, d'abord, dans l'ordre du
 plan, puis la main-d'œuvre. Sous un tri, le
 collage d'un bloc qui écrirait dans une ligne du plan autre que celle affichée à la suite est
@@ -2833,8 +3019,9 @@ EP-02/L38) : la valeur d'un champ ne convient pas — elle désigne un objet que
 plus à la saisie —, l'objet écrit n'a pas d'état qui l'interdise, et le motif existe pour cela,
 celui d'une ligne de devis qui emploierait un objet désactivé. Le 409 `STATE_FORBIDS_OPERATION`
 reste à la réactivation, où c'est l'état de l'objet même qui change, et que sa commande dit
-d'avance. Un nœud désactivé se déplace sous un nœud désactivé : il n'y est pas actif, et le motif de
-l'exigence, qu'aucun objet actif ne subsiste dans un service fermé, tient. Exemples
+d'avance. Un nœud désactivé se déplaçait sous un nœud désactivé : il n'y était pas actif, et le motif
+de l'exigence, qu'aucun objet actif ne subsiste dans un service fermé, tenait — exception retirée par
+EP-14/L42j, WF-REF-0070 révisé ne déplaçant un nœud que sous un nœud actif. Exemples
 `org_node_creation_refused`, `org_node_move_refused` (l'atelier de câblage, actif, vers le bureau
 d'études automatismes) et `resource_role_creation_refused`, sous le bureau d'études automatismes,
 désactivé ; `test_mockuniverse.py` les tient.
@@ -3184,6 +3371,12 @@ elle, rend toujours le tout avec son compteur suivant, jamais nul : la réponse 
 `setContributors`, dont le schéma `ContributorList` admet désormais un compteur nul, le dit (revue
 2 du lot) ; celle de `setWorkBreakdown` rend `WorkBreakdown`, dont le compteur n'est jamais nul.
 
+*Remplacé par EP-14/L42k (relecture 1) : `setWorkBreakdown` rend sa lecture,
+`WorkBreakdownReading`, entière, chaque élément retenu, avec son compteur suivant, jamais nul, comme
+`setContributors` rend la sienne — section « Le squelette, le rattachement, les chronologies et les
+nœuds retenus d'un lotissement filtré (EP-14/L42k) ». Le texte ci-dessus est gardé pour
+l'histoire.*
+
 **Les comptes se filtrent par leur état** (`is_active`, revue du lot ; WF-IHM-0130, WF-ADM-0060).
 `include_inactive` ne faisait qu'ajouter les désactivés aux actifs : la colonne de l'état ne se
 filtrait pas sur les seuls désactivés. `is_active`, vrai ou faux, prime sur `include_inactive`,
@@ -3277,6 +3470,16 @@ catégorie que le devis du projet témoin emploie : leur type est figé ; la nat
 nature d'un autre type changerait de même le type de ses lignes : c'est la « Specification
 finding » #577, tranchée par l'auteur le 2026-10-09, section suivante.
 
+*Remplacé en partie par EP-14/L42r : `change_kind` manque aussi `cost_type_unrated` quand une
+catégorie de la nature porte un taux horaire, et `cost_type_without_role` quand un rôle lui est
+rattaché (WF-REF-0030) ; le 409 nomme la première qui manque, et pour la dernière, atteignable, les
+rôles en cause (`params.resource_roles`, WF-IHM-0090).*
+
+*Remplacé en partie par EP-14/L42s : une catégorie employée se rattache à une autre nature du même
+type, ce qui n'est jamais indisponible ; `cost_type_unused` est atteignable, et le 409 nomme les
+catégories en cause (`params.cost_categories`, #766), comme celles qui portent un taux pour
+`cost_type_unrated`.*
+
 **Une valeur unique déjà portée est refusée par champ** (points 2 et 3 ; WF-REF-0030,
 WF-REF-0040). Le 409 `ALREADY_EXISTS` dit quel champ porte la valeur prise : `fields`, chaque champ
 désigné par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` l'objet qui la porte, actif ou
@@ -3330,6 +3533,10 @@ sous un nœud désactivé (#547) : une nature désactivée n'est plus proposée 
 se réactive sous une nature désactivée (EP-02/L42a), et la garder sous elle en la renommant ne
 choisit rien. Écarté : la longueur admise en paramètre de `VALUE_TOO_LONG`, que le schéma dit déjà
 et que le formulaire contrôle avant l'envoi.
+
+*Remplacé en partie par EP-14/L42s : une catégorie ne se réactive plus sous une nature désactivée, que
+sa désactivation désactive avec ses catégories (C-291, `cost_type_active`) ; la règle de la
+modification reste.*
 
 **Les refus d'un taux horaire** (point 5 ; WF-REF-0050). Un montant nul ou négatif — `Money`
 admet le signe — est refusé par 422 `VALIDATION_FAILED`, `/amount` par `VALUE_OUT_OF_RANGE`,
@@ -3392,6 +3599,10 @@ catégorie employée ne se rattache qu'à une nature du même type », et une ca
 taux ne quitte pas la main-d'œuvre — reste à écrire dans la spécification : ce lot ne touche pas
 `docs/spec`, et le contrat la cite par #577 en attendant.
 
+*Mise à jour par EP-14/L42r : la phrase est dans WF-REF-0040, qui y ajoute la catégorie à
+laquelle un rôle de ressource est rattaché (`cost_category_without_role`) ; les descriptions que
+L42r touche la citent à côté de #577.*
+
 **La commande dit le rattachement à une nature d'un autre type, et lui seul.**
 `CostCategory.available_commands` lit `CostCategoryCommand` — `deactivate`, `reactivate` et
 `change_cost_type` —, comme la nature lit `CostTypeCommand` : la commande de l'état, toujours
@@ -3433,6 +3644,10 @@ l'emploi et les taux que lisent les exemples, et tient que seules les catégorie
 `change_cost_type`, et seules les natures `change_kind`.
 
 ## La dernière nature provision et sa dernière catégorie (EP-02/L42g, #578)
+
+*Remplacée par EP-14/L42p (#579) : la règle est retirée, ses deux conditions et ses exemples avec
+elle — section « La catégorie et le sous-projet de la provision d'un risque, la provision pour
+risques (EP-14/L42p) ». Le texte qui suit est gardé pour l'histoire.*
 
 **Il reste toujours au moins une nature de type provision active, qui porte au moins une catégorie
 active** (décision de l'auteur du 2026-10-09, option (b) de #578 ; WF-REF-0030). L'exigence crée à
@@ -3635,6 +3850,589 @@ date que la confirmation de `startRestore` doit nommer, et l'écran ne la conna�
 lisant l'archive dans le navigateur, une seconde lecture du manifeste, fragile, que le service fait
 déjà (écarté). Le champ n'existe que pour `external_backup`.
 
+## Les écritures des sauvegardes (EP-02/L43c)
+
+Les écritures que l'écran des sauvegardes exerce (#519) reçoivent l'exemple de leur succès, chacune à
+son instant, avant celui de l'univers : `task_backup_queued` (une sauvegarde manuelle mise en file à
+14 h 04), `backup_retained` (la sauvegarde de la nuit marquée à conserver), `backup_released` (celle
+du 30 janvier qui ne l'est plus) et `task_restore_queued` (une restauration mise en file à 14 h 04 min
+30 s). Chacun ne vaut que pour la réponse de son écriture : aucune lecture n'en tient compte.
+
+**Le téléchargement d'une sauvegarde est gardé par la permission de la restauration**
+(`platform_restore`, décision de l'auteur du 2026-10-09, #588) : une sauvegarde porte toute la base,
+comptes et projets compris, et la copier hors de la plateforme se confie aussi peu que la
+restaurer. `downloadBackup` le dit ; l'écran n'offre « Télécharger » qu'à une session qui la porte.
+Les refus que ces écritures opposeraient sans que le contrat les dise sont des « Interface contract
+issue » relevées par EP-02/L43c, sous #507.
+
+*Remplacé en partie à la reprise de `main` après EP-03 : le téléchargement est sous `backups.read` et
+`backups.write` (#705).*
+
+## La création, la modification et le prochain état d'un projet (EP-02/L44a)
+
+La création et la modification d'un projet, que la maquette exerce (#513, #524), reçoivent l'exemple
+de leur succès, écrit aujourd'hui par Camille Martin, le 3 juin 2026 à 14 h 05 : `project_created`
+(« Rénovation du poste de livraison », 3, sans code — il se chiffrera sans lui, WF-PRJ-0010 —, à
+l'état Créé, ses taux à zéro, sans révision, les commandes d'un chef de projet sur un projet créé) et
+`project_updated` (le témoin, sa description saisie, version 8 ; la probabilité de gain reste figée
+depuis En cours). `getProject` cite en outre `project_created`, le projet lu après sa création, et
+`project_completed`, le témoin lu après sa sortie, que l'écran de ses paramètres présente sa
+modification indisponible. `getProjectNextState`, qui n'en avait aucun, reçoit quatre exemples : `next_state`
+(le témoin, en cours, qu'aucun fait ne mène plus loin : prochain état et déclencheur nuls, aucune
+condition), `next_state_pricing` (l'offre en chiffrage, qui porte son code : En cours à la
+désignation de sa révision de référence, la seule condition qui lui reste, WF-CYC-0030),
+`next_state_created` (le projet créé : Chiffrage à la création de sa première révision, sans
+condition) et `next_state_completed` (le témoin terminé, clos : aucun état ne le suit). Le déclencheur, que le contrat ne nomme que par un code libre (`NextState.trigger`),
+y prend les deux codes de la figure 8, `first_revision_created` et
+`reference_designated_and_code_set`, que le front rend par son catalogue ; leur énumération au
+contrat, et ce que l'opération rend d'un projet en cours ou terminal, sont des « Interface contract
+issue » relevées par EP-02/L44a, sous #507. Chacun ne vaut que pour la réponse de son opération :
+aucune lecture n'en tient compte.
+
+## Les sauvegardes et les réglages : commandes, filtres et refus (EP-14/L42h)
+
+Les cinq constats de #588, relevés par EP-02/L43c, et le huitième point de #575, les réglages,
+rangés dans #507 et regroupés au cadrage d'EP-14 par l'écran qui les consomme — la grille des
+sauvegardes de L43c, le formulaire de la planification de L43d, ceux des réglages de L43e. La
+permission du téléchargement est la décision de l'auteur du 2026-10-09 ; le reste est de l'agent
+de livraison du lot, chaque fois avec sa raison, et les noms que le cadrage et les issues
+proposaient sont arrêtés ici.
+
+**Chaque sauvegarde porte ses commandes** (`Backup.available_commands`, `BackupCommand` ; #588,
+WF-IHM-0090), sur le modèle de `UserCommand` : au plus trois, dans l'ordre de l'énumération —
+celle des deux qui change son marquage, `retain` ou `release` (`retainBackup`, WF-ADM-0170), comme
+un objet du référentiel ne porte que celle qui change son état (EP-02/L42a) ; `download`
+(`downloadBackup`, WF-ADM-0150) ; `restore` (`startRestore`, WF-ADM-0160). Aucune ne supprime :
+la rotation seule le fait. Le serveur ne liste que ce que l'appelant a la permission d'exercer —
+le marquage sous `backups.write`, le téléchargement et la restauration sous `platform_restore`
+(décision de l'auteur, EP-02/L43c) — et la liste est vide pour qui n'a que `backups.read` ; le
+front cesse de déduire les colonnes de commandes des permissions de la session. Trois conditions
+s'ajoutent au catalogue (`CommandCondition`), nommées comme ce qui doit tenir, à la manière de
+`no_background_task_running` et de `calendar_not_default`, et non comme l'état qui l'empêche :
+`backup_verified`, `no_backup_running`, `no_restore_running`. Écartés : `backup_running`,
+`restore_running` et `verification_failed`, les noms du cadrage, qui auraient fait lire « condition
+manquante : sauvegarde en cours » ; déduire les disponibilités de l'état de la sauvegarde dans le
+front, que la conception d'EP-02 interdit. Ce que chaque condition retient, et pourquoi :
+
+- `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la
+  vérification n'a pas réussi, en attente ou échouée : « la vérification est ce qui distingue une
+  sauvegarde d'un fichier qu'on espère restaurable » (motif de WF-ADM-0150), et le Vérif ne la fait
+  télécharger qu'avec « une vérification réussie » ; la copie planifiée attend de même la
+  vérification (`BackupExternalCopy`). Le marquage reste disponible : conserver une sauvegarde en
+  attente de vérification ne fait rien perdre. Écarté : le téléchargement d'une sauvegarde non
+  vérifiée, qui ferait sortir de la plateforme un fichier qu'on ne sait pas restaurable ;
+- `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la
+  production du fichier : la vérification qui suit n'empêche rien, et une sauvegarde en attente de
+  vérification (`backup_pending`) ne retient ni une restauration ni une autre sauvegarde, comme
+  `backup_pending` en porte le marquage disponible —, à la restauration, qui lirait une base en
+  cours de remplacement et ne serait d'aucun état cohérent, et au déclenchement d'une seconde
+  sauvegarde, qui lirait la même base pour rien ;
+- `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la
+  déconnexion des utilisateurs (WF-ADM-0160) —, à la restauration, au déclenchement d'une
+  sauvegarde et au marquage, qui s'écrirait dans la base que la restauration remplace. Le
+  téléchargement lit un fichier qu'aucune des deux ne touche : il reste disponible pendant l'une et
+  l'autre, et n'est indisponible que ce qui l'est (WF-IHM-0090). Écarté : rendre toute commande
+  indisponible pendant une restauration, plus simple, et faux pour le téléchargement.
+
+**Les 409 des sauvegardes sont ceux de toute commande qu'un état rend indisponible** (#588, points
+4 et 5) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition, comme les
+activations du référentiel (EP-02/L42a) et le type d'une nature (EP-02/L42g). `startBackup` le
+déclare pour `no_backup_running` et `no_restore_running` ; `retainBackup` pour
+`no_restore_running` ; `downloadBackup` pour `backup_verified` ; `startRestore`, dont le 409
+renvoyait à la réponse partagée `Conflict`, le décrit en place pour les trois. Écartés :
+`BACKUP_IN_PROGRESS` et `RESTORE_IN_PROGRESS`, les codes que #588 proposait — deux codes pour un
+refus que la condition nomme déjà, ce pour quoi `DEFAULT_CALENDAR_REQUIRED` a été retiré (EP-02/L42a).
+`startRestore` dit aussi ce qui est refusé pendant qu'une restauration court : en déclencher une
+autre (`restore_during_restore_refused`), une sauvegarde, un marquage ; le téléchargement d'une
+sauvegarde vérifiée reste possible. Écarté : une disponibilité dite d'avance pour « Sauvegarder
+maintenant » — `startBackup` n'est porté par aucune liste, aucun objet ne le liste parmi ses
+commandes ; le front le garde par la permission `backups.write`, et le 409 nommé suffit à dire
+pourquoi une sauvegarde est refusée. Une liste de commandes de la plateforme viendra quand un
+écran en aura besoin.
+
+**Une date confirmée qui n'est pas celle de la sauvegarde est refusée par champ** (#588, point 4 ;
+WF-ADM-0160) : 422 `VALIDATION_FAILED`, `fields` désignant `/acknowledged_backup_taken_at` par
+`BACKUP_DATE_MISMATCH`, nouveau au catalogue comme `UPLOAD_PURPOSE_MISMATCH`, le refus voisin de
+la même opération : aucun motif existant ne dit « pas celle de l'objet désigné ». Les deux dates
+se comparent comme des instants, quelle que soit l'écriture du fuseau. Sans paramètre : la
+confirmation énonce la date que la liste donne, et une date de sauvegarde ne change jamais — le
+refus ne survient que si la liste lue n'est plus celle de la sauvegarde désignée, et l'écran
+relit. Écarté : nommer la date de la sauvegarde dans `fields[].params`, que la liste porte déjà.
+
+*Remplacé à la reprise de `main` après EP-03 : une date confirmée qui n'est pas celle de la
+sauvegarde est refusée par 400 `CONFIRMATION_REQUIRED` (EP-03/US-0440/L2), `BACKUP_DATE_MISMATCH`
+retiré, et le téléchargement est sous `backups.read` et `backups.write` (#705).*
+
+**Le téléchargement vient nommé et mesuré** (#588, point 2 ; WF-ADM-0150). `downloadBackup`
+déclare deux en-têtes exigés, comme le résultat d'une tâche (`getBackgroundTaskResult`,
+EP-02/L15) : `Content-Disposition`, `attachment` et le nom que le serveur donne au fichier —
+`waterfall-backup-`, l'instant de la sauvegarde en temps universel sans séparateur, et l'extension
+de son archive, que l'exploitation fixe (§3.4.2.4 : la façon dont une sauvegarde est réalisée
+relève de l'architecture technique ; l'exemple dit `.tar`, une archive des deux bases) ; et
+`Content-Length`, égal à `size_bytes`, le corps transmis tel qu'il est conservé. Seul le nom a un
+exemple : une valeur d'exemple de `Content-Length` serait rejouée par le faux back — 1 313 656 012
+octets annoncés pour un corps de quelques octets —, et la route du front qui relaie le
+téléchargement recopie l'en-tête ; le contrat exige l'en-tête du vrai back, et la route relaie sans
+lui, le nom seul étant exigé pour relayer. Le nom est en ASCII : `filename` suffit, et `filename*`
+(RFC 8187), que #588 proposait, n'a rien à redire — écarté. La route du front qui relaie le
+téléchargement lit déjà l'un et l'autre, et n'a plus de nom à inventer. La permission est celle de la restauration, `platform_restore`, décidée par
+l'auteur le 2026-10-09 et dite depuis EP-02/L43c.
+
+**Les sauvegardes se filtrent et se trient sur chaque colonne** (#588, point 1 ; WF-IHM-0130,
+WF-IHM-0060), selon les conventions du contrat : la date par une période d'instants, `from` compris
+et `to` exclu, comme le journal et l'accueil (EP-02/L42e), refusée par la règle de toute période
+(`backups_period_inverted`) ; l'origine et la vérification par des listes au pluriel, `origins` et
+`verifications`, `explode: false` ; le marquage par `is_retained`, le nom de la colonne ; la taille,
+colonne de nombres, par ses deux bornes incluses, `size_bytes_min` et `size_bytes_max` (#545,
+`backups_bounds_inverted`) — que #588 ne demandait pas, et que la convention impose à toute grille
+qui a une colonne de nombres. `sort_by` prend les cinq colonnes, `taken_at` par défaut,
+décroissante, les plus récentes d'abord, croissante pour les autres, comme la date du journal ; la
+vérification et l'origine se trient dans l'ordre de leur énumération, l'API ne rendant pas leur
+libellé ; le marquage range les sauvegardes conservées d'abord dans l'ordre croissant, comme
+l'état des comptes range les actifs ; une égalité se départage par l'ordre sans tri, puis
+l'identifiant. Les deux énumérations prennent un nom, `BackupVerification` et `BackupOrigin`,
+pour que les paramètres de liste les citent sans les recopier ; le front renomme leurs clés
+(`enums.BackupVerification`, `enums.BackupOrigin`). `origin` devient exigé : une colonne qui se
+filtre et se trie ne peut manquer, et chaque exemple le portait.
+
+**La planification reçoit l'exemple de son succès** (`backup_schedule_set`, WF-ADM-0170) : celle
+du témoin enregistrée aujourd'hui par Camille Martin, quatorze sauvegardes conservées, la copie
+vers Lyon gardée, version 3 ; `test_mockuniverse.py` tient que ses trente copies restent au moins
+autant que la rétention (WF-EXP-0050). Il ne vaut que pour la réponse de l'écriture.
+
+**Chaque champ des paramètres communs relève de la permission de sa fonction** (#575, point 8 ;
+WF-ADM-0100). `updateReferenceSettings` le dit : la matrice (`risk_matrix`) sous
+`risk_settings.write`, les seuils et le délai (`index_thresholds`, `max_weeks_between_reviews`) sous
+`indicator_settings.write`. Une requête ne porte que ce qu'elle écrit, avec le compteur lu — commun
+à tous les paramètres, qui sont un seul objet —, et un champ absent reste tel qu'il est, ce que le
+schéma d'écriture permettait déjà sans le dire (`ReferenceSettingsWrite`, tout facultatif sauf
+`lock_version`) : chaque écran de L43e envoie son seul sous-objet. Un champ dont la session ne
+porte pas la permission est refusé par 403 `PERMISSION_MISSING`, `params.missing_permission` la
+nommant, rien n'étant écrit — même si la requête porte un autre champ qu'elle pourrait écrire :
+une écriture s'applique entière ou pas du tout. Écartés : deux opérations, une par fonction, qui
+feraient deux chemins pour un objet et deux compteurs à tenir ; écrire ce que la session peut et
+taire le reste, qui ferait croire à un succès entier. `default_language` ne relève d'aucune des
+deux fonctions : il quitte le schéma d'écriture (`ReferenceSettingsWrite`) et reste en lecture
+(`ReferenceSettings`) — un champ que l'on peut envoyer relève de la permission de sa fonction, et
+la langue n'en a aucune ici ; aucun écran du référentiel ne l'écrit, et la langue par défaut de
+l'installation (WF-INTF-0160) s'écrira là où EP-03 le décidera, dont c'est le domaine. Écarté : lui
+inventer une permission.
+
+**Les refus par champ des réglages** (#575, point 8 ; WF-REF-0160, WF-REF-0170). Deux motifs
+nouveaux au catalogue, les noms que #575 proposait, arrêtés : `BOUNDS_NOT_ORDERED` sur le rang de
+la borne de la matrice qui n'est pas strictement supérieure à la précédente
+(`/risk_matrix/severity_bounds/1` : la deuxième borne de gravité, 1 %, sous la première, 5 %), et
+`THRESHOLD_NOT_BELOW_WATCH` sur le seuil d'alerte qui n'est pas strictement inférieur au seuil de
+vigilance de son indice (`/index_thresholds/cost_alert`, `/index_thresholds/schedule_alert`),
+chacun à son champ, les deux indices dans un même refus quand les deux fautent. Écarté :
+`VALUE_OUT_OF_RANGE` avec `params.minimum` ou `params.maximum`, dont la borne est incluse quand
+l'ordre est strict — « minimum : 0,1 » aurait admis 0,1. Les seuils prennent un schéma,
+`IndexThreshold`, un décimal strictement entre 0 et 1 : WF-REF-0170 les dit « inférieurs à 1 », et
+un seuil nul ou égal à 1 ne laisserait aucune zone ; les bornes de la matrice restent des
+`Percent`, une gravité pouvant dépasser le budget. Le 412 est celui de toute écriture
+(`STALE_LOCK_VERSION`, `params.expected_lock_version`, EP-02/L42g), décrit en place : les deux
+écrans partagent le compteur, et l'un périme la lecture de l'autre. Exemples, écrits à la main aux
+corrélations 1049 à 1052 : `reference_settings_thresholds_updated` (les seuils à 0,95 et 0,85 et
+six semaines entre deux revues, version 2), `reference_settings_matrix_updated` (les probabilités à
+10, 25 et 50 %, les gravités à 2, 5 et 10 %, version 2), `reference_settings_bounds_refused`,
+`reference_settings_thresholds_refused`, `reference_settings_stale` (les seuils envoyés en version
+1 quand la matrice est en version 2) et `reference_settings_permission_missing` (la matrice
+envoyée par une session qui n'a qu'`indicator_settings.write`). Chaque succès ne vaut que pour la
+réponse de son écriture : aucune lecture n'en tient compte.
+
+**Exemples des sauvegardes.** Écrits à la main : `backups`, `backup_retained` et `backup_released`
+portent leurs commandes, celles de la session de Camille Martin, qui a les deux permissions, toutes
+disponibles, rien ne s'exécutant aujourd'hui ; `backup`, la sauvegarde de la nuit lue seule ;
+`backup_pending`, la sauvegarde manuelle mise en file à 14 h 04 (`task_backup_queued`), prise à
+14 h 04 min 50 s et lue avant que sa vérification n'aboutisse — son marquage disponible, son
+téléchargement et sa restauration non, `backup_verified` manquante ; l'identifiant 908 de la
+famille des sauvegardes —, la suite d'une écriture faite aujourd'hui ; aux corrélations 1040 à
+1048, `backups_period_inverted`, `backups_bounds_inverted`, `backup_start_refused` et
+`backup_start_during_restore_refused`, `backup_retain_refused` (la sauvegarde conservée du
+30 janvier, dont la commande est `release`, que l'on marque à ne plus conserver pendant la
+restauration de 14 h 04 min 30 s, `task_restore_queued` : elle reste marquée),
+`backup_download_refused`, `restore_during_backup_refused`, `restore_unverified_refused`,
+`restore_date_mismatch` (la sauvegarde du 3 juin confirmée avec la date de celle du 2) ; à la
+corrélation 1053, `restore_during_restore_refused` (une seconde restauration pendant la
+première). Engendrés par `wftools.mocklists`
+de `backups`, comme les listes de l'administration (EP-02/L42f) : `backups_reader` (aucune
+commande), `backups_during_backup` (la restauration indisponible sur chacune, `no_backup_running`),
+`backups_manual`, `backups_retained`, `backups_period` (juin 2026 à Paris), `backups_by_size` ;
+`test_mocklists.py` éprouve les filtres, les tris et les commandes sur des lignes de synthèse, et
+chaque exemple contre la liste écrite à la main ; `test_mockuniverse.py` tient `listBackups` à la
+règle des périodes. Le client est régénéré ; la grille de L43c adoptera les commandes, le tri et
+les filtres en L43f, les formulaires sont à L43d et L43e.
+
+## Le projet, les sous-projets et les contributeurs : commandes, bornes et refus (EP-14/L42i)
+
+Les écarts au contrat relevés par EP-02/L44a (#590) et EP-02/L44b (#592), rangés dans #507 et
+regroupés au cadrage d'EP-14 par les écrans qui les consomment — les paramètres et le cycle de vie
+du projet, ses sous-projets et ses contributeurs —, et le point de #625 qui touche un exemple du
+sous-projet. Les décisions sont de l'agent de réalisation du lot (#612), chaque fois avec sa
+raison ; les noms que le cadrage et les issues proposaient sont arrêtés ici. Le lot ne touche au
+front que pour compiler sur le client régénéré ; l'adoption par les écrans de L44a et L44b suit.
+
+**Le déclencheur du prochain état est énuméré** (`LifecycleTrigger`, #590 ; WF-CYC-0020,
+WF-CYC-0050) : `first_revision_created` et `reference_designated_and_code_set`, les deux faits de la
+figure 8, que les exemples de L44a nommaient déjà et que le front rendait par son catalogue en
+tenant pour « non reconnu » tout autre code. `NextState.trigger` les cite, nul avec `next_state`.
+D'un projet en cours ou dans un état terminal, `getProjectNextState` répond 200, le prochain état
+et le déclencheur nuls, aucune condition — ce que `next_state` et `next_state_completed` montraient
+sans que l'opération le dise. Écartés : un 404 ou un 409, qui feraient d'une lecture un refus et
+obligeraient l'écran du cycle de vie à distinguer deux chemins pour dire « aucun fait ne mène plus
+loin » ; un troisième déclencheur pour les sorties du cycle de vie, qui sont des commandes du projet
+(WF-CYC-0060), pas un prochain état. Le catalogue reçoit `enums.LifecycleTrigger` ; l'écran de L44a,
+qui garde encore sa liste et son « déclencheur non reconnu », l'adoptera.
+
+**La probabilité de gain est dite figée d'avance** (`ProjectCommand.update_win_probability`,
+`CommandCondition.project_before_in_progress` ; #590, WF-PRJ-0090, WF-IHM-0090). Une commande du
+projet, toujours listée juste après `update`, dont elle est une part : disponible aux états Créé et
+Chiffrage, `project_before_in_progress` manquante dès En cours — `project_not_terminal` avec elle sur
+un projet clos, comme `update` la nomme (`project_completed`). La règle d'EP-02 : un objet dit ses
+commandes d'avance, et l'écran ne déduit rien de son état. Écartés : un booléen du projet
+(`is_win_probability_frozen`), qui doublerait une commande sans nommer sa condition ; garder le
+champ dans `update` seule, qui ne peut dire qu'une part de ses champs est figée ; la condition
+nommée par l'effet (`win_probability_editable`) plutôt que par le fait qui doit tenir, à la manière
+de `project_not_terminal` ; `project_in_pricing`, qui existe mais exclut Créé. La valeur envoyée
+malgré la commande est refusée comme toute commande qu'un état rend indisponible (EP-02/L42a) :
+409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress`
+(`project_win_probability_frozen`) — l'enveloppe du `kind` figé d'une nature de coût, que
+`updateCostType` refuse par `cost_type_unused` (EP-02/L42g) : un champ qu'une commande fige se refuse
+par la condition de cette commande, et le front n'a qu'une lecture pour les deux.
+`WIN_PROBABILITY_FROZEN`, qui figurait au catalogue sans qu'aucune réponse le déclare, en est retiré,
+comme `HAS_ACTUAL_COSTS`. Écartés, à la relecture : un 422 `VALIDATION_FAILED`, `fields` désignant
+`/win_probability` par `WIN_PROBABILITY_FROZEN`, que la première rédaction du lot avait retenu — il
+donnait au même fait deux enveloppes selon l'écran, et un motif par champ sans paramètre là où la
+condition existe déjà ; un 409 `WIN_PROBABILITY_FROZEN` sans paramètre, la lecture qu'autorisait
+l'ancien catalogue. Le formulaire, qui dit au champ les refus par champ, dit celui-ci en alerte, par
+`problemMessage`, comme le `kind` figé. Absente de la requête, la valeur ne change pas : c'est un
+`PATCH`. `test_mockproject.py` tient la règle en travers des exemples : tout refus de ce lot qui
+nomme une `missing_condition` est un 409 `STATE_FORBIDS_OPERATION`.
+
+**Les deux taux sont bornés** (#590 ; WF-PRJ-0040, WF-PRJ-0090) : `inflation_rate` et
+`win_probability` sont des rapports, de `0` à `1` inclus — `0.03` pour 3 %, les écrans saisissant en
+pourcentages et envoyant en rapports (L44a) —, hors desquels `updateProject` refuse la valeur par
+champ : 422 `VALIDATION_FAILED`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la
+seule borne franchie, comme la fin d'une période antérieure à son début ne porte que `minimum`.
+Écartés : contraindre `Percent` lui-même, qu'une borne de gravité de la matrice des risques dépasse
+(EP-14/L42h) ; des `minimum` et `maximum` du schéma, qu'une chaîne décimale ne porte pas. L'exemple
+(`project_rates_out_of_range`) envoie 40 — un pourcentage pour un rapport, l'erreur que l'écran
+préviendra — et -0,01.
+
+**Le porteur d'un code pris est nommé par son libellé** (`fields[].params.conflicting_object_label`,
+le compagnon de `conflicting_object_id`, le nom que #590 proposait ; #592 ; WF-PRJ-0010,
+WF-PRJ-0050), par `createProject` et `updateProject` pour le code d'un projet, `createSubproject` et
+`updateSubproject` pour celui d'un sous-projet, et la convention du README le dit. EP-02/L42g nomme
+le porteur par le seul identifiant dans le référentiel, dont les formulaires ont la liste ; ce lot
+ajoute le libellé là où le formulaire ne connaît pas la liste qui porte le code — l'accueil est
+paginé et filtré par état, la liste des sous-projets peut être lue filtrée —, et où un chef de
+projet peut ne pas avoir la permission de lire le projet qui le porte, que relire par son
+identifiant lui répondrait 404 (WF-ADM-0110). Écartés : un code propre (`PROJECT_CODE_TAKEN`), le
+motif étant celui de toute valeur unique ; rendre l'objet entier dans `params`, dont l'écran ne
+dirait que le libellé ; `label` tout court, que la première rédaction du lot avait retenu et qui ne
+disait pas de quoi il est le libellé, quand `tasks[].label` nomme déjà une tâche dans `params`.
+`project_code_taken` (PRJ-001, le code du témoin, donné à la rénovation du poste de livraison, à sa
+création comme à sa modification) et `subproject_code_taken` le montrent.
+
+**Les refus de `createProject` sont exemplifiés** (#590) : `project_reference_incomplete`, 409
+`REFERENCE_INCOMPLETE`, `params.missing_prerequisites` nommant chaque prérequis par une valeur de
+`ReferenceReadiness.missing` — une variante contrefactuelle, le référentiel du témoin étant
+complet —, et `project_creation_refused`, 422, le libellé absent (`VALUE_REQUIRED`, WF-PRJ-0080) et
+un code de cinquante-et-un caractères (`VALUE_TOO_LONG`). Les 422 de `createProject`, `updateProject`,
+`createSubproject` et `updateSubproject`, qui renvoyaient à la réponse partagée, sont décrits en place.
+
+**Chaque sous-projet porte ses commandes** (`Subproject.available_commands`, `SubprojectCommand`,
+`SubprojectCommandAvailability` ; #592, WF-IHM-0090), sur le modèle de `UserCommand` et de
+`BackupCommand` : au plus deux, dans l'ordre de l'énumération, `update` (`updateSubproject`) et
+`delete` (`deleteSubproject`). Elles suivent la commande `update` du projet : la liste est vide pour
+qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100) ;
+la création d'un sous-projet, qu'aucun sous-projet ne peut lister, suit `update` aussi. Une
+condition s'ajoute au catalogue, nommée comme ce qui doit tenir : `subproject_without_actual_costs`
+manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) — les
+deux du témoin, le Poste de commande par la facture des écrans, les essais et la mise en service par
+celles des tâches tirées depuis EP-14/L45a. Aucun exemple ne montre donc la suppression disponible,
+le témoin chargeant tous ses sous-projets : `test_mockproject.py` fixe sur une variante construite
+dans le test (`has_actual_costs` faux, `delete` disponible) la règle qu'il applique aux exemples,
+plutôt que par un exemple de plus. Le lot en avait fait la seule, et retiré la `subproject_not_cited`
+que le cadrage d'EP-14 et #592 portaient, en suivant le Vérif de WF-DAT-0080, qui dit que la
+suppression d'un sous-projet référencé par une révision marquée *le marque supprimé* ; l'auteur a
+tranché le contraire le 2026-10-10 (#634) : un sous-projet qu'une révision marquée cite ne se
+supprime pas, et la condition revient, première des deux (EP-14/L42l, plus bas). La modification
+reste disponible, coûts imputés ou non : rien ne l'interdit. Écartés : déduire la suppression de
+`has_actual_costs` dans le front, ce que L44b faisait faute de mieux ; un booléen de plus pour la
+permission, que la commande dit ; `HAS_ACTUAL_COSTS`, retiré du catalogue des codes : aucune réponse
+ne le déclarait, et le refus d'une commande qu'un état rend indisponible est
+`STATE_FORBIDS_OPERATION` (EP-02/L42a). Le 409 de `deleteSubproject` le dit,
+`params.missing_condition` nommant la première condition qui manque
+(`subproject_delete_refused`) — `project_not_terminal` en dernier sur un projet clos (EP-14/L42l,
+plus bas).
+
+**`update` couvre le paramétrage du projet, sous-projets compris** (#592, point 3 ; FBS-4.2.3,
+WF-PRJ-0050, WF-PRJ-0060) : la description de `ProjectCommand` le dit — les attributs
+(WF-PRJ-0080), le lotissement (WF-PRJ-0020) et les sous-projets (WF-PRJ-0050), que chaque sous-projet
+détaille. Écarté : `manage_subprojects`, une commande du projet de plus, qui aurait la permission, les
+porteurs et la condition d'`update` — les chefs de projet, `project_not_terminal` — et doublerait ce
+que chaque sous-projet dit déjà : une permission, une commande. `manage_contributors` reste à part,
+parce que la liste des contributeurs a son propre compteur et sa propre règle (WF-PRJ-0060).
+
+**Le sous-projet créé porte déjà des coûts** (`subproject_created`, #625 ; WF-CRE-0020) : la facture
+FA-2026-0295, « Réception du client sur site », importée sous le code SP-REC et imputée jusque-là au
+seul projet — exclue du périmètre suivi, elle n'en reste pas moins sa ligne —, lui est imputée dès
+sa création, `has_actual_costs` vrai et `delete` indisponible aussitôt. `test_mockuniverse.py`
+confronte aux lignes imputées chaque exemple qui lit ou écrit un sous-projet (`CHARGED`) : les
+listes lues, celle que répond un renommage, et le sous-projet créé — un seul tuple depuis la reprise
+d'EP-14/L45a, qui y ajoutait les siens.
+
+**Un compte inconnu ou désactivé est refusé à sa ligne** (`setContributors`, #592 ; WF-PRJ-0060,
+WF-ADM-0060) : 422 `VALIDATION_FAILED`, `fields` désignant `/contributors/<n>/user_id` par
+`UNKNOWN_USER`, pour un compte que l'installation n'a pas, ou `USER_INACTIVE`, pour un compte
+désactivé inscrit ou changé de qualité, sans paramètre : la ligne dit le compte, et le formulaire le
+nomme. Deux motifs nouveaux au catalogue, à côté d'`UNKNOWN_SUBPROJECT` et `UNKNOWN_RESOURCE_ROLE`,
+nommés comme `User.is_active` et `Contributor.is_active`. Écartés : `INACTIVE_REFERENCE_OBJECT`, un
+compte n'étant pas un objet du référentiel ; `UNKNOWN_OBJECT`, trop large pour un formulaire qui le
+dit à un champ. Un contributeur désactivé depuis son inscription reste dans la liste, tel qu'il a
+été lu, et la liste renvoyée avec lui n'est pas refusée — WF-ADM-0060 veut qu'il y reste et y soit
+signalé ; écarté : refuser toute liste qui le garde, qui obligerait à retirer Alix Moreau pour
+changer la qualité de Lucas Petit. `LAST_PROJECT_MANAGER` reste un code propre, 409 sans paramètre,
+que `contributors_without_manager_refused` montre : la liste envoyée décide, qu'aucune commande ne
+dit d'avance, comme `LAST_ADMINISTRATOR` (EP-02/L42d) ; `setContributors` nomme aussi son 409 sur un
+projet clos, `project_not_terminal`.
+
+**Une proposition nomme son nœud et ses rôles, et dit que le compte est actif**
+(`ContributorSuggestion.org_node_label`, `resource_role_labels`, `is_active` ; #592, WF-PRJ-0070,
+WF-ADM-0060) : les libellés dans l'ordre des identifiants, pour que l'écran dise pourquoi un compte
+est proposé sans relire le référentiel (WF-ARC-0020) ; `is_active` toujours vrai — un compte
+désactivé n'est plus proposé, et l'inscrire serait refusé —, rendu comme `Contributor.is_active`
+pour que la proposition confirmée prenne place dans la liste telle quelle. Écartés : le taire, ce
+qui ferait supposer à l'écran ce que le serveur sait ; emboîter un `Contributor`, dont la qualité
+n'est pas celle d'une proposition. `listContributorSuggestions` dit d'où viennent les propositions :
+les comptes actifs rattachés aux nœuds d'organisation des rôles de ressources qu'emploient les
+lignes de devis du projet, que la liste ne compte pas encore ; l'ancienne description disait « le
+planning » là où WF-PRJ-0070 nomme les lignes de devis. Quelle révision porte ces lignes — celles de
+la révision en cours, ou de la dernière révision marquée quand il n'en a pas — est une décision de ce
+lot, que ni WF-PRJ-0070 ni la conception d'EP-14 ne posent : la révision en cours est celle qu'un
+chef de projet chiffre quand il compose sa liste, et un projet sans révision en cours n'a que ses
+révisions marquées ; EP-04, qui écrit le back des projets, la confirme ou la change.
+
+**Aucune opération ne liste les candidats inscriptibles** (#592, point 5) — écarté. L'écran de L44b
+n'inscrit que les propositions, et WF-PRJ-0070 ne décrit que cela ; une opération qui ouvrirait à
+tout chef de projet le répertoire des comptes de l'installation contournerait la permission
+`users.read` (WF-ADM-0100), et celui qui la porte a `listUsers`. EP-04, qui écrit le back des
+projets, dira s'il en faut une.
+
+**Exemples.** Écrits à la main, aux corrélations 1060 à 1067 : `project_code_taken`,
+`project_reference_incomplete`, `project_creation_refused`, `project_win_probability_frozen` (la
+probabilité du témoin, en cours, ramenée à 0,8), `project_rates_out_of_range` (l'offre, en
+chiffrage), `subproject_delete_refused` (le Poste de commande ; la réception sur site depuis
+EP-14/L42l), `contributors_without_manager_refused` (Camille Martin passée contributrice) et
+`contributors_accounts_refused` (Alix Moreau, désactivée, passée chef de projet à la deuxième ligne,
+et un compte inconnu à la cinquième, hors des quatre lignes de la liste du témoin). Chaque lecture
+d'un projet qui liste `update` liste `update_win_probability` à sa suite ; chaque lecture ou
+écriture d'un sous-projet porte ses commandes ; `contributor_suggestions` nomme l'atelier de câblage
+et le monteur câbleur ; les listes engendrées par `wftools.mocklists` en dérivent sans retouche de
+l'outil.
+`tools/tests/test_mockproject.py` tient chacun contre l'univers et contre le contrat : la commande qui
+suit `update` et son état, les taux dans leurs bornes, le prochain état de chaque projet, les
+commandes de chaque sous-projet d'après ses coûts — et, depuis EP-14/L42l, d'après sa citation par
+une révision marquée —, le libellé du porteur d'un code pris, les lignes désignées
+d'une liste refusée, ce que chaque proposition nomme, et le 409 de tout refus qui nomme une
+condition. Le client est régénéré ; le front reçoit l'icône de la commande, ses catalogues
+(`enums.ProjectCommand.update_win_probability`, `enums.CommandCondition.project_before_in_progress` et
+`subproject_without_actual_costs`, `enums.LifecycleTrigger`, `enums.SubprojectCommand`,
+`errors.UNKNOWN_USER` et `USER_INACTIVE`, `HAS_ACTUAL_COSTS` et `WIN_PROBABILITY_FROZEN` retirés) et
+le test de la suppression refusée adapté au 409 nommé ; les écrans de L44a et L44b adoptent le reste
+dans un lot propre.
+
+## La suppression d'un sous-projet cité par une révision marquée (EP-14/L42l)
+
+*Corrigée par C-256 ; complétée par EP-14/L42q (C-273), section « Le sous-projet porté par le devis
+en cours, le collage partiel (EP-14/L42q) ». Le texte qui suit est gardé tel quel.*
+
+**Un sous-projet qu'une révision marquée cite ne se supprime pas** (#647 ; décision de l'auteur du
+2026-10-10 sur #634 ; §4.4.1, WF-PRJ-0050, WF-IHM-0090). Les sous-projets déterminent la courbe de la
+valeur acquise : supprimer un sous-projet qu'une révision marquée cite y aurait des effets de bord
+difficilement maîtrisables. La prose du §4.4.1 le disait déjà — un sous-projet référencé par une
+révision marquée « ne l'est pas davantage », supprimable — ; le corps et le Vérif de WF-DAT-0080
+disent le contraire : « Celle d'un sous-projet référencé par une révision marquée le marque
+supprimé ». C'est ce Vérif que L42i avait suivi en retirant la condition. **Le contrat suit la
+décision, contre le Vérif**, dont la correction est proposée à l'auteur dans `docs/spec/TODO.md`, § 2
+(#634, PR #649) : aucun agent ne modifie la spécification, et la contradiction demeure jusqu'à ce
+qu'il l'écrive. Le refus d'un risque cité (`risk_not_cited`) est le précédent : même cause, même
+forme.
+
+`subproject_not_cited` rejoint le catalogue, nommée comme ce qui doit tenir, avant
+`subproject_without_actual_costs` : elle manque à la commande `delete` d'un sous-projet que cite une
+ligne d'une révision marquée. Quand les deux manquent, la commande les liste toutes deux,
+`subproject_not_cited` d'abord, et le 409 de `deleteSubproject` (`STATE_FORBIDS_OPERATION`, sans
+`fields`) nomme celle-là : la citation ne se lève jamais — une révision marquée est immuable
+(WF-DAT-0020) —, quand des coûts imputés laisseraient croire qu'en les retirant la suppression
+aboutirait ; c'est la raison que `deleteRisk` donne pour nommer `risk_not_occurred` avant
+`risk_not_cited`. Un sous-projet qu'aucune révision marquée ne cite et qu'aucun coût ne charge est
+retiré de la base, 204 ; aucun sous-projet n'est plus « marqué supprimé ». La description de
+`deleteSubproject` le dit, avec la décision et le Vérif qu'elle contredit.
+
+**Sur un projet clos, `project_not_terminal` vient en dernier** (revue de L42l ; WF-CYC-0100). La
+commande `delete` d'un sous-projet cité et chargé d'un projet clos manque alors de trois conditions,
+listées `subproject_not_cited`, `subproject_without_actual_costs`, `project_not_terminal`, et le 409
+nomme la première qui manque. C'est l'ordre dans lequel le projet liste déjà les siennes : la
+condition propre à la commande d'abord, celle du projet ensuite — `update_win_probability` d'un
+projet terminé manque de `project_before_in_progress` puis de `project_not_terminal`,
+`create_revision` de `no_current_revision` puis de `project_not_terminal` (`project_completed`) ;
+`update`, qui n'a pas de condition propre, ne nomme que `project_not_terminal`. Écarté :
+`project_not_terminal` d'abord, que la relecture proposait — l'ordre du contrat aurait dépendu de
+l'objet qui porte la commande. Aucun exemple ne lit les sous-projets d'un projet clos :
+`test_mockproject.py` fixe sur une variante construite dans le test la règle qu'il applique aux
+exemples, et la confronte à `project_completed`.
+
+Écartés : garder la suppression logique de L42i jusqu'à ce que l'auteur corrige le Vérif — le contrat
+aurait promis ce que l'auteur a refusé, et l'écran de L44e l'aurait appris ; nommer
+`subproject_without_actual_costs` d'abord, qui aurait gardé tel quel l'exemple de refus de L42i, mais
+renvoyé vers des coûts dont le retrait ne suffit pas, et laissé `subproject_not_cited` sans aucun
+sous-projet du témoin pour la montrer ; une information de lecture de plus (« cité par une révision
+marquée »), que la commande dit déjà.
+
+**Les deux sous-projets du témoin sont cités**, non le seul Poste de commande : depuis EP-14/L45a, la
+référence marquée le 1er février porte toute la structure, et les lots « Ligne d'essais » citent les
+essais et la mise en service comme le cœur et les lots « Poste de commande » citent le Poste de
+commande ; l'offre v1.0, marquée le 15 décembre 2025, précède leur déclaration et n'en cite aucun.
+Leurs lectures (`subprojects`, et `subprojects_by_label` et `subprojects_with_actual_costs`, qu'en
+dérive `make mock-data`) et le renommage (`subproject_updated`) portent les deux conditions ; le
+sous-projet créé aujourd'hui (`subproject_created`), qu'aucune révision marquée ne cite, la seule de
+ses coûts. Exemples : `subproject_delete_cited` (corrélation 1068), la suppression du Poste de
+commande refusée par `subproject_not_cited` ; `subproject_delete_refused`, que L42i écrivait pour le
+Poste de commande, refuse désormais celle de la réception sur site, aussitôt chargée de la facture
+FA-2026-0295, par `subproject_without_actual_costs` — l'un et l'autre réels, sans contrefactuel. Les
+exemples écrits à la main le restent (`subprojects`, `subproject_updated`, `subproject_created`, les
+deux refus) ; les listes dérivées sont engendrées. `tools/tests/test_mockproject.py` applique aux
+exemples la règle qu'il fixe : les conditions de chaque sous-projet viennent de sa citation par une
+révision marquée, lue dans la référence sur toute la structure, puis de ses coûts ; et le test
+transversal des refus tient le nouveau 409 sans `fields`. Les catalogues reçoivent
+`enums.CommandCondition.subproject_not_cited` ; le client est régénéré, et l'adoption par l'écran
+des sous-projets revient à L44e.
+
+## La date confirmée d'une restauration déposée, le refus hors plage des paramètres (EP-14/L42m)
+
+Deux constats de contrat, #628, relevé par la relecture de L42h, et #659, relevé par celle de
+L43e, rangés dans #507 et réalisés par un lot de contrat d'EP-14 (#663). Les décisions sont de
+l'agent de réalisation du lot, chaque fois avec sa raison.
+
+**La date confirmée d'une sauvegarde déposée est l'instant que porte son archive, lu au dépôt**
+(`FileUpload.backup_taken_at` ; #628, WF-ADM-0160). WF-ADM-0160 veut une confirmation qui « énonce
+la date de la sauvegarde », et son Vérif, une confirmation qui « nomme la date de la sauvegarde » :
+pour une sauvegarde de la liste, c'est `Backup.taken_at` (EP-14/L42h) ; une sauvegarde copiée hors
+de la plateforme puis déposée (`external_backup_upload_id`) n'a pas de `Backup`. L'archive que la
+plateforme écrit porte l'instant de sa sauvegarde — celui que le nom de son fichier écrit aussi,
+`waterfall-backup-<instant>.tar` (L42h) — : le dépôt d'une sauvegarde le lit et le rend, comme la
+liste rend celui d'une sauvegarde qu'elle porte, et `startRestore` compare la date confirmée à cet
+instant, refusée sinon par le même 422 que pour une sauvegarde de la liste
+(`/acknowledged_backup_taken_at`, `BACKUP_DATE_MISMATCH`, sans paramètre). Le champ est exigé de
+tout dépôt, nul pour le fichier d'un import, qui n'a pas de date de sauvegarde : la date ne se
+compare qu'à un dépôt de sauvegarde, et une restauration demandée sur un dépôt d'import est refusée
+par `UPLOAD_PURPOSE_MISMATCH` seul (revue de L42m). Côté écriture, le téléchargement
+(`downloadBackup`) et la copie externe (`BackupExternalCopy`) disent que l'archive porte l'instant
+de sa sauvegarde, que le dépôt relit. Une archive dont
+l'instant ne se lit pas n'est pas une sauvegarde de Waterfall : le dépôt est refusé, 422
+`FILE_FORMAT_UNREADABLE`, sans paramètre — `expected_format` nomme une nature d'échange, et aucune
+n'est celle des sauvegardes ; le fichier d'un import, lui, n'est lu qu'à l'analyse (`openImport`).
+Écartés :
+
+- la date attendue dans `params` du 422 de `startRestore`, seule — l'autre proposition de #628 : la
+  confirmation doit énoncer la date *avant* que la restauration soit demandée, et un écran qui ne la
+  connaîtrait que par un premier refus ferait confirmer à l'aveugle ; ajoutée au dépôt, elle
+  doublerait ce que le dépôt rend, comme L42h a écarté de nommer dans `params` la date que la liste
+  porte ;
+- la date lue dans le nom du fichier déposé : un nom se change, et le serveur comparerait la
+  confirmation à ce que le client lui a dit ;
+- faire d'un dépôt une sauvegarde de la liste (une origine `uploaded` de plus) : un dépôt est en
+  transit et expire en un jour (WF-DAT-0120), quand la liste est celle de la rotation et du
+  marquage (WF-ADM-0170) ; ses commandes et ses filtres auraient à l'exclure partout ;
+- une opération qui relise un dépôt (`getFileUpload`), pour le seul champ que le dépôt rend déjà ;
+- lire l'instant à la restauration, dans le worker : trop tard pour la confirmation ;
+- accepter un dépôt dont l'instant ne se lit pas, la date nulle, et refuser sa restauration : un
+  dépôt de plusieurs gigaoctets gardé un jour pour rien ; un code propre (`BACKUP_UNREADABLE`), là
+  où le format illisible d'un fichier a déjà le sien.
+
+*Remplacé en partie à la reprise de `main` après EP-03 : une sauvegarde se dépose par morceaux,
+sa date lue au manifeste à l'achèvement (`completeChunkedUpload`, #1006), et la date confirmée qui
+n'est pas la sienne est refusée par 400 `CONFIRMATION_REQUIRED` ; `file_upload_external_backup`
+devient un exemple de l'achèvement, `file_upload_backup_unreadable` est retiré.*
+
+Exemples, écrits à la main : `file_upload_external_backup`, la copie de la sauvegarde planifiée de
+la nuit du 20 mai que le site de secours de Lyon garde parmi ses trente copies quand la plateforme
+n'en conserve plus que sept, déposée aujourd'hui à 13 h 50, sa taille sur la ligne des sauvegardes
+de la liste, qui croissent chaque nuit du même pas (identifiant …0a15) ; aux corrélations 1069 et
+1070, `restore_external_date_mismatch`, sa restauration confirmée avec la date de la sauvegarde du
+2 juin que la liste donne, et `file_upload_backup_unreadable`. `file_upload` porte la date nulle.
+`test_mockuniverse.py` tient le dépôt contre la liste et la planification — une nuit planifiée plus
+ancienne que la liste, dans les copies de Lyon, nommée comme la plateforme nomme ses sauvegardes —,
+et chaque refus contre son enveloppe et son opération. Que la vérification d'une sauvegarde déposée
+soit énoncée, comme celle d'une sauvegarde de la liste, n'est pas tranché ici : rien dans #628.
+
+**Un délai hors de sa plage est refusé par `VALUE_OUT_OF_RANGE`, la borne franchie ; un seuil
+hors de ]0, 1[, par un motif propre aux seuils** (#659, point 1 ; WF-REF-0170, WF-REF-0180). Le
+délai entre deux revues (`/max_weeks_between_reviews`) va de `1` à `104` semaines, les bornes que le
+schéma publiait sans que l'opération dise leur refus : 422 `VALIDATION_FAILED`,
+`VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie, comme les deux
+taux d'un projet (EP-14/L42i, `project_rates_out_of_range`) — des entiers, bornes admises. Un seuil
+(`/index_thresholds/<seuil>`) est une valeur de l'indice « inférieure à 1 » (WF-REF-0170),
+strictement positive pour laisser une zone d'alerte (`IndexThreshold`, L42h), sans précision fixée :
+l'intervalle ]0, 1[ est ouvert, et n'a ni plus petite ni plus grande valeur admise que `minimum` ou
+`maximum` pourraient nommer — la raison même pour laquelle L42h avait écarté `VALUE_OUT_OF_RANGE`
+pour l'ordre strict des seuils. Il est donc refusé par un motif par champ nouveau au catalogue,
+`THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre, sur le modèle de `THRESHOLD_NOT_BELOW_WATCH` :
+sa phrase reprend `IndexThreshold` (« compris entre 0 et 1, l'un et l'autre exclus »), WF-REF-0170
+ne disant que « inférieures à 1 ». Le motif d'`IndexThreshold` reprend celui de L42h, élargi aux
+zéros de tête (revue 3 de L42m) : il admet `0.875` et `00.5`, et il est exactement, parmi les
+décimaux de `Decimal`, celui des valeurs strictement entre 0 et 1 — sans quoi `00.5` aurait reçu le
+code de la plage, une fausse cause. Un seuil se juge en trois temps, chacun par sa contrainte (revue 2 de L42m) : la
+forme d'abord — un seuil qui n'est pas un décimal, le motif de `Decimal` (`0,9`, `.5`), est refusé
+par `NUMBER_INVALID`, comme toute valeur décimale mal écrite ; la plage ensuite — un décimal que le
+motif du seuil refuse (`0`, `1`, `1.5`), par `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE` ; l'ordre enfin —
+`THRESHOLD_NOT_BELOW_WATCH`, entre seuils dans ]0, 1[ seulement. Écarté : un motif large
+(`^\d+(\.\d+)?$`) avec la plage dite en texte, qui perdrait une contrainte lisible par machine
+sans rien gagner, `allOf` séparant déjà la forme (`Decimal`) de la plage (`IndexThreshold`).
+Le premier exemple du 422 reste `bounds_not_ordered`, celui que le faux back sert à une requête invalide ; le nouveau,
+`reference_settings_out_of_range` (corrélation 1071 : la vigilance de l'indice de coût à 1, refusée
+par le nouveau motif, zéro semaine entre deux revues, refusée par `VALUE_OUT_OF_RANGE`), vient en
+dernier. Décision de l'agent de livraison à la relecture de L42m, qui renverse la première rédaction.
+Écartés : deux décimales au plus, de `0.01` à `0.99`, sur le modèle du taux horaire, que la première
+rédaction retenait — elle restreignait WF-REF-0170, qui ne fixe aucune précision (les deux décimales
+du taux venaient de `Money`, WF-DAT-0100), et aurait refusé `0.875` par une fausse cause ; un
+paramètre générique d'exclusion (`exclusive: true`) à côté de `minimum` et `maximum`, pour un seul
+champ du contrat ; `VALUE_OUT_OF_RANGE` nommant `0` et `1`, que le paramètre donne pour des bornes
+admises et que le front dirait comme telles (« Valeur minimale : 0 »).
+
+**La rétention des sauvegardes hors de sa plage est refusée de même** (le jumeau de #659, relevé
+par la relecture de L43d ; WF-ADM-0170) : `setBackupSchedule` publiait `minimum: 1` et
+`maximum: 365` sur `retained_count` et `external_copy.retained_count` sans que son 422 dise leur
+refus. Hors de ces bornes : `VALUE_OUT_OF_RANGE`, `params.minimum` ou `maximum` la seule borne
+franchie, sur `/retained_count` ou `/external_copy/retained_count` ; le minimum de la copie reste la
+rétention de la plateforme (WF-EXP-0050), `1` quand celle-ci est elle-même hors de ses bornes.
+L'exemple `backup_schedule_retention_out_of_range` (corrélation 1072 : aucune sauvegarde gardée,
+quatre cents copies) vient en dernier sous le 422, `unknown_location` restant le premier ;
+`test_mockuniverse.py` le tient contre les bornes du schéma et chaque planification des exemples
+dans leur plage. Le jour d'une sauvegarde hebdomadaire (`weekday`, de 1 à 7) publie aussi des bornes
+sans refus décrit : relevé, non traité ici.
+
+**La réponse de la matrice change une zone** (`reference_settings_matrix_updated` ; #659, point 2 ;
+WF-REF-0160) : la case de la plus faible probabilité et de la plus forte gravité, p1/g4, rang 3,
+passe de vigilance à alerte, la case que #659 proposait et que le test du formulaire de la matrice
+(L43e, `settings-forms.dom.test.tsx`) change déjà dans la requête qu'il envoie — la réponse est
+celle de cette requête, pour que le test prouve qu'une zone répondue remplace la zone lue. La
+requête porte la matrice entière, les trois listes étant exigées (`RiskMatrixSettings`). Écarté :
+mettre aussi p2/g4 en alerte, pour une matrice qui ne soit jamais moins sévère à une probabilité
+plus haute — aucune exigence ne le demande (WF-REF-0160 ne règle que les bornes), et la réponse
+n'aurait plus été celle de la requête du test.
+`tools/tests/test_mocksettings.py` tient chaque réponse contre la lecture des paramètres — ce qui
+change, et rien d'autre —, le motif d'un seuil, les bornes du délai contre le schéma, chaque seuil et
+chaque délai des exemples — l'historique des indices compris — dans leur plage, le refus à ses
+pointeurs, et l'ordre des exemples du 422.
+
+Le client est régénéré ; le front reçoit la phrase du nouveau motif
+(`errors.THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`) et ne change pas autrement — les tests du formulaire
+des réglages (L43e, livré) qui disent le refus hors plage et la zone répondue, et la restauration
+depuis un fichier (L43d), qui énonce la date du dépôt, viennent ensuite.
+
 ## Les comptes non admis, les adresses et le 503 des opérations gardées (EP-03, #664, #665, #666)
 
 Décisions de l'auteur du 2026-10-10, sur trois constats de la revue d'US-0350/L3.
@@ -3663,6 +4461,984 @@ d'identité ; s'il ne répond pas, l'opération rend 503 `COMPONENT_UNAVAILABLE`
 vérifie, comme celle du 401. Écarté : la règle écrite au seul README, qu'une réponse validée
 contre le contrat contredirait.
 
+## Les refus des écritures des paramètres de ressources (EP-14/L42j)
+
+Les points 1 à 7 de #575, relevés par EP-02/L43b, et son complément de la revue d'EP-02/L42g, les
+références inconnues ; le point 8 est fait par EP-14/L42h. Les décisions sont de l'agent de
+réalisation du lot (#613), chacune avec sa raison. Deux suivent la spécification révisée le
+2026-10-09 (#581), que le contrat ne suivait pas encore : le libellé unique d'un calendrier
+(WF-REF-0110) et le déplacement d'un nœud sous un nœud actif seulement (WF-REF-0070). Trois autres
+règles de cette révision sortent du périmètre et attendent une décision (#684) : le code unique d'un
+rôle (WF-REF-0090), la catégorie d'un rôle gardée dans la main-d'œuvre (WF-REF-0030, WF-REF-0040),
+le projet que nomme le refus d'un calendrier (WF-PLA-0010). Le lot ne touche au front que pour
+compiler ; l'adoption par les écrans de L43b revient à L43g (#685).
+
+**La désignation par défaut est une commande du calendrier** (`CalendarCommand`, point 1 ;
+WF-REF-0120, WF-IHM-0090), sur le modèle de `CostTypeCommand` : `deactivate`, `reactivate`,
+`set_default`, au plus deux — celle qui change l'état, puis la désignation, listée pour tout
+calendrier qui n'est pas celui par défaut, indisponible pour un calendrier désactivé, faute de
+`calendar_active`, nouvelle au catalogue et nommée comme `org_node_active`. Écartés : `set_default`
+dans `ReferenceCommand`, que #575 proposait — les nœuds et les rôles la partagent, à une commande
+(`maxItems: 1`, EP-02/L42a), ce pour quoi L42g a écarté `change_kind` ; la désignation listée,
+indisponible, sur le calendrier par défaut, qui dirait ce qui va de soi, comme la réactivation d'un
+objet actif.
+
+**`setDefaultCalendar` porte la version lue, et ses refus sont nommés** (point 2). Le corps porte le
+`lock_version` du calendrier désigné, seul : la désignation retirée au précédent est un effet que le
+serveur décide, comme une désactivation en cascade n'envoie pas la version de ce qu'elle désactive ;
+sa version avance, et le client relit la liste. 412 `STALE_LOCK_VERSION` (EP-02/L42g) ; 409
+`STATE_FORBIDS_OPERATION`, `params.missing_condition` à `calendar_active`, sans
+`conflicting_object_id` — c'est le calendrier même qui se réactive —, à la place de la réponse
+partagée `Conflict` ; le 422 `TASK_WITHOUT_WORKING_HOURS` reste. Désigner le calendrier qui l'est
+déjà, que sa commande ne liste pas, ne change rien et répond 200, comme un `PUT` répété — la version
+contrôlée d'abord, 412 si elle est périmée, comme toute écriture versionnée (revue 1) ; écarté : un 409
+pour un effet déjà atteint.
+
+**Une catégorie dit le type de sa nature** (`CostCategoryImage.cost_type_kind`, point 3 ; WF-REF-0090,
+WF-ARC-0020), exigé, résolu à la lecture comme `cost_type_label` : le formulaire d'un rôle ne propose
+que les catégories de main-d'œuvre sans relire les natures. Écarté : un filtre `cost_type_kinds`, que
+#575 proposait aussi — la page lit déjà toutes les catégories pour filtrer les rôles, et le faux back,
+qui ne filtre rien, servirait au formulaire des catégories hors main-d'œuvre. `make mock-data` l'écrit
+dans les catégories engendrées.
+
+**Les refus par champ d'un rôle** (point 4 et complément ; WF-REF-0090, WF-REF-0100).
+`createResourceRole` et `updateResourceRole` décrivent leur 422 `VALIDATION_FAILED` : `/label` vide ou
+trop long, comme une nature (L42g) ; un rattachement absent ou nul, `VALUE_REQUIRED`, les trois étant
+obligatoires ; inconnu, `UNKNOWN_ORG_NODE` ou `UNKNOWN_CALENDAR`, nouveaux au catalogue — chaque objet
+a le sien depuis `UNKNOWN_COST_TYPE` —, ou `UNKNOWN_COST_CATEGORY` ; une catégorie hors main-d'œuvre,
+`LABOUR_CATEGORY_REQUIRED`, le code du taux d'une telle catégorie (L42g), qui devient motif par champ —
+écarté : un second code pour le même fait ; un rattachement désactivé, `INACTIVE_REFERENCE_OBJECT`, les
+rattachements « désignent des objets actifs au moment où ils sont faits » — à la modification, quand
+elle change la catégorie ou le calendrier seulement : un rôle qui garde les siens, désactivés depuis,
+se modifie, comme une catégorie sous sa nature désactivée ; une capacité négative, point 6. Un champ ne
+porte qu'un motif, inconnu, puis hors main-d'œuvre, puis désactivé : réactiver une catégorie hors
+main-d'œuvre ne lèverait rien, et la condition qui ne se lève pas vient d'abord, comme pour
+`deleteSubproject` (L42l). `LABOUR_CATEGORY_REQUIRED` vaut aussi pour une catégorie gardée : un rôle
+dont la catégorie a quitté la main-d'œuvre ne se modifie pas sans en changer, le corps de WF-REF-0090
+ne rattachant un rôle qu'à une catégorie de main-d'œuvre, en attendant que le contrat empêche la
+catégorie d'un rôle de quitter la main-d'œuvre (#684, point 2 ; revue 1). `updateResourceRole` garde
+l'autre enveloppe de son 422, `TASK_WITHOUT_WORKING_HOURS`.
+
+*Remplacé en partie par EP-14/L42r : le contrat empêche désormais la catégorie d'un rôle de quitter
+la main-d'œuvre (`cost_category_without_role`, `cost_type_without_role`) ; la catégorie qu'un rôle
+garde est toujours de main-d'œuvre, et « en attendant » n'a plus d'objet.*
+
+**Un nœud ne se place que sous un nœud actif, ni sous lui-même ni sous ses descendants** (point 5 ;
+WF-REF-0070, WF-REF-0080). `/parent_id` est refusé par `UNKNOWN_ORG_NODE` ; par `ORG_NODE_CYCLE`,
+nouveau, sans paramètre, pour le nœud lui-même ou l'un de ses descendants — écartés : `LINK_CYCLE`,
+dont la phrase parle des liaisons entre tâches, et `VALUE_OUT_OF_RANGE`, sans borne à nommer — ; par
+`INACTIVE_REFERENCE_OBJECT` pour un nœud désactivé, quel que soit l'état du nœud déplacé : WF-REF-0070
+révisé ne déplace un nœud que « sous un autre nœud actif ou à la racine », et son Vérif refuse « le
+déplacement sous un nœud désactivé ». L'exception d'EP-02/L42d, un nœud désactivé déplacé sous un
+nœud désactivé, est retirée. Un seul motif, le premier dans cet ordre : inconnu, puis boucle, puis
+désactivé. Seul le déplacement est contraint (revue 1) : à la modification, `INACTIVE_REFERENCE_OBJECT`
+ne vaut que si elle change le parent, jugé sur la valeur envoyée : un nœud désactivé qui garde son
+parent désactivé se modifie, comme un rôle qui garde sa catégorie, ou une catégorie sa nature
+désactivée (L42g) — `org_node_renamed_under_inactive`, la cellule robotique renommée sous le bureau
+d'études automatismes. Le parent est donc exigé à la modification (`OrgNodeUpdate`), nul pour une
+racine (revue 2), et son absence refusée par `VALUE_REQUIRED` sur `/parent_id` (revue 3) ; écarté : un parent absent qui garderait le parent lu, une règle de plus à tenir,
+contraire à l'envoi du corps entier.
+
+**Une valeur unique prise nomme son porteur.** Le code d'un nœud, par `conflicting_object_label` en
+plus de son identifiant, comme un projet (L42i) : l'arbre lu sans les désactivés, ou filtré, peut ne
+pas montrer le porteur, que l'utilisateur réactivera plutôt que d'en créer un second (WF-IHM-0090) —
+BE-AUTO, désactivé, dans `org_node_code_taken`. Le libellé d'un calendrier est unique, désactivés
+compris (WF-REF-0110 révisé : « deux calendriers de même libellé sont refusés ») : 409
+`ALREADY_EXISTS` sur `/label`, l'identifiant du porteur seul, son libellé étant la valeur envoyée. La
+table `UNIQUE` de `test_mockcostsettings.py` compte désormais quinze écritures.
+
+**Les heures d'un jour et la capacité sont bornées** (points 6 et 7 ; WF-REF-0110, WF-REF-0100) : de
+`0` à `24` pour une heure d'un jour (`/weekly_hours/<jour>`), `0` au moins pour les heures mensuelles
+et l'effectif (`/capacity/...`), refusés par 422 `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou
+`maximum` la seule borne franchie, comme les taux d'un projet (L42i) : bornes et zéro sont admis, un
+jour chômé, une capacité nulle que rien n'interdit. Écartés : un motif sans signe sur `Hours`, que
+lectures et écritures partagent jusqu'aux durées des tâches, et qui ne nommerait pas la borne ; un
+plafond de la capacité, qu'aucune exigence ne donne. `createCalendar` et `updateCalendar` décrivent
+leur 422, et les quatre modifications leur 412 en place, chacune avec son exemple.
+
+**Exemples**, écrits à la main aux corrélations 1080 à 1090 : `org_node_code_taken`,
+`org_node_move_cycle_refused` (la direction technique sous l'atelier de câblage),
+`org_node_update_stale`, `resource_role_attachments_refused` (un nœud inconnu, la sous-traitance, la
+semaine de trente-neuf heures désactivée), `resource_role_update_refused` (le technicien de mise en
+service passé à cette semaine, un effectif de -1), `resource_role_update_stale`,
+`calendar_label_taken`, `calendar_hours_refused` (25 heures le lundi, -7 le samedi),
+`calendar_update_stale`, `calendar_default_refused`, `calendar_default_stale`. Les calendriers lus et
+écrits portent leur désignation. `tools/tests/test_mockresourcesettings.py` tient chacun contre
+l'univers et contre le contrat ; le test transversal des refus tient le nouveau 409. Le front reçoit
+ses catalogues (`errors.UNKNOWN_ORG_NODE`, `UNKNOWN_CALENDAR`, `ORG_NODE_CYCLE`,
+`enums.CommandCondition.calendar_active`, `enums.CalendarCommand`) et envoie la version lue à la
+désignation.
+
+## Les bornes sans refus, la restauration depuis un dépôt, la précision d'une part, les sous-projets d'un projet clos (EP-14/L42o)
+
+Cinq constats de #507 relevés pendant L42m, L43d, L44e et L51, regroupés dans un lot de contrat
+(#698) : #677, #679, #694, le point 2 de #683 et le point 1 de #673. Les décisions sont de l'agent
+de réalisation du lot, chacune avec sa raison, et, à la relecture 1, de l'agent de livraison pour la
+somme des parts.
+
+**Les bornes de #677 ont leur refus.** `setBackupSchedule` (`/weekday`, de 1 à 7), `createNode`
+(`/position`, `/estimate_line/payment_delay_days`, au moins 0), `updateEstimateLine`
+(`/payment_delay_days`), `moveNodes` (`/position`) et `requestExport` (`/depth`, au moins 1)
+publiaient leurs bornes sans que leur 422 dise le refus : 422 `VALIDATION_FAILED`,
+`VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie, comme la
+rétention des sauvegardes (EP-14/L42m) et les taux d'un projet (EP-14/L42i). `lock_version` reste à
+part : un compteur, dont la version périmée se dit par 412. Les autres corps du contrat ne sont pas
+parcourus ici : la largeur d'une colonne des préférences de grille (`GridPreferences.column_widths`,
+au moins 20), que `updateMyPreferences` publie sans 422, part à une issue de l'agent de livraison.
+Écarté : un motif propre à la position (`POSITION_INVALID`), qui ne nommerait pas la borne.
+Exemples, écrits à la main aux corrélations 1091 à 1095 : `backup_schedule_weekday_out_of_range` (le
+dimanche numéroté 0, à l'américaine), `node_create_out_of_range` (une ligne placée à -1 et payée
+d'avance, -30 jours), `estimate_line_payment_delay_out_of_range` (les « Borniers », délai -30),
+`nodes_move_position_out_of_range` (les « Borniers » déplacés à -1) et `export_depth_out_of_range`
+(l'arborescence au niveau 0). Sous `setBackupSchedule` et `createNode`, le nouvel exemple vient en
+dernier, le premier inchangé ; `updateEstimateLine`, `moveNodes` et `requestExport` n'avaient aucun
+exemple sous leur 422 : le nouveau est le premier, celui que le faux back sert.
+`tools/tests/test_mockbounds.py` lit chaque borne dans le schéma du corps, confronte l'exemple à la
+borne du côté franchi, et vérifie qu'aucune autre borne de ces cinq corps — hors `lock_version` et
+les rétentions de L42m — n'est publiée sans refus.
+
+*Remplacé en partie par EP-14/L42r : `updateMyPreferences` déclare le refus de la largeur d'une
+colonne (#711), et `test_mockbounds.py` parcourt les corps de toutes les écritures, chaque borne
+publiée devant avoir son refus et son exemple.*
+
+**Une sauvegarde déposée est vérifiée par sa restauration, avant toute déconnexion** (#679 ;
+WF-ADM-0150, WF-ADM-0160, WF-ARC-0090). Une sauvegarde de la liste ne se restaure que vérifiée
+après sa production (`backup_verified`, EP-14/L42h) ; une archive déposée n'avait aucune
+vérification dite, et une archive altérée aurait échoué après la déconnexion des utilisateurs. La
+restauration la vérifie d'abord, dans le worker, de la même vérification, qui confirme aussi
+l'instant que le dépôt a lu (`backup_taken_at`) ; la déconnexion ne vient qu'après. Une archive qui
+ne la passe pas fait échouer la tâche (`failed`), son `problem` à `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `backup_verified` — la condition qui manque à une sauvegarde de la
+liste non vérifiée (`restore_unverified_refused`), avec sa phrase au catalogue : aucun utilisateur
+n'a été déconnecté, aucune base remplacée, et l'écran qui a lancé la restauration le lit sur la
+tâche (`getBackgroundTask`, WF-IHM-0080). Le dépôt, lui, ne lit que l'instant de l'archive ; celui
+qu'une restauration acceptée désigne est gardé jusqu'à la fin de sa tâche, même au-delà de son jour,
+pour que la purge (WF-DAT-0120) ne le retire pas en route. Écartés :
+
+- la vérification au dépôt, dans la requête : une archive de plusieurs gigaoctets vérifiée hors du
+  worker, une opération longue qui ne rendrait pas la main, contre WF-ARC-0090 ;
+- une vérification au dépôt confiée au worker, dont `FileUpload` dirait l'état et que la
+  confirmation attendrait : un état, une condition et une relecture du dépôt de plus — L42m a déjà
+  écarté `getFileUpload` —, pour avancer de quelques secondes un échec que la restauration dit
+  aussi avant de déconnecter quiconque ;
+- `FILE_FORMAT_UNREADABLE`, que la première rédaction du lot retenait : l'archive est reconnue — le
+  dépôt en a lu l'instant —, mais altérée, et le format illisible n'aurait pas dit la vraie cause
+  (relecture 1) ;
+- un code propre (`BACKUP_VERIFICATION_FAILED`), là où la condition de la commande `restore` dit
+  déjà ce qui manque.
+
+**`startRestore` déclare son 404**, sur le modèle d'`openImport` : une sauvegarde que la liste n'a
+pas, un dépôt inconnu ou expiré — un dépôt ne vit qu'un jour (WF-DAT-0120) —, `NOT_FOUND`, sans
+paramètre ni `fields`, sans distinguer l'objet inconnu de l'objet disparu (WF-ADM-0110) ; l'écran
+sait lequel il a désigné. Écartés : un 410 pour le dépôt expiré, que rien d'autre dans le contrat
+n'emploie et qui révélerait qu'il a existé ; un 422 `UNKNOWN_*` au champ, la forme d'une référence
+inconnue d'un formulaire, quand l'objet que la restauration désigne est le sujet de l'opération,
+comme le dépôt d'un import. Exemples, écrits à la main : `restore_not_found` (corrélation 1096, la
+copie de Lyon déposée la veille à 11 h, restaurée ce matin à 11 h 30, son dépôt expiré : c'est elle
+que le dépôt de 13 h 50 redépose) et `task_restore_verification_failed` (tâche …0938, une variante
+déclarée : la même copie altérée sur l'emplacement, sa restauration échouée à la vérification à
+14 h 03 min 40 s). `test_mockuniverse.py` les tient contre le dépôt et l'opération.
+
+*Complétée par EP-14/L55 : `partition` ne lève plus sur un total nul ; la part d'un total nul est
+à dire au contrat par L42t (#774, WF-IND-0010).*
+
+**Une part, un avancement ou un taux calculé est donné à quatre décimales, jamais nul quand il ne
+l'est pas, et les parts d'une répartition somment à un** (#694 ; README, « Une part… » ;
+WF-DAT-0100, WF-DEV-0060, WF-PTF-0080, #626). Le contrat ne disait pas la précision d'un rapport
+calculé : la part d'une répartition (`share` d'`AmountByKey` et de `ComputableAmountByKey`), les
+avancements, la consommation du budget, le taux de charge et le taux de transformation. Il la dit
+désormais une fois, dans les conventions du README, et chaque champ y renvoie : quatre décimales, le
+centième de pour cent qu'un écran montre, arrondi au plus proche, une demie s'éloignant de zéro,
+comme l'arrondi d'`Intl` qui la montre ; une valeur non nulle que quatre décimales rendraient nulle
+est donnée à son premier chiffre significatif — `0.00003` pour 0,0000309 —, ce que l'auteur a
+décidé pour l'écran (#626) : une part non nulle ne se lit pas « 0 % », et le front dit « < 0,01 % »
+d'après la part seule. Près de 1, l'arrondi ordinaire demeure (0,99996 est donnée `1`) : #626 n'a
+tranché que le côté de zéro. Les parts d'une répartition du total — par nature, par sous-projet, par
+nœud — somment exactement à 1 : le reste de leurs arrondis, plancher compris, est porté sur la plus
+grande, qui peut alors porter plus de quatre décimales (`0.99999997` à côté de `0.00000003`). Les
+Vérif de WF-DEV-0060 (« la somme de leurs pourcentages vaut cent ») et de WF-PTF-0080 (« la somme des
+parts par nature vaut cent pour cent ») l'exigent — décision de l'agent de livraison à la relecture
+1, qui renverse la première rédaction. Les parts des postes, qui ne portent qu'une partie des lignes,
+et une valeur isolée — un avancement, la consommation du budget, le taux de charge, le taux de
+transformation — ne sont pas des répartitions : quatre décimales et le plancher, sans report.
+WF-DAT-0100 n'est pas contredit : il veut des pourcentages conservés exacts, non arrondis *avant* les
+calculs ; un quotient, souvent sans écriture décimale finie, ne s'arrondit qu'à la valeur rendue, le
+serveur calculant sur les montants exacts. `AmountByKey.share` quitte `Percent` pour `Decimal` : un
+quotient calculé, non un pourcentage conservé. Écartés :
+
+- la somme libre, chaque part son propre quotient, que la première rédaction retenait : contraire
+  aux Vérif de WF-DEV-0060 et de WF-PTF-0080 ;
+- douze décimales ou plus, que #694 proposait : toutes les parts des exemples auraient changé, et
+  l'écran, qui montre chaque décimale qu'il reçoit (`formatPercent`) tant que `formatShare` (L51)
+  n'a pas pris sa place, les aurait toutes montrées ;
+- quatre décimales et la plus petite part, `0.0001`, pour une part non nulle que l'arrondi
+  annulerait : l'écran n'aurait pas su distinguer 0,003 % de 0,01 % ;
+- le pont du front de L51 officialisé — une part donnée nulle à côté d'un montant non nul dite
+  « < 0,01 % » — : le plancher le rend inutile, une part donnée nulle l'étant.
+
+Les indices (`IndexValue`), que le faux back donne aussi à quatre décimales, ne sont pas traités :
+#694 ne les nomme pas, et leur zone est classée par le serveur. `wftools.mockstructure.share`
+arrondit ainsi chaque rapport des exemples engendrés, et `wftools.mockstructure.partition` les parts
+d'une répartition — du devis, du reste à engager, de la structure des coûts du portefeuille — ;
+`make mock-data` les réécrit. `tools/tests/test_mocktoday.py` tient la règle, la somme des
+répartitions à un et qu'aucune part d'un montant non nul n'est nulle dans les exemples ;
+`test_mockdata.py`, la somme des répartitions du devis et du portefeuille.
+
+**Les sous-projets d'un projet clos ont leur exemple** (#673, point 1 ; WF-CYC-0100) :
+`subprojects_completed`, les deux sous-projets du témoin terminé (`project_completed`), la
+modification indisponible faute de `project_not_terminal`, la suppression faute de
+`subproject_not_cited`, `subproject_without_actual_costs`, puis `project_not_terminal`, dans l'ordre
+de L42l. Écrit à la main comme `project_completed`, variante qu'il suit, et cité sous
+`listSubprojects` après `subprojects`, qui reste le premier. `test_mockproject.py` lui applique la
+règle `_listed` d'un projet clos, et vérifie que ce sont les sous-projets du projet en cours, leurs
+commandes à part. Le point 2 de #683 : `test_mocksettings.py` dit le motif de chaque seuil, `0.`
+refusé par la forme (`NUMBER_INVALID`), `00.5` admis.
+
+Le client est régénéré. Le front n'est touché que par le client régénéré et par la valeur attendue
+d'un test de `formatShare`, la part du poste n'étant plus nulle ; il adoptera
+`subprojects_completed` dans le test d'un projet clos (#673), lira l'échec de la vérification d'une
+restauration depuis un fichier et son 404 quand cet écran se construira, et `formatShare` (L51)
+pourra retirer la branche du montant : une part donnée nulle l'est.
+
+## La catégorie et le sous-projet de la provision d'un risque, la provision pour risques (EP-14/L42p)
+
+Le contrat suit la spécification révisée par #708 et reprise dans `epic/EP-14` par #710 : #579
+(C-257, avec C-261, qui en complète la règle dans le même corps de WF-RIS-0010), C-299 et C-258. Les
+points 3 et 5 de #712 — C-273, la suppression d'un sous-projet que portent des lignes de devis de la
+révision en cours, et le collage partiellement invalide de WF-IHM-0050 — sont partis dans EP-14/L42q
+(#727), coupé de ce lot pour tenir sa taille. Les décisions sont de l'agent de réalisation du lot
+(#712), chacune avec sa raison. Le lot ne touche au front que pour compiler sur le client régénéré et
+tenir ses catalogues ; l'adoption par les écrans revient à un lot du front.
+
+**Une catégorie de provision pour risques active est un prérequis de la création d'un projet**
+(WF-CYC-0120 : « au moins une catégorie de coût active dont la nature est de type provision pour
+risques » ; Vérif : « Sur un référentiel dont aucune catégorie de type provision pour risques n'est
+active, la création est refusée en nommant ce prérequis. »). `ReferenceReadiness.missing` gagne
+`active_provision_category`, entre la catégorie de main-d'œuvre et le rôle — l'ordre de l'exigence,
+que l'énumération et les listes suivent désormais —, et le 409 `REFERENCE_INCOMPLETE` de
+`createProject` le nomme dans `params.missing_prerequisites` comme les autres. Exemples, chacun en
+dernier sous son statut : `reference_readiness_without_provision` et
+`project_reference_without_provision` (corrélation 1100), variantes contrefactuelles — PRV-001, seule
+catégorie de ce type du témoin, désactivée. Écarté : renommer `active_cost_category` en une valeur
+qui dise la main-d'œuvre — la description le dit, et le changement aurait cassé le client pour un
+nom ; le libellé « une catégorie de coût active » des catalogues reste au lot du front.
+
+**La règle « dernière nature ou catégorie de provision » de #578 disparaît** (WF-REF-0030, Vérif :
+« La désactivation de la dernière catégorie active de type provision pour risques est acceptée ; la
+création d'un projet (WF-CYC-0120), la déclaration d'un risque et le retour d'un risque écarté à
+l'état identifié (WF-RIS-0010) sont alors refusés. »). Elle remplace la section « La dernière nature
+provision et sa dernière catégorie (EP-02/L42g, #578) », gardée pour l'histoire. Les conditions
+`cost_type_not_last_provision` et `cost_category_not_last_provision` quittent le catalogue, les
+commandes des natures et des catégories, et les descriptions ; la désactivation d'une nature ou
+d'une catégorie redevient toujours disponible, et `setCostTypeActivation` et
+`setCostCategoryActivation` perdent le 409 qu'elles n'avaient que pour ce cas ; `updateCostType`
+nomme `cost_type_unused` seule, `updateCostCategory` `cost_category_unused` puis
+`cost_category_unrated`. Les exemples `cost_type_last_provision_refused` et
+`cost_category_last_provision_refused` (corrélations 1033 et 1034) sont retirés ; `cost_types`,
+`cost_types_with_inactive` et les catégories engendrées (`mockreference`, qui perd
+`last_provision`) disent la désactivation de PRV et de PRV-001 disponible. `createCostCategory`,
+`updateCostType`, `setCostTypeActivation` et `setCostCategoryActivation` ne changent plus les
+commandes d'autres objets et ne disent plus « relit » ; `updateCostCategory` et `setHourlyRate` le
+disent encore (#577). Le verrou de l'ensemble des natures et des catégories provision que la section
+de #578 demandait à EP-03 tombe avec la règle. Écarté : garder les conditions jusqu'au lot du front,
+qui aurait présenté indisponible ce que le Vérif accepte.
+
+*Remplacé en partie par EP-14/L42r : `updateCostType` nomme `cost_type_unused`, puis
+`cost_type_unrated`, puis `cost_type_without_role`, et `updateCostCategory` `cost_category_unused`,
+puis `cost_category_unrated`, puis `cost_category_without_role`, avec les rôles en cause pour la
+dernière (`params.resource_roles`).*
+
+*Remplacé en partie par EP-14/L42s : `setCostCategoryActivation` a de nouveau un 409, la réactivation
+d'une catégorie sous une nature désactivée (`cost_type_active`, C-291), et `setCostTypeActivation`
+change de nouveau les commandes d'autres objets, les catégories de la nature qu'elle désactive :
+elle le dit et rejoint `RELIT`.*
+
+**Le risque désigne la catégorie de sa provision** (WF-RIS-0010 : « La ligne de provision porte la
+catégorie que le risque désigne à sa déclaration parmi les catégories actives de type provision pour
+risques (WF-REF-0030) ; lorsqu'il n'en existe qu'une, elle est retenue sans être demandée. Tant que le
+risque est identifié, cette catégorie peut être changée pour une autre catégorie active de ce
+type. »). `RiskWrite.provision_cost_category_id`, facultative : omise, la seule catégorie active de
+ce type ; omise quand il y en a plusieurs, 422 `VALUE_REQUIRED` ; inconnue, `UNKNOWN_COST_CATEGORY` ;
+désactivée, `INACTIVE_REFERENCE_OBJECT` ; d'une autre nature, `PROVISION_CATEGORY_REQUIRED`, nouveau,
+le pendant de `LABOUR_CATEGORY_REQUIRED` — écarté : `PROVISION_CATEGORY_RESERVED`, qui dit le
+contraire, une catégorie de provision donnée à une ligne saisie. `Risk` dit la catégorie et le
+sous-projet de sa provision par leur identifiant et leur libellé, résolus à la lecture
+(`provision_cost_category_id`, `_label`, `provision_subproject_id`, `_label`), comme une ligne de
+devis (WF-ARC-0020) ; un risque écarté garde la sienne. Le changement se fait par `updateRisk`, la
+valeur omise restant celle du risque, et se dit d'avance par une commande, `update_provision`,
+toujours listée après `update` et indisponible, `risk_identified` manquante, pour un risque qui n'est
+pas identifié — comme `update_win_probability` pour la probabilité de gain d'un projet (L42i) ;
+envoyé malgré elle, le changement est refusé par 409 `STATE_FORBIDS_OPERATION`, la même condition.
+Écarté : laisser le front déduire de l'état du risque ce qu'il peut changer, que la conception
+d'EP-02 interdit.
+
+**Le retour d'un risque écarté à l'état identifié** suit le même corps (C-261 : « Lorsqu'un risque
+écarté redevient identifié, sa ligne de provision reprend la catégorie qu'il désignait si elle est
+encore active. Sinon, la catégorie est demandée, comme à la déclaration. ») :
+`RiskReviewWrite.provision_cost_category_id`, lue seulement quand la catégorie désignée n'est plus
+active, aux refus de la déclaration. Sans aucune catégorie active de ce type, la
+déclaration et ce retour sont refusés par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `active_provision_category`, nouvelle au catalogue, du même nom que le
+prérequis. **Aucune commande ne la liste** : la saisie des risques (`edit_risks`) couvre aussi la
+modification, le réexamen et la suppression, qui n'en dépendent pas, et le formulaire de la
+déclaration la sait d'avance par les catégories qu'il lit pour proposer le choix, dont il retient
+les actives dont la nature est active et de type provision pour risques (`listCostCategories`,
+lisible de qui consulte un projet, `cost_type_is_active`, `cost_type_kind`) ; celle d'un risque
+écarté, par `provision_cost_category_is_active` (revue 1). `CostCategoryImage.cost_type_is_active`,
+résolu à la lecture comme le type de la nature, est ajouté pour cela (revue 2) : écarté, laisser le
+formulaire relire les natures, ou ne lire que l'état de la catégorie, qui aurait proposé une
+catégorie active sous une nature désactivée que la déclaration refuse. Écartés : la condition
+sur `edit_risks`, qui aurait fermé toute la saisie des risques ; une commande `declare_risk` de plus
+sur le projet et la révision, qui aurait doublé `edit_risks` pour un cas que la création d'un projet
+exclut déjà et qu'une désactivation seule ramène.
+
+*Remplacé en partie par EP-14/L42s : la déclaration a sa commande, `declare_risk`, qui dit d'avance,
+après les conditions d'état de la saisie des risques, `at_least_one_task` puis
+`active_provision_category` — l'option écartée ici, une structure principale sans tâche n'étant pas
+un cas que la création d'un projet exclut —, et
+`cost_type_is_active` ne sert plus au formulaire, une catégorie active l'étant toujours sous une
+nature active (C-291).*
+
+**Le risque désigne aussi, facultativement, le sous-projet de sa provision** (C-299, WF-RIS-0010 :
+« La ligne de provision appartient au sous-projet que le risque désigne, facultativement, à sa
+déclaration, et qui peut être changé tant qu'il est identifié ; à défaut, elle compte dans l'ensemble
+« hors sous-projet » (WF-RAE-0020). »). `RiskWrite.provision_subproject_id`, nul ou omis à la
+déclaration pour une provision hors sous-projet, `null` à la modification pour l'y remettre ; un
+sous-projet que le projet n'a pas, 422 `UNKNOWN_SUBPROJECT` ; le changement suit `update_provision`.
+Les trois risques du témoin désignent PRV-001 et aucun sous-projet : la ligne de provision de 751 est
+déjà hors sous-projet, ce que C-047 supposait. `mockhistory` écrit les quatre champs ; exemples, à
+la main : `risk_provision_refused` (corrélation 1102, l'ingénierie électrique et un sous-projet
+inconnu), `risk_without_provision_category` (1103, contrefactuel), `risk_provision_frozen` (1104,
+753, écarté, dont la provision passerait aux essais).
+
+**Le type « provision » s'appelle « provision pour risques »** (C-258) : la description de
+`CostTypeKind`, qui dit aussi qu'une provision saisie et non pondérée relève d'une nature hors
+main-d'œuvre, et chaque description du contrat qui nommait une « nature provision » ; les catalogues
+du front (`enums.CostTypeKind.provision` : « Provision pour risques », « Provision for risks »).
+Écartés : renommer la valeur `provision` de l'énumération, un changement du client et du back sans
+gain de sens, le code n'étant pas lu ; renommer la nature PRV du témoin, « Provision », un libellé
+saisi, modifiable comme tout libellé (WF-EXP-0020).
+
+**La définition provisoire d'une catégorie active de type provision pour risques** (revue 1).
+C-291 — désactiver une nature désactive ses catégories — n'est pas au contrat (#728) : sans lui,
+désactiver la dernière nature de type provision pour risques laisserait sa catégorie active, et rien
+ne manquerait. Jusqu'à C-291, `active_provision_category` signifie donc « une catégorie active sous
+une nature active de type provision pour risques », dans `ReferenceReadiness.missing`, dans
+`CommandCondition`, dans les descriptions de `CostTypeCommand` et de `setCostTypeActivation` ; une
+catégorie désignée sous une nature désactivée est refusée par `INACTIVE_REFERENCE_OBJECT`. Écarté :
+attendre C-291, le contrat affirmant entre-temps un refus que rien ne produit.
+
+*Remplacé par EP-14/L42s : C-291 est au contrat ; une catégorie active l'est toujours sous une nature
+active, et la définition provisoire disparaît.*
+
+**Une catégorie inchangée, désactivée depuis, se garde** (revue 1). À la modification d'un risque,
+`INACTIVE_REFERENCE_OBJECT` ne vaut sur `/provision_cost_category_id` que si la valeur change la
+catégorie, comme le parent d'un nœud ou la catégorie d'un rôle (L42j) : un risque se modifie sans
+avoir à changer une catégorie désactivée après sa désignation.
+
+**Le sous-projet d'une ligne de provision est celui que son risque désigne, calculé** (revue 1). La
+grille et le collage écrivaient aussi `estimate_line.subproject_id` de la ligne de provision, un
+second chemin qui contournait `update_provision` : il quitte les `editable_fields` de la ligne et
+rejoint ses champs calculés (`computed_fields`, dépendance `risk`) ; envoyé, il est refusé par 422
+`COMPUTED_VALUE`, comme ses grandeurs, et un collage refuse la cellule de même. `nodes_estimate` et
+les lectures du nœud 555 sont engendrés en conséquence. Écarté : laisser l'écriture de la ligne
+réécrire la désignation du risque, qui contournerait `risk_identified`. Le délai de paiement de la
+même ligne, antérieur au lot, est suivi par #733.
+
+**Un sous-projet supprimé ôte sa désignation aux risques non identifiés** (revue 1 ; tranché par
+l'auteur le 2026-10-10, décision de l'auteur, #732). Un risque écarté ou survenu peut désigner un
+sous-projet sans ligne de provision pour le porter : sa suppression passe cette désignation à nul,
+et le risque redevenu identifié porte sa provision hors sous-projet. `deleteSubproject`,
+`Risk.provision_subproject_id` et `RiskReviewWrite` le disent. Écarté : une condition « aucun risque
+ne le désigne », qui aurait gardé indéfiniment un sous-projet pour un risque écarté.
+
+**Ce que la lecture et la commande disent** (revue 1). `Risk.provision_cost_category_is_active`,
+résolu à la lecture — la catégorie et sa nature actives —, dit d'avance qu'un retour à l'état
+identifié demandera une catégorie : le front ne compare rien aux listes du référentiel, ce qui suit
+la raison même d'`update_provision`. `update_provision` ne nomme que `risk_identified`, pour un risque
+survenu comme pour un écarté. Une seule commande pour la catégorie et le sous-projet : ils suivent la
+même règle, « tant qu'il est identifié ». Écartés pour C-299 : deux commandes, qui diraient deux fois
+la même condition ; un sous-projet porté par la seule ligne de provision, qui disparaît avec la ligne
+quand le risque est écarté et ne laisserait rien à reprendre au retour. Les refus de `createRisk` se
+jugent dans l'ordre `at_least_one_task` — dont le 409 attend #728 — puis
+`active_provision_category`, et ce 409 précède le 422 : sans catégorie active, aucune désignation ne
+serait valable. L'annulation d'`updateRisk` rend la catégorie et le sous-projet d'avant ; celle de
+`reviewRisk`, la catégorie désignée avant un retour à l'état identifié (WF-IHM-0110).
+
+*Remplacé en partie par EP-14/L42s : le 409 de `at_least_one_task` est décrit, avec son exemple
+(`risk_without_task`).*
+
+**Ce qu'une désignation passée à nul fait au risque, et ce que l'annulation ne rend pas** (revue 2 ;
+#732). Une désignation passée à nul par la suppression d'un sous-projet est une écriture du risque :
+son `lock_version` avance, et son audit nomme l'auteur de la suppression. Toute annulation et tout
+rétablissement qui rendraient un sous-projet supprimé depuis — la création, la modification ou la
+suppression d'un risque, toute écriture de la grille, la suppression d'une ligne ou d'une tâche et
+de ses lignes comprise — sont refusés par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `restored_subproject_exists`, nouvelle au catalogue — aucune condition
+existante ne disait un objet que l'annulation rendrait —, et ne défont ni ne rétablissent rien
+(revue 3 : la règle vaut sur tous les chemins frères, et `redoLastUndo` a son propre 409). Le texte
+est le même dans L42q, qui l'écrit aussi dans `UndoResult`. Écartés : rendre le risque hors sous-projet en silence, une annulation qui ne
+rendrait pas ce qu'elle annonce ; recréer le sous-projet, que l'annulation d'une saisie de risque ne
+peut pas faire. L42q prend la même condition pour une ligne de devis passée par la grille à un
+sous-projet supprimé depuis.
+
+**Corrélations** 1100 et 1102 à 1104 — 1101 est à L42q ; la plage des corrélations écrites à la main,
+pleine jusqu'à 1099, va désormais jusqu'à 1199 (`mockids`). `tools/tests/test_mockprovision.py` tient
+le prérequis, les refus du risque et sa commande ; `test_mockproject.py` l'ordre des prérequis ;
+`test_mockhistory.py` la catégorie et le sous-projet de chaque risque contre sa ligne de provision ;
+`test_mockcostsettings.py` et `test_mockreference.py` le retrait de #578. Les catalogues reçoivent
+`active_provision_category`, `update_provision` et `PROVISION_CATEGORY_REQUIRED`, et perdent les deux
+conditions retirées.
+
+**Hors du lot, relevés pour la suite** — ouverts en #728, sous-issue de #712. C-291 — la
+désactivation d'une nature désactive ses catégories, et une catégorie ne se réactive que sous une
+nature active — n'est pas au contrat : `setCostCategoryActivation` dit encore qu'une catégorie se
+réactive sous une nature désactivée. Le résumé de `reference_readiness_incomplete` décrit une
+installation neuve sans calendrier par défaut, quand WF-EXP-0020 en crée un et que le Vérif de
+WF-CYC-0120 nomme la catégorie de main-d'œuvre et le rôle manquants. La déclaration d'un risque sur
+une structure principale sans tâche, refusée « en nommant la condition manquante » (WF-RIS-0010), n'a
+pas de 409 décrit à `createRisk`.
+
+## Le sous-projet porté par le devis en cours, le collage partiel (EP-14/L42q)
+
+Les points 3 et 5 de #712, coupés d'EP-14/L42p pour tenir sa taille et réalisés dans ce lot (#727) :
+le contrat suit la spécification révisée par #708 — C-273 et le Vérif de WF-IHM-0050, que le critère
+d'US-0130 reprend désormais. L42q se fusionne après L42p, dont il prend la plage des corrélations
+élargie. Les décisions sont de l'agent de réalisation du lot, chacune avec sa raison. Le lot ne touche
+au front que pour compiler sur le client régénéré, tenir ses catalogues et ses tests ; l'adoption par
+les écrans revient à un lot du front.
+
+**La suppression d'un sous-projet que portent des lignes de devis de la révision en cours est
+refusée** (C-273, décision de l'auteur, voie B ; WF-PRJ-0050 : « Un sous-projet auquel des coûts
+réels sont imputés, qu'une révision marquée cite, ou que portent des lignes de devis de la révision
+en cours, ne peut pas être supprimé » ; WF-DAT-0080, Vérif : « Celle d'un sous-projet que portent des
+lignes de devis de la révision en cours est refusée et nomme ces lignes ; elle aboutit une fois ces
+lignes passées hors sous-projet ou à un autre sous-projet. »). `subproject_without_estimate_lines`
+rejoint le catalogue et la commande `delete` du sous-projet, **après** `subproject_not_cited` et
+`subproject_without_actual_costs`, avant `project_not_terminal` : des conditions qui ne se lèvent pas —
+une révision marquée est immuable, un coût imputé le reste, exclu ou non — à celle que lève le passage
+des lignes, la raison que L42l donnait. Une ligne de provision dont le risque a désigné le sous-projet
+(C-299, EP-14/L42p) compte, comme toute ligne de la révision en cours, dans quelque structure
+qu'elle soit. Le 409 de
+`deleteSubproject` nomme la première qui manque ; quand c'est celle-ci, il nomme aussi les lignes,
+comme le Vérif le demande : `params.estimate_lines`, toutes, chacune par sa structure, son nœud, son
+numéro de ligne et son libellé, la structure principale d'abord, sans borne — un sous-projet n'en
+porte au plus que les lignes d'une révision, et l'utilisateur doit pouvoir toutes les déplacer
+(revue 1). Écartés : un compte de lignes, que
+l'utilisateur n'aurait pas pu retrouver ; les lignes dans la lecture du sous-projet, qui aurait
+alourdi chaque lecture pour le seul refus ; la condition avant les coûts, qui aurait renvoyé vers des
+lignes dont le passage ne suffit pas. Les deux sous-projets du témoin sont portés par des lignes de
+la révision en cours, sur toute la structure : `subprojects` et `subproject_updated`, écrits à la
+main, listent les trois conditions, les listes dérivées sont engendrées, et `subproject_delete_cited`
+dit « la première des trois » ; le sous-projet créé n'en porte aucune ; ceux du projet clos
+(`subprojects_completed`, EP-14/L42o), dont la révision en cours reste la 102, listent la nouvelle
+condition avant `project_not_terminal`. Nouvel exemple, en dernier :
+`subproject_delete_estimated` (corrélation 1101), contrefactuel — la réception sur site délestée de
+sa facture, à laquelle les lignes 10 et 11, « Raccordement des borniers » et « Borniers », auraient
+été passées. La description de `deleteSubproject` ne dit plus que la décision de L42l contredit le
+Vérif de WF-DAT-0080 : C-256 l'a corrigé.
+
+**Un collage partiellement invalide écrit les lignes valides** (WF-IHM-0050 : « après confirmation,
+les lignes valides sont écrites en une seule opération, et les lignes refusées ne le sont pas » ;
+Vérif : « Un bloc dont une cellule porte une catégorie inconnue signale cette ligne ; confirmé, il
+écrit les autres lignes et non celle-ci ; abandonné, il ne modifie aucune ligne. »). `applyPaste`
+rend `PasteApplied` : `NodesWritten` et `rejected`, les refus de l'aperçu, ligne par ligne — la ligne,
+la colonne, le motif (`PasteRejection`, extrait de `PastePlan`) —, que la confirmation n'a pas écrits ;
+un succès partiel se lit à ce que `rejected` n'est pas vide. Une ligne dont une cellule est refusée
+l'est entière. Le plan retient le compteur de la structure lu à l'aperçu, et la confirmation est
+refusée par 412 si la structure a changé depuis, quel que soit le compteur envoyé (revue 2) : un
+compteur relu entre l'aperçu et la confirmation ne doit pas faire écrire un plan jugé sur une autre
+structure. Le référentiel n'a pas de compteur : à la confirmation, les lignes acceptées sont jugées
+de nouveau (revue 1), et une ligne devenue invalide — une catégorie ou un rôle désactivés
+entre-temps — passe dans `rejected` avec son motif. Toute annulation et tout rétablissement qui
+rendraient un sous-projet supprimé depuis — une écriture de la grille, la suppression d'une ligne ou
+d'une tâche et de ses lignes comprise, comme une saisie de risque — sont refusés par 409,
+`restored_subproject_exists`, la condition de L42p, dans les mêmes mots qu'elle (revues 2 et 3,
+#732). Sans aucune ligne valide, rien n'est écrit, le compteur reste, et aucune entrée
+d'annulation n'est créée (WF-IHM-0110) : il n'y aurait rien à annuler. `rejected` est exigé,
+vide pour un collage entier : `paste_applied`, le premier exemple, garde son scénario et y gagne
+`"rejected": []` ; `paste_applied_partial`, engendré par `make mock-data` (`mockwrites`), confirme le
+bloc de `paste_plan_unknown_category` — les lignes 28 et 30 écrites, la 29 laissée, son refus redit —,
+dont le résumé ne dit plus qu'un collage partiellement invalide ne s'applique pas. Écartés : refuser
+la confirmation d'un plan qui porte un refus, la forme d'avant, contraire au Vérif ; se fier au plan
+sans juger de nouveau les lignes, le compteur de la structure ne couvrant pas le référentiel, qui
+aurait laissé écrire une ligne sur une catégorie désactivée depuis l'aperçu ; `rejected` sur
+`NodesWritten`, que toutes les écritures de grille partagent ; un statut 207, que le contrat
+n'emploie nulle part.
+
+**Corrélation** 1101 ; la plage des corrélations écrites à la main va jusqu'à 1199 (`mockids`), le
+même changement que L42p. `test_mockproject.py` tient la nouvelle condition, son ordre et les lignes
+nommées contre la révision en cours ; `test_mockwrites.py` le collage partiel contre le plan. Les
+catalogues reçoivent `subproject_without_estimate_lines`.
+
+## Le code d'un rôle, la catégorie d'un rôle gardée, le projet du refus d'un calendrier, la largeur d'une colonne (EP-14/L42r)
+
+Les trois points de #684, que l'auteur a décidé le 2026-10-10 de traiter dans EP-14, les quatre
+mineurs de L42j (#691) et le refus de la largeur d'une colonne des préférences de grille (#711). Les
+décisions sont de l'agent de réalisation du lot (#759), chacune avec sa raison. Le lot ne touche au
+front que pour compiler, tenir ses catalogues et saisir le code d'un rôle ; le reste de l'adoption
+revient au lot du front qui suit.
+
+**Un rôle porte un code unique** (WF-REF-0090 : « Un rôle de ressource porte un code unique et un
+libellé. » ; Vérif : « La création d'un rôle dont le code existe déjà est refusée. » ; WF-DAT-0090,
+qui déclare en base l'unicité du « code de rôle de ressource »). `code`, d'un à vingt caractères
+comme celui d'un nœud, est exigé sur `ResourceRoleImage` — donc sur `ResourceRole` et sur l'image
+qu'une révision marquée fige —, sur `ResourceRoleWrite` et sur `ResourceRoleUpdate`, et se modifie
+comme le code d'un nœud. Il est unique parmi les rôles, désactivés compris. Un code déjà porté est
+refusé par 409 `ALREADY_EXISTS` sur `/code`, avec `conflicting_object_id` et
+`conflicting_object_label` : la liste des rôles lue sans les désactivés, filtrée ou paginée, peut ne
+pas montrer le porteur, que l'utilisateur réactivera plutôt que d'en créer un second, comme pour un
+nœud (L42j). Le 422 dit `/code` vide (`VALUE_REQUIRED`) ou trop long (`VALUE_TOO_LONG`).
+`listResourceRoles` cherche aussi sur le code, le filtre (`code`, qui contient le texte donné, comme
+celui des nœuds) et le trie (`sort_by=code`). Écartés :
+
+- trier par code sans `sort_by`, comme les natures et les catégories : WF-IHM-0060 n'impose aucun
+  tri par défaut, et changer celui de la liste des rôles, le libellé, serait une modification du
+  contrat qu'aucune exigence ne demande ; le libellé reste ;
+- le code du rôle sur les lignes de devis (`resource_role_code`), que #684 et #759 annonçaient avec
+  les lignes, `volume/nodes_thousand` et `mockcore` : une ligne nomme son rôle par son identifiant
+  et son libellé, comme sa catégorie, sans en porter l'image, et aucun Vérif ne demande le code à la
+  ligne ; aucun exemple ne porte non plus d'image figée, `Revision.snapshot` étant nul partout. Les
+  lectures et les écritures des rôles sont les seuls exemples touchés.
+
+Les codes du témoin : ING-ELEC, TECH-MES, AUTOM, MONT-CAB, PROG-AUTO, et DESS-ELEC pour le rôle
+créé. Exemple `resource_role_code_taken` (corrélation 1110) : AUTOM, le code de l'automaticien,
+désactivé, donné au dessinateur électricien à sa création comme au technicien de mise en service à
+sa modification, cité sous le 409 de `createResourceRole` et d'`updateResourceRole` ;
+`test_mockcostsettings.py` tient que tout exemple d'une valeur prise cité sous une création et une
+modification dit l'une et l'autre. La table `UNIQUE` compte dix-sept écritures.
+
+**Une catégorie rattachée à un rôle, ou qui porte des taux, ne quitte pas la main-d'œuvre**
+(WF-REF-0040 : « Une catégorie qui porte des taux horaires, ou à laquelle un rôle de ressource est
+rattaché, ne quitte pas la main-d'œuvre. » ; WF-REF-0030 : « Ce type ne peut plus être modifié dès
+qu'une catégorie rattachée à la nature est employée par une ligne de devis ou de reste à engager,
+porte un taux horaire ou est rattachée à un rôle de ressource. » ; Vérif : « La modification du type
+est refusée pour une nature dont une catégorie est employée, porte un taux ou est rattachée à un
+rôle de ressource. »). `change_kind` d'une nature manque désormais `cost_type_unrated` quand une de
+ses catégories porte un taux horaire, et `cost_type_without_role` quand un rôle est rattaché à l'une
+d'elles ; `change_cost_type` d'une catégorie manque `cost_category_without_role` quand un rôle lui
+est rattaché. Le 409 de `updateCostType` et celui d'`updateCostCategory` nomment la première qui
+manque, comme L42g. Les choix :
+
+- deux conditions pour la nature, et non `cost_type_unrated_and_unattached`, que #684 proposait
+  aussi : les deux causes se lèvent séparément, comme L42g l'a dit des catégories ;
+- l'ordre des exigences — employée, puis un taux, puis un rôle —, qui met d'abord ce qu'aucune
+  action ne lève : une ligne d'une révision marquée demeure, un taux se corrige sans se retirer, un
+  rôle se rattache à une autre catégorie de main-d'œuvre ;
+- un rôle désactivé compte : il garde sa catégorie et se réactive sans qu'elle soit regardée
+  (`setResourceRoleActivation`). Écarté : ne compter que les rôles actifs, qui aurait laissé un rôle
+  réactivé sur une catégorie hors main-d'œuvre, contre WF-REF-0090 ;
+- le refus nomme les rôles : quand `missing_condition` nomme `cost_type_without_role` ou
+  `cost_category_without_role`, le 409 porte `params.resource_roles`, tous les rôles en cause,
+  actifs ou désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`,
+  `code`, `label`) — la condition se lève en les rattachant à une catégorie de main-d'œuvre hors de
+  la catégorie, ou de la nature, refusée, et WF-IHM-0090 veut qu'un refus dont la condition est
+  atteignable dise quoi faire (relectures 1 et 2). Le code et le libellé y sont parce que l'écran
+  des paramètres de coûts, qu'ouvre `cost_settings.write`, ne lit pas forcément les rôles :
+  `listResourceRoles` refuse les désactivés à qui n'a pas la permission des paramètres de
+  ressources. Montrer le code et le libellé d'un rôle désactivé à qui ne peut pas les lire suit le
+  précédent de `conflicting_object_label`, le libellé de l'objet qui porte une valeur unique, donné
+  quand le formulaire ne connaît pas la liste qui le porte (L42i, L42j). Écartés : les seuls
+  identifiants (`resource_role_ids`), que la première correction retenait — l'écran des coûts
+  n'aurait pas su les nommer ; ne nommer personne et renvoyer à `listResourceRoles` filtré par
+  `cost_category_id`, pour la même raison ; `conflicting_object_id`, qui ne nomme qu'un objet quand
+  plusieurs rôles peuvent être rattachés.
+
+*Remplacé en partie par EP-14/L42s : l'ordre reste, celui de l'exigence, mais `cost_type_unused` et
+`cost_type_unrated` se lèvent en rattachant les catégories en cause à une autre nature du même type,
+et le refus les nomme (`params.cost_categories`, #766), comme `cost_type_without_role` se lève en
+rattachant ailleurs les rôles qu'il nomme ; la raison « ce qu'aucune action ne lève » tombe.*
+
+Une écriture qui change les commandes d'autres objets le dit (L42g) : `createResourceRole` et
+`updateResourceRole`, qui figent la catégorie et sa nature ou libèrent l'ancienne, et
+`setHourlyRate`, dont le premier taux fige aussi le type de la nature. Elles rejoignent `RELIT` dans
+`test_mockcostsettings.py`. Le refus de `LABOUR_CATEGORY_REQUIRED` pour une catégorie gardée par
+`updateResourceRole` n'a plus de cas : la mention de la section de L42j le dit.
+
+Exemples. Les natures écrites à la main (`cost_types`, `cost_types_with_inactive`) donnent à la
+main-d'œuvre ses trois conditions. Le premier exemple de `listCostTypes` change donc, parce que la
+règle le demande ; `test_mockcostsettings.py` calcule les commandes de chaque nature d'après
+l'emploi, les taux et les rôles des exemples. Les catégories engendrées (`cost_categories`, sa page)
+ajoutent `cost_category_without_role` à MO-001 et MO-002, les deux catégories des rôles
+(`mockreference.attached`). Aucune nature ni catégorie du témoin ne manque une nouvelle condition
+sans manquer d'abord une plus ancienne : chaque catégorie de main-d'œuvre porte des taux (§4.6.2),
+et les deux catégories des rôles sont employées. Le refus qui nomme les rôles a donc son exemple en
+variante contrefactuelle déclarée, sur le précédent de `reference_readiness_without_provision`
+(L42p) : `cost_category_role_kind_refused` (corrélation 1113), cité en dernier sous le 409
+d'`updateCostCategory`, le premier inchangé — une catégorie de main-d'œuvre inemployée et sans taux,
+à laquelle seul l'automaticien, désactivé, est rattaché, passée sous les débours, le refus nommant
+AUTOM, « Automaticien » ; elle déclare ses deux écarts au témoin, où aucune catégorie de
+main-d'œuvre n'est sans taux et où l'automaticien est rattaché à l'ingénierie électrique, employée
+et qui porte des taux. `test_mockcostsettings.py` confronte le code et le libellé à
+`resource_roles`. La nature n'a pas d'exemple propre : son refus prend la même forme.
+
+**Le refus d'un calendrier nomme chaque projet par son libellé et son code, sans autre détail**
+(WF-PLA-0010 : « La modification d'un calendrier du référentiel qui produirait le même effet est
+refusée en nommant les rôles et, pour chaque projet en cause, son libellé et, lorsqu'il est
+renseigné, son code, sans autre détail. » ; Vérif : « La modification d'un calendrier qui laisserait
+une tâche sans heure dans un projet que le manager ne peut pas consulter est refusée en nommant ce
+projet par son libellé et son code ; un projet en chiffrage sans code est nommé par son seul
+libellé. » ; décision de l'agent de livraison à la relecture 1, option (a) de #762).
+`updateCalendar`, `setDefaultCalendar` et `updateResourceRole` refusent `TASK_WITHOUT_WORKING_HOURS`
+par `params.projects` : un élément par projet en cause, `{ project_label, project_code }`, ce
+dernier nul pour un projet sans code, sans identifiant de projet ni tâche — WF-ADM-0110 réserve le
+détail d'un projet à qui le consulte. Les rôles en cause restent nommés par
+`params.resource_role_ids`. Les saisies d'une révision gardent `params.tasks` dans sa forme d'avant
+ce lot (`project_id`, `node_id`, `label`), sans `project_label` ni `project_code` : l'auteur d'une
+saisie consulte son projet, et WF-PLA-0010 y demande de nommer « les rôles et la tâche en cause ».
+Cette décision remplace la raison « un code, une forme » de la première rédaction, qui donnait à
+chaque tâche le libellé et le code de son projet et gardait son nœud et son libellé, contre « sans
+autre détail ». Écartée : l'option (b) de #762, garder `params.tasks` et passer à nul le nœud et le
+libellé d'une tâche d'un projet que l'appelant ne consulte pas — la forme du refus aurait dépendu de
+ce que l'appelant consulte, et un même refus se serait lu autrement d'une session à l'autre.
+
+Exemple `calendar_update_without_hours` (corrélation 1112), cité sous le 422 d'`updateCalendar`
+après `hours_out_of_range`, qui reste le premier : la semaine de quatre jours, le calendrier du
+monteur câbleur, vidée de ses heures. Ce rôle travaille seul sur les cent trois tâches de câblage de
+la structure principale du témoin, qui n'auraient plus aucune heure travaillée, et aucun projet
+engendré ne l'emploie : le refus nomme le monteur câbleur et « Modernisation du poste de commande »,
+PRJ-001. La première rédaction disait à tort que le témoin n'offrait pas un tel refus (relecture 1),
+puis vidait la semaine standard, ce qui mettait aussi en cause les trente offres engendrées, en
+chiffrage avec un devis courant, dont la main-d'œuvre est celle de l'ingénieur électricien et du
+technicien de mise en service (relecture 3, option (b) de l'agent de livraison).
+
+`test_mockresourcesettings.py` le tient. Les rôles en cause se calculent tâche par tâche sur la
+structure principale du témoin (`nodes`, `volume/nodes_thousand`) — la seule que les exemples
+donnent, les devis propres des risques 204 et 206 n'en ayant pas — : l'union des rôles des tâches
+qui portent au moins un rôle de la semaine vidée. Les projets se calculent sur l'installation
+entière : ceux de `projects` qui ont une révision en cours, et ceux de `volume/portfolio_projects`
+qui en ont une et emploient l'un de ces rôles d'après `mockportfolio.role_shares`. L'univers ne dit
+pas quels projets engendrés en cours ont une révision en cours ; le test suppose que ce sont ceux
+dont la liste montre un devis courant, les trente offres, et vérifie qu'aucun projet engendré
+n'emploie le monteur câbleur, si bien que la supposition ne change rien. Il tient aussi qu'aucune
+tâche ni aucun identifiant de projet n'est nommé, et le texte de `Problem.params` et des trois 422.
+
+Les refus de calendrier gardent `params.resource_role_ids`, sans code ni libellé, à la différence
+des refus d'une nature ou d'une catégorie (relecture 3) : la session de `updateCalendar`,
+`setDefaultCalendar` et `updateResourceRole` peut lire tous les rôles, désactivés compris, la
+permission des paramètres de ressources ouvrant `include_inactive` ; le front devra relire toutes
+les pages de `listResourceRoles` avec `include_inactive` pour les nommer ; une saisie d'une révision
+connaît le libellé de ses rôles par ses lignes (`resource_role_label`). Le compte rendu d'un import,
+qui ne porte que les identifiants, est suivi par #768. `Problem.params` le dit, et
+`test_mockresourcesettings.py` en tient le texte.
+
+**La largeur d'une colonne a son refus** (#711). `GridPreferences.column_widths` publie `minimum:
+20`, et `updateMyPreferences` ne déclarait aucun 422. Il déclare désormais `VALIDATION_FAILED`,
+`/grids/<grille>/column_widths/<colonne>` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à
+`20`, comme toute borne d'une écriture (L42o). Écarté : le 400 partagé, réservé à une requête mal
+formée, quand la largeur est bien formée et seulement trop petite. Exemple
+`preferences_column_width_out_of_range` (corrélation 1111), seul sous ce 422 : la colonne du libellé
+de la grille de devis réduite à 12 points.
+
+`test_mockbounds.py` dérive désormais les corps de tous les `requestBody` du contrat, soixante-huit,
+en suivant les schémas qu'ils citent — propriétés, dictionnaires, listes, compositions, et les
+éléments d'une liste écrits `- { $ref: … }`. Chaque borne que le schéma publie en `minimum` ou en
+`maximum` — ou en borne exclusive, entière ou décimale —, hors `lock_version`, doit avoir son refus
+à son pointeur, sous le 422 de l'opération, avec son exemple. Un garde-fou tient qu'aucune ligne du
+contrat hors d'un texte plié ne cite un schéma ou une borne sans que la lecture la place. Les bornes
+de L42m, la rétention et le délai entre deux revues, entrent dans sa table, et tous les exemples qui
+portent des largeurs de colonnes, la session comprise, restent au-dessus de la plus petite.
+Écartés : lire le contrat assemblé (`make build-openapi`), que les tests ne lisent pas, un
+assemblage laissé sur le disque pouvant être périmé ; une bibliothèque YAML, dont les outils ne
+dépendent pas.
+
+**Les mineurs de L42j** (#691) :
+
+1. la note de L42j dit la création sous un nœud désactivé, refusée comme le déplacement ;
+2. l'ordre de construction de la conception nomme L43g après L42j ;
+3. `test_mockresourcesettings.py` tient qu'`org_node_updated` reste le premier exemple du 200
+   d'`updateOrgNode`, et que le nœud renommé est le nœud lu, hors `label`, `lock_version` et
+   `audit.updated_*` ;
+4. deux lignes trop longues de `paths/reference.yaml` sont coupées, dans la description de
+   `setDefaultCalendar` et dans le 422 d'`updateResourceRole`.
+
+**Corrélations** 1110 à 1113. Le front reçoit les phrases des trois conditions
+(`enums.CommandCondition`), et compile sur le client régénéré. Le formulaire du rôle saisit le code,
+exigé, premier de ses champs comme celui d'un nœud : le faux back valide les corps d'après le
+contrat, et une création sans code y était refusée, ce que le parcours de bout en bout des rôles a
+montré. Écartée : envoyer le code du rôle à la modification et aucun à la création, le minimum que
+le lot visait d'abord. Le code dans la grille — colonne, recherche, filtre, tri —, le code pris
+éprouvé au champ, et #714 point 1 reviennent au lot du front qui suit, avec les rôles que nomme le
+refus d'une nature ou d'une catégorie (`params.resource_roles`) et les projets que nomme le refus
+d'un calendrier (`params.projects`) ; le formulaire d'une catégorie dit déjà la troisième condition
+de MO-001 (`cost-form.dom.test.tsx`).
+
+## La part d'un total nul, question ouverte ; l'outil en attendant (EP-14/L55)
+
+Constat #718 de la relecture 2 de L42o : `wftools.mockstructure.partition` levait sur une
+répartition sans montant (`max` d'une suite vide) et sur un total nul (une division par zéro) — un
+devis encore sans ligne, un reste à engager entièrement nul, un portefeuille sans projet en cours —,
+et la règle « Une part… » du README ne dit pas ce que le contrat donne alors.
+
+**La question est ouverte, et part dans L42t (#774).** WF-IND-0010 veut qu'une valeur dont le
+dénominateur est nul soit présentée non calculable, jamais comme zéro ni comme l'infini, et la
+décision « Une enveloppe `Computable` pour ce qui peut ne pas se calculer », en tête de ce fichier,
+en fait une règle du contrat : `{ is_computable, value, reason }` partout où un dénominateur peut
+être nul. La part d'un total nul y entre ; la dire non calculable — un motif pour elle,
+`AmountByKey.share` passé en `Computable`, les descriptions de `share` — est une modification du
+contrat, faite dans le lot de contrat L42t, puis adoptée par un lot du front. EP-14/L55, lot
+d'outillage, ne touche ni au README ni à aucun schéma (relecture 1 de L55, décision de l'agent de
+livraison).
+
+**Ce que fait l'outil en attendant, provisoire.** `partition` ne lève plus : une répartition sans
+montant n'a aucune part, et chaque montant d'un total nul vient sans `share`, comme la part d'un poste
+d'un total nul ; le devis, le reste à engager et la structure des coûts du portefeuille omettent
+alors la part. Aucun exemple n'a de total nul, et aucun ne change ; L42t remplacera ce comportement
+par ce qu'il décidera. `tools/tests/test_mocktoday.py` le tient sur l'outil, sur le devis et le reste
+à engager d'une structure sans ligne, et sur la structure des coûts d'un portefeuille sans projet en
+cours.
+
+## Le squelette, le rattachement, les chronologies et les nœuds retenus d'un lotissement filtré (EP-14/L42k)
+
+La partie L42k de #507 (#614), au périmètre revu le 2026-10-10 : le squelette et le rattachement
+(#586), les chronologies, les nœuds retenus d'un lotissement filtré (#574) ; la catégorie de la
+provision (#579), qu'elle portait au cadrage, est sortie, réalisée par EP-14/L42p. Le contrat suit
+la spécification à jour depuis #708. Les décisions sont de l'agent de réalisation du lot, chacune
+avec sa raison, et celles de la relecture 1 de l'agent de livraison, dites comme telles. Le lot ne
+touche au front que pour compiler sur le client régénéré, tenir ses catalogues et ses tests ;
+l'adoption revient à EP-14/L44c — la grille du lotissement et les chronologies — et EP-14/L44d — le
+squelette et la colonne du rattachement. Ni #574 ni #586 ne se ferment ici : la troisième Vérif
+de #574, le total des seuls retenus à l'écran, revient à L44c, et #586 garde ce que #771 reprend.
+
+**La révision liste le squelette parmi ses commandes** (`RevisionCommand.generate_skeleton` ;
+WF-PRJ-0030 : « La génération n'est proposée que sur la structure principale (WF-PLA-0170), et
+seulement lorsqu'elle ne comporte aucune tâche » ; Vérif : « Elle n'est plus proposée dès que la
+structure principale comporte une tâche, et ne l'est jamais sur un différentiel ni sur le devis
+propre d'un risque. »). Une saisie du planning, juste après `edit_planning`, gardée par la même
+permission, `planning.write`. La condition nouvelle, `main_structure_without_tasks`, manque dès que
+la structure principale de la révision comporte une tâche ; elle vient la première, la condition
+propre d'abord, puis celles de toute saisie de la révision en cours — `no_background_task_running`
+pendant un marquage, un import, le traitement d'une survenance de risque ou une fusion, comme
+`merge_structure` après `unmerged_amendment_exists` ; sur une révision marquée, la commande ne
+manque que de `revision_draft`, comme `merge_structure`. Le 409 de `generatePlanningSkeleton` est
+`STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première qui manque ; une révision
+marquée ou un projet terminal restent des 403, comme toute saisie. Ni différentiel ni devis propre
+d'un risque : la commande est de la révision, et l'opération, qui ne nomme aucune structure,
+engendre sur la principale. Les révisions des huit exemples écrits à la main qui listent
+`edit_planning` listent la commande : indisponible dans les sept qui portent les tâches du témoin,
+disponible dans `revision_without_tasks`, sans tâche. Exemple `skeleton_structure_not_empty`, sous
+le 409 qui n'en avait aucun (corrélation 1132). Écartés : une commande absente dès la première
+tâche, que « n'est plus proposée » permettait de lire, quand une commande indisponible dit pourquoi
+(WF-IHM-0090) et que le cadrage l'a voulue indisponible ; la commande sur la structure
+(`CostStructure`), que l'écran du planning ne lit pas pour offrir le squelette et que l'opération ne
+vise pas ; la permission du paramétrage du projet (`update`, `project_settings.write`), réservée aux
+chefs de projet (WF-PRJ-0060), au motif que le squelette naît du lotissement — il écrit des tâches
+dans le planning de la révision, comme une saisie de la grille, et la conception d'EP-14 l'offre
+dans la grille de planning vide, à qui peut y saisir (relecture 1).
+
+**L'état où le squelette est proposé a ses exemples** (relecture 1) : `revision_without_tasks`
+(`getRevision`), la révision ouverte aujourd'hui sur le projet créé à 14 h 05, « Rénovation du poste
+de livraison » (révision 103), `generate_skeleton` disponible, ses autres commandes celles de la
+révision courante du témoin ; `structures_without_tasks` (`listCostStructures`), sa structure
+principale (207), son compteur à 0 ; `nodes_empty` (`listNodes`), sa lecture, sans nœud, des totaux
+nuls, engendrée par `make mock-data` (`mockcore.whole` d'une structure vide, relecture 2) ; et
+`project_revision_opened` (`getProject`, relecture 2), le projet créé, passé en Chiffrage, qui porte
+cette révision en cours (WF-CYC-0020). Chacun vient en dernier sous son statut ;
+`test_mockbreakdown.py` tient que la commande n'est disponible que là où la lecture de la même
+structure est vide, et que le squelette engendré y porte le compteur lu plus un.
+
+**Le squelette rend ce que rend une écriture de grille** (`NodesWritten` ; convention du README : «
+Toute écriture de grille — […] création […] — rend `NodesWritten` »). La réponse 201 rendait un
+tableau de nœuds : la grille vide qui se remplit (L44d) n'aurait eu ni les totaux ni le compteur de
+la structure, qu'exige la saisie suivante (WF-IHM-0110), sans relire toute la structure. Les tâches
+créées sont dans `nodes`, dans l'ordre du plan ; aucun ancêtre hors d'elles, aucune tâche redatée —
+`NodesWritten.ancestors` le dit désormais : les ancêtres hors des nœuds écrits. Écarté : garder le
+tableau et relire `listNodes` après chaque génération, une lecture de plus pour ce que l'écriture
+sait. Exemple `skeleton_generated`, écrit à la main, sur la révision 103 et le lotissement par
+défaut du projet créé (`work_breakdown_default`) — « Sur le lotissement par défaut, la génération
+produit une récapitulative de poste, une récapitulative de lot sans feuille, et leurs deux jalons de
+fin » (Vérif de WF-PRJ-0030), les récapitulatives rattachées au poste et au lot, le jalon du poste
+succédant à celui du lot, sur les nœuds 571 à 574 et leurs lignées 671 à 674. Les jalons sont datés
+comme le cœur, par `mockcalendar.follow` (relecture 1) : celui du lot à la première heure de la
+structure, le 3 juin ; celui du poste, que la liaison de fin à début lit comme une fin, à la fin de
+la journée de travail du 2 juin (WF-PLA-0050) ; chaque récapitulative couvre ses subordonnées
+(WF-PLA-0040).
+
+**Le lotissement par défaut porte le libellé du projet** (WF-PRJ-0020 : « en son absence, le
+lotissement vaut un poste et un lot qui portent le libellé du projet, sans livrable » ; relecture
+1). `getWorkBreakdown`, `WorkBreakdown` et l'exemple `work_breakdown_default` le disent, désormais
+celui du projet créé aujourd'hui, « Rénovation du poste de livraison »
+(`mockwitness.CREATED_PROJECT`) ; ses libellés « Commande » et « Lot unique », que la spécification
+ne nommait pas, disparaissent, et le squelette engendré en suit le libellé, ses jalons « Fin de «
+Rénovation du poste de livraison » ».
+
+**`setWorkBreakdown` ne fait forger aucun identifiant au client** (WF-DAT-0060 ; décision de l'agent
+de livraison à la relecture 1). L'écriture entière ne pouvait rien créer sans un identifiant inventé
+par le client, que le README refuse. Dans l'écriture, l'identifiant d'un poste, d'un lot ou d'un
+livrable est facultatif (`OrderItem`, `WorkPackage`, `Deliverable`) : absent, l'élément est nouveau,
+le serveur engendre son identifiant, et la réponse le porte ; présent, c'est l'élément que le
+lotissement lu porte, renommé ou rangé ailleurs ; un identifiant que le lotissement lu n'a pas —
+inconnu, d'un élément d'une autre nature, ou d'un élément marqué supprimé (WF-DAT-0080) — est refusé
+par 422 `UNKNOWN_WORK_BREAKDOWN_ITEM` sur son champ. Écartés : un identifiant engendré par le
+client, contraire à WF-DAT-0060 ; des opérations par élément — créer, renommer, supprimer —, que la
+conception d'EP-14 a écartées pour l'écriture entière ; une clé provisoire du client pour retrouver
+dans la réponse l'élément créé, quand l'ordre saisi, que la réponse garde, le désigne déjà.
+L'exemple de la requête, `work_breakdown_entered`, est la lecture entière du témoin, ses marques
+laissées, le lot « Mise en service sur site » et son livrable ajoutés sans identifiant ; la réponse,
+`work_breakdown_saved`, les rend avec 716 et 717. Sous le 422, `work_breakdown_label_required`
+(corrélation 1134), le premier, que prism sert à une saisie invalide, refuse cette saisie quand le
+lot ajouté n'a pas de libellé, `work_breakdown_unknown_item` (corrélation 1133) quand il porte
+l'identifiant 713, celui du livrable (relecture 2), et `work_breakdown_duplicate_item` (corrélation
+1135) quand il porte 712, celui d'« Armoires », que la saisie porte déjà (relecture 3). Tous sont
+engendrés par `make mock-data` (`mocklists`, `breakdown_refusal` jugeant la saisie contre la lecture
+entière) ; `test_mocklists.py` rejoue l'ajout depuis la lecture entière, affirme la liste littérale
+des champs de chaque refus, l'indice du lot ajouté tiré de la lecture, et deux identifiants d'une
+autre nature refusés comme inconnus — un poste envoyé pour un lot, un lot pour un livrable. **Un
+identifiant envoyé deux fois est refusé** (décision de l'agent de livraison à la relecture 3) :
+chaque occurrence après la première, par 422 `DUPLICATE_WORK_BREAKDOWN_ITEM` sur `/…/<nature>_id`,
+code nouveau. Écartés : `UNKNOWN_WORK_BREAKDOWN_ITEM`, l'identifiant étant connu, qui ne dirait pas
+la vraie cause (défaut n° 10 du guide) ; « le dernier gagne », qui supprimerait sans un mot
+l'occurrence précédente et ce qu'elle porte ; fusionner les livrables des deux occurrences, une
+écriture que personne n'a saisie. Le texte du front pour `UNKNOWN_WORK_BREAKDOWN_ITEM` devient
+générique — un élément qui ne fait pas partie du lotissement lu, inconnu, d'une autre nature ou
+supprimé —, le code servant désormais à `setWorkBreakdown` comme au rattachement.
+
+**`setWorkBreakdown` rend sa lecture** (relecture 1) : `WorkBreakdownReading`, entière, chaque
+élément retenu, avec son compteur suivant, jamais nul, comme `setContributors` rend sa lecture ; la
+décision d'EP-02/L42f, qui lui faisait rendre `WorkBreakdown`, est remplacée, une mention le disant
+à sa place. Son 422 déclare chaque champ refusé : le compteur nul d'une lecture filtrée
+(EP-02/L42f), un libellé vide ou trop long — `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur
+`/order_items/<i>/label`, `/order_items/<i>/work_packages/<j>/label` ou celui d'un livrable, comme
+`createTimeline` —, un identifiant que le lotissement lu n'a pas.
+
+**Le rattachement d'un poste ou d'un lot déjà porté nomme la tâche qui le porte, par son nœud et son
+libellé** (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` ; WF-PLA-0170 : « un poste ou un lot n'y est porté
+que par une tâche à la fois » ; Vérif : « Le rattachement d'une tâche à un lot déjà porté par une
+autre est refusé, comme celui d'une même tâche à un poste et à un lot. »). `fields[].params` porte
+`conflicting_object_id` et `conflicting_object_label`, les paramètres de toute valeur déjà portée
+quand le formulaire ne connaît pas la liste qui la porte : la grille de planning, cherchée ou
+filtrée — par sous-arbre, par poste, par chronologie —, peut ne pas lire la tâche, que la cellule
+doit nommer (conception d'EP-14, L44d). Ils remplacent `attached_node_id` (EP-02/L29), qui n'en
+donnait que le nœud ; aucun écran ne le lisait. La convention du README nomme cette exception : la
+même paire sous un 422. Écartés : garder `attached_node_id` et lui adjoindre un libellé, deux noms
+pour un même rôle ; un 409 `ALREADY_EXISTS`, quand les autres refus du rattachement sont des motifs
+par champ du même 422 et qu'une cellule n'attend qu'une enveloppe. La tâche rattachée à la fois à un
+poste et à un lot — « jamais aux deux » — est refusée par `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, sans
+paramètre, la cellule connaissant la tâche qu'elle écrit ; envoyés tous deux non nuls, chacun est
+refusé à son champ. `fields` porte une entrée par motif qui s'applique :
+`WORK_BREAKDOWN_ITEMS_EXCLUSIVE` et `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` sont rendus ensemble
+quand l'un et l'autre s'appliquent (relecture 1). Exemples, en dernier sous le 422
+d'`updateTaskFacet` : `task_attach_refused`, le premier, garde son scénario et nomme le « Poste de
+commande » par ses deux paramètres ; `task_attach_exclusive` (corrélation 1130), le lot « Armoires »
+envoyé à la récapitulative qui porte déjà son poste.
+
+**Le rattachement n'existe que dans la structure principale** (#586, point 1 ; WF-PLA-0170 : « Le
+rattachement n'existe que dans la structure principale […]. Les structures différentielles et les
+devis propres des risques n'en portent pas »). Une tâche d'un différentiel ou du devis propre d'un
+risque ne nomme ni `task.order_item_id` ni `task.work_package_id` parmi ses champs
+(`editable_fields`) et les porte nuls ; une écriture qui en pose un — `updateTaskFacet`,
+`createNode` — est refusée par 422, sur le champ, motif nouveau
+`WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY`, `null` restant accepté ; un collage refuse la cellule de la
+colonne `work_breakdown` par le même motif (`PasteRejection`, relecture 1). Écartés :
+`COMPUTED_VALUE`, le rattachement n'étant pas calculé, et `UNKNOWN_WORK_BREAKDOWN_ITEM`, qui dirait
+le poste inconnu et non la vraie cause (défaut n° 10 du guide). Exemple
+`task_attach_main_structure_only` (corrélation 1131). La restriction remplace « Toute tâche porte
+son rattachement » d'EP-02/L30, une mention le disant à sa place.
+
+**Un lot rangé sous un autre poste retire le rattachement de sa tâche, sans refus** (#586, point 3 ;
+WF-PLA-0170 : « Le déplacement d'un lot sous un autre poste retire de même le rattachement de sa
+tâche lorsqu'elle n'est pas dans le sous-arbre de la tâche de ce poste. »). `setWorkBreakdown` ne
+refuse plus par `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` : la saisie aboutit, et la tâche du lot, dans la
+révision en cours, ne porte plus le lot ; les révisions marquées le conservent. La décision de
+l'auteur à la revue d'EP-02/L30, qui refusait, précédait la spécification acceptée le 2026-10-09 ;
+elle est remplacée, une mention le disant à sa place. `params.work_package_id` disparaît avec le
+refus. Écarté : nommer dans la réponse la tâche qui perd son lot, que rien n'exige — la réponse est
+le lotissement lu, et la grille de planning relue montre la tâche sans rattachement ; la
+confirmation de L44c le dit d'avance pour une suppression (conception d'EP-14). Ce que l'écriture
+fait pendant un traitement de fond, et les compteurs qu'elle avance, sont ouverts en #775.
+
+*Remplacé en partie par EP-14/L42s : la saisie attend la fin d'un traitement de fond
+(`update_work_breakdown`, `no_background_task_running`), et dit les compteurs qu'elle avance (#775).*
+
+**Une fusion qui sortirait la tâche d'un lot du sous-arbre de celle de son poste échoue en nommant
+les tâches** (#586, point 2 ; WF-PLA-0170 : « Une fusion qui déplacerait la tâche d'un lot hors du
+sous-arbre de la tâche de son poste est refusée en nommant la tâche » ; WF-IHM-0080 : « l'échec
+nomme ce qui a échoué »). Sur le modèle de `TASK_WITHOUT_WORKING_HOURS`, la tâche de fond de
+`mergeCostStructure` finit en échec sans rien fusionner, `problem.code` à
+`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `params.order_item_task` et `work_package_tasks` nommant la tâche
+du poste et celles des lots, chacune par son nœud et son libellé (relecture 1). Écartés : le nœud
+seul, que l'écran d'une tâche de fond, qui ne lit pas la structure, n'aurait pas pu nommer ; un
+refus synchrone à la demande de fusion, que la fusion, confiée au worker (WF-ARC-0090), ne sait
+qu'en fusionnant — le compte rendu préalable de la fusion (WF-REV-0050 : « Avant application, la
+fusion présente un compte rendu : […] et motifs de refus »), que le contrat n'a pas, le dira avant
+l'application, et il est ouvert en #771. Exemple `task_merge_outside_order_item`
+(`getBackgroundTask`, tâche de fond 939), une variante déclarée : « Câblage des armoires » porterait
+le lot « Armoires » sous « Poste de commande ». Le même manque pour `moveNodes`, antérieur au lot,
+est ouvert en #775.
+
+*Remplacé en partie par EP-14/L42s : le compte rendu préalable de la fusion existe
+(`getStructureMergeReport`, #771), et le refus de `moveNodes` nomme les tâches de même (#775).*
+
+**Le compte rendu d'un import nomme le poste ou le lot qui perd sa tâche** (#586, point 4 ;
+WF-INTF-0040 : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le
+poste ou le lot qui perd sa tâche. »). `ImportDifference.work_breakdown_label`, nullable et
+facultatif, porte son libellé sur le retrait d'une tâche rattachée, comme la facette de la tâche le
+porte ; aucun exemple du témoin ne retire une tâche rattachée. Écarté : l'identifiant du poste ou du
+lot, que l'écran du compte rendu devrait résoudre en lisant le lotissement. Le point voisin du
+constat — un fichier qui sortirait la tâche d'un lot du sous-arbre de son poste « est rejeté au
+compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon » (WF-INTF-0040) —
+demande de dire qu'un compte rendu n'est pas applicable, ce que le contrat ne dit pas non plus de
+l'horizon (WF-PLA-0150) ; il est ouvert en #771, avec le point 5 de #586,
+`EstimateIndicators.by_order_item` face à WF-DEV-0060 (« un poste sans tâche rattachée est présenté
+sans total »), que ni L44c ni L44d ne consomme.
+
+*Remplacé en partie par EP-14/L42s : le fichier qui sortirait la tâche d'un lot du sous-arbre de son
+poste, ou dépasserait l'horizon, est rejeté entier (`ImportReport.refusals`), et le poste sans tâche
+rattachée est présenté sans total (#771).*
+
+**Le projet liste les chronologies parmi ses commandes** (`ProjectCommand.manage_timelines` ;
+WF-PLA-0140 : « Un projet peut porter plusieurs chronologies. Chacune porte un nom, conserve la
+liste des tâches et des jalons qui y sont inscrits, peut être supprimée, et peut être exportée au
+format PNG. »). Une commande pour créer et supprimer, après `manage_contributors`, gardée par
+`planning.write` — les chronologies sont une vue du planning (FBS-4.3.1) —, non réservée aux chefs
+de projet, indisponible sur un projet terminal (`project_not_terminal`, WF-CYC-0100). Écartés : deux
+commandes, créer et supprimer, quand un seul écran les offre sous la même permission et les mêmes
+conditions, comme `manage_contributors` ; des commandes sur chaque chronologie, qu'aucune condition
+propre ne distinguerait ; la seule permission de la session, contraire à la règle d'EP-02 qu'un
+objet du projet liste ses commandes (conception d'EP-14). Les projets des sept exemples écrits à la
+main que lit une session qui porte `planning.write` listent la commande ; les listes dérivées sont
+engendrées.
+
+**`deleteTimeline` reste un 204 sans 409** (WF-DAT-0080 : « Un livrable ou une chronologie se
+supprime physiquement. »). Le cadrage disait qu'une chronologie citée par une révision marquée
+serait marquée supprimée ; la spécification à jour depuis #708 la supprime physiquement, et la
+conclusion ne change pas : rien ne la refuse. La conception d'EP-14 est corrigée de même. Un projet
+terminal reste un 403, comme toute écriture. `createTimeline` déclare son 422 — un nom vide ou trop
+long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur `/label` — et dit le nom non unique, la spécification
+ne l'exigeant pas. Écarté : un nom unique dans le projet, refusé par 409 `ALREADY_EXISTS`, que
+WF-PLA-0140 ne demande pas et qui empêcherait deux chronologies du même nom pour deux publics, un
+comité et un client par exemple. Exemple de succès `timeline_created`, engendré par `make mock-data`
+(`mockdata`) : « Réunion de chantier », chronologie 1002, sans inscription.
+
+**Chaque élément d'une lecture du lotissement dit s'il est retenu** (#574 ; WF-IHM-0130 : « Toute
+table se filtre sur chacune de ses colonnes, et le filtre s'applique aux totaux qu'elle présente » ;
+WF-IHM-0060 : « dans une grille arborescente, le filtre laisse visibles les parents des lignes
+retenues »). `is_match`, exigé sur chaque poste, lot et livrable de `WorkBreakdownReading` : vrai
+quand les filtres le retiennent, et toujours sans filtre ; faux quand il n'est rendu que parce qu'il
+contient un élément retenu. La grille ne compte que les retenus : `work_breakdown_work_packages`
+rend le poste marqué faux, et la ligne des totaux dira « 1 lot », non « 1 poste ». Un livrable ne
+contient rien et n'est rendu que retenu : sa marque, toujours vraie, garde une même lecture de
+chaque ligne. La lecture a ses éléments (`OrderItemReading`, `WorkPackageReading`,
+`DeliverableReading`), et l'écriture garde les siens : la marque n'entre pas dans
+`setWorkBreakdown`. Écartés : la liste des identifiants retenus au niveau de la lecture, l'autre
+proposition du constat, que la grille aurait dû croiser avec l'arbre ; des comptes par nature, qui
+auraient servi la ligne des totaux sans marquer les lignes de contexte ; la marque sur les éléments
+partagés avec l'écriture, qu'un client aurait renvoyée ; le nom `matched` du constat, le contrat
+nommant ses booléens `is_…`. Les quatre lectures engendrées du lotissement portent la marque.
+
+**Identifiants et corrélations** : 1130 à 1135 ; la tâche de fond 939 ; la révision 103 et sa
+structure 207, réemployées par `revision_without_tasks`, `structures_without_tasks`, `nodes_empty`,
+`skeleton_generated` et `project_revision_opened`, qui décrivent la même révision ; les nœuds 571 à
+574 et leurs lignées ; le lot 716 et son livrable 717 ; la chronologie 1002. `test_mockbreakdown.py`
+tient la commande du squelette, où elle est offerte, son refus et l'exemple du lotissement par
+défaut, ses dates comprises, les refus du rattachement, la tâche qu'ils nomment et la fusion qui
+échoue, le projet qui porte la révision sans tâche, la commande des chronologies et la chronologie
+créée ; `test_mocklists.py`, la marque des éléments retenus, le libellé du lotissement par défaut,
+l'écriture du lotissement, ses refus et sa réponse ; `test_mockwitness.py` admet un nœud de la
+structure pour `conflicting_object_id`. Les catalogues reçoivent `generate_skeleton`,
+`manage_timelines`, `main_structure_without_tasks`, `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` et
+`DUPLICATE_WORK_BREAKDOWN_ITEM`.
+
 ## Toute opération à corps déclare 400 et 422 (EP-03, #748)
 
 Décision de l'auteur du 2026-10-11. `updateAccessRole` recevait le corps de `createAccessRole`,
@@ -3674,6 +5450,246 @@ champ manquant, d'un autre type ou refusé, par 422 et le code du champ
 corps (58 `400`, 29 `422` ajoutés), et la règle `rule/operation-with-body-declares-400-and-422`
 le tient. Écarté : ne corriger que `updateAccessRole`, l'oubli se serait reproduit à la prochaine
 opération.
+
+## C-291 et la préparation, le risque sans tâche, la ligne de provision, les catégories d'un changement de type, la fusion et l'import, le lotissement pendant un traitement de fond (EP-14/L42s)
+
+Les écarts du contrat à la spécification relevés pendant L42p, L42r et L42k (#773) : #728, #733,
+#766, #771, qui ferme ce qui restait de #586, et #775, ajouté au lot le 2026-10-10 avec le
+commentaire de la relecture 2 de L42k. Les décisions sont de l'agent de réalisation du lot, chacune
+avec sa raison. Le lot ne touche au front que pour compiler sur le client régénéré, tenir ses
+catalogues et ses tests ; l'adoption par les écrans revient à un lot du front.
+
+**Désactiver une nature désactive ses catégories** (C-291 ; WF-REF-0010 : « Désactiver une nature de
+coût désactive ses catégories ; une catégorie ne peut être réactivée que si sa nature est active » ;
+Vérif : « La désactivation d'une nature désactive ses catégories. La réactivation d'une catégorie
+dont la nature est désactivée est refusée. »). `setCostTypeActivation` désactive chaque catégorie
+active de la nature, dont le compteur avance et l'audit nomme l'auteur de la désactivation ; la
+réactivation ne rend active que la nature, comme celle d'un nœud (« La réactivation ne cascade
+pas », EP-02/L42a). La réactivation d'une catégorie sous une nature désactivée manque d'une
+condition nouvelle, `cost_type_active`, que la commande `reactivate` de la catégorie dit d'avance et
+que le 409 de `setCostCategoryActivation`, nouveau, nomme ; exemple
+`cost_category_reactivation_refused` (corrélation 1151), la suite de `cost_type_deactivated`, dont
+le résumé dit la cascade. La définition provisoire de L42p disparaît : `active_provision_category`
+est une catégorie active de type provision pour risques, une catégorie active l'étant toujours sous
+une nature active ; `CostCategoryImage.cost_type_is_active` reste, une information de lecture. Les
+générateurs suivent (`mockdata.categories_of`, `mockreference.category_commands`,
+`mockhistory.is_active_provision`) ; les natures du témoin sont actives, et aucun exemple engendré
+ne change. Écartés : rendre les catégories désactivées dans la réponse, comme `setOrgNodeActivation`
+— le schéma de la réponse aurait changé pour un écran qui lit une nature, et qui relit ses
+catégories ; réactiver les catégories avec la nature, que l'exigence ne dit pas. Le 409 nomme la
+nature à réactiver d'abord (`params.conflicting_object_id`), comme celui d'un nœud nomme son parent
+(`org_node_reactivation_refused`, EP-02/L42a, #532 ; relecture 1) — écarté : laisser l'écran la lire
+sur la catégorie, quand le refus d'une condition atteignable dit quoi faire (WF-IHM-0090).
+L'écriture change l'état et les commandes d'autres objets, et le dit (L42g) :
+`setCostTypeActivation` rejoint `RELIT` dans `test_mockcostsettings.py`.
+
+**Une installation neuve manque de la catégorie de main-d'œuvre et du rôle** (WF-EXP-0020, qui crée
+le calendrier par défaut et la catégorie de provision ; Vérif de WF-CYC-0120 : « Sur une
+installation neuve, dont la seule catégorie est celle des provisions pour risques, la création est
+refusée en nommant la catégorie de main-d'œuvre et le rôle manquants. »).
+`reference_readiness_incomplete`, le second exemple de `getReferenceReadiness`, nomme
+`active_cost_category` et `active_resource_role`, et son résumé le dit ; `ReferenceReadiness` et
+`getReferenceReadiness` disent le prérequis « une catégorie de main-d'œuvre active », le libellé des
+catalogues depuis EP-14/L53. Écarté : garder le calendrier parmi les manques, que l'amorçage crée.
+
+**Le risque déclaré sur une structure principale sans tâche** (WF-RIS-0010 : « La déclaration d'un
+risque sur une structure principale sans tâche est refusée, en nommant la condition manquante. »).
+Le 409 de `createRisk` nomme `at_least_one_task`, avant `active_provision_category`, ce que L42p
+avait arrêté ; `CommandCondition` décrit la condition, qui existait sans emploi. Exemple
+`risk_without_task` (corrélation 1150), en dernier : le projet créé aujourd'hui, passé en Chiffrage
+avec sa révision 103, dont la structure principale n'a encore aucune tâche — un état du témoin, non
+une variante. Une commande nouvelle, `declare_risk`, le dit d'avance (relecture 1, décision de
+l'agent de livraison) : toujours listée juste après `edit_risks`, là où elle l'est — la révision en
+cours, ou le projet qui n'en a pas —, sous `risks.write`, ses conditions dans l'ordre du 409 : les
+conditions d'état d'`edit_risks` d'abord, `project_not_terminal` puis `no_background_task_running`,
+puis ses conditions propres, `at_least_one_task` puis `active_provision_category`, puis les autres
+conditions d'`edit_risks`, `may_create_revision` sur le projet (relecture 2, décision de l'agent de
+livraison, comme `update_work_breakdown`) : l'état prime sur le contenu, car sur un projet terminal
+ou pendant un traitement de fond, ajouter une tâche ne rendrait pas la déclaration possible, et
+nommer `at_least_one_task` inviterait à une saisie elle-même refusée. Sur un projet terminal,
+`createRisk` refuse donc par ce 409, comme `updateProject` et `setWorkBreakdown`, la condition que
+la commande annonce ; la première rédaction mettait les conditions propres d'abord. Ce 409 ne
+contredit pas les 403 des saisies de la révision, dont celui du squelette (EP-14/L42k) : un projet
+terminal n'a pas de révision en cours, si bien que la déclaration y passe par le projet, qui porte
+alors `edit_risks` et `declare_risk` et nomme `project_not_terminal`, comme les imports qu'il porte
+refusent un projet terminal par leur 409 ; une saisie de la révision, elle, n'a plus de révision en
+cours où s'écrire, et reste un 403. Sur le projet,
+la structure jugée est celle de la révision que la déclaration créerait, sans tâche quand le projet
+n'a aucune révision marquée. Les révisions et les projets écrits à la main qui listent `edit_risks`
+listent la commande : indisponible sur la révision 103, sur le projet créé et sur l'offre en
+chiffrage, sans révision, faute de tâche ; pendant un marquage ou un import, faute de ce qui manque
+à `edit_risks` ; disponible ailleurs. L42p avait écarté cette commande pour
+`active_provision_category`, « un cas que la création d'un projet exclut déjà » : la raison ne vaut
+pas pour `at_least_one_task`, un projet tout juste créé n'ayant aucune tâche. Écartés : aucune
+commande, le formulaire lisant les totaux de la structure principale (`listNodes`,
+`totals.task_count`), que la première rédaction retenait — le front aurait déduit la règle de
+l'état, ce que L42p a écarté pour `update_provision` ; la condition sur `edit_risks`, qui aurait
+fermé la modification, le réexamen et la suppression d'un risque, qui n'en dépendent pas.
+
+**La ligne de provision ne porte pas de délai de paiement** (#733 ; WF-DEV-0020 : « un délai de
+paiement, en jours, qui […] reste saisissable sur toute ligne autre qu'une ligne de provision, qui
+n'en porte pas » ; WF-IND-0100 : « une ligne de provision, qui n'en porte pas, reste à la date de la
+tâche qui la porte »). Le délai quitte les `editable_fields` de la ligne de provision, sa lecture le
+rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockcore.payment_delay`,
+`mockindicators.delays`) ; envoyé, il est refusé par 422, `fields` sur `/payment_delay_days`, motif
+`FIELD_NOT_ACCEPTED`, code nouveau, celui de tout champ qu'un nœud n'accepte pas, ni saisi ni
+calculé pour lui, que le contrat refusait jusqu'ici sans le nommer : un champ d'une autre nature de
+ligne (`EstimateLineWrite`, `EstimateLineUpdate`, `createNode`, `updateEstimateLine`), la durée d'un
+jalon (`TaskFacetUpdate`), une cellule collée sur une telle colonne (`PastePreview` ; relecture 1).
+Le délai de paiement d'une ligne de main-d'œuvre, que le contrat n'offre pas quand la spécification
+le veut saisissable, n'est pas codifié : #785 (décision de l'agent de livraison). `nodes_estimate`
+et les lectures du nœud 555 sont engendrées en conséquence. Écartés : `COMPUTED_VALUE`, que l'issue
+suggérait, qui dirait calculé un délai que la ligne ne porte pas (défaut n° 10 du guide) ; garder 0
+à la lecture, une valeur que la ligne n'a pas ; un refus sans code, contraire à « une erreur est un
+code ».
+
+**Le calendrier d'un rôle seul sur sa tâche** (#766, point 1 ; WF-PLA-0010). Le 422
+d'`updateResourceRole` dit les deux cas qui laissent une tâche sans heure : un calendrier qui ne
+recoupe jamais celui d'un autre rôle de ses lignes, ou, sur une tâche dont ce rôle est le seul, un
+calendrier sans heure ; et de même `createNode`, le 422 d'`updateEstimateLine` et
+`Problem.params.resource_role_ids`, qui nomme alors ce rôle seul (relecture 1). La mention de la
+section d'EP-02/L30 le dit. Pas d'exemple nouveau : le refus a la forme de
+`calendar_update_without_hours`.
+
+**Le refus d'un changement de type nomme les catégories en cause** (#766, point 2 ; WF-IHM-0090 :
+« Tout refus nomme la condition manquante et, lorsqu'elle est atteignable par l'utilisateur, ce
+qu'il faut faire pour la satisfaire »). Rattacher une catégorie à une autre nature du même type
+n'est jamais indisponible (`CostCategoryCommand`) : `cost_type_unused` et `cost_type_unrated` se
+lèvent en rattachant ailleurs les catégories en cause, et sont atteignables. Nommant l'une ou
+l'autre, le 409 d'`updateCostType` porte `params.cost_categories` : les catégories de la nature
+employées pour `cost_type_unused`, celles qui portent un taux pour `cost_type_unrated`, actives ou
+désactivées, chacune par son identifiant, son code et son libellé, dans l'ordre de leur code — la
+forme de `params.resource_roles`. La troisième, `cost_type_without_role`, nomme des rôles
+(`params.resource_roles`, L42r). L'ordre des trois conditions reste, celui de l'exigence ; la raison
+de L42r, « ce qu'aucune action ne lève », tombe. `cost_type_kind_refused`, le premier exemple, garde
+son scénario et nomme la sous-traitance et le matériel électrique ; le taux n'a pas d'exemple propre
+— la main-d'œuvre du témoin porte cent quarante-huit catégories à taux, toutes nommées, et le refus
+a la même forme —, et `test_mockcostsettings.py` calcule les catégories nommées depuis les lignes
+des exemples. Écartés : les seuls identifiants, que l'écran des paramètres de coûts, paginé et
+filtré, aurait dû relire ; nommer à la fois les catégories des trois conditions, quand le refus dit
+la première qui manque.
+
+**Le compte rendu préalable de la fusion** (#771, point 1 ; WF-REV-0050 : « Avant application, la
+fusion présente un compte rendu : tâches et lignes ajoutées, modifiées et retirées, tâches démarrées
+qui seront terminées, et motifs de refus (WF-PLA-0030, WF-PLA-0150, WF-PLA-0170) » ; Vérif : « Le
+compte rendu d'une fusion dont le différentiel retire une tâche démarrée nomme cette tâche comme
+terminée ; l'abandon à cette étape laisse la révision en cours et la référence inchangées. »).
+`getStructureMergeReport`, une lecture sur le chemin de la fusion, comme `getRateUpdateProposal` sur
+celui de `applyRateUpdate`, rend `StructureMergeReport` : les écarts du différentiel
+(`ImportDifference`), les tâches démarrées qu'il retire et que la fusion termine
+(`ImportCompletedTask`, `completed_on` nul avant l'application), et les motifs qui la refusent
+(`ReportRefusal`, partagé avec l'import). Abandonner, c'est ne pas confirmer ; une structure qui
+n'est pas un différentiel non fusionné de la révision en cours a le 409 de sa fusion. **La
+confirmation porte les compteurs lus** (relecture 1) : le compte rendu rend ceux de la structure
+principale et du différentiel (`main_structure_lock_version`, `amendment_lock_version`), que
+`StructureMerge` exige ; l'une ou l'autre changée depuis — une tâche démarrée, une ligne réestimée,
+le différentiel modifié —, `mergeCostStructure` refuse par 412, et rien n'est fusionné :
+l'utilisateur ne confirme que ce qu'il a lu, comme un collage depuis L42q.
+`params.expected_lock_version` est toujours le compteur courant du différentiel, l'objet que le
+chemin nomme, même quand seule la structure principale a changé, et rien d'autre, la règle unique
+des 412 (#296) ; le client relit le compte rendu, qui rend l'un et l'autre (relecture 2). Le
+contrôle des deux compteurs et le dépôt de la tâche de fusion se font en une seule transaction, sous
+le verrou des deux structures, faute de quoi une écriture glissée entre eux ferait appliquer un
+compte rendu périmé. Une saisie dans l'un des deux arbres fait ainsi refuser la confirmation ; ce
+qui change hors d'eux — un calendrier du référentiel, le lotissement — fait échouer la tâche de fond
+sur le motif du refus, la fusion jugeant encore ses refus à l'exécution, comme L42k l'a dit.
+Écarté : nommer le compteur de la première structure changée, la rédaction de la relecture 1,
+contraire à #296. Exemples, variantes déclarées : `structure_merge_report`, le premier, un
+différentiel qui retire les « Pupitres opérateurs », démarrés, conservés et terminés, et
+`structure_merge_report_refused`, celui de `task_merge_outside_order_item` ; leurs compteurs, 1 pour
+la structure principale, comme `structures` le dit, et 2 pour le différentiel. Le premier reste une
+variante tant que la révision courante du témoin ne porte aucun différentiel, l'avenant 2 de la
+référence n'y étant pas repris : #791. Écartés : une analyse en tâche de fond, comme celle d'un
+import — il n'y a pas de fichier à lire, et le compte rendu se calcule comme toute écriture de
+grille, qui redate la structure de façon synchrone (`NodesWritten`) ; confirmer sans compteur, la
+fusion re-jugeant seule ses refus — la première rédaction, qui aurait appliqué un compte rendu
+périmé, une tâche démarrée depuis étant retirée au lieu d'être terminée ; un compteur de la
+révision, que les écritures de ses structures n'avancent pas ; un compte rendu retenu par le serveur
+et nommé par la confirmation, comme le plan d'un collage, un état de plus pour ce que deux compteurs
+disent ; une forme d'écart propre à la fusion, qui aurait doublé `ImportDifference`.
+
+**Un fichier d'import rejeté entier** (#771, point 2 ; WF-INTF-0040 : « Un fichier qui déplacerait
+la tâche d'un lot hors du sous-arbre de la tâche de son poste est rejeté au compte rendu, qui nomme
+les deux tâches, comme un planning qui dépasse l'horizon (WF-PLA-0150) » ; Vérif de WF-PLA-0150 :
+« Un import MS Project dont le planning s'étend sur seize ans est rejeté au compte rendu. »).
+`ImportReport.refusals`, exigé, vide quand le fichier s'applique : chaque motif qui rejette le
+fichier entier, à côté des lignes rejetées (`rejected`) ; `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` quitte
+les motifs d'une ligne (`ImportRejection`), et `PROJECT_HORIZON_EXCEEDED`, code nouveau, nomme la
+tâche en cause (`params.task`, son nœud, nul pour une tâche que le fichier crée, et son libellé).
+`applyImport` refuse un tel compte rendu par 409, `missing_condition` à `import_file_accepted`,
+condition nouvelle, après un compte rendu expiré ou déjà appliqué et avant les conditions de droits
+et d'état revérifiées ; refusé, le fichier est supprimé, comme celui de tout import refusé à
+l'application (WF-ARC-0100) ; et l'application rejuge les refus, échouant sur leur motif quand une
+saisie faite depuis l'analyse ferait rejeter le fichier (relecture 1). Exemples :
+`import_planning_rejected` (`getImport`, import a16), une variante déclarée qui porte les deux
+motifs, et `import_apply_rejected` (corrélation 1153) ; les quatre comptes rendus existants portent
+`"refusals": []`. Écartés : un état `rejected` de l'import, l'analyse ayant abouti ; un booléen
+`is_applicable`, qui doublerait la liste, comme le collage partiel se lit à `rejected` (L42q) ;
+garder la ligne rejetée, contre « comme un planning qui dépasse l'horizon ». Le code de l'horizon
+n'est encore déclaré ni par les saisies ni par la fusion : #788.
+
+**Un poste sans tâche rattachée est présenté sans total** (#771, point 3 ; WF-DEV-0060 : « un poste
+sans tâche rattachée est présenté sans total » ; Vérif : « les totaux par poste sont absents plutôt
+que nuls »). `EstimateIndicators.by_order_item` n'est plus nullable : chaque poste du lotissement,
+dans l'ordre saisi — il y en a toujours un, le lotissement par défaut en ayant un —, son montant et
+sa part non calculables, motif `order_item_without_task`, nouveau, quand aucune tâche ne le porte
+(`mockindicators.by_order_item`, qui lève sur un poste porté que le lotissement n'a pas, au lieu de
+l'écarter). `minItems: 1` le dit ; les indicateurs conservés d'une révision marquée rendent les
+postes de son marquage, un poste supprimé depuis compris (relecture 1). Le poste du témoin est
+porté : aucun exemple ne change. Aucun exemple ne montre `order_item_without_task` : les seuls
+indicateurs où il se lirait sans variante sont ceux du projet créé aujourd'hui, dont le devis vide a
+un total nul, et la part d'un total nul reste à dire (#774, L42t) — l'exemple y viendra. Écartés :
+omettre le poste, que l'écran ne pourrait présenter sans relire le lotissement ; un montant nul dans
+un schéma propre, quand l'enveloppe `Computable` dit déjà qu'une valeur ne se calcule pas ; la liste
+nulle, qui ne présente aucun poste.
+
+**Le lotissement attend la fin d'un traitement de fond** (#775, point 1 ; WF-PLA-0170, WF-IHM-0090).
+La saisie du lotissement retire le rattachement des tâches de la révision en cours : pendant un
+marquage, une fusion, une survenance ou l'application d'un import, elle est indisponible. Une
+commande nouvelle du projet, `update_work_breakdown`, toujours listée après `update_win_probability`
+et sous les conditions d'`update`, le dit (`no_background_task_running`), comme
+`update_win_probability` dit la probabilité figée (L42i) ; `setWorkBreakdown` déclare son 409, qui
+nomme la première condition qui manque dans l'ordre de la commande, `project_not_terminal` puis
+`no_background_task_running` (relecture 1 ; défaut n° 2 du guide, la route sœur d'`updateProject`) ;
+exemple `work_breakdown_background_task` (corrélation 1154). Les compteurs : celui du lotissement,
+toujours ; quand des rattachements sont retirés, celui de chaque tâche touchée et celui de la
+structure principale, comme une écriture de grille. Les huit projets écrits à la main listent la
+commande ; les listes dérivées sont engendrées. Écartés : la condition sur `update`, qui aurait
+fermé l'identité du projet pendant un marquage ; le 409 seul, une commande que l'état rend
+impossible devant être présentée indisponible (WF-IHM-0090).
+
+**Les tâches du refus d'un lot hors de son poste sont nommées par leur libellé** (#775, point 2, et
+le commentaire de la relecture 2 de L42k ; WF-PLA-0170, WF-IHM-0080).
+`fields[].params.order_item_task` et `work_package_tasks`, chacune par son nœud et son libellé,
+remplacent `order_item_node_id` et `work_package_node_ids` dans les refus d'`updateTaskFacet`, de
+`createNode` et de `moveNodes`, comme l'échec d'une fusion et le rejet d'un import.
+`task_attach_outside_order_item` les porte ; exemple `nodes_move_outside_order_item` (corrélation
+1152), en dernier sous le 422 de `moveNodes`, la variante de la fusion. Les paramètres valent aussi
+pour la tâche que `createNode` crée, son nœud nul, et pour une cellule `work_breakdown` collée
+(`PasteRejection.params` ; relecture 1). `test_mockbounds.py` tient que les refus des bornes forment
+un bloc contigu après le premier exemple — et non juste après lui : deux opérations citent d'autres
+refus avant ceux de leurs bornes. Écarté : garder les identifiants et leur adjoindre des libellés,
+deux noms pour un rôle.
+
+**Corrélations** 1150 à 1154 ; l'import a16. `test_mockprovision.py` tient C-291, l'installation
+neuve et le risque sans tâche ; `test_mockcostsettings.py` les catégories nommées ;
+`test_mockbreakdown.py` les tâches nommées, les comptes rendus et le lotissement ;
+`test_mockhistory.py` la ligne de provision ; `test_mocktoday.py` le poste sans total ;
+`test_mockresourcesettings.py` le 422 du rôle. Les catalogues reçoivent `cost_type_active`,
+`import_file_accepted`, `update_work_breakdown`, `declare_risk`, `PROJECT_HORIZON_EXCEEDED`,
+`FIELD_NOT_ACCEPTED` et `order_item_without_task`.
+
+**Hors du lot, relevés pour la suite**, ouverts en sous-issues de #773 : le délai de paiement d'une
+ligne de main-d'œuvre, que WF-DEV-0020 dit saisissable depuis C-237 et C-330 et que le contrat
+refuse (#785) ; la tâche qui porte la provision d'un risque, que sa déclaration ne désigne pas
+(WF-RIS-0010, #786) ; le retour d'un risque écarté à l'état identifié sur une structure sans tâche,
+que la spécification ne dit pas (#787, à trancher par l'auteur) ; l'horizon et le cycle de liaisons,
+sans code pour les saisies ni échec décrit pour la fusion (WF-PLA-0150, WF-PLA-0030, #788) ; les
+comptes rendus d'un import et d'une fusion, qui ne signalent ni la ligne de provision déplacée
+(WF-RIS-0010) ni une tâche rangée ailleurs dans l'arbre (#789) ; la fusion sur un projet sans
+révision en cours (#790) ; la révision courante du témoin, qui ne reprend pas l'avenant 2 de la
+référence (#791) ; `mockhistory.is_active_provision`, qui relit sur le disque une liste engendrée
+par la même commande (#792).
 
 ## Le 412 de la désactivation d'un compte (EP-03/US-0360/L2, #828)
 
@@ -4014,6 +6030,81 @@ Exemples engendrés par `wftools.mocklists` du témoin : `users_created_by_platf
 (`created_by_kind=platform`), `users_by_created_at` (`sort_by=created_at`) et
 `access_roles_by_updated_by` (`sort_by=updated_by`, la plateforme après Camille Martin). Le
 client est régénéré.
+
+## La reprise de `main` après EP-03 : les sauvegardes, les dépôts et les règles d'EP-03 (EP-14)
+
+`epic/EP-14` reprend `main` après la livraison d'EP-03 (#1029), par une fusion, comme le dit son
+fichier (« Reprise de `main` après la livraison d'EP-03 »). Les deux EPIC avaient écrit chacun une
+part du contrat des sauvegardes : EP-03 en a fait le service (US-0350/L1, US-0440), EP-14 la
+maquette et ses parties de contrat (EP-02/L43c, EP-14/L42h, L42m, L42o). Pour chaque règle, la
+fusion garde celle qui est en vigueur ; là où les deux côtés divergent, le choix et l'option
+écartée sont ceux-ci. Ailleurs, les deux côtés sont gardés.
+
+**Une date confirmée qui n'est pas celle de la sauvegarde est une confirmation manquante, 400
+`CONFIRMATION_REQUIRED`** (EP-03/US-0440/L2, décision de l'auteur du 2026-10-10, que le service
+tient et ses tests éprouvent). Écarté : le 422 par champ d'EP-14/L42h,
+`/acknowledged_backup_taken_at` par `BACKUP_DATE_MISMATCH`, qu'EP-03 a écarté nommément. Le code
+`BACKUP_DATE_MISMATCH` quitte le catalogue et les deux catalogues du front ;
+`restore_date_mismatch`, doublon de `restore_confirmation_mismatch` (EP-03), est retiré, et
+`restore_external_date_mismatch`, le même refus pour une sauvegarde déposée, devient ce 400, cité
+après lui.
+
+**Le téléchargement d'une sauvegarde est sous `backups.read` et `backups.write`** (EP-03/US-0440/L1,
+#705, décision de l'auteur du 2026-10-10 : l'archive porte les deux bases entières ; le service le
+tient ; confirmée par l'auteur le 2026-10-18). Écartée : la permission de la restauration, `platform_restore`, décision de l'auteur du
+2026-10-09 (#588, EP-02/L43c), que la décision suivante remplace. `BackupCommand` le dit : le
+marquage sous `backups.write`, le téléchargement sous les deux, la restauration sous
+`platform_restore`.
+
+**Une sauvegarde se dépose par morceaux, et sa date se lit au manifeste, à l'achèvement**
+(EP-03, #350, #1006 : `openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`). Écarté : son
+dépôt par `uploadFile`, qui lisait l'instant de l'archive au dépôt (EP-14/L42m) ; `uploadFile` ne
+sert plus que les imports et refuse `external_backup`. De L42m, la fusion garde la forme de
+`FileUpload.backup_taken_at`, exigé et nul pour le fichier d'un import (`file_upload`), que le
+service, qui ne rend que des dépôts de sauvegarde, tient sans changer ; écartée, sa présence pour
+les seuls dépôts de sauvegarde (#1006), qui aurait retiré à l'exemple d'un import sa date nulle.
+`file_upload_external_backup`, la copie de Lyon, devient un exemple de `completeChunkedUpload`,
+après `chunked_upload_completed` ; `file_upload_backup_unreadable` est retiré au profit de
+`chunked_upload_unreadable`, le même refus à l'achèvement.
+
+**Le 409 de `startRestore` nomme sa condition** (EP-14/L42h : `no_restore_running`,
+`no_backup_running`, `backup_verified`). Il étend celui d'EP-03, une restauration déjà en file ou
+en cours, sans paramètre : `restore_already_pending`, doublon de `restore_during_restore_refused`,
+est retiré. Le service rend aujourd'hui ce 409 sans `params` et ne refuse pas encore une
+sauvegarde non vérifiée ni une sauvegarde en cours : un écart du service au contrat, relevé par
+la reprise. Le 404 garde le texte des deux : une sauvegarde inconnue, ou que l'appelant ne peut
+pas lire, un dépôt inconnu ou expiré, sans distinction.
+
+**Les ajouts d'EP-14 que rien d'EP-03 ne contredit restent** : les commandes que liste chaque
+sauvegarde (`Backup.available_commands`), les filtres et le tri de `listBackups`, les 409 de
+`startBackup`, `retainBackup` et `downloadBackup`, les en-têtes du téléchargement, la vérification
+d'une sauvegarde déposée par sa restauration, avant la maintenance (L42o). L'exemple
+`backups_unverified` (EP-03) reçoit les commandes de la session de Camille Martin, le téléchargement
+et la restauration indisponibles faute de `backup_verified`, et sa sauvegarde de la nuit l'identifiant
+de celle du témoin (…0907). Le service, dont les réponses sont éprouvées contre le contrat, rend
+désormais les commandes de chaque sauvegarde (`waterfall.api.backups`, une sauvegarde courant de
+sa mise en file à la fin de sa tâche, vérification comprise) et la longueur du téléchargement ;
+il ne refuse pas encore par les 409 nommés de `startBackup` et de `downloadBackup` : relevé par
+la reprise, reporté à EP-15 (#1035). Les exemples de la mise en file d'une sauvegarde et d'une restauration,
+écrits des deux côtés, sont ceux d'EP-14, que l'univers témoin enchaîne (14 h 04 et
+14 h 04 min 30 s) ; la seconde dit en plus la maintenance que la sonde de vie suit (#604).
+
+**Les règles d'EP-03, appliquées aux opérations d'EP-14.** `make lint-openapi` a relevé
+`getStructureMergeReport` (L42s), sans 503, et `setDefaultCalendar`, dont le corps du compteur
+(L42r) n'avait pas de 400 ; le 422 de celle-ci dit aussi le compteur refusé. Les autres opérations
+d'EP-14 ont reçu leurs 400, 422 et 503 de la fusion même, EP-03 les ayant écrits sur les opérations
+qu'elles complètent ; les codes de rôle (L42r) et le libellé d'un calendrier exigent un caractère
+qui n'est pas un blanc. `openChunkedUpload` publiait la borne de `size_bytes` sans dire son refus,
+que la règle d'EP-14/L42r (`test_mockbounds.py`) exige : son 422 le dit, avec l'exemple
+`chunked_upload_size_out_of_range`. `UNKNOWN_ORG_NODE`, ajouté des deux côtés, n'est plus qu'une
+fois au catalogue.
+
+**Les identifiants des exemples.** Les deux EPIC avaient pris les mêmes numéros de corrélation
+(1040 à 1053) : ceux d'EP-03, qu'aucun texte ne cite, passent à 1155–1166 (#1007 demande une règle
+d'attribution) ; deux tâches d'EP-03 (`task_restore_backup_newer_version`,
+`task_interrupted_by_restore`) prennent les identifiants libres …0945 et …0946, la première mise en
+file à 14 h 08, et la lecture des comptes (`identity_sync_queued`, `identity_sync_succeeded`) à
+14 h 03 min 30 s : chaque tâche à son instant (`test_mockuniverse.py`).
 
 ## Collage et annulation
 

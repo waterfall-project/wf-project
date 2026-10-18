@@ -12,17 +12,26 @@
  *
  * Pure, and neither server nor client: the route writes the address, the tracker reads it.
  */
-import type { ErrorCode, Outcome } from "@/api/problem";
+import type { components } from "@/api/generated/schema";
+import type { ErrorCode, Outcome, Problem } from "@/api/problem";
 import { kindOf } from "@/api/problem-kind";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
+import type { SearchParameters } from "@/navigation/context";
 import { returnTarget } from "@/navigation/login";
 
 /** The parameter of the address that names the task whose result was refused. */
 export const REFUSED_TASK = "refused_task";
 
-/** The parameter that says the refusal: `<status>:<code>`, or `unreachable`. */
+/**
+ * The parameter that says the refusal: `<status>:<code>`, followed by the condition the refusal
+ * names when it names one (`409:STATE_FORBIDS_OPERATION:backup_verified`, WF-IHM-0090) — a download
+ * a state forbids, as its command said —; or `unreachable`.
+ */
 export const REFUSAL = "refusal";
+
+/** A condition of the catalogue, which a refusal may name (`params.missing_condition`). */
+type CommandCondition = components["schemas"]["CommandCondition"];
 
 /** The parameter of the address of the result that names the screen it leaves from. */
 export const FROM = "from";
@@ -38,61 +47,76 @@ export function resultHref(taskId: string, from: string): string {
 
 /**
  * The address of the screen the download left from — a path of the front, the home otherwise —,
- * with the task and the refusal of its result.
+ * with the object whose download was refused, under its parameter — the task of a result by
+ * default, `refused_backup` for a backup (`backup-address.ts`) —, and the refusal.
  */
-export function refusedHref(from: string | null, taskId: string, refusal: ResultRefusal): string {
+export function refusedHref(
+  from: string | null,
+  id: string,
+  refusal: ResultRefusal,
+  parameter = REFUSED_TASK,
+): string {
   const target = new URL(returnTarget(from), "http://front.invalid");
-  target.searchParams.set(REFUSED_TASK, taskId);
-  target.searchParams.set(REFUSAL, saidRefusal(refusal));
+  target.searchParams.set(parameter, id);
+  target.searchParams.set(REFUSAL, refusal.kind === "unreachable" ? "unreachable" : said(refusal));
   return `${target.pathname}${target.search}`;
 }
 
-/** A refusal as an address says it: `<status>:<code>`, or `unreachable`. */
-export function saidRefusal(refusal: ResultRefusal): string {
-  return refusal.kind === "unreachable"
-    ? "unreachable"
-    : `${String(refusal.problem.status)}:${refusal.problem.code}`;
+/** What an address says of a refusal of the API: its status, its code, the condition it names. */
+function said({ problem }: Exclude<ResultRefusal, { kind: "unreachable" }>): string {
+  const condition = problem.params?.missing_condition;
+  const named = typeof condition === "string" ? `:${condition}` : "";
+  return `${String(problem.status)}:${problem.code}${named}`;
+}
+
+/** Whether the catalogue knows a condition an address names; an unknown one is left unsaid. */
+function knownCondition(condition: string | undefined): condition is CommandCondition {
+  return (
+    condition !== undefined &&
+    Object.hasOwn(CATALOGUES[FALLBACK_LOCALE].enums.CommandCondition, condition)
+  );
 }
 
 /**
- * The refusal an address said (`saidRefusal`); none when it says none it can stand for. A code the
- * catalogue does not know is the unexpected error, as the decoder makes it.
+ * The refusal an address carries, and the object it is about, under its parameter; none when it
+ * carries none it can stand for. A code the catalogue does not know is the unexpected error, as the
+ * decoder makes it; a condition it names is carried as the parameter of the refusal, when the
+ * catalogue knows it — an address without one, as written before the condition travelled, reads as
+ * it did.
  */
-export function heardRefusal(said: string | null): ResultRefusal | undefined {
-  if (said === "unreachable") {
-    return { kind: "unreachable" };
+export function readRefusal(
+  search: SearchParameters,
+  parameter = REFUSED_TASK,
+): { readonly id: string; readonly refusal: ResultRefusal } | undefined {
+  const id = search.get(parameter);
+  const said = search.get(REFUSAL);
+  if (id === null || !/^[\w-]+$/.test(id) || said === null) {
+    return undefined;
   }
-  const [, status = "", code = ""] = /^(\d{3}):([A-Z_]+)$/.exec(said ?? "") ?? [];
+  if (said === "unreachable") {
+    return { id, refusal: { kind: "unreachable" } };
+  }
+  const [, status = "", code = "", condition] =
+    /^(\d{3}):([A-Z_]+)(?::([a-z_]+))?$/.exec(said) ?? [];
   if (status === "") {
     return undefined;
   }
   const known = Object.hasOwn(CATALOGUES[FALLBACK_LOCALE].errors, code);
-  const problem = {
+  const problem: Problem = {
     code: known ? (code as ErrorCode) : "INTERNAL_ERROR",
     status: Number(status),
-  } as const;
-  return { kind: kindOf(problem.status), problem, conflictingObjectId: null };
+    ...(knownCondition(condition) ? { params: { missing_condition: condition } } : {}),
+  };
+  return { id, refusal: { kind: kindOf(problem.status), problem, conflictingObjectId: null } };
 }
 
-/**
- * The refusal an address carries, and the task it is about; none when it carries none it can
- * stand for.
- */
-export function readRefusal(
-  search: URLSearchParams,
-): { readonly taskId: string; readonly refusal: ResultRefusal } | undefined {
-  const taskId = search.get(REFUSED_TASK);
-  const refusal = heardRefusal(search.get(REFUSAL));
-  if (taskId === null || !/^[\w-]+$/.test(taskId) || refusal === undefined) {
-    return undefined;
-  }
-  return { taskId, refusal };
-}
-
-/** The address without the refusal it carried. */
-export function withoutRefusal(location: { readonly pathname: string; readonly search: string }) {
+/** The address without the refusal it carried, and the object named under its parameter. */
+export function withoutRefusal(
+  location: { readonly pathname: string; readonly search: string },
+  parameter = REFUSED_TASK,
+): string {
   const search = new URLSearchParams(location.search);
-  search.delete(REFUSED_TASK);
+  search.delete(parameter);
   search.delete(REFUSAL);
   const text = search.toString();
   return text === "" ? location.pathname : `${location.pathname}?${text}`;

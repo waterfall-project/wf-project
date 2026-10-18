@@ -102,3 +102,16 @@ avenant.
 - la modification du devis propre d'un risque identifié ne change pas le budget de référence ;
 - le parcours de bout en bout déclare un risque, le fait survenir et contractualise un avenant,
   contre le service réel.
+
+## Constats reçus
+
+- #763 [EP-14] front : les formulaires du risque (provision de L42p, exemples de succès de
+  `createRisk`, `updateRisk`, `reviewRisk`) — reporté d'EP-14/L53 (#760) : l'écran des risques de
+  la maquette est en lecture seule. Les formulaires de déclaration, de modification et de réexamen
+  suivront les règles de la provision qu'EP-14/L42p a écrites au contrat — la catégorie choisie
+  parmi les catégories actives de type provision pour risques dont la nature est active, non
+  demandée s'il n'y en a qu'une ; le sous-projet facultatif ; leur changement selon
+  `update_provision` ; la catégorie redemandée au retour à l'état identifié quand
+  `provision_cost_category_is_active` est faux ; les refus `PROVISION_CATEGORY_REQUIRED`,
+  `INACTIVE_REFERENCE_OBJECT` et `active_provision_category` —, après que le contrat aura reçu les
+  exemples de succès de ces trois opérations.

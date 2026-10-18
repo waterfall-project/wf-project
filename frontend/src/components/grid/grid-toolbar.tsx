@@ -6,13 +6,13 @@
  * columns shown, a menu whose entries stay open while several are set; for a grid that enters a
  * revision in progress, undo and redo, placed but not wired yet (`UndoCommands`); for a tree, the
  * menu that unfolds it whole, folds it whole, or folds it down to a level, as the « Afficher » of
- * Microsoft Project (`fold.tsx`).
+ * Microsoft Project (`fold.tsx`); and, first, the commands its screen gives it (`RowCommands`).
  */
 "use client";
 
 import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { SubmitEvent } from "react";
+import type { ReactNode, SubmitEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -69,6 +69,8 @@ export interface GridToolbarProps {
    * grid alone.
    */
   readonly grid?: string | undefined;
+  /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
+  readonly commands?: ReactNode;
 }
 
 /**
@@ -178,10 +180,12 @@ export function GridToolbar({
   undoable,
   outline,
   grid,
+  commands,
 }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {commands}
       {onSearch === undefined ? null : (
         <SearchField search={search} onSearch={onSearch} grid={grid} />
       )}

@@ -6,8 +6,8 @@
  * reference budget, which delimit four levels on each axis (FBS-3.3, WF-REF-0160) —, and the
  * zone of each of its sixteen cells, placed by its rank in the order of the contract; the watch and
  * alert thresholds of the cost and schedule indices (FBS-3.4, WF-REF-0170); the longest delay
- * expected between two marked revisions, in weeks (WF-REF-0180). Read only: their form belongs to
- * the epic of the reference data.
+ * expected between two marked revisions, in weeks (WF-REF-0180). Read only here: a session that may
+ * modify them has them with their form (`settings-forms.tsx`, EP-14/L43e).
  */
 import { CalendarClock, Gauge, Grid2x2, Grid3x3 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -67,7 +67,18 @@ export function RiskBoundsTable({ matrix }: { readonly matrix: RiskMatrixSetting
 }
 
 /** The four levels of an axis of the matrix, from the lowest. */
-const LEVELS = [1, 2, 3, 4] as const;
+export const LEVELS = [1, 2, 3, 4] as const;
+
+/** A level of an axis of the matrix. */
+type Level = (typeof LEVELS)[number];
+
+/**
+ * The rank of the zone of a cell in the order of the contract: by probability then by severity, each
+ * from the lowest level, the cell of probability p and severity s at 4 × (p − 1) + (s − 1).
+ */
+export function zoneRank(probability: Level, severity: Level): number {
+  return 4 * (probability - 1) + (severity - 1);
+}
 
 /**
  * The zone of each cell of the risk matrix, the highest probability at the top as a matrix of
@@ -86,7 +97,7 @@ export function RiskZonesTable({ matrix }: { readonly matrix: RiskMatrixSettings
               {t("probability", { level: probability })}
             </TableHead>
             {LEVELS.map((severity) => {
-              const zone = matrix.zones[4 * (probability - 1) + (severity - 1)];
+              const zone = matrix.zones[zoneRank(probability, severity)];
               return (
                 <TableCell key={severity} className={CELL}>
                   {zone === undefined ? null : <Signal zone={zone} />}

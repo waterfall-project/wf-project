@@ -1,360 +1,381 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The commands of the list of the backups (EP-02/L43c, EP-14/L42h): those each backup lists — its
+ * marking, its download, its restoration —, the start of a backup, and the refusal of a download the
+ * route came back with. The confirmation of a restoration is `restore-dialog.dom.test.tsx`, the
+ * deposit of a backup of another installation `backup-deposit.dom.test.tsx`.
+ */
 import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
-import { RESTORATION_POLL } from "@/components/system/maintenance";
-import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
+import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  announced,
+  backupList,
+  backups,
+  bodies,
+  dated,
+  DURING_BACKUP,
+  KEPT,
+  LAST_NIGHT,
+  PENDING,
+  READ_ALONE,
+  row,
+} from "@/test/backups";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+  type Problem,
+} from "@/test/fixtures";
 
-import { BackupDeposit, DownloadRefusal, RestoreBackup, StartBackup } from "./backup-commands";
-import { Restoration } from "./restoration";
+import { readDownloadRefusal } from "./backup-address";
 
-// The server of Next, as far as the commands need it: the fake back behind both clients.
-const server = vi.hoisted((): { client: ApiClient | undefined; open: ApiClient | undefined } => ({
-  client: undefined,
-  open: undefined,
-}));
+// The server of Next, as far as the commands need it: the fake back, and the page read anew once a
+// backup is marked.
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const refresh = vi.hoisted(() => vi.fn());
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
-vi.mock("@/api/server", () => ({
-  serverClient: () => server.client,
-  publicClient: () => server.open,
-}));
-vi.mock("next/cache", () => ({ refresh: vi.fn() }));
-const router = vi.hoisted(() => ({ refresh: vi.fn(), replace: vi.fn() }));
-
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/cache", () => ({ refresh }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => "/admin/backups",
-  useSearchParams: () => new URLSearchParams("offset=50&download_refusal=404%3ANOT_FOUND"),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
-const BACKUP = "01926f3a-7c00-7000-8000-000000000906";
-const TAKEN_AT = "2026-06-02T01:00:00Z";
-const RESTORE = "POST /restores";
+const START = "POST /backups";
+const RETAIN = "PATCH /backups/{backup_id}";
 const TASK = "GET /tasks/{task_id}";
-const HEALTH = "GET /health";
-const PART = "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}";
-const COMPLETION = "POST /chunked-uploads/{chunked_upload_id}/completion";
 
-/** Serve the fake back, and the probe apart, without any token; give the back to read its calls. */
-function serve(answers: FakeAnswers, probe: FakeAnswers = {}): FakeClient {
-  const client = fakeClient(answers);
+/** The refusal the route sends back for a session that may not download the backups. */
+const REFUSED = "refusal=403%3APERMISSION_MISSING";
+
+/** The download of a backup, refused for want of the permission, as the page reads it. */
+function refusedDownload(backup: (typeof backups.items)[number]) {
+  return {
+    id: backup.backup_id,
+    refusal: {
+      kind: "refused",
+      problem: { code: "PERMISSION_MISSING", status: 403 },
+      conflictingObjectId: null,
+    },
+  } as const;
+}
+
+/** Serve the fake back, and give it back to read its calls. */
+function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient(
+    {
+      [START]: { example: "task_backup_queued", status: 202 },
+      [RETAIN]: "backup_retained",
+      [TASK]: "task_running",
+      ...answers,
+    },
+    timing,
+  );
   server.client = client;
-  server.open = fakeClient(probe);
   return client;
 }
 
-/** The screen of the backups, as far as the commands go, within the shell that follows the tasks. */
-function open() {
-  return render(
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <TaskTracker>
-        <TaskPanel />
-        <main>
-          <Restoration>
-            <StartBackup />
-            <RestoreBackup backupId={BACKUP} takenAt={TAKEN_AT} />
-            <BackupDeposit />
-          </Restoration>
-        </main>
-      </TaskTracker>
-    </NextIntlClientProvider>,
-  );
-}
-
-/** Let the time of one read of the restoration go by, and the read be answered. */
-async function tick() {
-  await act(() => vi.advanceTimersByTimeAsync(RESTORATION_POLL));
-}
-
-/** Ask the restoration of the backup of the list, and give the confirmation. */
-async function askRestore() {
-  await userEvent.click(screen.getByRole("button", { name: "Restaurer" }));
-  return screen.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
-}
-
 beforeEach(() => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  window.sessionStorage.clear();
-  router.replace.mockClear();
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+  sessionStorage.clear();
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
+  refresh.mockClear();
+  router.refresh.mockClear();
 });
 
-describe("the backup asked from the screen", () => {
-  it("gives the hand back as soon as the backup is queued, and hands its task over to the tracker [WF-ARC-0090-A]", async () => {
-    const client = serve({ "POST /backups": { status: 202, example: "task_backup_queued" } });
-    open();
+describe("the commands of the backups", () => {
+  it("offer on each backup the commands it lists, none to who reads them alone, and none that deletes [WF-ADM-0100-A] [WF-IHM-0090-A]", () => {
+    serve();
+    // Who reads the backups alone: no backup lists a command, and no command is deduced.
+    const { rerender } = render(backupList(READ_ALONE, { startable: false }));
+    expect(screen.queryByRole("button", { name: "Sauvegarder maintenant" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^(Ne plus c|C)onserver/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Télécharger/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Restaurer/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Supprimer/ })).toBeNull();
+
+    // Each backup lists the marking that changes its state, its download and its restoration; who
+    // may modify the backups starts one.
+    rerender(backupList(backups.items));
+    expect(screen.getByRole("button", { name: "Sauvegarder maintenant" })).toBeVisible();
+    expect(
+      within(row(LAST_NIGHT)).getByRole("button", {
+        name: `Conserver la sauvegarde du ${dated(LAST_NIGHT)}`,
+      }),
+    ).toBeVisible();
+    expect(
+      within(row(KEPT)).getByRole("button", {
+        name: `Ne plus conserver la sauvegarde du ${dated(KEPT)}`,
+      }),
+    ).toBeVisible();
+    expect(
+      within(row(LAST_NIGHT)).getByRole("link", {
+        name: `Télécharger la sauvegarde du ${dated(LAST_NIGHT)}`,
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/admin/backups/${LAST_NIGHT.backup_id}/content?from=%2Fadmin%2Fbackups`,
+    );
+    expect(
+      within(row(KEPT)).getByRole("button", {
+        name: `Restaurer la plateforme depuis la sauvegarde du ${dated(KEPT)}`,
+      }),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Supprimer/ })).toBeNull();
+  });
+
+  it("present a command the backup lists unavailable, described by the condition it lacks, which a press says, asking nothing [WF-IHM-0090-A]", async () => {
+    const client = serve();
+    render(backupList([PENDING], { startable: false }));
+    // Not yet verified: its marking is available, its download and its restoration are not.
+    expect(
+      within(row(PENDING)).getByRole("button", {
+        name: `Conserver la sauvegarde du ${dated(PENDING)}`,
+      }),
+    ).not.toHaveAttribute("aria-disabled");
+    const download = within(row(PENDING)).getByRole("button", {
+      name: `Télécharger la sauvegarde du ${dated(PENDING)}`,
+    });
+    expect(download).toHaveAttribute("aria-disabled", "true");
+    expect(download).toHaveAccessibleDescription(
+      "Condition non remplie\u00a0: sauvegarde vérifiée.",
+    );
+    expect(screen.queryByRole("link", { name: /^Télécharger/ })).toBeNull();
+    expect(
+      within(row(PENDING)).getByRole("button", {
+        name: `Restaurer la plateforme depuis la sauvegarde du ${dated(PENDING)}`,
+      }),
+    ).toHaveAccessibleDescription("Condition non remplie\u00a0: sauvegarde vérifiée.");
+    await userEvent.click(download);
+    expect(announced()).toContain(
+      `Télécharger la sauvegarde du ${dated(PENDING)}\u00a0: indisponible. Condition non remplie\u00a0: sauvegarde vérifiée.`,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(client.calls).toEqual([]);
+  });
+
+  it("present the restoration unavailable on every backup while a backup runs, the download available all the same [WF-IHM-0090-A]", () => {
+    serve();
+    render(backupList(DURING_BACKUP));
+    expect(
+      within(row(LAST_NIGHT)).getByRole("button", {
+        name: `Restaurer la plateforme depuis la sauvegarde du ${dated(LAST_NIGHT)}`,
+      }),
+    ).toHaveAccessibleDescription("Condition non remplie\u00a0: aucune sauvegarde en cours.");
+    expect(
+      within(row(LAST_NIGHT)).getByRole("link", {
+        name: `Télécharger la sauvegarde du ${dated(LAST_NIGHT)}`,
+      }),
+    ).toBeVisible();
+  });
+
+  it("break no rule of accessibility with a command unavailable", async () => {
+    serve();
+    const { container } = render(backupList([PENDING]));
+    await expectAccessible(container);
+  });
+
+  it("start a backup now, its task handed over to the tracker with the command, which starts another if it fails [WF-ADM-0150-A]", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const client = serve({ [TASK]: "task_failed" });
+    render(backupList());
     await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
-    expect(client.calls.map(({ route }) => route)).toEqual(["POST /backups"]);
+    await vi.waitFor(() => {
+      expect(announced()).toContain(
+        "Sauvegarde lancée\u00a0: son avancement se suit dans les tâches de fond.",
+      );
+    });
+    expect(bodies(client, START)).toEqual([undefined]);
     const tasks = screen.getByRole("region", { name: "Tâches de fond" });
     expect(within(tasks).getByText("Sauvegarde")).toBeVisible();
-    expect(within(tasks).getByText("En attente")).toBeVisible();
-  });
-
-  it("tells its refusal under it", async () => {
-    serve({ "POST /backups": { problem: { code: "PERMISSION_MISSING", status: 403 } } });
-    open();
-    await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
-    expect(screen.getByRole("alert")).toBeVisible();
-    const tasks = screen.getByRole("region", { name: "Tâches de fond" });
-    expect(within(tasks).queryAllByRole("listitem")).toEqual([]);
-  });
-});
-
-describe("the restoration of the platform", () => {
-  it("asks a confirmation that names the date of the backup: la confirmation nomme la date de la sauvegarde [WF-ADM-0160-A]", async () => {
-    const client = serve({});
-    open();
-    const dialog = await askRestore();
-    const date = formatTimestamp(TAKEN_AT, "fr");
-    expect(dialog).toHaveTextContent(`sera remplacée par la sauvegarde du ${date}`);
-    expect(within(dialog).getAllByRole("time")[0]).toHaveAttribute("datetime", TAKEN_AT);
-    expect(
-      within(dialog).getByRole("button", { name: `Restaurer la sauvegarde du ${date}` }),
-    ).toBeVisible();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Annuler" }));
-    expect(client.calls).toEqual([]);
-  });
-
-  it("proposes the whole platform alone: aucune restauration partielle n’est proposée [WF-ADM-0160-A]", async () => {
-    const client = serve({});
-    open();
-    const dialog = await askRestore();
-    const date = formatTimestamp(TAKEN_AT, "fr");
-    expect(dialog).toHaveTextContent(
-      `La plateforme entière — projets, comptes, rôles et réglages — sera remplacée par la sauvegarde du ${date}`,
-    );
-    // Nothing to choose but to restore all of it, or nothing.
-    expect(within(dialog).queryAllByRole("checkbox")).toEqual([]);
-    expect(within(dialog).queryAllByRole("combobox")).toEqual([]);
-    expect(
-      within(dialog)
-        .getAllByRole("button")
-        .map((button) => button.textContent),
-    ).toEqual(["Annuler", `Restaurer la sauvegarde du ${date}`]);
-    await expectAccessible(dialog);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Annuler" }));
-    expect(client.calls).toEqual([]);
-  });
-
-  it("replaces the screen by that of the restoration waiting, then of the maintenance, every user signed out, until it is done, then offers to sign in again — pendant une restauration, les utilisateurs sont déconnectés, et l’écran le dit", async () => {
-    const client = serve(
-      {
-        [RESTORE]: { status: 202, example: "task_restore_queued" },
-        [TASK]: "task_running",
-      },
-      {
-        [HEALTH]: [
-          "liveness",
-          "liveness",
-          { status: 200, example: "liveness_maintenance" },
-          "liveness",
-        ],
-      },
-    );
-    open();
-    const dialog = await askRestore();
-    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
-    expect(client.calls.find(({ route }) => route === RESTORE)?.body).toEqual({
-      backup_id: BACKUP,
-      acknowledged_backup_taken_at: TAKEN_AT,
-      confirmed: true,
-    });
-    // The page gives way at once: the platform still serves, the task waits, no one is signed out.
-    const status = screen.getByRole("status", { name: "Restauration de la plateforme en cours" });
-    expect(status).toHaveTextContent("La restauration est en attente");
-    expect(status).toHaveTextContent("la plateforme va passer en maintenance");
-    expect(status).not.toHaveTextContent("ont été déconnectés");
-    expect(screen.queryByRole("button", { name: "Sauvegarder maintenant" })).toBeNull();
-    await tick();
-    expect(client.calls.filter(({ route }) => route === TASK)).toHaveLength(2);
-    expect(screen.getByRole("status")).not.toHaveTextContent("ont été déconnectés");
-    await tick();
-    // The probe says the maintenance: now every user is signed out.
-    expect(screen.getByRole("status")).toHaveTextContent("Restauration de la plateforme en cours");
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "tous les utilisateurs ont été déconnectés",
-    );
-    // Under maintenance, the task is no longer read: the probe alone says the end.
-    expect(client.calls.filter(({ route }) => route === TASK)).toHaveLength(2);
-    await tick();
-    const done = screen.getByRole("status", { name: "Restauration de la plateforme en cours" });
-    expect(done).toHaveTextContent("Restauration terminée");
-    expect(within(done).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/login"),
-    );
-  });
-
-  it("gives the page back with the motive of a restoration refused before the maintenance", async () => {
-    serve(
-      {
-        [RESTORE]: { status: 202, example: "task_restore_queued" },
-        [TASK]: "task_restore_backup_newer_version",
-      },
-      { [HEALTH]: "liveness" },
-    );
-    open();
-    const dialog = await askRestore();
-    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Cette sauvegarde vient d’une version plus récente que celle installée",
-    );
-    expect(screen.getByRole("button", { name: "Sauvegarder maintenant" })).toBeVisible();
-  });
-
-  it("affirms nothing of a restoration whose task can no longer be read before any maintenance was seen, and offers to sign in again", async () => {
-    serve(
-      {
-        [RESTORE]: { status: 202, example: "task_restore_queued" },
-        [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } },
-      },
-      { [HEALTH]: "liveness" },
-    );
-    open();
-    const dialog = await askRestore();
-    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
-    const said = await screen.findByRole("status", { name: "Session terminée" });
-    expect(said).toHaveTextContent("avant que l’issue de la restauration soit connue");
-    expect(said).not.toHaveTextContent("Restauration terminée");
-    expect(said).not.toHaveTextContent("restaurée");
-    expect(within(said).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/login"),
-    );
-  });
-
-  it("says the maintenance of a restoration that closed the session between the probe and the read of its task, then its end — pendant une restauration, les utilisateurs sont déconnectés, et l’écran le dit", async () => {
-    serve(
-      {
-        [RESTORE]: { status: 202, example: "task_restore_queued" },
-        [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } },
-      },
-      {
-        [HEALTH]: ["liveness", { status: 200, example: "liveness_maintenance" }, "liveness"],
-      },
-    );
-    open();
-    const dialog = await askRestore();
-    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
-    const status = await screen.findByRole("status", {
-      name: "Restauration de la plateforme en cours",
-    });
+    // Failed, the task offers to run its command again: another backup is started.
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await userEvent.click(within(tasks).getByRole("button", { name: /^Relancer/ }));
     await vi.waitFor(() => {
-      expect(status).toHaveTextContent("tous les utilisateurs ont été déconnectés");
+      expect(bodies(client, START)).toHaveLength(2);
     });
-    expect(screen.queryByRole("status", { name: "Session terminée" })).toBeNull();
-    await tick();
-    expect(
-      screen.getByRole("status", { name: "Restauration de la plateforme en cours" }),
-    ).toHaveTextContent("Restauration terminée");
   });
 
-  it("tells a confirmation the API refuses, and keeps the page", async () => {
-    serve({
-      [RESTORE]: { problem: { code: "CONFIRMATION_REQUIRED", status: 400 } },
-    });
-    open();
-    const dialog = await askRestore();
-    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Cette opération demande une confirmation explicite.",
-    );
+  it("say above the list a backup the server refuses to start, nothing tracked", async () => {
+    serve({ [START]: { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } } });
+    render(backupList());
+    await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
+    expect(await screen.findByRole("alert")).toBeVisible();
     expect(
-      screen.queryByRole("status", { name: "Restauration de la plateforme en cours" }),
+      within(screen.getByRole("region", { name: "Tâches de fond" })).queryByText("Sauvegarde"),
     ).toBeNull();
   });
-});
 
-describe("the deposit of a backup of another installation", () => {
-  it("sends the archive in the parts the server cuts it into, then restores it at the date its manifest says [WF-ADM-0160-A]", async () => {
-    const client = serve({
-      "POST /chunked-uploads": { status: 201, example: "chunked_upload" },
-      [PART]: { status: 200, example: "chunked_upload_part" },
-      [COMPLETION]: { status: 201, example: "chunked_upload_completed" },
-      [RESTORE]: { problem: { code: "CONFIRMATION_REQUIRED", status: 400 } },
-    });
-    open();
-    const deposit = screen.getByRole("region", {
-      name: "Restaurer une sauvegarde d’une autre installation",
-    });
-    const send = within(deposit).getByRole("button", { name: "Déposer" });
-    expect(send).toBeDisabled();
-    const archive = new File(["0123456789AB"], "waterfall-2026-06-02.tar");
-    await userEvent.upload(within(deposit).getByLabelText("Archive de la sauvegarde"), archive);
-    await userEvent.click(send);
-    const date = formatTimestamp("2026-06-02T01:00:00Z", "fr");
-    const restore = await within(deposit).findByRole("button", {
-      name: "Restaurer cette sauvegarde",
-    });
-    expect(deposit).toHaveTextContent(`Sauvegarde du ${date} déposée : waterfall-2026-06-02.tar.`);
-    expect(client.calls.map(({ path }) => path)).toEqual([
-      "/chunked-uploads",
-      "/chunked-uploads/01926f3a-7c00-7000-8000-000000000a02/parts/1",
-      "/chunked-uploads/01926f3a-7c00-7000-8000-000000000a02/parts/2",
-      "/chunked-uploads/01926f3a-7c00-7000-8000-000000000a02/parts/3",
-      "/chunked-uploads/01926f3a-7c00-7000-8000-000000000a02/completion",
-    ]);
-    expect(client.calls[0]?.body).toEqual({
-      filename: "waterfall-2026-06-02.tar",
-      size_bytes: 12,
-    });
-    await userEvent.click(restore);
-    const dialog = screen.getByRole("alertdialog", { name: "Restaurer la plateforme entière" });
-    expect(dialog).toHaveTextContent(`sera remplacée par la sauvegarde du ${date}`);
-    await userEvent.click(within(dialog).getByRole("button", { name: /^Restaurer la sauvegarde/ }));
-    expect(client.calls.at(-1)?.body).toEqual({
-      external_backup_upload_id: "01926f3a-7c00-7000-8000-000000000a03",
-      acknowledged_backup_taken_at: "2026-06-02T01:00:00Z",
-      confirmed: true,
-    });
-  });
-
-  it("stops at the first refusal, and offers no confirmation of an archive whose date does not read [WF-ADM-0160-A]", async () => {
-    serve({
-      "POST /chunked-uploads": { status: 201, example: "chunked_upload" },
-      [PART]: { status: 200, example: "chunked_upload_part" },
-      [COMPLETION]: { problem: { code: "FILE_FORMAT_UNREADABLE", status: 422 } },
-    });
-    open();
-    await userEvent.upload(
-      screen.getByLabelText("Archive de la sauvegarde"),
-      new File(["x"], "notes.txt"),
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Déposer" }));
+  it("say above the list a backup refused while another runs, naming the condition that lacks (409) [WF-IHM-0090-A]", async () => {
+    serve({ [START]: { problem: example("backup_start_refused") as Problem & { status: 409 } } });
+    render(backupList());
+    await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Le format du fichier est illisible.",
+      "L’état actuel ne permet pas cette opération. Condition non remplie : aucune sauvegarde en cours.",
     );
-    expect(screen.queryByRole("button", { name: "Restaurer cette sauvegarde" })).toBeNull();
   });
-});
 
-describe("the refusal of a download", () => {
-  it("is told until dismissed, which takes it from the address and keeps the page of the list", async () => {
-    render(
-      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-        <DownloadRefusal
-          refusal={{
-            kind: "refused",
-            problem: { code: "NOT_FOUND", status: 404 },
-            conflictingObjectId: null,
-          }}
-        />
-      </NextIntlClientProvider>,
+  it("say above the list a marking refused while a restoration runs, naming the condition that lacks (409), the row left as read", async () => {
+    serve({ [RETAIN]: { problem: example("backup_retain_refused") as Problem & { status: 409 } } });
+    render(backupList());
+    await userEvent.click(
+      within(row(KEPT)).getByRole("button", {
+        name: `Ne plus conserver la sauvegarde du ${dated(KEPT)}`,
+      }),
     );
-    expect(screen.getByRole("alert")).toHaveTextContent("Introuvable");
-    await userEvent.click(screen.getByRole("button", { name: "Fermer l’avis" }));
-    expect(router.replace).toHaveBeenCalledWith("/admin/backups?offset=50", { scroll: false });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Condition non remplie : aucune restauration en cours.",
+    );
+    expect(row(KEPT)).toHaveTextContent("Marquée à conserver");
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("mark a backup to be kept, the backup shown as the server answered it while the page reads it as before", async () => {
+    const client = serve();
+    const { rerender } = render(backupList());
+    await userEvent.click(
+      within(row(LAST_NIGHT)).getByRole("button", {
+        name: `Conserver la sauvegarde du ${dated(LAST_NIGHT)}`,
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    expect(bodies(client, RETAIN)).toEqual([{ is_retained: true }]);
+    expect(client.calls.find((call) => call.route === RETAIN)?.path).toBe(
+      `/backups/${LAST_NIGHT.backup_id}`,
+    );
+    await vi.waitFor(() => {
+      expect(announced()).toContain(
+        `La sauvegarde du ${dated(LAST_NIGHT)} est marquée à conserver.`,
+      );
+    });
+    expect(row(LAST_NIGHT)).toHaveTextContent("Marquée à conserver");
+    // The page read anew, as the fake back serves it, keeps the answer: it reads the backup as before.
+    rerender(backupList([...backups.items]));
+    expect(
+      within(row(LAST_NIGHT)).getByRole("button", {
+        name: `Ne plus conserver la sauvegarde du ${dated(LAST_NIGHT)}`,
+      }),
+    ).toBeVisible();
+    // A reading that has changed the backup prevails: another marked it no longer meanwhile.
+    rerender(backupList([{ ...LAST_NIGHT, is_retained: true }, ...backups.items.slice(1)]));
+    rerender(backupList(backups.items));
+    expect(row(LAST_NIGHT)).not.toHaveTextContent("Marquée à conserver");
+  });
+
+  it("mark a backup no longer to be kept, the rotation then free to delete it", async () => {
+    const client = serve({ [RETAIN]: "backup_released" });
+    render(backupList());
+    await userEvent.click(
+      within(row(KEPT)).getByRole("button", {
+        name: `Ne plus conserver la sauvegarde du ${dated(KEPT)}`,
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(announced()).toContain(
+        `La sauvegarde du ${dated(KEPT)} n’est plus marquée à conserver.`,
+      );
+    });
+    expect(bodies(client, RETAIN)).toEqual([{ is_retained: false }]);
+    expect(row(KEPT)).not.toHaveTextContent("Marquée à conserver");
+  });
+
+  it("say above the list a marking refused, or answered for another backup, the row left as read", async () => {
+    serve({ [RETAIN]: [{ problem: { code: "NOT_FOUND", status: 404 } }, "backup_retained"] });
+    render(backupList());
+    await userEvent.click(
+      within(row(KEPT)).getByRole("button", {
+        name: `Ne plus conserver la sauvegarde du ${dated(KEPT)}`,
+      }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /^Introuvable.*vous n’y avez pas accès\./,
+    );
+    // The fake back answers the backup of last night: a failure of the service, told as such.
+    await userEvent.click(
+      within(row(KEPT)).getByRole("button", {
+        name: `Ne plus conserver la sauvegarde du ${dated(KEPT)}`,
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Erreur inattendue du service.");
+    });
+    expect(row(KEPT)).toHaveTextContent("Marquée à conserver");
+    expect(row(LAST_NIGHT)).not.toHaveTextContent("Marquée à conserver");
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("say above the list the refusal of a download the browser came back with, naming the backup, the focus on it, and rid the address of it even dismissed at once", async () => {
+    serve();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const replaced = vi.spyOn(window.history, "replaceState");
+    window.history.pushState(
+      null,
+      "",
+      `/admin/backups?refused_backup=${KEPT.backup_id}&${REFUSED}`,
+    );
+    render(backupList(READ_ALONE, { startable: false, refused: refusedDownload(KEPT) }));
+    const told = screen.getByRole("group", {
+      name: `Le téléchargement de la sauvegarde du ${dated(KEPT)} n’a pas pu se faire.`,
+    });
+    // Rendered with the page, a refusal is heard only once it takes the focus.
+    expect(told).toHaveFocus();
+    expect(within(told).getByRole("alert")).toHaveTextContent(
+      /^Vous n’avez pas la permission nécessaire\./,
+    );
+    await userEvent.click(within(told).getByRole("button", { name: "Fermer l’avis" }));
+    expect(screen.queryByRole("group", { name: /^Le téléchargement/ })).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(1_500));
+    expect(replaced).toHaveBeenLastCalledWith(null, "", "/admin/backups");
+  });
+
+  it("say the refusal of the download of a backup the page does not hold without naming it", () => {
+    serve();
+    window.history.pushState(null, "", "/admin/backups");
+    render(backupList(backups.items.slice(0, 7), { refused: refusedDownload(KEPT) }));
+    expect(
+      screen.getByRole("group", {
+        name: "Le téléchargement d’une sauvegarde n’a pas pu se faire.",
+      }),
+    ).toHaveFocus();
+  });
+
+  it("name the condition a download was refused for, as the route carried it back from the API (409) [WF-IHM-0090-A]", () => {
+    serve();
+    window.history.pushState(null, "", "/admin/backups");
+    // The address the route of the download sends the browser back to, as the page reads it.
+    const refused = readDownloadRefusal(
+      new URLSearchParams(
+        `refused_backup=${PENDING.backup_id}&refusal=409%3ASTATE_FORBIDS_OPERATION%3Abackup_verified`,
+      ),
+    );
+    if (refused === undefined) {
+      throw new Error("the address names the backup and the refusal");
+    }
+    render(backupList([PENDING], { startable: false, refused }));
+    const told = screen.getByRole("group", {
+      name: `Le téléchargement de la sauvegarde du ${dated(PENDING)} n’a pas pu se faire.`,
+    });
+    expect(within(told).getByRole("alert")).toHaveTextContent(
+      `L’état actuel ne permet pas cette opération. Condition non remplie : ${CATALOGUES.fr.enums.CommandCondition.backup_verified}.`,
+    );
   });
 });

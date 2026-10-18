@@ -1,0 +1,11 @@
+{
+  "summary": "Un risque déclaré sur le projet créé aujourd'hui, « Rénovation du poste de livraison », passé en Chiffrage avec sa révision en cours, dont la structure principale ne comporte encore aucune tâche : refusé, la condition manquante nommée — au moins une tâche, sans laquelle la ligne de provision n'aurait pas de tâche où se ranger ; rien n'est écrit (WF-RIS-0010, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "at_least_one_task"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001150"
+  }
+}

@@ -119,3 +119,15 @@ EP-06 livré : une ligne de devis est portée par une tâche.
 - la somme des montants d'une révision ne dépend pas de l'ordre de sommation ;
 - le parcours de bout en bout chiffre un projet et le fait passer En cours, contre le service
   réel.
+
+## Constats reçus
+
+- #624 [EP-07] la comparaison de révisions rend ses 2 770 modifications en une table simple —
+  relevé par EP-14/L45a : sur le témoin à l'échelle, `compareRevisions` rend 2 770 nœuds, que
+  l'écran présente en une `<table>` rendue côté serveur (4,76 Mo de réponse ; 6,8 à 12,6 s du clic
+  à l'adresse mise à jour en développement, mesures d'EP-14/L55). EP-07, qui sert
+  `compareRevisions`, choisit la grille de la comparaison et mesure contre le service. Reporté
+  d'EP-14 sur décision de l'auteur (2026-10-18).
+- #729 [EP-07] la comparaison de `revisions.spec` n'écrit pas toujours son adresse en 15 s dans la
+  file — atténué par EP-14/L55 (trace sans instantanés, borne inchangée), la marge restant faible
+  sous charge : seul l'écran de #624 la règle. Reporté d'EP-14 avec #624 (2026-10-18).

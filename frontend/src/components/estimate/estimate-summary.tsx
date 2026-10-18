@@ -26,7 +26,7 @@ import type { components, operations } from "@/api/generated/schema";
 import { platformOffer } from "@/components/commands/offer";
 import { CalculationDate } from "@/components/context/indicator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { formatMoney, formatPercent } from "@/i18n/format";
+import { formatMoney, formatShare } from "@/i18n/format";
 import { functionOf } from "@/navigation/functions";
 
 /** The indicators of an estimate, as the API computes them. */
@@ -156,6 +156,7 @@ function Breakdown({
   readonly items: readonly AmountByKey[];
 }) {
   const t = useTranslations();
+  const bounds = useTranslations("share");
   const locale = useLocale();
   if (items.length === 0) {
     return null;
@@ -180,7 +181,9 @@ function Breakdown({
                   {share?.is_computable === true &&
                   share.value !== null &&
                   share.value !== undefined
-                    ? t("estimateSummary.shareOf", { share: formatPercent(share.value, locale) })
+                    ? t("estimateSummary.shareOf", {
+                        share: formatShare(share.value, locale, bounds),
+                      })
                     : null}
                 </span>
               </li>
@@ -198,7 +201,6 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
   const reference = indicators.delta_to_reference;
   const delta = indicators.delta_to_previous_revision;
   const provisions = indicators.provisions_identified;
-  const orderItems = indicators.by_order_item;
   return (
     <dl className="flex flex-wrap gap-x-8 gap-y-2">
       <Figure name={t("total")} amount={indicators.total} />
@@ -207,7 +209,7 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
       {delta === null || delta === undefined ? null : <Figure name={t("delta")} amount={delta} />}
       <Breakdown name={t("byCostType")} items={indicators.by_cost_type} />
       <Breakdown name={t("bySubproject")} items={indicators.by_subproject} />
-      {orderItems === null ? null : <Breakdown name={t("byOrderItem")} items={orderItems} />}
+      <Breakdown name={t("byOrderItem")} items={indicators.by_order_item} />
     </dl>
   );
 }

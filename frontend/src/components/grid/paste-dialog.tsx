@@ -5,15 +5,21 @@
  * it does, which says what was pasted and from where, then what the server would write and what
  * it refuses — each row refused named by its place in the block, with its cells as copied and the
  * reason the catalogue gives its code — in one announced region, which holds the waiting first,
- * then the report. A plan that refuses no row is applied on confirmation; one that refuses a row
- * is not, and says so: abandoning it is all it offers. Escape abandons, as the
- * button does, and the focus goes back to the active cell; while the plan is applied, nothing
- * closes the dialog.
+ * then the report. A plan is applied on confirmation as long as it writes a row: one that refuses
+ * rows says that the valid ones alone will be written (EP-14/L42q); one that writes none offers
+ * only to abandon it. Escape abandons, as the button does, and the focus goes back to the active
+ * cell; while the plan is applied, nothing closes the dialog. Once applied, what the server did not
+ * write — the refusals of the preview, and those it adds judging the accepted rows again — is told
+ * above the grid with the cell the block was pasted from and the number of rows written, the
+ * refusals in a region of their own whose height is bounded, out of the alert, until the user
+ * dismisses it (`PasteAppliedNotice`). A block refused before the server is asked — it would fill a
+ * column hidden or absent, or rows the grid does not show — says why (`UnshownNotice`).
  */
 "use client";
 
 import { CircleAlert, ClipboardPaste, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
+import { useId } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,59 +32,163 @@ import {
 } from "@/components/ui/dialog";
 import { problemMessage } from "@/i18n/problem";
 
-import { headingOf, type PastedBlock, type PastePlan } from "./columns";
-import type { Pasting } from "./paste";
+import {
+  type ColumnName,
+  headingOf,
+  type PastedBlock,
+  type PastePlan,
+  type PasteRejection,
+} from "./columns";
+import type { Pasting, PasteReport, Unshown, UnshownRows } from "./paste";
+
+/** How many rows of the block are refused: a row refused for several cells counts once. */
+function refusedRows(rejected: readonly PasteRejection[]): number {
+  return new Set(rejected.map((rejection) => rejection.row)).size;
+}
+
+/**
+ * How many rows of the block are refused: before the list, in the report of the preview; the list
+ * out of it, in the notice of a paste applied (`listed`).
+ */
+function RefusedCount({
+  rejected,
+  listed = false,
+}: {
+  readonly rejected: readonly PasteRejection[];
+  readonly listed?: boolean;
+}) {
+  const t = useTranslations("grid.paste");
+  const count = refusedRows(rejected);
+  return (
+    <p className="font-medium text-destructive">
+      {listed ? t("rejectedListed", { count }) : t("rejected", { count })}
+    </p>
+  );
+}
 
 /** The rows refused, each with its place in the block, its cells as copied and its reason. */
-function Refusals({ plan, block }: { readonly plan: PastePlan; readonly block: PastedBlock }) {
+function RefusedRows({
+  rejected,
+  block,
+}: {
+  readonly rejected: readonly PasteRejection[];
+  readonly block: PastedBlock;
+}) {
   const t = useTranslations("grid.paste");
   const locale = useLocale();
   const messages = useMessages();
   return (
-    <>
-      <p className="font-medium text-destructive">
-        {t("rejected", { count: plan.rejected.length })}
-      </p>
-      <ul className="space-y-1">
-        {plan.rejected.map((rejection, index) => (
-          // A row may be refused twice, same place and same code: the key takes its rank too.
-          <li
-            key={`${rejection.row.toString()}:${rejection.code}:${index.toString()}`}
-            className="space-y-0.5 rounded-md border p-2"
-          >
-            <p className="flex items-start gap-1.5">
-              <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
-              {t("rejectedRow", {
-                row: rejection.row + 1,
-                reason: problemMessage(rejection, { locale, messages }),
-              })}
-            </p>
-            <p className="flex flex-wrap gap-x-3 pl-5.5 text-muted-foreground">
-              {(block[rejection.row] ?? []).map((cell, column) => (
-                <span key={`${column.toString()}:${cell}`}>{cell}</span>
-              ))}
-            </p>
-          </li>
-        ))}
-      </ul>
-      <p>{t("blocked")}</p>
-    </>
+    <ul className="space-y-1">
+      {rejected.map((rejection, index) => (
+        // A row may be refused twice, same place and same code: the key takes its rank too.
+        <li
+          key={`${rejection.row.toString()}:${rejection.code}:${index.toString()}`}
+          className="space-y-0.5 rounded-md border p-2"
+        >
+          <p className="flex items-start gap-1.5">
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
+            {t("rejectedRow", {
+              row: rejection.row + 1,
+              reason: problemMessage(rejection, { locale, messages }),
+            })}
+          </p>
+          <p className="flex flex-wrap gap-x-3 pl-5.5 text-muted-foreground">
+            {(block[rejection.row] ?? []).map((cell, column) => (
+              <span key={`${column.toString()}:${cell}`}>{cell}</span>
+            ))}
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 /**
- * What the server would write and refuse of the block: rows to be written when the plan can be
- * applied; rows merely valid when a refused one blocks it, for the report never promises a write
- * the confirmation cannot do.
+ * What the server would write and refuse of the block: the rows to be written, the rows refused,
+ * and, when it refuses some and writes others, that the confirmation writes the valid rows alone.
  */
 function Report({ plan, block }: { readonly plan: PastePlan; readonly block: PastedBlock }) {
   const t = useTranslations("grid.paste");
-  const blocked = plan.rejected.length > 0;
+  const refused = plan.rejected.length > 0;
   return (
     <>
-      <p>{t(blocked ? "validRows" : "accepted", { count: plan.accepted })}</p>
-      {blocked ? <Refusals plan={plan} block={block} /> : <p>{t("noneRejected")}</p>}
+      <p>{t("accepted", { count: plan.accepted })}</p>
+      {refused ? (
+        <>
+          <RefusedCount rejected={plan.rejected} />
+          <RefusedRows rejected={plan.rejected} block={block} />
+        </>
+      ) : (
+        <p>{t("noneRejected")}</p>
+      )}
+      {refused && plan.accepted > 0 ? <p>{t("partial")}</p> : null}
     </>
+  );
+}
+
+/** What a paste applied did not write, and how to forget it. */
+export interface PasteAppliedNoticeProps {
+  /** What the last paste applied did not write; none when it wrote every row, or before any. */
+  readonly applied: PasteReport | undefined;
+  /** Forget it. */
+  readonly onClear: () => void;
+  /** Once dismissed: where the focus goes back, which the notice took with its button. */
+  readonly onDismissed: () => void;
+}
+
+/**
+ * Tell, once a paste is applied, where the block was pasted from, how many rows the server wrote and
+ * the rows it did not, each with its place in the block, its cells and its reason — those the
+ * confirmation refused judging the accepted rows again among them —, until the user dismisses it;
+ * nothing when every row was written. The rows refused are a region of their own, named, described
+ * by what the alert says, reached by the keyboard, whose height is bounded: they scroll, and the grid
+ * under them stays in the window, the sentence and the command to dismiss staying out of the scroll.
+ * The alert says where the block was pasted from and how many rows were written and refused, never
+ * the rows, which may run to thousands and would be read at once (#765).
+ */
+export function PasteAppliedNotice({ applied, onClear, onDismissed }: PasteAppliedNoticeProps) {
+  const t = useTranslations("grid");
+  const outcome = useTranslations("outcome");
+  const told = useId();
+  if (applied === undefined) {
+    return null;
+  }
+  const { target } = applied;
+  return (
+    <div className="space-y-1 text-sm">
+      <div role="alert" id={told} className="space-y-1">
+        <p className="font-medium">
+          {t("paste.appliedFrom", {
+            row: target.row,
+            column: headingOf(target.column, (key) => t(`columns.${key}`)),
+            count: applied.written,
+          })}
+        </p>
+        <RefusedCount rejected={applied.rejected} listed />
+      </div>
+      {/* However many rows are refused, the grid stays in the window: the list scrolls (#163). */}
+      <section
+        aria-label={t("paste.refusedRows")}
+        aria-describedby={told}
+        tabIndex={0}
+        className="max-h-40 space-y-1 overflow-y-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <RefusedRows rejected={applied.rejected} block={applied.block} />
+      </section>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-describedby={told}
+        onClick={() => {
+          onClear();
+          onDismissed();
+        }}
+      >
+        <X aria-hidden="true" />
+        {outcome("dismiss")}
+      </Button>
+    </div>
   );
 }
 
@@ -95,7 +205,7 @@ export interface PasteDialogProps {
 export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDialogProps) {
   const t = useTranslations("grid");
   const { plan, block, target, applying } = pasting;
-  const applicable = plan?.rejected.length === 0 && plan.accepted > 0;
+  const applicable = plan !== undefined && plan.accepted > 0;
   return (
     <Dialog
       open
@@ -140,5 +250,43 @@ export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDial
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** The text that says why a block would fill rows the grid does not show, by their cause. */
+const ROWS_REFUSAL = {
+  folded: "foldedRows",
+  sorted: "sortedRows",
+  unretained: "unretainedRows",
+  beyond: "beyondRows",
+} as const satisfies Record<UnshownRows, string>;
+
+/**
+ * Why a block pasted was refused before the server was asked: it would fill a column the grid hides
+ * or does not present, or a row of the plan the grid does not show under the cell.
+ */
+export function UnshownNotice({
+  unshown,
+  heading,
+}: {
+  readonly unshown: Unshown | undefined;
+  readonly heading: (column: ColumnName) => string;
+}) {
+  const t = useTranslations("grid.paste");
+  if (unshown === undefined) {
+    return null;
+  }
+  let text: string;
+  if (unshown.shown === "hidden") {
+    text = t("hiddenColumn", { column: heading(unshown.column) });
+  } else if (unshown.shown === "absent") {
+    text = t("absentColumn", { column: unshown.name });
+  } else {
+    text = t(ROWS_REFUSAL[unshown.shown]);
+  }
+  return (
+    <p role="alert" className="text-sm text-destructive">
+      {text}
+    </p>
   );
 }

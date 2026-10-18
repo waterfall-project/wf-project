@@ -1,0 +1,17 @@
+{
+  "summary": "Le déplacement des « Borniers » à la position -1 sous le « Câblage des armoires » — la dernière, comptée depuis la fin : refusé, au-dessous de la plus petite position admise, 0, la première, le champ désigné avec la borne franchie ; rien ne bouge (WF-PLA-0040).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/position",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 0
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001094"
+  }
+}

@@ -12,11 +12,11 @@ import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
-import { BACKUPS_LIST } from "./backup-address";
+import { BACKUPS_LIST, NEWEST_FIRST, readBackupFilters } from "./backup-address";
+import { BackupScheduleFacts } from "./backup-schedule";
 import {
   AlertList,
   BackupList,
-  BackupScheduleFacts,
   ComponentList,
   OperationList,
   StorageFacts,
@@ -99,7 +99,14 @@ describe("the state of the platform and its backups", () => {
         <StorageFacts storage={failed.storage} />
         <OperationList status={failed} />
         <BackupScheduleFacts schedule={suspended} />
-        <BackupList backups={backups.items} page={backups.meta} />
+        <BackupList
+          read={{ kind: "read", items: backups.items, page: backups.meta }}
+          filters={readBackupFilters(new URLSearchParams())}
+          query={{ sort: NEWEST_FIRST, search: undefined }}
+          preferences={undefined}
+          startable={false}
+          refused={undefined}
+        />
       </>,
     );
     const alerts = screen.getByRole("table", { name: "Alertes en cours" });
@@ -115,7 +122,7 @@ describe("the state of the platform and its backups", () => {
         .getByRole("row", { name: /^Sauvegarde/ })
         .querySelector("time"),
     ).toHaveAttribute("datetime", "2026-06-03T01:00:00Z");
-    expect(screen.getByText("Désactivée")).toBeInTheDocument();
+    expect(screen.getByText("Suspendue")).toBeInTheDocument();
     expect(screen.getByText("7 sauvegardes conservées")).toBeInTheDocument();
     expect(screen.queryByText("Fréquence")).toBeNull();
     // A schedule suspended keeps its copy set, as it keeps its retention.

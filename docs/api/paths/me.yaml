@@ -82,7 +82,22 @@
               dark: { $ref: ../../../fixtures/api/preferences_dark.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant le champ en défaut. Une largeur de colonne plus
+          étroite que la plus petite admise, vingt points (`GridPreferences`) :
+          `/grids/<grille>/column_widths/<colonne>` par `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` à `20`, la seule borne franchie, comme toute borne d'une
+          écriture (WF-IHM-0060). Une préférence plus grande que ses bornes — plus de cent
+          grilles, un nom de grille, de colonne ou de filtre de plus de 64 caractères, plus de 64
+          colonnes masquées ou largeurs, plus de 20 filtres, un filtre de plus de 500 caractères
+          (`DisplayPreferences`, #874) — : `VALUE_TOO_LONG`, un nom trop long au pointeur de
+          l'objet qui le porte. Rien n'est enregistré.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              column_width_out_of_range: { $ref: ../../../fixtures/api/preferences_column_width_out_of_range.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/avatar:

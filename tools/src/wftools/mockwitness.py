@@ -78,6 +78,9 @@ OFFER_OPENED = Event(
     date(2025, 11, 3), "Ouverture de l'offre 100, passage en Chiffrage", time(8, 30)
 )
 OFFER_MARKED = Event(date(2025, 12, 15), "Offre v1.0 marquée", time(16, 0))
+OFFER_YEAR = OFFER_MARKED.on.year
+"""The reference year of the offer, marked in December 2025: its lines are priced at the rates of
+that year, and the lines the amendment 1 did not designate keep the budget it fixed so (#467)."""
 RISKS_IDENTIFIED = Event(
     date(2026, 1, 12),
     "Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101",
@@ -95,7 +98,7 @@ AMENDMENT_MERGED = Event(
 )
 RISK_751_REVIEWED = Event(
     date(2026, 2, 2),
-    "Réexamen de 751 : gravité portée à 1 250 ; la saisie ouvre la révision courante 102 ; "
+    "Réexamen de 751 : gravité portée à 1 250 000 ; la saisie ouvre la révision courante 102 ; "
     "753 écarté",
     time(9, 0),
 )
@@ -219,10 +222,18 @@ def role_calendars() -> dict[str, Calendar]:
 
 # --- The readable core of the structure -------------------------------------------------------
 
-REFERENCE_PROVISION_751 = Decimal("250.00")
+RISK_SCALE = 1000
+"""The scale of the risks 751 and 753 to the structure of a thousand tasks: their figures of the
+core, a thousand times (decision 4 of the frame of #287, option (a) of the author of 2026-10-07,
+EP-14/L45b). Their severity is a share of the reference budget of the whole structure, which the
+matrix reads (WF-RIS-0040): at the figures of the core, every risk would fall to its first level of
+severity. The risk 752 keeps the figures of its Vérif (WF-RIS-0060)."""
+
+REFERENCE_PROVISION_751 = Decimal("250.00") * RISK_SCALE
 """The provision of the risk 751 when the reference 101 was marked, on 1 February 2026: its
-severity of 1,000 at 25 % (``risk_reviews``), before its review raised it to 1,250 at 40 %. The
-reserve for risks of the reference counts it (WF-RIS-0050); the line of provision is budgeted so."""
+severity of 1,000,000 at 25 % (``risk_reviews``), before its review raised it to 1,250,000 at
+40 %. The reserve for risks of the reference counts it (WF-RIS-0050); the line of provision is
+budgeted so."""
 
 PAYMENT_DELAY = 30
 """The payment delay of the subcontracting and of the terminal blocks, in days: paid a month
@@ -367,18 +378,41 @@ and whose total the estimate presents (`estimate_indicators_breakdown`, WF-DEV-0
 WORK_BREAKDOWN = (ASSEMBLY,)
 """The work breakdown of the witness, as its order was entered (WF-PRJ-0020)."""
 
+CREATED_PROJECT = (universe(3), "Rénovation du poste de livraison")
+"""The project created today, its order not entered (``project_created``): its work breakdown is
+the one by default, and the revision opened after it has no task (EP-14/L42k)."""
+
 DEFAULT_BREAKDOWN = (
-    OrderItem(universe(714), "Commande", (WorkPackage(universe(715), "Lot unique"),)),
+    OrderItem(
+        universe(714),
+        CREATED_PROJECT[1],
+        (WorkPackage(universe(715), CREATED_PROJECT[1]),),
+    ),
 )
-"""The work breakdown of a project whose order was not entered: one order item holding one work
-package without a deliverable (WF-PRJ-0020). The document names neither: these labels are the
-example's."""
+"""The work breakdown of a project whose order was not entered: « en son absence, le lotissement
+vaut un poste et un lot qui portent le libellé du projet, sans livrable » (WF-PRJ-0020) — that of
+the project created today."""
+
+ON_SITE = WorkPackage(
+    universe(716),
+    "Mise en service sur site",
+    ((universe(717), "Procès-verbal de mise en service"),),
+)
+"""A work package entered today under the one order item of the witness, after « Armoires », with
+its deliverable (`work_breakdown_saved`, `setWorkBreakdown`, EP-14/L42k): no task bears it."""
+
+SAVED_BREAKDOWN = (OrderItem(ASSEMBLY.identifier, ASSEMBLY.label, (CABINETS, ON_SITE)),)
+"""The work breakdown of the witness once that work package is entered (WF-PRJ-0020)."""
 
 STEERING = universe(1000)
 CUSTOMER = universe(1001)
 TIMELINES = ((STEERING, "Comité de pilotage"), (CUSTOMER, "Revue client"))
 """The named timelines of the witness (WF-PLA-0140): the steering committee follows the studies,
 their reception, the factory acceptance and the commissioning; the customer, the two receptions."""
+
+CREATED_TIMELINE = (universe(1002), "Réunion de chantier")
+"""The timeline created today, with no task inscribed yet (`timeline_created`, `createTimeline`,
+WF-PLA-0140, EP-14/L42k)."""
 
 INSCRIBED: dict[int, tuple[str, ...]] = {
     N.STUDIES: (STEERING,),
@@ -471,7 +505,7 @@ CONTROL_STATION = Task(
                     N.PROVISION,
                     "Provision — risque de reprise du câblage",
                     PROVISIONS,
-                    unit=Decimal("500.00"),
+                    unit=Decimal("500.00") * RISK_SCALE,
                     budgeted=REFERENCE_PROVISION_751,
                     is_provision=True,
                 ),
@@ -517,10 +551,10 @@ CONTROL_STATION = Task(
     ),
 )
 """The lot of the control station: the wiring of the cabinets a week after the reception of the
-studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of 500
-of the risk 751, budgeted at the 250 the reference knew; the subtree merged into the current
-revision by the occurrence of the risk 752, its lines of 120 and 80 budgeted nothing
-(WF-RIS-0060); and the factory acceptance at the end of the wiring."""
+studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of
+500,000 of the risk 751, at the scale of the structure, budgeted at the 250,000 the reference knew;
+the subtree merged into the current revision by the occurrence of the risk 752, its lines of 120
+and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at the end of the wiring."""
 
 OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
 """The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025
@@ -621,7 +655,10 @@ class Risk:
     ``own_structure`` its own cost structure in the current revision, of an identifier of its
     own, apart from the one the reference bore (``structures``, ``structures_amendments``;
     WF-DAT-0030, #461);
-    ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060).
+    ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060);
+    ``provision_category`` and ``provision_subproject`` the category of provision for risks and
+    the subproject it designated for its provision, which its line of provision bears while it is
+    identified — the one category of provision of the universe, and no subproject (WF-RIS-0010).
     """
 
     number: int
@@ -633,6 +670,8 @@ class Risk:
     reference_provision_line: int | None = None
     provision_line: int | None = None
     merged: int | None = None
+    provision_category: str = PROVISIONS
+    provision_subproject: str | None = None
 
     @property
     def last(self) -> Review:
@@ -657,9 +696,9 @@ REWORK = Risk(
     "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
     204,
     (
-        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00")),
-        Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00")),
-        Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00")),
+        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00") * RISK_SCALE),
+        Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00") * RISK_SCALE),
+        Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00") * RISK_SCALE),
     ),
     reference_provision_line=N.PROVISION,
     provision_line=N.PROVISION,
@@ -684,8 +723,10 @@ AUTOMATION_ENGINEER = Risk(
     None,
     206,
     (
-        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00")),
-        Review(_at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00"), DISMISSED),
+        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
+        Review(
+            _at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE, DISMISSED
+        ),
     ),
     reference_provision_line=N.REFERENCE_PROVISION_753,
 )
@@ -695,7 +736,8 @@ identified, its provision the line 555 of the core; the delay of the cabinets, o
 20 February, its own estimate merged into the current revision (WF-RIS-0060) — the subtree 541
 of the core —; the unavailability of the automation engineer, dismissed on 2 February. All three
 identified on 12 January, before the reference 101 was marked, which bore their provisions: the
-lines 555, 557 and 567 of its structure (``mockhistory``)."""
+lines 555, 557 and 567 of its structure (``mockhistory``). The rework and the unavailability are
+at the scale of the structure (``RISK_SCALE``), the delay at the figures of its Vérif."""
 
 # --- The reference, as marked -----------------------------------------------------------------
 
@@ -756,7 +798,7 @@ def reference(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
 
     Nothing was started — the studies start on 2 March —, the subtree the occurrence of 752
     merged on 20 February is not there yet, and each identified risk bears its line of provision
-    at the provision it then had: 751 at 1,000 at 25 %, 752 and 753 on the lines the current
+    at the provision it then had: 751 at 1,000,000 at 25 %, 752 and 753 on the lines the current
     revision no longer bears. Marked while the project was in progress, it is the previous
     review of the current revision, whose lines show its quantities (WF-RAE-0040).
     """

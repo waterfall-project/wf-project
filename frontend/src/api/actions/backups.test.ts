@@ -10,8 +10,8 @@ import {
   openBackupDeposit,
   readLiveness,
   sendBackupPart,
-  startPlatformBackup,
-  startPlatformRestore,
+  startBackup,
+  startRestore,
 } from "./backups";
 
 const server = vi.hoisted((): { client: ApiClient | undefined; open: ApiClient | undefined } => ({
@@ -37,7 +37,7 @@ const PART = "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}";
 describe("the server actions of the backups", () => {
   it("ask a backup, which gives its task back queued: the request held no longer than its creation [WF-ARC-0090-A]", async () => {
     const client = serve({ "POST /backups": { status: 202, example: "task_backup_queued" } });
-    expect(await startPlatformBackup()).toMatchObject({
+    expect(await startBackup()).toMatchObject({
       kind: "done",
       data: { kind: "backup", status: "queued" },
     });
@@ -101,12 +101,12 @@ describe("the server actions of the backups", () => {
   it("restore a backup of the list or a deposit at the date the confirmation names", async () => {
     const client = serve({ "POST /restores": { status: 202, example: "task_restore_queued" } });
     expect(
-      await startPlatformRestore(
+      await startRestore(
         { backup_id: "01926f3a-7c00-7000-8000-000000000906" },
         "2026-06-02T01:00:00Z",
       ),
     ).toMatchObject({ kind: "done", data: { kind: "restore", status: "queued" } });
-    await startPlatformRestore({ external_backup_upload_id: DEPOSIT }, "2026-06-02T01:00:00Z");
+    await startRestore({ external_backup_upload_id: DEPOSIT }, "2026-06-02T01:00:00Z");
     expect(client.calls.map(({ body }) => body)).toEqual([
       {
         backup_id: "01926f3a-7c00-7000-8000-000000000906",
