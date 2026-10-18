@@ -107,6 +107,11 @@ décision de l'auteur du 2026-10-11 (EP-14/L56), puis d'EP-15 au cadrage du 2026
 - #776 — outil : l'e2e « on a narrow window » de `grid.spec`, en échec sous charge ;
 - #92 [US-0290] — navigateurs et largeurs d'affichage.
 
+Relevé au cadrage d'EP-15 (2026-10-18) :
+
+- #1142 — front : l'adoption par les écrans de ce qu'EP-14/L42s a écrit au contrat (« Ce qui en
+  fait partie »).
+
 Reportés d'EP-03 par EP-14 le 2026-10-17, puis d'EP-15 : les vingt-cinq constats décrits dans les
 « Constats reçus » d'EP-14, « Reportés d'EP-03 » — #846, #847, #872, #888, #889, #901, #902, #905,
 #941, #942, #949, #951, #963, #967, #984, #990, #1005, #1010, #1012, #1021, #1023, #1024.

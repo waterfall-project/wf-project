@@ -1,10 +1,10 @@
 ---
 id: EP-15
 titre: La maquette ajustée après la validation de l'auteur, chaque geste du contrat montré
-statut: prêt
+statut: en cours
 depend_de: EP-14
 famille: front
-issue:
+issue: 1087
 ---
 
 # EP-15 — Maquette : ajustements issus de la validation
@@ -499,7 +499,7 @@ l'écart reste.
 - **exigences** : `WF-PRJ-0020-A`
 - **opérations** : `getWorkBreakdown`, `setWorkBreakdown`, `generatePlanningSkeleton`,
   `updateTaskFacet`, `listNodes`, `getEstimateIndicators`
-- **issue** :
+- **issue** : #1088
 
 **En tant que** chef de projet, **je veux** que le lotissement nomme ses niveaux comme le bon de
 commande — des lots, qui contiennent des postes, qui contiennent des livrables — dans le contrat,
@@ -546,7 +546,7 @@ lot ou un poste est porté par une tâche de la révision en cours.
 - **exigences** : `WF-PLA-0080-A`, `WF-DEV-0050-A`, `WF-RAE-0040-A`
 - **opérations** : `createNode`, `moveNodes`, `deleteNode`, `listNodes`, `getRevision`,
   `getProject`
-- **issue** :
+- **issue** : #1091
 
 **En tant que** chef de projet, **je veux** ajouter, indenter et désindenter, déplacer et supprimer
 des tâches et des lignes depuis la grille de planning, depuis celle du devis tant que le projet
@@ -642,7 +642,7 @@ suppression ; indentation ; sélection et déplacement.
 - **statut** : à faire
 - **exigences** : `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0160-A`
 - **opérations** : `updateTaskFacet`, `setPredecessors`, `listNodes`
-- **issue** :
+- **issue** : #1097
 
 **En tant que** chef de projet, **je veux** saisir dans la grille de planning le libellé, la
 description, le mode, la durée avec son unité, les dates d'une tâche manuelle et la liste des
@@ -715,7 +715,7 @@ FF, DF en français — sont ceux de l'énumération du contrat, traduits par le
 - **exigences** : `WF-PLA-0060-A`, `WF-PRJ-0050-A`
 - **opérations** : `setNodeTracking`, `listTimelines`, `createTimeline`, `updateEstimateLine`,
   `listSubprojects`, `listNodes`
-- **issue** :
+- **issue** : #1100
 
 **En tant que** chef de projet, **je veux** inscrire une tâche à une chronologie ou l'en retirer, et
 porter une ligne de devis ou de reste à engager à un sous-projet ou l'en retirer, depuis le menu
@@ -776,7 +776,7 @@ décident à la conception ; le service n'est pas concerné avant EP-04 et EP-09
   `abandonRevision`, `designateReferenceRevision`, `getRateUpdateProposal`, `applyRateUpdate`,
   `generatePlanningSkeleton`, `getWorkBreakdown`, `uploadFile`, `openImport`, `getImport`,
   `applyImport`
-- **issue** :
+- **issue** : #1106
 
 **En tant que** chef de projet, **je veux** qu'après la création d'un projet un encart me propose
 de démarrer son planning — le lotissement puis le squelette, ou un fichier MS Project déposé —, puis
@@ -864,7 +864,7 @@ du planning — et ne déduit rien (#1058). Les libellés du lotissement sont ce
 - **statut** : à faire
 - **exigences** : `WF-IHM-0020-A`, `WF-REV-0080-A`, `WF-REV-0100-A`
 - **opérations** : `listCostStructures`, `listNodes`, `compareRevisions`, `listRevisions`
-- **issue** :
+- **issue** : #1101
 
 **En tant que** chef de projet, **je veux** ouvrir mes grilles de planning et de devis sur la
 structure que je choisis — la principale, un différentiel d'avenant, le devis propre d'un risque —,
@@ -933,7 +933,7 @@ marque se voie sans variante (#791, ramené en EP-15).
 - **exigences** : `WF-REV-0050-A`
 - **opérations** : `createCostStructure`, `getStructureMergeReport`, `mergeCostStructure`,
   `listCostStructures`, `getRevision`, `listBackgroundTasks`, `getBackgroundTask`
-- **issue** :
+- **issue** : #1110
 
 **En tant que** chef de projet, **je veux** préparer un avenant depuis la révision en cours, y
 ajouter et modifier des tâches et des lignes dans la grille, lire le compte rendu de sa fusion, lui
@@ -984,7 +984,7 @@ qu'EP-14/L42s a écrits au contrat (`DECISIONS.md`, « Le compte rendu préalabl
 - **opérations** : `createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`,
   `declareRiskOccurrence`, `getRisk`, `listRisks`, `listRiskReviews`, `listCostStructures`,
   `listNodes`, `listCostCategories`, `listSubprojects`
-- **issue** :
+- **issue** : #1111
 
 **En tant que** chef de projet, **je veux** identifier un risque avec sa provision, chiffrer son
 devis propre dans la grille de devis, le modifier, le réexaminer, le supprimer et le déclarer
@@ -1077,7 +1077,7 @@ trois lots : les formulaires et le devis propre ; le réexamen, la suppression e
 - **exigences** : `WF-PLA-0090-A`, `WF-PLA-0140-A`
 - **opérations** : `listNodes`, `listTimelines`, `getMe`, `updateMyPreferences`,
   `getDurationUnits`
-- **issue** :
+- **issue** : #1131
 
 **En tant que** chef de projet, **je veux** élargir le Gantt par-dessus les colonnes de la table
 comme dans MS Project, le zoomer et le dézoomer sur une échelle de temps à deux rangées, et lire
@@ -1131,7 +1131,7 @@ poignée ; l'échelle et le zoom ; la frise.
 - **statut** : à faire
 - **exigences** : `WF-RAE-0030-A`
 - **opérations** : `listStartableTasks`, `setTaskProgress`
-- **issue** :
+- **issue** : #1128
 
 **En tant que** chef de projet, **je veux** sélectionner une carte du Kanban et la démarrer, la
 terminer, la rouvrir ou la renvoyer à la saisie de son reste à engager, à la date que je saisis,
@@ -1180,7 +1180,7 @@ sans ligne se termine à une date saisie.
 - **opérations** : `getProjectWorkload`, `getPortfolioWorkload`, `getProjectRiskMatrix`,
   `getPortfolioRisks`, `getRiskCoverage`, `getEstimateIndicators`, `getRemainingIndicators`,
   `listActualCosts`, `getPortfolioProjects`, `getPortfolioValue`
-- **issue** :
+- **issue** : #1123
 
 **En tant que** chef de projet ou manager, **je veux** lire les plans de charge en histogramme
 empilé par rôle — le plan agrégé avec sa capacité en pointillés et son filtre par nœud bien
@@ -1265,7 +1265,7 @@ des cartes au-dessus de la grille se vérifie avec US-0560.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0080-A`, `WF-OBS-0020-A`
 - **opérations** : `listBackgroundTasks`, `getBackgroundTask`
-- **issue** :
+- **issue** : #1119
 
 **En tant que** chef de projet, **je veux** que la barre et le bouton « Colonnes » d'une grille se
 placent au bord de la table, qu'une grille courte n'ait pas de bande vide ni ne déborde sur un écran
@@ -1321,7 +1321,7 @@ exigence WF-IHM nouvelle (décision de l'auteur au cadrage, 2026-10-18, réponse
   `listOrgNodes`, `listResourceRoles`, `listCostTypes`, `listCostCategories`, `listHourlyRates`,
   `listProjects`, `listSubprojects`, `listRisks`, `listActualCosts`, `listCostImports`,
   `listImports`
-- **issue** :
+- **issue** : #1115
 
 **En tant qu'** administrateur ou chef de projet, **je veux** choisir le nombre de lignes par page
 de chaque table et le retrouver, lire les paramètres de coûts en grilles empilées, une table des
@@ -1382,7 +1382,7 @@ vers #1045 et #1047.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : `getComputedValueDependencies`, `getRevision`, `getProject`
-- **issue** :
+- **issue** : #1135
 
 **En tant que** chef de projet, **je veux** ouvrir sur chaque écran une aide qui dit ce qu'il
 montre, ses commandes et leurs conditions, ses colonnes et ses valeurs calculées, les gestes au
