@@ -28,10 +28,11 @@ d'EP-15, avec la décision qui le rend caduc.
 
 - les constats du contrat reportés d'EP-14 (« Constats reçus ») : les exemples manquants et les
   mineurs des relectures de L42p, L42q, L42r et L42s (#774 et ses sous-issues), le délai de paiement
-  d'une ligne de main-d'œuvre (#785), l'horizon et le cycle de liaisons (#788), les comptes rendus
-  d'import et de fusion (#789), la fusion sans révision en cours (#790), le témoin et son outillage
-  (#791, #792), la lecture du lotissement et les exemples des chronologies (#802, #803) — sauf ceux
-  qu'EP-15 ramène à lui au cadrage ;
+  d'une ligne de main-d'œuvre (#785), l'horizon et le cycle de liaisons pour la fusion (#788, part
+  « fusion »), les comptes rendus d'import et de fusion (#789), la fusion sans révision en cours
+  (#790), l'outillage du témoin (#792), les exemples des chronologies (#803) ; EP-15 a ramené à lui
+  #786, la part « saisies » de #788 et #791 (décisions de l'auteur du 2026-10-18), et #802 si
+  l'auteur le décide ;
 - l'adoption fine par les écrans de ce qu'EP-14/L42s a écrit au contrat et qu'aucune issue d'EP-15
   ne porte : la réactivation d'une catégorie sous une nature désactivée et la désactivation d'une
   nature en cascade, les catégories nommées par le refus d'un changement de type, l'import rejeté
@@ -90,21 +91,20 @@ décision de l'auteur du 2026-10-11 (EP-14/L56), puis d'EP-15 au cadrage du 2026
   L42q et L42r ; ses sous-issues #747, #752, #764, #768, #777 ;
 - #785 — contrat : le délai de paiement d'une ligne de main-d'œuvre n'est pas saisissable
   (WF-DEV-0020) ;
-- #786 — contrat : la tâche qui porte la provision d'un risque ne se désigne pas à sa déclaration
-  (WF-RIS-0010) — ramenée en EP-15 si l'auteur le décide au cadrage (US-0520) ;
-- #788 — contrat : l'horizon et le cycle de liaisons n'ont pas de refus décrit pour les saisies et
-  la fusion — ramenée en EP-15 si l'auteur le décide au cadrage (US-0470) ;
+- #788 — contrat : l'horizon et le cycle de liaisons n'ont pas de refus décrit pour la fusion —
+  la part « saisies » est ramenée en EP-15 (US-0470, décision de l'auteur du 2026-10-18) ;
 - #789 — contrat : les comptes rendus d'import et de fusion ne signalent ni la ligne de provision
   déplacée ni la tâche rangée ailleurs ;
 - #790 — contrat : une fusion sans révision en cours n'en crée pas une au préalable (WF-REV-0050) ;
-- #791 — outil : le témoin, dont la révision courante ne reprend pas l'avenant 2 (WF-REV-0100) —
-  ramenée en EP-15 si l'auteur le décide au cadrage (US-0500) ;
 - #792 — outil : `is_active_provision` et le point fixe de `make mock-data` ;
 - #795 — contrat : les mineurs de la relecture 2 de L42s ;
-- #802 — contrat : la lecture du lotissement ne dit pas si une tâche porte un poste ou un lot ;
+- #802 — contrat : la lecture du lotissement ne dit pas si une tâche porte un poste ou un lot —
+  proposée à EP-15 (US-0450) au cadrage, à trancher par l'auteur ;
 - #803 — contrat : les exemples manquants des refus des chronologies et du 412 du lotissement ;
 - #779 — front : le refus d'une saisie sans heure ne nomme ni les rôles ni la tâche ;
-- #806, #817, #819, #821 — front : les mineurs des relectures de L44c, L44d et L44f ;
+- #806, #817, #819 — front : les mineurs des relectures de L44c et L44d ; #817 et #819 réduits aux
+  points que le cadrage d'EP-15 ne ramène pas (EP-15, « Conception », « Ce que le cadrage
+  décide ») ; #821, les mineurs de L44f, fermé au cadrage d'EP-15, la frise (#1068) le rendant caduc ;
 - #782 — front : les dialogues, les menus et les éditeurs hors du harnais d'accessibilité ;
 - #781, #784 — front : les reliquats des tests et du harnais ;
 - #776 — outil : l'e2e « on a narrow window » de `grid.spec`, en échec sous charge ;
@@ -112,10 +112,10 @@ décision de l'auteur du 2026-10-11 (EP-14/L56), puis d'EP-15 au cadrage du 2026
 
 Reportés d'EP-03 par EP-14 le 2026-10-17, puis d'EP-15 : les vingt-cinq constats décrits dans les
 « Constats reçus » d'EP-14, « Reportés d'EP-03 » — #846, #847, #872, #888, #889, #901, #902, #905,
-#937, #941, #942, #949, #951, #959, #960, #963, #967, #984, #990, #1005, #1010, #1012, #1021,
-#1023, #1024. Ceux qu'un ajustement d'EP-15 rend caducs — l'historique des messages pour ce qui
-n'était « dit nulle part » (#872, #937), l'avis de la barre (#959, #960), la frise des chronologies
-(#821) — se ferment au cadrage d'EP-15 avec la décision de l'auteur.
+#941, #942, #949, #951, #963, #967, #984, #990, #1005, #1010, #1012, #1021, #1023, #1024.
+Quatre autres sont fermés au cadrage d'EP-15, qu'un ajustement rend caducs (décision de l'auteur
+du 2026-10-18) : #872 et #937, ce qui n'était « dit nulle part », par l'historique des messages
+(#1043) ; #959 et #960, l'avis de la barre, par la barre et l'historique (#1042, #1043).
 
 ## Conception
 

@@ -71,7 +71,8 @@ code qui la consomme (« Conception », « Modifications du contrat »).
   indicateurs et le portefeuille ; le report d'un geste de structure d'une grille à l'autre se
   constate contre le service, en EP-06 (#1057) ;
 - Annuler et Rétablir, posés par EP-02 et branchés sur le service par EP-06 (#1056, point 4 ;
-  #1057) — voir la question ouverte du croisement contrat-maquette ;
+  #1057 ; décision de l'auteur au cadrage, 2026-10-18) — l'écart est écrit au croisement
+  contrat-maquette ;
 - le durcissement : les mineurs du contrat et du front, l'extension du harnais d'accessibilité aux
   dialogues et aux menus (#782), les navigateurs (US-0290, #92) et les reliquats de tests (#776,
   #781, #784) — EP-16 ;
@@ -190,23 +191,300 @@ ouverture, chacun sous l'US qui le règle :
 - #1033 — front : sur un écran rempli, le plancher de la grille ne remonte pas la chaîne des
   `min-h-0` — relevé par la reprise de `main` d'EP-14 (#1032) — US-0560.
 
-Les constats qu'EP-14 avait reportés vers EP-15 pour le durcissement — les mineurs du contrat (#774
-et ses sous-issues, #785 à #795, #802, #803), les mineurs du front (#806, #817, #819, #821, #779,
-#846 à #1024), l'accessibilité des dialogues (#782), les reliquats de tests (#776, #781, #784) et
-US-0290 (#92) — portent le label `EP-16` et sont les « Constats reçus » d'EP-16. #1035 est reçu
-par EP-13.
+Ramenés d'EP-16 par la décision de l'auteur au cadrage (2026-10-18, réponses aux questions 5 à 7),
+parce que les parcours d'EP-15 en ont besoin :
+
+- #786 — contrat : la tâche qui porte la provision d'un risque ne se désigne pas à sa déclaration
+  (WF-RIS-0010) — le formulaire d'US-0520 la désigne ; part contrat d'US-0520 ;
+- #788 — contrat : l'horizon et le cycle de liaisons n'ont pas de refus décrit pour les saisies —
+  la part « saisies » seule (`setPredecessors`, `updateTaskFacet`, `createNode`, `moveNodes`), que
+  la colonne des prédécesseurs d'US-0470 dit à la cellule ; la part « fusion » reste à EP-16 ;
+- #791 — outil : la révision courante du témoin ne reprend pas l'avenant 2 (WF-REV-0100) — le
+  différentiel du témoin fait voir la marque du diff sans variante (US-0500), et donne au compte
+  rendu de fusion son premier exemple réel (US-0510).
+
+Les autres constats qu'EP-14 avait reportés vers EP-15 pour le durcissement — les mineurs du
+contrat (#774 et ses sous-issues, #785, #789, #790, #792, #795, #802, #803), les mineurs du front
+(#806, #817, #819, #779, #846 à #1024), l'accessibilité des dialogues (#782), les reliquats de tests
+(#776, #781, #784) et US-0290 (#92) — portent le label `EP-16` et sont les « Constats reçus »
+d'EP-16. #1035 est reçu par EP-13. Cinq d'entre eux, que les ajustements rendent caducs, se ferment
+à l'ouverture des issues d'EP-15 avec la décision qui les rend caducs (décision de l'auteur,
+2026-10-18) : #872 et #937 par l'historique des messages (#1043, US-0560), #959 et #960 par la
+barre et l'historique (#1042, #1043, US-0560), #821 par la frise des chronologies (#1068,
+US-0530). #817, #819 et #802 sont examinés point par point au cadrage (« Conception », « Ce que le
+cadrage décide »).
 
 ## Conception
 
-À écrire après la validation des US. Elle dira, en plus des rubriques du modèle : les
-modifications du contrat opération par opération — celles des issues `contract` (#1045, #1047,
-#1051, #1053, #1054, #1060, #1066, #1068, #1070) et ce que la reprise de la spécification a
-changé —, chacune avec son effet sur le faux back et sur `make mock-data` et l'entrée de
-`DECISIONS.md` qu'elle demande ; le croisement contrat-maquette, preuve de la définition de fini ;
-où vit l'aide en ligne, comment elle se relie aux écrans et aux infobulles, et le lot qui la relit ;
-l'ordre de construction : #1054 d'abord, puis les gestes de structure (#1056, #1073), puis les
-révisions, les avenants et les risques (#1060, #1074, #1061, #1062), et le reste ensuite.
+Celle d'EP-02 et d'EP-14 fait foi : arborescence du front, faux back et exemples, univers témoin,
+composants partagés, refus par champ, défauts nommés du guide. EP-15 n'a ni table, ni migration, ni
+module du noyau : il écrit du front, des parties du contrat avec leurs exemples, et des générateurs
+du témoin (`wftools`), un outil écrit en passant qui ne change pas sa famille. Ce qui suit est ce
+qu'il ajoute, validé au cadrage du 2026-10-18.
 
+### Ce que le cadrage décide
+
+- **Les US citent les exigences de domaine** (décision de l'auteur, réponse 2 du 2026-10-18), avec
+  chaque phrase de Vérif en critère ou en écart ; EP-15 n'en clôt aucune, et les tableaux d'EP-04,
+  EP-06 à EP-11 et EP-13 disent « amorcée en EP-15 ». C'est le contraire de ce qu'EP-02 (US-0220) et
+  EP-14 (« Ce que le cadrage décide ») avaient choisi — aucune US pour les commandes, les tableaux
+  de domaine gardés « entière » — : les tests d'EP-15 citent ainsi l'exigence dont ils éprouvent la
+  phrase, et `make roadmap` tient chaque phrase. Écarté : la forme d'EP-02, qui laissait aux
+  critères propres des phrases que la roadmap ne vérifie pas.
+- **L'échange des noms du lotissement garde le sens des identifiants** (#1054, décision 2) :
+  `WorkPackage` est un lot, `OrderItem` un poste, `WorkPackage` passe au niveau 1. Ce qui s'attache
+  au niveau suit : le total par lot de WF-DEV-0060 devient `EstimateIndicators.by_work_package`,
+  motif `work_package_without_task` ; la règle « la tâche d'un poste se trouve dans le sous-arbre de
+  la tâche de son lot » prend le code `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task`
+  et `params.order_item_tasks`. Écarté : garder les codes et les noms d'ancienne lecture avec une
+  description inversée, qui ferait lire « poste » là où le code dit `work_package` (défaut n° 10 du
+  guide : un nom qui dit autre chose que la cause).
+- **`createRisk` crée la structure propre du risque** avec sa ligne de provision, comme le contrat
+  le dit déjà (« La création ouvre la structure de coûts propre du risque ») : le parcours d'US-0520
+  n'appelle pas `createCostStructure` de nature `risk`, qui reste au contrat pour un risque dont la
+  structure manquerait — EP-08 en décide. Écarté : deux appels depuis le formulaire, qui pourraient
+  laisser un risque sans devis propre.
+- **Annuler et Rétablir restent à EP-06** (#1056, point 4 ; #1057 ; décision de l'auteur, réponse
+  4) : `undoLastChange` et `redoLastUndo` sont l'écart écrit du croisement contrat-maquette, les
+  commandes posées par EP-02 (US-0140) restant visibles et non branchées. Écarté : les brancher
+  contre le faux back, qui ne garde rien et ne saurait rendre l'état d'avant.
+- **L'historique des messages est une décision de conception**, sans exigence WF-IHM nouvelle
+  (#1043 ; réponse 9) : il vit dans le front, propre à la session, et aucun test ne cite d'exigence
+  pour lui-même — ceux qui le traversent citent WF-IHM-0080 et WF-OBS-0020 pour ce qu'ils y lisent.
+- **Trois constats d'EP-16 sont ramenés** (réponses 5 à 7) : #786, part contrat d'US-0520 ; #788,
+  la part « saisies », part contrat d'US-0470, la part « fusion » restant à EP-16 ; #791, part
+  outillage d'US-0500.
+- **#817, #819 et #802, point par point** (réponse 10, à trancher par l'auteur) :
+
+  | Issue, point | Couvert par | Proposition |
+  |---|---|---|
+  | #817.1 — `byField` généralisé à toute écriture de cellule | US-0470 (le refus dit à la cellule, `cell-writes.ts`) ; US-0460 (dit à la ligne) | ramener : part front d'US-0470/L1 |
+  | #817.2a — exemple de succès d'un rattachement (`updateTaskFacet`) | US-0450 (fixtures du rattachement réécrites) | ramener : part contrat d'US-0450 (`task_attached`) |
+  | #817.2b — exemple d'un refus à deux motifs | aucune US | garder en EP-16 |
+  | #819.1 — focus d'une cellule refusée distingué par la seule couleur | aucune US (harnais #782) | garder en EP-16 |
+  | #819.2 — `aria-invalid` posé pour tout échec | US-0470 (généralisation de `byField`, qui distingue un refus de la valeur d'un échec de transport) | ramener : avec #817.1 |
+  | #819.3 — commande du squelette sans `key` par structure | US-0500 (la grille se monte par structure lue) | ramener : US-0500/L1 |
+  | #819.4 — recherche sans résultat : squelette « indisponible » | US-0490 (le squelette s'offre dans l'encart et au lotissement) | partiel : la grille vide garde l'offre ; le reste EP-16 |
+  | #819.5 — après un 409 du squelette, rien ne relit | US-0490 (l'encart relit sa condition au serveur) | ramener : US-0490 |
+  | #819.6 — après la génération, l'en-tête dit « aucune tâche » | US-0490 (la réponse remplit la grille et l'en-tête) | ramener : US-0490 |
+  | #819.7 — `structureVersion` facultatif | US-0500 (`grid-screen` lit la structure choisie, version exigée) | ramener : US-0500/L1 |
+  | #819.8 — écriture en attente qui produit `{lock_version}` seul | US-0470 (écritures de `updateTaskFacet` généralisées) | ramener : US-0470/L1 |
+  | #819.9 — exemple sur `/work_package_id` (lot déjà porté) | US-0450 (fixtures du rattachement) | ramener : part contrat d'US-0450 |
+  | #819.10 — exemple de `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` | US-0450 | ramener : part contrat d'US-0450 |
+  | #819.11 — test « never both » incomplet | US-0450 (tests du rattachement réécrits) | ramener : US-0450 |
+  | #819.12 — `bearing` modifie une réponse à la main | US-0450 (`skeleton_generated` réécrit) | ramener : US-0450 |
+  | #819.13 — lotissement lu en série | aucune US | garder en EP-16 |
+  | #819.14 — `waitForRequest(POST)` trop large | aucune US | garder en EP-16 |
+  | #819.15 — largeur d'un commentaire | aucune US | garder en EP-16 |
+  | #802 — la lecture du lotissement ne dit pas si un lot ou un poste est porté | US-0450 (le schéma `WorkBreakdownReading` est réécrit) ; US-0490 (l'encart et le squelette) | ramener : part contrat d'US-0450 (`attached_task`) |
+
+  Proposition par issue : #817 et #819 restent en EP-16, réduites aux points gardés, les points
+  ramenés nommés dans un commentaire à l'étape 4 ; #802 est ramenée en EP-15 entière.
+- **Taille des lots** : comme EP-14, les lots sont coupés à 1 200 lignes estimées, et un lot
+  d'écran qui approche le plafond se découpe plutôt que de grossir.
+- **La branche du cadrage** est `roadmap/EP-15-cadrage`, vers `main` (autorisation de l'auteur du
+  2026-10-18) : contrairement à EP-14, le statut `en cours`, les numéros d'issues et le ménage
+  atteignent `main` à la fusion de la pull request de cadrage.
+
+### La grille qui se modifie selon la phase
+
+Le front ne déduit pas la phase (#1056, commentaire 2 ; WF-IHM-0090). Les gestes de structure et
+la saisie des lignes ne sont pas refusés par le serveur selon la grille qui les envoie — une ligne
+créée sur la structure principale d'un projet En cours est la même écriture depuis le devis et
+depuis le reste à engager —, si bien que la lecture seule du devis est une règle de présentation
+que le serveur doit dire. **Chaque structure liste ses commandes** : `CostStructure.available_commands`,
+une liste de `StructureCommandAvailability` sur une énumération nouvelle `StructureCommand` —
+`edit_planning`, `edit_estimate`, `edit_remaining` —, chacune gardée par la permission de la
+révision correspondante (`planning.write`, `estimate.write`, `remaining.write`) et présente ou
+absente comme elle. Sur la structure principale : `edit_estimate` est indisponible dès que le
+projet est En cours, `project_before_in_progress` manquante — la condition existe déjà pour la
+probabilité de gain — ; `edit_remaining` est indisponible tant qu'il ne l'est pas, condition
+nouvelle `project_in_progress`. Sur un différentiel et sur le devis propre d'un risque :
+`edit_estimate` et `edit_planning` sont disponibles quel que soit l'état du projet (WF-DEV-0050),
+`edit_remaining` n'est jamais listée (WF-RAE-0040 : la seule principale). Les conditions d'état de
+la révision — `revision_draft`, `no_background_task_running`, `project_not_terminal` — s'y
+nomment comme sur la révision. Les grilles lisent la commande de la structure lue — `grid-screen.ts`
+lit déjà `listCostStructures` — pour offrir ou non la saisie des cellules, les gestes de structure,
+le collage et les sous-menus ; les commandes de la révision (`RevisionCommand`) restent ce qu'elles
+sont et gardent ce qui ne lit pas une structure : le squelette, le marquage, les exports, les
+risques. Écartés : la condition sur `RevisionCommand.edit_estimate`, qui aurait fermé le devis
+propre d'un risque et le différentiel avec la principale ; des `editable_fields` vides, qui ne
+disent rien de la création ni de la suppression ; lire `Project.state`, que le front ne déduit pas.
+
+### Modifications du contrat, opération par opération
+
+Neuf parties, chacune avec ses exemples, son entrée dans `docs/api/DECISIONS.md` nommée ci-dessous,
+`make lint-openapi`, `make inventory`, `make generate-client`, `make mock-data` et `make catalogs`,
+faites **avant** le lot d'écran qui les consomme. Un exemple engendré se régénère ; un exemple écrit à
+la main se réécrit et reste confronté par `test_mockuniverse.py`. Les noms des champs, des codes et
+des conditions sont ceux que le cadrage propose ; chaque partie les arrête dans `DECISIONS.md`.
+
+| Partie | Opérations | Changement | Faux back et `make mock-data` | Entrée de `DECISIONS.md` |
+|---|---|---|---|---|
+| K1 — le lotissement (#1054, #802, #817.2a, #819.9-10) | `getWorkBreakdown`, `setWorkBreakdown`, `generatePlanningSkeleton`, `listNodes`, `updateTaskFacet`, `createNode`, `moveNodes`, `getEstimateIndicators`, `openImport`, `previewPaste` | `WorkBreakdown` et `WorkBreakdownReading` portent `work_packages` au niveau 1, chaque `WorkPackage` ses `order_items`, chaque `OrderItem` ses `deliverables` ; `kinds` vaut `[work_package, order_item, deliverable]` ; les descriptions des opérations, des filtres `work_package_id` et `order_item_id`, de `EditableField` et de `NodeColumn.work_breakdown` suivent ; `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` devient `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task` et `order_item_tasks` (refus de `updateTaskFacet`, `createNode`, `moveNodes`, `PasteRejection`, `ImportReport`) ; `EstimateIndicators.by_order_item` devient `by_work_package`, `order_item_without_task` → `work_package_without_task` ; `OrderItemReading` et `WorkPackageReading` gagnent `attached_task` — `{node_id, label}` ou nul —, la tâche de la révision en cours qui porte l'élément (#802) ; exemples ajoutés : `task_attached` (succès d'un rattachement), un refus sur `/work_package_id` (lot déjà porté), `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` | les fixtures écrites à la main `work_breakdown*`, `skeleton_generated`, `task_attach_*`, `task_merge_outside_order_item`, `nodes_move_outside_order_item` sont réécrites ; `mockwitness` nomme « Lot 1 », « Poste 1.1 » ; `mockstructure`, `mocklists` (lotissement filtré, refus), `mockindicators.by_order_item` → `by_work_package`, `mocktoday` suivent ; `test_mockbreakdown.py`, `test_mocklists.py`, `test_mocktoday.py` réécrits ; les catalogues échangent chaque clé qui nomme un niveau (`enums.*`, `errors.*`, écrans) | « Le lotissement en lots, postes et livrables (EP-15/US-0450) », citant C-350 et le tableau du §4.4.1 |
+| K2 — la structure lue, la phase et le diff (#1060, #624, #1056, #1066, #1065, #791) | `listCostStructures`, `listNodes`, `compareRevisions`, `updateEstimateLine` | `CostStructure.available_commands` (ci-dessus) ; `Node.difference` — `added`, `removed`, `modified`, `unchanged`, nul sur la principale — et `Node.changes` (l'énumération de `ComparedNode.changes`, `parent` compris) sur une lecture d'un différentiel, qui rend aussi les nœuds retirés à leur place, en lecture seule ; `RevisionComparison` rend `nodes`, l'arbre de la révision comparée dans l'ordre du plan avec `difference` et `changes` et les champs que `fields` nomme — comme `listNodes`, sans pagination —, à la place de `added`, `removed` et `changed` ; `amount_deltas` reste ; `EditableField` gagne `task.tracking`, que nomme toute tâche de la structure principale dont l'appelant peut écrire le planning (#1065) ; `updateEstimateLine` refuse par 422 `VALIDATION_FAILED`, `fields[].pointer` `/estimate_line/subproject_id`, code nouveau `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` `{subproject_id, label}`, et une telle ligne ne nomme plus `estimate_line.subproject_id` dans `editable_fields` (#1066) | `mockwitness` et `mockhistory` décrivent l'avenant 2 « reprise des essais » comme différentiel non fusionné de la révision courante 102 (#791) : `structures` le porte, `structure_merge_report` devient une lecture du témoin, `nodes_amendment` (nouveau, `listNodes` sur le différentiel, marqué) et `comparison` (réécrit en arbre, 2 770 nœuds) sont engendrés ; `structures` et `structures_*` disent leurs commandes ; `estimate_line_subproject_changed` et `estimate_line_subproject_has_actual_costs` écrits ; `nodes*` nomment `task.tracking` | « La structure lue, sa phase et son diff (EP-15/US-0460, US-0480, US-0500) », citant C-358, C-359, C-361 et #1067 |
+| K3 — les saisies de la structure (#1056, #1073, #1065, #788 saisies) | `createNode`, `moveNodes`, `deleteNode`, `updateTaskFacet`, `setPredecessors`, `setNodeTracking` | exemples de succès qui manquent : `node_created` (tâche sœur), `node_created_child`, `estimate_line_created`, `nodes_moved` (une sélection), `nodes_indented`, et la suppression d'une récapitulative ; `updateTaskFacet` : `task_mode_changed`, `task_duration_entered`, `task_dates_entered` (manuelle), `task_description_entered`, et le 422 `COMPUTED_VALUE` d'une date automatique ; `setPredecessors` : le 422 `LINK_CYCLE` reçoit `params.cycle` (les tâches du cycle, `node_id` et `label`), `LINK_FORBIDDEN` celui d'une récapitulative et sa subordonnée, et `PROJECT_HORIZON_EXCEEDED` (`params.task`) s'étend aux saisies qui déplacent une date — `updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes` — (#788) ; exemples `predecessors_cycle_refused`, `predecessors_entered` ; `setNodeTracking` : `node_tracked`, `node_tracking_milestone_refused` (422, le suivi temps/temps d'une tâche qui n'est pas un jalon) | `mockwrites` engendre les réponses comme les écritures existantes (différence de deux lectures du cœur) ; les refus écrits à la main | « Les gestes de structure et la saisie des tâches (EP-15/US-0460, US-0470, US-0480) » |
+| K4 — le cycle des révisions et les avenants (#1074, #1072, #1061) | `createRevision`, `abandonRevision`, `designateReferenceRevision`, `applyRateUpdate`, `createCostStructure`, `mergeCostStructure` | exemples de succès qui manquent : `revision_created` (201), `reference_designated` (200), `rate_update_applied` (200), `amendment_created` (201), `task_merge_queued` (202) ; refus nommés : `designateReferenceRevision` 409 `reference_without_tasks` (`STATE_FORBIDS_OPERATION`, condition nouvelle `revision_has_tasks_and_lines`, WF-CYC-0030) et `reference_not_correctable` (`REFERENCE_NOT_CORRECTABLE`, WF-REV-0040) ; `createCostStructure` 409 `amendment_unmerged_exists` (`unmerged_amendment_exists`) ; `mergeCostStructure` 412 `merge_report_stale` ; `applyRateUpdate` 409 `rate_update_revision_marked` (`revision_draft`) ; `abandonRevision` garde son 204 et son 409 | écrits à la main dans la chronologie du témoin : la révision créée aujourd'hui sur le projet créé (103), la référence désignée sur l'offre en chiffrage, l'avenant 2 (#791) comme différentiel fusionnable ; `test_mockhistory.py` les date | « Du projet créé au projet En cours, et l'avenant (EP-15/US-0490, US-0510) », citant C-362 et C-363 |
+| K5 — les risques (#1062, #763, #786) | `createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`, `declareRiskOccurrence`, `getRisk`, `listRisks` | `RiskWrite.provision_task_id`, facultatif — nul, la première tâche de premier niveau —, changeable tant que le risque est identifié (`update_provision`), refusé par 422 `UNKNOWN_TASK` si la tâche n'est pas de la structure principale de la révision en cours ; `Risk` rend `provision_task` `{node_id, label}` (#786) ; exemples de succès : `risk_created` (201, avec sa structure propre et sa ligne de provision), `risk_updated` (200), `risk_reviewed` (201), `task_occurrence_queued` (202), et `risk_provision_task_refused` (422) | `mockhistory` engendre `risk_created` et `risk_reviewed` depuis le registre (`mockwitness.REGISTER`) comme les réexamens ; `risks`, `risk`, `risk_occurred_detail` nomment `provision_task` | « La déclaration d'un risque désigne la tâche de sa provision, et les saisies du risque ont leurs exemples (EP-15/US-0520) » |
+| K6 — le Kanban (#1070) | `listStartableTasks`, `setTaskProgress` | chaque tâche des trois colonnes est un `KanbanTask` — `Node` et `available_commands` sur une énumération `KanbanCommand` : `start`, `complete`, `reopen`, `enter_remaining`, chacune avec ses conditions manquantes (`task_without_lines`, `task_is_milestone`…) — ; `NotStartedTask` garde `predecessors_completed` ; `ProgressUpdate.progress` accepte `not_started`, pour un jalon terminé seulement, refusé par 409 `STATE_FORBIDS_OPERATION`, `missing_condition` `completed_milestone`, pour toute autre tâche ; sa description (« aucun geste ne la ramène à “non démarrée” ») est réécrite ; exemples `task_started`, `milestone_completed`, `task_reopened`, `milestone_reopened`, `task_reopen_not_started_refused` | `startable_tasks*` engendrés (`mocktoday`) disent les commandes ; les réponses des gestes par `mockwrites` | « Les gestes du Kanban (EP-15/US-0540) » |
+| K7 — les graphiques (#1051, #1053) | `getPortfolioWorkload`, `getProjectRiskMatrix`, `getPortfolioRisks` | `PortfolioWorkload` gagne `capacity_monthly_hours` à la racine (la somme des rôles retenus, filtrés ou non) et `monthly_totals` — un total d'heures par mois de `months`, dans le même ordre — ; `RiskMatrix` gagne `points`, un par risque retenu : `risk_id`, `label`, `probability`, `severity_amount`, `severity_ratio`, `provision_amount`, `state`, `zone`, et pour le portefeuille `project_id`, `project_label`, `can_open` ; `cells` reste | `mockportfoliotime` somme la capacité et les totaux ; `mockhistory` (`risk_matrix`) et `mockportfolio` (`portfolio_risks`) placent les points depuis le registre ; `portfolio_workload*`, `risk_matrix`, `portfolio_risks` régénérés | « Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550) », citant #375 |
+| K8 — les préférences et le référentiel (#1045, #1068, #1047, #1049) | `updateMyPreferences`, `getMe`, `listCalendars`, `setDurationUnits` | `GridPreferences.page_size`, entier parmi 10, 25, 50, 100, refusé hors de ces valeurs par 422 `VALUE_OUT_OF_RANGE` sur `/grids/<grille>/page_size` ; `DisplayPreferences.timelines`, une table par `timeline_id` (100 au plus) de `{lanes: {node_id: entier ≥ 0}}` (64 au plus), bornée comme `grids` ; les quatorze paramètres `monday_min` à `sunday_max` de `listCalendars` retirés avec `calendars_bounds_inverted` ; `setDurationUnits` : `duration_units_updated` (200), `duration_units_zero` (422, `fields` sur la constante), `duration_units_stale` (412) | fixtures écrites à la main : `preferences*` (dont `preferences_page_size_out_of_range`), `duration_units_*`, `calendars*` ; `test_mockbounds.py` tient les bornes | « Le nombre de lignes par page, la disposition d'une chronologie, les calendriers sans bornes d'heures, les unités de durée (EP-15/US-0530, US-0570) », citant C-351, C-352, C-360 |
+| K9 — les refus des gestes selon la phase | `createNode`, `deleteNode`, `moveNodes` | aucun refus nouveau : la phase est une commande de la structure (K2), et le serveur accepte les mêmes écritures depuis les trois grilles ; la description de `createNode` dit qu'une tâche créée depuis le devis ou le reste à engager est une feuille automatique d'un jour sans prédécesseur (WF-DEV-0050), et qu'une ligne ajoutée après la référence a un montant budgété nul (WF-RAE-0050) | — | dans l'entrée de K2 |
+
+Ce qui ne change pas au contrat : #1058 (l'encart lit `generate_skeleton` et `import_planning`),
+#1063 et #1064 (le Gantt, la largeur dans `column_widths`), #1069 (le lien et sa base), #1052
+(les cartes), #1043 (l'historique), #1050 (le menu), #1041, #1042, #1033, #1044, #1071 et #1075
+(l'aide : la seule lecture nouvelle est celle des infobulles des valeurs calculées, par
+`getComputedValueDependencies`, déjà servie).
+
+### Le front
+
+- **La sélection et les gestes de structure (US-0460)** : `DenseGrid` reçoit un modèle de sélection
+  de lignes contiguës — colonne de poignée en tête, `aria-selected`, Maj+clic et Maj+flèches —, un
+  glisser-déposer dont la cible est entre deux lignes ou sous une ligne, et des commandes de
+  structure dans `CellMenu` et `screenCommands`, aux raccourcis de `grid-keyboard.ts` (Alt+Maj et
+  les flèches). Les actions serveur `createNode`, `moveNodes`, `deleteNode` vont dans
+  `src/api/actions/nodes.ts`, et leurs réponses passent par `answers.ts` (`NodesWritten` : les
+  nœuds écrits, les ancêtres, `rescheduled`, `reinflated`, les totaux). La saisie des cellules de la
+  tâche (US-0470) étend `planning-cells.tsx` avec les éditeurs du mode (choix), de la durée avec son
+  suffixe (analyse dans `cell-values.ts`, deux langues) et des dates ; la colonne des prédécesseurs
+  a son analyseur « 3FD+2 j ; 5DD » et son éditeur, et `setPredecessors` son action. `byField`
+  (`planning-attachment.ts`) est généralisé dans `cell-writes.ts` pour que chaque refus nomme son
+  champ et son motif (#817.1, #819.2). Les sous-menus « Chronologies » et « Sous-projet » (US-0480)
+  sont deux instances d'un même sous-menu de `CellMenu` — cases à cocher ou boutons radio — qui
+  s'applique à la sélection, un appel par ligne.
+- **La structure lue (US-0500)** : `grid-screen.ts` lit la structure que l'adresse nomme
+  (`structure=<id>`, la principale par défaut) parmi `listCostStructures`, sa version et ses
+  commandes ; le bandeau (`context-banner.tsx`) la nomme et offre d'en changer ; une colonne
+  `DiffMark` en tête de la grille dense rend `difference` par un caractère et une classe de couleur
+  de ligne, avec ses variantes sombres ; l'écran de la comparaison (`revision-comparison.tsx`) passe
+  à la grille dense sur `RevisionComparison.nodes`.
+- **Les révisions et les avenants (US-0490, US-0510)** : les commandes de la révision vont à côté
+  de `mark-command.tsx` (`revision-commands.tsx`), chacune offerte comme la révision ou le projet la
+  liste, avec sa confirmation ; le compte rendu de la fusion est un dialogue qui réemploie la lecture
+  du compte rendu d'import (`ImportDifference`) et les marques de `DiffMark` ; la fusion confiée au
+  worker est remise à `TaskTracker`. L'encart « Démarrer le projet » (`projects/project-start.tsx`)
+  et la zone de dépôt (`exchanges/file-drop.tsx`) réemploient l'import de FBS-4.3.4.
+- **Les risques (US-0520)** : un formulaire `risk-form.tsx` (créer, modifier), le réexamen et la
+  suppression dans `risk-detail.tsx`, la survenance avec son compte rendu ; les règles de la
+  provision sont celles de L42p (catégorie, sous-projet, `update_provision`), plus la tâche
+  porteuse (#786).
+- **Le Gantt et la frise (US-0530)** : `DenseGrid` reçoit l'épinglage à droite d'une colonne
+  (`columnPinning.right`, `scrollPaddingInlineEnd`) et une poignée de séparation ; `gantt/timeline.ts`
+  reçoit le modèle d'échelle à cinq niveaux et l'axe à deux rangées ; `gantt/timeline-chart.tsx`
+  dessine la frise en SVG et écrit la disposition par `updateMyPreferences`.
+- **Le Kanban (US-0540)** : `kanban/` reçoit la sélection des cartes, le glisser entre colonnes, le
+  menu de la carte et l'action `setTaskProgress`.
+- **Les graphiques et les cartes (US-0550)** : `components/figures-card.tsx` (tiré
+  d'`IndicatorCard`), `workload-chart.tsx` empilé, `portfolio/workload-chart` avec la droite de
+  capacité, `risks/risk-bubble-chart.tsx` partagé par le projet et le portefeuille ; l'export PNG
+  passe par `components/chart/chart.tsx`.
+- **Le cadre (US-0560)** : `dense-grid.tsx` (plancher, largeur de la barre), `shell/navigation.tsx`
+  (les `leaves` en retrait), `tasks/task-tracker.tsx` étendu en panneau `Sheet` qui porte aussi
+  l'historique des messages (`notices/message-history.ts` : un magasin de session, alimenté par
+  `OutcomeNotice` et les avis de la grille, sans doubler l'annonce `role="alert"`).
+- **Le référentiel et la pagination (US-0570)** : `grid/list-pages.tsx` reçoit « Lignes par
+  page », `kept-address.ts` porte `limit` ; `reference/duration-units-form.tsx` et l'action
+  `setDurationUnits` ; `resource-lists.tsx` perd la barre des bornes ; `reference/costs/page.tsx`
+  empile.
+
+### L'aide en ligne et les infobulles (US-0580)
+
+- **Où vit le texte.** Les aides des écrans sont des fichiers Markdown, un par code de la FBS qui a
+  un écran — fonction, feuille (`leaves`) ou section (`sections`) — et par langue :
+  `frontend/help/fr/FBS-4.3.md`, `frontend/help/fr/FBS-4.3.1.md`… ; les notions de la méthode sous
+  `frontend/help/fr/notions/<notion>.md` (révisions, budget de référence et valeurs EVM, reste à
+  engager et devis actualisé, provision et réserve, avenant et différentiel, lotissement, chemin
+  critique), reprises du glossaire de l'annexe A. La version anglaise, quand elle est décidée, vit
+  sous `frontend/help/en/`. Écarté : les textes dans les catalogues `messages/*.json`, faits pour des
+  libellés et non pour des pages ; MDX, qui compile du code dans un texte que l'auteur relit.
+- **Comment il se relie aux écrans.** `functions.json` est la clé : le panneau d'aide
+  (`shell/help-panel.tsx`, un `Sheet` ouvert par le bouton « Aide » de `page-header.tsx` ou par F1)
+  lit le fichier du code de l'écran courant, côté serveur (`server-only`, lecture du répertoire au
+  rendu), et le rend par `react-markdown` sans HTML brut (`skipHtml`) — une dépendance nouvelle,
+  avec `remark-gfm` pour les tables, déclarée comme Vitest l'a été en EP-01. Les liens entre aides
+  sont des liens relatifs vers un code ou une notion, que le panneau résout sans quitter l'écran ;
+  la recherche porte sur les titres et les notions, côté client, sur un index des titres rendu avec
+  le panneau. Un test (`help.test.ts`) parcourt `functions.json` et exige un fichier français par
+  code ; il exigera l'anglais quand il sera décidé.
+- **Comment il se relie aux infobulles.** Une seule source pour ce qui se lit aux deux endroits :
+  les définitions des colonnes et l'aide d'une commande vivent dans les catalogues
+  (`columns.<grille>.<colonne>.help`, `commands.<commande>.help`, dans les deux langues, tenus par
+  `make catalogs`) ; l'en-tête d'une colonne les porte en infobulle (`CommandTooltip` sur
+  `header-cell.tsx`), et la section « Ses colonnes » du panneau les rend depuis les mêmes clés, pas
+  depuis le Markdown. Une valeur calculée dit de quoi elle dépend par
+  `getComputedValueDependencies`, déjà lue par `computed-cell.tsx`. L'infobulle du montant corrigé
+  de l'inflation nomme l'année de référence (`Revision.reference_year`) et le taux d'inflation du
+  projet (`Project.inflation_rate`), que l'écran lit déjà. Écarté : des textes de colonnes dans le
+  Markdown, qui auraient divergé des en-têtes.
+- **Qui écrit, qui relit.** Le premier jet français est rédigé par l'agent du lot, à partir de la
+  spécification, du code des écrans et des catalogues, dans la structure fixe de #1075 ; l'auteur le
+  relit sur la pull request du lot — la mécanique et cinq écrans clés d'abord, puis les familles
+  d'écrans —, et décide ensuite de la traduction. Le lot qui relit est celui qui livre le texte : sa
+  pull request ne se fusionne qu'après la relecture de l'auteur, dite dans l'issue.
+
+### Le croisement contrat-maquette
+
+Les quatre-vingt-trois opérations d'écriture du contrat, chacune avec l'écran et le geste qui
+l'appellent dans la maquette, ou l'US d'EP-15 qui l'ajoute. La table est la preuve de la définition
+de fini : à la livraison, chaque ligne « US-nnnn » est devenue un geste, et seule la ligne de
+l'écart reste.
+
+| Opération | Écran et geste | Depuis |
+|---|---|---|
+| `createUser`, `updateUser`, `setUserActivation`, `anonymizeUser`, `setUserAccessRoles`, `createPasswordSetupLink`, `startIdentitySync` | Comptes (FBS-1.1) : créer, modifier, désactiver, anonymiser, attribuer les rôles, lien de mot de passe, lire les comptes du fournisseur | EP-03 |
+| `createAccessRole`, `updateAccessRole`, `deleteAccessRole` | Rôles d'habilitation (FBS-1.2) : composer, modifier, supprimer | EP-03 |
+| `startBackup`, `retainBackup`, `setBackupSchedule`, `testExternalBackupLocation`, `startRestore`, `openChunkedUpload`, `uploadChunk`, `completeChunkedUpload` | Sauvegardes (FBS-1.4) : sauvegarder, conserver, planifier, éprouver l'emplacement, restaurer, déposer une sauvegarde | EP-14, EP-03 |
+| `closeMySessions`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar` | Compte personnel et préférences : se déconnecter, langue, thème, réglages de grille, avatar — `page_size` et `timelines` ajoutés par US-0570 et US-0530 | EP-02, EP-03 |
+| `updateReferenceSettings` | Paramètres des risques et des indicateurs (FBS-3.3, FBS-3.4) | EP-14 |
+| `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation`, `createResourceRole`, `updateResourceRole`, `setResourceRoleActivation`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`, `setCalendarActivation` | Paramètres de ressources (FBS-3.2) : créer, modifier, désactiver, calendrier par défaut | EP-02, EP-14 |
+| `setDurationUnits` | Paramètres de ressources : « Modifier les unités de durée » | **US-0570** |
+| `createCostType`, `updateCostType`, `setCostTypeActivation`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`, `setHourlyRate` | Paramètres de coûts (FBS-3.1) : natures, catégories, taux | EP-02, EP-14 |
+| `createProject`, `updateProject`, `exitProject`, `setWorkBreakdown`, `createSubproject`, `updateSubproject`, `deleteSubproject`, `setContributors`, `createTimeline`, `deleteTimeline` | Projet (FBS-4.2, FBS-4.9, FBS-4.3.1) : créer, paramétrer, sortir du cycle, lotissement, sous-projets, contributeurs, chronologies | EP-14 |
+| `uploadFile`, `openImport`, `abandonImport`, `applyImport`, `requestExport` | Imports et exports (FBS-4.3.4, FBS-4.4.3, FBS-4.5.1, FBS-4.7) ; l'encart de démarrage y mène aussi (US-0490) | EP-02 |
+| `setActualCostTrackedScope` | Coûts réels (FBS-4.7) : exclure, réintégrer | EP-02 |
+| `markRevision` | Révisions (FBS-4.1) : « Marquer » | EP-02 |
+| `createRevision` | Révisions : « Ouvrir une révision en cours » | **US-0490** |
+| `abandonRevision` | Révisions : « Abandonner la révision en cours » | **US-0490** |
+| `designateReferenceRevision` | Révisions : « Désigner comme référence » | **US-0490** |
+| `applyRateUpdate` | Révisions : « Appliquer la mise à jour des taux » | **US-0490** |
+| `createCostStructure` | Révisions : « Préparer un avenant » | **US-0510** |
+| `mergeCostStructure` | Révisions, grille d'un différentiel : « Contractualiser l'avenant » | **US-0510** |
+| `createNode` | Planning, devis, reste à engager : « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une ligne » | **US-0460** |
+| `moveNodes` | Les trois grilles : indenter, désindenter, monter, descendre, glisser la sélection | **US-0460** |
+| `deleteNode` | Les trois grilles : « Supprimer » | **US-0460** |
+| `updateTaskFacet` | Planning : rattachement (EP-14) ; libellé, description, mode, durée, dates | EP-14, **US-0470** |
+| `setPredecessors` | Planning : la colonne des prédécesseurs | **US-0470** |
+| `setNodeTracking` | Planning : sous-menu « Chronologies » | **US-0480** |
+| `updateEstimateLine` | Devis : les cellules de la ligne (EP-02) ; sous-menu « Sous-projet » au devis et au reste à engager | EP-02, **US-0480** |
+| `setLineRemaining` | Reste à engager : les grandeurs réestimées | EP-02 |
+| `setTaskProgress` | Kanban (FBS-4.5.3) : démarrer, terminer, rouvrir | **US-0540** |
+| `previewPaste`, `applyPaste` | Les trois grilles : coller depuis un tableur | EP-02 |
+| `generatePlanningSkeleton` | Planning vide (EP-14) ; encart de démarrage et lotissement : « Engendrer le planning » | EP-14, **US-0490** |
+| `createRisk` | Risques (FBS-4.6) : « Identifier un risque » | **US-0520** |
+| `updateRisk` | Détail d'un risque : « Modifier » | **US-0520** |
+| `reviewRisk` | Détail d'un risque : « Réexaminer » | **US-0520** |
+| `deleteRisk` | Détail d'un risque : « Supprimer le risque » | **US-0520** |
+| `declareRiskOccurrence` | Détail d'un risque : « Déclarer survenu » | **US-0520** |
+| `undoLastChange`, `redoLastUndo` | **Écart** : les commandes Annuler et Rétablir sont posées par EP-02 (US-0140) et visibles dans les trois grilles, mais ne sont pas branchées ; EP-06 les branche sur le service, qui seul rend l'état d'avant (#1056, point 4 ; #1057 ; décision de l'auteur du 2026-10-18) | EP-06 |
+
+### Ordre de construction
+
+1. Le cadrage : ce fichier, EP-16, le README, le ménage des EPIC voisins, les issues.
+2. **US-0450**, le lotissement, part contrat K1 puis front, en premier : tout ce qui nomme un lot ou
+   un poste en dépend.
+3. Les parties de contrat **K2** et **K3** (la structure lue, la phase, le diff, les saisies), puis
+   **US-0460** (trois lots), **US-0470** (deux lots), **US-0480**, **US-0500** (trois lots) — les
+   gestes de structure et la structure lue, que les avenants et les risques réemploient.
+4. **K4** puis **US-0490** et **US-0510** ; **K5** puis **US-0520** : le cycle des révisions, les
+   avenants, les risques, dans cet ordre (#1074, #1061, #1062 reposent sur #1060 et #1056).
+5. En parallèle du point 3, sans dépendance avec lui : **K8** puis **US-0570** ; **K7** puis
+   **US-0550** ; **K6** puis **US-0540** ; **US-0560** ; **US-0530** (l'épinglage et le zoom
+   d'abord, la frise après US-0480 pour les inscriptions).
+6. **US-0580**, l'aide et les infobulles, en dernier : elle décrit les écrans tels que les US
+   précédentes les laissent.
+7. La clôture : le croisement sans manque, la définition de fini constatée par l'auteur écran par
+   écran, les issues soldées.
 ---
 
 ## US-0450 — Le lotissement en lots, postes et livrables
@@ -253,8 +531,9 @@ motif `order_item_without_task` suivent le lot, et le code `WORK_PACKAGE_OUTSIDE
 règle à l'endroit — la conception arrête les noms. Cette US passe la première : les autres lots de
 structure en dépendent (#1054, « Ordre »).
 
-**Hors périmètre.** Toute règle nouvelle du lotissement ; la lecture qui dirait si une tâche porte
-un poste ou un lot (#802, EP-16), sauf décision contraire de l'auteur au cadrage.
+**Hors périmètre.** Toute règle nouvelle du lotissement. La lecture qui dit si un lot ou un poste
+est porté par une tâche (#802) entre dans la part contrat de cette US si l'auteur le décide au
+cadrage (« Conception », « Ce que le cadrage décide »).
 
 ## US-0460 — Construire la structure depuis les trois grilles
 
@@ -386,8 +665,8 @@ la grille ni la souris.
   exportés — EP-06.
 - `WF-PLA-0030-A` — « La création d’une liaison fermant un cycle, ou reliant une récapitulative à
   l’une de ses subordonnées, est refusée, et la raison en est nommée à l’utilisateur. » : le refus
-  est dit à la cellule, sur l'exemple du faux back, pourvu que le contrat le décrive (#788 ;
-  question ouverte du cadrage) ; EP-06 le juge.
+  est dit à la cellule, sur l'exemple du faux back, que la part « saisies » de #788, ramenée en
+  EP-15, ajoute au contrat ; EP-06 le juge.
 - écart : `WF-PLA-0030-A` — « Un décalage saisi en semaines ou en mois est conservé dans son
   unité, importé et exporté sans conversion. » : EP-06.
 - écart : `WF-PLA-0030-A` — « Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours
@@ -641,7 +920,7 @@ fenêtré comme `listNodes` — la conception arrête la forme et l'entrée de `
 spécification corrigée (C-361) dit le contexte qui nomme la structure et la comparaison qui porte
 les lignes et le parent. L'US se découpe en trois lots : le choix de la structure ; la marque du
 diff ; la comparaison. Le témoin doit porter un différentiel dans sa révision courante pour que la
-marque se voie sans variante (#791 ; question ouverte du cadrage).
+marque se voie sans variante (#791, ramené en EP-15).
 
 ## US-0510 — Préparer un avenant et le contractualiser
 
@@ -726,9 +1005,9 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
   formulaire (`risk_without_task`) ; le retour d'un risque écarté suit la même règle (C-354).
 - écart : `WF-RIS-0010-A` — « Un risque déclaré sans désignation de tâche porte sa provision sur la
   première tâche de premier niveau ; la ligne peut être déplacée sur une autre tâche de la structure
-  principale, et le total du devis est inchangé. » : la désignation de la tâche à la déclaration
-  manque au contrat (#786 ; question ouverte du cadrage) ; le déplacement de la ligne est du
-  service — EP-08.
+  principale, et le total du devis est inchangé. » : la tâche porteuse se désigne au formulaire,
+  facultative (#786, ramené en EP-15) ; le déplacement de la ligne et le total sont du service —
+  EP-08.
 - écart : `WF-RIS-0010-A` — « La gravité et le montant de la provision ne sont pas saisissables, et
   suivent toute modification de la structure propre ou de la probabilité. » : non saisissables,
   constaté par EP-02 (US-0230) ; le calcul est du service — EP-08.
@@ -1025,8 +1304,8 @@ derrière moi, et de ne plus chercher le plan de charge.
 **Notes de réalisation.** Décisions de l'auteur du 2026-10-18 (#1041, #1042 et son commentaire,
 #1043, #1050 et son commentaire). L'historique n'est pas le journal d'audit (WF-SEC-0030) : aide à
 l'utilisateur, éphémère, pour lui seul. Si les filtres de la liste (`ListBody`) suivent la largeur de
-la table se décide au lot (#1042). La question de #1043 — une exigence WF-IHM pour l'historique, ou
-une décision de conception — est posée au cadrage ; la reprise de la spécification n'en a pas écrit.
+la table se décide au lot (#1042). L'historique des messages est une décision de conception, sans
+exigence WF-IHM nouvelle (décision de l'auteur au cadrage, 2026-10-18, réponse 9).
 
 ## US-0570 — Le référentiel et les grilles paginées
 
