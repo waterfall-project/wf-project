@@ -5,7 +5,7 @@
 import json
 import os
 from collections.abc import Iterator
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 import pytest
@@ -262,11 +262,18 @@ def session(database: Database) -> Iterator[Session]:
 
 
 TEST_REDIS_VARIABLE = "WATERFALL_TEST_REDIS_URL"
+# The databases a Redis has by default (`databases` in its configuration).
+REDIS_DATABASES = 16
 
 
 @pytest.fixture(scope="session")
-def redis_url() -> str:
-    """Give the Redis of the tests, which they alone use; without it, a test that needs it fails."""
+def redis_url(worker_id: str) -> str:
+    """Give the Redis of the tests, which they alone use; without it, a test that needs it fails.
+
+    The tests run on several processes (pytest-xdist), each a session of its own: each takes the
+    database of Redis that follows the one given by its rank, so that the queue every installation
+    uses (``platform_queue``) is never emptied by one under another's feet.
+    """
     address = os.environ.get(TEST_REDIS_VARIABLE)
     if not address:
         pytest.fail(
@@ -274,7 +281,17 @@ def redis_url() -> str:
             "(the guide, 'Tests', says how)",
             pytrace=False,
         )
-    return address
+    if worker_id == "master":
+        return address
+    parts = urlsplit(address)
+    index = int(parts.path.strip("/") or 0) + int(worker_id.removeprefix("gw"))
+    if index >= REDIS_DATABASES:
+        pytest.fail(
+            f"worker {worker_id} would take database {index} of Redis, which has "
+            f"{REDIS_DATABASES}: run fewer workers (-n)",
+            pytrace=False,
+        )
+    return urlunsplit(parts._replace(path=f"/{index}"))
 
 
 @pytest.fixture

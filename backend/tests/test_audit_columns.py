@@ -30,6 +30,9 @@ ROLES = "/api/v1/access-roles"
 SUBJECT = "5e8a1c3f-2b7d-4f90-8a61-3c2e9d7b4f15"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
 TABLES = [USERS, ROLES]
+# An identifier no row holds, fixed: the identifiers of the tests are the same in each process
+# that collects them (pytest-xdist).
+UNKNOWN = UUID("7d1e5b0a-3c94-4f2e-9a68-5b20c4e1f9d3")
 # The rows in the order of their creation, and of their last change.
 BY_CREATION = ["Bernard", "Petit", "Roux", "Martin"]
 BY_CHANGE = ["Petit", "Bernard", "Roux", "Martin"]
@@ -177,7 +180,7 @@ def read_page(api: ContractClient, headers: dict[str, str], query: str) -> list[
         ("?updated_by_kind=platform", ["Martin", "Roux"]),
         (f"?created_by_user_id={CALLER}", ["Roux"]),
         (f"?created_by_user_id={CALLER}&created_by_kind=platform", []),
-        (f"?updated_by_user_id={uuid4()}", []),
+        (f"?updated_by_user_id={UNKNOWN}", []),
         # A period, its start included, its end excluded.
         (f"?created_at_from={stamp(instant(2))}&created_at_to={stamp(instant(3))}", ["Petit"]),
         (f"?created_at_from={stamp(instant(3))}", ["Martin", "Roux"]),

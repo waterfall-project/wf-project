@@ -2045,12 +2045,17 @@ Le back suit le même modèle (#492, levier 5) :
   Compose, par `WATERFALL_TEST_DATABASE_URL` ; l'empreinte est écrite dans `back.yml` et dans
   `compose.service.yaml`, et `tests/test_platform_images.py` échoue si elles divergent ;
 - la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples
-  (`full-else` du Makefile).
+  (`full-else` du Makefile) ;
+- les tests se répartissent sur les cœurs du runner, huit processus au plus (`PYTEST_WORKERS`
+  du Makefile, pytest-xdist) : 7 minutes en série sur la chaîne en octobre 2026, moins de deux
+  sur quatre cœurs. Chaque processus crée sa propre base, son rôle et son bucket, de nom unique,
+  et prend la base de Redis qui suit celle de `WATERFALL_TEST_REDIS_URL` selon son rang
+  (`tests/conftest.py`). Les processus doivent collecter les mêmes tests : un paramètre de test
+  n'est jamais tiré au hasard (un `uuid4()` dans `parametrize`), il est fixé. Les tests de
+  Keycloak restent sur un processus : l'un d'eux redémarre Keycloak.
 
 Reste à écrire, quand la durée l'exige :
 
-- les tests se répartissent sur les cœurs du runner (`pytest -n auto`, pytest-xdist) : chaque
-  processus crée déjà sa propre base, de nom unique (`database_url`, `tests/conftest.py`) ;
 - les parcours contre le vrai service (`service.yml`), qu'un seul runner joue tant qu'ils sont
   courts, se répartissent comme ceux d'`e2e.yml`, la plateforme démarrée dans chaque morceau.
 
@@ -2336,7 +2341,10 @@ y pointe le magasin des sessions pour la durée d'un fichier de test ; chaque cl
 hasard : les fichiers qui tournent ensemble ne se rencontrent pas, et les clés expirent
 d'elles-mêmes. Côté back, la fixture `queue` (`backend/tests/conftest.py`) ouvre la file sur un flux
 à elle, supprimé après le test, et `platform_queue` sur celui de toute installation, que les
-commandes de la plateforme emploient, vidé avant et après. Aucun test ne vide le serveur.
+commandes de la plateforme emploient, vidé avant et après. Les tests du back tournant sur
+plusieurs processus, chacun prend la base qui suit celle de la variable selon son rang (`gw0` la
+sienne, `gw7` la septième après) : le flux de toute installation n'est jamais vidé sous les pieds
+d'un autre. Aucun test ne vide le serveur.
 
 - **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
   variable.

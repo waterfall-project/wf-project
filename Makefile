@@ -295,11 +295,16 @@ typecheck-back: ## Strict type check of the back
 imports-back: ## The boundaries of the core (WF-ARC-0010)
 	@cd $(BACK) && uv run --frozen lint-imports --no-cache
 
+# The tests of the back wait on PostgreSQL, Redis and the storage more than they compute: they run on
+# one process per core (pytest-xdist), eight at most — each takes a database of Redis of its own,
+# which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
+PYTEST_WORKERS := -n auto --maxprocesses 8
+
 test-back: ## Tests of the back
-	@cd $(BACK) && uv run --frozen pytest
+	@cd $(BACK) && uv run --frozen pytest $(PYTEST_WORKERS)
 
 coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
-	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
+	@cd $(BACK) && uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
 # The front in two halves, which the chain runs side by side (front.yml, e2e.yml); on a

@@ -39,6 +39,9 @@ from waterfall.platform.database import Database
 
 PERMISSIONS = "/api/v1/permissions"
 ROLES = "/api/v1/access-roles"
+# An identifier no row holds, fixed: the identifiers of the tests are the same in each process
+# that collects them (pytest-xdist).
+UNKNOWN = UUID("7d1e5b0a-3c94-4f2e-9a68-5b20c4e1f9d3")
 SUBJECT = "7d3e2b10-5c4a-4e8f-9b21-6a0f3c8d1e42"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
 # The role of the caller, and the permissions it gives unless a test says otherwise.
@@ -224,7 +227,7 @@ def test_a_predefined_role_written_by_the_platform_says_so(
     assert body["audit"]["updated_by"] == {"kind": "platform"}
 
 
-@pytest.mark.parametrize("path", [f"{ROLES}/{uuid4()}", f"{ROLES}/not-a-role"])
+@pytest.mark.parametrize("path", [f"{ROLES}/{UNKNOWN}", f"{ROLES}/not-a-role"])
 def test_an_unknown_role_is_not_found(
     api: ContractClient, headers: dict[str, str], path: str
 ) -> None:
@@ -516,7 +519,7 @@ def test_a_filter_that_is_malformed_or_inverted_is_refused(
     )
 
 
-@pytest.mark.parametrize("path", [PERMISSIONS, ROLES, f"{ROLES}/{uuid4()}"])
+@pytest.mark.parametrize("path", [PERMISSIONS, ROLES, f"{ROLES}/{UNKNOWN}"])
 def test_the_roles_and_the_catalogue_are_read_by_a_known_caller_only(
     api: ContractClient, path: str
 ) -> None:
@@ -854,7 +857,7 @@ def test_the_administration_is_withdrawn_once_a_second_active_account_holds_it(
 
 @pytest.mark.parametrize(
     ("method", "path"),
-    [("POST", ROLES), ("PATCH", f"{ROLES}/{uuid4()}"), ("DELETE", f"{ROLES}/{uuid4()}")],
+    [("POST", ROLES), ("PATCH", f"{ROLES}/{UNKNOWN}"), ("DELETE", f"{ROLES}/{UNKNOWN}")],
 )
 def test_the_roles_are_written_by_a_known_caller_only(
     api: ContractClient, method: str, path: str
