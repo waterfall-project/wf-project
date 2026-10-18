@@ -293,7 +293,7 @@ services:
   # Creates the buckets of the platform when missing, by the CreateBucket of S3 signed with its key,
   # then stops: the backups, and the imports to come (EP-06).
   storage-buckets:
-    image: curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6
+    image: curlimages/curl:8.23.0@sha256:a134550be58ab783810e613ae96fd253c38f7bdd16d9bf9be350700c7a29ac06
     entrypoint: ["/bin/sh", "/storage-buckets.sh"]
     environment:
       STORAGE_ADDRESS: http://storage:3900
@@ -442,7 +442,7 @@ services:
 
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
-    image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
+    image: axllent/mailpit:v1.31.6@sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387
     user: "1000:1000"
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"
@@ -455,7 +455,7 @@ services:
   # pins, in the node image of the development platform; started by `make e2e-service` alone.
   contract-proxy:
     profiles: [e2e]
-    image: node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+    image: node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
     command:
       - npx
       - --yes

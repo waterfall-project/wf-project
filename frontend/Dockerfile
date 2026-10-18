@@ -24,7 +24,7 @@
 #   set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the
 #   build, and without which the server does not start (#825).
 # The base image is pinned by digest: a tag can be moved, a digest cannot.
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS node
+FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS node
 
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
