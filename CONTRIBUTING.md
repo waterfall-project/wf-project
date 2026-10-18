@@ -11,6 +11,9 @@ for renegotiation file by file. Taking part means holding to the
 
 ## Getting set up
 
+[`INSTALL.md`](INSTALL.md) (in French) walks a new workstation through it, from the clone to the
+service platform. In short:
+
 ```bash
 make check-tools                  # tells you what is missing
 corepack enable pnpm              # once: pnpm at the version the front pins
