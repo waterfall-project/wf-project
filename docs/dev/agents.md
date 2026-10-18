@@ -13,6 +13,7 @@ foi.
 | `epic-framer` | cadre un EPIC jusqu'à ses issues : US détaillées, conception, plan de lots |
 | `epic-deliverer` | livre les lots d'un EPIC `en cours`, à partir de leurs issues |
 | `python-developer`, `typescript-developer` | réalisent un lot, chacun dans son langage ; l'extension Java de Keycloak revient à `python-developer` |
+| `python-developer-opus`, `typescript-developer-opus` | les mêmes, en Opus : `epic-deliverer` les lance d'emblée sur un lot que son issue ou sa conception dit complexe, ou en escalade, une fois par lot ; leur fichier renvoie à celui de l'original, qui seul porte les règles |
 | `python-reviewer`, `typescript-reviewer` | relisent la pull request d'un lot, sans rien modifier |
 
 `epic-framer` et `epic-deliverer` se lancent comme agent principal de la session
@@ -94,3 +95,7 @@ Tout agent qui termine un travail rend compte ainsi :
 - **Vérifications** — les commandes exécutées et leur résultat réel, jamais une vérification
   non faite présentée comme faite ;
 - **Reste** — ce qui n'est pas couvert, supposé ou reporté, et les issues ouvertes.
+
+Le compte rendu tient en une quarantaine de lignes : des chemins, des chiffres, des numéros
+d'issues, jamais un diff ni un journal collé. Il revient dans le contexte de l'agent de
+livraison, qui le garde toute la nuit.

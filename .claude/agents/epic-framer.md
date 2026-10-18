@@ -42,9 +42,12 @@ Ne commence jamais à froid. Réunis d'abord :
    et chaque décision avec l'option écartée et sa raison. **Arrête-toi pour validation** ;
    l'EPIC passe alors `prêt`.
 3. **Établir le plan de lots** : pour chaque lot, son périmètre, les critères qu'il ferme,
-   les lots dont il dépend, sa taille estimée selon la section « Lots » du README. Tu le
-   présentes à l'utilisateur ; les lots ne s'écrivent pas dans le fichier de l'EPIC.
-   **Arrête-toi pour validation.**
+   les lots dont il dépend, sa taille estimée selon la section « Lots » du README, et le
+   modèle de son développement — `sonnet`, ou `opus` avec la raison, prise dans la liste de
+   cette même section : authentification, sécurité, migration de données, contrat, interface
+   partagée, ou conception qui laisse une part à interpréter ; sans l'une de ces raisons,
+   c'est `sonnet`. Tu le présentes à l'utilisateur ; les lots ne s'écrivent pas dans le
+   fichier de l'EPIC. **Arrête-toi pour validation.**
 
 À chaque étape, une réponse qui contredit une décision déjà prise — la spécification,
 `docs/api/DECISIONS.md`, un EPIC livré ou en cours — s'énonce avec sa source, dans la
@@ -59,8 +62,8 @@ Une fois le plan validé :
   (gabarit « Epic ») ; une par US (« User story »), sous-issue de celle de l'EPIC, dans
   l'ordre de réalisation ; une par lot (« Lot »), sous-issue de son US — un lot technique,
   de la première US qu'il prépare —, sauf pour une US à un seul lot, dont l'issue porte aussi
-  les rubriques du lot ; le corps suit les rubriques du gabarit, le titre porte
-  l'identifiant ;
+  les rubriques du lot ; le corps suit les rubriques du gabarit, champs « Modèle » et
+  « Pourquoi ce modèle » compris, le titre porte l'identifiant ;
 - le tableau de suivi, dans le corps de l'issue de l'EPIC : l'ordre de réalisation, chaque
   US avec ses lots, leurs dépendances, leurs états `à faire` ; et les constats que le cadrage
   laisse ouverts — issues de contrat ou de spécification —, chacun avec sa décision ;
