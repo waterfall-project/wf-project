@@ -69,6 +69,12 @@ export interface GridToolbarProps {
    * grid alone.
    */
   readonly grid?: string | undefined;
+  /**
+   * The width of the bar, as a CSS length: that of the frame of the table under it, the search at
+   * its start and the menu of the columns at its end, never wider than what holds it; none, the
+   * whole width.
+   */
+  readonly width?: string | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
 }
@@ -180,11 +186,15 @@ export function GridToolbar({
   undoable,
   outline,
   grid,
+  width,
   commands,
 }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      className="flex max-w-full flex-wrap items-center gap-2"
+      style={width === undefined ? undefined : { width }}
+    >
       {commands}
       {onSearch === undefined ? null : (
         <SearchField search={search} onSearch={onSearch} grid={grid} />

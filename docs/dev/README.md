@@ -737,9 +737,17 @@ sur le fond `muted` de la charte : `TableHead` le pose à l'en-tête d'une colon
 non à celui d'une ligne, et un `<thead>` écrit à la main le prend de même (#508), ce que
 `frontend/src/components/thead-guard.test.ts` vérifie dans les sources. La grille prend la hauteur que lui laisse son écran : un
 écran de grille est un `Screen` qui remplit la fenêtre (`fill`), la page bornée à sa hauteur
-(`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher —
+(`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher, dix rem au plus et jamais
+plus que son contenu (`min(10rem, 2 × EDGE_REM + max(lignes, 1) × ROW_REM)`, `grid-floor.ts`, #1041) —
 aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
-plancher fait défiler la page. Colonnes masquées, largeurs et tri sont une préférence
+plancher fait défiler la page. L'enveloppe de la grille et de sa barre porte ce plancher, plus la
+barre, en hauteur minimale : les enveloppes de l'écran, qui rétrécissent à ce qui reste (`min-h-0`),
+ne poussent pas le cadre sous son plancher sur ce qui le suit dans la même enveloppe — les filtres
+au-dessus, les pages en dessous. Un écran qui a du contenu sous l'enveloppe de sa grille, hors de
+la chaîne des enveloppes qui la contient, ne remplit pas la fenêtre (`/admin/backups`, le référentiel
+des ressources), faute de quoi la grille déborderait sur lui (#1033). La barre et le bouton « Colonnes »
+ont la largeur du cadre de la table, sans la dépasser ; les avis — refus, collage appliqué, colonnes
+non montrées, problème de saisie — gardent toute la largeur (#1042). Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
 et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
