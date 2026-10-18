@@ -110,12 +110,15 @@ test(
     // The backup of the list restored once its identifier is typed, the confirmation naming its
     // date — not the deposit, whose dumps Prism altered —: first the restoration waiting, no one
     // signed out yet.
+    // The date as the list writes it, read before the dialog opens: modal, it hides the page
+    // behind it, the grid with it.
+    const takenText = await taken.innerText();
     const confirmed = Date.now();
     await newest
       .getByRole("button", { name: /^Restaurer la plateforme depuis la sauvegarde du / })
       .click();
     const dialog = page.getByRole("dialog", { name: "Restaurer la plateforme" });
-    await expect(dialog).toContainText(`sauvegarde du ${await taken.innerText()}`);
+    await expect(dialog).toContainText(`sauvegarde du ${takenText}`);
     const identifier = await dialog.locator("code").innerText();
     await dialog
       .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
