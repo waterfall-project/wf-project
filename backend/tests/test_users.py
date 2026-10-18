@@ -21,6 +21,9 @@ from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database
 
 USERS = "/api/v1/users"
+# An identifier no row holds, fixed: the identifiers of the tests are the same in each process
+# that collects them (pytest-xdist).
+UNKNOWN = UUID("7d1e5b0a-3c94-4f2e-9a68-5b20c4e1f9d3")
 SUBJECT = "4b7c1d2e-8f3a-4c6b-9e1d-2a5f7c9b0e13"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
 CONSULT = "users.read"
@@ -312,7 +315,7 @@ def test_the_table_is_read_by_pages_of_fifty_and_says_the_total(
         ("?is_active=false", ["Moreau Alix"]),
         ("?is_active=true&include_inactive=true", [n for n in EVERY_ONE if n != "Moreau Alix"]),
         # No account is attached to a node before EP-05.
-        (f"?org_node_id={uuid4()}", []),
+        (f"?org_node_id={UNKNOWN}", []),
         # The filters combine, and combine with the sort; the deactivated join on demand.
         ("?search=martin&sort_by=first_name&sort_order=desc", ["Martin Camille", "Martin Bastien"]),
         ("?search=al", []),
@@ -391,7 +394,7 @@ def test_a_parameter_the_table_refuses_is_a_value_refused(
     )
 
 
-@pytest.mark.parametrize("path", [USERS, f"{USERS}/{uuid4()}"])
+@pytest.mark.parametrize("path", [USERS, f"{USERS}/{UNKNOWN}"])
 def test_the_accounts_are_read_by_a_known_caller_only(api: ContractClient, path: str) -> None:
     assert problem(api.get(path))[:2] == (401, "SESSION_REQUIRED")
 
