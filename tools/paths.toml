@@ -15,11 +15,21 @@
 
 shared = [
     "Makefile",
-    ".github/workflows/**",
-    # The whole tools project: this file, the code that interprets it, and the code that
-    # implements the checks. A change there must run every family, or a pull request could
-    # weaken a check without waking the family that relies on it.
-    "tools/**",
+    # The chain itself: the job that selects the families, and the gate that judges them.
+    ".github/workflows/ci.yml",
+    # The tools project as a whole, this file, and the code that interprets it and judges the
+    # chain. The code of a check wakes its family alone: each family names, among its paths, its
+    # workflow, the local actions it takes and the modules of wftools its checks run, which
+    # tools/tests/test_families.py holds against the Makefile, the workflows and the harness of
+    # Playwright, so that no pull request can weaken a check without waking the family that relies
+    # on it. The repo family, which runs on any change, tests every tool.
+    "tools/paths.toml",
+    "tools/pyproject.toml",
+    "tools/uv.lock",
+    "tools/src/wftools/__init__.py",
+    "tools/src/wftools/paths.py",
+    "tools/src/wftools/changes.py",
+    "tools/src/wftools/gate.py",
 ]
 
 [families.repo]
@@ -27,7 +37,7 @@ always = true
 target = "check-repo"
 
 [families.spec]
-paths = ["docs/spec/**"]
+paths = ["docs/spec/**", ".github/workflows/spec.yml"]
 target = "check-spec"
 
 [families.contract]
@@ -41,6 +51,11 @@ paths = [
     "backend/src/waterfall/api/contract/**",
     "backend/pyproject.toml",
     "backend/uv.lock",
+    ".github/workflows/contract.yml",
+    # The volumes and the readings of the witness (make mock-data), and the projection the
+    # inventory reads.
+    "tools/src/wftools/mock*.py",
+    "tools/src/wftools/projection.py",
 ]
 target = "check-contract"
 
@@ -58,6 +73,9 @@ paths = [
     "docs/spec/waterfall-spec.md",
     "fixtures/**",
     "deploy/compose/compose.service.yaml",
+    ".github/workflows/back.yml",
+    # The thresholds of the coverage.
+    "tools/src/wftools/codecoverage.py",
 ]
 target = "check-back"
 
@@ -68,6 +86,8 @@ paths = [
     "docs/roadmap/**",
     "docs/spec/waterfall-spec.md",
     "tools/src/wftools/roadmap.py",
+    "tools/src/wftools/projection.py",
+    ".github/workflows/roadmap.yml",
     ".claude/agents/**",
     "docs/dev/agents.md",
 ]
@@ -100,6 +120,9 @@ paths = [
     "backend/coverage-keycloak.toml",
     "backend/uv.lock",
     "docs/api/**",
+    ".github/workflows/keycloak.yml",
+    ".github/actions/**",
+    "tools/src/wftools/codecoverage.py",
 ]
 target = "check-keycloak"
 
@@ -116,6 +139,10 @@ paths = [
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
     "deploy/keycloak/**",
+    ".github/workflows/service.yml",
+    ".github/actions/**",
+    # The variant of the contract Prism serves as a proxy (make mock-spec).
+    "tools/src/wftools/mock*.py",
 ]
 target = "check-service"
 
@@ -137,6 +164,12 @@ paths = [
     "deploy/compose/backup-database-role.sql",
     "deploy/compose/waterfall-database.sql",
     "tools/src/wftools/production.py",
+    "tools/src/wftools/restoration_trial.py",
+    "tools/src/wftools/images.py",
+    ".github/workflows/production.yml",
+    # The same images published, and the same trial on them, after a merge.
+    ".github/workflows/images.yml",
+    ".github/actions/**",
 ]
 target = "check-production"
 
@@ -144,7 +177,21 @@ target = "check-production"
 # The client of the front is generated from the contract: a contract change checks it. The
 # examples of the contract are what the fake back serves to the end-to-end paths, and what
 # the unit tests of the front read.
-paths = ["frontend/**", "docs/api/**", "fixtures/api/**"]
+paths = [
+    "frontend/**",
+    "docs/api/**",
+    "fixtures/api/**",
+    ".github/workflows/front.yml",
+    ".github/workflows/e2e.yml",
+    # The catalogues, the routes of the examples, the coverage, what the build prerendered, and
+    # the fake back the paths are played against (make mock, which Playwright starts).
+    "tools/src/wftools/catalogs.py",
+    "tools/src/wftools/exampleroutes.py",
+    "tools/src/wftools/codecoverage.py",
+    "tools/src/wftools/frontimage.py",
+    "tools/src/wftools/images.py",
+    "tools/src/wftools/mock*.py",
+]
 target = "check-front"
 
 [families.front-image]
@@ -167,6 +214,10 @@ paths = [
     "frontend/package.json",
     "frontend/pnpm-lock.yaml",
     "frontend/pnpm-workspace.yaml",
+    ".github/workflows/front-image.yml",
+    ".github/actions/**",
+    "tools/src/wftools/frontimage.py",
+    "tools/src/wftools/images.py",
 ]
 target = "check-front-image"
 

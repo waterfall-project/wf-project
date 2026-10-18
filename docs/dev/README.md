@@ -2077,7 +2077,13 @@ Keycloak et l'application de son royaume.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
-Makefile, les workflows, la déclaration elle-même — réveille toutes les familles.
+Makefile, `ci.yml`, la déclaration elle-même et le code qui la lit — réveille toutes les
+familles. Le reste des outils réveille les familles qui s'en servent : chacune nomme parmi ses
+chemins son workflow, les actions locales qu'il prend et les modules de `wftools` que ses
+contrôles lancent. `tools/tests/test_families.py` les tient contre le Makefile, les workflows
+et le harnais de Playwright, imports compris : un module lancé par une famille sans la
+réveiller fait échouer `make check-repo`. La famille `repo`, qui tourne à chaque modification,
+teste tous les outils.
 
 Deux paliers : le rapide à chaque poussée sur une pull request (`pull_request`), le complet
 dans la file de fusion (`merge_group`), sur le résultat de la fusion, avant qu'elle soit
