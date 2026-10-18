@@ -1209,7 +1209,7 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
   comptes du fournisseur (US-0370).
 - écart : `WF-DAT-0080-A` — « La suppression d’un sous-projet non référencé le retire de la base. » : le sous-projet arrive en EP-04.
 - écart : `WF-DAT-0080-A` — « Celle d’un sous-projet référencé par une révision marquée est refusée, et le sous-projet reste proposé à la saisie. » : EP-04.
-- écart : `WF-DAT-0080-A` — « Celle d’un lot référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : le lotissement arrive en EP-04.
+- écart : `WF-DAT-0080-A` — « Celle d’un poste référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : le lotissement arrive en EP-04.
 - écart : `WF-DAT-0080-A` — « Celle d’un sous-projet que portent des lignes de devis de la révision en cours est refusée et nomme ces lignes ; elle aboutit une fois ces lignes passées hors sous-projet ou à un autre sous-projet. » : EP-04.
 - `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource, un rôle d’habilitation ou un compte. » : pour le compte et le rôle
   d'habilitation ; le rôle de ressource arrive en EP-05, qui le constate pour lui.
@@ -1217,7 +1217,7 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
   l'exigence.
 - écart : `WF-DAT-0090-A` — « L’insertion de deux sous-projets de même code dans un projet est rejetée par la base, avant toute règle des services. » : EP-04.
 - écart : `WF-DAT-0090-A` — « La suppression d’une tâche de la révision en cours entraîne ses lignes et ses liaisons, et rien d’autre. » : EP-06.
-- écart : `WF-DAT-0090-A` — « La suppression d’un lot cité par une révision marquée le marque supprimé, retire le rattachement de la tâche de la révision en cours et laisse celui de la révision marquée. » : le lotissement arrive en EP-04 et le
+- écart : `WF-DAT-0090-A` — « La suppression d’un poste cité par une révision marquée le marque supprimé, retire le rattachement de la tâche de la révision en cours et laisse celui de la révision marquée. » : le lotissement arrive en EP-04 et le
   rattachement en EP-06 ; EP-07, qui clôt l'exigence, le constate.
 - propre à l'US : sur les tables de cet EPIC, toute relation est une clé étrangère déclarée
   en refus par défaut, l'état d'un compte est une contrainte de vérification, et l'unicité de
@@ -1415,6 +1415,8 @@ cessent d'être attribuables.
 - écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les projets de cet état dans ses totaux. » : la liste des projets arrive en EP-04 ; EP-11, qui clôt
   l'exigence, le constate.
 - écart : `WF-IHM-0130-A` — « Le plan de charge d’un projet exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul ; le plan de charge agrégé exporté porte le périmètre et la date de calcul. » : le plan de charge arrive en EP-07 ; l'export, en EP-11.
+- écart : `WF-IHM-0130-A` — « La table des calendriers ne propose aucun filtre sur les heures de ses jours ; elle se filtre sur ses autres colonnes. » : la table des calendriers arrive en
+  EP-05 ; le retrait des filtres sur les heures, avec #1047, en EP-15.
 
 **Notes de réalisation.** Un compte local est créé dans Waterfall et dans le fournisseur
 d'identité, par son API d'administration (WF-ADM-0070, dernière phrase du corps), dont le
@@ -1501,6 +1503,7 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 - `WF-ADM-0100-A` — « Aucun écran ne permet de créer une permission. »
 - `WF-ADM-0120-A` — « La désactivation du dernier compte administrateur est refusée, de même que le retrait de son rôle. »
 - `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif porte la permission. »
+- `WF-ADM-0120-A` — « La modification d’un rôle qui retirerait l’une de ces permissions au dernier compte qui les porte est refusée. » : refusée par US-0380/L1b (#740, #749).
 - écart : `WF-INTF-0030-A` — « Un utilisateur porteur du rôle prédéfini « administrateur » crée un compte, lui affecte un rôle d’habilitation (FBS-1.1, FBS-1.2), ouvre l’écran d’état du système (FBS-1.3), ouvre le journal d’audit et y applique un filtre (FBS-1.5), et déclenche une sauvegarde (FBS-1.4). » : la création d'un compte et l'affectation d'un
   rôle sont ici, le journal d'audit (US-0410) et le déclenchement d'une sauvegarde (US-0440) ;
   l'écran d'état arrive en EP-13, qui clôt l'exigence.
@@ -1592,6 +1595,8 @@ mes réglages à chaque connexion.
 - écart : `WF-IHM-0060-A` — « Après défilement de mille lignes, en-têtes et totaux sont toujours visibles, de même que la colonne de libellé après défilement horizontal. » : constaté par EP-02 sur la maquette ; EP-07 le
   constate sur la grille servie.
 - `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. »
+- écart : `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa réouverture, sans changer celui des autres tables ; une grille arborescente n’offre pas ce choix. » : le choix du nombre de
+  lignes par page arrive avec #1045, en EP-15.
 
 **Notes de réalisation.** La langue choisie est aussi celle du compte chez le fournisseur
 d'identité, qui envoie dans cette langue les courriels de mot de passe (WF-ARC-0110,
@@ -1687,15 +1692,12 @@ d'images que la chaîne publie, derrière un frontal HTTPS, **afin de** montrer 
 - écart : `WF-ARC-0050-A` — « Le chart s’installe sur un cluster vierge avec ses composants de données, et sur un cluster où PostgreSQL, Redis et le stockage objet sont fournis par des adresses et des secrets externes. » : le chart Helm arrive en EP-13, qui clôt
   l'exigence.
 - écart : `WF-ARC-0050-A` — « Le passage de une à trois instances de l’API ne demande qu’un changement de paramètre et aucune interruption. » : EP-13.
-- `WF-ARC-0050-A` — « Le fichier Compose démarre une plateforme complète sur une machine seule, à partir des mêmes images que le chart, et les tests de la chaîne CI/CD s’exécutent contre elle. » : pour le Compose, sur les images que la chaîne
-  publie et que le chart d'EP-13 reprendra ; les tests de la chaîne qui s'exécutent contre lui
-  sont l'essai de production, dans l'écart qui suit.
-- écart : `WF-ARC-0050-A` — « Le fichier Compose démarre une plateforme complète sur une machine seule, à partir des mêmes images que le chart, et les tests de la chaîne CI/CD s’exécutent contre elle. » : les parcours contre le service (US-0340)
-  se jouent sur le Compose de développement (`compose.service.yaml`), construit des mêmes
-  Dockerfiles ; le Compose de production est prouvé par l'essai `production-trial` —
-  amorçage, sonde de vie, TLS et redirection vers HTTPS, en-têtes, console de Keycloak masquée,
-  fixation du mot de passe du premier administrateur, connexion (auteur, 2026-10-12, #948). Le
-  Vérif entre au TODO de la spécification.
+- `WF-ARC-0050-A` — « Le fichier Compose démarre une plateforme complète sur une machine seule, à partir des mêmes images que le chart, et la chaîne CI/CD y joue un essai de démarrage, d’amorçage et de connexion ; les parcours de bout en bout de chaque modification s’exécutent contre une plateforme Compose construite des mêmes sources. » :
+  pour le Compose, sur les images que la chaîne publie et que le chart d'EP-13 reprendra ; l'essai
+  est `production-trial` — amorçage, sonde de vie, TLS et redirection vers HTTPS, en-têtes,
+  console de Keycloak masquée, fixation du mot de passe du premier administrateur, connexion —,
+  et les parcours contre le service (US-0340) se jouent sur le Compose de développement
+  (`compose.service.yaml`), construit des mêmes Dockerfiles (auteur, 2026-10-12, #948).
 - propre à l'US : la chaîne construit et publie les images du front, de l'API et du worker —
   une même image, deux commandes — et celle de Keycloak avec son extension, sur ghcr.io,
   étiquetées par version et par commit de `main`, et par commit d'une branche d'EPIC pour les
@@ -1743,11 +1745,12 @@ réglages — sur une autre machine.
 - `WF-ADM-0150-A` — « Une sauvegarde déclenchée apparaît dans la liste avec sa date, sa taille et une vérification réussie. »
 - `WF-ADM-0150-A` — « Elle peut être téléchargée ou copiée vers un emplacement externe. » : par le téléchargement ; la copie vers un
   emplacement externe paramétré relève de la planification — EP-13.
-- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, qui garde ses inscriptions et nomme la restauration. » : constaté ici pour les comptes, les rôles
+- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit et la liste des sauvegardes, qui gardent leurs inscriptions et leurs sauvegardes ; le journal nomme la restauration. » : constaté ici pour les comptes, les rôles, la liste des sauvegardes
   et le référentiel présent ; les projets et les révisions arrivent en EP-04, qui clôt
   l'exigence.
 - `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. »
 - `WF-ADM-0160-A` — « Aucune restauration partielle n’est proposée. »
+- `WF-ADM-0160-A` — « Une tâche de fond en file ou en cours dans la sauvegarde est en échec après la restauration. » : réalisé par US-0440 (#892).
 - `WF-ADM-0160-A` — « Une inscription faite après la sauvegarde est encore présente après la restauration, et la dernière inscription est la restauration elle-même. »
 - écart : `WF-DAT-0120-A` — « Après application ou abandon d’un import, le fichier correspondant n’est plus sur le stockage objet. » : les imports arrivent en EP-06, qui clôt
   l'exigence.

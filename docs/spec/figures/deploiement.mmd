@@ -31,7 +31,8 @@ flowchart LR
     IdP --> PG
     IdP --> Annuaire
     IdP --> SMTP
-    Planif --> API
+    Planif --> PG
+    Planif --> Redis
     API --> Prometheus
     Navigateur --> Dashboard
     Worker --> Externe
