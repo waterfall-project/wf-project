@@ -18,6 +18,7 @@ import { heldToTheContract } from "./contract";
 import {
   accountButton,
   ADMINISTRATOR,
+  expectPasswordSet,
   giveIdentifiers,
   LOCAL_PASSWORD,
   openLink,
@@ -114,9 +115,7 @@ test("an administrator creates a local account, gives it a role and its link; de
   const setting = await browser.newPage({ locale: "fr-FR", ignoreHTTPSErrors: true });
   await openLink(setting, link);
   await setPassword(setting, LOCAL_PASSWORD);
-  await expect(
-    setting.getByRole("heading", { name: "Votre compte a été mis à jour." }),
-  ).toBeVisible();
+  await expectPasswordSet(setting);
   await setting.close();
   const signedIn = await holderSignsIn(browser, holder);
   await expect(accountButton(signedIn, holder)).toBeVisible();

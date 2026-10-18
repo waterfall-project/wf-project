@@ -15,6 +15,7 @@ import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
   type Administrator,
+  expectPasswordSet,
   expectSignInPage,
   giveIdentifiers,
   LOCAL_PASSWORD,
@@ -80,7 +81,7 @@ test("an account an administrator creates signs in only once its holder has set 
   await setPassword(page, email);
   await expect(page.getByRole("main")).toContainText("ne doit pas être identique");
   await setPassword(page, LOCAL_PASSWORD);
-  await expect(page.getByRole("heading", { name: "Votre compte a été mis à jour." })).toBeVisible();
+  await expectPasswordSet(page);
   // The page of the realm leads back to Waterfall (#645).
   await page.getByRole("link", { name: "« Revenir à l'application" }).click();
   await expect(page).toHaveURL("/");

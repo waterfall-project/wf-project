@@ -15,7 +15,15 @@ import { compileAnswered } from "../compile";
 import { openMenu, WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
 import type { components } from "../../src/api/generated/schema";
-import { ADMINISTRATOR, frontToken, LOCAL_PASSWORD, openLink, setPassword, signIn } from "./realm";
+import {
+  ADMINISTRATOR,
+  expectPasswordSet,
+  frontToken,
+  LOCAL_PASSWORD,
+  openLink,
+  setPassword,
+  signIn,
+} from "./realm";
 
 heldToTheContract();
 
@@ -46,9 +54,7 @@ test("the administrator of a new installation sets its password by the link of t
   } else {
     await openLink(page, link);
     await setPassword(page, LOCAL_PASSWORD);
-    await expect(
-      page.getByRole("heading", { name: "Votre compte a été mis à jour." }),
-    ).toBeVisible();
+    await expectPasswordSet(page);
   }
   await signIn(page, ADMINISTRATOR, ACCOUNT);
 
