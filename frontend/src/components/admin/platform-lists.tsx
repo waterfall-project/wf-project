@@ -366,7 +366,8 @@ function BackupFilterBar({
  * filters the API refused (422) leave the list unread, the bound said at its field, a sentence
  * standing for the grid — that of the period when the API refused it, that of the bounds otherwise. The head of the list says what the last command did, and offers to start a
  * backup to who may modify them (`startable`); the refusals, and that of a download the browser came
- * back with, are told above the list. The commands of each backup are those it lists.
+ * back with, are told above the list. The commands of each backup are those it lists. The list
+ * keeps its height — the grid no taller than the window —: the deposit comes under it (`BackupsPage`).
  */
 export function BackupList({
   read,
@@ -412,7 +413,6 @@ export function BackupList({
           icon={DatabaseBackup}
           empty={empty ? t("none") : undefined}
           commands={startable || listed ? <BackupHead startable={startable} /> : undefined}
-          fill
         >
           <BackupFilterBar
             filters={filters}

@@ -146,7 +146,9 @@ d'EP-03 », qui en garde la trace.
 - #1021 — test : citations manquantes et test de flux trop rigide (US-0440/L3) ;
 - #1023 — écran : « en attente » affiché un rendu avant la page du refus (US-0440/L3b) ;
 - #1024 — écran : « Session terminée » renvoie à une reconnexion qui ne dit pas l'issue de la
-  restauration (US-0440/L3b).
+  restauration (US-0440/L3b) ;
+- #1033 — front : sur un écran rempli, le plancher de la grille ne remonte pas la chaîne des
+  `min-h-0` ; `/admin/backups` ne remplit plus la fenêtre (reprise de main, #1032).
 
 ## Conception
 

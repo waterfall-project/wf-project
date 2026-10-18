@@ -128,8 +128,12 @@ export default async function BackupsPage({
     restorable ||
     (backups.kind === "read" &&
       backups.items.some((backup) => backup.available_commands.length > 0));
+  // The screen does not fill the window (`Screen fill`): the deposit comes under the list, and a
+  // grid shrunk to what the window leaves it, down to its floor, would spill over the deposit in a
+  // window too low for both — at 150 % and less. The page grows with its content, and scrolls; the
+  // grid is never taller than the window (`DenseGrid`).
   return (
-    <Screen density={FUNCTION_DENSITY.backups} fill>
+    <Screen density={FUNCTION_DENSITY.backups}>
       <Restoration>
         {/* The filters, the grid and the pages compose the changes they make to the address. */}
         <PendingAddress>

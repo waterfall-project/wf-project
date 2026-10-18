@@ -1460,6 +1460,10 @@ dialogue d'EP-14 (`RestoreDialog`), pour une sauvegarde de la liste comme pour u
 la date et la vérification — celle d'un dépôt en attente, sa restauration la fait (L42o) —, n'agit
 qu'une fois l'identifiant saisi — celui du dépôt pour un dépôt —, dit à la date le 400
 `CONFIRMATION_REQUIRED` et relit la page ; écartés, le dialogue d'alerte d'EP-03 et ses phrases.
+Parce que le dépôt suit la liste, l'écran ne remplit plus la fenêtre (`Screen` sans `fill`, comme
+`/reference/resources`) : rempli, la liste se réduisait sous ses filtres et sa grille débordait sur le
+dépôt à 911 points (`accessibility.spec.ts`, FBS-1.4). La page défile, la grille reste plafonnée à
+la fenêtre ; l'écart à la règle « un écran de grille prend `Screen fill` » est reporté à EP-15 (#1033).
 Mise en file, la restauration passe à l'écran de sa maintenance et non plus au suivi de la coquille,
 qui lirait une tâche pendant que l'API ne répond qu'à sa sonde. Les commandes d'EP-14 suivent la
 lecture comptée d'EP-03 (`generation`) et retiennent les navigations le temps de leur réponse
