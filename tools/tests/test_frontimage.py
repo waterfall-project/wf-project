@@ -92,7 +92,17 @@ def test_an_image_that_starts_with_its_settings_alone_and_refuses_the_fake_back_
     docker = Docker()
     assert frontimage.main([], docker.run, docker.read, docker.fetch) == 0
     assert docker.ran == [
-        ["docker", "build", "--target", "production", "--tag", frontimage.IMAGE, "frontend"]
+        [
+            "docker",
+            "build",
+            "--target",
+            "production",
+            "--cache-from",
+            "type=gha,scope=front",
+            "--tag",
+            frontimage.IMAGE,
+            "frontend",
+        ]
     ]
     started = [docker.environment(f"container-{i + 1}") for i in range(len(docker.started))]
     assert started[0] == frontimage.SETTINGS

@@ -87,6 +87,15 @@ IMAGES = (
 )
 
 
+def cache_source(name: str) -> list[str]:
+    """Return the options that read the cache of the builds of an image on GitHub Actions.
+
+    Written after a merge, under the name of the image (``make build-cache``); Docker leaves it out
+    where the runtime of GitHub Actions is not given to it, as on a workstation.
+    """
+    return ["--cache-from", f"type=gha,scope={name}"]
+
+
 class ImageError(Exception):
     """A branch, a commit or a version that cannot tag an image, or a push refused."""
 
@@ -175,7 +184,7 @@ def builds(branch: str, commit: str, release: str, *, posed: bool = True) -> lis
     """Return the command that builds each image, under every tag it takes."""
     found: list[list[str]] = []
     for image in IMAGES:
-        build = ["docker", "build", "--target", STAGE]
+        build = ["docker", "build", "--target", STAGE, *cache_source(image.name)]
         for key, value in labels(image, branch, commit, release, posed=posed).items():
             build += ["--label", f"{key}={value}"]
         for tag in tags(branch, commit, release, posed=posed):

@@ -53,7 +53,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
-	build-keycloak test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
+	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens reuse lint-workflows \
@@ -172,11 +172,14 @@ lint-docker: ## Lint the Dockerfiles
 
 # Keycloak answers before its realm is applied: the application starts once it does, anew at each
 # start, and stays, to apply it again after a restoration (#955). The root of the authority of its
-# front end is copied out first: a new volume makes a new one.
+# front end is copied out first: a new volume makes a new one. The service of the restoration waits
+# for the application, which it would start with the platform: it starts last, so that the realm is
+# applied once, and Keycloak, which the application waits for, is never started again (--no-deps).
 service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, the service of the restoration, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler restore keycloak keycloak-front-end openldap mailpit
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit
 	@$(MAKE) --no-print-directory keycloak-authority
-	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate keycloak-realm
+	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
+	@$(COMPOSE_SERVICE) up --detach --wait restore
 
 # The bootstrap of the platform (US-0420), once its realm is applied: the link of the first
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
@@ -221,7 +224,20 @@ lint-compose: ## Validate the Compose files
 		$(COMPOSE_PRODUCTION) --profile install config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
-	@docker build --tag $(KEYCLOAK_IMAGE) deploy/keycloak
+	@docker build $(call build-cache-from,keycloak) --tag $(KEYCLOAK_IMAGE) deploy/keycloak
+
+# The cache of the builds of the images on GitHub Actions (type=gha, .github/actions/build-cache):
+# every build of an image reads it, under the name of the image (wftools.images); after a merge,
+# images.yml writes it, each image built into it alone, neither loaded nor published. Docker leaves
+# a cache of type gha out where the runtime of GitHub Actions is not given to it: on a workstation,
+# both are without effect.
+build-cache-from = --cache-from type=gha,scope=$(1)
+build-cache-to = --output type=cacheonly --cache-to type=gha,mode=max,scope=$(1) $(call build-cache-from,$(1))
+
+build-cache: ## Write the builds of the images front, waterfall and keycloak into the cache of GitHub Actions (images.yml)
+	@docker build --target production $(call build-cache-to,front) frontend
+	@docker build --target production $(call build-cache-to,waterfall) backend
+	@docker build --target production $(call build-cache-to,keycloak) deploy/keycloak
 
 # The images the chain publishes (US-0430): front, waterfall and keycloak, under
 # ghcr.io/waterfall-project, tagged by the commit and the branch they are built from, and by the
@@ -255,7 +271,7 @@ production-trial: ## Start the production platform on the images of WATERFALL_IM
 test-keycloak: ## Start Keycloak on the service platform, apply its realm, and try it, the API that validates its tokens and the bootstrap included, measuring its administration client and the bootstrap (needs the secrets of service-up)
 	@$(COMPOSE_SERVICE) up --build --detach --wait keycloak keycloak-front-end openldap
 	@$(MAKE) --no-print-directory keycloak-authority
-	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate keycloak-realm
+	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
 	@cd $(BACK) && uv sync --frozen
 	@WATERFALL_TEST_KEYCLOAK_CONTAINER=$$($(COMPOSE_SERVICE) ps --quiet keycloak) && export WATERFALL_TEST_KEYCLOAK_CONTAINER && \
 		cd $(BACK) && WATERFALL_TEST_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) \

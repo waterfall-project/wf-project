@@ -40,6 +40,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The cache of the builds of images, written after a merge (images.yml).
+      - uses: ./.github/actions/build-cache
       # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
       - run: corepack enable pnpm
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -55,6 +57,9 @@ jobs:
       - run: make e2e-browsers
         env:
           PLAYWRIGHT_INSTALL: --with-deps
+      # Keycloak's image built from the cache first: the build of the platform by Compose, on the same
+      # builder, finds it there, where it would otherwise compile its extension again.
+      - run: make build-keycloak
       - run: make check-service
         env:
           TIER: full

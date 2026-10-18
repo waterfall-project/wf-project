@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The cache of the builds of images (type=gha), shared by the jobs of the chain: Keycloak's extension
+# compiled by Maven, the dependencies of the front and of the back are built once, after a merge
+# (images.yml), and read everywhere else. The builder of Docker's default instance, which Compose
+# uses too, imports and exports such a cache only on the image store of containerd, which the
+# runner does not use by default: it is turned on, Docker restarted — which stops every container,
+# so that no job with `services:` takes this action. Then the runtime of GitHub Actions is handed to
+# the steps that follow; without it, Docker leaves a cache of type gha out, as on a workstation.
+name: build-cache
+description: Let Docker read and write the cache of GitHub Actions in the steps that follow
+runs:
+  using: composite
+  steps:
+    - name: Turn the image store of containerd on
+      shell: bash
+      run: |
+        set -euo pipefail
+        config=/etc/docker/daemon.json
+        current=$(sudo cat "$config" 2>/dev/null || echo '{}')
+        jq '.features["containerd-snapshotter"] = true' <<<"$current" | sudo tee "$config" >/dev/null
+        sudo systemctl restart docker
+        docker info --format '{{.DriverStatus}}' | grep -q io.containerd.snapshotter
+    - uses: ./.github/actions/actions-runtime

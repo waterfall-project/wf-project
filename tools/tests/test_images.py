@@ -82,8 +82,11 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
     document = workflow()
     assert document["permissions"] == {"contents": "read"}
     jobs = document["jobs"]
-    # The trial of the production platform on the images published reads them alone (US-0430/L2).
-    assert list(jobs) == ["publish", "trial"]
+    # The trial of the production platform on the images published reads them alone (US-0430/L2);
+    # the cache of the builds is written beside them, with no right on the packages.
+    assert list(jobs) == ["publish", "trial", "cache"]
+    assert "permissions" not in jobs["cache"]
+    assert jobs["cache"]["steps"][-1] == {"run": "make build-cache"}
     assert jobs["trial"]["permissions"] == {"contents": "read", "packages": "read"}
     job = jobs["publish"]
     assert job["permissions"] == {"contents": "read", "packages": "write"}
@@ -97,9 +100,28 @@ def test_the_job_that_publishes_alone_writes_packages_and_runs_the_makefile() ->
 
 def test_every_action_of_the_workflow_is_pinned_by_the_digest_of_its_commit() -> None:
     jobs = workflow()["jobs"]
-    for step in [*jobs["publish"]["steps"], *jobs["trial"]["steps"]]:
-        if "uses" in step:
+    for step in [step for job in jobs.values() for step in job["steps"]]:
+        if "uses" in step and not step["uses"].startswith("./.github/actions/"):
             assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", step["uses"])
+
+
+def test_no_job_with_services_turns_the_cache_of_the_builds_on() -> None:
+    # The action restarts Docker, which would stop the containers of the services of the job.
+    taking: list[str] = []
+    for path in sorted(WORKFLOW.parent.glob("*.yml")):
+        for name, job in yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"].items():
+            uses = [step.get("uses") for step in job.get("steps", [])]
+            if "./.github/actions/build-cache" in uses:
+                taking.append(f"{path.name}:{name}")
+                assert "services" not in job, f"{path.name}: {name}"
+                assert "container" not in job, f"{path.name}: {name}"
+    assert taking == [
+        "front-image.yml:check",
+        "images.yml:cache",
+        "keycloak.yml:check",
+        "production.yml:trial",
+        "service.yml:paths",
+    ]
 
 
 def test_main_publishes_the_three_images_by_commit_by_branch_and_by_version() -> None:
