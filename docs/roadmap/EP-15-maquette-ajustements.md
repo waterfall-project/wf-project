@@ -1,7 +1,7 @@
 ---
 id: EP-15
 titre: La maquette ajustée après la validation de l'auteur, chaque geste du contrat montré
-statut: à planifier
+statut: prêt
 depend_de: EP-14
 famille: front
 issue:
@@ -201,18 +201,21 @@ parce que les parcours d'EP-15 en ont besoin :
   la colonne des prédécesseurs d'US-0470 dit à la cellule ; la part « fusion » reste à EP-16 ;
 - #791 — outil : la révision courante du témoin ne reprend pas l'avenant 2 (WF-REV-0100) — le
   différentiel du témoin fait voir la marque du diff sans variante (US-0500), et donne au compte
-  rendu de fusion son premier exemple réel (US-0510).
+  rendu de fusion son premier exemple réel (US-0510) ;
+- #802 — contrat : la lecture du lotissement ne dit pas si une tâche porte un poste ou un lot —
+  `attached_task` sur chaque lot et chaque poste lus, part contrat K1 d'US-0450 (validation de la
+  conception, réponse 8).
 
 Les autres constats qu'EP-14 avait reportés vers EP-15 pour le durcissement — les mineurs du
-contrat (#774 et ses sous-issues, #785, #789, #790, #792, #795, #802, #803), les mineurs du front
+contrat (#774 et ses sous-issues, #785, #789, #790, #792, #795, #803), les mineurs du front
 (#806, #817, #819, #779, #846 à #1024), l'accessibilité des dialogues (#782), les reliquats de tests
 (#776, #781, #784) et US-0290 (#92) — portent le label `EP-16` et sont les « Constats reçus »
 d'EP-16. #1035 est reçu par EP-13. Cinq d'entre eux, que les ajustements rendent caducs, se ferment
 à l'ouverture des issues d'EP-15 avec la décision qui les rend caducs (décision de l'auteur,
 2026-10-18) : #872 et #937 par l'historique des messages (#1043, US-0560), #959 et #960 par la
 barre et l'historique (#1042, #1043, US-0560), #821 par la frise des chronologies (#1068,
-US-0530). #817, #819 et #802 sont examinés point par point au cadrage (« Conception », « Ce que le
-cadrage décide »).
+US-0530). #817 et #819 restent en EP-16, réduits aux points qu'aucune US d'EP-15 ne couvre
+(« Conception », « Ce que le cadrage décide »).
 
 ## Conception
 
@@ -220,7 +223,8 @@ Celle d'EP-02 et d'EP-14 fait foi : arborescence du front, faux back et exemples
 composants partagés, refus par champ, défauts nommés du guide. EP-15 n'a ni table, ni migration, ni
 module du noyau : il écrit du front, des parties du contrat avec leurs exemples, et des générateurs
 du témoin (`wftools`), un outil écrit en passant qui ne change pas sa famille. Ce qui suit est ce
-qu'il ajoute, validé au cadrage du 2026-10-18.
+qu'il ajoute, validé par l'auteur le 2026-10-18 (les huit questions de la conception, toutes
+tranchées dans le sens proposé).
 
 ### Ce que le cadrage décide
 
@@ -254,7 +258,8 @@ qu'il ajoute, validé au cadrage du 2026-10-18.
 - **Trois constats d'EP-16 sont ramenés** (réponses 5 à 7) : #786, part contrat d'US-0520 ; #788,
   la part « saisies », part contrat d'US-0470, la part « fusion » restant à EP-16 ; #791, part
   outillage d'US-0500.
-- **#817, #819 et #802, point par point** (réponse 10, à trancher par l'auteur) :
+- **#817, #819 et #802, point par point** (réponse 10 ; table acceptée par l'auteur à la
+  validation de la conception, 2026-10-18) :
 
   | Issue, point | Couvert par | Proposition |
   |---|---|---|
@@ -278,8 +283,9 @@ qu'il ajoute, validé au cadrage du 2026-10-18.
   | #819.15 — largeur d'un commentaire | aucune US | garder en EP-16 |
   | #802 — la lecture du lotissement ne dit pas si un lot ou un poste est porté | US-0450 (le schéma `WorkBreakdownReading` est réécrit) ; US-0490 (l'encart et le squelette) | ramener : part contrat d'US-0450 (`attached_task`) |
 
-  Proposition par issue : #817 et #819 restent en EP-16, réduites aux points gardés, les points
-  ramenés nommés dans un commentaire à l'étape 4 ; #802 est ramenée en EP-15 entière.
+  Décision : #817 et #819 restent en EP-16, réduites aux points gardés, les points ramenés nommés
+  dans un commentaire à l'ouverture des issues ; #802 est ramenée en EP-15 entière, part contrat K1
+  d'US-0450.
 - **Taille des lots** : comme EP-14, les lots sont coupés à 1 200 lignes estimées, et un lot
   d'écran qui approche le plafond se découpe plutôt que de grossir.
 - **La branche du cadrage** est `roadmap/EP-15-cadrage`, vers `main` (autorisation de l'auteur du
@@ -531,9 +537,8 @@ motif `order_item_without_task` suivent le lot, et le code `WORK_PACKAGE_OUTSIDE
 règle à l'endroit — la conception arrête les noms. Cette US passe la première : les autres lots de
 structure en dépendent (#1054, « Ordre »).
 
-**Hors périmètre.** Toute règle nouvelle du lotissement. La lecture qui dit si un lot ou un poste
-est porté par une tâche (#802) entre dans la part contrat de cette US si l'auteur le décide au
-cadrage (« Conception », « Ce que le cadrage décide »).
+**Hors périmètre.** Toute règle nouvelle du lotissement, hors `attached_task` (#802), qui dit si un
+lot ou un poste est porté par une tâche de la révision en cours.
 
 ## US-0460 — Construire la structure depuis les trois grilles
 

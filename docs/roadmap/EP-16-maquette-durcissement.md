@@ -31,8 +31,7 @@ d'EP-15, avec la décision qui le rend caduc.
   d'une ligne de main-d'œuvre (#785), l'horizon et le cycle de liaisons pour la fusion (#788, part
   « fusion »), les comptes rendus d'import et de fusion (#789), la fusion sans révision en cours
   (#790), l'outillage du témoin (#792), les exemples des chronologies (#803) ; EP-15 a ramené à lui
-  #786, la part « saisies » de #788 et #791 (décisions de l'auteur du 2026-10-18), et #802 si
-  l'auteur le décide ;
+  #786, la part « saisies » de #788, #791 et #802 (décisions de l'auteur du 2026-10-18) ;
 - l'adoption fine par les écrans de ce qu'EP-14/L42s a écrit au contrat et qu'aucune issue d'EP-15
   ne porte : la réactivation d'une catégorie sous une nature désactivée et la désactivation d'une
   nature en cascade, les catégories nommées par le refus d'un changement de type, l'import rejeté
@@ -98,8 +97,6 @@ décision de l'auteur du 2026-10-11 (EP-14/L56), puis d'EP-15 au cadrage du 2026
 - #790 — contrat : une fusion sans révision en cours n'en crée pas une au préalable (WF-REV-0050) ;
 - #792 — outil : `is_active_provision` et le point fixe de `make mock-data` ;
 - #795 — contrat : les mineurs de la relecture 2 de L42s ;
-- #802 — contrat : la lecture du lotissement ne dit pas si une tâche porte un poste ou un lot —
-  proposée à EP-15 (US-0450) au cadrage, à trancher par l'auteur ;
 - #803 — contrat : les exemples manquants des refus des chronologies et du 412 du lotissement ;
 - #779 — front : le refus d'une saisie sans heure ne nomme ni les rôles ni la tâche ;
 - #806, #817, #819 — front : les mineurs des relectures de L44c et L44d ; #817 et #819 réduits aux
