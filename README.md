@@ -57,6 +57,7 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 | `docs/api` | the interface contract: **150 operations** over 116 paths and 147 schemas, hand-written OpenAPI, with the endpoint inventory and the design decisions |
 | `docs/roadmap` | the plan: fourteen epics in the order they are built, their stories, their design, and the rules that take an epic from its stories to delivered code |
 | `docs/dev` | the development guide, the coding rules per language, and the rules the agents follow |
+| `docs/legal` | the contributor licence agreement and the project's commitments to its community edition, in French |
 | `backend/` | one Python package: the business core, the API service and the worker |
 | `frontend/` | the Next.js application, its client generated from the contract, its end-to-end paths |
 | `tools/` | the repository tools: requirement coverage, roadmap check, source rules, lot size |
@@ -146,4 +147,13 @@ The specification — `docs/spec/stb-waterfall.docx`, its sources `waterfall.vis
 [Creative Commons Attribution-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
 licence (CC BY-SA 4.0), © 2026 Projet Waterfall. Attribution: « Projet Waterfall,
 https://www.waterfall-project.pro ». The name and the logo « Waterfall » are not covered by this
-licence. [REUSE.toml](REUSE.toml) states the licence of every file.
+licence.
+
+The interface contract — the OpenAPI files of `docs/api` — is published under the
+[Apache License 2.0](LICENSES/Apache-2.0.txt), so that a client generated from it owes nothing
+to the AGPL. [REUSE.toml](REUSE.toml) states the licence of every file.
+
+Contributions are received under these licences and under the
+[Contributor Licence Agreement](docs/legal/CLA.md), signed once; the project's
+[commitments](docs/legal/ENGAGEMENTS.md) say what a commercial offer will never take from the
+community edition. [CONTRIBUTING.md](CONTRIBUTING.md), « Licence », says how.

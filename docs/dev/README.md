@@ -23,6 +23,7 @@ y ajoute la section qu'elle établit, et une section encore vide nomme celle qui
 | `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap | — |
 | `docs/dev/` | ce guide, et les règles de codage par langage | — |
 | `LICENSES/`, `REUSE.toml` | les textes des licences, et la licence des fichiers qui ne portent pas d'en-tête | — |
+| `docs/legal/` | l'accord de licence de contribution, et les engagements envers l'édition communautaire | — |
 
 Un répertoire naît avec le lot qui y met le premier fichier : `backend/`, `frontend/`,
 `fixtures/` et `deploy/` n'existent pas encore tous. La conception d'EP-01 dit pourquoi
@@ -2096,8 +2097,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 dans la syntaxe de commentaire du langage. Le nom du fichier n'y figure pas : il deviendrait
 faux au premier renommage ; la première ligne de la docstring du module dit à quoi il sert.
 Ce qui ne peut pas porter de commentaire, ou n'y gagnerait rien — documentation, figures,
-contrat, gabarits, images, fichiers engendrés — est déclaré dans `REUSE.toml`. Le code de
-conduite garde sa propre licence, CC BY 4.0.
+contrat, gabarits, images, fichiers engendrés — est déclaré dans `REUSE.toml`. La
+spécification y est déclarée sous CC BY-SA 4.0 et le contrat d'interface sous Apache-2.0
+(`docs/legal/README.md`, « Les décisions prises ») ; le code de conduite garde sa propre
+licence, CC BY 4.0.
 
 Un document qui cite ces deux lignes, comme celui-ci, les encadre de
 `REUSE-IgnoreStart` et `REUSE-IgnoreEnd`, faute de quoi l'outil les lirait comme la licence

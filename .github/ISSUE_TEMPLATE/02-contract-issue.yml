@@ -42,7 +42,10 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: The shape you would give it. A fragment of YAML is welcome.
+      description: >-
+        The shape you would give it. A fragment of YAML is welcome. It is received under the
+        licence of the contract; the maintainer rewrites it before integrating it, unless you
+        have signed the contributor agreement (`CONTRIBUTING.md`, « Licence »).
     validations:
       required: true
   - type: input

@@ -61,6 +61,7 @@ elle ne mesure rien.
 | `docs/api` | le contrat d'interface : **150 opérations** sur 116 chemins et 147 schémas, en OpenAPI écrit à la main, avec l'inventaire des endpoints et les décisions de conception |
 | `docs/roadmap` | le plan : quatorze EPIC dans l'ordre où ils se construisent, leurs US, leur conception, et les règles qui mènent un EPIC de ses US au code livré |
 | `docs/dev` | le guide de développement, les règles de codage par langage, et les règles que suivent les agents |
+| `docs/legal` | l'accord de licence de contribution et les engagements du projet envers son édition communautaire |
 | `backend/` | un seul paquet Python : le noyau métier, le service d'API et le worker |
 | `frontend/` | l'application Next.js, son client engendré du contrat, ses parcours de bout en bout |
 | `tools/` | les outils du dépôt : couverture des exigences, contrôle de la roadmap, règles des sources, taille des lots |
@@ -144,4 +145,20 @@ et les conventions qui ne se renégocient pas fichier par fichier.
 
 ## Licence
 
-[GNU Affero General Public License v3.0](LICENSE) uniquement.
+Le code est sous [GNU Affero General Public License v3.0](LICENSE) uniquement.
+
+La spécification — `docs/spec/stb-waterfall.docx`, ses sources `waterfall.visuels.drawio` et
+`figures/`, et la projection `waterfall-spec.md` — est publiée sous licence
+[Creative Commons Attribution – Partage dans les mêmes conditions 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
+(CC BY-SA 4.0), © 2026 Projet Waterfall. Attribution : « Projet Waterfall,
+https://www.waterfall-project.pro ». Le nom et le logo « Waterfall » ne sont pas couverts par
+cette licence.
+
+Le contrat d'interface — les fichiers OpenAPI de `docs/api` — est publié sous
+[licence Apache 2.0](LICENSES/Apache-2.0.txt), pour qu'un client engendré du contrat ne doive
+rien à l'AGPL. [REUSE.toml](REUSE.toml) dit la licence de chaque fichier.
+
+Les contributions sont reçues sous ces licences et sous
+l'[accord de licence de contribution](docs/legal/CLA.md), signé une fois ; les
+[engagements](docs/legal/ENGAGEMENTS.md) du projet disent ce qu'une offre payante ne fera jamais
+à l'édition communautaire. [CONTRIBUTING.md](CONTRIBUTING.md), « Licence », dit comment.

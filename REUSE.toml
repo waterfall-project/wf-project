@@ -3,13 +3,13 @@
 # Code carries its two SPDX lines at the top (guide, « En-têtes et licences »). What is listed
 # here cannot carry a comment, or would gain nothing from one: documentation, the
 # specification and its figures, the contract, forms and templates, images, and what a tool
-# generates. `make reuse` fails on a file covered neither by a header nor by this list.
+# generates. The specification and the contract have their own licence, declared below.
+# `make reuse` fails on a file covered neither by a header nor by this list.
 version = 1
 
 [[annotations]]
 path = [
     "**/*.md",
-    "docs/api/**/*.yaml",
     "docs/assets/**",
     ".github/**",
     ".gitignore",
@@ -48,6 +48,15 @@ path = [
 precedence = "override"
 SPDX-FileCopyrightText = "2026 Projet Waterfall"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# The interface contract is published under Apache-2.0, so that a client generated from it owes
+# nothing to the AGPL. The tools that check it, and the client the front generates, stay under
+# the AGPL.
+[[annotations]]
+path = "docs/api/**/*.yaml"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 waterfall-project"
+SPDX-License-Identifier = "Apache-2.0"
 
 # The Contributor Covenant, adopted as it is written: its text keeps its own licence.
 [[annotations]]

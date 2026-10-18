@@ -80,3 +80,9 @@ Une partie des exigences n'a pas de surface d'API, et il vaut mieux qu'elles n'e
 architecture interne, exploitation, migrations, invariants d'interface, chaîne de
 vérification. `INVENTORY.md` les compte et les liste avec leur raison, à chaque
 `make inventory`.
+
+## Licence
+
+Les fichiers OpenAPI de ce répertoire sont publiés sous licence Apache 2.0
+(`LICENSES/Apache-2.0.txt`, `REUSE.toml`) : un client engendré du contrat ne doit rien à l'AGPL
+du code. Les outils de `tools/` et le client que le front engendre restent sous AGPL-3.0-only.
