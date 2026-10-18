@@ -133,7 +133,6 @@ test("starts a backup, marks one to be kept, downloads one and restores the plat
   // A command names its backup by its date once the browser has written it: the page is hydrated.
   const keep = lastNight.getByRole("button", { name: /^Conserver la sauvegarde du \d/ });
   await expect(keep).toBeVisible();
-  await expect(page.getByRole("note")).toHaveText(/^Maquette/);
   const told = page.getByRole("main").getByRole("status").filter({ hasText: /\S/ });
   const tasks = page.getByRole("region", { name: "Tâches de fond" });
 

@@ -1442,7 +1442,7 @@ conflit, la session devenue `getMe`, et les sauvegardes telles que le contrat le
 Le service, dont les réponses sont éprouvées contre le contrat, rend les commandes de chaque
 sauvegarde (`available_commands`) et la longueur de son téléchargement, que le contrat exige
 désormais. Relevé par la reprise, et non corrigé ici : il ne refuse pas encore par les 409 nommés
-d'EP-14 (`startBackup`, `downloadBackup`, les conditions de `startRestore`).
+d'EP-14 (`startBackup`, `downloadBackup`, les conditions de `startRestore`) ; reporté à EP-15 (#1035).
 
 La part du front de la reprise fait un seul écran des sauvegardes de ceux que les deux EPIC avaient
 écrits chacun (EP-02/L43c, L43d, L43f ; US-0440/L3, L3b). D'EP-14, il garde la grille dense, son tri,
@@ -1464,6 +1464,9 @@ Parce que le dépôt suit la liste, l'écran ne remplit plus la fenêtre (`Scree
 `/reference/resources`) : rempli, la liste se réduisait sous ses filtres et sa grille débordait sur le
 dépôt à 911 points (`accessibility.spec.ts`, FBS-1.4). La page défile, la grille reste plafonnée à
 la fenêtre ; l'écart à la règle « un écran de grille prend `Screen fill` » est reporté à EP-15 (#1033).
+Branché sur le service d'EP-03, l'écran ne montre plus l'avis de la maquette (`MockupNotice`),
+décision de l'auteur du 2026-10-18 ; le téléchargement reste sous `backups.read` et
+`backups.write`, confirmé le même jour.
 Mise en file, la restauration passe à l'écran de sa maintenance et non plus au suivi de la coquille,
 qui lirait une tâche pendant que l'API ne répond qu'à sa sonde. Les commandes d'EP-14 suivent la
 lecture comptée d'EP-03 (`generation`) et retiennent les navigations le temps de leur réponse
