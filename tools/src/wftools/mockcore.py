@@ -46,6 +46,7 @@ from wftools.mockstructure import (
     LABOUR_RATES,
     JsonObject,
     JsonValue,
+    charged_subprojects,
     computable,
     decimal,
     described,
@@ -406,6 +407,7 @@ class _Emitter:
     previous: Mapping[int, Line] = field(default_factory=dict[int, Line])
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
+    charged: frozenset[str] = field(default_factory=charged_subprojects)
 
     def task(self, task: Task, parent: Task | None, position: int, level: int) -> Amounts:
         """Append a task, its lines and its subordinates; return the amounts it sums."""
@@ -431,11 +433,10 @@ class _Emitter:
         node["editable_fields"] = fields.editable
         above = None if parent is None else parent.number
         self.rows.append(Row(task.number, above, place.row, TASK, task.label, node))
-        completed = facet["progress"] == "completed"
         amounts = Amounts()
         for index, line in enumerate(task.lines):
             below = Place(task, index, self._number(line.number), level + 1)
-            amounts += self._line(line, below, completed=completed)
+            amounts += self._line(line, below, progress=str(facet["progress"]))
         for rank, child in enumerate(task.children):
             amounts += self.task(child, task, rank, level + 1)
         facet.update(amounts.rendered())
@@ -443,9 +444,15 @@ class _Emitter:
             facet["physical_progress"] = self._physical_progress(task)
         return amounts
 
-    def _line(self, line: Line, place: Place, *, completed: bool) -> Amounts:
-        """Append a line of a task, consumed in the year its task starts; return its amounts."""
+    def _line(self, line: Line, place: Place, *, progress: str) -> Amounts:
+        """Append a line of a task, consumed in the year its task starts; return its amounts.
+
+        A line of a task started or completed does not leave a subproject charged with actual
+        costs (WF-PRJ-0050): it does not name it among the fields it accepts.
+        """
         task = place.bearing
+        completed = progress == "completed"
+        held = progress != "not_started" and line.subproject in self.charged
         year = self.dated[task.number].start.day.year
         amounts = price(line, year, self.rates)
         facet: JsonObject = {
@@ -471,7 +478,9 @@ class _Emitter:
             },
         }
         node = self._node(line.number, place, ESTIMATE_LINE, facet)
-        fields = line_fields(is_labour=line.hours is not None, is_provision=line.is_provision)
+        fields = line_fields(
+            is_labour=line.hours is not None, is_provision=line.is_provision, is_held=held
+        )
         node["computed_fields"] = fields.computed
         node["editable_fields"] = fields.editable
         hours = Decimal(0) if line.hours is None else line.hours

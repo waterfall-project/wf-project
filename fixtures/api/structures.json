@@ -1,5 +1,5 @@
 {
-  "summary": "Les structures de la révision courante : la principale, et le devis propre de chacun des trois risques de `risks`, avec ses identifiants à elle, distincts de ceux des structures de la révision de référence qu'elle copie (WF-DAT-0030) — la reprise du câblage, le retard de livraison des armoires, dont la survenance a fusionné le devis propre dans la structure principale (WF-RIS-0060), et l'indisponibilité de l'automaticien (WF-RIS-0030).",
+  "summary": "Les structures de la révision courante : la principale, et le devis propre de chacun des trois risques de `risks`, avec ses identifiants à elle, distincts de ceux des structures de la révision de référence qu'elle copie (WF-DAT-0030) — la reprise du câblage, le retard de livraison des armoires, dont la survenance a fusionné le devis propre dans la structure principale (WF-RIS-0060), et l'indisponibilité de l'automaticien (WF-RIS-0030). Chacune dit ses commandes de saisie : le projet étant En cours, la principale se saisit au planning et au reste à engager, son devis lisible en lecture seule (`project_before_in_progress`) ; le devis propre d'un risque se saisit au planning et au devis, quel que soit l'état du projet, et n'a pas de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-IHM-0090).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000201",
@@ -7,6 +7,25 @@
       "kind": "main",
       "label": "Structure principale",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": false,
+          "missing_conditions": [
+            "project_before_in_progress"
+          ]
+        },
+        {
+          "command": "edit_remaining",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "lock_version": 1
     },
     {
@@ -16,6 +35,18 @@
       "label": "Risque de reprise du câblage",
       "risk_id": "01926f3a-7c00-7000-8000-000000000751",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "lock_version": 1
     },
     {
@@ -25,6 +56,18 @@
       "label": "Retard de livraison des armoires",
       "risk_id": "01926f3a-7c00-7000-8000-000000000752",
       "is_merged": true,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "lock_version": 1
     },
     {
@@ -34,6 +77,18 @@
       "label": "Indisponibilité de l'automaticien",
       "risk_id": "01926f3a-7c00-7000-8000-000000000753",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "lock_version": 1
     }
   ]

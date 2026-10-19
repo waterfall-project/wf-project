@@ -1747,6 +1747,7 @@
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
+    "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
@@ -1781,6 +1782,7 @@
     "expected_version": "Expected version: {version}.",
     "work_package_task": "Task of the work package: {task}.",
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
+    "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
     "taskName": "“{label}”"
   },
   "permissions": {
@@ -2230,6 +2232,11 @@
       "amendment": "Amendment",
       "risk": "Risk estimate"
     },
+    "StructureCommand": {
+      "edit_planning": "Edit the schedule",
+      "edit_estimate": "Edit the estimate",
+      "edit_remaining": "Update the estimate to complete"
+    },
     "StructureCreate": {
       "kind": {
         "amendment": "Amendment",
@@ -2306,7 +2313,8 @@
         "finish": "Task finish",
         "progress": "Task progress",
         "order_item_id": "Task order item",
-        "work_package_id": "Task work package"
+        "work_package_id": "Task work package",
+        "tracking": "Task timelines"
       },
       "estimate_line": {
         "label": "Line label",

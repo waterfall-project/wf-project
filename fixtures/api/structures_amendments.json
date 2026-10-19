@@ -1,5 +1,5 @@
 {
-  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre de chacun des trois risques de `risks` — la reprise du câblage, le retard de livraison des armoires et l'indisponibilité de l'automaticien (WF-REV-0100, WF-RIS-0030).",
+  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre de chacun des trois risques de `risks` — la reprise du câblage, le retard de livraison des armoires et l'indisponibilité de l'automaticien (WF-REV-0100, WF-RIS-0030). La révision étant marquée, aucune ne se saisit (`revision_draft`) ; le devis de la principale manque aussi de `project_before_in_progress`, le projet étant En cours, et seule la principale liste le reste à engager (WF-DAT-0020, WF-DEV-0050, WF-RAE-0040).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000211",
@@ -7,6 +7,30 @@
       "kind": "main",
       "label": "Structure principale",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": false,
+          "missing_conditions": [
+            "project_before_in_progress",
+            "revision_draft"
+          ]
+        },
+        {
+          "command": "edit_remaining",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        }
+      ],
       "lock_version": 3
     },
     {
@@ -15,6 +39,22 @@
       "kind": "amendment",
       "label": "Avenant 1 — extension du poste",
       "is_merged": true,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        }
+      ],
       "lock_version": 2
     },
     {
@@ -23,6 +63,22 @@
       "kind": "amendment",
       "label": "Avenant 2 — reprise des essais",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        }
+      ],
       "lock_version": 1
     },
     {
@@ -32,6 +88,22 @@
       "label": "Risque de reprise du câblage",
       "risk_id": "01926f3a-7c00-7000-8000-000000000751",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        }
+      ],
       "lock_version": 1
     },
     {
@@ -41,6 +113,22 @@
       "label": "Retard de livraison des armoires",
       "risk_id": "01926f3a-7c00-7000-8000-000000000752",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        }
+      ],
       "lock_version": 1
     },
     {
@@ -50,6 +138,22 @@
       "label": "Indisponibilité de l'automaticien",
       "risk_id": "01926f3a-7c00-7000-8000-000000000753",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": false,
+          "missing_conditions": [
+            "revision_draft"
+          ]
+        }
+      ],
       "lock_version": 1
     }
   ]
