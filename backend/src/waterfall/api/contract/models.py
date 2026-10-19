@@ -85,7 +85,7 @@ class ErrorCode(StrEnum):
     UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
     WORK_BREAKDOWN_ITEMS_EXCLUSIVE = "WORK_BREAKDOWN_ITEMS_EXCLUSIVE"
     WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED = "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED"
-    WORK_PACKAGE_OUTSIDE_ORDER_ITEM = "WORK_PACKAGE_OUTSIDE_ORDER_ITEM"
+    ORDER_ITEM_OUTSIDE_WORK_PACKAGE = "ORDER_ITEM_OUTSIDE_WORK_PACKAGE"
     WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY = "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY"
     DUPLICATE_WORK_BREAKDOWN_ITEM = "DUPLICATE_WORK_BREAKDOWN_ITEM"
     PROJECT_HORIZON_EXCEEDED = "PROJECT_HORIZON_EXCEEDED"
@@ -122,7 +122,7 @@ class Problem(ContractModel):
     params: Annotated[
         Params | None,
         Field(
-            description="Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde hebdomadaire, au moins `1`, ou la largeur d'une colonne des préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au plus `24`, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` pour une écriture qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par leurs seuls identifiants, que la session d'une modification du référentiel peut nommer, lisant tous les rôles (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes (`resource_role_label`) ; `resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`, `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature, refusée (WF-IHM-0090) ; `cost_categories` quand `missing_condition` nomme `cost_type_unused` ou `cost_type_unrated` (`updateCostType`, WF-REF-0030) : toutes les catégories de la nature employées pour `cost_type_unused`, toutes celles qui portent un taux horaire pour `cost_type_unrated`, actives ou désactivées, chacune par son identifiant, son code et son libellé (`cost_category_id`, `code`, `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du même type (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) : les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`), l'auteur de la saisie consultant son projet ; `projects` pour une modification du référentiel qui produirait le même effet (`updateCalendar`, `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans identifiant ni tâche — « sans autre détail », l'auteur pouvant ne pas consulter le projet (WF-PLA-0010, WF-ADM-0110) ; `estimate_lines` pour la suppression d'un sous-projet que portent des lignes de devis de la révision en cours (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`, WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `order_item_task` et `work_package_tasks` pour une fusion qui sortirait la tâche d'un lot du sous-arbre de la tâche de son poste (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `mergeCostStructure`, WF-PLA-0170) : la tâche du poste et celles des lots qui en sortiraient, nœuds de la structure principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ; EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif (`ImportReport.refusals`) et le compte rendu préalable d'une fusion (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `conflicting_object_id` et `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170 ; EP-14/L42k) ; `order_item_task` et `work_package_tasks`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre, chacune par son nœud et son libellé (`node_id`, `label`), comme l'échec d'une fusion (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050), celui d'un nœud d'organisation (WF-REF-0070) et celui d'un rôle de ressource (WF-REF-0090) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160)."
+            description="Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde hebdomadaire, au moins `1`, ou la largeur d'une colonne des préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au plus `24`, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160) ; `resource_role_ids` pour une écriture qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par leurs seuls identifiants, que la session d'une modification du référentiel peut nommer, lisant tous les rôles (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes (`resource_role_label`) ; `resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`, `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature, refusée (WF-IHM-0090) ; `cost_categories` quand `missing_condition` nomme `cost_type_unused` ou `cost_type_unrated` (`updateCostType`, WF-REF-0030) : toutes les catégories de la nature employées pour `cost_type_unused`, toutes celles qui portent un taux horaire pour `cost_type_unrated`, actives ou désactivées, chacune par son identifiant, son code et son libellé (`cost_category_id`, `code`, `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du même type (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) : les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`), l'auteur de la saisie consultant son projet ; `projects` pour une modification du référentiel qui produirait le même effet (`updateCalendar`, `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans identifiant ni tâche — « sans autre détail », l'auteur pouvant ne pas consulter le projet (WF-PLA-0010, WF-ADM-0110) ; `estimate_lines` pour la suppression d'un sous-projet que portent des lignes de devis de la révision en cours (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`, WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `work_package_task` et `order_item_tasks` pour une fusion qui sortirait la tâche d'un poste du sous-arbre de la tâche de son lot (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : la tâche du lot et celles des postes qui en sortiraient, nœuds de la structure principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ; EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif (`ImportReport.refusals`) et le compte rendu préalable d'une fusion (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `conflicting_object_id` et `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170 ; EP-14/L42k) ; `work_package_task` et `order_item_tasks`, la tâche du lot et celles de ses postes qui sortiraient de son sous-arbre, chacune par son nœud et son libellé (`node_id`, `label`), comme l'échec d'une fusion (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050), celui d'un nœud d'organisation (WF-REF-0070) et celui d'un rôle de ressource (WF-REF-0090) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160)."
         ),
     ] = None
     fields: Annotated[
@@ -2070,9 +2070,14 @@ class ProjectExit(ContractModel):
 
 
 class WorkBreakdownKind(StrEnum):
-    order_item = "order_item"
     work_package = "work_package"
+    order_item = "order_item"
     deliverable = "deliverable"
+
+
+class AttachedTask(ContractModel):
+    node_id: Uuid
+    label: Annotated[str, Field(max_length=300, min_length=1)]
 
 
 class DeliverableReading(ContractModel):
@@ -2081,27 +2086,34 @@ class DeliverableReading(ContractModel):
     is_match: bool
 
 
-class WorkPackageReading(ContractModel):
-    work_package_id: Uuid
+class OrderItemReading(ContractModel):
+    order_item_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
     is_match: bool
+    attached_task: AttachedTask | None
     deliverables: list[DeliverableReading]
 
 
-class OrderItemReading(ContractModel):
-    order_item_id: Uuid
+class WorkPackageReading(ContractModel):
+    work_package_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
     is_match: Annotated[
         bool,
         Field(
-            description="Vrai quand les filtres de la lecture retiennent l'élément — il les satisfait tous, et toujours sans filtre —, faux quand il n'est rendu que parce qu'il contient un élément retenu : « dans une grille arborescente, le filtre laisse visibles les parents des lignes retenues » (WF-IHM-0060). « Le filtre s'applique aux totaux qu'elle présente » (WF-IHM-0130) : la grille ne compte que les éléments retenus — lue par `kinds=work_package`, celle du témoin compte un lot, et aucun poste (#574)."
+            description="Vrai quand les filtres de la lecture retiennent l'élément — il les satisfait tous, et toujours sans filtre —, faux quand il n'est rendu que parce qu'il contient un élément retenu : « dans une grille arborescente, le filtre laisse visibles les parents des lignes retenues » (WF-IHM-0060). « Le filtre s'applique aux totaux qu'elle présente » (WF-IHM-0130) : la grille ne compte que les éléments retenus — lue par `kinds=order_item`, celle du témoin compte un poste, et aucun lot (#574)."
         ),
     ]
-    work_packages: list[WorkPackageReading]
+    attached_task: Annotated[
+        AttachedTask | None,
+        Field(
+            description="La tâche de la révision en cours qui porte le lot (WF-PLA-0170), par son nœud et son libellé ; nulle quand aucune ne le porte, ou quand le projet n'a pas de révision en cours. Un lot ou un poste « n'y est porté que par une tâche à la fois » : c'est elle que la suppression de l'élément laisse sans rattachement, et que l'écran nomme avant de la confirmer (#802)."
+        ),
+    ]
+    order_items: list[OrderItemReading]
 
 
 class WorkBreakdownReading(ContractModel):
-    order_items: list[OrderItemReading]
+    work_packages: list[WorkPackageReading]
     lock_version: Annotated[
         LockVersion | None,
         Field(
@@ -2115,20 +2127,20 @@ class Deliverable(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
 
 
-class WorkPackage(ContractModel):
-    work_package_id: Uuid | None = None
+class OrderItem(ContractModel):
+    order_item_id: Uuid | None = None
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     deliverables: list[Deliverable]
 
 
-class OrderItem(ContractModel):
-    order_item_id: Uuid | None = None
+class WorkPackage(ContractModel):
+    work_package_id: Uuid | None = None
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    work_packages: list[WorkPackage]
+    order_items: list[OrderItem]
 
 
 class WorkBreakdown(ContractModel):
-    order_items: list[OrderItem]
+    work_packages: list[WorkPackage]
     lock_version: Annotated[
         LockVersion,
         Field(
@@ -2581,7 +2593,7 @@ class ImportDifference(ContractModel):
     work_breakdown_label: Annotated[
         str | None,
         Field(
-            description="Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du poste ou du lot qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le poste ou le lot qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k)."
+            description="Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k)."
         ),
     ] = None
     fields: Annotated[
@@ -2707,7 +2719,7 @@ class NotComputableReason(StrEnum):
     no_capacity = "no_capacity"
     no_offer_out_of_pricing = "no_offer_out_of_pricing"
     hourly_rate_missing = "hourly_rate_missing"
-    order_item_without_task = "order_item_without_task"
+    work_package_without_task = "work_package_without_task"
 
 
 class MissingRate(ContractModel):
@@ -2837,19 +2849,19 @@ class TaskFacet(ContractModel):
     order_item_id: Annotated[
         Uuid | None,
         Field(
-            description="Le poste du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) : posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de `work_package_id`. Un poste n'est porté que par une tâche à la fois ; c'est par elle que le devis présente le total par poste, celui de son sous-arbre (WF-DEV-0060), et que les grilles filtrent par poste. Une récapitulative qui perd sa dernière subordonnée garde son rattachement. Nul sans rattachement."
+            description="Le poste du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que `work_package_id`, exclusif de lui : une tâche porte un lot ou un poste, jamais les deux ; un poste n'est porté que par une tâche à la fois. « Lorsque le lot d'un poste est rattaché, la tâche de ce poste se trouve dans le sous-arbre de la tâche de ce lot » (WF-PLA-0170). Les grilles filtrent par poste sur ce rattachement (WF-DEV-0050, WF-RAE-0040)."
         ),
     ] = None
     work_package_id: Annotated[
         Uuid | None,
         Field(
-            description="Le lot du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que `order_item_id`, exclusif de lui : une tâche porte un poste ou un lot, jamais les deux ; un lot n'est porté que par une tâche à la fois. Quand le poste du lot est rattaché, la tâche du lot est dans le sous-arbre de la tâche de ce poste. Les grilles filtrent par lot sur ce rattachement (WF-DEV-0050, WF-RAE-0040)."
+            description="Le lot du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) : posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de `order_item_id`. Un lot n'est porté que par une tâche à la fois ; c'est par elle que le devis présente le total par lot, celui de son sous-arbre (WF-DEV-0060), et que les grilles filtrent par lot. Une récapitulative qui perd sa dernière subordonnée garde son rattachement. Nul sans rattachement."
         ),
     ] = None
     work_breakdown_label: Annotated[
         str | None,
         Field(
-            description="Le libellé du poste ou du lot porté, résolu à la lecture, que la colonne `work_breakdown` présente sans que la grille lise le lotissement (WF-ARC-0020) ; nul sans rattachement."
+            description="Le libellé du lot ou du poste porté, résolu à la lecture, que la colonne `work_breakdown` présente sans que la grille lise le lotissement (WF-ARC-0020) ; nul sans rattachement."
         ),
     ] = None
     external_id: Annotated[
@@ -3289,16 +3301,16 @@ class TaskFacetUpdate(ContractModel):
     duration: Duration | None = None
     start: WorkInstant | None = None
     finish: WorkInstant | None = None
-    order_item_id: Annotated[
-        Uuid | None,
-        Field(
-            description="Le poste du lotissement à porter, ou `null` pour retirer le rattachement."
-        ),
-    ] = None
     work_package_id: Annotated[
         Uuid | None,
         Field(
             description="Le lot du lotissement à porter, ou `null` pour retirer le rattachement."
+        ),
+    ] = None
+    order_item_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le poste du lotissement à porter, ou `null` pour retirer le rattachement."
         ),
     ] = None
     lock_version: LockVersion
@@ -3471,7 +3483,7 @@ class ComputableAmountByKey(ContractModel):
     share: Annotated[
         Computable | None,
         Field(
-            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des postes non (README, « Une part… »)."
+            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des lots non (README, « Une part… »)."
         ),
     ] = None
 
@@ -3481,10 +3493,10 @@ class EstimateIndicators(ContractModel):
     total: ComputableMoney
     by_cost_type: list[ComputableAmountByKey]
     by_subproject: list[ComputableAmountByKey]
-    by_order_item: Annotated[
+    by_work_package: Annotated[
         list[ComputableAmountByKey],
         Field(
-            description="Chaque poste du lotissement (WF-PRJ-0020), dans l'ordre saisi, et son total, lu à travers la tâche, récapitulative ou feuille, qui le porte — le total de son sous-arbre (WF-PLA-0170). « Un poste sans tâche rattachée est présenté sans total » (WF-DEV-0060) : son montant et sa part ne se calculent pas, motif `order_item_without_task` — absents plutôt que nuls, comme le veut le Vérif. Jamais vide : un projet sans lotissement saisi en a un par défaut, d'un poste (EP-14/L42s). Les indicateurs conservés d'une révision marquée rendent les postes de son marquage, tels qu'elle les a figés (WF-DAT-0040), un poste marqué supprimé depuis compris (WF-DAT-0080).",
+            description="Chaque lot du lotissement, son niveau 1 (WF-PRJ-0020), dans l'ordre saisi, et son total, lu à travers la tâche, récapitulative ou feuille, qui le porte — le total de son sous-arbre (WF-PLA-0170). « Pour chaque lot du lotissement porté par une tâche rattachée […], il présente le total du sous-arbre de cette tâche ; un lot sans tâche rattachée est présenté sans total » (WF-DEV-0060) : son montant et sa part ne se calculent pas, motif `work_package_without_task` — absents plutôt que nuls, comme le veut le Vérif. Jamais vide : un projet sans lotissement saisi en a un par défaut, d'un lot (EP-14/L42s). Les indicateurs conservés d'une révision marquée rendent les lots de son marquage, tels qu'elle les a figés (WF-DAT-0040), un lot marqué supprimé depuis compris (WF-DAT-0080).",
             min_length=1,
         ),
     ]
@@ -4272,7 +4284,7 @@ class ImportReport(ContractModel):
     refusals: Annotated[
         list[ReportRefusal],
         Field(
-            description="Les motifs qui rejettent le fichier entier, au lieu d'une ligne (`ReportRefusal`) : un planning MS Project qui déplacerait la tâche d'un lot hors du sous-arbre de la tâche de son poste — sur la structure principale, seule à porter des rattachements —, « rejeté au compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon » (WF-INTF-0040, WF-PLA-0170), et un planning qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). Vide quand le fichier s'applique (EP-14/L42s)."
+            description="Les motifs qui rejettent le fichier entier, au lieu d'une ligne (`ReportRefusal`) : un planning MS Project qui déplacerait la tâche d'un poste hors du sous-arbre de la tâche de son lot — sur la structure principale, seule à porter des rattachements —, « rejeté au compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon » (WF-INTF-0040, WF-PLA-0170), et un planning qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). Vide quand le fichier s'applique (EP-14/L42s)."
         ),
     ]
     differences: list[ImportDifference]

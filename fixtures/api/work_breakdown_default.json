@@ -1,9 +1,9 @@
 {
-  "summary": "Le lotissement du projet créé le 3 juin 2026, « Rénovation du poste de livraison », dont la commande n'est pas saisie : le lotissement par défaut, un poste comprenant un lot sans livrable, qui portent le libellé du projet (WF-PRJ-0020), que rien n'a encore écrit.",
+  "summary": "Le lotissement du projet créé le 3 juin 2026, « Rénovation du poste de livraison », dont la commande n'est pas saisie : le lotissement par défaut, un lot comprenant un poste sans livrable, qui portent le libellé du projet (WF-PRJ-0020), que rien n'a encore écrit, et qu'aucune tâche ne porte : sa révision n'en a pas.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "order_items": [
-      {"order_item_id":"01926f3a-7c00-7000-8000-000000000714","label":"Rénovation du poste de livraison","is_match":true,"work_packages":[{"work_package_id":"01926f3a-7c00-7000-8000-000000000715","label":"Rénovation du poste de livraison","is_match":true,"deliverables":[]}]}
+    "work_packages": [
+      {"work_package_id":"01926f3a-7c00-7000-8000-000000000714","label":"Rénovation du poste de livraison","is_match":true,"attached_task":null,"order_items":[{"order_item_id":"01926f3a-7c00-7000-8000-000000000715","label":"Rénovation du poste de livraison","is_match":true,"attached_task":null,"deliverables":[]}]}
     ],
     "lock_version": 0
   }

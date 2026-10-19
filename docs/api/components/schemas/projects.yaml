@@ -452,10 +452,10 @@ ProjectExit:
 
 WorkBreakdown:
   type: object
-  required: [order_items, lock_version]
+  required: [work_packages, lock_version]
   description: >-
-    Lotissement : postes, lots, livrables. Sa saisie est facultative ; « en son absence, le
-    lotissement vaut un poste et un lot qui portent le libellé du projet, sans livrable »
+    Lotissement : lots, postes, livrables. Sa saisie est facultative ; « en son absence, le
+    lotissement vaut un lot et un poste qui portent le libellé du projet, sans livrable »
     (WF-PRJ-0020). Le lotissement entier, que `setWorkBreakdown` écrit, et qu'il rend lu
     (`WorkBreakdownReading`). Un élément envoyé sans identifiant est nouveau : le serveur
     engendre son identifiant, que la réponse porte (WF-DAT-0060) ; un élément envoyé avec le sien
@@ -466,9 +466,9 @@ WorkBreakdown:
     deux fois est refusé à chaque occurrence après la première (`DUPLICATE_WORK_BREAKDOWN_ITEM`,
     sur `/…/<nature>_id`).
   properties:
-    order_items:
+    work_packages:
       type: array
-      items: { $ref: '#/OrderItem' }
+      items: { $ref: '#/WorkPackage' }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
@@ -477,16 +477,17 @@ WorkBreakdown:
 
 WorkBreakdownReading:
   type: object
-  required: [order_items, lock_version]
+  required: [work_packages, lock_version]
   description: >-
     Le lotissement tel que `getWorkBreakdown` le lit : entier, ou ce que ses filtres en
     retiennent (WF-PRJ-0020, WF-IHM-0130), et ce que `setWorkBreakdown` rend, entier, chaque
     élément retenu. Chaque élément rendu porte son identifiant et dit s'il est retenu
-    (`is_match`) ou rendu pour le seul contexte, ce que l'écriture ne porte pas.
+    (`is_match`) ou rendu pour le seul contexte, ce que l'écriture ne porte pas ; chaque lot et
+    chaque poste disent la tâche qui les porte (`attached_task`).
   properties:
-    order_items:
+    work_packages:
       type: array
-      items: { $ref: '#/OrderItemReading' }
+      items: { $ref: '#/WorkPackageReading' }
     lock_version:
       anyOf: [{ $ref: ../common.yaml#/LockVersion }, { type: 'null' }]
       description: >-
@@ -495,25 +496,25 @@ WorkBreakdownReading:
         renvoyer telle quelle à `setWorkBreakdown` supprimerait ce qu'elle omet, et le compteur
         nul l'en empêche (422).
 
-OrderItem:
-  type: object
-  required: [label, work_packages]
-  description: >-
-    Un poste que `setWorkBreakdown` écrit : avec son identifiant s'il existe, sans s'il est
-    nouveau (`WorkBreakdown`).
-  properties:
-    order_item_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
-    work_packages:
-      type: array
-      items: { $ref: '#/WorkPackage' }
-
 WorkPackage:
   type: object
-  required: [label, deliverables]
-  description: Un lot que `setWorkBreakdown` écrit, son identifiant comme celui d'un poste.
+  required: [label, order_items]
+  description: >-
+    Un lot que `setWorkBreakdown` écrit, au niveau 1 du lotissement : avec son identifiant s'il
+    existe, sans s'il est nouveau (`WorkBreakdown`).
   properties:
     work_package_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
+    order_items:
+      type: array
+      items: { $ref: '#/OrderItem' }
+
+OrderItem:
+  type: object
+  required: [label, deliverables]
+  description: Un poste que `setWorkBreakdown` écrit dans son lot, son identifiant comme celui d'un lot.
+  properties:
+    order_item_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     deliverables:
       type: array
@@ -522,17 +523,19 @@ WorkPackage:
 Deliverable:
   type: object
   required: [label]
-  description: Un livrable que `setWorkBreakdown` écrit, son identifiant comme celui d'un poste.
+  description: Un livrable que `setWorkBreakdown` écrit dans son poste, son identifiant comme celui d'un lot.
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
-OrderItemReading:
+WorkPackageReading:
   type: object
-  required: [order_item_id, label, is_match, work_packages]
-  description: Un poste tel que `getWorkBreakdown` le rend (`OrderItem`), et s'il est retenu.
+  required: [work_package_id, label, is_match, attached_task, order_items]
+  description: >-
+    Un lot tel que `getWorkBreakdown` le rend (`WorkPackage`), s'il est retenu, et la tâche qui
+    le porte.
   properties:
-    order_item_id: { $ref: ../common.yaml#/Uuid }
+    work_package_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
     is_match:
       type: boolean
@@ -542,21 +545,31 @@ OrderItemReading:
         retenu : « dans une grille arborescente, le filtre laisse visibles les parents des lignes
         retenues » (WF-IHM-0060). « Le filtre s'applique aux totaux qu'elle présente »
         (WF-IHM-0130) : la grille ne compte que les éléments retenus — lue par
-        `kinds=work_package`, celle du témoin compte un lot, et aucun poste (#574).
-    work_packages:
+        `kinds=order_item`, celle du témoin compte un poste, et aucun lot (#574).
+    attached_task:
+      anyOf: [{ $ref: '#/AttachedTask' }, { type: 'null' }]
+      description: >-
+        La tâche de la révision en cours qui porte le lot (WF-PLA-0170), par son nœud et son
+        libellé ; nulle quand aucune ne le porte, ou quand le projet n'a pas de révision en
+        cours. Un lot ou un poste « n'y est porté que par une tâche à la fois » : c'est elle que
+        la suppression de l'élément laisse sans rattachement, et que l'écran nomme avant de la
+        confirmer (#802).
+    order_items:
       type: array
-      items: { $ref: '#/WorkPackageReading' }
+      items: { $ref: '#/OrderItemReading' }
 
-WorkPackageReading:
+OrderItemReading:
   type: object
-  required: [work_package_id, label, is_match, deliverables]
+  required: [order_item_id, label, is_match, attached_task, deliverables]
   description: >-
-    Un lot tel que `getWorkBreakdown` le rend (`WorkPackage`), et s'il est retenu, comme un poste
-    (`OrderItemReading.is_match`).
+    Un poste tel que `getWorkBreakdown` le rend (`OrderItem`), s'il est retenu, et la tâche qui
+    le porte, comme un lot (`WorkPackageReading.is_match`, `attached_task`).
   properties:
-    work_package_id: { $ref: ../common.yaml#/Uuid }
+    order_item_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
     is_match: { type: boolean }
+    attached_task:
+      anyOf: [{ $ref: '#/AttachedTask' }, { type: 'null' }]
     deliverables:
       type: array
       items: { $ref: '#/DeliverableReading' }
@@ -567,18 +580,29 @@ DeliverableReading:
   description: >-
     Un livrable tel que `getWorkBreakdown` le rend (`Deliverable`). Il ne contient rien : rendu,
     il est toujours retenu, et sa marque, toujours vraie, ne sert qu'à lire chaque ligne de la
-    grille de même.
+    grille de même. Aucune tâche ne porte un livrable (WF-PLA-0170).
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
     is_match: { type: boolean }
 
+AttachedTask:
+  type: object
+  required: [node_id, label]
+  description: >-
+    La tâche de la structure principale de la révision en cours qui porte un lot ou un poste du
+    lotissement (WF-PLA-0170), par son nœud et son libellé, comme les refus du rattachement
+    nomment une tâche (`work_package_task`).
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+
 WorkBreakdownKind:
   type: string
-  enum: [order_item, work_package, deliverable]
+  enum: [work_package, order_item, deliverable]
   description: >-
-    Nature d'un élément du lotissement, de la plus large à la plus fine : poste, lot,
-    livrable (WF-PRJ-0020). La colonne de la nature de la grille du lotissement, que
+    Nature d'un élément du lotissement, de la plus large à la plus fine : lot, poste,
+    livrable (WF-PRJ-0020, §4.4.1). La colonne de la nature de la grille du lotissement, que
     `getWorkBreakdown` filtre (`kinds`, WF-IHM-0130).
 
 Subproject:

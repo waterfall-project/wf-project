@@ -6,13 +6,13 @@
  * where rates are entered when the session may read it; then the indicators of the estimate
  * (WF-DEV-0060) — its total, its provisions, its deviations from the reference and from the
  * previous marked revision, its totals by nature of cost, in amount and in share of the total, by
- * sub-project and by order item (#220) —, with the date they are computed at (WF-IHM-0020), or
+ * sub-project and by work package (#220) —, with the date they are computed at (WF-IHM-0020), or
  * that they are unavailable when the API did not give them.
  *
  * Every figure is the API's, formatted in the language of the interface from its exact string:
  * nothing is summed, nor divided, nor hidden by a rule of the front (WF-ARC-0020). A deviation
- * the API does not give is not shown as zero: it is left out, as are the totals by order item of a
- * planning that is not structured in order items — absent rather than nil. An amount the API
+ * the API does not give is not shown as zero: it is left out, as are the totals by work package of a
+ * planning that is not structured in work packages — absent rather than nil. An amount the API
  * cannot compute — an hourly rate missing (WF-DEV-0010) — is said so, with its reason, never made
  * up. A name the API leaves out is said missing, never replaced by an identifier.
  */
@@ -39,7 +39,7 @@ export type MissingRates =
 /** A permission of the catalogue (WF-ADM-0100). */
 type Permission = components["schemas"]["PermissionCode"];
 
-/** An amount by key — a nature of cost, a sub-project, an order item —, maybe not computable. */
+/** An amount by key — a nature of cost, a sub-project, a work package —, maybe not computable. */
 type AmountByKey = components["schemas"]["ComputableAmountByKey"];
 
 /** A value that may not be computable (WF-IND-0010). */
@@ -209,7 +209,7 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
       {delta === null || delta === undefined ? null : <Figure name={t("delta")} amount={delta} />}
       <Breakdown name={t("byCostType")} items={indicators.by_cost_type} />
       <Breakdown name={t("bySubproject")} items={indicators.by_subproject} />
-      <Breakdown name={t("byOrderItem")} items={indicators.by_order_item} />
+      <Breakdown name={t("byOrderItem")} items={indicators.by_work_package} />
     </dl>
   );
 }

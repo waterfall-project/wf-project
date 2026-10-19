@@ -64,6 +64,7 @@ from wftools.mockwitness import (
     TRACKED,
     Line,
     Task,
+    WorkPackage,
     default_calendar,
     lineage_id,
     node_id,
@@ -523,12 +524,13 @@ class _Emitter:
             facet["completed_on"] = completed_on.isoformat()
         facet["is_summary"] = bool(task.children)
         facet["is_milestone"] = task.is_milestone
-        if task.order_item is not None:
-            # A summary bears its order item, named, that the grid shows without reading the
-            # work breakdown (WF-PLA-0130, WF-ARC-0020).
-            facet["order_item_id"] = task.order_item.identifier
-            facet["work_package_id"] = None
-            facet["work_breakdown_label"] = task.order_item.label
+        if task.bears is not None:
+            # A task bears a lot or a post, never both, named, that the grid shows without
+            # reading the work breakdown (WF-PLA-0130, WF-PLA-0170, WF-ARC-0020).
+            lot = isinstance(task.bears, WorkPackage)
+            facet["order_item_id"] = None if lot else task.bears.identifier
+            facet["work_package_id"] = task.bears.identifier if lot else None
+            facet["work_breakdown_label"] = task.bears.label
         tracking = _tracking(task.number)
         if tracking:
             facet["tracking"] = tracking

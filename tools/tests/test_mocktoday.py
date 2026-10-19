@@ -8,6 +8,7 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 
 import json
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -132,17 +133,16 @@ def test_the_cost_structure_of_a_portfolio_without_a_project_in_progress_gives_n
 
 def test_the_estimate_and_the_remaining_of_a_structure_without_a_line_give_no_share() -> None:
     # The same, provisional, through the readings of the estimate and of the remaining: a task that
-    # bears an order item and no line, so a nil total (EP-14/L55, #718; L42t, #774). No nature has a
-    # part, and the order item comes at 0.00 without its share, as a share over the nil total would
-    # raise.
-    roots = [mockwitness.Task(1, "Fourniture", days=5, order_item=mockwitness.ASSEMBLY)]
+    # bears a lot and no line, so a nil total (EP-14/L55, #718; L42t, #774). No nature has a part,
+    # and the lot comes at 0.00 without its share, as a share over the nil total would raise.
+    roots = [mockwitness.Task(1, "Fourniture", days=5, bears=mockwitness.FIRST_LOT)]
     reading = mockindicators.today(roots)
     found = mockindicators.estimate(reading)
     assert found["total"] == {"is_computable": True, "value": "0.00", "reason": None}
     assert (found["by_cost_type"], found["by_subproject"]) == ([], [])
-    items = cast("list[Node]", found["by_order_item"])
-    assert [(item["key"], item["amount"]["value"], "share" in item) for item in items] == [
-        (mockwitness.ASSEMBLY.identifier, "0.00", False)
+    lots = cast("list[Node]", found["by_work_package"])
+    assert [(lot["key"], lot["amount"]["value"], "share" in lot) for lot in lots] == [
+        (mockwitness.FIRST_LOT.identifier, "0.00", False)
     ]
     remaining = mockindicators.remaining_indicators(
         reading, mockindicators.reference(roots), None, []
@@ -200,11 +200,11 @@ def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[st
         "Essais et mise en service",
         None,
     ]
-    # The order item is borne by the lot « Poste de commande » of the core: the total of its
+    # The lot is borne by the summary « Poste de commande » of the core: the total of its
     # subtree, which no drawn task is under.
-    [item] = estimate["by_order_item"]
-    lot: Any = mockcore.subtree(mockcore.current(), 551)["totals"]
-    assert _amount(item["amount"]) == Decimal(lot["base_amount"]) == Decimal("502434.56")
+    [lot] = estimate["by_work_package"]
+    station: Any = mockcore.subtree(mockcore.current(), 551)["totals"]
+    assert _amount(lot["amount"]) == Decimal(station["base_amount"]) == Decimal("502434.56")
     assert estimate["provisions_identified"] == "500000.00"
     # The previous marked revision is the reference: its estimate held 850,060 of provisions, and
     # the same drawn lines at the same rates — one scale, the structure's (EP-14/L45b).
@@ -213,28 +213,39 @@ def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[st
     assert estimate["delta_to_previous_revision"] == estimate["delta_to_reference"]
 
 
-def test_an_order_item_no_task_bears_is_presented_without_a_total() -> None:
-    # WF-DEV-0060 : « un poste sans tâche rattachée est présenté sans total » ; Vérif : « les totaux
-    # par poste sont absents plutôt que nuls » (#586, #771, EP-14/L42s). Each order item of the
+def test_a_lot_no_task_bears_is_presented_without_a_total() -> None:
+    # WF-DEV-0060 : « un lot sans tâche rattachée est présenté sans total » ; Vérif : « les totaux
+    # par lot sont absents plutôt que nuls » (#586, #771, EP-14/L42s, C-350). Each lot of the
     # work breakdown, in its order: one that no task bears has neither amount nor share computed.
     reading = mockindicators.today()
-    other = mockwitness.OrderItem(universe(749), "Mise en service sur site")
-    borne, without = mockindicators.by_order_item(
+    other = mockwitness.WorkPackage(universe(749), "Lot 2")
+    borne, without = mockindicators.by_work_package(
         reading, frozenset(), (*mockwitness.WORK_BREAKDOWN, other)
     )
-    assert borne == mockindicators.by_order_item(reading, frozenset())[0]
+    assert borne == mockindicators.by_work_package(reading, frozenset())[0]
     assert _amount(cast("Node", borne)["amount"]) == Decimal("502434.56")
-    reason = {"is_computable": False, "value": None, "reason": "order_item_without_task"}
-    assert without == {
-        "key": universe(749),
-        "label": "Mise en service sur site",
-        "amount": reason,
-        "share": reason,
-    }
-    # A task that bears an order item the work breakdown does not have is an error of the witness,
-    # never an item left out in silence (relecture 1).
+    reason = {"is_computable": False, "value": None, "reason": "work_package_without_task"}
+    assert without == {"key": universe(749), "label": "Lot 2", "amount": reason, "share": reason}
+    # A post borne is no total of a lot: the total by level is that of the lots (WF-DEV-0060).
+    attached = mockindicators.today(
+        mockwitness.rewritten(
+            mockwitness.CORE,
+            lambda task: (
+                replace(task, bears=mockwitness.FIRST_ITEM)
+                if task.number == mockwitness.N.WIRING
+                else task
+            ),
+        )
+    )
+    alone = mockindicators.today(mockwitness.CORE)
+    assert mockindicators.by_work_package(attached, frozenset()) == (
+        mockindicators.by_work_package(alone, frozenset())
+    )
+    assert attached.rows != alone.rows
+    # A task that bears a lot the work breakdown does not have is an error of the witness, never
+    # a lot left out in silence (relecture 1).
     with pytest.raises(ValueError, match="not in the work breakdown"):
-        mockindicators.by_order_item(reading, frozenset(), (other,))
+        mockindicators.by_work_package(reading, frozenset(), (other,))
 
 
 def test_the_estimate_the_offer_kept_has_neither_gap_nor_provision(today: dict[str, Any]) -> None:
@@ -247,7 +258,7 @@ def test_the_estimate_the_offer_kept_has_neither_gap_nor_provision(today: dict[s
     assert offer["provisions_identified"] == "0.00"
     assert [part["label"] for part in offer["by_cost_type"]] == ["Main-d'œuvre", "Débours"]
     # Priced at the rates of 2025: 10 h of the connection at 78.50.
-    assert _amount(offer["by_order_item"][0]["amount"]) == Decimal("785.00") + Decimal("1234.56")
+    assert _amount(offer["by_work_package"][0]["amount"]) == Decimal("785.00") + Decimal("1234.56")
 
 
 def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -> None:
@@ -259,7 +270,7 @@ def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -
     assert estimate["total"]["params"]["missing_rates"] == missing
     computed = {
         part.get("label", "unassigned"): part["amount"]["is_computable"]
-        for key in ("by_cost_type", "by_subproject", "by_order_item")
+        for key in ("by_cost_type", "by_subproject", "by_work_package")
         for part in estimate[key]
     }
     # Every subproject bears labour of the electrical engineering, the drawn tasks' among it.
@@ -270,7 +281,7 @@ def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -
         "Poste de commande": False,
         "Essais et mise en service": False,
         "unassigned": False,
-        "Fourniture et montage des armoires": False,
+        "Lot 1": False,
     }
     shares = [part["share"] for key in ("by_cost_type", "by_subproject") for part in estimate[key]]
     assert not any(share["is_computable"] for share in shares)

@@ -38,6 +38,8 @@ from wftools.mockwitness import (
     CABLE_FITTER,
     CORE,
     FACTORY_ACCEPTANCE,
+    FIRST_ITEM,
+    FIRST_LOT,
     GENERATED,
     LABOUR,
     WIRING,
@@ -246,6 +248,17 @@ REESTIMATED_HOURS = Decimal(10)
 def task_renamed() -> JsonObject:
     """Return what updateTaskFacet answers when the wiring of the cabinets is renamed."""
     return core_write(amended(CORE, on_task(WIRING, label=RENAMED)), [WIRING])
+
+
+def task_attached() -> JsonObject:
+    """Return what updateTaskFacet answers when the factory acceptance bears the post 1.1.
+
+    The milestone of the deliverable of the post, the report of the factory acceptance, bears
+    the post of the one lot of the witness, which the summary above it bears: a leaf may bear a
+    post, and the task of the post is in the subtree of the task of its lot (WF-PLA-0170, #817).
+    No other write renders the milestone: two answers never render it at one version (#421).
+    """
+    return core_write(amended(CORE, on_task(MILESTONE, bears=FIRST_ITEM)), [MILESTONE])
 
 
 def estimate_line_updated() -> JsonObject:
@@ -624,7 +637,7 @@ def writes() -> dict[str, JsonObject]:
 
 
 def _core_writes() -> dict[str, JsonObject]:
-    renamed, updated = task_renamed(), estimate_line_updated()
+    renamed, updated, attached = task_renamed(), estimate_line_updated(), task_attached()
     reestimated = remaining_reestimated()
     [reestimated_line] = cast("list[Node]", reestimated["nodes"])
     deleted, linked, redated = node_deleted(), predecessor_set(), estimate_line_redated()
@@ -644,6 +657,16 @@ def _core_writes() -> dict[str, JsonObject]:
             f"Avec elle, sa récapitulative « {before[CONTROL_STATION].label} », dont rien ne "
             f"change, et {_totals(renamed)}, inchangés (WF-PLA-0130, WF-IHM-0040).",
             renamed,
+        ),
+        "task_attached.json": mocktext.example(
+            f"Le jalon « {before[MILESTONE].label} » rattaché au poste « {FIRST_ITEM.label} » du "
+            f"lot « {FIRST_LOT.label} », que porte sa récapitulative "
+            f"« {before[CONTROL_STATION].label} » : une feuille peut porter un poste, et la tâche "
+            f"du poste reste dans le sous-arbre de la tâche de son lot ; il porte le poste, nommé "
+            f"pour la colonne du lotissement, et aucun lot, une version de plus. Avec lui, sa "
+            f"récapitulative, dont rien ne change, et {_totals(attached)}, inchangés "
+            f"(WF-PLA-0170, WF-IHM-0040).",
+            attached,
         ),
         "estimate_line_updated.json": mocktext.example(
             f"La ligne de main-d'œuvre du devis, « {before[LABOUR].label} », dont la charge "

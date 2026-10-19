@@ -14,7 +14,7 @@
  *
  * The attachment of a task is entered in its column, written by `updateTaskFacet`, its refusal said at
  * its cell by the reason of its field, naming the task that bears the item already or those the write
- * would move out of the subtree of its post (WF-PLA-0170, EP-14/L44d). In the empty grid, the skeleton
+ * would move out of the subtree of its lot (WF-PLA-0170, EP-14/L44d). In the empty grid, the skeleton
  * is offered as the revision lists it (`generate_skeleton`, WF-PRJ-0030): unavailable, with its
  * condition, once the structure bears a task; generated, its tasks fill the grid as long as the
  * version the structure moved on to is more recent than the one read — a page read anew that reads it

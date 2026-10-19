@@ -1,5 +1,5 @@
 {
-  "summary": "Le squelette de planning engendré aujourd'hui sur la révision ouverte à 14 h 05 sur le projet créé à la même heure, « Rénovation du poste de livraison » (revision_without_tasks), sa structure principale encore vide (nodes_empty) : le lotissement par défaut (work_breakdown_default), un poste et un lot qui portent le libellé du projet, donne une récapitulative de poste et une récapitulative de lot sans feuille, rattachées au poste et au lot, et leurs deux jalons de fin, celui du poste succédant à celui du lot — à la fin de la journée de travail qui précède, la lecture d'une fin que la liaison de fin à début lui donne ; sans ligne, rien n'est chiffré, et le compteur de la structure, lu à 0, passe à 1 (WF-PRJ-0030, WF-PLA-0170, WF-PLA-0050, WF-IHM-0110).",
+  "summary": "Le squelette de planning engendré aujourd'hui sur la révision ouverte à 14 h 05 sur le projet créé à la même heure, « Rénovation du poste de livraison » (revision_without_tasks), sa structure principale encore vide (nodes_empty) : le lotissement par défaut (work_breakdown_default), un lot et un poste qui portent le libellé du projet, donne une récapitulative de lot et une récapitulative de poste sans feuille, rattachées au lot et au poste, et leurs deux jalons de fin, celui du lot succédant à celui du poste — à la fin de la journée de travail qui précède, la lecture d'une fin que la liaison de fin à début lui donne ; sans ligne, rien n'est chiffré, et le compteur de la structure, lu à 0, passe à 1 (WF-PRJ-0030, WF-PLA-0170, WF-PLA-0050, WF-IHM-0110).",
   "value": {
     "nodes": [
       {
@@ -30,8 +30,8 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
-          "order_item_id": "01926f3a-7c00-7000-8000-000000000714",
-          "work_package_id": null,
+          "order_item_id": null,
+          "work_package_id": "01926f3a-7c00-7000-8000-000000000714",
           "work_breakdown_label": "Rénovation du poste de livraison",
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
@@ -84,8 +84,8 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
-          "order_item_id": null,
-          "work_package_id": "01926f3a-7c00-7000-8000-000000000715",
+          "order_item_id": "01926f3a-7c00-7000-8000-000000000715",
+          "work_package_id": null,
           "work_breakdown_label": "Rénovation du poste de livraison",
           "base_amount": "0.00",
           "budgeted_amount": "0.00",

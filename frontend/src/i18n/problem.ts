@@ -12,8 +12,8 @@
  * numbers and their labels, the roles a nature or a category keeps in labour (`resource_roles`) by
  * their labels and codes, the projects a calendar would leave a task without hours in (`projects`)
  * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the task of a
- * post and those of its lots a write would move out of its subtree (`order_item_task`,
- * `work_package_tasks`, WF-PLA-0170) by their labels, the lines
+ * lot and those of its posts a write would move out of its subtree (`work_package_task`,
+ * `order_item_tasks`, WF-PLA-0170) by their labels, the lines
  * and the projects beyond a few counted, the notice listing them; a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
@@ -147,7 +147,7 @@ export interface NamedProject {
   readonly project_code: string | null;
 }
 
-/** Whether a value is a task a refusal names by its label (`order_item_task`, EP-14/L42s). */
+/** Whether a value is a task a refusal names by its label (`work_package_task`, EP-14/L42s). */
 function isNamedTask(value: unknown): value is { readonly label: string } {
   return hasTexts(value, ["label"]);
 }
@@ -267,19 +267,19 @@ const DETAILS: readonly Reader[] = [
     const named = projects.map((project) => projectName(project, say));
     return named.length === 0 ? undefined : ["projects", { projects: conjunction(named, locale) }];
   },
-  // The task of a post and those of its lots a write would move out of its subtree, by their labels
+  // The task of a lot and those of its posts a write would move out of its subtree, by their labels
   // (WF-PLA-0170, WF-IHM-0080).
-  ({ order_item_task }, _label, _locale, say) =>
-    isNamedTask(order_item_task)
-      ? ["order_item_task", { task: say("taskName", { label: order_item_task.label }) }]
+  ({ work_package_task }, _label, _locale, say) =>
+    isNamedTask(work_package_task)
+      ? ["work_package_task", { task: say("taskName", { label: work_package_task.label }) }]
       : undefined,
-  ({ work_package_tasks }, _label, locale, say) => {
-    const named = itemsOf(work_package_tasks, isNamedTask).map(({ label }) =>
+  ({ order_item_tasks }, _label, locale, say) => {
+    const named = itemsOf(order_item_tasks, isNamedTask).map(({ label }) =>
       say("taskName", { label }),
     );
     return named.length === 0
       ? undefined
-      : ["work_package_tasks", { tasks: conjunction(named, locale), count: named.length }];
+      : ["order_item_tasks", { tasks: conjunction(named, locale), count: named.length }];
   },
   ({ state, state_enum }, label) => {
     const told = stateIn(state_enum);

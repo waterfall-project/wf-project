@@ -581,21 +581,21 @@ def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
     assert facet(task.node)["inflated_amount"] == "106.09"
 
 
-def test_the_lot_of_the_control_station_bears_the_one_order_item_of_the_witness(
+def test_the_summary_of_the_control_station_bears_the_one_lot_of_the_witness(
     readings: dict[str, Any],
 ) -> None:
     estimate = nodes(readings["nodes_estimate.json"])
     planning = nodes(readings["nodes_planning.json"])
-    lot = facet(estimate[CONTROL_STATION])
-    assert lot["order_item_id"] == mockwitness.ASSEMBLY.identifier
-    assert lot["work_package_id"] is None
-    assert lot["work_breakdown_label"] == "Fourniture et montage des armoires"
-    # The same order item as the totals by order item of the estimate name (WF-DEV-0060).
-    breakdown = mockwitness.fixture("estimate_indicators_breakdown")["by_order_item"]
-    assert [entry["key"] for entry in breakdown] == [lot["order_item_id"]]
-    # Neither the studies nor the occurrence bear one: an order item is borne by one summary.
-    assert "order_item_id" not in facet(planning[STUDIES])
-    assert "order_item_id" not in facet(estimate[OCCURRED])
+    station = facet(estimate[CONTROL_STATION])
+    assert station["work_package_id"] == mockwitness.FIRST_LOT.identifier
+    assert station["order_item_id"] is None
+    assert station["work_breakdown_label"] == "Lot 1"
+    # The same lot as the totals by lot of the estimate name, the first level (WF-DEV-0060).
+    breakdown = mockwitness.fixture("estimate_indicators_breakdown")["by_work_package"]
+    assert [entry["key"] for entry in breakdown] == [station["work_package_id"]]
+    # Neither the studies nor the occurrence bear one: a lot is borne by one task at a time.
+    assert "work_package_id" not in facet(planning[STUDIES])
+    assert "work_package_id" not in facet(estimate[OCCURRED])
 
 
 def test_the_tasks_inscribed_name_the_timelines_of_the_witness_and_its_tracked_milestones(

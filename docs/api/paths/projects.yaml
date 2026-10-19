@@ -333,12 +333,14 @@
     tags: [projects]
     summary: Lotissement
     description: >-
-      En l'absence de saisie, un poste comprenant un lot sans livrable, qui portent le libellé
-      du projet (WF-PRJ-0020). Une
+      Des lots, qui contiennent des postes, qui contiennent des livrables (WF-PRJ-0020) ; en
+      l'absence de saisie, un lot comprenant un poste sans livrable, qui portent le libellé du
+      projet. Chaque lot et chaque poste disent la tâche de la révision en cours qui les porte
+      (`attached_task`, WF-PLA-0170). Une
       grille arborescente, dans l'ordre saisi, qui ne se trie pas (WF-IHM-0060) et se filtre
       sur ses deux colonnes (WF-IHM-0130) : le libellé par la recherche (`search`), la nature
-      — poste, lot, livrable — par `kinds`. Les filtres se combinent ; un élément est retenu
-      s'il les satisfait tous, et les postes et les lots qui contiennent un élément retenu
+      — lot, poste, livrable — par `kinds`. Les filtres se combinent ; un élément est retenu
+      s'il les satisfait tous, et les lots et les postes qui contiennent un élément retenu
       sont rendus pour que l'arbre reste lisible (WF-IHM-0060), sans les autres éléments
       qu'ils contiennent ; chaque élément rendu dit s'il est retenu ou rendu pour le contexte
       (`is_match`), et la grille ne compte que les retenus : « le filtre s'applique aux totaux
@@ -350,7 +352,7 @@
       - name: search
         in: query
         description: >-
-          Recherche sur le libellé des postes, des lots et des livrables — le seul texte que
+          Recherche sur le libellé des lots, des postes et des livrables — le seul texte que
           chacun porte (WF-PRJ-0020) —, comparé comme toute recherche du contrat (README,
           « Une recherche… » ; WF-IHM-0130). Un élément dont
           le libellé contient le texte est retenu, non ce qu'il contient.
@@ -359,7 +361,7 @@
         in: query
         description: >-
           Restreint aux éléments de ces natures, la colonne de la nature filtrée (WF-IHM-0130) :
-          `kinds=deliverable`, les livrables, sous leurs lots et leurs postes.
+          `kinds=deliverable`, les livrables, sous leurs postes et leurs lots.
         schema:
           type: array
           items: { $ref: ../components/schemas/projects.yaml#/WorkBreakdownKind }
@@ -374,7 +376,7 @@
               witness: { $ref: ../../../fixtures/api/work_breakdown.json }
               default: { $ref: ../../../fixtures/api/work_breakdown_default.json }
               search: { $ref: ../../../fixtures/api/work_breakdown_search.json }
-              work_packages: { $ref: ../../../fixtures/api/work_breakdown_work_packages.json }
+              order_items: { $ref: ../../../fixtures/api/work_breakdown_order_items.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -384,18 +386,19 @@
     tags: [projects]
     summary: Saisir le lotissement
     description: >-
-      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un poste
-      ou un lot que la saisie omet est supprimé : les tâches de la révision en cours qui le
+      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un lot
+      ou un poste que la saisie omet est supprimé : les tâches de la révision en cours qui le
       portaient restent et perdent leur rattachement ; les révisions marquées le conservent, et
-      le poste ou le lot est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080) ; un livrable
-      omis se supprime physiquement (WF-DAT-0080). Un lot que la saisie range sous un autre
-      poste n'est jamais refusé : « Le déplacement d'un lot sous un autre poste retire de même
-      le rattachement de sa tâche lorsqu'elle n'est pas dans le sous-arbre de la tâche de ce
-      poste » (WF-PLA-0170) — le lot et son nouveau poste tous deux portés, la tâche du lot hors
-      du sous-arbre de celle du poste dans la révision en cours, la saisie aboutit et cette
-      tâche ne porte plus le lot. Les révisions marquées le conservent, leurs tâches ne se
-      déplaçant plus ; la réponse ne nomme pas la tâche qui perd son lot, que la grille de
-      planning relue montre sans rattachement. Ce que la saisie avance (WF-IHM-0110) : le
+      le lot ou le poste est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080) ; « la
+      suppression d'un lot emporte ses postes » (WF-DAT-0080), un livrable omis se supprime
+      physiquement. Un poste que la saisie range sous un autre lot n'est jamais refusé : « Le
+      déplacement d'un poste sous un autre lot retire de même le rattachement de sa tâche
+      lorsqu'elle n'est pas dans le sous-arbre de la tâche de ce lot » (WF-PLA-0170) — le poste
+      et son nouveau lot tous deux portés, la tâche du poste hors du sous-arbre de celle du lot
+      dans la révision en cours, la saisie aboutit et cette tâche ne porte plus le poste. Les
+      révisions marquées le conservent, leurs tâches ne se déplaçant plus ; la réponse ne nomme
+      pas la tâche qui perd son poste, mais le poste rendu ne la dit plus (`attached_task`), et
+      la grille de planning relue la montre sans rattachement. Ce que la saisie avance (WF-IHM-0110) : le
       compteur du lotissement, toujours ; et, quand elle retire le rattachement de tâches de la
       révision en cours, le compteur de chacune de ces tâches (`Node.lock_version`) et celui de
       la structure principale (`CostStructure.lock_version`), comme une écriture de grille — une
@@ -450,14 +453,14 @@
           `VALIDATION_FAILED`, `fields` désignant chaque champ refusé : un compteur nul, celui
           d'une lecture filtrée (`WorkBreakdownReading`), `/lock_version` par `VALUE_REQUIRED` ;
           un libellé vide ou trop long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur
-          `/order_items/<i>/label`, `/order_items/<i>/work_packages/<j>/label` ou
-          `/order_items/<i>/work_packages/<j>/deliverables/<k>/label` (WF-PRJ-0020) ; un
+          `/work_packages/<i>/label`, `/work_packages/<i>/order_items/<j>/label` ou
+          `/work_packages/<i>/order_items/<j>/deliverables/<k>/label` (WF-PRJ-0020) ; un
           identifiant que le lotissement lu n'a pas sous la nature de son élément,
-          `UNKNOWN_WORK_BREAKDOWN_ITEM` sur cet identifiant — `/order_items/<i>/order_item_id`,
-          `/order_items/<i>/work_packages/<j>/work_package_id` ou
-          `/order_items/<i>/work_packages/<j>/deliverables/<k>/deliverable_id` ; un identifiant
+          `UNKNOWN_WORK_BREAKDOWN_ITEM` sur cet identifiant — `/work_packages/<i>/work_package_id`,
+          `/work_packages/<i>/order_items/<j>/order_item_id` ou
+          `/work_packages/<i>/order_items/<j>/deliverables/<k>/deliverable_id` ; un identifiant
           que la saisie porte déjà, chaque occurrence après la première,
-          `DUPLICATE_WORK_BREAKDOWN_ITEM` sur le même champ. Un lot rangé sous un autre poste
+          `DUPLICATE_WORK_BREAKDOWN_ITEM` sur le même champ. Un poste rangé sous un autre lot
           n'est pas un refus : il retire le rattachement de sa tâche (WF-PLA-0170).
         content:
           application/problem+json:

@@ -242,7 +242,7 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("shows the work breakdown of the project, read by the server, in a region of its own: a tree of each order item, its work packages under it and their deliverables under them, which sorts nothing and folds", async () => {
+  it("shows the work breakdown of the project, read by the server, in a region of its own: a tree of each work package, its order items under it and their deliverables under them, which sorts nothing and folds", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/work-breakdown"]).toBe(
       `/projects/${PROJECT}/work-breakdown`,
@@ -253,10 +253,10 @@ describe("the settings of a project", () => {
     );
     expect(rows(region ?? "", "Work breakdown")).toEqual([
       "Label Kind",
-      "Fourniture et montage des armoires Order item",
-      "Armoires Work package",
+      "Lot 1 Work package",
+      "Poste 1.1 Order item",
       "Procès-verbal de réception usine des armoires Deliverable",
-      "1 order item, 1 work package and 1 deliverable",
+      "1 work package, 1 order item and 1 deliverable",
     ]);
     expect(region).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Work breakdown"/);
     expect(region).toContain('aria-level="3"');
@@ -264,43 +264,40 @@ describe("the settings of a project", () => {
     // Searched by the server on its labels, filtered on its kinds; read whole, nothing says it
     // partial.
     expect(region).toContain('type="search"');
-    expect(text(region ?? "")).toContain("Every kind Order item Work package Deliverable");
+    expect(text(region ?? "")).toContain("Every kind Work package Order item Deliverable");
     expect(text(region ?? "")).not.toContain("show only what the search and the filter retain");
   });
 
-  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, says the order items and work packages kept partial, and counts the elements retained alone (#574)", async () => {
+  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, says the work packages and order items kept partial, and counts the elements retained alone (#574)", async () => {
     // Read filtered, then whole besides, for the commands of the grid to write from.
     server.answers = {
       ...server.answers,
-      "GET /projects/{project_id}/work-breakdown": [
-        "work_breakdown_work_packages",
-        "work_breakdown",
-      ],
+      "GET /projects/{project_id}/work-breakdown": ["work_breakdown_order_items", "work_breakdown"],
     };
     const page = html(
       await SettingsPage(
         at({
           breakdown_search: "Armoires",
-          breakdown_kinds: "deliverable,unknown,work_package",
+          breakdown_kinds: "deliverable,unknown,order_item",
           // The names of the contract alone belong to no grid of this screen.
-          kinds: "order_item",
+          kinds: "work_package",
         }),
       ),
     );
     expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toEqual([
-      { search: "Armoires", kinds: "work_package,deliverable" },
+      { search: "Armoires", kinds: "order_item,deliverable" },
       {},
     ]);
-    // The order item kept for its work package holds it alone: the list says so; and it is there
-    // for the context alone: the totals count the work package the filter retains, and no order
-    // item — le front affiche le total des seuls retenus.
+    // The work package kept for its order item holds it alone: the list says so; and it is there
+    // for the context alone: the totals count the order item the filter retains, and no work
+    // package — le front affiche le total des seuls retenus.
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
-      "Fourniture et montage des armoires Order item",
-      "Armoires Work package",
-      "1 work package",
+      "Lot 1 Work package",
+      "Poste 1.1 Order item",
+      "1 order item",
     ]);
     expect(text(page)).toContain(
-      "The order items and work packages show only what the search and the filter retain.",
+      "The work packages and order items show only what the search and the filter retain.",
     );
   });
 
@@ -316,30 +313,28 @@ describe("the settings of a project", () => {
           />,
         ),
       ),
-    ).toContain("The order items and work packages show only what the search retains.");
-    const packages = example("work_breakdown_work_packages") as WorkBreakdown;
+    ).toContain("The work packages and order items show only what the search retains.");
+    const items = example("work_breakdown_order_items") as WorkBreakdown;
     expect(
-      text(
-        html(<WorkBreakdownList breakdown={packages} project={PROJECT} kinds={["work_package"]} />),
-      ),
-    ).toContain("The order items and work packages show only what the filter by kind retains.");
+      text(html(<WorkBreakdownList breakdown={items} project={PROJECT} kinds={["order_item"]} />)),
+    ).toContain("The work packages and order items show only what the filter by kind retains.");
   });
 
-  it("keeps the grid of a work breakdown a search narrows to nothing, never saying the project has no order item", () => {
+  it("keeps the grid of a work breakdown a search narrows to nothing, never saying the project has no work package", () => {
     // Read filtered, the server gives the reading no counter: it is partial.
     const filtered = example("work_breakdown_search") as WorkBreakdown;
     const none = html(
       <WorkBreakdownList
-        breakdown={{ ...filtered, order_items: [] }}
+        breakdown={{ ...filtered, work_packages: [] }}
         project={PROJECT}
         shown={{ query: { sort: undefined, search: "zzz" }, preferences: undefined }}
       />,
     );
     expect(rows(none, "Work breakdown")).toContain("No row matches the request.");
-    expect(text(none)).not.toContain("This project has no order item.");
+    expect(text(none)).not.toContain("This project has no work package.");
   });
 
-  it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable, both bearing the label of the project", async () => {
+  it("shows the work breakdown by default of a project whose order was not entered: one work package, one order item, no deliverable, both bearing the label of the project", async () => {
     // The project created today, its first revision opened, its order not entered.
     const project = example("project_revision_opened") as Project;
     server.answers = {
@@ -349,28 +344,30 @@ describe("the settings of a project", () => {
     };
     const page = html(await SettingsPage(at({}, project.project_id)));
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
-      `${project.label} Order item`,
       `${project.label} Work package`,
-      "1 order item and 1 work package",
+      `${project.label} Order item`,
+      "1 work package and 1 order item",
     ]);
   });
 
-  it("shows an order item without a work package alone, and says a work breakdown without an order item empty", () => {
+  it("shows a work package without an order item alone, and says a work breakdown without a work package empty", () => {
     const fallback = example("work_breakdown_default") as WorkBreakdown;
     const project = example("project_created") as Project;
-    const [item] = fallback.order_items;
-    const bare = { ...fallback, order_items: item ? [{ ...item, work_packages: [] }] : [] };
+    const [pack] = fallback.work_packages;
+    const bare = { ...fallback, work_packages: pack ? [{ ...pack, order_items: [] }] : [] };
     expect(
       rows(
         html(<WorkBreakdownList breakdown={bare} project={project.project_id} />),
         "Work breakdown",
       ),
-    ).toEqual(["Label Kind", `${project.label} Order item`, "1 order item"]);
+    ).toEqual(["Label Kind", `${project.label} Work package`, "1 work package"]);
     expect(
       text(
-        html(<WorkBreakdownList breakdown={{ ...fallback, order_items: [] }} project={PROJECT} />),
+        html(
+          <WorkBreakdownList breakdown={{ ...fallback, work_packages: [] }} project={PROJECT} />,
+        ),
       ),
-    ).toBe("Work breakdown This project has no order item.");
+    ).toBe("Work breakdown This project has no work package.");
   });
 
   it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched, sorted and filtered by the server on each column", async () => {

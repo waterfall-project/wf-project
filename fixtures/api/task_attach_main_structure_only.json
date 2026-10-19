@@ -1,11 +1,11 @@
 {
-  "summary": "Le rattachement d'une tâche du devis propre du risque de reprise du câblage au lot « Armoires », refusé : le rattachement n'existe que dans la structure principale, et les devis propres des risques comme les différentiels n'en portent pas (WF-PLA-0170).",
+  "summary": "Le rattachement d'une tâche du devis propre du risque de reprise du câblage au poste « Poste 1.1 », refusé : le rattachement n'existe que dans la structure principale, et les devis propres des risques comme les différentiels n'en portent pas (WF-PLA-0170).",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,
     "fields": [
       {
-        "pointer": "/work_package_id",
+        "pointer": "/order_item_id",
         "code": "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY"
       }
     ],

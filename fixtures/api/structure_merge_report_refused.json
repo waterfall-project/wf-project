@@ -1,5 +1,5 @@
 {
-  "summary": "Une variante déclarée, celle de task_merge_outside_order_item : le lot « Armoires » porté par « Câblage des armoires », sous la récapitulative « Poste de commande », qui porte son poste, et un différentiel de la révision courante qui allonge cette tâche et la range sous « Installation sur site ». Le compte rendu préalable de sa fusion présente l'allongement et le motif qui la refuse : elle sortirait la tâche du lot du sous-arbre de celle de son poste, et le compte rendu nomme les deux tâches par leur nœud et leur libellé, comme l'échec de la fusion le ferait ; la confirmation n'est pas offerte ; les compteurs lus sont ceux de la structure principale de la révision courante, 1, comme `structures` le dit, et du différentiel, 2 (WF-REV-0050, WF-PLA-0170).",
+  "summary": "Une variante déclarée, celle de task_merge_outside_work_package : le poste « Poste 1.1 » porté par « Câblage des armoires », sous la récapitulative « Poste de commande », qui porte son lot, et un différentiel de la révision courante qui allonge cette tâche et la range sous « Installation sur site ». Le compte rendu préalable de sa fusion présente l'allongement et le motif qui la refuse : elle sortirait la tâche du poste du sous-arbre de celle de son lot, et le compte rendu nomme les deux tâches par leur nœud et leur libellé, comme l'échec de la fusion le ferait ; la confirmation n'est pas offerte ; les compteurs lus sont ceux de la structure principale de la révision courante, 1, comme `structures` le dit, et du différentiel, 2 (WF-REV-0050, WF-PLA-0170).",
   "value": {
     "main_structure_lock_version": 1,
     "amendment_lock_version": 2,
@@ -18,13 +18,13 @@
     "completed_tasks": [],
     "refusals": [
       {
-        "code": "WORK_PACKAGE_OUTSIDE_ORDER_ITEM",
+        "code": "ORDER_ITEM_OUTSIDE_WORK_PACKAGE",
         "params": {
-          "order_item_task": {
+          "work_package_task": {
             "node_id": "01926f3a-7c00-7000-8000-000000000551",
             "label": "Poste de commande"
           },
-          "work_package_tasks": [
+          "order_item_tasks": [
             {
               "node_id": "01926f3a-7c00-7000-8000-000000000552",
               "label": "Câblage des armoires"

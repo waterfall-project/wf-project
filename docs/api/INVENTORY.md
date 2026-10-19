@@ -135,7 +135,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | GET | `/projects/{project_id}/state-transitions` | Historique daté des états | WF-CYC-0090, WF-CYC-0130, WF-PTF-0050 |
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0050, WF-CYC-0060 |
 | POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |
-| GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-IHM-0060, WF-IHM-0130, WF-PRJ-0020 |
+| GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-IHM-0060, WF-IHM-0130, WF-PLA-0170, WF-PRJ-0020 |
 | PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-DAT-0080, WF-IHM-0080, WF-IHM-0090, WF-IHM-0110, WF-PLA-0170, WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/subprojects` | Créer un sous-projet | WF-CRE-0020, WF-PRJ-0050, WF-PRJ-0060 |

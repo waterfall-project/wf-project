@@ -6,11 +6,11 @@
  * with the key of its settings in the account (WF-ADM-0040) and its own names in the address
  * (`prefixedAddress`), under which its page asks the API by the names of the contract.
  *
- * - The work breakdown is a tree, as its order was entered (WF-PRJ-0020): each order item, its work
- *   packages under it, their deliverables under them. It sorts by no column (`sorts: false`) — the
+ * - The work breakdown is a tree, as its order was entered (WF-PRJ-0020): each work package, its
+ *   order items under it, their deliverables under them. It sorts by no column (`sorts: false`) — the
  *   order is the one entered, as `getWorkBreakdown` gives it —, folds and unfolds as the grids of
  *   the tasks do (`GridTree.parent`, `fold.tsx`), and is searched by the server on its labels and
- *   filtered on its kinds (`search`, `kinds`, EP-02/L42f): the order items and the work packages
+ *   filtered on its kinds (`search`, `kinds`, EP-02/L42f): the work packages and the order items
  *   that hold an element retained come with it, without the rest they hold — a reading that is
  *   never the whole work breakdown, and never to be written back (`setWorkBreakdown`).
  * - The sub-projects, each by the code the ERP knows it by, and whether actual costs are charged to
@@ -68,7 +68,7 @@ export type ContributorSort = NonNullable<
   NonNullable<operations["listContributors"]["parameters"]["query"]>["sort_by"]
 >;
 
-/** What a row of the work breakdown is, as the contract names it: item, package, deliverable. */
+/** What a row of the work breakdown is, as the contract names it: package, item, deliverable. */
 export type BreakdownKind = components["schemas"]["WorkBreakdownKind"];
 
 /**
@@ -76,8 +76,8 @@ export type BreakdownKind = components["schemas"]["WorkBreakdownKind"];
  * check until it is here.
  */
 const EVERY_BREAKDOWN_KIND: Readonly<Record<BreakdownKind, number>> = {
-  order_item: 0,
-  work_package: 1,
+  work_package: 0,
+  order_item: 1,
   deliverable: 2,
 };
 
@@ -132,31 +132,31 @@ const EVERY_KIND: Readonly<Record<ContributorKind, number>> = {
 export const KINDS = Object.keys(EVERY_KIND) as readonly ContributorKind[];
 
 /**
- * The rows of the tree of a work breakdown, in the order it was entered: each order item, then each
- * of its work packages, each followed by its deliverables.
+ * The rows of the tree of a work breakdown, in the order it was entered: each work package, then
+ * each of its order items, each followed by its deliverables.
  */
 export function breakdownRows(breakdown: WorkBreakdown): BreakdownRow[] {
-  return breakdown.order_items.flatMap((item): BreakdownRow[] => [
+  return breakdown.work_packages.flatMap((workPackage): BreakdownRow[] => [
     {
-      id: item.order_item_id,
+      id: workPackage.work_package_id,
       parent: null,
       level: 1,
-      kind: "order_item",
-      label: item.label,
-      matched: item.is_match,
+      kind: "work_package",
+      label: workPackage.label,
+      matched: workPackage.is_match,
     },
-    ...item.work_packages.flatMap((workPackage): BreakdownRow[] => [
+    ...workPackage.order_items.flatMap((item): BreakdownRow[] => [
       {
-        id: workPackage.work_package_id,
-        parent: item.order_item_id,
-        level: 2,
-        kind: "work_package",
-        label: workPackage.label,
-        matched: workPackage.is_match,
-      },
-      ...workPackage.deliverables.map((deliverable): BreakdownRow => ({
-        id: deliverable.deliverable_id,
+        id: item.order_item_id,
         parent: workPackage.work_package_id,
+        level: 2,
+        kind: "order_item",
+        label: item.label,
+        matched: item.is_match,
+      },
+      ...item.deliverables.map((deliverable): BreakdownRow => ({
+        id: deliverable.deliverable_id,
+        parent: item.order_item_id,
         level: 3,
         kind: "deliverable",
         label: deliverable.label,
@@ -183,7 +183,7 @@ export const BREAKDOWN_GRID: GridConfig<BreakdownRow, never, null> = {
   tree: {
     level: (row) => row.level,
     nature: () => null,
-    emphasis: (row) => (row.kind === "order_item" ? "strong" : undefined),
+    emphasis: (row) => (row.kind === "work_package" ? "strong" : undefined),
     parent: (row) => row.parent,
   },
   columns: [

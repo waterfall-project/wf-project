@@ -191,10 +191,10 @@ Problem:
         portent des lignes de devis de la révision en cours
         (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`,
         WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son
-        libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `order_item_task` et
-        `work_package_tasks` pour une fusion qui sortirait la tâche d'un lot du sous-arbre de la
-        tâche de son poste (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `mergeCostStructure`, WF-PLA-0170)
-        : la tâche du poste et celles des lots qui en sortiraient, nœuds de la structure
+        libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `work_package_task` et
+        `order_item_tasks` pour une fusion qui sortirait la tâche d'un poste du sous-arbre de la
+        tâche de son lot (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170)
+        : la tâche du lot et celles des postes qui en sortiraient, nœuds de la structure
         principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de
         `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ;
         EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif
@@ -204,11 +204,11 @@ Problem:
         en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que
         le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans
         `fields[].params` : ainsi `conflicting_object_id` et
-        `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le poste ou
-        le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
-        WF-PLA-0170 ; EP-14/L42k) ; `order_item_task` et `work_package_tasks`, la tâche du poste
-        et celles de ses lots qui sortiraient de son sous-arbre, chacune par son nœud et son
-        libellé (`node_id`, `label`), comme l'échec d'une fusion (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+        `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou
+        le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
+        WF-PLA-0170 ; EP-14/L42k) ; `work_package_task` et `order_item_tasks`, la tâche du lot
+        et celles de ses postes qui sortiraient de son sous-arbre, chacune par son nœud et son
+        libellé (`node_id`, `label`), comme l'échec d'une fusion (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
         `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul
         pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres
         au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`,
@@ -413,14 +413,14 @@ ErrorCode:
     # Un seuil d'indice qui n'est pas strictement compris entre 0 et 1 (`IndexThreshold`,
     # WF-REF-0170) ; le pointeur désigne le seuil, sans paramètre.
     - THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE
-    # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
+    # Motifs par champ du rattachement d'une tâche à un lot ou à un poste du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0170) ; le premier aussi d'un identifiant que la saisie du
-    # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; le dernier aussi d'un
-    # déplacement (`moveNodes`) qui sortirait la tâche d'un lot du sous-arbre de celle de son
-    # poste, le motif qui rejette entier un fichier d'import (`ImportReport.refusals`,
+    # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`
+    # aussi d'un déplacement (`moveNodes`) qui sortirait la tâche d'un poste du sous-arbre de
+    # celle de son lot, le motif qui rejette entier un fichier d'import (`ImportReport.refusals`,
     # EP-14/L42s), et le code d'une fusion qui échoue pour ce motif (`mergeCostStructure`) — une
     # saisie du
-    # lotissement qui range un lot sous un autre poste retire le rattachement, sans refus
+    # lotissement qui range un poste sous un autre lot retire le rattachement, sans refus
     # (`setWorkBreakdown`, EP-14/L42k). `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` refuse un
     # rattachement posé sur une tâche d'un différentiel ou du devis propre d'un risque, qui n'en
     # portent pas (EP-14/L42k). `DUPLICATE_WORK_BREAKDOWN_ITEM` refuse, dans une saisie du
@@ -429,7 +429,7 @@ ErrorCode:
     - UNKNOWN_WORK_BREAKDOWN_ITEM
     - WORK_BREAKDOWN_ITEMS_EXCLUSIVE
     - WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED
-    - WORK_PACKAGE_OUTSIDE_ORDER_ITEM
+    - ORDER_ITEM_OUTSIDE_WORK_PACKAGE
     - WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY
     - DUPLICATE_WORK_BREAKDOWN_ITEM
     # Un planning qui porterait la durée du projet, de la date de début de sa première tâche à la

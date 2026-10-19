@@ -171,7 +171,7 @@ export interface Examples {
     200: "timelines" | "timelines_empty";
   };
   "GET /projects/{project_id}/work-breakdown": {
-    200: "work_breakdown" | "work_breakdown_default" | "work_breakdown_search" | "work_breakdown_work_packages";
+    200: "work_breakdown" | "work_breakdown_default" | "work_breakdown_order_items" | "work_breakdown_search";
   };
   "GET /projects/{project_id}/workload": {
     200: "workload" | "workload_marked_remaining" | "workload_org_node" | "workload_reference_budget";
@@ -213,7 +213,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_outside_order_item" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_outside_work_package" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
@@ -237,7 +237,7 @@ export interface Examples {
     200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
-    200: "task_renamed" | "volume/task_lengthened";
+    200: "task_attached" | "task_renamed" | "volume/task_lengthened";
   };
   "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
     200: "subproject_updated";

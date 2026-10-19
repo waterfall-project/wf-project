@@ -59,8 +59,8 @@ from wftools.mockwitness import (
     TRACKED,
     WORK_BREAKDOWN,
     CostLine,
-    OrderItem,
     Task,
+    WorkPackage,
     by_identifier,
     fixture,
 )
@@ -82,8 +82,9 @@ _NO_ACTUAL, _NO_PLANNED, _NO_EARNED = "no_actual_cost", "no_planned_value", "no_
 _NO_BUDGET, _NO_SPENDING = "no_reference_budget", "no_actual_or_remaining"
 _MISSING = "hourly_rate_missing"
 
-_WITHOUT_TASK = "order_item_without_task"
-"""Why an order item that no task bears has no total: « présenté sans total » (WF-DEV-0060)."""
+_WITHOUT_TASK = "work_package_without_task"
+"""Why a lot that no task bears has no total: « un lot sans tâche rattachée est présenté sans
+total » (WF-DEV-0060)."""
 
 
 # --- The revisions read -------------------------------------------------------------------------
@@ -551,43 +552,44 @@ def subprojects(reading: Reading, lines: list[mockcore.Row]) -> list[Group]:
     return [group for group in groups if group.lines]
 
 
-def order_items(reading: Reading) -> list[Group]:
-    """Return the lines under each task that bears an order item of the work breakdown."""
+def work_packages(reading: Reading) -> list[Group]:
+    """Return the lines under each task that bears a lot of the work breakdown, its first level."""
     groups: list[Group] = []
     for row in reading.rows:
         facet = reading.facet(row)
-        if row.kind == mockcore.TASK and facet.get("order_item_id") is not None:
+        if row.kind == mockcore.TASK and facet.get("work_package_id") is not None:
             below = reading.below(row.number)
             lines = [line for line in reading.lines if line.number in below]
             label = cast("str", facet["work_breakdown_label"])
-            groups.append(Group(cast("str", facet["order_item_id"]), label, lines))
+            groups.append(Group(cast("str", facet["work_package_id"]), label, lines))
     return groups
 
 
-def by_order_item(
+def by_work_package(
     reading: Reading,
     missing: frozenset[str],
-    breakdown: Sequence[OrderItem] = WORK_BREAKDOWN,
+    breakdown: Sequence[WorkPackage] = WORK_BREAKDOWN,
 ) -> list[JsonValue]:
-    """Return each order item of the work breakdown, in its order, with its total (WF-DEV-0060).
+    """Return each lot of the work breakdown, in its order, with its total (WF-DEV-0060).
 
-    The total of the subtree of the task that bears it, and its share; an order item that no task
-    bears is presented without a total: neither its amount nor its share is computed, rather than
-    nought (EP-14/L42s). A task that bears an order item the work breakdown does not have is an
-    error of the witness, never an item left out.
+    The total of the subtree of the task that bears it, and its share; a lot that no task bears
+    is presented without a total: neither its amount nor its share is computed, rather than
+    nought (EP-14/L42s). The total by level is that of the lots, the first level (C-350): a post
+    borne has none. A task that bears a lot the work breakdown does not have is an error of the
+    witness, never a lot left out.
     """
-    groups = order_items(reading)
+    groups = work_packages(reading)
     parts = _parts(reading, groups, missing, whole=False)
     borne = {group.key: part for group, part in zip(groups, parts, strict=True)}
-    unknown = set(borne) - {item.identifier for item in breakdown}
+    unknown = set(borne) - {lot.identifier for lot in breakdown}
     if unknown:
-        message = f"order items borne but not in the work breakdown: {sorted(unknown)}"
+        message = f"lots borne but not in the work breakdown: {sorted(unknown)}"
         raise ValueError(message)
     without = not_computable(_WITHOUT_TASK)
     return [
-        borne.get(item.identifier)
-        or {"key": item.identifier, "label": item.label, "amount": without, "share": without}
-        for item in breakdown
+        borne.get(lot.identifier)
+        or {"key": lot.identifier, "label": lot.label, "amount": without, "share": without}
+        for lot in breakdown
     ]
 
 
@@ -600,7 +602,7 @@ def estimate(
 ) -> JsonObject:
     """Return the indicators of the estimate of a revision (`EstimateIndicators`, WF-DEV-0060).
 
-    Its total at the year of reference, by nature, by subproject and by order item; its
+    Its total at the year of reference, by nature, by subproject and by lot; its
     provisions; its gaps to the estimate of the reference and of the previous marked revision,
     absent without them. That of a marked revision is the one its marking kept (WF-DAT-0040). A
     category in ``missing`` has no rate for the reference year: what its
@@ -622,7 +624,7 @@ def estimate(
         "total": _amount(reading, lines, missing),
         "by_cost_type": _parts(reading, natures(lines), missing),
         "by_subproject": _parts(reading, subprojects(reading, lines), missing),
-        "by_order_item": by_order_item(reading, missing),
+        "by_work_package": by_work_package(reading, missing),
         "provisions_identified": money(
             _base(line for line in lines if mockhistory.is_provision(line))
         ),

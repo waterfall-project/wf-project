@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The work breakdown edited in its grid (FBS-4.2.1, EP-14/L44c): an order item added, a work package
- * added to an order item, a deliverable to a work package, an element renamed or deleted, from the
+ * The work breakdown edited in its grid (FBS-4.2.1, EP-14/L44c): a work package added, an order item
+ * added to a work package, a deliverable to an order item, an element renamed or deleted, from the
  * menu of a cell — on its row — and from the bar of the grid — on the row of the active cell. Each
  * gesture sends the work breakdown whole (`setWorkBreakdown`), made on its reading whole and with its
  * counter — a reading filtered has none, and the page then reads it whole besides (`whole`, decision
@@ -12,7 +12,7 @@
  * progress or freezes it (EP-14/L42s) —, presented `aria-disabled`, described by the conditions it
  * lacks.
  *
- * The deletion of an element is confirmed first; that of an order item or of a work package says that
+ * The deletion of an element is confirmed first; that of a work package or of an order item says that
  * the tasks of the revision in progress that bear it remain and lose their attachment, the marked
  * revisions keeping it (WF-PLA-0170) — the reading does not say whether a task bears it, so every one
  * says so. The work breakdown answered, read whole, takes the place of the rows of a reading whole
@@ -83,11 +83,11 @@ type FieldProblem = components["schemas"]["FieldProblem"];
 /** The longest label of an element the contract takes. */
 const LABEL_LENGTH = 300;
 
-/** The kind of an element added under a parent; an order item under none. */
+/** The kind of an element added under a parent; a work package under none. */
 const CHILD: Readonly<Record<BreakdownKind | "root", BreakdownKind>> = {
-  root: "order_item",
-  order_item: "work_package",
-  work_package: "deliverable",
+  root: "work_package",
+  work_package: "order_item",
+  order_item: "deliverable",
   deliverable: "deliverable",
 };
 
@@ -255,8 +255,8 @@ interface RowCommand {
 }
 
 /**
- * The commands on a row — none outside one —: an order item added; under an order item or a work
- * package, an element added to it; the row renamed, deleted.
+ * The commands on a row — none outside one —: a work package added; under a work package or an
+ * order item, an element added to it; the row renamed, deleted.
  */
 function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowCommand[] {
   const t = useTranslations("projectLists.workBreakdown");

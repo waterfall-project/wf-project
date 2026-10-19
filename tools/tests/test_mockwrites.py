@@ -171,8 +171,8 @@ def test_a_write_of_the_core_answers_the_node_written_its_summaries_and_the_whol
     } == (read[universe(WIRING)])
     [summary] = renamed["ancestors"]
     assert summary == read[universe(CONTROL_STATION)]
-    assert summary["task"]["order_item_id"] == mockwitness.ASSEMBLY.identifier
-    assert summary["task"]["work_breakdown_label"] == mockwitness.ASSEMBLY.label
+    assert summary["task"]["work_package_id"] == mockwitness.FIRST_LOT.identifier
+    assert summary["task"]["work_breakdown_label"] == mockwitness.FIRST_LOT.label
     assert (renamed["rescheduled"], renamed["reinflated"]) == ([], [])
     assert renamed["totals"] == whole["totals"]
     assert renamed["totals"]["task_count"] == 1_000

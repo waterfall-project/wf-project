@@ -254,7 +254,7 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
         _get(found, "estimate_indicators_missing_rates"),
     )
     offered = _get(found, "estimate_indicators_breakdown")
-    [item] = _objs(now["by_order_item"])
+    [lot] = _objs(now["by_work_package"])
     coverage = _obj(_get(found, "remaining_indicators")["coverage"])
     natures = ", ".join(
         f"{_of(part['amount'])} de {cast('str', part['label']).lower()}"
@@ -263,7 +263,7 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     touched = [
         *_labels(missing["by_cost_type"], computed=False),
         *_labels(missing["by_subproject"], computed=False),
-        *_labels(missing["by_order_item"], computed=False),
+        *_labels(missing["by_work_package"], computed=False),
     ]
     untouched = [
         *_labels(missing["by_cost_type"], computed=True),
@@ -282,8 +282,8 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
         "estimate_indicators": (
             f"Les indicateurs du devis de la révision courante au {_TODAY} : {_of(now['total'])} "
             f"au total, dont {natures} — la provision du risque encore identifié —, ventilés par "
-            f"nature, par sous-projet et par le poste « {item['label']} » du lotissement, que "
-            f"porte le lot « Poste de commande », {_of(item['amount'])}. L'écart avec la "
+            f"nature, par sous-projet et par le lot « {lot['label']} » du lotissement, que "
+            f"porte la récapitulative « Poste de commande », {_of(lot['amount'])}. L'écart avec la "
             f"référence, {_of(now['delta_to_reference'])}, est aussi celui avec la révision "
             f"marquée précédente, la référence elle-même : les "
             f"{_money(coverage['remaining_provisions'])} de provision et les "
@@ -297,10 +297,9 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"(WF-DAT-0040) : {_of(offered['total'])} au total, "
             f"aux taux de 2025, sans provision — aucun risque n'était identifié —, par nature en "
             f"montant et en part du total, dont la somme vaut cent pour cent ; tout dans "
-            f"l'ensemble hors sous-projet, aucun n'étant encore déclaré (WF-PRJ-0050) ; le poste "
-            f"du lotissement que "
-            f"porte le lot « Poste de commande ». Ni révision de référence ni révision marquée "
-            f"avant elle : aucun écart (WF-DEV-0060)."
+            f"l'ensemble hors sous-projet, aucun n'étant encore déclaré (WF-PRJ-0050) ; le lot "
+            f"du lotissement que porte la récapitulative « Poste de commande ». Ni révision de "
+            f"référence ni révision marquée avant elle : aucun écart (WF-DEV-0060)."
         ),
         "estimate_indicators_missing_rates": (
             f"Le devis de la révision courante au {_TODAY} {variant} : le total, les écarts et ce "

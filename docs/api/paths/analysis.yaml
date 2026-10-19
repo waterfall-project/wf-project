@@ -8,8 +8,8 @@
     tags: [estimate]
     summary: Indicateurs de devis
     description: >-
-      Total, ventilations par nature de coût, par sous-projet et par poste du lotissement — le
-      total du sous-arbre de la tâche rattachée au poste (WF-PLA-0170) —, provisions, écart avec
+      Total, ventilations par nature de coût, par sous-projet et par lot du lotissement — le
+      total du sous-arbre de la tâche rattachée au lot (WF-PLA-0170) —, provisions, écart avec
       la révision de référence et avec la révision marquée précédente (WF-DEV-0060). Disponibles
       dès le chiffrage (WF-IND-0010). Un taux horaire manquant pour l'année de référence ne rend
       pas un budget faux : les montants concernés ne se calculent pas, et disent quelles
