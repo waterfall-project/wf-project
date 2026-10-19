@@ -42,6 +42,7 @@ from wftools.mockcalendar import (
     follow,
     to_hours,
 )
+from wftools.mocklinks import refuse_through_summaries
 from wftools.mockstructure import (
     LABOUR_RATES,
     JsonObject,
@@ -155,7 +156,9 @@ def schedule(roots: Iterable[Task] = CORE) -> Mapping[int, Dated]:
     (WF-PLA-0040). The tasks are dated in the order of their links, each after its
     predecessors, whatever their order in the plan. Backward: a task may finish as late as its
     successors allow, at the finish of the core without any. A structure is dated once: the
-    readings of the indicators and of the curves date it again and again.
+    readings of the indicators and of the curves date it again and again. A structure whose
+    links close a loop, or bind a summary to one of its subordinates, is not dated: the server
+    refuses it (``in_link_order``, ``wftools.mocklinks``).
     """
     return _schedule(tuple(roots))
 
@@ -166,6 +169,7 @@ def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
     origin = Instant(STUDIES_STARTED.on)
     tasks = tasks_in_order(roots)
     linked = in_link_order(tasks)
+    refuse_through_summaries(tasks)
     dated: dict[int, Dated] = {}
     for task in linked:
         if task.children:

@@ -8,7 +8,9 @@ and the description of a task, its predecessors and its inscriptions to the time
 success is, as every write of the grids, the difference between two readings of one structure,
 before and after the gesture (``wftools.mockwrites``, #287): never written by hand. Each refusal
 names what the witness names — the tasks of a loop of links, the task that would carry the
-project beyond its horizon — by the labels its readings give.
+project beyond its horizon — by the labels its readings give. A move or an indentation that
+would bind a summary to its subordinate, or close a loop through it, is refused as predecessors
+entered are (#1164), the structure it would leave refused by ``mockcore.schedule`` too.
 
 Every node the gestures write is one no other write renders at the same version (#421): the
 tasks they create are numbered 581 to 583, after the nodes of the skeleton.
@@ -275,7 +277,7 @@ def task_date_computed() -> JsonObject:
 def named(number: int) -> JsonObject:
     """Return a task as a refusal names it: its node and its label (`node_id`, `label`)."""
     rows = {row.number: row for row in mockcore.current()}
-    return {"node_id": universe(number), "label": rows[number].label}
+    return {"node_id": mockwitness.node_id(number), "label": rows[number].label}
 
 
 def horizon_exceeded(task: JsonObject, correlation: str) -> JsonObject:
@@ -343,6 +345,33 @@ CYCLE_CORRELATION, FORBIDDEN_CORRELATION = universe(1171), universe(1172)
 LINK_HORIZON_CORRELATION, CREATE_HORIZON_CORRELATION = universe(1173), universe(1174)
 
 
+def followers_of(roots: Iterable[Task]) -> dict[int, list[int]]:
+    """Return the successors of each task of a structure, in the order of the plan."""
+    followers: dict[int, list[int]] = {}
+    for each in mockcore.tasks_in_order(roots):
+        for link in each.links:
+            followers.setdefault(link.predecessor, []).append(each.number)
+    return followers
+
+
+def shortest(start: int, targets: set[int], followers: dict[int, list[int]]) -> list[int]:
+    """Return the shortest chain of links from a task down to one of others, each before the next.
+
+    The first in the order of the links when several are as short; none when no chain leads there.
+    """
+    paths = [[start]]
+    seen = {start}
+    while paths:
+        path = paths.pop(0)
+        for follower in followers.get(path[-1], []):
+            if follower in targets:
+                return [*path, follower]
+            if follower not in seen:
+                seen.add(follower)
+                paths.append([*path, follower])
+    return []
+
+
 def cycle(task: int, links: Iterable[Link], roots: Iterable[Task] = CORE) -> list[int]:
     """Return the tasks of the loop that predecessors sent for a task would close, in link order.
 
@@ -354,21 +383,7 @@ def cycle(task: int, links: Iterable[Link], roots: Iterable[Task] = CORE) -> lis
     sent = {link.predecessor for link in links}
     if task in sent:
         return [task]
-    followers: dict[int, list[int]] = {}
-    for each in mockcore.tasks_in_order(roots):
-        for link in each.links:
-            followers.setdefault(link.predecessor, []).append(each.number)
-    paths = [[task]]
-    seen = {task}
-    while paths:
-        path = paths.pop(0)
-        for follower in followers.get(path[-1], []):
-            if follower in sent:
-                return [*path, follower]
-            if follower not in seen:
-                seen.add(follower)
-                paths.append([*path, follower])
-    return []
+    return shortest(task, sent, followers_of(roots))
 
 
 def predecessors_cycle_refused() -> JsonObject:
@@ -384,6 +399,99 @@ def predecessors_cycle_refused() -> JsonObject:
 def predecessors_forbidden() -> JsonObject:
     """Return what setPredecessors answers to a link between a summary and its subordinate."""
     return {"code": "LINK_FORBIDDEN", "status": 422, "correlation_id": FORBIDDEN_CORRELATION}
+
+
+INDENTED_FORBIDDEN, INDENTED_UNDER = N.COMMISSIONING, N.MOUNTING
+"""The commissioning indented under the mounting, the task above it at its level and its
+predecessor: the mounting would become its summary, the link between them binding a summary to
+its subordinate (WF-PLA-0030, WF-PLA-0040)."""
+
+LOOP_MOVED, LOOP_UNDER = "Documentation 1.1.7", "Préparation 1.1.1"
+"""A task drawn about the core moved under another of its post, which precedes it through a
+third: the summary it would receive spans it, and it already follows that summary — a loop
+(WF-PLA-0030)."""
+
+MOVE_FORBIDDEN_CORRELATION, MOVE_CYCLE_CORRELATION = universe(1176), universe(1177)
+
+ONE_LINK = 2
+"""The tasks of a chain of one link: a summary and its subordinate, bound directly."""
+
+
+def moved_under(roots: Iterable[Task], number: int, parent: int) -> tuple[Task, ...]:
+    """Return a structure with a task, not a root, moved with its subordinates under another.
+
+    Last under it, as an indentation puts it under the task above it at its level (WF-PLA-0040).
+    """
+    [task] = [each for each in mockcore.tasks_in_order(roots) if each.number == number]
+
+    def move(each: Task) -> Task:
+        children = tuple(child for child in each.children if child.number != number)
+        if each.number == parent:
+            children = (*children, task)
+        return each if children == each.children else replace(each, children=children)
+
+    return amended(roots, move)
+
+
+def move_loop(number: int, parent: int, roots: Iterable[Task]) -> list[int]:
+    """Return the chain of links a move would close into a loop through the summary it receives.
+
+    The task moved goes under the parent, which spans it with its own ancestors (WF-PLA-0040): a
+    chain of links from one of them down to the task moved or one of its subordinates, or from
+    these back to one of them, would be a loop. The shortest, each task preceding the next; at
+    equal length, from the nearest ancestor first, then from the task moved and its subordinates
+    in the order of the plan, each by the order of the links. Two tasks: a link between a summary
+    and its subordinate. None when the move closes no loop.
+    """
+    tasks = mockcore.tasks_in_order(roots)
+    parents = {child.number: each.number for each in tasks for child in each.children}
+    above = [parent]
+    while above[-1] in parents:
+        above.append(parents[above[-1]])
+    [task] = [each for each in tasks if each.number == number]
+    below = [each.number for each in mockcore.tasks_in_order((task,))]
+    followers = followers_of(roots)
+    chains = [shortest(start, set(below), followers) for start in above]
+    chains += [shortest(start, set(above), followers) for start in below]
+    found = [chain for chain in chains if chain]
+    return min(found, key=len) if found else []
+
+
+def move_refused(number: int, parent: int, roots: Iterable[Task], correlation: str) -> JsonObject:
+    """Return what moveNodes answers to a move that would close a loop through the hierarchy.
+
+    A link between the summary that would receive the task and the task, or one of their
+    subordinates, is refused without a parameter (`LINK_FORBIDDEN`); a longer chain is a loop,
+    whose tasks the refusal names in the order of the links (`LINK_CYCLE`, WF-PLA-0030).
+    """
+    loop = move_loop(number, parent, roots)
+    if not loop:
+        message = f"the move of the task {number} under {parent} closes no loop"
+        raise ValueError(message)
+    if len(loop) == ONE_LINK:
+        return {"code": "LINK_FORBIDDEN", "status": 422, "correlation_id": correlation}
+    return {
+        "code": "LINK_CYCLE",
+        "status": 422,
+        "params": {"cycle": [named(each) for each in loop]},
+        "correlation_id": correlation,
+    }
+
+
+def nodes_indent_forbidden() -> JsonObject:
+    """Return what moveNodes answers when the commissioning is indented under its predecessor."""
+    return move_refused(INDENTED_FORBIDDEN, INDENTED_UNDER, CORE, MOVE_FORBIDDEN_CORRELATION)
+
+
+def loop_move() -> tuple[int, int]:
+    """Return the task the looping move moves, and the one it moves it under."""
+    return network_task(LOOP_MOVED).number, network_task(LOOP_UNDER).number
+
+
+def nodes_move_cycle_refused() -> JsonObject:
+    """Return what moveNodes answers to a task moved under a task it already follows."""
+    moved, under = loop_move()
+    return move_refused(moved, under, described(), MOVE_CYCLE_CORRELATION)
 
 
 def predecessors_horizon_exceeded() -> JsonObject:
@@ -472,7 +580,12 @@ def _redated(answer: JsonObject) -> str:
 
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the gestures of the structure and of the entries of a task."""
-    return {**_structure_examples(), **_entry_examples(), **_link_examples()}
+    return {
+        **_structure_examples(),
+        **_entry_examples(),
+        **_link_examples(),
+        **_move_refusal_examples(),
+    }
 
 
 def _structure_examples() -> dict[str, JsonObject]:
@@ -658,5 +771,32 @@ def _link_examples() -> dict[str, JsonObject]:
             f"plus. Avec elle, sa récapitulative et {totals_said(tracked)}, inchangés "
             f"(WF-PLA-0060).",
             tracked,
+        ),
+    }
+
+
+def _move_refusal_examples() -> dict[str, JsonObject]:
+    rows = {row.number: row for row in mockcore.current()}
+    moved, under = loop_move()
+    loop = [rows[number].label for number in move_loop(moved, under, described())]
+    through = mocktext.listed([f"« {label} »" for label in loop[1:-1]])
+    return {
+        "nodes_indent_forbidden.json": mocktext.example(
+            f"La « {rows[INDENTED_FORBIDDEN].label} » mise en retrait sous le "
+            f"« {rows[INDENTED_UNDER].label} », la tâche au-dessus d'elle à son niveau, qui est "
+            f"son prédécesseur : celui-ci deviendrait sa récapitulative, et leur liaison "
+            f"relierait une récapitulative à l'une de ses subordonnées. Le déplacement est "
+            f"refusé sans paramètre, le code en disant la raison, comme pour des prédécesseurs "
+            f"saisis (predecessors_forbidden) ; rien n'est écrit (WF-PLA-0030, WF-PLA-0040).",
+            nodes_indent_forbidden(),
+        ),
+        "nodes_move_cycle_refused.json": mocktext.example(
+            f"« {LOOP_MOVED} », tâche tirée autour du cœur, déplacée sous « {LOOP_UNDER} », "
+            f"qu'elle suit déjà par {through} : la récapitulative qui la recevrait la couvrirait, "
+            f"et ses liaisons fermeraient une boucle. Le déplacement est refusé, et le refus en "
+            f"nomme les tâches dans l'ordre des liaisons, de la récapitulative à la tâche "
+            f"déplacée, {mocktext.listed([f'« {label} »' for label in loop])} ; rien n'est "
+            f"écrit (WF-PLA-0030, WF-PLA-0040).",
+            nodes_move_cycle_refused(),
         ),
     }

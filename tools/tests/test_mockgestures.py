@@ -19,7 +19,7 @@ import pytest
 from wftools import REPOSITORY, mockcore, mockdata, mockgestures, mockwitness, mockwrites
 from wftools.mockids import universe
 from wftools.mockstructure import described
-from wftools.mockwitness import CORE, CUSTOMER, Link, N
+from wftools.mockwitness import CORE, CUSTOMER, Link, N, node_id
 
 type Node = dict[str, Any]
 
@@ -70,6 +70,7 @@ REFUSALS = {
         "predecessors_forbidden",
         "predecessors_horizon_exceeded",
     ],
+    "moveNodes": ["nodes_indent_forbidden", "nodes_move_cycle_refused"],
 }
 
 
@@ -420,6 +421,63 @@ def test_a_link_to_its_own_summary_is_refused_without_a_parameter(read: dict[str
     mounting = read[universe(mockgestures.FORBIDDEN_ON)]
     sent = {universe(link.predecessor) for link in mockgestures.FORBIDDEN_LINKS}
     assert mounting["parent_id"] in sent
+
+
+def test_a_task_indented_under_its_predecessor_is_refused_as_a_forbidden_link(
+    read: dict[str, Node],
+) -> None:
+    # The task above it at its level would become its summary, the link binding them (#1164).
+    refused = gesture("nodes_indent_forbidden")
+    assert (refused["code"], refused["status"], "params" in refused) == (
+        "LINK_FORBIDDEN",
+        422,
+        False,
+    )
+    task = read[universe(mockgestures.INDENTED_FORBIDDEN)]
+    above = read[universe(mockgestures.INDENTED_UNDER)]
+    assert (task["parent_id"], task["position"]) == (above["parent_id"], above["position"] + 1)
+    assert above["node_id"] in {link["predecessor_node_id"] for link in task["predecessors"]}
+    indented = mockgestures.moved_under(
+        CORE, mockgestures.INDENTED_FORBIDDEN, mockgestures.INDENTED_UNDER
+    )
+    with pytest.raises(ValueError, match="binds the summary"):
+        mockcore.schedule(indented)
+
+
+def test_a_task_moved_under_a_task_it_follows_is_refused_naming_the_loop(
+    read: dict[str, Node],
+) -> None:
+    # From the summary it would receive down to it, each preceding the next (#1164).
+    refused = gesture("nodes_move_cycle_refused")
+    assert (refused["code"], refused["status"]) == ("LINK_CYCLE", 422)
+    loop = refused["params"]["cycle"]
+    moved, under = mockgestures.loop_move()
+    assert (loop[0]["node_id"], loop[-1]["node_id"], len(loop)) == (
+        node_id(under),
+        node_id(moved),
+        3,
+    )
+    for before, after in itertools.pairwise(loop):
+        links = read[after["node_id"]]["predecessors"]
+        assert before["node_id"] in {link["predecessor_node_id"] for link in links}
+    for each in loop:
+        assert each["label"] == read[each["node_id"]]["task"]["label"]
+    assert read[node_id(moved)]["parent_id"] == read[node_id(under)]["parent_id"]
+    with pytest.raises(ValueError, match="close a loop through a summary"):
+        mockcore.schedule(mockgestures.moved_under(described(), moved, under))
+
+
+def test_a_move_that_closes_no_loop_is_not_refused() -> None:
+    # The indentation the contract shows succeeding (nodes_indented) binds no summary.
+    assert mockgestures.move_loop(N.INSTALLATION, N.CONTROL_STATION, CORE) == []
+    with pytest.raises(ValueError, match="closes no loop"):
+        mockgestures.move_refused(N.INSTALLATION, N.CONTROL_STATION, CORE, universe(1176))
+
+
+def test_a_summary_given_its_own_subordinate_as_predecessor_is_not_dated() -> None:
+    bound = mockwrites.amended(CORE, mockwrites.on_task(N.INSTALLATION, links=(Link(N.MOUNTING),)))
+    with pytest.raises(ValueError, match="binds the summary"):
+        mockcore.schedule(bound)
 
 
 def _finish(roots: tuple[mockwitness.Task, ...], number: int) -> date:

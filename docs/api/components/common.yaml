@@ -213,8 +213,18 @@ Problem:
         précédant la suivante — « la raison en est nommée à l'utilisateur », la grille, filtrée,
         pouvant ne pas les lire ; quand plusieurs prédécesseurs envoyés ferment une boucle, la
         plus courte est rendue, puis, à longueur égale, la première dans l'ordre des liaisons, et
-        une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche. Les
-        paramètres d'un motif par champ sont dans
+        une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche ; et
+        pour un déplacement, une mise en retrait ou une création qui fermerait une boucle à
+        travers la récapitulative qui recevrait le nœud (`moveNodes`, `createNode`, WF-PLA-0030,
+        WF-PLA-0040 ; #1164) — une récapitulative couvre ses subordonnées : ce qui la précède les
+        précède, ce qui la suit les suit —, les tâches de la chaîne de liaisons qui mène de cette
+        récapitulative, ou de l'un de ses ancêtres, à la tâche qu'elle recevrait ou à l'une de
+        ses subordonnées, ou de celles-ci à celle-là, chacune précédant la suivante : la plus
+        courte, puis, à longueur égale, celle qui part de l'ancêtre le plus proche, puis de la
+        tâche reçue et de ses subordonnées dans l'ordre du plan. Une chaîne d'une seule liaison
+        est la liaison d'une récapitulative et de sa subordonnée : `LINK_FORBIDDEN`, sans
+        paramètre.
+        Les paramètres d'un motif par champ sont dans
         `fields[].params` : ainsi `conflicting_object_id` et
         `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou
         le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
@@ -338,7 +348,10 @@ ErrorCode:
     - SUMMARY_TASK_DERIVED
     # Des prédécesseurs qui fermeraient une boucle de liaisons, `params.cycle` nommant ses
     # tâches, ou une liaison entre une récapitulative et l'une de ses subordonnées, sans
-    # paramètre (`setPredecessors`, WF-PLA-0030, WF-PLA-0040 ; EP-15/US-0460).
+    # paramètre (`setPredecessors`, WF-PLA-0030, WF-PLA-0040 ; EP-15/US-0460) ; de même un
+    # déplacement, une mise en retrait ou une création qui ferait d'une tâche la récapitulative
+    # d'une tâche qui lui est liée, ou fermerait une boucle à travers elle (`moveNodes`,
+    # `createNode` ; #1164).
     - LINK_CYCLE
     - LINK_FORBIDDEN
     - RESOURCE_ROLE_REQUIRED

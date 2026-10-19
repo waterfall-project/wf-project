@@ -318,6 +318,8 @@ paths = [
     "fixtures/api/predecessors_cycle_refused.json",
     "fixtures/api/predecessors_forbidden.json",
     "fixtures/api/predecessors_horizon_exceeded.json",
+    "fixtures/api/nodes_indent_forbidden.json",
+    "fixtures/api/nodes_move_cycle_refused.json",
     "fixtures/api/node_create_horizon_exceeded.json",
     "fixtures/api/node_tracked.json",
     "fixtures/api/estimate_line_entered.json",

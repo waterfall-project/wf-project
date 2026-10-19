@@ -6344,6 +6344,27 @@ suivre la mise en service, qui la suit par le montage — trois tâches, dans l'
 409, contre le catalogue ; un refus par champ, `/predecessors/<n>`, qui localiserait la liaison mais
 pas la boucle, faite de liaisons déjà enregistrées.
 
+**Un déplacement, une mise en retrait ou une création refusent les mêmes liaisons** (#1164,
+tranché par l'auteur le 2026-10-19 ; WF-PLA-0030, WF-PLA-0040). Une récapitulative couvre ses
+subordonnées : ce qui la précède les précède, ce qui la suit les suit. Mettre en retrait B sous A
+quand A est le prédécesseur de B fait de A la récapitulative de B avec la liaison A → B, celle
+que WF-PLA-0030 refuse ; déplacer une tâche sous une autre qu'elle suit déjà par une chaîne de
+liaisons ferme une boucle à travers la hiérarchie. `moveNodes` et `createNode` déclarent donc
+`LINK_FORBIDDEN`, sans paramètre comme pour `setPredecessors`, et `LINK_CYCLE`, `params.cycle`
+nommant les tâches de la chaîne, de la récapitulative qui recevrait le nœud — ou de l'un de ses
+ancêtres — à la tâche reçue ou à l'une de ses subordonnées, ou dans l'autre sens, chacune
+précédant la suivante, la plus courte rendue. Une chaîne d'une seule liaison est la liaison
+interdite : le code le plus précis l'emporte. Exemples, engendrés par `wftools.mockgestures` :
+`nodes_indent_forbidden`, la mise en service mise en retrait sous le montage, la tâche au-dessus
+d'elle et son prédécesseur ; `nodes_move_cycle_refused`, « Documentation 1.1.7 », tâche tirée
+autour du cœur, déplacée sous « Préparation 1.1.1 », qu'elle suit par « Réalisation 1.1.4 ».
+`mockcore.schedule` refuse les deux structures que ces gestes laisseraient, comme celle que
+`predecessors_cycle_refused` laisserait : le faux back ne date pas ce que le serveur refuse.
+`createNode` n'a pas d'exemple : une tâche créée ne porte pas de liaison (`TaskFacetWrite`), et
+aucune création du témoin ne lie la récapitulative qu'elle fait à ce qu'elle reçoit ; les codes y
+sont déclarés pour la même règle. Écartés : nommer la liaison interdite par un paramètre, que la
+conception ne prévoit pas plus que pour `setPredecessors` ; un 409, pour la raison dite plus haut.
+
 **L'horizon refuse les saisies qui déplacent une date** (WF-PLA-0150 : « une saisie, un import ou une
 fusion qui la porterait au-delà est refusé, et le refus nomme la tâche en cause » ; #788, part
 « saisies »). `PROJECT_HORIZON_EXCEEDED`, code du rejet entier d'un import (EP-14/L42s), devient
