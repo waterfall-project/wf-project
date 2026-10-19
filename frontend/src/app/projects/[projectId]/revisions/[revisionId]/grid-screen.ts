@@ -6,11 +6,12 @@
  * context of the address (WF-IHM-0020), the main structure of the revision, and its nodes as the
  * address asks them —
  * the sort, the search, the filtered sub-project, the progress of the tasks the screen narrows to,
- * what a view that is no grid has the server select (`narrowed`), all named as the contract names
- * them —, the
+ * what a view that is no grid has the server select (`narrowed`), the lot or the post a grid that
+ * filters by them retains (`byBreakdown`), all named as the contract names them —, the
  * sort the account keeps for the grid when the address asks none. A grid asks the server what
  * to render (`kinds`): the planning, the tasks alone; and, of each node, the fields it reads
- * alone (`fields`). A project or a revision the API does not find is not found, as at the other
+ * alone (`fields`). A grid filtered by a lot or a post reads the work breakdown whole besides, which
+ * offers them (`getWorkBreakdown`). A project or a revision the API does not find is not found, as at the other
  * screens of a project.
  */
 import "server-only";
@@ -20,6 +21,11 @@ import { notFound } from "next/navigation";
 import { readOrFail, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import {
+  type BreakdownChoices,
+  breakdownQuery,
+  readBreakdownFilter,
+} from "@/components/grid/breakdown-filter";
 import {
   type LineField,
   type NodeField,
@@ -34,6 +40,7 @@ import {
   type StructurePath,
   type TaskField,
 } from "@/components/grid/nodes";
+import { breakdownItems } from "@/components/grid/planning-attachment";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import {
@@ -95,6 +102,12 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
    * to a level for the task tree, the tasks of a timeline (#463) —, the view selecting nothing.
    */
   readonly narrowed?: Pick<NodeFilters, "summaries_only" | "max_level" | "timeline_id">;
+  /**
+   * Whether the grid is filtered by a lot or a post of the work breakdown — the planning
+   * (WF-PLA-0080), the estimate (WF-DEV-0050) —, which the address names (`work_package_id`,
+   * `order_item_id`) and the work breakdown read whole offers; not, when none is given.
+   */
+  readonly byBreakdown?: boolean;
 }
 
 /**
@@ -123,11 +136,16 @@ export interface GridScreen<Row> {
   readonly filters: NodeFilters;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
+  /**
+   * The lots and the posts a grid filtered by them offers, and the one the address names; none for
+   * a grid that is not (`GridReading.byBreakdown`).
+   */
+  readonly breakdown: BreakdownChoices | undefined;
 }
 
 /**
  * The main structure of a revision, and its nodes as the address asks them: sorted, searched,
- * restricted to the filtered sub-project, of the kinds the grid renders, the fields it reads
+ * restricted to the filtered sub-project and to the lot or the post filtered, of the kinds the grid renders, the fields it reads
  * alone — asked of the server (`fields`), and projected (`projectNodes`), the server being free
  * to render more than asked, as the fake back does. A read the API refuses,
  * or cannot answer, is thrown for the pages of the shell to say (`readOrFail`): a grid left
@@ -137,8 +155,8 @@ export interface GridScreen<Row> {
  * preferences may sort them.
  */
 async function mainStructure<N extends NodeField, T extends TaskField, L extends LineField>(
-  { revision, context }: GridAddress,
-  { kinds, fields, progress, narrowed }: GridReading<N, T, L>,
+  { revision, context, address }: GridAddress,
+  { kinds, fields, progress, narrowed, byBreakdown }: GridReading<N, T, L>,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
   const client = serverClient();
@@ -161,6 +179,7 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     ...(subproject === null ? {} : { subproject_id: subproject }),
     ...(progress === undefined ? {} : { progress }),
     ...narrowed,
+    ...breakdownQuery(byBreakdown === true ? readBreakdownFilter(address) : undefined),
   };
   const answer = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
@@ -185,10 +204,29 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
 }
 
 /**
+ * The lots and the posts of the work breakdown of the project read whole — a reading filtered omits
+ * some —, and the one the address filters by, for a grid filtered by them; none for another.
+ */
+async function readBreakdownChoices(
+  { revision, address }: GridAddress,
+  byBreakdown: boolean | undefined,
+): Promise<BreakdownChoices | undefined> {
+  if (byBreakdown !== true) {
+    return undefined;
+  }
+  const reading = await readOrFail("getWorkBreakdown", () =>
+    serverClient().GET("/projects/{project_id}/work-breakdown", {
+      params: { path: { project_id: revision.projectId } },
+    }),
+  );
+  return { items: breakdownItems(reading), filter: readBreakdownFilter(address) };
+}
+
+/**
  * Read what a grid of a revision shows. The settings the account keeps for the grid — `null`
  * once set back to its defaults, as none —, whose sort serves when the address says nothing of
- * the sort; the session, the structures and the reading context are read together, and only
- * the nodes wait for the session.
+ * the sort; the session, the structures, the reading context and the work breakdown are read
+ * together, and only the nodes wait for the session.
  */
 export async function readGridScreen<N extends NodeField, T extends TaskField, L extends LineField>(
   at: GridAddress,
@@ -198,15 +236,16 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
     (session) => session?.display_preferences?.grids?.[grid.key] ?? undefined,
   );
   const asked = settings.then((kept) => readGridQuery(at.address, grid.sortable, kept?.sort));
-  const [structure, reading, preferences, query] = await Promise.all([
+  const [structure, reading, preferences, query, breakdown] = await Promise.all([
     mainStructure(at, grid, asked),
     // The nodes are read for the filtered sub-project alone (`listNodes`): no date (#302).
     readProjectContext(at.pathname, at.context, ["subproject_id"]),
     settings,
     asked,
+    readBreakdownChoices(at, grid.byBreakdown),
   ]);
   if (reading === "not_found") {
     notFound();
   }
-  return { reading, ...structure, query, preferences };
+  return { reading, ...structure, query, preferences, breakdown };
 }

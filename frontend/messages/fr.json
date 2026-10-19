@@ -231,6 +231,11 @@
       "labelIn": "Rechercher dans « {grid} »",
       "placeholder": "Rechercher un libellé"
     },
+    "breakdownFilter": {
+      "label": "Lot ou poste",
+      "every": "Tous les lots et postes",
+      "choice": "{kind, select, work_package {Lot} other {Poste}} : {label}"
+    },
     "undo": {
       "undo": "Annuler",
       "redo": "Rétablir",
@@ -682,6 +687,7 @@
     "subproject": "Sous-projet : {subproject}",
     "subprojectName": "{code} — {label}",
     "asOf": "Date de calcul : {date}",
+    "breakdown": "{kind, select, work_package {Lot} other {Poste}} : {label}",
     "computedOn": "Révision du calcul",
     "unnamedRevision": "sans nom",
     "removeFilter": "Lever le filtre « {filter} »",

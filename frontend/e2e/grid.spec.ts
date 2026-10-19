@@ -61,9 +61,39 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
   const byLot = indicators.locator("dt", { hasText: /^Par lot$/ });
   await expect(byLot).toBeVisible();
-  // The list that follows the term holds the lot of the witness, whose posts it contains.
-  await expect(byLot.locator("xpath=following-sibling::dd[1]")).toContainText("Lot 1");
+  // The list that follows the term holds the lot of the witness, whose posts it contains, with the
+  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56, its
+  // share of the estimate after it (`test_mockdata.py` holds the lot of the volume).
+  const lot = byLot.locator("xpath=following-sibling::dd[1]").getByRole("listitem");
+  await expect(lot).toHaveCount(1);
+  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s\(0,76\s%\)$/);
   await expect(indicators.getByText("Par poste")).toHaveCount(0);
+});
+
+test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone", async ({
+  page,
+}) => {
+  // The choices are the work breakdown of the witness read whole, the lot then its post, each named
+  // by its kind. The fake back serves the first example of `listNodes` whatever the filter asks —
+  // the contract has no reading filtered by a lot or a post —: what the page sends is proven by
+  // `estimate/page.test.tsx`. The indicators stay those of the whole project, broken down by lot.
+  await openHydrated(page, GRID);
+  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
+  await expect(filter.getByRole("option")).toHaveText([
+    "Tous les lots et postes",
+    "Lot : Lot 1",
+    "Poste : Poste 1.1",
+  ]);
+  await filter.selectOption({ label: "Lot\u00a0: Lot 1" });
+  await expect(page).toHaveURL(`${GRID}?work_package_id=01926f3a-7c00-7000-8000-000000000711`, {
+    timeout: WORKING,
+  });
+  const chips = page
+    .getByRole("region", { name: "Contexte de lecture" })
+    .getByRole("list", { name: "Filtres actifs" })
+    .getByRole("listitem");
+  await expect(chips).toHaveText(["Lot : Lot 1, sur la grille seulement"]);
+  await expect(filter).toHaveValue("01926f3a-7c00-7000-8000-000000000711");
 });
 
 test("opens the estimate of a thousand tasks and five thousand lines, and scrolls down to its last row [WF-IHM-0060-A]", async ({

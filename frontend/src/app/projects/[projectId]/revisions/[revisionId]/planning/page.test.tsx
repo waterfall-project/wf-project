@@ -41,6 +41,9 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const NODES = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const BREAKDOWN = "GET /projects/{project_id}/work-breakdown";
+// The lot of the witness and its post, as its work breakdown names them.
+const LOT = "01926f3a-7c00-7000-8000-000000000711";
+const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 // The button of the skeleton, from its tag to its name.
 const SKELETON = /<button(?:(?!<button).)*?Generate the schedule skeleton<\/button>/;
 
@@ -54,11 +57,11 @@ function html(page: ReactNode): string {
 }
 
 /** The planning of the revision of the address, as the fake back answers it. */
-async function planning() {
+async function planning(search: Record<string, string> = {}) {
   return html(
     await PlanningPage({
       params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
-      searchParams: Promise.resolve({}),
+      searchParams: Promise.resolve(search),
     }),
   );
 }
@@ -107,13 +110,57 @@ describe("the screen of the planning", () => {
     expect(read?.query.toString()).toBe("");
   });
 
-  it("reads no work breakdown for a revision that may not be planned, and says nothing of the fake back", async () => {
+  it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and says nothing of the fake back", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
     };
     const page = await planning();
-    expect(callsOf(BREAKDOWN)).toEqual([]);
+    const [read] = callsOf(BREAKDOWN);
+    expect(read?.query.toString()).toBe("");
+    expect(page).toContain(`<option value="${ITEM}">Order item: Poste 1.1</option>`);
     expect(page).not.toContain("Mock-up:");
+  });
+});
+
+describe("the filter of the planning by a lot or a post", () => {
+  it("offers the lots and the posts of the work breakdown read whole, named by their kind, and filters nothing by default", async () => {
+    const page = await planning();
+    expect(page).toMatch(/<label[^>]*>Work package or order item<\/label>/);
+    // The lot, then its post, in the order of the work breakdown, after the choice that lifts it.
+    expect(page).toContain(
+      `<option value="" selected="">All work packages and order items</option>` +
+        `<option value="${LOT}">Work package: Lot 1</option>` +
+        `<option value="${ITEM}">Order item: Poste 1.1</option>`,
+    );
+    const [read] = callsOf(NODES);
+    expect(read?.query.get("work_package_id")).toBeNull();
+    expect(read?.query.get("order_item_id")).toBeNull();
+    expect(page).not.toContain("Active filters");
+  });
+
+  it("asks the server for the subtree of the post the address names, shows it chosen and active in the banner, lifted with the rest of the address kept", async () => {
+    const page = await planning({ order_item_id: ITEM, search: "Revue" });
+    const [read] = callsOf(NODES);
+    expect(read?.query.get("order_item_id")).toBe(ITEM);
+    expect(read?.query.get("work_package_id")).toBeNull();
+    expect(read?.query.get("search")).toBe("Revue");
+    expect(page).toContain(`<option value="${ITEM}" selected="">Order item: Poste 1.1</option>`);
+    const chips = /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
+    expect(chips).toContain("Order item: Poste 1.1");
+    expect(chips).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/planning?search=Revue"`,
+    );
+    expect(chips).toContain(`aria-label="Remove the filter “Order item: Poste 1.1”"`);
+  });
+
+  it("asks the subtree of the lot the address names, the post it would name besides not read", async () => {
+    const page = await planning({ work_package_id: LOT, order_item_id: ITEM });
+    const [read] = callsOf(NODES);
+    expect(read?.query.get("work_package_id")).toBe(LOT);
+    expect(read?.query.get("order_item_id")).toBeNull();
+    expect(page).toContain(`<option value="${LOT}" selected="">Work package: Lot 1</option>`);
+    // The chip lifts both: the post left in the address would take the place of the lot.
+    expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/planning"`);
   });
 });

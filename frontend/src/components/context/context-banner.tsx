@@ -10,7 +10,9 @@
  * named as the screen read it (#363). A filter that restricts only a part of the screen says so on
  * its chip: the chip says what it restricts — the grid and not the indicators (#459), every figure
  * of the indicators but the tracking of the milestones, which a sub-project does not have
- * (WF-IND-0020). An icon before each
+ * (WF-IND-0020). A grid filtered by a lot or a post of the work breakdown gives its filter, which a
+ * chip shows after those of the context, lifted by the address of the screen without it. An icon
+ * before each
  * fact, whose name the list of definitions gives to a screen reader; the states in badges, in
  * words.
  *
@@ -22,6 +24,7 @@ import { Calculator, Filter, Folder, GitBranch, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
+import type { BreakdownChip, BreakdownParameter } from "@/components/grid/breakdown-filter";
 import { ShowProject } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
 import { formatPlanningDate } from "@/i18n/format";
@@ -57,13 +60,27 @@ export interface ContextBannerProps {
    * restricts the whole screen.
    */
   readonly restricts?: Restrictions | undefined;
+  /**
+   * The lot or the post the grid of the screen is filtered by (`breakdownChip`): a filter of the
+   * grid, not of the context, which the links between functions do not carry on.
+   */
+  readonly breakdown?: BreakdownChip | undefined;
 }
 
 /** The part of a screen a filter restricts alone, by the key of its text in the catalogue. */
 export type Restriction = "grid" | "exceptMilestones";
 
 /** The filters that restrict a part of a screen alone, and the part each restricts. */
-export type Restrictions = Readonly<Partial<Record<ContextFilter["name"], Restriction>>>;
+export type Restrictions = Readonly<
+  Partial<Record<ContextFilter["name"] | BreakdownParameter, Restriction>>
+>;
+
+/** A chip of an active filter: its parameter, its text, and the address that lifts it. */
+interface Chip {
+  readonly name: ContextFilter["name"] | BreakdownParameter;
+  readonly text: string;
+  readonly lift: string;
+}
 
 const FACT = "flex items-center gap-1.5";
 const ICON = "size-3.5 shrink-0 text-muted-foreground";
@@ -94,8 +111,15 @@ export function useSubprojectName(): (value: string, subproject: Subproject | un
   };
 }
 
-/** The text of a chip: the filter, and the part of the screen it restricts when not the whole. */
-function useFilterText(restricts: Restrictions): (filter: ContextFilter) => string {
+/**
+ * The chips of the active filters — those of the context, then the lot or the post of the grid —,
+ * each saying the filter, and the part of the screen it restricts when not the whole.
+ */
+function useChips(
+  reading: ProjectReading,
+  restricts: Restrictions,
+  breakdown: BreakdownChip | undefined,
+): Chip[] {
   const t = useTranslations();
   const locale = useLocale();
   const subprojectName = useSubprojectName();
@@ -105,12 +129,32 @@ function useFilterText(restricts: Restrictions): (filter: ContextFilter) => stri
       : t("contextBanner.subproject", {
           subproject: subprojectName(filter.value, filter.subproject),
         });
-  return (filter) => {
-    const part = restricts[filter.name];
-    return part === undefined
-      ? named(filter)
-      : t(`contextBanner.restricts.${part}`, { filter: named(filter) });
+  const restricted = (name: Chip["name"], text: string) => {
+    const part = restricts[name];
+    return part === undefined ? text : t(`contextBanner.restricts.${part}`, { filter: text });
   };
+  return [
+    ...reading.filters.map((filter) => ({
+      name: filter.name,
+      text: restricted(filter.name, named(filter)),
+      lift: withoutFilter(reading.pathname, reading.context, filter.name),
+    })),
+    ...(breakdown === undefined
+      ? []
+      : [
+          {
+            name: breakdown.filter.name,
+            text: restricted(
+              breakdown.filter.name,
+              t("contextBanner.breakdown", {
+                kind: breakdown.filter.kind,
+                label: breakdown.item?.label ?? breakdown.filter.value,
+              }),
+            ),
+            lift: breakdown.lift,
+          },
+        ]),
+  ];
 }
 
 /** The revision read: its name, its status, whether it is the reference. */
@@ -155,10 +199,15 @@ function ComputedOnFacts({ computedOn }: { readonly computedOn: ComputedRevision
 }
 
 /** Render the reading context of a screen of a project. */
-export function ContextBanner({ reading, computedOn, restricts = {} }: ContextBannerProps) {
+export function ContextBanner({
+  reading,
+  computedOn,
+  restricts = {},
+  breakdown,
+}: ContextBannerProps) {
   const t = useTranslations();
-  const filterText = useFilterText(restricts);
-  const { project, revision, readOnly, filters } = reading;
+  const chips = useChips(reading, restricts, breakdown);
+  const { project, revision, readOnly } = reading;
   return (
     <section
       aria-label={t("contextBanner.label")}
@@ -191,27 +240,24 @@ export function ContextBanner({ reading, computedOn, restricts = {} }: ContextBa
           {t("contextBanner.readOnly")}
         </p>
       ) : null}
-      {filters.length === 0 ? null : (
+      {chips.length === 0 ? null : (
         <ul aria-label={t("contextBanner.filters")} className="ml-auto flex flex-wrap gap-1.5">
-          {filters.map((filter) => {
-            const text = filterText(filter);
-            return (
-              <li
-                key={filter.name}
-                className="flex h-6 items-center gap-1.5 rounded-full border bg-background pr-1 pl-2"
+          {chips.map(({ name, text, lift }) => (
+            <li
+              key={name}
+              className="flex h-6 items-center gap-1.5 rounded-full border bg-background pr-1 pl-2"
+            >
+              <Filter aria-hidden="true" className={ICON} />
+              {text}
+              <Link
+                href={lift}
+                aria-label={t("contextBanner.removeFilter", { filter: text })}
+                className="rounded-full p-0.5 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring"
               >
-                <Filter aria-hidden="true" className={ICON} />
-                {text}
-                <Link
-                  href={withoutFilter(reading.pathname, reading.context, filter.name)}
-                  aria-label={t("contextBanner.removeFilter", { filter: text })}
-                  className="rounded-full p-0.5 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring"
-                >
-                  <X aria-hidden="true" className="size-3" />
-                </Link>
-              </li>
-            );
-          })}
+                <X aria-hidden="true" className="size-3" />
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
     </section>

@@ -495,7 +495,7 @@ l'écart reste.
 
 ## US-0450 — Le lotissement en lots, postes et livrables
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PRJ-0020-A`
 - **opérations** : `getWorkBreakdown`, `setWorkBreakdown`, `generatePlanningSkeleton`,
   `updateTaskFacet`, `listNodes`, `getEstimateIndicators`
@@ -535,7 +535,9 @@ order_item, deliverable » : les identifiants gardent leur sens, leur imbricatio
 par niveau de WF-DEV-0060 est celui des lots (niveau 1) : `EstimateIndicators.by_order_item` et le
 motif `order_item_without_task` suivent le lot, et le code `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` dit la
 règle à l'endroit — la conception arrête les noms. Cette US passe la première : les autres lots de
-structure en dépendent (#1054, « Ordre »).
+structure en dépendent (#1054, « Ordre »). Le dernier critère est maintenu tel quel (décision de
+l'auteur du 2026-10-19, #1148) : le front n'offrait aucun filtre par lot ni par poste, et
+US-0450/L3 le réalise au-dessus des grilles du planning et du devis.
 
 **Hors périmètre.** Toute règle nouvelle du lotissement, hors `attached_task` (#802), qui dit si un
 lot ou un poste est porté par une tâche de la révision en cours.
@@ -570,8 +572,12 @@ travaille, sans changer d'écran.
 - écart : `WF-PLA-0080-A` — « Une tâche terminée se distingue d’une tâche démarrée sans lire de
   colonne ; une feuille ne porte pas d’avancement physique. » : constaté par EP-02 ; EP-06 clôt.
 - écart : `WF-PLA-0080-A` — « Le filtre sur un poste ne laisse voir que la tâche qui le porte, son
-  sous-arbre et ses parents. » : constaté par EP-14/L44d, les noms corrigés par US-0450 ; EP-06
-  clôt.
+  sous-arbre et ses parents. » : le filtre se choisit au-dessus de la grille parmi les lots et les
+  postes du lotissement lu entier, et la grille relit `listNodes` avec `order_item_id` — avec
+  `work_package_id` pour un lot —, que le contrat dit retenir le sous-arbre de la tâche rattachée et
+  ses ancêtres (US-0450/L3) ; le contrat n'a aucun exemple de lecture filtrée par lot ou par poste,
+  le faux back rend la structure entière, et ce que le serveur retient se constate contre le
+  service ; EP-06 clôt.
 - `WF-DEV-0050-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement d’une
   ligne vers elle, est refusé. » : le refus est dit à la ligne en cause, sur l'exemple du faux back ;
   EP-07 le juge sur le service.
