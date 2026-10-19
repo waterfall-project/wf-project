@@ -406,6 +406,10 @@ def test_no_loop_is_found_when_no_predecessor_sent_follows_the_task() -> None:
     assert mockgestures.cycle(N.COMMISSIONING, (Link(N.MOUNTING),)) == []
 
 
+def test_a_task_sent_as_its_own_predecessor_is_a_loop_of_itself() -> None:
+    assert mockgestures.cycle(N.MOUNTING, (Link(N.MOUNTING),)) == [N.MOUNTING]
+
+
 def test_a_link_to_its_own_summary_is_refused_without_a_parameter(read: dict[str, Node]) -> None:
     refused = gesture("predecessors_forbidden")
     assert (refused["code"], refused["status"], "params" in refused) == (

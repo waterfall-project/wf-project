@@ -211,7 +211,10 @@ Problem:
         tâches de la boucle, chacune par son nœud et son libellé (`node_id`, `label`), de celle
         dont les prédécesseurs se saisissent au prédécesseur envoyé qui la suit déjà, chacune
         précédant la suivante — « la raison en est nommée à l'utilisateur », la grille, filtrée,
-        pouvant ne pas les lire. Les paramètres d'un motif par champ sont dans
+        pouvant ne pas les lire ; quand plusieurs prédécesseurs envoyés ferment une boucle, la
+        plus courte est rendue, puis, à longueur égale, la première dans l'ordre des liaisons, et
+        une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche. Les
+        paramètres d'un motif par champ sont dans
         `fields[].params` : ainsi `conflicting_object_id` et
         `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou
         le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
