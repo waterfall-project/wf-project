@@ -164,3 +164,60 @@ describe("the filter of the planning by a lot or a post", () => {
     expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/planning"`);
   });
 });
+
+describe("the planning whose work breakdown the API refuses", () => {
+  it.each([
+    { code: "NOT_FOUND", status: 404 },
+    { code: "VALIDATION_FAILED", status: 422 },
+    { code: "COMPONENT_UNAVAILABLE", status: 503 },
+  ] as const)(
+    "opens without the filter on a revision that may not be planned ($status), the post of the address read and shown active",
+    async (problem) => {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
+        [BREAKDOWN]: { problem },
+      };
+      const page = await planning({ order_item_id: ITEM });
+      expect(page).not.toContain("Work package or order item");
+      const [read] = callsOf(NODES);
+      expect(read?.query.get("order_item_id")).toBe(ITEM);
+      const chips = /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
+      expect(chips).toContain(ITEM);
+      expect(chips).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/planning"`);
+    },
+  );
+
+  it("is not found where the attachment is entered, which cannot do without the work breakdown", async () => {
+    server.answers = {
+      ...server.answers,
+      [BREAKDOWN]: { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    await expect(planning()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+  });
+
+  it("fails where the attachment is entered on a work breakdown the API cannot answer", async () => {
+    server.answers = {
+      ...server.answers,
+      [BREAKDOWN]: { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } },
+    };
+    await expect(planning()).rejects.toMatchObject({ name: "UnexpectedAnswer" });
+  });
+});
+
+describe("a lot or a post of the address that is no identifier", () => {
+  it("is neither sent to the server nor shown active, the post the address names read in its place", async () => {
+    const page = await planning({ work_package_id: "pas-un-uuid", order_item_id: ITEM });
+    const [read] = callsOf(NODES);
+    expect(read?.query.get("work_package_id")).toBeNull();
+    expect(read?.query.get("order_item_id")).toBe(ITEM);
+    expect(page).not.toContain("pas-un-uuid");
+  });
+
+  it("leaves the grid unfiltered when it is the one the address names", async () => {
+    const page = await planning({ order_item_id: "../x" });
+    const [read] = callsOf(NODES);
+    expect(read?.query.get("order_item_id")).toBeNull();
+    expect(page).not.toContain("Active filters");
+  });
+});

@@ -11,13 +11,14 @@
  * timelines (FBS-4.3.1), the imports and exports of the project (FBS-4.3.4), the task tree
  * (FBS-4.3.5) —, in the same context.
  *
- * The grid is filtered by a lot or a post of the work breakdown of the project, read whole, above it
- * (`BreakdownFilterChoice`): the server retains the subtree of the task that bears it and its
- * ancestors, and the banner shows the filter active. Where the revision lists `edit_planning`
- * available, the attachment of a task is entered in its column, chosen among the same posts and
- * lots (WF-PLA-0170); in the empty grid, the skeleton is offered as the revision lists `generate_skeleton`
- * (WF-PRJ-0030). Once, under its header, the screen then says that the fake back keeps none of what
- * they write (`MockupNotice`, EP-14/L44d).
+ * The grid is filtered by a lot or a post of the work breakdown of the project, read whole, above
+ * it (`BreakdownFilterChoice`): the server retains the subtree of the task that bears it and its
+ * ancestors, and the banner shows the filter active; the filter is not offered when the API
+ * refuses the work breakdown. Where the revision lists `edit_planning` available, the attachment
+ * of a task is entered in its column, chosen among the same posts and lots (WF-PLA-0170), and the
+ * screen cannot do without the work breakdown; in the empty grid, the skeleton is offered as the
+ * revision lists `generate_skeleton` (WF-PRJ-0030). Once, under its header, the screen then says
+ * that the fake back keeps none of what they write (`MockupNotice`, EP-14/L44d).
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -124,6 +125,8 @@ export default async function PlanningPage({
     kinds: PLANNING_KINDS,
     fields: PLANNING_FIELDS,
     byBreakdown: true,
+    // The attachment of a task is chosen among the lots and the posts where it is entered.
+    needsBreakdown: (reading) => reading.edits.has("edit_planning"),
   });
   const editable = screen.reading.edits.has("edit_planning");
   const skeleton = findOffer(
@@ -134,7 +137,12 @@ export default async function PlanningPage({
     <>
       <ContextBanner
         reading={screen.reading}
-        breakdown={breakdownChip(screen.breakdown, at.pathname, searchQuery(search))}
+        breakdown={breakdownChip(
+          screen.breakdownFilter,
+          screen.breakdown?.items,
+          at.pathname,
+          searchQuery(search),
+        )}
       />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
@@ -151,7 +159,7 @@ export default async function PlanningPage({
             query={screen.query}
             preferences={screen.preferences}
             undoable={editable}
-            // The attachment is chosen among the same items where the planning may be entered alone.
+            // The attachment is chosen among the same items, where the planning may be entered.
             breakdown={editable ? screen.breakdown?.items : undefined}
             skeleton={skeleton}
           />

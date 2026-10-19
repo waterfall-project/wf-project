@@ -76,7 +76,12 @@ function banner(search: string) {
       <ContextBanner
         reading={reading}
         restricts={{ order_item_id: "grid" }}
-        breakdown={breakdownChip(choices(search), PLANNING, new URLSearchParams(search))}
+        breakdown={breakdownChip(
+          readBreakdownFilter(new URLSearchParams(search)),
+          choices(search).items,
+          PLANNING,
+          new URLSearchParams(search),
+        )}
       />
     </NextIntlClientProvider>,
   );
@@ -152,5 +157,14 @@ describe("the filter by a lot or a post in the banner of the context", () => {
   it("shows no chip for a grid filtered by neither", () => {
     banner("");
     expect(screen.queryByRole("list", { name: "Filtres actifs" })).toBeNull();
+  });
+
+  it("ignores an identifier the address gives that is none, as if it named nothing", () => {
+    banner(`work_package_id=pas-un-uuid&order_item_id=${ITEM}`);
+    expect(readBreakdownFilter(new URLSearchParams("order_item_id=../x"))).toBeUndefined();
+    // The post read in place of the malformed lot, which the API would refuse.
+    expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(
+      "Poste : Poste 1.1",
+    );
   });
 });

@@ -70,9 +70,10 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   await expect(indicators.getByText("Par poste")).toHaveCount(0);
 });
 
-test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone", async ({
+test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone [WF-IHM-0020-A]", async ({
   page,
 }) => {
+  // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
   // The choices are the work breakdown of the witness read whole, the lot then its post, each named
   // by its kind. The fake back serves the first example of `listNodes` whatever the filter asks —
   // the contract has no reading filtered by a lot or a post —: what the page sends is proven by

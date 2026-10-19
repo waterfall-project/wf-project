@@ -175,4 +175,17 @@ describe("the filter of the estimate by a lot or a post", () => {
     expect(page).toContain("Work package: Lot 1, on the grid only");
     expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/estimate"`);
   });
+
+  it("opens without the filter when the API refuses the work breakdown, the grid read whole", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/work-breakdown": {
+        problem: { code: "VALIDATION_FAILED", status: 422 },
+      },
+    };
+    const page = await estimatePage("me");
+    expect(page).not.toContain("Work package or order item");
+    expect(queryOf("/nodes")?.has("work_package_id")).toBe(false);
+    expect(grids.estimate).not.toHaveLength(0);
+  });
 });

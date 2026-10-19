@@ -5,13 +5,13 @@
  * (WF-PLA-0080), the estimate (WF-DEV-0050) —, as the address carries it, under the names of the
  * contract: `work_package_id` for a lot, `order_item_id` for a post, one at a time. The server
  * retains the subtree of the task that bears the lot or the post, and the ancestors of what it
- * retains (`listNodes`, WF-PLA-0170); the front selects nothing. The lots and the posts it is chosen
- * among are those of the work breakdown read whole (`getWorkBreakdown`, `breakdownItems`), never a
- * list written here.
+ * retains (`listNodes`, WF-PLA-0170); the front selects nothing. The lots and the posts it is
+ * chosen among are those of the work breakdown read whole (`getWorkBreakdown`, `breakdownItems`),
+ * never a list written here.
  *
  * Pure, and neither server nor client: the page reads the address, the filter writes it.
  */
-import type { SearchParameters } from "@/navigation/context";
+import { isUuid, type SearchParameters } from "@/navigation/context";
 
 import { filterHref } from "./filters";
 import type { NodeFilters } from "./nodes";
@@ -36,13 +36,14 @@ export interface BreakdownFilter {
 /**
  * The lot or the post the address filters by: the lot when it names one, the post otherwise; none
  * when it names neither. One alone is read — the filter offers one at a time, and lifts the other
- * when it writes —: what the grid sends is what its filter shows.
+ * when it writes —: what the grid sends is what its filter shows. A value that is no identifier
+ * of the contract (`Uuid`) is not read, as if the address named nothing: the API would refuse it.
  */
 export function readBreakdownFilter(search: SearchParameters): BreakdownFilter | undefined {
   for (const kind of ["work_package", "order_item"] as const) {
     const name = BREAKDOWN_PARAMETERS[kind];
     const value = search.get(name);
-    if (value !== null && value !== "") {
+    if (value !== null && isUuid(value)) {
       return { kind, name, value };
     }
   }
@@ -64,9 +65,9 @@ export interface BreakdownChoices {
 }
 
 /**
- * The filter active, as the banner of the context shows it (WF-IHM-0020): the lot or the post — none
- * found when the work breakdown does not have it, the identifier of the address shown —, and the
- * address of the same screen without it, the rest of its query — search, sort, context — kept.
+ * The filter active, as the banner of the context shows it (WF-IHM-0020): the lot or the post —
+ * none found when the work breakdown does not have it, the identifier of the address shown —, and
+ * the address of the same screen without it, the rest of its query — search, sort, context — kept.
  */
 export interface BreakdownChip {
   readonly filter: BreakdownFilter;
@@ -74,19 +75,22 @@ export interface BreakdownChip {
   readonly lift: string;
 }
 
-/** The chip of the filter the address names, lifted by the address of `pathname` without it. */
+/**
+ * The chip of the filter the address names, lifted by the address of `pathname` without it, its
+ * item found among `items` — none given when the work breakdown could not be read.
+ */
 export function breakdownChip(
-  choices: BreakdownChoices | undefined,
+  filter: BreakdownFilter | undefined,
+  items: readonly BreakdownItem[] | undefined,
   pathname: string,
   query: URLSearchParams,
 ): BreakdownChip | undefined {
-  const filter = choices?.filter;
   if (filter === undefined) {
     return undefined;
   }
   return {
     filter,
-    item: choices?.items.find((item) => item.id === filter.value && item.kind === filter.kind),
+    item: items?.find((item) => item.id === filter.value && item.kind === filter.kind),
     // Both parameters lifted: one the filter does not read would take its place.
     lift: filterHref(pathname, query, filter.name, undefined, Object.values(BREAKDOWN_PARAMETERS)),
   };

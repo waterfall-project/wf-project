@@ -189,8 +189,8 @@ async function readReference(projectId: string): Promise<EstimateReference> {
 }
 
 /**
- * The filters of the screen its indicators do not take: the lot or the post restricts the grid alone,
- * the indicators breaking the whole project down by lot (WF-DEV-0060).
+ * The filters of the screen its indicators do not take: the lot or the post restricts the grid
+ * alone, the indicators breaking the whole project down by lot (WF-DEV-0060).
  */
 const RESTRICTS: Restrictions = { work_package_id: "grid", order_item_id: "grid" };
 
@@ -272,7 +272,12 @@ export default async function EstimatePage({
       <ContextBanner
         reading={screen.reading}
         restricts={RESTRICTS}
-        breakdown={breakdownChip(screen.breakdown, at.pathname, searchQuery(search))}
+        breakdown={breakdownChip(
+          screen.breakdownFilter,
+          screen.breakdown?.items,
+          at.pathname,
+          searchQuery(search),
+        )}
       />
       <Screen density={FUNCTION_DENSITY.estimate} fill>
         <EstimateHeader

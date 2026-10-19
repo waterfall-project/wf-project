@@ -108,9 +108,10 @@ test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 �
   ).toBeVisible();
 });
 
-test("filters the planning by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it", async ({
+test("filters the planning by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it [WF-IHM-0020-A]", async ({
   page,
 }) => {
+  // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
   // The choices are the work breakdown of the witness read whole, the lot then its post, each named
   // by its kind. The fake back serves the first example of `listNodes` whatever the filter asks —
   // the contract has no reading filtered by a lot or a post —: the grid stays the structure whole
