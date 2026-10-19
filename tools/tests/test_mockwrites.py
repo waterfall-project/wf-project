@@ -506,6 +506,74 @@ def test_a_re_estimate_that_completes_its_task_undated_is_refused_naming_the_tas
     assert "fixtures/api/remaining_completion_date_required.json" in refused
 
 
+def test_a_line_of_a_task_not_started_changes_its_subproject_and_nothing_else(
+    whole: dict[str, Any],
+) -> None:
+    # The commissioning on site, its task not started, leaves the control station for the tests
+    # and the commissioning (WF-PRJ-0050): its subproject alone changes, its budget the offer's
+    # (#467); its two summaries render unchanged, and the totals with them.
+    changed = write("estimate_line_subproject_changed")
+    read = by_id(whole["items"])
+    [line] = changed["nodes"]
+    was = read[universe(COMMISSIONING_LINE)]
+    assert (line["node_id"], line["lock_version"]) == (universe(COMMISSIONING_LINE), 2)
+    assert line["estimate_line"]["subproject_id"] == mockwitness.SUBPROJECT_TESTS
+    assert line["estimate_line"]["subproject_label"] == "Essais et mise en service"
+    assert {
+        **line,
+        "lock_version": 1,
+        "estimate_line": {
+            **line["estimate_line"],
+            "subproject_id": was["estimate_line"]["subproject_id"],
+            "subproject_label": was["estimate_line"]["subproject_label"],
+        },
+    } == was
+    assert read[universe(COMMISSIONING)]["task"]["progress"] == "not_started"
+    assert "estimate_line.subproject_id" in line["editable_fields"]
+    assert sorted(numbered(changed["ancestors"])) == [INSTALLATION, COMMISSIONING]
+    for node in changed["ancestors"]:
+        assert node == read[node["node_id"]]
+    assert (changed["rescheduled"], changed["reinflated"]) == ([], [])
+    assert changed["totals"] == whole["totals"]
+
+
+def test_a_line_of_a_started_task_is_refused_leaving_its_charged_subproject(
+    whole: dict[str, Any],
+) -> None:
+    # The labour of the wiring, started, may not leave the control station, which received the
+    # invoice of the screens (WF-PRJ-0050, #1066): refused on the field sent, the subproject named
+    # by its identifier and its label; the line read does not offer the field.
+    refused = mockwrites.estimate_line_subproject_has_actual_costs()
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    [problem] = cast("list[Node]", refused["fields"])
+    assert (problem["pointer"], problem["code"]) == (
+        "/subproject_id",
+        "SUBPROJECT_HAS_ACTUAL_COSTS",
+    )
+    read = by_id(whole["items"])
+    line = read[universe(LABOUR)]
+    assert problem["params"] == {
+        "subproject": {
+            "subproject_id": line["estimate_line"]["subproject_id"],
+            "label": line["estimate_line"]["subproject_label"],
+        }
+    }
+    assert read[universe(WIRING)]["task"]["progress"] == "started"
+    assert "estimate_line.subproject_id" not in line["editable_fields"]
+    [charged] = [
+        entry
+        for entry in mockwitness.fixture("subprojects")
+        if entry["subproject_id"] == line["estimate_line"]["subproject_id"]
+    ]
+    assert charged["has_actual_costs"] is True
+    # The contract cites the example under the 422 of updateEstimateLine.
+    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    operation = paths[paths.index("operationId: updateEstimateLine") :]
+    operation = operation[: operation.index("operationId:", len("operationId:"))]
+    refusals = operation[operation.index("'422':") :]
+    assert "fixtures/api/estimate_line_subproject_has_actual_costs.json" in refusals
+
+
 def test_every_write_is_an_example_the_contract_cites() -> None:
     contract = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(
         encoding="utf-8"

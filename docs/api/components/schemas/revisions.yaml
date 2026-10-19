@@ -262,7 +262,7 @@ StructureKind:
 
 CostStructure:
   type: object
-  required: [structure_id, revision_id, kind, label, is_merged, lock_version]
+  required: [structure_id, revision_id, kind, label, is_merged, available_commands, lock_version]
   properties:
     structure_id: { $ref: ../common.yaml#/Uuid }
     revision_id: { $ref: ../common.yaml#/Uuid }
@@ -274,6 +274,15 @@ CostStructure:
     is_merged:
       type: boolean
       description: Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050).
+    available_commands:
+      type: array
+      description: >-
+        Commandes de saisie de la structure que l'appelant a la permission d'exercer, chacune
+        disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090) : ce que la grille
+        qui la lit offre — la saisie des cellules, les gestes de structure, le collage —, sans
+        rien déduire de l'état du projet (`StructureCommand`). Une grille dont la commande est
+        absente ou indisponible se présente en lecture seule.
+      items: { $ref: '#/StructureCommandAvailability' }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
@@ -283,6 +292,52 @@ CostStructure:
         (`PasteApply.lock_version`), et que toute écriture de grille rend
         (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour
         (WF-IHM-0110).
+
+StructureCommand:
+  type: string
+  enum:
+    - edit_planning
+    - edit_estimate
+    - edit_remaining
+  description: >-
+    Commandes de saisie d'une structure, une par grille qui l'écrit : le planning, le devis, le
+    reste à engager (WF-PLA-0080, WF-DEV-0050, WF-RAE-0040). Chacune est gardée par la permission
+    de la commande de même nom de la révision (`RevisionCommand`, `planning.write`,
+    `estimate.write`, `remaining.write`), présente ou absente comme elle (WF-ADM-0100). Le serveur
+    accepte les mêmes écritures depuis les trois grilles — une tâche ou une ligne créée sur la
+    structure principale d'un projet En cours est la même écriture depuis le planning et depuis
+    le reste à engager — : c'est la commande de la structure qui dit quelle grille la saisit,
+    selon la phase du projet, que le front ne déduit pas (WF-IHM-0090).
+
+    Sur la structure principale, en chiffrage le devis, en réalisation le reste à engager :
+    `edit_estimate` est indisponible dès que le projet a atteint En cours, ou un état terminal,
+    `project_before_in_progress` manquante — la grille de devis reste lisible, en lecture seule
+    (WF-DEV-0050) — ; `edit_remaining` est indisponible hors de l'état En cours,
+    avant lui comme dans un état terminal, `project_in_progress` manquante (WF-RAE-0040). `edit_planning` n'a pas
+    de condition de phase : le planning se travaille en chiffrage avec le devis, en réalisation
+    avec le reste à engager. Sur un différentiel et sur le devis propre d'un risque,
+    `edit_planning` et `edit_estimate` n'ont pas de condition de phase — un avenant et un risque
+    se chiffrent quel que soit l'état du projet (WF-DEV-0050, WF-REV-0100, WF-RIS-0030) — et
+    `edit_remaining` n'est jamais listée : seule la structure principale a un reste à engager
+    (WF-RAE-0040).
+
+    La condition de phase vient d'abord, propre à la commande ; puis les conditions d'état de la
+    révision, telles que la commande de même nom de la révision les nomme — `revision_draft` sur
+    une révision marquée, `no_background_task_running` pendant un traitement de fond qui écrit
+    dans la révision en cours ou la fige, `project_not_terminal` sur un projet clos —, dans le
+    même ordre. Les commandes de la révision gardent ce qui ne lit pas une structure : le
+    squelette, le marquage, les exports, les risques (C-358, #1067).
+
+StructureCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/StructureCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
 
 StructureCreate:
   type: object
@@ -430,7 +485,9 @@ Node:
         hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la
         main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni
         son sous-projet, que son risque désigne et ne change que tant qu'il est identifié
-        (`RiskCommand.update_provision`, WF-RIS-0010) ;
+        (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou
+        terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle
+        ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ;
         une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à
         saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ
         calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si
@@ -473,14 +530,19 @@ ComputedField:
 EditableField:
   type: string
   description: >-
-    Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou
-    la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il
-    accepte (`editable_fields`, WF-IHM-0040). Le rattachement à un lot ou à un poste du
-    lotissement (`task.work_package_id`, `task.order_item_id`) est accepté de toute tâche de la
-    structure principale, récapitulative, feuille ou jalon, et d'aucune autre : « Le
-    rattachement n'existe que dans la structure principale », « les structures différentielles
-    et les devis propres des risques n'en portent pas » (WF-PLA-0170) — leurs tâches ne le
-    nomment pas, et le portent toujours nul.
+    Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, la
+    commande d'avancement pour `task.progress`, ou `setNodeTracking` pour `task.tracking` —, que
+    le nœud nomme parmi ceux qu'il accepte (`editable_fields`, WF-IHM-0040). Le rattachement à
+    un lot ou à un poste du lotissement (`task.work_package_id`, `task.order_item_id`) est
+    accepté de toute tâche de la structure principale, récapitulative, feuille ou jalon, et
+    d'aucune autre : « Le rattachement n'existe que dans la structure principale », « les
+    structures différentielles et les devis propres des risques n'en portent pas »
+    (WF-PLA-0170) — leurs tâches ne le nomment pas, et le portent toujours nul. L'inscription
+    aux chronologies et au suivi temps/temps (`task.tracking`, WF-PLA-0060) est nommée de même
+    par toute tâche de la structure principale, et d'aucune autre : c'est par elle que la
+    grille de planning offre le sous-menu des chronologies, sans le déduire de la structure lue
+    (#1065) ; l'appelant l'écrit sous la commande de saisie du planning de la structure
+    (`StructureCommand.edit_planning`), comme les autres champs de la tâche.
   enum:
     - task.label
     - task.description
@@ -491,6 +553,7 @@ EditableField:
     - task.progress
     - task.order_item_id
     - task.work_package_id
+    - task.tracking
     - estimate_line.label
     - estimate_line.cost_category_id
     - estimate_line.resource_role_id
@@ -1362,6 +1425,12 @@ EstimateLineUpdate:
         provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par
         422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque
         (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
+        Une ligne dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu
+        des coûts réels, une part de ces coûts lui revenant : la passer à un autre sous-projet ou
+        hors sous-projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur `/subproject_id`,
+        motif `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le sous-projet quitté
+        (`subproject_id`, `label`), et la ligne ne nomme pas ce champ dans `editable_fields`. Une
+        ligne d'une tâche non démarrée change de sous-projet (WF-PRJ-0050 ; C-359, #1066).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 NodeMove:

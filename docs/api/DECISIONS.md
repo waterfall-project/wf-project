@@ -6216,6 +6216,72 @@ d'import rejeté entier », « Un poste sans tâche rattachée est présenté sa
 tâches du refus d'un lot hors de son poste sont nommées par leur libellé » (#775). Leur texte est
 gardé pour l'histoire.
 
+## La structure lue, sa phase et son diff (EP-15/US-0460, US-0480, US-0500)
+
+**Chaque structure dit ses commandes de saisie** (C-358, #1067 ; WF-DEV-0050, WF-RAE-0040,
+WF-IHM-0090). En chiffrage, le planning et le devis travaillent la structure principale ; en
+réalisation, le planning et le reste à engager, la grille de devis restant lisible en lecture
+seule. Le serveur ne refuse aucune écriture selon la grille qui l'envoie — une tâche créée sur la
+structure principale d'un projet En cours est la même écriture depuis le planning et depuis le
+reste à engager —, si bien que la lecture seule du devis est une règle de présentation, que le
+serveur doit dire et que le front ne déduit pas de l'état du projet. `CostStructure` porte
+`available_commands`, exigé, une liste de `StructureCommandAvailability` sur une énumération
+nouvelle, `StructureCommand` : `edit_planning`, `edit_estimate`, `edit_remaining`, chacune gardée
+par la permission de la commande de même nom de la révision, présente ou absente comme elle. Sur
+la structure principale, `edit_estimate` manque de `project_before_in_progress` dès En cours, ou
+dans un état terminal — la condition existait pour la probabilité de gain (#590), et dit le même
+fait — ; `edit_remaining` manque de `project_in_progress` hors de l'état En cours, avant comme
+après — la condition existait aussi, pour la clôture et l'import des coûts réels : elle est
+nouvelle pour cette commande, sans valeur nouvelle de `CommandCondition`. Sur un différentiel et
+sur le devis propre d'un risque, `edit_planning` et `edit_estimate` n'ont pas de condition de
+phase (WF-DEV-0050), et `edit_remaining` n'est jamais listée (WF-RAE-0040 : seule la principale).
+La condition de phase vient d'abord, puis les conditions d'état de la révision — `revision_draft`,
+`no_background_task_running`, `project_not_terminal` — telles que la commande de même nom de la
+révision les nomme : la condition propre à la commande d'abord, comme `update_win_probability`
+(« Sur un projet clos, `project_not_terminal` vient en dernier »). Les commandes de la révision
+(`RevisionCommand`) ne changent pas, et gardent ce qui ne lit pas une structure : le squelette, le
+marquage, les exports, les risques. Écartés : une condition sur `RevisionCommand.edit_estimate`,
+qui aurait fermé avec la principale le devis propre d'un risque et le différentiel ; des
+`editable_fields` vides sur le devis d'un projet En cours, qui ne disent rien de la création ni de
+la suppression ; lire `Project.state`, que le front ne déduit pas. Les exemples `structures`,
+`structures_amendments` et `structures_without_tasks`, écrits à la main, disent leurs commandes ;
+`test_mockphase.py` les confronte à la révision et au projet qu'ils lisent.
+
+**L'inscription aux chronologies est un champ que la tâche accepte** (#1065 ; WF-PLA-0060).
+`EditableField` gagne `task.tracking`, que nomme toute tâche de la structure principale,
+récapitulative, feuille ou jalon, en dernier, et aucune autre : la grille de planning offre le
+sous-menu des chronologies d'après le nœud, sans le déduire de la structure lue. L'écriture reste
+`setNodeTracking`, sous la commande de saisie du planning, comme les autres champs de la tâche :
+`editable_fields` dit ce que le nœud accepte, la commande ce que l'appelant a le droit d'écrire.
+Écarté : une commande propre à la tâche, qui doublerait une liste que le nœud porte déjà.
+
+**Une ligne d'une tâche démarrée ne quitte pas un sous-projet qui a reçu des coûts réels** (C-359,
+#1066, #1067 ; WF-PRJ-0050). `updateEstimateLine` le refuse par 422 `VALIDATION_FAILED`, `fields`
+sur `/subproject_id`, motif nouveau `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le
+sous-projet quitté par son identifiant et son libellé — « est refusé et nomme ce sous-projet » —,
+et la ligne ne nomme pas `estimate_line.subproject_id` dans `editable_fields` : la grille n'offre
+pas d'avance un choix qu'elle refuserait. Le champ n'est pas pour autant calculé, et ne va pas dans
+`computed_fields`. « Démarrée » s'entend comme le complément de « non démarrée », la seule à
+pouvoir changer de sous-projet : une tâche terminée retient ses lignes comme une tâche démarrée. Le
+pointeur est celui du corps de `updateEstimateLine`, `EstimateLineUpdate`, plat comme pour
+`/payment_delay_days` et `/cost_category_id` — la conception d'EP-15 l'écrivait
+`/estimate_line/subproject_id`, le chemin d'un `NodeCreate`, que ce refus ne concerne pas. Écarté :
+un 409 `STATE_FORBIDS_OPERATION`, qui aurait dit l'état d'un objet là où c'est la valeur d'un champ
+qui est refusée. Exemples engendrés (`mockwrites`) : `estimate_line_subproject_changed`, la ligne
+« Mise en service sur site », d'une tâche non démarrée, passée du Poste de commande aux Essais et
+mise en service ; `estimate_line_subproject_has_actual_costs`, la main-d'œuvre du câblage, démarré,
+refusée hors du Poste de commande, qui a reçu la facture des écrans. Les deux sous-projets du témoin
+ayant reçu des coûts réels, les lignes des tâches démarrées ou terminées qui portent l'un d'eux ne
+nomment plus le champ, dans le cœur comme dans la structure de mille tâches.
+
+**La création d'un nœud ne dépend pas de la grille qui l'envoie** (K9 de la conception d'EP-15 ;
+WF-DEV-0050, WF-RAE-0040, WF-RAE-0050). La description de `createNode` le dit : aucun refus de
+phase, la phase étant une commande de la structure ; une tâche créée sans mode ni durée — depuis la
+grille de devis ou de reste à engager, qui ne les présentent pas — est une feuille en mode
+automatique, d'un jour, sans prédécesseur ; une ligne ajoutée après la référence porte un montant
+budgété nul. La phrase « une tâche ajoutée après la référence porte un montant budgété nul » devient
+celle d'une ligne : une tâche n'a de montant que la somme de ses lignes.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

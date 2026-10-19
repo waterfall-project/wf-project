@@ -542,7 +542,7 @@ lot ou un poste est porté par une tâche de la révision en cours.
 
 ## US-0460 — Construire la structure depuis les trois grilles
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0080-A`, `WF-DEV-0050-A`, `WF-RAE-0040-A`
 - **opérations** : `createNode`, `moveNodes`, `deleteNode`, `listNodes`, `getRevision`,
   `getProject`

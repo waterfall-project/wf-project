@@ -1,0 +1,12 @@
+{
+  "summary": "La ligne de main-d'œuvre « Raccordement des borniers » du « Câblage des armoires », démarré, envoyée hors du sous-projet « Poste de commande », qui a reçu la facture des écrans : une part de ces coûts lui revient, et elle ne le quitte pas. Le refus nomme le sous-projet sur le champ envoyé, et rien n'est écrit ; la ligne ne nommait pas ce champ parmi ceux qu'elle accepte (editable_fields, WF-PRJ-0050).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/subproject_id","code":"SUBPROJECT_HAS_ACTUAL_COSTS","params":{"subproject":{"subproject_id":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande"}}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001168"
+  }
+}

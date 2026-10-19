@@ -1741,6 +1741,7 @@
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
+    "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
@@ -2224,6 +2225,11 @@
       "amendment": "Avenant",
       "risk": "Devis de risque"
     },
+    "StructureCommand": {
+      "edit_planning": "Modifier le planning",
+      "edit_estimate": "Modifier le devis",
+      "edit_remaining": "Réestimer le reste à engager"
+    },
     "StructureCreate": {
       "kind": {
         "amendment": "Avenant",
@@ -2300,7 +2306,8 @@
         "finish": "Fin de la tâche",
         "progress": "Avancement de la tâche",
         "order_item_id": "Poste de la tâche",
-        "work_package_id": "Lot de la tâche"
+        "work_package_id": "Lot de la tâche",
+        "tracking": "Chronologies de la tâche"
       },
       "estimate_line": {
         "label": "Libellé de la ligne",

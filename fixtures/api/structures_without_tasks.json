@@ -1,5 +1,5 @@
 {
-  "summary": "Les structures de la révision ouverte aujourd'hui sur le projet créé à 14 h 05 (revision_without_tasks) : sa seule structure principale, qui existe dès la création de la révision (WF-REV-0100) et que rien n'a encore écrite, son compteur à 0.",
+  "summary": "Les structures de la révision ouverte aujourd'hui sur le projet créé à 14 h 05 (revision_without_tasks) : sa seule structure principale, qui existe dès la création de la révision (WF-REV-0100) et que rien n'a encore écrite, son compteur à 0. Le projet n'étant pas En cours, elle se saisit au planning et au devis, et son reste à engager est indisponible, `project_in_progress` manquante (WF-DEV-0050, WF-RAE-0040).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000207",
@@ -7,6 +7,25 @@
       "kind": "main",
       "label": "Structure principale",
       "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_planning",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "edit_estimate",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "edit_remaining",
+          "is_available": false,
+          "missing_conditions": [
+            "project_in_progress"
+          ]
+        }
+      ],
       "lock_version": 0
     }
   ]

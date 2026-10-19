@@ -33,6 +33,7 @@ from wftools.mockstructure import (
     JsonObject,
     JsonValue,
     described,
+    labels,
 )
 from wftools.mockwitness import (
     CABLE_FITTER,
@@ -42,6 +43,8 @@ from wftools.mockwitness import (
     FIRST_LOT,
     GENERATED,
     LABOUR,
+    SUBPROJECT_CONTROL,
+    SUBPROJECT_TESTS,
     WIRING,
     Line,
     Link,
@@ -301,6 +304,55 @@ def completion_date_required() -> JsonObject:
             }
         ],
         "correlation_id": COMPLETION_CORRELATION,
+    }
+
+
+def estimate_line_subproject_changed() -> JsonObject:
+    """Return what updateEstimateLine answers when the commissioning passes to its subproject.
+
+    The line of the commissioning on site, borne by a task not started, leaves the control
+    station, charged with actual costs, for the tests and the commissioning: a line of a task not
+    started changes its subproject (WF-PRJ-0050). Only its subproject changes, not its budget,
+    the offer's (#467), nor any amount: the ventilation of the project alone.
+    """
+
+    def moved(each: Line) -> Line:
+        return (
+            replace(each, subproject=SUBPROJECT_TESTS)
+            if each.number == COMMISSIONING_LINE
+            else each
+        )
+
+    return core_write(amended(CORE, line=moved), [COMMISSIONING_LINE])
+
+
+SUBPROJECT_CORRELATION = universe(1168)
+
+
+def estimate_line_subproject_has_actual_costs() -> JsonObject:
+    """Return what updateEstimateLine answers when the labour of the wiring leaves its subproject.
+
+    The wiring of the cabinets is started, and the control station, the subproject of its labour
+    line, received the invoice of the screens: a share of those costs is the line's, which may
+    not leave it (WF-PRJ-0050, #1066). The refusal names the subproject, by its identifier and
+    its label, on the field sent; nothing is written.
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/subproject_id",
+                "code": "SUBPROJECT_HAS_ACTUAL_COSTS",
+                "params": {
+                    "subproject": {
+                        "subproject_id": SUBPROJECT_CONTROL,
+                        "label": labels()[SUBPROJECT_CONTROL],
+                    }
+                },
+            }
+        ],
+        "correlation_id": SUBPROJECT_CORRELATION,
     }
 
 
@@ -641,6 +693,7 @@ def _core_writes() -> dict[str, JsonObject]:
     reestimated = remaining_reestimated()
     [reestimated_line] = cast("list[Node]", reestimated["nodes"])
     deleted, linked, redated = node_deleted(), predecessor_set(), estimate_line_redated()
+    changed = estimate_line_subproject_changed()
     [line] = cast("list[Node]", updated["nodes"])
     [mounting] = cast("list[Node]", linked["nodes"])
     unmoved = "" if linked["reinflated"] else " — aucun montant corrigé de l'inflation ne change —"
@@ -698,6 +751,25 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_money(_node(reestimated, CONTROL_STATION)['task']['reestimated_amount'])}, et "
             f"{_totals(reestimated)}, le budgété inchangé (WF-RAE-0040, WF-DEV-0020).",
             reestimated,
+        ),
+        "estimate_line_subproject_changed.json": mocktext.example(
+            f"La ligne « {before[COMMISSIONING_LINE].label} » de la "
+            f"{before[COMMISSIONING_TASK].label.lower()}, non démarrée, passée du sous-projet "
+            f"« {labels()[SUBPROJECT_CONTROL]} », qui a reçu des coûts réels, au sous-projet "
+            f"« {labels()[SUBPROJECT_TESTS]} » : une ligne d'une tâche non démarrée change de "
+            f"sous-projet ; une version de plus, ses montants et son budget inchangés. Avec elle, "
+            f"ses ancêtres, dont rien ne change, et {_totals(changed)}, inchangés : seule la "
+            f"ventilation du projet change (WF-PRJ-0050).",
+            changed,
+        ),
+        "estimate_line_subproject_has_actual_costs.json": mocktext.example(
+            f"La ligne de main-d'œuvre « {before[LABOUR].label} » du "
+            f"« {before[WIRING].label} », démarré, envoyée hors du sous-projet "
+            f"« {labels()[SUBPROJECT_CONTROL]} », qui a reçu la facture des écrans : une part de "
+            f"ces coûts lui revient, et elle ne le quitte pas. Le refus nomme le sous-projet sur "
+            f"le champ envoyé, et rien n'est écrit ; la ligne ne nommait pas ce champ parmi ceux "
+            f"qu'elle accepte (editable_fields, WF-PRJ-0050).",
+            estimate_line_subproject_has_actual_costs(),
         ),
         "remaining_completion_date_required.json": mocktext.example(
             f"Variante contrefactuelle déclarée : la charge de « {before[LABOUR].label} » mise à "

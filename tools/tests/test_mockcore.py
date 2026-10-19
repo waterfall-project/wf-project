@@ -257,13 +257,14 @@ def test_a_summary_is_started_with_one_subordinate_and_completed_after_the_last(
             "task.finish",
             "task.progress",
         ]
-        # A summary accepts its label, its description and its attachment to the work
-        # breakdown (WF-PLA-0130).
+        # A summary accepts its label, its description, its attachment to the work breakdown
+        # (WF-PLA-0130) and its inscriptions to the timelines (WF-PLA-0060, #1065).
         assert summary["editable_fields"] == [
             "task.label",
             "task.description",
             "task.order_item_id",
             "task.work_package_id",
+            "task.tracking",
         ]
         assert "total_float" not in facet(summary)
     # Its dates of progress are its subordinates': started with the first, completed with the
@@ -745,8 +746,9 @@ def test_the_core_is_dated_in_the_order_of_its_links_whatever_the_order_of_the_p
 def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fields(
     readings: dict[str, Any],
 ) -> None:
-    # Every task, leaf included, accepts an order item or a work package (#411, WF-PLA-0130):
-    # an automatic leaf enters neither date, a manual one both, in the order of `EditableField`.
+    # Every task, leaf included, accepts an order item or a work package (#411, WF-PLA-0130),
+    # then its inscriptions to the timelines (#1065): an automatic leaf enters neither date, a
+    # manual one both, in the order of `EditableField`.
     nodes = {node["node_id"]: node for node in readings["nodes_planning.json"]["items"]}
     assert nodes[universe(522)]["editable_fields"] == [
         "task.label",
@@ -756,6 +758,7 @@ def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fie
         "task.progress",
         "task.order_item_id",
         "task.work_package_id",
+        "task.tracking",
     ]
     assert nodes[universe(523)]["editable_fields"] == [
         "task.label",
@@ -767,6 +770,7 @@ def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fie
         "task.progress",
         "task.order_item_id",
         "task.work_package_id",
+        "task.tracking",
     ]
 
 
