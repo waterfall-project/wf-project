@@ -688,7 +688,11 @@
       `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010). Une tâche créée dont la durée ou
       les dates porteraient la durée du projet au-delà de quinze ans est refusée par 422
       `PROJECT_HORIZON_EXCEEDED`, `params.task` la nommant par le libellé envoyé, son nœud nul
-      (WF-PLA-0150).
+      (WF-PLA-0150). Une tâche créée sous une autre en fait sa récapitulative : une création qui
+      relierait ainsi une récapitulative à l'une de ses subordonnées est refusée par 422
+      `LINK_FORBIDDEN`, et une création qui fermerait une boucle de liaisons à travers elle par
+      422 `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle, comme un déplacement
+      (`moveNodes` ; WF-PLA-0030, WF-PLA-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -725,7 +729,10 @@
           (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s) ; ou une ligne qui laisserait sa
           tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans
           `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans
-          (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150).
+          (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150) ; ou, sans `fields`, une
+          création qui relierait la récapitulative qu'elle fait à l'une de ses subordonnées
+          (`LINK_FORBIDDEN`, sans paramètre) ou fermerait une boucle à travers elle
+          (`LINK_CYCLE`, `params.cycle`), comme un déplacement (WF-PLA-0030, WF-PLA-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1170,7 +1177,14 @@
       (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
       rattachement au lotissement ; un déplacement qui sortirait la tâche d'un poste du
       sous-arbre de la tâche de son lot est refusé (WF-PLA-0170, `NodeMove`), comme un
-      déplacement qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150).
+      déplacement qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). La
+      récapitulative qui reçoit un nœud le couvre, avec ses ancêtres : ce qui la précède le
+      précède, ce qui la suit le suit (WF-PLA-0040). Un déplacement ou une mise en retrait qui
+      relierait ainsi une récapitulative à l'une de ses subordonnées — mettre en retrait une
+      tâche sous celle au-dessus d'elle, qui est son prédécesseur — est refusé par 422
+      `LINK_FORBIDDEN` ; un déplacement qui fermerait une boucle de liaisons à travers elle, par
+      422 `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030) ; rien
+      n'est écrit.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1213,13 +1227,20 @@
           `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`. Ou, sans `fields`, un déplacement qui, en
           changeant le calendrier d'une tâche, porterait la durée du projet au-delà de quinze ans :
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit
-          la ligne déplacée (WF-PLA-0150).
+          la ligne déplacée (WF-PLA-0150). Ou, sans `fields`, un déplacement ou une mise en
+          retrait qui relierait la récapitulative qui reçoit le nœud, ou l'un de ses ancêtres, au
+          nœud ou à l'une de ses subordonnées : `LINK_FORBIDDEN`, sans paramètre (WF-PLA-0030,
+          WF-PLA-0040) ; ou qui fermerait une boucle de liaisons à travers elle : `LINK_CYCLE`,
+          `params.cycle` nommant les tâches de la boucle par leur nœud et leur libellé, dans
+          l'ordre des liaisons (WF-PLA-0030) — la grille, filtrée, peut ne pas les lire.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               position_out_of_range: { $ref: ../../../fixtures/api/nodes_move_position_out_of_range.json }
               outside_work_package: { $ref: ../../../fixtures/api/nodes_move_outside_work_package.json }
+              indent_forbidden: { $ref: ../../../fixtures/api/nodes_indent_forbidden.json }
+              cycle_refused: { $ref: ../../../fixtures/api/nodes_move_cycle_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
