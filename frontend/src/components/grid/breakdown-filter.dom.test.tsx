@@ -35,6 +35,7 @@ const LOT = "01926f3a-7c00-7000-8000-000000000711";
 const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 // The French catalogue sets a no-break space before a colon and inside quotes.
 const NB = "\u00a0";
+const WORK = `Lot${NB}: Lot 1`;
 const POST = `Poste${NB}: Poste 1.1`;
 
 /** The lots and the posts of the work breakdown of the witness, the address read as `search`. */
@@ -90,11 +91,10 @@ describe("the filter of a grid by a lot or a post", () => {
   it("offers the lots and the posts of the work breakdown, each named by its kind, a lot before its posts", async () => {
     const { container } = filter("");
     const list = screen.getByRole("combobox", { name: "Lot ou poste" });
-    expect(within(list).getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Tous les lots et postes",
-      `Lot${NB}: Lot 1`,
-      POST,
-    ]);
+    const names = within(list)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(names).toEqual(["Tous les lots et postes", WORK, POST]);
     expect(list).toHaveValue("");
     await expectAccessible(container);
   });
@@ -104,18 +104,16 @@ describe("the filter of a grid by a lot or a post", () => {
     const list = screen.getByRole("combobox", { name: "Lot ou poste" });
     expect(list).toHaveValue(LOT);
     await userEvent.selectOptions(list, screen.getByRole("option", { name: POST }));
-    expect(router.push).toHaveBeenLastCalledWith(`${PLANNING}?search=Revue&order_item_id=${ITEM}`, {
-      scroll: false,
-    });
+    const asked = `${PLANNING}?search=Revue&order_item_id=${ITEM}`;
+    expect(router.push).toHaveBeenLastCalledWith(asked, { scroll: false });
   });
 
   it("writes a lot chosen under `work_package_id`, and lifts both by the first choice", async () => {
     filter(`order_item_id=${ITEM}`);
     const list = screen.getByRole("combobox", { name: "Lot ou poste" });
-    await userEvent.selectOptions(list, screen.getByRole("option", { name: `Lot${NB}: Lot 1` }));
-    expect(router.push).toHaveBeenLastCalledWith(`${PLANNING}?work_package_id=${LOT}`, {
-      scroll: false,
-    });
+    await userEvent.selectOptions(list, screen.getByRole("option", { name: WORK }));
+    const asked = `${PLANNING}?work_package_id=${LOT}`;
+    expect(router.push).toHaveBeenLastCalledWith(asked, { scroll: false });
     await userEvent.selectOptions(list, screen.getByRole("option", { name: /^Tous/ }));
     expect(router.push).toHaveBeenLastCalledWith(PLANNING, { scroll: false });
   });
