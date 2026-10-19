@@ -1,0 +1,14 @@
+{
+  "summary": "L'import d'un reste à engager lu aujourd'hui à 10 h 20 et analysé à 10 h 21, une variante que imports ne reprend pas : deux lignes du « Poste de commande » placées dans l'onglet « Essais et mise en service ». « Mise en service sur site », d'une tâche non démarrée, change de sous-projet, un écart au compte rendu ; « Raccordement des borniers », du « Câblage des armoires », démarré le 4 mai 2026, est rejetée à la ligne 3 de l'onglet, et le compte rendu nomme le « Poste de commande », qui a reçu des coûts réels (WF-INTF-0120, WF-PRJ-0050, WF-INTF-0080).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a17",
+    "kind": "remaining",
+    "filename": "reste-a-engager-essais.xlsx",
+    "status": "analysed",
+    "created_at": "2026-06-03T10:20:05Z",
+    "expires_at": "2026-06-04T10:21:00Z",
+    "report": {"format_version":"1","read_count":2,"rejected":[{"row":3,"code":"SUBPROJECT_HAS_ACTUAL_COSTS","params":{"subproject":{"subproject_id":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande"}}}],"refusals":[],"differences":[{"change":"updated","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000666","label":"Mise en service sur site","fields":["subproject"]}],"ignored":[],"completed_tasks":[],"date_mismatches":[],"requires_confirmation_reasons":[]},
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000947","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-06-03T10:20:05Z","finished_at":"2026-06-03T10:21:00Z","problem":null,"result_url":null}
+  }
+}
