@@ -246,7 +246,7 @@ export default async function ActualCostsPage({
       <ContextBanner reading={reading} />
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
-        <Screen density={FUNCTION_DENSITY.actual_costs} fill>
+        <Screen density={FUNCTION_DENSITY.actual_costs} fillWide>
           <CostsHeader
             count={"refused" in costs ? undefined : costs.page.total}
             exchanges={functionHref(EXCHANGES, at.context)}
@@ -260,8 +260,8 @@ export default async function ActualCostsPage({
             subprojects={subprojects}
             refused={"refused" in costs ? costs.period : undefined}
           />
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
+            <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
               {"refused" in costs ? (
                 <CostsRefused reason={costs.refused} />
               ) : (

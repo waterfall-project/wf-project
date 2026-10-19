@@ -138,7 +138,7 @@ export function UndoCommands() {
   const t = useTranslations("grid.undo");
   const reason = useId();
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex shrink-0 items-center gap-1">
       {COMMANDS.map((command) => (
         <Button
           key={command}

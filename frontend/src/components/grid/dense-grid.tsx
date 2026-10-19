@@ -90,6 +90,8 @@ import {
   useGridFold,
   useTreeRow,
 } from "./fold";
+import { useFrameWidth } from "./frame-width";
+import { barWidthOf, EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import {
   type CellDraft,
   type CellPosition,
@@ -123,18 +125,6 @@ import {
   UndoAnnouncer,
   useUndoShortcut,
 } from "./undo-commands";
-
-/**
- * The height of a row, in `rem` — `h-7`, a dense grid —: in pixels, as many times the size of
- * the root font, so that a font the user enlarges does not shift the rows the grid computes.
- */
-export const ROW_REM = 1.75;
-
-/**
- * The height of the header and of the totals, in `rem` — `h-8` —: the rows brought into view come
- * out from under them.
- */
-const EDGE_REM = 2;
 
 /** The rows rendered beyond those in view, at each end. */
 const OVERSCAN = 12;
@@ -675,6 +665,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   );
   const kept = useKeptFilters(config, preferences, recordFilters);
   const scroller = useRef<HTMLDivElement>(null);
+  const frameWidth = useFrameWidth(scroller);
   const rowHeight = ROW_REM * useRootFontSize();
 
   // The address the last navigation of the grid — or of its screen — asked for: a search entered
@@ -824,8 +815,13 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const bodyRows = Math.max(model.length, 1);
 
   const grid = (
-    <div className="flex min-h-0 flex-col gap-2" onKeyDown={undo.onKeyDown}>
+    <div
+      className="flex min-h-0 flex-col gap-2"
+      style={{ minHeight: withBar(bodyRows) }}
+      onKeyDown={undo.onKeyDown}
+    >
       <GridToolbar
+        width={barWidthOf(frameWidth, table.getTotalSize())}
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
@@ -891,8 +887,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         // them. A refusal whose row scrolls out of view closes.
         container={{
           ref: scroller,
-          className: "w-fit max-w-full max-h-svh min-h-40 rounded-md border",
-          style: { scrollPaddingBlock: edge, scrollPaddingInlineStart: pinnedWidth(table) },
+          className: "w-fit max-w-full max-h-svh rounded-md border",
+          style: {
+            minHeight: floorOf(model.length),
+            scrollPaddingBlock: edge,
+            scrollPaddingInlineStart: pinnedWidth(table),
+          },
           onScroll: keyboard.followScroll,
         }}
         className="table-fixed text-xs tabular-nums"
