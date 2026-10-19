@@ -186,9 +186,6 @@ ImportReport:
       type: array
       description: >-
         Les lignes rejetées, chacune avec son motif ; les autres s'appliquent (WF-INTF-0080).
-        Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet
-        qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`,
-        WF-INTF-0100, WF-INTF-0120).
       items: { $ref: '#/ImportRejection' }
     refusals:
       type: array
@@ -315,17 +312,9 @@ ImportRejection:
     cause comme ceux d'une saisie d'une révision (`resource_role_ids`, `tasks`, chaque tâche par
     `project_id`, `node_id` et `label`), une ligne de devis d'une catégorie de type provision
     pour risques, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`,
-    WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus ; une ligne existante dont
-    la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, que le
-    fichier ferait changer de sous-projet — placée dans l'onglet d'un autre sous-projet, ou dans
-    l'onglet « Hors sous-projet », d'un reste à engager (WF-INTF-0120), ou portant un autre
-    sous-projet, ou une cellule vide, dans la colonne d'un devis (WF-INTF-0100) — :
-    `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le sous-projet qu'elle ne peut pas
-    quitter (`subproject_id`, `label`), comme le refus de `updateEstimateLine` (WF-PRJ-0050 ;
-    C-359, #1152, #1153). Une ligne d'une tâche non démarrée change de sous-projet, et le compte
-    rendu le présente comme un écart (`ImportDifference`, `fields` à `subproject`).
-    Une tâche que le fichier placerait hors du sous-arbre de la tâche du lot de son poste ne
-    rejette pas sa ligne mais le fichier entier (`ImportReport.refusals` ; EP-14/L42s).
+    WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus. Une tâche que le fichier
+    placerait hors du sous-arbre de la tâche du lot de son poste ne rejette pas sa ligne mais le
+    fichier entier (`ImportReport.refusals` ; EP-14/L42s).
   properties:
     row: { type: integer, minimum: 1 }
     code: { $ref: ../common.yaml#/ErrorCode }

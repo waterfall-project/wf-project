@@ -1818,9 +1818,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`, ses lignes triées sous
   chaque tâche par `wftools.mocksort`) ; les réponses des
   écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
-  de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`), et les refus
-  d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
-  (`wftools.mockexchanges`) ; son
+  de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`) ; son
   histoire, ses révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et

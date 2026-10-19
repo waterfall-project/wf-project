@@ -227,9 +227,7 @@ Problem:
         WF-RAE-0040) ; `subproject`, dans `fields[].params`, le sous-projet qu'une ligne d'une
         tâche démarrée ou terminée ne peut pas quitter, parce qu'il a reçu des coûts réels, par
         son identifiant et son libellé (`subproject_id`, `label` ; `SUBPROJECT_HAS_ACTUAL_COSTS`,
-        WF-PRJ-0050), et le même paramètre au motif d'une cellule de sous-projet collée
-        (`PasteRejection.params`) ou d'une ligne d'import rejetée (`ImportRejection.params`,
-        WF-INTF-0100, WF-INTF-0120) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
+        WF-PRJ-0050) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
         (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de
@@ -459,15 +457,11 @@ ErrorCode:
     # délai de paiement d'une ligne de provision, qui n'en porte pas (WF-DEV-0020), un champ
     # d'une autre nature de ligne (`EstimateLineWrite`, `EstimateLineUpdate`), la durée d'un
     # jalon (`TaskFacetUpdate`), et le motif d'une cellule collée sur une telle colonne
-    # (`PastePreview` ; EP-14/L42s), sauf le sous-projet d'une ligne qui ne peut pas le quitter,
-    # refusé par `SUBPROJECT_HAS_ACTUAL_COSTS`.
+    # (`PastePreview` ; EP-14/L42s).
     - FIELD_NOT_ACCEPTED
     # Une ligne dont la tâche est démarrée ou terminée, passée hors d'un sous-projet qui a reçu
     # des coûts réels (`/subproject_id`, `updateEstimateLine`, WF-PRJ-0050) ;
-    # `fields[].params.subproject` nomme ce sous-projet. Aussi le motif d'une cellule de
-    # sous-projet collée sur une telle ligne (`PasteRejection`) et d'une ligne d'un devis ou
-    # d'un reste à engager importée dans un autre sous-projet (`ImportRejection`, WF-INTF-0100,
-    # WF-INTF-0120 ; C-359, #1152), `params.subproject` nommant le sous-projet.
+    # `fields[].params.subproject` nomme ce sous-projet.
     - SUBPROJECT_HAS_ACTUAL_COSTS
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).

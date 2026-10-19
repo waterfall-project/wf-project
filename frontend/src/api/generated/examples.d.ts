@@ -96,7 +96,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_rejected" | "import_remaining_analysed" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_rejected" | "import_remaining_analysed";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked";
@@ -315,7 +315,7 @@ export interface Examples {
     200: "paste_applied" | "paste_applied_partial";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
-    200: "paste_plan" | "paste_plan_subproject_held" | "paste_plan_unknown_category";
+    200: "paste_plan" | "paste_plan_unknown_category";
   };
   "POST /projects/{project_id}/subprojects": {
     201: "subproject_created";

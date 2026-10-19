@@ -1232,9 +1232,7 @@
       visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre
       des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule
       non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par
-      sa ligne et sa colonne (`PastePreview`), et le sous-projet d'une ligne d'une tâche démarrée
-      ou terminée ne quitte pas un sous-projet qui a reçu des coûts réels
-      (`SUBPROJECT_HAS_ACTUAL_COSTS`, `PasteRejection`, WF-PRJ-0050).
+      sa ligne et sa colonne (`PastePreview`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1253,7 +1251,6 @@
             examples:
               planned: { $ref: ../../../fixtures/api/paste_plan.json }
               unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
-              subproject_held: { $ref: ../../../fixtures/api/paste_plan_subproject_held.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
