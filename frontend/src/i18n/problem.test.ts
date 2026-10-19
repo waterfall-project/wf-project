@@ -232,6 +232,29 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the sub-project a line of a started task does not leave, which received actual costs, from the refusal of its field (#1066)", () => {
+    const refused = example("estimate_line_subproject_has_actual_costs") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Sous-projet qui a reçu des coûts réels, que la " +
+        "ligne ne quitte pas : « Poste de commande ».",
+    );
+    expect(say(refused, "en")).toBe(
+      "The data entered is not valid. Subproject that has received actual costs, which the line " +
+        "does not leave: “Poste de commande”.",
+    );
+    // The refusal of the field, said at the field, by its own code and the same sub-project.
+    const params = refused.fields?.[0]?.params ?? {};
+    expect(say({ code: "SUBPROJECT_HAS_ACTUAL_COSTS", params }, "fr")).toBe(
+      "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le " +
+        "sous-projet a reçu des coûts réels. Sous-projet qui a reçu des coûts réels, que la ligne " +
+        "ne quitte pas : « Poste de commande ».",
+    );
+    // A sub-project without its label names nothing.
+    expect(say({ code: "VALIDATION_FAILED", params: { subproject: { label: 7 } } }, "en")).toBe(
+      "The data entered is not valid.",
+    );
+  });
+
   it("names the roles a category keeps in labour by their labels and codes, to attach first to another category of labour [WF-REF-0040-A]", () => {
     // Le rattachement […] d'une catégorie […] à laquelle un rôle de ressource est rattaché, à une
     // nature hors main-d'œuvre est refusé : the roles named, which the screen of the costs may not
