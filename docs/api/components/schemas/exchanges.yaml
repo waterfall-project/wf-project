@@ -185,7 +185,8 @@ ImportReport:
     rejected:
       type: array
       description: >-
-        Les lignes rejetées, chacune avec son motif ; les autres s'appliquent (WF-INTF-0080).
+        Les lignes rejetées, chacune par son onglet et son rang, avec son motif ; les autres
+        s'appliquent (WF-INTF-0080).
         Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet
         qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`,
         WF-INTF-0100, WF-INTF-0120).
@@ -309,7 +310,9 @@ ImportRejection:
   type: object
   required: [row, code]
   description: >-
-    Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs :
+    Une ligne du fichier rejetée, par son onglet, son rang et son motif (WF-INTF-0080) :
+    l'utilisateur la retrouve dans son fichier, deux onglets pouvant porter une ligne au même
+    rang (#1162). Parmi les motifs :
     une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée
     (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), ses `params` nommant les rôles et la tâche en
     cause comme ceux d'une saisie d'une révision (`resource_role_ids`, `tasks`, chaque tâche par
@@ -327,6 +330,14 @@ ImportRejection:
     Une tâche que le fichier placerait hors du sous-arbre de la tâche du lot de son poste ne
     rejette pas sa ligne mais le fichier entier (`ImportReport.refusals` ; EP-14/L42s).
   properties:
+    sheet:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        L'onglet qui porte la ligne, par son nom tel que le fichier le porte : le lot d'un devis,
+        le sous-projet d'un reste à engager, ou un onglet que Waterfall nomme, « Hors lot » ou
+        « Hors sous-projet », dont le nom ne dépend pas de la langue (ANNEXE B, WF-INTF-0180).
+        Nul pour un fichier à un seul onglet — un planning MS Project, une extraction de coûts
+        réels (WF-INTF-0040, WF-INTF-0140) — (#1162).
     row: { type: integer, minimum: 1 }
     code: { $ref: ../common.yaml#/ErrorCode }
     params:

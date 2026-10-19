@@ -4247,6 +4247,12 @@ class ExchangeKind(StrEnum):
 
 
 class ImportRejection(ContractModel):
+    sheet: Annotated[
+        str | None,
+        Field(
+            description="L'onglet qui porte la ligne, par son nom tel que le fichier le porte : le lot d'un devis, le sous-projet d'un reste à engager, ou un onglet que Waterfall nomme, « Hors lot » ou « Hors sous-projet », dont le nom ne dépend pas de la langue (ANNEXE B, WF-INTF-0180). Nul pour un fichier à un seul onglet — un planning MS Project, une extraction de coûts réels (WF-INTF-0040, WF-INTF-0140) — (#1162)."
+        ),
+    ] = None
     row: Annotated[int, Field(ge=1)]
     code: ErrorCode
     params: dict[str, Any] | None = None
@@ -4300,7 +4306,7 @@ class ImportReport(ContractModel):
     rejected: Annotated[
         list[ImportRejection],
         Field(
-            description="Les lignes rejetées, chacune avec son motif ; les autres s'appliquent (WF-INTF-0080). Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`, WF-INTF-0100, WF-INTF-0120)."
+            description="Les lignes rejetées, chacune par son onglet et son rang, avec son motif ; les autres s'appliquent (WF-INTF-0080). Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`, WF-INTF-0100, WF-INTF-0120)."
         ),
     ]
     refusals: Annotated[

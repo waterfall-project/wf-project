@@ -151,11 +151,23 @@ def test_a_line_in_the_tab_of_another_subproject_moves_unless_held(
         }
     ]
     # The labour of the wiring, second line of the tab, its third row: rejected, the subproject
-    # it may not leave named.
+    # it may not leave named, the line by its tab, named as the file names it (#1162).
+    [tab] = [
+        entry["label"]
+        for entry in mockwitness.fixture("subprojects")
+        if entry["subproject_id"] == mockexchanges.TAB
+    ]
     assert report["rejected"] == [
-        {"row": 3, "code": "SUBPROJECT_HAS_ACTUAL_COSTS", "params": _named(node(read, N.LABOUR))}
+        {
+            "sheet": tab,
+            "row": 3,
+            "code": "SUBPROJECT_HAS_ACTUAL_COSTS",
+            "params": _named(node(read, N.LABOUR)),
+        }
     ]
     assert report["refusals"] == []
+    summary = mockexchanges.examples()["import_remaining_subproject_held.json"]["summary"]
+    assert f"à la ligne 3 de l'onglet « {tab} »" in cast("str", summary)
 
 
 def test_the_estimate_imported_on_the_main_structure_in_progress_names_its_condition() -> None:

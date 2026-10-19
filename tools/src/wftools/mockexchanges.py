@@ -147,6 +147,13 @@ def paste_plan_subproject_held() -> JsonObject:
 TAB = SUBPROJECT_TESTS
 """The tab of the file the two lines are placed in: the tests and the commissioning."""
 
+
+def tab_name(subproject: str) -> str:
+    """Return the name of the tab of a subproject, as the file names it: its label (ANNEXE B)."""
+    [name] = [label for label, key in subprojects().items() if key == subproject]
+    return name
+
+
 IMPORTED = (N.COMMISSIONING_LINE, N.LABOUR)
 """The lines of that tab, from its second row, the first being its headings: the commissioning
 on site, of a task not started, and the labour of the wiring, started, both of the control
@@ -163,8 +170,9 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
 
     The subproject of a line is that of the tab that bears it (WF-INTF-0120): a line placed in the
     tab of another changes subproject, and the report presents it as a difference, unless the line
-    is held by its own, rejected then, the report naming that subproject. The quantities of the
-    file are those of the revision: nothing else differs.
+    is held by its own, rejected then, the report naming that subproject, and the line by its tab
+    and its row (#1162). The quantities of the file are those of the revision: nothing else
+    differs.
     """
     rejected: list[JsonValue] = []
     differences: list[JsonValue] = []
@@ -172,7 +180,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
         line = nodes[number]
         refusal = held_refusal(nodes, line, TAB, pasted=False)
         if refusal is not None:
-            rejected.append({"row": row, **refusal})
+            rejected.append({"sheet": tab_name(TAB), "row": row, **refusal})
         elif line["estimate_line"]["subproject_id"] != TAB:
             differences.append(
                 {
@@ -274,6 +282,7 @@ def examples() -> dict[str, JsonObject]:
     report = cast("dict[str, list[JsonValue]]", imported["report"])
     [moved] = cast("list[dict[str, str]]", report["differences"])
     [imported_refusal] = report["rejected"]
+    rejected_at = cast("dict[str, Any]", imported_refusal)
     wiring = nodes[N.WIRING]["task"]
     started = mocktext.day(date.fromisoformat(wiring["started_on"]))
     refused = nodes[IMPORTED[1]]["estimate_line"]["label"]
@@ -296,7 +305,7 @@ def examples() -> dict[str, JsonObject]:
             f"» placées dans l'onglet « {labels[TAB]} ». « {moved['label']} », d'une tâche non "
             f"démarrée, change de sous-projet, un écart au compte rendu ; « {refused} », du « "
             f"{wiring['label']} », démarré le {started}, est rejetée à la ligne "
-            f"{cast('dict[str, int]', imported_refusal)['row']} de l'onglet, et le compte rendu "
+            f"{rejected_at['row']} de l'onglet « {rejected_at['sheet']} », et le compte rendu "
             f"nomme le « {_subproject(imported_refusal)} », qui a reçu des coûts réels "
             f"(WF-INTF-0120, WF-PRJ-0050, WF-INTF-0080).",
             imported,

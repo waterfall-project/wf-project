@@ -6417,6 +6417,20 @@ porte la mise en service sur site, non démarrée, qui en change, et la main-d'�
 rejetée, le Poste de commande nommé. Écarté : garder `FIELD_NOT_ACCEPTED` au collage, qui aurait fait
 dire à la grille « ce champ ne s'écrit pas » d'une ligne que la saisie refuse pour une autre raison.
 
+**Une ligne rejetée d'un import est désignée par son onglet** (#1162, tranché par l'auteur le
+2026-10-19 ; WF-INTF-0080, WF-INTF-0180). ANNEXE B place chaque lot d'un devis et chaque
+sous-projet d'un reste à engager dans un onglet : le rang seul, `ImportRejection.row`, ne disait pas
+lequel, et deux lignes de deux onglets peuvent avoir le même rang ; l'utilisateur doit pouvoir
+retrouver dans son fichier la ligne que le compte rendu rejette. `ImportRejection` gagne `sheet`,
+le nom de l'onglet tel que le fichier le porte — le lot ou le sous-projet, ou « Hors lot » et « Hors
+sous-projet », que Waterfall fixe sans égard à la langue (WF-INTF-0180) —, nul pour un fichier à un
+seul onglet, un planning MS Project ou une extraction de coûts réels. Le champ n'est pas exigé :
+un compte rendu sans onglet reste lisible. L'exemple engendré `import_remaining_subproject_held` le
+renseigne, l'onglet « Essais et mise en service », et son résumé dit la ligne 3 de cet onglet.
+L'exemple écrit à la main `import_analysed`, un devis Excel dont deux lignes sont rejetées, ne le
+porte pas encore : il n'est pas réécrit ici. Le contrat garde sa citation de WF-INTF-0100, dont le
+texte complété attend son intégration par l'auteur (#1166).
+
 **L'import du devis est refusé sur la structure principale d'un projet En cours** (C-358, #1153 ;
 WF-INTF-0100 : « l'import du devis est refusé sur la structure principale, en nommant la
 condition »). `openImport` le refuse par 409 `STATE_FORBIDS_OPERATION`,
