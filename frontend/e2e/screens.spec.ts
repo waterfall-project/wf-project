@@ -8,8 +8,9 @@
  * of its own by a link of the screen of its function; the list of projects by the navigation.
  * Each screen reached names its function, and shows the leaves the table says it shows itself
  * (`sections`), found by their role and their name, or a fact by its text in the list of facts
- * that names it. A leaf is reached too by a link of the navigation, under its function. `make screens` holds the table against the FBS and the pages of the application;
- * this path proves the links in a browser: a link hidden, or that a click does not reach, fails it.
+ * that names it. A leaf is reached too by a link of the navigation, under its function.
+ * `make screens` holds the table against the FBS and the pages of the application; this path
+ * proves the links in a browser: a link hidden, or that a click does not reach, fails it.
  *
  * The route reached is compiled before the path starts (`compile`, #142), and a screen of a project
  * the path starts from is opened hydrated (`openHydrated`, #471). The session of the fake back

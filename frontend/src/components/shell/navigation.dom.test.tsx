@@ -7,9 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { CATALOGUES } from "@/i18n/catalogues";
+import { CATALOGUES, type Catalogue } from "@/i18n/catalogues";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
-import { FUNCTION_GROUPS } from "@/navigation/functions";
+import { FUNCTION_GROUPS, type NavigationFunction } from "@/navigation/functions";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
@@ -69,6 +69,12 @@ async function openBlocks(): Promise<string[]> {
     await userEvent.click(block);
   }
   return closed.map((block) => block.textContent);
+}
+
+/** The French name of a function of the table, read in the catalogue from its label. */
+function nameOf(fn: NavigationFunction): string {
+  const key = fn.label.slice("functions.".length) as keyof Catalogue["functions"];
+  return CATALOGUES.fr.functions[key];
 }
 
 /** The address a link of the navigation leads to, found by its name. */
@@ -223,6 +229,17 @@ describe("the navigation", () => {
           .map((link) => link.textContent),
       ).toEqual(leaves);
     }
+    // The tab order: a function, then its leaves, then the next function.
+    const order = FUNCTION_GROUPS.flatMap((group) => group.functions)
+      .filter((fn) => fn.scope === "revision")
+      .flatMap((fn) => [fn, ...(fn.leaves ?? [])])
+      .map(nameOf);
+    const names = within(nav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    // The revision is the last group of the bar.
+    expect(names.slice(-order.length)).toEqual(order);
+    expect(order.indexOf("Chronologies")).toBe(order.indexOf("Planification") + 1);
     expect(href("Plan de charge")).toBe(`${IN_PROJECT}/workload${CONTEXT}`);
     expect(href("Chronologies")).toBe(`${IN_PROJECT}/timelines${CONTEXT}`);
     expect(href("Imports et exports")).toBe(`${IN_PROJECT}/exchanges${CONTEXT}`);
@@ -243,17 +260,10 @@ describe("the navigation", () => {
     const leaves = FUNCTION_GROUPS.flatMap((group) => group.functions).flatMap(
       (fn) => fn.leaves ?? [],
     );
-    expect(leaves).toHaveLength(5);
-    const names: Record<string, string> = {
-      "FBS-4.3.1": "Chronologies",
-      "FBS-4.3.4": "Imports et exports",
-      "FBS-4.3.5": "Arborescence de tâches",
-      "FBS-4.4.4": "Plan de charge",
-      "FBS-4.5.3": "Kanban — démarrage des tâches",
-    };
+    expect(leaves.length).toBeGreaterThan(0);
     for (const leaf of leaves) {
       const route = leaf.route.replace("[projectId]", PROJECT).replace("[revisionId]", REVISION);
-      expect(href(names[leaf.code] ?? ""), leaf.code).toBe(`${route}${CONTEXT}`);
+      expect(href(nameOf(leaf)), leaf.code).toBe(`${route}${CONTEXT}`);
     }
   });
 
@@ -295,13 +305,18 @@ describe("the navigation", () => {
     expect(screen.queryByRole("link", { name: "Kanban — démarrage des tâches" })).toBeNull();
   });
 
-  it("offers no leaf whose read permission the session lacks", async () => {
+  it("guards a leaf as its function: with the permission of its function, and with it alone", async () => {
     visit(`${IN_PROJECT}/remaining`, CONTEXT);
-    render(navigation(permissions("me").filter((code) => code !== "estimate.read")));
+    const { unmount } = render(navigation(permissions("me").filter((c) => c !== "estimate.read")));
     await openBlocks();
     expect(screen.queryByRole("link", { name: "Chiffrage et devis" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Plan de charge" })).toBeNull();
     expect(screen.getByRole("link", { name: "Chronologies" })).toBeInTheDocument();
+    unmount();
+    render(navigation(["estimate.read"]));
+    await openBlocks();
+    expect(screen.getByRole("link", { name: "Plan de charge" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Chronologies" })).toBeNull();
   });
 
   it("leads back from a function outside any project to the same project context [WF-IHM-0010-A]", () => {

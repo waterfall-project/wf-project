@@ -4,12 +4,13 @@
  * The functions of the FBS the navigation offers, read from `functions.json`: for each
  * function of the second level, its code, the key of its label in the catalogues, its route,
  * whether it lives outside any project or in one, and the permission that lets a user read
- * it (WF-ADM-0100). The navigation is drawn from this table. A leaf of the FBS with a screen of its own — the workload of the
- * project, FBS-4.4.4 — is a leaf of its function in the table: of the same scope and permission,
- * shown by the navigation under its function and led to from the screen of its function, and read in its
- * context as its function is. A leaf the screen of its function shows itself — the calendars on the
- * settings of the resources, FBS-3.2.3 — is a section of its function: addressed by its route, and
- * found on its screen by its role and its name, or by its text in the named list of its facts.
+ * it (WF-ADM-0100). The navigation is drawn from this table. A leaf of the FBS with a screen of
+ * its own — the workload of the project, FBS-4.4.4 — is a leaf of its function in the table: of
+ * the same scope and permission, shown by the navigation under its function and led to from the
+ * screen of its function, and read in its context as its function is. A leaf the screen of its
+ * function shows itself — the calendars on the settings of the resources, FBS-3.2.3 — is a
+ * section of its function: addressed by its route, and found on its screen by its role and its
+ * name, or by its text in the named list of its facts.
  *
  * The table is data: functions.test.ts checks it against the catalogues, `make screens` against
  * the FBS of the specification and the pages of the application, and `e2e/screens.spec.ts` reaches
@@ -123,16 +124,14 @@ const CONTEXT_SEGMENTS = { projectId: "[projectId]", revisionId: "[revisionId]" 
 
 /**
  * The groups and functions a user may read: a function whose read permission the session
- * lacks is not offered, and a group left without a function nor a page of its own neither.
+ * lacks is not offered, with its leaves, which share its permission, and a group left without a
+ * function nor a page of its own neither.
  */
 export function readableGroups(permissions: readonly PermissionCode[]): FunctionGroup[] {
   const granted = new Set<string>(permissions);
-  const readable = (fn: NavigationFunction) => granted.has(`${fn.permission}.read`);
   return FUNCTION_GROUPS.map((group) => ({
     ...group,
-    functions: group.functions
-      .filter(readable)
-      .map((fn) => (fn.leaves === undefined ? fn : { ...fn, leaves: fn.leaves.filter(readable) })),
+    functions: group.functions.filter((fn) => granted.has(`${fn.permission}.read`)),
   })).filter((group) => group.route !== undefined || group.functions.length > 0);
 }
 
@@ -174,8 +173,8 @@ export function functionOf(permission: FunctionPermission): NavigationFunction {
 }
 
 /**
- * A leaf of the table, by its code of the FBS — `FBS-4.3.4` —: a function the navigation shows under its
- * function, and the screen of its function leads to.
+ * A leaf of the table, by its code of the FBS — `FBS-4.3.4` —: a function the navigation shows
+ * under its function, and the screen of its function leads to.
  */
 export function leafOf(code: string): NavigationFunction {
   return (

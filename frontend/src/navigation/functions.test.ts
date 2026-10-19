@@ -151,7 +151,11 @@ describe("the leaves of the table", () => {
     expect(Object.keys(LEAF_ICONS)).toEqual(leaves.map(({ leaf }) => leaf.code));
   });
 
-  it("are not offered by the navigation, which offers their function", () => {
+  it("are kept under their function when readable", () => {
+    const planning = readableGroups(["planning.read"])
+      .flatMap((group) => group.functions)
+      .find((fn) => fn.code === "FBS-4.3");
+    expect(planning?.leaves).toHaveLength(3);
     const codes = readableGroups(["estimate.read"]).flatMap((group) =>
       group.functions.map((fn) => fn.code),
     );
