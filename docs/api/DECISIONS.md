@@ -6390,6 +6390,65 @@ nomme `node_tracking_milestone_refused`, un 422, sans dire le code ni le pointeu
 n'a pas : ce lot ne l'invente pas, et le refus reste à trancher avant le lot d'écran qui le
 dit.
 
+**Le collage et l'import ne déplacent pas une ligne retenue par son sous-projet** (C-359, #1152 ;
+WF-PRJ-0050, WF-IHM-0050, WF-INTF-0100, WF-INTF-0120 ; décision de l'auteur du 2026-10-19). Une
+ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne
+nomme plus `estimate_line.subproject_id` dans `editable_fields` depuis US-0460/L1 : par la règle
+générale du collage, sa cellule aurait été refusée par `FIELD_NOT_ACCEPTED`, un code qui ne dit pas
+la cause (défaut n° 10 du guide). Elle l'est par `SUBPROJECT_HAS_ACTUAL_COSTS`, le motif de
+`updateEstimateLine`, avec le même `params.subproject` (`subproject_id`, `label`), sur la colonne
+`subproject` (`PasteRejection`) ; au compte rendu d'un import, la ligne est rejetée de même par son
+rang (`ImportRejection`) — placée, dans un reste à engager, dans l'onglet d'un autre sous-projet ou
+dans « Hors sous-projet », ou portant, dans un devis, un autre sous-projet ou une cellule vide —, et
+le compte rendu « nomme ce sous-projet » (WF-INTF-0120) : celui que la ligne ne peut pas quitter, ce
+que le refus de `updateEstimateLine` nomme déjà. La spécification ne dit pas la forme du motif : ce
+lot prend la plus proche des refus existants, le code et les paramètres que la ligne recevrait
+saisie, comme `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` au collage et `TASK_WITHOUT_WORKING_HOURS` à
+l'import. Une cellule ou un onglet qui nomme le sous-projet de la ligne ne la déplace pas, et n'est
+pas refusé : un bloc ou un fichier repris d'un export porte les sous-projets tels qu'ils sont. Une
+cellule vide se lit autrement au collage et à l'import : collée, elle n'écrit rien, comme toute
+cellule vide (`PastePreview`), et n'est pas refusée ; importée dans la colonne d'un devis, elle
+laisserait la ligne hors sous-projet — ce qu'un reste à engager dit par son onglet « Hors
+sous-projet » —, et la ligne est rejetée. Une ligne d'une tâche non démarrée change de sous-projet, et le compte rendu le présente comme un écart,
+`fields` à `subproject`. Exemples engendrés (`wftools.mockexchanges`), jugés sur la lecture du
+témoin comme le serveur les juge : `paste_plan_subproject_held`, deux sous-projets collés depuis la
+main-d'œuvre du câblage, démarré — l'un refusé, l'autre, celui des borniers, le leur, accepté — ;
+`import_remaining_subproject_held`, un reste à engager dont l'onglet « Essais et mise en service »
+porte la mise en service sur site, non démarrée, qui en change, et la main-d'œuvre du câblage,
+rejetée, le Poste de commande nommé. Écarté : garder `FIELD_NOT_ACCEPTED` au collage, qui aurait fait
+dire à la grille « ce champ ne s'écrit pas » d'une ligne que la saisie refuse pour une autre raison.
+
+**Une ligne rejetée d'un import est désignée par son onglet** (#1162, tranché par l'auteur le
+2026-10-19 ; WF-INTF-0080, WF-INTF-0180). ANNEXE B place chaque lot d'un devis et chaque
+sous-projet d'un reste à engager dans un onglet : le rang seul, `ImportRejection.row`, ne disait pas
+lequel, et deux lignes de deux onglets peuvent avoir le même rang ; l'utilisateur doit pouvoir
+retrouver dans son fichier la ligne que le compte rendu rejette. `ImportRejection` gagne `sheet`,
+le nom de l'onglet tel que le fichier le porte — le lot ou le sous-projet, ou « Hors lot » et « Hors
+sous-projet », que Waterfall fixe sans égard à la langue (WF-INTF-0180) —, nul pour un fichier à un
+seul onglet, un planning MS Project ou une extraction de coûts réels. Le champ n'est pas exigé :
+un compte rendu sans onglet reste lisible. L'exemple engendré `import_remaining_subproject_held` le
+renseigne, l'onglet « Essais et mise en service », et son résumé dit la ligne 3 de cet onglet.
+L'exemple écrit à la main `import_analysed`, un devis Excel dont deux lignes sont rejetées, ne le
+porte pas encore : il n'est pas réécrit ici. Le contrat garde sa citation de WF-INTF-0100, dont le
+texte complété attend son intégration par l'auteur (#1166).
+
+**L'import du devis est refusé sur la structure principale d'un projet En cours** (C-358, #1153 ;
+WF-INTF-0100 : « l'import du devis est refusé sur la structure principale, en nommant la
+condition »). `openImport` le refuse par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `project_before_in_progress` — la condition que la structure principale
+nomme déjà à la saisie de son devis (`StructureCommand.edit_estimate`, K2) —, et rien n'est analysé ;
+`applyImport` la nomme de même pour un devis analysé avant le passage à En cours, l'état étant
+revérifié à l'exécution (WF-ARC-0100). La spécification dit « en nommant la condition » sans la
+nommer : ce lot reprend celle qui existe, plutôt qu'une condition nouvelle qui dirait la même chose.
+`ProjectCommand.import_estimate` reste disponible sur un projet En cours, l'import restant ouvert
+sur un différentiel et sur le devis propre d'un risque : le front lit la commande de la structure
+visée. Exemple engendré : `import_estimate_main_in_progress`, sa condition lue à la structure
+principale de `structures`. Écartés : un motif au compte rendu (`ImportReport.refusals`), qui aurait
+lu le fichier pour refuser ce que l'état du projet suffit à refuser ; une condition sur
+`import_estimate`, qui aurait fermé l'import du différentiel avec celui de la principale. Les
+descriptions d'`openImport`, `getImport` et `applyImport` citent WF-INTF-0100 et, pour les deux
+premières, WF-INTF-0120.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
