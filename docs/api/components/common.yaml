@@ -214,9 +214,9 @@ Problem:
         pouvant ne pas les lire ; quand plusieurs prédécesseurs envoyés ferment une boucle, la
         plus courte est rendue, puis, à longueur égale, la première dans l'ordre des liaisons, et
         une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche ; et
-        pour un déplacement, une mise en retrait ou une création qui fermerait une boucle à
-        travers la récapitulative qui recevrait le nœud (`moveNodes`, `createNode`, WF-PLA-0030,
-        WF-PLA-0040 ; #1164) — une récapitulative couvre ses subordonnées : ce qui la précède les
+        pour un déplacement ou une mise en retrait qui fermerait une boucle à travers la
+        récapitulative qui recevrait le nœud (`moveNodes`, WF-PLA-0030, WF-PLA-0040 ; #1164,
+        #1167) — une récapitulative couvre ses subordonnées : ce qui la précède les
         précède, ce qui la suit les suit —, les tâches de la chaîne de liaisons qui mène de cette
         récapitulative, ou de l'un de ses ancêtres, à la tâche qu'elle recevrait ou à l'une de
         ses subordonnées, ou de celles-ci à celle-là, chacune précédant la suivante : la plus
@@ -351,9 +351,9 @@ ErrorCode:
     # Des prédécesseurs qui fermeraient une boucle de liaisons, `params.cycle` nommant ses
     # tâches, ou une liaison entre une récapitulative et l'une de ses subordonnées, sans
     # paramètre (`setPredecessors`, WF-PLA-0030, WF-PLA-0040 ; EP-15/US-0460) ; de même un
-    # déplacement, une mise en retrait ou une création qui ferait d'une tâche la récapitulative
-    # d'une tâche qui lui est liée, ou fermerait une boucle à travers elle (`moveNodes`,
-    # `createNode` ; #1164).
+    # déplacement ou une mise en retrait qui ferait d'une tâche la récapitulative d'une tâche
+    # qui lui est liée, ou fermerait une boucle à travers elle (`moveNodes` ; #1164). Une
+    # création ne porte aucune liaison : `createNode` ne rend ni l'un ni l'autre (#1167).
     - LINK_CYCLE
     - LINK_FORBIDDEN
     - RESOURCE_ROLE_REQUIRED
