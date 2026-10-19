@@ -334,7 +334,7 @@ describe("the settings of a project", () => {
     expect(text(none)).not.toContain("This project has no work package.");
   });
 
-  it("shows the work breakdown by default of a project whose order was not entered: one work package, one order item, no deliverable, both bearing the label of the project", async () => {
+  it("shows the work breakdown by default of a project whose order was not entered: one work package, one order item, no deliverable, both bearing the label of the project [WF-PRJ-0020-A]", async () => {
     // The project created today, its first revision opened, its order not entered.
     const project = example("project_revision_opened") as Project;
     server.answers = {

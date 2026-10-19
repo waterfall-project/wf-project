@@ -263,8 +263,8 @@ function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowComman
   return (row) => {
     const item: RowCommand = {
       key: "item",
-      name: t("createItem"),
-      text: t("createItem"),
+      name: t("createWorkPackage"),
+      text: t("createWorkPackage"),
       icon: <Plus aria-hidden="true" />,
       gesture: { kind: "add", parent: undefined },
     };

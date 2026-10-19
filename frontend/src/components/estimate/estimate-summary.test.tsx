@@ -69,7 +69,7 @@ describe("the summary of the estimate", () => {
           `Par sous-projet Poste de commande 22 276 516,46 \\(33,7 %\\) ` +
           `Essais et mise en service 20 807 656,85 \\(31,48 %\\) ` +
           `Hors sous-projet 23 021 050,58 \\(34,82 %\\) ` +
-          `Par poste Lot 1 502 434,56 \\(0,76 %\\)$`,
+          `Par lot Lot 1 502 434,56 \\(0,76 %\\)$`,
       ),
     );
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
@@ -121,7 +121,7 @@ describe("the summary of the estimate", () => {
 
   it("breaks the total down by work package as the API gives it, and presents a work package no task bears without a total, rather than nil [WF-DEV-0060-A]", () => {
     expect(text(summary("estimate_indicators", "missing_rates_none"))).toMatch(
-      /Par sous-projet .* Par poste Lot 1 502 434,56 \(0,76 %\)$/,
+      /Par sous-projet .* Par lot Lot 1 502 434,56 \(0,76 %\)$/,
     );
     // EP-14/L42s: every work package is given, its amount not computed when no task bears it.
     const indicators = example("estimate_indicators") as EstimateIndicators;
@@ -137,12 +137,12 @@ describe("the summary of the estimate", () => {
     }));
     expect(
       text(renderSummary({ ...indicators, by_work_package: unborne }, [] satisfies MissingRates)),
-    ).toMatch(/Par poste Lot 1 Non calculable — Aucune tâche ne porte ce lot\.$/);
+    ).toMatch(/Par lot Lot 1 Non calculable — Aucune tâche ne porte ce lot\.$/);
   });
 
   it("says an amount by work package the API could not compute, with its reason", () => {
     expect(text(summary("estimate_indicators_missing_rates", "missing_rates"))).toMatch(
-      /Par poste Lot 1 Non calculable — Taux horaire manquant pour l’année de référence\.$/,
+      /Par lot Lot 1 Non calculable — Taux horaire manquant pour l’année de référence\.$/,
     );
   });
 
