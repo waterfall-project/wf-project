@@ -688,11 +688,7 @@
       `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010). Une tâche créée dont la durée ou
       les dates porteraient la durée du projet au-delà de quinze ans est refusée par 422
       `PROJECT_HORIZON_EXCEEDED`, `params.task` la nommant par le libellé envoyé, son nœud nul
-      (WF-PLA-0150). Une tâche créée sous une autre en fait sa récapitulative : une création qui
-      relierait ainsi une récapitulative à l'une de ses subordonnées est refusée par 422
-      `LINK_FORBIDDEN`, et une création qui fermerait une boucle de liaisons à travers elle par
-      422 `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle, comme un déplacement
-      (`moveNodes` ; WF-PLA-0030, WF-PLA-0040).
+      (WF-PLA-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -729,10 +725,7 @@
           (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s) ; ou une ligne qui laisserait sa
           tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans
           `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans
-          (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150) ; ou, sans `fields`, une
-          création qui relierait la récapitulative qu'elle fait à l'une de ses subordonnées
-          (`LINK_FORBIDDEN`, sans paramètre) ou fermerait une boucle à travers elle
-          (`LINK_CYCLE`, `params.cycle`), comme un déplacement (WF-PLA-0030, WF-PLA-0040).
+          (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
