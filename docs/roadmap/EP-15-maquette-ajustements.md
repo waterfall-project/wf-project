@@ -495,7 +495,7 @@ l'écart reste.
 
 ## US-0450 — Le lotissement en lots, postes et livrables
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-PRJ-0020-A`
 - **opérations** : `getWorkBreakdown`, `setWorkBreakdown`, `generatePlanningSkeleton`,
   `updateTaskFacet`, `listNodes`, `getEstimateIndicators`
