@@ -36,6 +36,14 @@ export function isIdentifier(value: string): boolean {
   return IDENTIFIER.test(value);
 }
 
+// An identifier as the contract writes it (`Uuid`): the API refuses any other.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Whether a value of the address can stand for an identifier the API takes (`Uuid`). */
+export function isUuid(value: string): boolean {
+  return UUID.test(value);
+}
+
 /** A function of the table, as this module reads it: its scope, its route, its leaves. */
 interface Routed {
   readonly scope: string;

@@ -810,10 +810,18 @@ choisit parmi les lots et les postes du lotissement lu entier, ou rien, écrit p
 (`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
 déjà l'élément ou celles qui sortiraient du sous-arbre de leur lot (WF-PLA-0170) ; comme tout refus
 de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est décrite
-(`aria-invalid`, `aria-describedby`). Dans la grille vide, le squelette s'offre comme la révision
-liste `generate_skeleton`, indisponible avec sa condition dès que la structure comporte une tâche
-(WF-PRJ-0030) ; engendré, ses tâches remplissent la grille tant que le compteur de la structure
-qu'il rend est plus récent que celui de la lecture (EP-14/L44d). Les autres feuilles du planning ont
+(`aria-invalid`, `aria-describedby`). Au-dessus de la grille du planning et de celle du devis, un
+filtre choisit un lot ou un poste parmi le même lotissement lu entier (`BreakdownFilterChoice`,
+`readGridScreen` avec `byBreakdown`), écrit dans l'adresse sous le nom du contrat —
+`work_package_id` ou `order_item_id`, l'un levant l'autre, un identifiant mal formé ignoré — et
+envoyé à `listNodes`, qui retient le sous-arbre de la tâche rattachée ; le bandeau le montre actif
+et le lève (`breakdownChip`), au devis sur la grille seulement, ses indicateurs restant ceux du
+projet. Un lotissement que l'API refuse (404, 422, 503) n'ôte que le filtre, sauf là où le
+rattachement se saisit, qui ne s'en passe pas (`needsBreakdown`). Dans la grille vide, le squelette
+s'offre comme la révision liste `generate_skeleton`, indisponible avec sa condition dès que la
+structure comporte une tâche (WF-PRJ-0030) ; engendré, ses tâches remplissent la grille tant que le
+compteur de la structure qu'il rend est plus récent que celui de la lecture (EP-14/L44d). Les
+autres feuilles du planning ont
 leur écran, où son en-tête mène : l'arborescence de
 tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation

@@ -30,12 +30,22 @@ vi.mock("@/components/grid/estimate-grid", () => ({
     return null;
   },
 }));
+// The filter by a lot or a post reads the address the browser shows.
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+  usePathname: () => "/projects/p/revisions/r/estimate",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+// The lot of the witness and its post, as its work breakdown names them.
+const LOT = "01926f3a-7c00-7000-8000-000000000711";
+const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 
 /** The query the page asked a list of the reference with, by the end of its route. */
 function queryOf(end: string): URLSearchParams | undefined {
@@ -44,11 +54,14 @@ function queryOf(end: string): URLSearchParams | undefined {
 }
 
 /** The markup of the estimate of the witness revision for the session given. */
-async function estimatePage(session: "me" | "me_estimator" | "me_manager"): Promise<string> {
+async function estimatePage(
+  session: "me" | "me_estimator" | "me_manager",
+  search: Record<string, string> = {},
+): Promise<string> {
   server.answers = { ...server.answers, "GET /me": session };
   const page = await EstimatePage({
     params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
-    searchParams: Promise.resolve({}),
+    searchParams: Promise.resolve(search),
   });
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
@@ -77,6 +90,7 @@ beforeEach(() => {
     "GET /reference/cost-categories": "volume/cost_categories",
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
   };
 });
 
@@ -136,5 +150,42 @@ describe("the shares of the estimate (#626)", () => {
       .replace(/\s+/g, " ");
     expect(page).toContain("By work package Lot 1 2,019.56 (<0.01%)");
     expect(page).toContain("No subproject 65,427,832.64 (100%)");
+  });
+});
+
+describe("the filter of the estimate by a lot or a post", () => {
+  it("offers the lots and the posts of the work breakdown read whole, named by their kind", async () => {
+    const page = await estimatePage("me");
+    expect(page).toMatch(/<label[^>]*>Work package or order item<\/label>/);
+    expect(page).toContain(
+      `<option value="" selected="">All work packages and order items</option>` +
+        `<option value="${LOT}">Work package: Lot 1</option>` +
+        `<option value="${ITEM}">Order item: Poste 1.1</option>`,
+    );
+    expect(queryOf("/work-breakdown")?.toString()).toBe("");
+  });
+
+  it("asks the server for the subtree of the lot the address names, the indicators of the whole project, and says it restricts the grid alone", async () => {
+    const page = await estimatePage("me", { work_package_id: LOT });
+    expect(queryOf("/nodes")?.get("work_package_id")).toBe(LOT);
+    expect(queryOf("/estimate-indicators")?.has("work_package_id")).toBe(false);
+    // The grid reads its totals anew, those of the structure a write answers not being its own.
+    expect(grids.estimate.at(-1)?.filters).toMatchObject({ work_package_id: LOT });
+    expect(page).toContain(`<option value="${LOT}" selected="">Work package: Lot 1</option>`);
+    expect(page).toContain("Work package: Lot 1, on the grid only");
+    expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/estimate"`);
+  });
+
+  it("opens without the filter when the API refuses the work breakdown, the grid read whole", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/work-breakdown": {
+        problem: { code: "VALIDATION_FAILED", status: 422 },
+      },
+    };
+    const page = await estimatePage("me");
+    expect(page).not.toContain("Work package or order item");
+    expect(queryOf("/nodes")?.has("work_package_id")).toBe(false);
+    expect(grids.estimate).not.toHaveLength(0);
   });
 });
