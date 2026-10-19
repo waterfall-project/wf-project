@@ -11,7 +11,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
-import { ROW_REM } from "./dense-grid";
+import { ROW_REM } from "./grid-floor";
 import { EstimateGrid } from "./estimate-grid";
 import { triesEntry } from "./grid-keyboard";
 import type { NodeList, NodeSortColumn } from "./nodes";

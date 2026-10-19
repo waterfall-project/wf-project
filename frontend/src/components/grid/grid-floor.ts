@@ -49,7 +49,10 @@ export function withBar(rows: number): string {
   return `calc(${floorOf(rows)} + ${String(BAR_REM)}rem)`;
 }
 
-/** The width of the bar above a grid whose table is `table` pixels wide: that of its frame. */
-export function barWidth(table: number): string {
-  return `${String(table + BORDER_PX)}px`;
+/**
+ * The width of the bar above a grid: that of the frame of its table as the browser laid it out,
+ * the scroll bars it takes included, when it is measured; its table and its two borders until then.
+ */
+export function barWidthOf(frame: number | undefined, table: number): string {
+  return `${String(frame !== undefined && frame > 0 ? frame : table + BORDER_PX)}px`;
 }

@@ -15,7 +15,7 @@ import {
   planningInstant,
 } from "@/components/chart/chart";
 import { ListPages } from "@/components/grid/list-pages";
-import { ROW_REM } from "@/components/grid/dense-grid";
+import { ROW_REM } from "@/components/grid/grid-floor";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";

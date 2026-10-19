@@ -743,11 +743,19 @@ aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre tro
 plancher fait défiler la page. L'enveloppe de la grille et de sa barre porte ce plancher, plus la
 barre, en hauteur minimale : les enveloppes de l'écran, qui rétrécissent à ce qui reste (`min-h-0`),
 ne poussent pas le cadre sous son plancher sur ce qui le suit dans la même enveloppe — les filtres
-au-dessus, les pages en dessous. Un écran qui a du contenu sous l'enveloppe de sa grille, hors de
-la chaîne des enveloppes qui la contient, ne remplit pas la fenêtre (`/admin/backups`, le référentiel
-des ressources), faute de quoi la grille déborderait sur lui (#1033). La barre et le bouton « Colonnes »
-ont la largeur du cadre de la table, sans la dépasser ; les avis — refus, collage appliqué, colonnes
-non montrées, problème de saisie — gardent toute la largeur (#1042). Colonnes masquées, largeurs et tri sont une préférence
+au-dessus, les pages en dessous. Le plancher ne remonte pas plus haut : une enveloppe en `min-h-0`
+peut rester plus basse que le cadre, ce que la page absorbe en défilant, tant que rien ne la suit.
+Un écran qui a du contenu sous l'enveloppe de sa grille, hors de la chaîne qui la contient — fût-ce
+seulement dans une fenêtre étroite, où le contenu voisin se range dessous (les coûts réels, les
+risques, les coûts du référentiel) —, ne remplit pas la fenêtre là où il l'a dessous (`fillWide`,
+`lg:min-h-0`), de même que `/admin/backups` et le référentiel des ressources ne la remplissent pas :
+la grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les dix
+écrans qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre
+ne chevauche rien. La barre et le bouton « Colonnes » ont la largeur du cadre de la table, telle que
+le navigateur la pose (barres de défilement comprises, `frame-width.ts`), sans la dépasser, et jamais
+moins que ce que la barre tient sur une ligne (`min-w-min`, la recherche rétrécissant avant que
+rien ne s'enroule, hors la liste de commandes d'un écran, qui s'enroule d'elle-même) ; les avis — refus, collage appliqué, colonnes non montrées, problème de saisie —
+gardent toute la largeur (#1042). Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
 et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par

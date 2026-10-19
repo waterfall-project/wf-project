@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -79,23 +79,28 @@ describe("the floor of the frame of a grid (#1041, #1033)", () => {
     [1, 5.75],
     [2, 7.5],
   ])(
-    "is never taller than the content of a grid of %i rows: %f rem and the borders [WF-IHM-0060-A]",
+    "is never taller than the content of a grid of %i rows: %f rem and the borders",
     (rows, rem) => {
       renderGrid(rows);
       expect(frame().scroller.style.minHeight).toBe(`min(10rem, calc(${String(rem)}rem + 2px))`);
     },
   );
 
-  it("keeps no fixed class floor, and lifts the floor and the bar to what holds the grid [WF-IHM-0060-A]", () => {
+  it("keeps no fixed class floor, and lifts the floor and the bar to what holds the grid", () => {
     renderGrid(2);
     const { scroller, holder } = frame();
     expect(scroller.className).not.toContain("min-h-40");
-    expect(holder.style.minHeight).toBe("calc(min(10rem, calc(7.5rem + 2px)) + 2.25rem)");
-    expect(holder).toHaveClass("min-h-0");
+    // What holds the grid is as high, at least, as its frame at its floor and the bar over it, the
+    // bar and the gap under it counting 2.25 rem.
+    expect(holder.style.minHeight).toBe(`calc(${scroller.style.minHeight} + 2.25rem)`);
   });
 });
 
 describe("the bar of a grid follows the width of its table (#1042)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it.each([
     ["by the default widths", undefined],
     [
@@ -105,18 +110,34 @@ describe("the bar of a grid follows the width of its table (#1042)", () => {
         column_widths: { label: 120 },
       } satisfies GridPreferences,
     ],
-  ])("is as wide as the frame of the table, %s [WF-IHM-0060-A]", (_, preferences) => {
-    renderGrid(2, preferences);
-    const table = screen.getByRole("treegrid", { name: "Grille de devis" });
-    const width = Number.parseInt(table.style.width, 10);
-    expect(width).toBeGreaterThan(0);
-    expect(bar().style.width).toBe(`${String(width + 2)}px`);
-    expect(bar()).toHaveClass("max-w-full");
-    // The « Colonnes » menu is in the bar, so at the edge of the table.
-    expect(bar()).toContainElement(screen.getByRole("button", { name: "Colonnes" }));
+  ])(
+    "is as wide as the table and its two borders until the frame is laid out, %s",
+    (_, preferences) => {
+      renderGrid(2, preferences);
+      const table = screen.getByRole("treegrid", { name: "Grille de devis" });
+      const width = Number.parseInt(table.style.width, 10);
+      expect(width).toBeGreaterThan(0);
+      expect(Number.parseInt(bar().style.width, 10)).toBe(width + 2);
+      // The « Colonnes » menu is in the bar, so at the edge of the table.
+      expect(bar()).toContainElement(screen.getByRole("button", { name: "Colonnes" }));
+    },
+  );
+
+  it("is as wide as the frame once the browser has laid it out, the scroll bars it draws in", () => {
+    // A frame 17 points wider than its table and borders: a bar of a system that takes a place.
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1017);
+    renderGrid(2);
+    expect(bar().style.width).toBe("1017px");
   });
 
-  it("keeps a notice outside the bar and on the whole width [WF-IHM-0060-A]", async () => {
+  it("keeps on one line what the bar holds: it wraps nothing and does not go below its content", () => {
+    renderGrid(2);
+    expect(bar()).not.toHaveClass("flex-wrap");
+    expect(bar()).toHaveClass("min-w-min", "max-w-full");
+    expect(screen.getByRole("search")).toHaveClass("shrink", "min-w-24");
+  });
+
+  it("keeps a notice outside the bar, a child of what holds the grid and so on its whole width", async () => {
     server.client = fakeClient({
       "PATCH /me/preferences": { problem: { code: "SESSION_REQUIRED", status: 401 } },
     });
@@ -125,7 +146,12 @@ describe("the bar of a grid follows the width of its table (#1042)", () => {
     await userEvent.keyboard("{ArrowRight}");
     const notice = await screen.findByRole("alert");
     expect(bar()).not.toContainElement(notice);
-    expect(notice.closest("[style*='width']")).toBeNull();
-    expect(frame().holder).toContainElement(notice);
+    const { holder } = frame();
+    expect(holder).toContainElement(notice);
+    // No element between the notice and what holds the grid sets a width of its own.
+    for (let up = notice.parentElement; up !== null && up !== holder; up = up.parentElement) {
+      expect(up.style.width, up.className).toBe("");
+    }
+    expect(holder.style.width).toBe("");
   });
 });

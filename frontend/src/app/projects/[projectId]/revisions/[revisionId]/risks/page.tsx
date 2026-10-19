@@ -187,7 +187,7 @@ export default async function RisksPage({
       <ContextBanner reading={reading} />
       {/* The filter, the grid and the links compose the changes they make to the address. */}
       <PendingAddress>
-        <Screen density={FUNCTION_DENSITY.risks} fill>
+        <Screen density={FUNCTION_DENSITY.risks} fillWide>
           <RisksHeader count={risks.items.length} />
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <div className="flex flex-wrap gap-x-12 gap-y-3">
@@ -196,8 +196,8 @@ export default async function RisksPage({
             </div>
             <RiskStateFilter states={states} />
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
+            <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
               <RisksGrid risks={risks} query={query} preferences={preferences} />
             </div>
             <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">

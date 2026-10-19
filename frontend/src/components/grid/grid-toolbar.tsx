@@ -71,8 +71,8 @@ export interface GridToolbarProps {
   readonly grid?: string | undefined;
   /**
    * The width of the bar, as a CSS length: that of the frame of the table under it, the search at
-   * its start and the menu of the columns at its end, never wider than what holds it; none, the
-   * whole width.
+   * its start and the menu of the columns at its end, never wider than what holds it but for what
+   * it needs on one line; none, the whole width.
    */
   readonly width?: string | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
@@ -105,7 +105,12 @@ function SearchField({
     onSearch(text);
   };
   return (
-    <form role="search" aria-label={label} onSubmit={submit} className="relative w-64">
+    <form
+      role="search"
+      aria-label={label}
+      onSubmit={submit}
+      className="relative w-64 min-w-24 shrink"
+    >
       <Search
         aria-hidden="true"
         className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -192,7 +197,7 @@ export function GridToolbar({
   const t = useTranslations("grid.columnsMenu");
   return (
     <div
-      className="flex max-w-full flex-wrap items-center gap-2"
+      className="flex min-w-min max-w-full items-center gap-2"
       style={width === undefined ? undefined : { width }}
     >
       {commands}

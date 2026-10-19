@@ -90,6 +90,8 @@ import {
   useGridFold,
   useTreeRow,
 } from "./fold";
+import { useFrameWidth } from "./frame-width";
+import { barWidthOf, EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import {
   type CellDraft,
   type CellPosition,
@@ -101,10 +103,7 @@ import {
   useGridKeyboard,
 } from "./grid-keyboard";
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
-import { barWidth, EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
-
-export { ROW_REM };
 import { HeaderCell } from "./header-cell";
 import { type KeptFilters, useKeptFilters } from "./kept-filters";
 import { useGridPaste } from "./paste";
@@ -666,6 +665,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   );
   const kept = useKeptFilters(config, preferences, recordFilters);
   const scroller = useRef<HTMLDivElement>(null);
+  const frameWidth = useFrameWidth(scroller);
   const rowHeight = ROW_REM * useRootFontSize();
 
   // The address the last navigation of the grid — or of its screen — asked for: a search entered
@@ -821,7 +821,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       onKeyDown={undo.onKeyDown}
     >
       <GridToolbar
-        width={barWidth(table.getTotalSize())}
+        width={barWidthOf(frameWidth, table.getTotalSize())}
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}

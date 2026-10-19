@@ -28,7 +28,8 @@ import {
 import { estimateReference } from "@/test/reference";
 
 import type { GridConfig } from "./columns";
-import { DenseGrid, ROW_REM } from "./dense-grid";
+import { DenseGrid } from "./dense-grid";
+import { ROW_REM } from "./grid-floor";
 import { ESTIMATE_GRID, type EstimateNode } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import {
