@@ -78,14 +78,15 @@ def written(
 ) -> JsonObject:
     """Return what a write answers, from the readings of the whole structure before and after.
 
-    The nodes written, whole, their version one further; the tasks, not summaries, whose
-    schedule changed without being written; the lines and the tasks, not summaries, whose
-    amount corrected for inflation or year of consumption changed, but those the ancestors
-    render whole; the ancestors of the nodes written, of the node deleted — read before, as it
-    is gone after — and of the tasks redated, whole. Each list in the order of the plan, each
-    node once (`NodesWritten`).
+    The nodes written, whole, their version one further — a node created, at its first —; the
+    tasks, not summaries, whose schedule changed without being written; the lines and the tasks,
+    not summaries, whose amount corrected for inflation or year of consumption changed, but those
+    the ancestors render whole; the ancestors of the nodes written, those they had before a move
+    with those they have after, of the node deleted — read before, as it is gone after — and of
+    the tasks redated, whole. Each list in the order of the plan, each node once (`NodesWritten`).
     """
     was, now = _by_id(before), _by_id(after)
+    existing = [node_id for node_id in writes if node_id in was]
     moved = [
         node_id
         for node_id, node in now.items()
@@ -93,7 +94,7 @@ def written(
         and _is_activity(node)
         and _changed(node["task"], was[node_id]["task"], SCHEDULE)
     ]
-    above = _ancestors(now, [*writes, *moved]) | _ancestors(was, deleted)
+    above = _ancestors(now, [*writes, *moved]) | _ancestors(was, [*existing, *deleted])
     reinflated: list[JsonValue] = []
     for node_id, node in now.items():
         if node_id in writes or node_id in above or not (_is_activity(node) or _is_line(node)):
@@ -109,7 +110,11 @@ def written(
             )
     return {
         "nodes": [
-            {**now[node_id], "lock_version": was[node_id]["lock_version"] + 1} for node_id in writes
+            {
+                **now[node_id],
+                "lock_version": was[node_id]["lock_version"] + 1 if node_id in was else 1,
+            }
+            for node_id in writes
         ],
         "ancestors": [node for node_id, node in now.items() if node_id in above],
         "rescheduled": [
@@ -596,7 +601,7 @@ def _on(instant: JsonValue) -> str:
     return mocktext.day(date.fromisoformat(cast("dict[str, str]", instant)["date"]))
 
 
-def _totals(answer: JsonObject) -> str:
+def totals_said(answer: JsonObject) -> str:
     """Say the totals of the structure an answer gives: its lines, hours and amounts."""
     totals = cast("dict[str, str]", answer["totals"])
     return (
@@ -708,7 +713,7 @@ def _core_writes() -> dict[str, JsonObject]:
         "task_renamed.json": mocktext.example(
             f"La tâche « {before[WIRING].label} » renommée « {RENAMED} » ; une version de plus. "
             f"Avec elle, sa récapitulative « {before[CONTROL_STATION].label} », dont rien ne "
-            f"change, et {_totals(renamed)}, inchangés (WF-PLA-0130, WF-IHM-0040).",
+            f"change, et {totals_said(renamed)}, inchangés (WF-PLA-0130, WF-IHM-0040).",
             renamed,
         ),
         "task_attached.json": mocktext.example(
@@ -717,7 +722,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"« {before[CONTROL_STATION].label} » : une feuille peut porter un poste, et la tâche "
             f"du poste reste dans le sous-arbre de la tâche de son lot ; il porte le poste, nommé "
             f"pour la colonne du lotissement, et aucun lot, une version de plus. Avec lui, sa "
-            f"récapitulative, dont rien ne change, et {_totals(attached)}, inchangés "
+            f"récapitulative, dont rien ne change, et {totals_said(attached)}, inchangés "
             f"(WF-PLA-0170, WF-IHM-0040).",
             attached,
         ),
@@ -731,7 +736,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_money(_node(updated, WIRING)['task']['base_amount'])}, la récapitulative "
             f"« {before[CONTROL_STATION].label} » au-dessus, à "
             f"{_money(_node(updated, CONTROL_STATION)['task']['base_amount'])}, et "
-            f"{_totals(updated)}, le budgété inchangé (WF-DEV-0020, WF-DEV-0030, "
+            f"{totals_said(updated)}, le budgété inchangé (WF-DEV-0020, WF-DEV-0030, "
             f"WF-DEV-0050).",
             updated,
         ),
@@ -749,7 +754,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"à {_money(_node(reestimated, WIRING)['task']['reestimated_amount'])} réestimés, "
             f"la récapitulative « {before[CONTROL_STATION].label} » au-dessus, à "
             f"{_money(_node(reestimated, CONTROL_STATION)['task']['reestimated_amount'])}, et "
-            f"{_totals(reestimated)}, le budgété inchangé (WF-RAE-0040, WF-DEV-0020).",
+            f"{totals_said(reestimated)}, le budgété inchangé (WF-RAE-0040, WF-DEV-0020).",
             reestimated,
         ),
         "estimate_line_subproject_changed.json": mocktext.example(
@@ -758,7 +763,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"« {labels()[SUBPROJECT_CONTROL]} », qui a reçu des coûts réels, au sous-projet "
             f"« {labels()[SUBPROJECT_TESTS]} » : une ligne d'une tâche non démarrée change de "
             f"sous-projet ; une version de plus, ses montants et son budget inchangés. Avec elle, "
-            f"ses ancêtres, dont rien ne change, et {_totals(changed)}, inchangés : seule la "
+            f"ses ancêtres, dont rien ne change, et {totals_said(changed)}, inchangés : seule la "
             f"ventilation du projet change (WF-PRJ-0050).",
             changed,
         ),
@@ -787,7 +792,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"« {before[WIRING].label} » recalculée à "
             f"{_money(_node(deleted, WIRING)['task']['base_amount'])} et la récapitulative "
             f"au-dessus à {_money(_node(deleted, CONTROL_STATION)['task']['base_amount'])}, "
-            f"{_totals(deleted)}, et le compteur de la structure, passé à 2 (WF-DEV-0050, "
+            f"{totals_said(deleted)}, et le compteur de la structure, passé à 2 (WF-DEV-0050, "
             f"WF-IHM-0110).",
             deleted,
         ),

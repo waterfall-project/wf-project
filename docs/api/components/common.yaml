@@ -202,7 +202,16 @@ Problem:
         (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la
         durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche
         en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que
-        le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans
+        le fichier ou le différentiel crée — et, pour une saisie qui déplace une date
+        (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460), la
+        tâche que la saisie écrit : celle dont la durée, les dates ou les prédécesseurs se
+        saisissent, celle que la création ajouterait, nommée par le libellé envoyé et son nœud nul,
+        la tâche déplacée ou celle qui reçoit la ligne déplacée ; `cycle` pour des prédécesseurs
+        qui fermeraient une boucle de liaisons (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030) : les
+        tâches de la boucle, chacune par son nœud et son libellé (`node_id`, `label`), de celle
+        dont les prédécesseurs se saisissent au prédécesseur envoyé qui la suit déjà, chacune
+        précédant la suivante — « la raison en est nommée à l'utilisateur », la grille, filtrée,
+        pouvant ne pas les lire. Les paramètres d'un motif par champ sont dans
         `fields[].params` : ainsi `conflicting_object_id` et
         `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou
         le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
@@ -324,6 +333,9 @@ ErrorCode:
     - VALIDATION_FAILED
     - COMPUTED_VALUE
     - SUMMARY_TASK_DERIVED
+    # Des prédécesseurs qui fermeraient une boucle de liaisons, `params.cycle` nommant ses
+    # tâches, ou une liaison entre une récapitulative et l'une de ses subordonnées, sans
+    # paramètre (`setPredecessors`, WF-PLA-0030, WF-PLA-0040 ; EP-15/US-0460).
     - LINK_CYCLE
     - LINK_FORBIDDEN
     - RESOURCE_ROLE_REQUIRED
@@ -438,7 +450,8 @@ ErrorCode:
     # Un planning qui porterait la durée du projet, de la date de début de sa première tâche à la
     # date de fin de sa dernière, au-delà de quinze ans ; le motif qui rejette entier un fichier
     # d'import, `params.task` nommant la tâche en cause (`ImportReport.refusals`, WF-PLA-0150 ;
-    # EP-14/L42s).
+    # EP-14/L42s), et le refus, par 422, d'une saisie qui déplace une date (`updateTaskFacet`,
+    # `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460).
     - PROJECT_HORIZON_EXCEEDED
     # Un champ que le nœud n'accepte pas, ni saisi ni calculé pour lui (`editable_fields`) : le
     # délai de paiement d'une ligne de provision, qui n'en porte pas (WF-DEV-0020), un champ

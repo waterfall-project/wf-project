@@ -1,0 +1,10 @@
+{
+  "summary": "La « Réception usine » donnée à suivre le « Câblage des armoires » et la « Mise en service », qui la suit déjà : la liaison fermerait une boucle, refusée, et le refus en nomme les tâches dans l'ordre des liaisons, « Réception usine », « Montage des armoires sur site » et « Mise en service » ; rien n'est écrit (WF-PLA-0030).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "LINK_CYCLE",
+    "status": 422,
+    "params": {"cycle":[{"node_id":"01926f3a-7c00-7000-8000-000000000556","label":"Réception usine"},{"node_id":"01926f3a-7c00-7000-8000-000000000562","label":"Montage des armoires sur site"},{"node_id":"01926f3a-7c00-7000-8000-000000000565","label":"Mise en service"}]},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001171"
+  }
+}

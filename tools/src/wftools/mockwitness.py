@@ -295,11 +295,15 @@ class Task:
     subordinates. The progress of a task in automatic mode is read from its dates at TODAY; a
     task in manual mode carries the dates its user entered, and the progress its user declared.
     A task may bear a lot or a post of the work breakdown, never both (WF-PLA-0130, WF-PLA-0170).
+    A write may give it a duration in another unit of work, kept as entered (WF-PLA-0160), a
+    description, and its inscriptions — the timelines, and ``MILESTONE_TRACKING`` for the
+    time/time tracking —, which are otherwise those ``INSCRIBED`` and ``TRACKED`` say.
     """
 
     number: int
     label: str
     days: int = 0
+    unit: str = "d"
     is_milestone: bool = False
     links: tuple[Link, ...] = ()
     lines: tuple[Line, ...] = ()
@@ -307,6 +311,12 @@ class Task:
     manual: tuple[date, date] | None = None
     progress: str | None = None
     bears: WorkPackage | OrderItem | None = None
+    description: str | None = None
+    inscriptions: tuple[str, ...] | None = None
+
+
+MILESTONE_TRACKING = "milestone_tracking"
+"""The inscription of a milestone to the time/time tracking, among those of a task (WF-PLA-0060)."""
 
 
 @dataclass(frozen=True, slots=True)
