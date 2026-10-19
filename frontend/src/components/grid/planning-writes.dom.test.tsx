@@ -18,7 +18,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import type { NodeList, NodeSortColumn } from "./nodes";
+import type { NodeList, NodesWritten, NodeSortColumn } from "./nodes";
 import {
   type BreakdownItem,
   breakdownItems,
@@ -111,16 +111,20 @@ function grid(
   );
 }
 
-/** The cell of the attachment of the row of a label. */
-function attachmentOf(nodes: NodeList, label: string): HTMLElement {
-  const row = nodes.items.findIndex((node) => node.task?.label === label);
+/** The cell of the attachment of the row at a position. */
+function attachmentAt(row: number): HTMLElement {
   const found = screen
     .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="work_breakdown"]`);
   if (found === null) {
-    throw new Error(`no attachment for ${label}`);
+    throw new Error(`no attachment for the row ${row.toString()}`);
   }
   return found;
+}
+
+/** The cell of the attachment of the first row of a label. */
+function attachmentOf(nodes: NodeList, label: string): HTMLElement {
+  return attachmentAt(nodes.items.findIndex((node) => node.task?.label === label));
 }
 
 /** Choose an item of the list of a cell — none for an empty identifier —, and validate it. */
@@ -183,30 +187,50 @@ describe("the attachment of a task in the grid of the planning", () => {
     expect(await screen.findByText("Câblage et repérage des armoires")).toBeInTheDocument();
   });
 
-  // A variant of « Câblage des armoires », the one value changed: it bears the lot, as a task the
-  // skeleton attached would.
-  const bearing: NodeList = {
-    ...nested,
-    items: nested.items.map((node) =>
-      node.task?.label === "Câblage des armoires"
-        ? { ...node, task: { ...node.task, work_package_id: LOT } }
-        : node,
-    ),
-  };
+  // The tasks the skeleton of the default work breakdown answers: the summary of the lot bears the
+  // lot, as a task the skeleton attached does; the example is read as the contract gives it.
+  const generated = example("skeleton_generated") as NodesWritten;
+  const bearing: NodeList = { ...empty, items: generated.nodes };
+  const DEFAULT = breakdownItems(example("work_breakdown_default") as WorkBreakdownReading);
+  const DEFAULT_LOT = DEFAULT.find((item) => item.kind === "work_package")?.id ?? "";
+  const DEFAULT_POST = DEFAULT.find((item) => item.kind === "order_item")?.id ?? "";
 
   it.each([
     {
       chosen: "the post, the lot taken off in the same write",
-      id: POST,
-      sent: { order_item_id: POST, work_package_id: null },
+      id: DEFAULT_POST,
+      sent: { order_item_id: DEFAULT_POST, work_package_id: null },
     },
     { chosen: "none, the lot taken off", id: "", sent: { work_package_id: null } },
   ])(
     "writes $chosen for a task that bears a lot, never both [WF-PLA-0170-A]",
     async ({ id, sent }) => {
       const client = serve({ [TASK]: "task_renamed" });
-      render(grid(bearing));
-      await choose(attachmentOf(bearing, "Câblage des armoires"), id);
+      render(grid(bearing, { items: DEFAULT }));
+      const lot = generated.nodes[0]?.task;
+      expect(lot?.work_package_id).toBe(DEFAULT_LOT);
+      await choose(attachmentOf(bearing, lot?.label ?? ""), id);
+      expect(written(client).map(({ body }) => body)).toEqual([{ ...sent, lock_version: 1 }]);
+    },
+  );
+
+  it.each([
+    {
+      chosen: "the lot, the post taken off in the same write",
+      id: DEFAULT_LOT,
+      sent: { work_package_id: DEFAULT_LOT, order_item_id: null },
+    },
+    { chosen: "none, the post taken off", id: "", sent: { order_item_id: null } },
+  ])(
+    "writes $chosen for a task that bears a post, never both [WF-PLA-0170-A]",
+    async ({ id, sent }) => {
+      const client = serve({ [TASK]: "task_renamed" });
+      render(grid(bearing, { items: DEFAULT }));
+      // The summary of the post, the second node the skeleton answers: it bears the post alone.
+      const post = generated.nodes[1]?.task;
+      expect(post?.order_item_id).toBe(DEFAULT_POST);
+      expect(post?.work_package_id ?? null).toBeNull();
+      await choose(attachmentAt(1), id);
       expect(written(client).map(({ body }) => body)).toEqual([{ ...sent, lock_version: 1 }]);
     },
   );

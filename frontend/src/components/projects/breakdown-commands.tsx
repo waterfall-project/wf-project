@@ -261,15 +261,15 @@ interface RowCommand {
 function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowCommand[] {
   const t = useTranslations("projectLists.workBreakdown");
   return (row) => {
-    const item: RowCommand = {
-      key: "item",
-      name: t("createItem"),
-      text: t("createItem"),
+    const workPackage: RowCommand = {
+      key: "workPackage",
+      name: t("createWorkPackage"),
+      text: t("createWorkPackage"),
       icon: <Plus aria-hidden="true" />,
       gesture: { kind: "add", parent: undefined },
     };
     if (row === undefined) {
-      return [item];
+      return [workPackage];
     }
     const element = t("element", { kind: row.kind, label: row.label });
     const add: RowCommand = {
@@ -280,7 +280,7 @@ function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowComman
       gesture: { kind: "add", parent: row },
     };
     return [
-      item,
+      workPackage,
       ...(row.kind === "deliverable" ? [] : [add]),
       {
         key: "rename",

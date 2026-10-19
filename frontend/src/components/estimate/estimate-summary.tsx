@@ -209,7 +209,7 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
       {delta === null || delta === undefined ? null : <Figure name={t("delta")} amount={delta} />}
       <Breakdown name={t("byCostType")} items={indicators.by_cost_type} />
       <Breakdown name={t("bySubproject")} items={indicators.by_subproject} />
-      <Breakdown name={t("byOrderItem")} items={indicators.by_work_package} />
+      <Breakdown name={t("byWorkPackage")} items={indicators.by_work_package} />
     </dl>
   );
 }

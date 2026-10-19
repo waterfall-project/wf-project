@@ -3391,6 +3391,8 @@ elle, rend toujours le tout avec son compteur suivant, jamais nul : la réponse 
 nœuds retenus d'un lotissement filtré (EP-14/L42k) ». Le texte ci-dessus est gardé pour
 l'histoire.*
 
+*Remplacé en partie par US-0450/L1 : `work_breakdown_work_packages` devient `work_breakdown_order_items`.*
+
 **Les comptes se filtrent par leur état** (`is_active`, revue du lot ; WF-IHM-0130, WF-ADM-0060).
 `include_inactive` ne faisait qu'ajouter les désactivés aux actifs : la colonne de l'état ne se
 filtrait pas sur les seuls désactivés. `is_active`, vrai ou faux, prime sur `include_inactive`,
@@ -3427,6 +3429,8 @@ témoin, dont il écrit désormais la forme pour `mockdata` : `users_by_access_r
 `work_breakdown_work_packages` ; `test_mocklists.py` éprouve la recherche, les filtres et les bornes
 sur des lignes de synthèse, et chaque exemple contre ce qu'il lit. Le client est régénéré ; le front
 les adoptera.
+
+*Remplacé en partie par US-0450/L1 : `work_breakdown_work_packages` devient `work_breakdown_order_items`.*
 
 ## Les écritures des paramètres de ressources (EP-02/L43b)
 
@@ -6213,8 +6217,9 @@ refus », « Une fusion qui sortirait la tâche d'un lot du sous-arbre de celle 
 nommant les tâches », « Le compte rendu d'un import nomme le poste ou le lot qui perd sa tâche »
 (#586), « Chaque élément d'une lecture du lotissement dit s'il est retenu » (#574), « Un fichier
 d'import rejeté entier », « Un poste sans tâche rattachée est présenté sans total » (#771) et « Les
-tâches du refus d'un lot hors de son poste sont nommées par leur libellé » (#775). Leur texte est
-gardé pour l'histoire.
+tâches du refus d'un lot hors de son poste sont nommées par leur libellé » (#775),
+« Une lecture filtrée n'a pas de compteur » (revue du lot, EP-02/L42f) et la liste des exemples que
+`mocklists` engendre (EP-02/L42f). Leur texte est gardé pour l'histoire.
 
 ## Collage et annulation
 

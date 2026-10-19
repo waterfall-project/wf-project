@@ -376,7 +376,7 @@ test("the settings of a project create and modify a sub-project, present unavail
   await expect(grid.getByRole("row", { name: /Inès Roux/ })).toContainText("Chef de projet");
 });
 
-test("the settings of a project edit the work breakdown in its grid: an order item added from the menu of a cell, an element deleted from the bar once confirmed (EP-14/L44c)", async ({
+test("the settings of a project edit the work breakdown in its grid: an order item added from the menu of a cell, an element deleted from the bar once confirmed (EP-14/L44c) [WF-PRJ-0020-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${PROJECT}/settings`);
