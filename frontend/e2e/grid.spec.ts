@@ -54,6 +54,18 @@ function edges(page: Page) {
   };
 }
 
+test("the indicators of the estimate break the total down by lot, « Lot 1 » named as the work breakdown names it [WF-DEV-0060-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, GRID);
+  const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
+  const byLot = indicators.locator("dt", { hasText: /^Par lot$/ });
+  await expect(byLot).toBeVisible();
+  // The list that follows the term holds the lot of the witness, whose posts it contains.
+  await expect(byLot.locator("xpath=following-sibling::dd[1]")).toContainText("Lot 1");
+  await expect(indicators.getByText("Par poste")).toHaveCount(0);
+});
+
 test("opens the estimate of a thousand tasks and five thousand lines, and scrolls down to its last row [WF-IHM-0060-A]", async ({
   page,
 }) => {

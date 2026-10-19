@@ -108,6 +108,24 @@ test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 �
   ).toBeVisible();
 });
 
+test("offers no skeleton beside the tasks of the witness, neither above the grid nor among the commands of the revision [WF-PRJ-0030-A]", async ({
+  page,
+}) => {
+  // The fake back serves the revision of the witness, whose main structure bears its tasks: the
+  // command « Engendrer le squelette de planning » is not proposed. What it offers in the empty
+  // grid, once generated, is proven on the examples by `planning-writes.dom.test.tsx`.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await expect(page.getByRole("treegrid", { name: "Grille de planning" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Engendrer le squelette de planning" }),
+  ).toHaveCount(0);
+  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
+  await expect(page.getByRole("main").getByRole("region", { name: "Commandes" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Engendrer le squelette de planning" }),
+  ).toHaveCount(0);
+});
+
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({
   page,
 }) => {

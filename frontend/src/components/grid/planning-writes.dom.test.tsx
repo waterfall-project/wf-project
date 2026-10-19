@@ -111,16 +111,20 @@ function grid(
   );
 }
 
-/** The cell of the attachment of the row of a label. */
-function attachmentOf(nodes: NodeList, label: string): HTMLElement {
-  const row = nodes.items.findIndex((node) => node.task?.label === label);
+/** The cell of the attachment of the row at a position. */
+function attachmentAt(row: number): HTMLElement {
   const found = screen
     .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="work_breakdown"]`);
   if (found === null) {
-    throw new Error(`no attachment for ${label}`);
+    throw new Error(`no attachment for the row ${row.toString()}`);
   }
   return found;
+}
+
+/** The cell of the attachment of the first row of a label. */
+function attachmentOf(nodes: NodeList, label: string): HTMLElement {
+  return attachmentAt(nodes.items.findIndex((node) => node.task?.label === label));
 }
 
 /** Choose an item of the list of a cell — none for an empty identifier —, and validate it. */
@@ -206,6 +210,27 @@ describe("the attachment of a task in the grid of the planning", () => {
       const lot = generated.nodes[0]?.task;
       expect(lot?.work_package_id).toBe(DEFAULT_LOT);
       await choose(attachmentOf(bearing, lot?.label ?? ""), id);
+      expect(written(client).map(({ body }) => body)).toEqual([{ ...sent, lock_version: 1 }]);
+    },
+  );
+
+  it.each([
+    {
+      chosen: "the lot, the post taken off in the same write",
+      id: DEFAULT_LOT,
+      sent: { work_package_id: DEFAULT_LOT, order_item_id: null },
+    },
+    { chosen: "none, the post taken off", id: "", sent: { order_item_id: null } },
+  ])(
+    "writes $chosen for a task that bears a post, never both [WF-PLA-0170-A]",
+    async ({ id, sent }) => {
+      const client = serve({ [TASK]: "task_renamed" });
+      render(grid(bearing, { items: DEFAULT }));
+      // The summary of the post, the second node the skeleton answers: it bears the post alone.
+      const post = generated.nodes[1]?.task;
+      expect(post?.order_item_id).toBe(DEFAULT_POST);
+      expect(post?.work_package_id ?? null).toBeNull();
+      await choose(attachmentAt(1), id);
       expect(written(client).map(({ body }) => body)).toEqual([{ ...sent, lock_version: 1 }]);
     },
   );

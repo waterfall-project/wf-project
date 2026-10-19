@@ -1006,7 +1006,7 @@
       "renameNamed": "Rename {element}",
       "delete": "Delete",
       "deleteNamed": "Delete {element}",
-      "addTitle": "{kind, select, work_package {New order item of the work package “{label}”} order_item {New deliverable of the order item “{label}”} other {New work package}}",
+      "addTitle": "{kind, select, work_package {New order item of the work package “{label}”} root {New work package} other {New deliverable of the order item “{label}”}}",
       "labelField": "Label",
       "formHint": "The work breakdown is saved whole, from its last reading whole; each work package, order item and deliverable bears a label.",
       "deleteTitle": "Delete {element}?",

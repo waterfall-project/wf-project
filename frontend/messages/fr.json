@@ -1006,7 +1006,7 @@
       "renameNamed": "Renommer {element}",
       "delete": "Supprimer",
       "deleteNamed": "Supprimer {element}",
-      "addTitle": "{kind, select, work_package {Nouveau poste du lot « {label} »} order_item {Nouveau livrable du poste « {label} »} other {Nouveau lot}}",
+      "addTitle": "{kind, select, work_package {Nouveau poste du lot « {label} »} root {Nouveau lot} other {Nouveau livrable du poste « {label} »}}",
       "labelField": "Libellé",
       "formHint": "Le lotissement s’enregistre entier, depuis sa dernière lecture entière ; chaque lot, poste et livrable porte un libellé.",
       "deleteTitle": "Supprimer {element} ?",
