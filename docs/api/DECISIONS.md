@@ -489,6 +489,10 @@ absents plutôt que nuls, comme le Vérif le veut —, et chaque poste est nomm�
 *Remplacé en partie par EP-14/L42s : `by_order_item` n'est jamais nul ; chaque poste du lotissement
 y est, celui qu'aucune tâche ne porte sans total (`order_item_without_task`, WF-DEV-0060).*
 
+*Remplacé en partie par US-0450/L1 : le total par niveau est celui des lots, au niveau 1 du
+lotissement, `by_work_package`, motif `work_package_without_task`, section « Le lotissement en lots,
+postes et livrables ».*
+
 **Toute opération gardée par la session déclare le 401, et une règle du contrat l'exige**
 (`rule/session-operation-declares-401` de `redocly.yaml`, #141). Le contrat ne le déclarait que sur
 une minorité d'opérations, quand toute opération gardée par la session peut répondre 401 — session
@@ -1372,6 +1376,11 @@ ci-dessus est gardé pour l'histoire.*
 *Remplacé en partie par EP-14/L42s : la tâche du poste et celles des lots sont nommées par leur nœud
 et leur libellé (`order_item_task`, `work_package_tasks`), et une ligne importée hors du sous-arbre
 rejette le fichier entier (`ImportReport.refusals`).*
+
+*Remplacé en partie par US-0450/L1 : l'imbrication s'inverse, des lots qui contiennent des postes ;
+le refus devient `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste hors du sous-arbre de celle
+de son lot, nommées par `params.work_package_task` et `params.order_item_tasks`, et l'exemple
+`task_attach_outside_work_package`, section « Le lotissement en lots, postes et livrables ».*
 
 **La marge totale est signée** (#402 ; WF-PLA-0100). Une tâche manuelle borne la fin au plus tard
 de ses prédécesseurs : `TaskFacet.total_float` et `NodeSchedule.total_float` peuvent être négatifs,
@@ -3351,6 +3360,11 @@ contiennent** : la règle de la recherche dans la grille de planning, qui « ne 
 tâches correspondantes et leurs parents » (Vérif de WF-PLA-0080). Exemples engendrés du témoin : `work_breakdown_search` (« Montage » : le poste, sans
 son lot) et `work_breakdown_work_packages` (`kinds=work_package` : le lot, sans son livrable, sous
 son poste).
+
+*Remplacé en partie par US-0450/L1 : la nature liste lot, poste, livrable, dans l'ordre des niveaux
+(`[work_package, order_item, deliverable]`) ; `work_breakdown_work_packages` devient
+`work_breakdown_order_items` (`kinds=order_item` : le poste, sans son livrable, sous son lot), et
+`work_breakdown_search` cherche « lot », section « Le lotissement en lots, postes et livrables ».*
 
 **Une lecture filtrée n'a pas de compteur** (revue du lot ; WF-IHM-0110). `setWorkBreakdown` et
 `setContributors` écrivent le lotissement et la liste des contributeurs entiers : une lecture
@@ -5350,6 +5364,10 @@ fait pendant un traitement de fond, et les compteurs qu'elle avance, sont ouvert
 *Remplacé en partie par EP-14/L42s : la saisie attend la fin d'un traitement de fond
 (`update_work_breakdown`, `no_background_task_running`), et dit les compteurs qu'elle avance (#775).*
 
+*Remplacé en partie par US-0450/L1 : c'est un poste rangé sous un autre lot qui retire le
+rattachement de sa tâche, hors du sous-arbre de la tâche de ce lot, section « Le lotissement en
+lots, postes et livrables ».*
+
 **Une fusion qui sortirait la tâche d'un lot du sous-arbre de celle de son poste échoue en nommant
 les tâches** (#586, point 2 ; WF-PLA-0170 : « Une fusion qui déplacerait la tâche d'un lot hors du
 sous-arbre de la tâche de son poste est refusée en nommant la tâche » ; WF-IHM-0080 : « l'échec
@@ -5369,6 +5387,10 @@ est ouvert en #775.
 *Remplacé en partie par EP-14/L42s : le compte rendu préalable de la fusion existe
 (`getStructureMergeReport`, #771), et le refus de `moveNodes` nomme les tâches de même (#775).*
 
+*Remplacé en partie par US-0450/L1 : la fusion échoue par `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, qui
+nomme la tâche du lot et celles des postes (`work_package_task`, `order_item_tasks`), exemple
+`task_merge_outside_work_package`, section « Le lotissement en lots, postes et livrables ».*
+
 **Le compte rendu d'un import nomme le poste ou le lot qui perd sa tâche** (#586, point 4 ;
 WF-INTF-0040 : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le
 poste ou le lot qui perd sa tâche. »). `ImportDifference.work_breakdown_label`, nullable et
@@ -5385,6 +5407,10 @@ sans total »), que ni L44c ni L44d ne consomme.
 *Remplacé en partie par EP-14/L42s : le fichier qui sortirait la tâche d'un lot du sous-arbre de son
 poste, ou dépasserait l'horizon, est rejeté entier (`ImportReport.refusals`), et le poste sans tâche
 rattachée est présenté sans total (#771).*
+
+*Remplacé en partie par US-0450/L1 : c'est la tâche d'un poste qui ne sort pas du sous-arbre de
+celle de son lot, et le total est celui des lots (`by_work_package`), section « Le lotissement en
+lots, postes et livrables ».*
 
 **Le projet liste les chronologies parmi ses commandes** (`ProjectCommand.manage_timelines` ;
 WF-PLA-0140 : « Un projet peut porter plusieurs chronologies. Chacune porte un nom, conserve la
@@ -5425,6 +5451,11 @@ proposition du constat, que la grille aurait dû croiser avec l'arbre ; des comp
 auraient servi la ligne des totaux sans marquer les lignes de contexte ; la marque sur les éléments
 partagés avec l'écriture, qu'un client aurait renvoyée ; le nom `matched` du constat, le contrat
 nommant ses booléens `is_…`. Les quatre lectures engendrées du lotissement portent la marque.
+
+*Remplacé en partie par US-0450/L1 : `work_breakdown_order_items`, qui remplace
+`work_breakdown_work_packages`, rend le lot marqué faux, et la ligne des totaux dit « 1 poste » ;
+chaque lot et chaque poste lus portent aussi `attached_task`, section « Le lotissement en lots,
+postes et livrables ».*
 
 **Identifiants et corrélations** : 1130 à 1135 ; la tâche de fond 939 ; la révision 103 et sa
 structure 207, réemployées par `revision_without_tasks`, `structures_without_tasks`, `nodes_empty`,
@@ -5628,6 +5659,10 @@ motifs, et `import_apply_rejected` (corrélation 1153) ; les quatre comptes rend
 garder la ligne rejetée, contre « comme un planning qui dépasse l'horizon ». Le code de l'horizon
 n'est encore déclaré ni par les saisies ni par la fusion : #788.
 
+*Remplacé en partie par US-0450/L1 : le motif rejeté entier est `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+la tâche d'un poste hors du sous-arbre de celle de son lot, section « Le lotissement en lots, postes
+et livrables ».*
+
 **Un poste sans tâche rattachée est présenté sans total** (#771, point 3 ; WF-DEV-0060 : « un poste
 sans tâche rattachée est présenté sans total » ; Vérif : « les totaux par poste sont absents plutôt
 que nuls »). `EstimateIndicators.by_order_item` n'est plus nullable : chaque poste du lotissement,
@@ -5642,6 +5677,10 @@ un total nul, et la part d'un total nul reste à dire (#774, L42t) — l'exemple
 omettre le poste, que l'écran ne pourrait présenter sans relire le lotissement ; un montant nul dans
 un schéma propre, quand l'enveloppe `Computable` dit déjà qu'une valeur ne se calcule pas ; la liste
 nulle, qui ne présente aucun poste.
+
+*Remplacé en partie par US-0450/L1 : le total est celui des lots,
+`EstimateIndicators.by_work_package`, motif `work_package_without_task`, section « Le lotissement en
+lots, postes et livrables ».*
 
 **Le lotissement attend la fin d'un traitement de fond** (#775, point 1 ; WF-PLA-0170, WF-IHM-0090).
 La saisie du lotissement retire le rattachement des tâches de la révision en cours : pendant un
@@ -5670,6 +5709,10 @@ pour la tâche que `createNode` crée, son nœud nul, et pour une cellule `work_
 un bloc contigu après le premier exemple — et non juste après lui : deux opérations citent d'autres
 refus avant ceux de leurs bornes. Écarté : garder les identifiants et leur adjoindre des libellés,
 deux noms pour un rôle.
+
+*Remplacé en partie par US-0450/L1 : le refus est `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, ses paramètres
+`work_package_task` et `order_item_tasks`, ses exemples `task_attach_outside_work_package` et
+`nodes_move_outside_work_package`, section « Le lotissement en lots, postes et livrables ».*
 
 **Corrélations** 1150 à 1154 ; l'import a16. `test_mockprovision.py` tient C-291, l'installation
 neuve et le risque sans tâche ; `test_mockcostsettings.py` les catégories nommées ;
@@ -6161,6 +6204,17 @@ deviennent `…_outside_work_package`, leurs noms d'exemple aussi (`outside_work
 commande » ; `task_attach_exclusive` refuse `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` sur `/order_item_id`,
 le scénario que le front produit : une grille lue avant que la récapitulative porte son lot, qui
 envoie le poste sans mettre le lot à nul.
+
+**Ce que ces décisions remplacent en partie**, une mention le disant à sa place : « Le devis dit son
+écart à la référence et ses totaux par poste » (#160) ; « Toute tâche porte son rattachement au
+lotissement » (#411) ; « Le lotissement se cherche sur ses libellés et se filtre par nature »
+(#560) ; et, d'EP-14, « Un lot rangé sous un autre poste retire le rattachement de sa tâche, sans
+refus », « Une fusion qui sortirait la tâche d'un lot du sous-arbre de celle de son poste échoue en
+nommant les tâches », « Le compte rendu d'un import nomme le poste ou le lot qui perd sa tâche »
+(#586), « Chaque élément d'une lecture du lotissement dit s'il est retenu » (#574), « Un fichier
+d'import rejeté entier », « Un poste sans tâche rattachée est présenté sans total » (#771) et « Les
+tâches du refus d'un lot hors de son poste sont nommées par leur libellé » (#775). Leur texte est
+gardé pour l'histoire.
 
 ## Collage et annulation
 

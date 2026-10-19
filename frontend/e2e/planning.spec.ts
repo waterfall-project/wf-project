@@ -74,29 +74,33 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   }
 });
 
-test("attaches a leaf to a post of the work breakdown from its cell, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({
+test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 » from its cell, by the letter typed, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({
   page,
 }) => {
-  // Row 8, « Poste de commande », bears the lot of the work breakdown of the witness; row 9 under
-  // it, « Câblage des armoires », a leaf, nothing. The fake back answers `updateTaskFacet` by its
-  // first example whatever was written: the task of row 9 renamed — what the grid does with an
-  // attachment answered is proven on the examples by `planning-writes.dom.test.tsx`.
+  // Row 8, the summary task « Poste de commande » — a name of the planning, not a post of the work
+  // breakdown — bears the lot « Lot 1 »; row 9 under it, the leaf « Câblage des armoires », bears
+  // nothing. The choices of its cell are the work breakdown of the witness read whole, each lot then
+  // its posts: « Lot 1 », then « Poste 1.1 », the post 712 of that lot, which no task bears. The fake
+  // back answers `updateTaskFacet` by its first example whatever was written: the task of row 9
+  // renamed — what the grid does with an attachment answered is proven on the examples by
+  // `planning-writes.dom.test.tsx`.
   await openHydrated(page, `${IN_REVISION}/planning`);
   await expect(page.getByRole("note")).toContainText("Maquette");
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { attachment: "Rattachement" });
   const lot = grid.getByRole("row", { name: /^8 .*Poste de commande/ });
   await expect(lot.getByRole("gridcell").nth(at.attachment)).toHaveText("Lot 1");
-  // Une feuille peut être rattachée à un poste: its first letter typed on the cell finds it.
+  // Une feuille peut être rattachée à un poste: « P » typed on the cell chooses the first choice
+  // whose name starts with it, « Poste 1.1 », the lot « Lot 1 » coming before it.
   const leaf = grid.getByRole("row", { name: /^9 .*Câblage des armoires/ });
   const cell = leaf.getByRole("gridcell").nth(at.attachment);
   await cell.click();
   await expect(cell).toBeFocused();
   const sent = page.waitForRequest((request) => request.method() === "POST");
   await page.keyboard.press("P");
-  await expect(page.getByRole("combobox", { name: "Rattachement" })).toHaveValue(
-    "01926f3a-7c00-7000-8000-000000000712",
-  );
+  const choice = page.getByRole("combobox", { name: "Rattachement" });
+  await expect(choice).toHaveValue("01926f3a-7c00-7000-8000-000000000712");
+  await expect(choice.getByRole("option", { name: "Poste 1.1", selected: true })).toBeAttached();
   await page.keyboard.press("Enter");
   await sent;
   await expect(

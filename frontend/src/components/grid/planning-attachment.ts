@@ -82,7 +82,7 @@ export function attachmentChange(
 /**
  * A refusal of the attachment said by the reason of its field: the envelope of a 422 says only that
  * the entry is invalid, its field says why — a post or a lot already borne, the two at once, a
- * structure that bears none, a lot out of the subtree of its post (WF-PLA-0170) —; the parameters of
+ * structure that bears none, a post out of the subtree of its lot (WF-PLA-0170) —; the parameters of
  * every field are kept, which name the task that bears the item or those the write would move out.
  */
 export function byField<T>(outcome: Outcome<T>): Outcome<T> {

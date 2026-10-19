@@ -418,18 +418,18 @@ modification du projet, sur ses paramètres (EP-02/L44a, plus bas), et, sur ses 
 commandes de ses sous-projets et de ses contributeurs (EP-02/L44b, plus bas). Les tables de données des
 paramètres sont trois grilles denses (#301,
 `settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
-`subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque poste, ses lots
+`subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque lot, ses postes
 sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie, cherchée
 par le serveur sur ses libellés (`breakdown_search`) et filtrée par nature (`breakdown_kinds`,
-EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses postes et
-ses lots ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
+EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses lots et
+ses postes ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
 à `setWorkBreakdown` ; sa ligne de totaux compte les seuls éléments retenus, par nature (`is_match`,
 #574), et il se saisit dans sa grille comme le projet liste `update_work_breakdown`, indisponible
 aussi pendant un traitement de fond (EP-14/L42s ; `breakdown-commands.tsx`, EP-14/L44c) : chaque
 geste — un élément ajouté, renommé ou supprimé, du menu d'une cellule sur sa ligne ou de la barre
 sur la ligne de la cellule active (`RowCommands` de `DenseGrid`) — envoie le lotissement entier
 depuis sa lecture entière, que la page relit quand la grille le lit filtré, l'élément ajouté sans
-identifiant ; une suppression se confirme, celle d'un poste ou d'un lot en disant que les tâches qui
+identifiant ; une suppression se confirme, celle d'un lot ou d'un poste en disant que les tâches qui
 le portent restent et perdent leur rattachement (WF-PLA-0170) ; un refus par champ qui vise
 l'élément du dialogue est dit à son champ, celui qui en vise un autre le nomme ; les
 sous-projets, cherchés par le serveur sur leur code et leur libellé (`subproject_search`), triés par
@@ -787,12 +787,12 @@ dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâ
 sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
 « critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
 seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
-déplier. Sa colonne « Rattachement » présente le poste ou le lot que porte une tâche, par le libellé
+déplier. Sa colonne « Rattachement » présente le lot ou le poste que porte une tâche, par le libellé
 que le serveur résout (`work_breakdown_label`) ; là où la révision liste `edit_planning`, la cellule le
-choisit parmi les postes et les lots du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
+choisit parmi les lots et les postes du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
 — le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte
 (`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
-déjà l'élément ou celles qui sortiraient du sous-arbre de leur poste (WF-PLA-0170) ; comme tout refus
+déjà l'élément ou celles qui sortiraient du sous-arbre de leur lot (WF-PLA-0170) ; comme tout refus
 de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est décrite
 (`aria-invalid`, `aria-describedby`). Dans la grille vide, le squelette s'offre comme la révision
 liste `generate_skeleton`, indisponible avec sa condition dès que la structure comporte une tâche
