@@ -108,19 +108,48 @@ test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 �
   ).toBeVisible();
 });
 
-test("offers no skeleton beside the tasks of the witness, neither above the grid nor among the commands of the revision [WF-PRJ-0030-A]", async ({
+test("filters the planning by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
+  // The choices are the work breakdown of the witness read whole, the lot then its post, each named
+  // by its kind. The fake back serves the first example of `listNodes` whatever the filter asks —
+  // the contract has no reading filtered by a lot or a post —: the grid stays the structure whole
+  // here, and what the page sends is proven by `planning/page.test.tsx`. The subtree and the
+  // ancestors the server retains are its own, and are not checked here.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
+  await expect(filter.getByRole("option")).toHaveText([
+    "Tous les lots et postes",
+    "Lot : Lot 1",
+    "Poste : Poste 1.1",
+  ]);
+  await filter.selectOption({ label: "Poste\u00a0: Poste 1.1" });
+  await expect(page).toHaveURL(
+    `${IN_REVISION}/planning?order_item_id=01926f3a-7c00-7000-8000-000000000712`,
+    { timeout: WORKING },
+  );
+  await expect(filter).toHaveValue("01926f3a-7c00-7000-8000-000000000712");
+  const chips = page
+    .getByRole("region", { name: "Contexte de lecture" })
+    .getByRole("list", { name: "Filtres actifs" })
+    .getByRole("listitem");
+  await expect(chips).toHaveText(["Poste : Poste 1.1"]);
+  await chips.getByRole("link", { name: "Lever le filtre « Poste : Poste 1.1 »" }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
+  await expect(filter).toHaveValue("");
+  await expect(chips).toHaveCount(0);
+});
+
+test("offers no skeleton above the grid of the witness, whose structure bears its tasks [WF-PRJ-0030-A]", async ({
   page,
 }) => {
   // The fake back serves the revision of the witness, whose main structure bears its tasks: the
-  // command « Engendrer le squelette de planning » is not proposed. What it offers in the empty
-  // grid, once generated, is proven on the examples by `planning-writes.dom.test.tsx`.
+  // grid is not empty, and the command « Engendrer le squelette de planning » is not proposed above
+  // it. What it offers in the empty grid, once generated, is proven on the examples by
+  // `planning-writes.dom.test.tsx`.
   await openHydrated(page, `${IN_REVISION}/planning`);
   await expect(page.getByRole("treegrid", { name: "Grille de planning" })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Engendrer le squelette de planning" }),
-  ).toHaveCount(0);
-  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
-  await expect(page.getByRole("main").getByRole("region", { name: "Commandes" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Engendrer le squelette de planning" }),
   ).toHaveCount(0);

@@ -231,6 +231,11 @@
       "labelIn": "Search in “{grid}”",
       "placeholder": "Search a label"
     },
+    "breakdownFilter": {
+      "label": "Work package or order item",
+      "every": "All work packages and order items",
+      "choice": "{kind, select, work_package {Work package} other {Order item}}: {label}"
+    },
     "undo": {
       "undo": "Undo",
       "redo": "Redo",
@@ -682,6 +687,7 @@
     "subproject": "Subproject: {subproject}",
     "subprojectName": "{code} — {label}",
     "asOf": "Calculation date: {date}",
+    "breakdown": "{kind, select, work_package {Work package} other {Order item}}: {label}",
     "computedOn": "Revision of the calculation",
     "unnamedRevision": "unnamed",
     "removeFilter": "Remove the filter “{filter}”",

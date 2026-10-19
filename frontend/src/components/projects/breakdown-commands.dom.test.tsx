@@ -216,6 +216,15 @@ describe("the work breakdown edited in its grid", () => {
     expect(within(grid()).getByText(PACKAGE).closest("td")).toHaveFocus();
   });
 
+  it("names the dialog of a deliverable added under an order item by the order item, as the menu of its cell does", async () => {
+    serve();
+    render(list());
+    await fromMenu(ITEM, `Ajouter un livrable au poste ${quoted(ITEM)}`);
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(
+      `Nouveau livrable du poste ${quoted(ITEM)}`,
+    );
+  });
+
   it("adds a work package and renames an element from the bar of the grid, on the row of the active cell", async () => {
     const client = serve({ [SET]: ["work_breakdown_saved", "work_breakdown_saved"] });
     render(list());
