@@ -311,7 +311,10 @@
     summary: Structures de coûts de la révision
     description: >-
       Une structure principale, et le cas échéant des différentiels et une structure
-      propre par risque (WF-REV-0100).
+      propre par risque (WF-REV-0100). Chacune dit ses commandes de saisie
+      (`available_commands`) : la grille de planning, de devis ou de reste à engager qui la lit
+      offre ou non la saisie selon la phase du projet, que le front ne déduit pas (WF-DEV-0050,
+      WF-RAE-0040, WF-IHM-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -667,9 +670,14 @@
     tags: [revisions]
     summary: Créer une tâche ou une ligne de devis
     description: >-
-      Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). Une
-      tâche ajoutée après la référence porte un montant budgété nul (WF-RAE-0050). Une ligne de
-      main-d'œuvre dont le rôle laisserait sa tâche sans aucune heure travaillée dans la semaine
+      Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). La
+      même écriture depuis les trois grilles : la phase du projet ne refuse rien ici, c'est la
+      commande de la structure qui dit quelle grille la saisit (`CostStructure.available_commands`).
+      Une tâche créée sans mode ni durée — depuis la grille de devis ou de reste à engager, qui ne
+      les présentent pas — est une feuille en mode automatique, d'une durée d'un jour, sans
+      prédécesseur (WF-DEV-0050, WF-RAE-0040). Une ligne ajoutée après la référence porte un
+      montant budgété nul (WF-RAE-0050). Une ligne de main-d'œuvre dont le rôle laisserait sa
+      tâche sans aucune heure travaillée dans la semaine
       — son calendrier ne recoupe jamais celui d'un autre rôle de la tâche, ou, sur une tâche
       dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) — est refusée
       par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ;
@@ -879,7 +887,10 @@
       (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates
       (WF-PLA-0010) : ses successeurs redatés sont rendus dans `rescheduled`, et dans `reinflated`
       chaque ligne ou tâche non récapitulative dont le montant corrigé change — les autres lignes
-      qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches.
+      qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches. Une ligne
+      dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu des coûts
+      réels, et ne nomme pas son sous-projet dans `editable_fields` ; celle d'une tâche non
+      démarrée en change (WF-PRJ-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -902,6 +913,7 @@
               entered: { $ref: ../../../fixtures/api/estimate_line_entered.json }
               updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
               redated: { $ref: ../../../fixtures/api/estimate_line_redated.json }
+              subproject_changed: { $ref: ../../../fixtures/api/estimate_line_subproject_changed.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -921,12 +933,16 @@
           ou un délai de paiement négatif : `fields` sur `/payment_delay_days`,
           `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100) ; ou un champ que la ligne
           n'accepte pas — le délai de paiement d'une ligne de provision, qui n'en porte pas —,
-          motif `FIELD_NOT_ACCEPTED` sur son champ (`EstimateLineUpdate` ; EP-14/L42s).
+          motif `FIELD_NOT_ACCEPTED` sur son champ (`EstimateLineUpdate` ; EP-14/L42s) ; ou une
+          ligne d'une tâche démarrée ou terminée passée hors d'un sous-projet qui a reçu des coûts
+          réels : `fields` sur `/subproject_id`, motif `SUBPROJECT_HAS_ACTUAL_COSTS`,
+          `params.subproject` nommant ce sous-projet (WF-PRJ-0050).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               payment_delay_out_of_range: { $ref: ../../../fixtures/api/estimate_line_payment_delay_out_of_range.json }
+              subproject_has_actual_costs: { $ref: ../../../fixtures/api/estimate_line_subproject_has_actual_costs.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors:
@@ -1065,7 +1081,8 @@
     summary: Inscrire ou retirer une tâche des suivis
     description: >-
       Une tâche s'inscrit à une chronologie, un jalon au suivi temps/temps ; les jalons
-      contractuels ne sont rien d'autre que des jalons inscrits (WF-PLA-0060).
+      contractuels ne sont rien d'autre que des jalons inscrits (WF-PLA-0060). Une tâche de la
+      structure principale le dit d'avance, `task.tracking` dans ses `editable_fields` (#1065).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

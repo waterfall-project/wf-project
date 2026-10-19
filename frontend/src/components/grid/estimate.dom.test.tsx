@@ -43,6 +43,8 @@ const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
 const LABOUR = 2;
 const DISBURSEMENT = 3;
 const PROVISION = 4;
+// A line out of any sub-project, so none with actual costs to keep it: « Frais de relance ».
+const REMINDER = 7;
 const estimate = example("nodes_estimate") as NodeList;
 
 /** Serve the fake back, and give it back to read its calls. */
@@ -125,8 +127,11 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
     );
     await userEvent.clear(field);
     await userEvent.keyboard("045{Enter}");
-    // The sub-project, from the list of the project; « Aucun » for a line out of any.
-    cell(LABOUR, "subproject").focus();
+    // The sub-project, from the list of the project; « Aucun » for a line out of any. The line of
+    // labour of a started task keeps the sub-project that received actual costs: its node does not
+    // accept it (#1066).
+    expect(cell(LABOUR, "subproject")).toHaveAttribute("aria-readonly", "true");
+    cell(REMINDER, "subproject").focus();
     await userEvent.keyboard("{Enter}");
     const list = screen.getByRole("combobox", { name: "Sous-projet" });
     expect(

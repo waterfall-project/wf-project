@@ -53,7 +53,8 @@
           "task.label",
           "task.description",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       },
       {
@@ -107,7 +108,8 @@
           "task.label",
           "task.description",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       },
       {
@@ -159,7 +161,8 @@
           "task.scheduling_mode",
           "task.progress",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       },
       {
@@ -221,7 +224,8 @@
           "task.scheduling_mode",
           "task.progress",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       }
     ],

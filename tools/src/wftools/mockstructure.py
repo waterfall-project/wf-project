@@ -377,6 +377,17 @@ def labels() -> dict[str, str]:
     return labels
 
 
+def charged_subprojects() -> frozenset[str]:
+    """Return the subprojects of the witness that received actual costs (WF-PRJ-0050).
+
+    Read from the subprojects written by hand, which ``test_mockuniverse.py`` holds to the costs
+    imputed to them: a line of a task started or completed does not leave one (#1066).
+    """
+    return frozenset(
+        entry["subproject_id"] for entry in fixture("subprojects") if entry["has_actual_costs"]
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class Fields:
     """What a node says of the fields of its facet: those computed here, those it accepts."""
@@ -390,14 +401,16 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
 
     A task in automatic mode computes its dates; one in manual mode enters them, and computes
     nothing. A summary computes its duration and its progress too, and accepts its label and its
-    description; a milestone has no duration to enter. Every task, summary or leaf, accepts its
-    attachment to an order item or a work package, last (WF-PLA-0130).
+    description; a milestone has no duration to enter. Every task of the main structure, summary
+    or leaf, accepts its attachment to an order item or a work package (WF-PLA-0130), then its
+    inscriptions to the timelines and to the time/time tracking, last (WF-PLA-0060, #1065): every
+    task emitted here is one of the main structure.
     """
     dates: list[JsonValue] = ["task.start", "task.finish"]
     editable: list[JsonValue] = ["task.label", "task.description"]
-    attachment: list[JsonValue] = ["task.order_item_id", "task.work_package_id"]
+    main_only: list[JsonValue] = ["task.order_item_id", "task.work_package_id", "task.tracking"]
     if is_summary:
-        return Fields(["task.duration", *dates, "task.progress"], [*editable, *attachment])
+        return Fields(["task.duration", *dates, "task.progress"], [*editable, *main_only])
     editable.append("task.scheduling_mode")
     if not is_milestone:
         editable.append("task.duration")
@@ -405,10 +418,10 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
         editable.extend(dates)
         dates = []
     editable.append("task.progress")
-    return Fields(dates, [*editable, *attachment])
+    return Fields(dates, [*editable, *main_only])
 
 
-def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
+def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -> Fields:
     """Return what a line computes and what it accepts (WF-DEV-0020).
 
     A labour line takes its role and its hours, and no payment delay, nil for labour (§3.2.5);
@@ -417,7 +430,10 @@ def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
     (WF-RIS-0010): neither of its amounts, nor its nature, is ever entered. Its subproject is the
     one its risk designates, computed too: the line does not rewrite the designation of the risk,
     which changes only while it is identified (`update_provision`, EP-14/L42p). Nor does it take
-    a payment delay, which it does not carry (WF-DEV-0020; EP-14/L42s).
+    a payment delay, which it does not carry (WF-DEV-0020; EP-14/L42s). A line held by its
+    subproject — its task started or completed, the subproject charged with actual costs — does
+    not take it either: it may not leave it, a share of those costs being its own, and its
+    subproject is not computed for all that (WF-PRJ-0050, #1066).
     """
     editable: list[JsonValue] = ["estimate_line.label"]
     if is_provision:
@@ -440,7 +456,8 @@ def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
                 "estimate_line.payment_delay_days",
             ]
         )
-    editable.append("estimate_line.subproject_id")
+    if not is_held:
+        editable.append("estimate_line.subproject_id")
     return Fields([], editable)
 
 

@@ -13,8 +13,9 @@
  * their labels and codes, the projects a calendar would leave a task without hours in (`projects`)
  * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the task of a
  * lot and those of its posts a write would move out of its subtree (`work_package_task`,
- * `order_item_tasks`, WF-PLA-0170) by their labels, the lines
- * and the projects beyond a few counted, the notice listing them; a state without its enumeration,
+ * `order_item_tasks`, WF-PLA-0170) by their labels, the lines and the projects beyond a few
+ * counted, the notice listing them, the sub-project a line of a started task does not leave
+ * (`subproject`, WF-PRJ-0050) by its label; a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
  * working hour (`resource_role_ids`): the calendar of its one role, which has no hour, or those of
@@ -147,8 +148,11 @@ export interface NamedProject {
   readonly project_code: string | null;
 }
 
-/** Whether a value is a task a refusal names by its label (`work_package_task`, EP-14/L42s). */
-function isNamedTask(value: unknown): value is { readonly label: string } {
+/**
+ * Whether a value is an object a refusal names by its label: a task (`work_package_task`,
+ * EP-14/L42s), a sub-project (`subproject`).
+ */
+function isLabelled(value: unknown): value is { readonly label: string } {
   return hasTexts(value, ["label"]);
 }
 
@@ -270,17 +274,21 @@ const DETAILS: readonly Reader[] = [
   // The task of a lot and those of its posts a write would move out of its subtree, by their labels
   // (WF-PLA-0170, WF-IHM-0080).
   ({ work_package_task }, _label, _locale, say) =>
-    isNamedTask(work_package_task)
+    isLabelled(work_package_task)
       ? ["work_package_task", { task: say("taskName", { label: work_package_task.label }) }]
       : undefined,
   ({ order_item_tasks }, _label, locale, say) => {
-    const named = itemsOf(order_item_tasks, isNamedTask).map(({ label }) =>
+    const named = itemsOf(order_item_tasks, isLabelled).map(({ label }) =>
       say("taskName", { label }),
     );
     return named.length === 0
       ? undefined
       : ["order_item_tasks", { tasks: conjunction(named, locale), count: named.length }];
   },
+  // The sub-project a line of a started task does not leave, because it received actual costs, by
+  // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
+  ({ subproject }) =>
+    isLabelled(subproject) ? ["subproject", { label: subproject.label }] : undefined,
   ({ state, state_enum }, label) => {
     const told = stateIn(state_enum);
     const named = told === undefined ? undefined : label(told.list, state);

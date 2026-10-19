@@ -298,6 +298,8 @@ paths = [
     "fixtures/api/remaining_reestimated.json",
     "fixtures/api/remaining_completion_date_required.json",
     "fixtures/api/estimate_line_redated.json",
+    "fixtures/api/estimate_line_subproject_changed.json",
+    "fixtures/api/estimate_line_subproject_has_actual_costs.json",
     "fixtures/api/node_deleted.json",
     "fixtures/api/predecessor_set.json",
     "fixtures/api/estimate_line_entered.json",
