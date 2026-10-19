@@ -347,13 +347,17 @@ def cycle(task: int, links: Iterable[Link], roots: Iterable[Task] = CORE) -> lis
     """Return the tasks of the loop that predecessors sent for a task would close, in link order.
 
     From the task to the predecessor sent that already follows it, each preceding the next: the
-    shortest path down the successors of the structure; none when no predecessor sent follows it.
+    shortest path down the successors of the structure, the first in the order of its links when
+    several predecessors sent close a loop as short; the task alone when it is sent as its own
+    predecessor; none when no predecessor sent follows it.
     """
+    sent = {link.predecessor for link in links}
+    if task in sent:
+        return [task]
     followers: dict[int, list[int]] = {}
     for each in mockcore.tasks_in_order(roots):
         for link in each.links:
             followers.setdefault(link.predecessor, []).append(each.number)
-    sent = {link.predecessor for link in links}
     paths = [[task]]
     seen = {task}
     while paths:

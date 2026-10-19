@@ -741,8 +741,9 @@
     tags: [revisions]
     summary: Supprimer un nœud
     description: >-
-      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090).
-      Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une
+      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090) ;
+      celle d'une récapitulative emporte aussi ses subordonnées, leurs lignes et leurs liaisons,
+      et le devis diminue d'autant (Vérif de WF-PLA-0070). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une
       récapitulative qui perd sa dernière subordonnée garde son rattachement au lotissement
       (WF-PLA-0170). Une écriture de grille comme les autres : elle rend ses ancêtres
       recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour
@@ -1016,8 +1017,9 @@
           liaison entre une récapitulative et l'une de ses subordonnées, `LINK_FORBIDDEN`, sans
           paramètre (WF-PLA-0040) ; ou des liaisons qui porteraient la durée du projet au-delà de
           quinze ans, `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche saisie
-          (WF-PLA-0150). Le code nomme la raison, que la colonne des prédécesseurs dit à sa
-          cellule.
+          (WF-PLA-0150) ; ou une valeur hors règle, `fields` la localisant, comme la réponse
+          commune `UnprocessableEntity` le dit. Le code nomme la raison, que la colonne des
+          prédécesseurs dit à sa cellule.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

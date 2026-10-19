@@ -6315,8 +6315,13 @@ de types différents, le décalage en semaines ; `node_tracked`, la revue de con
 chronologie « Revue client ». Un nœud créé est rendu à sa première version, et les anciens ancêtres
 d'un nœud déplacé avec ses nouveaux, comme `NodesWritten` le dit déjà. Le témoin gagne ce qu'il faut
 pour les engendrer : une tâche porte l'unité de sa durée, une description et ses inscriptions quand
-une écriture les lui donne. Chaque nœud écrit l'est par ce seul exemple à sa version : les tâches
-créées sont les nœuds 581 à 583.
+une écriture les lui donne. Chaque nœud écrit l'est par ce seul exemple à sa version : les nœuds
+créés sont les tâches 581 et 582 et la ligne 583. La règle de #421 — deux exemples ne rendent
+jamais un même nœud, à une même version, avec deux contenus — vise les nœuds écrits, `nodes`, et
+non les `ancestors` : un exemple qui en suit un autre (`following`) fait évoluer ses ancêtres sans
+changer leur version, puisqu'il ne les écrit pas. Ainsi le nœud 581, feuille à sa version 1 dans
+`node_created`, revient à la même version, devenu récapitulative, parmi les ancêtres de
+`node_created_child`.
 
 **Une date calculée envoyée est refusée sans paramètre** (WF-PLA-0020, WF-IHM-0030).
 `task_date_computed_refused` : la fin du montage, en mode automatique, envoyée à `updateTaskFacet`,
