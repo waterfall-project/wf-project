@@ -135,7 +135,7 @@ export interface Examples {
     200: "rate_update" | "rate_update_none";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures": {
-    200: "structures" | "structures_amendments" | "structures_without_tasks";
+    200: "structures" | "structures_amendments" | "structures_estimator" | "structures_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
     200: "structure_merge_report" | "structure_merge_report_refused";

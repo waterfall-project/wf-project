@@ -46,6 +46,10 @@ const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 const NODES = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const INDICATORS = "GET /projects/{project_id}/remaining-indicators";
 const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
+const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+// The lot of the witness and its post, as its work breakdown names them.
+const LOT = "01926f3a-7c00-7000-8000-000000000711";
+const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -106,9 +110,11 @@ beforeEach(() => {
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
     [REVISION_READ]: "revision",
-    "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    [STRUCTURES]: "structures",
     [NODES]: "nodes_estimate",
     [INDICATORS]: "remaining_indicators",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /reference/cost-categories": "volume/cost_categories",
   };
 });
 
@@ -248,9 +254,60 @@ describe("the screen of the remaining to commit", () => {
     expect(open).toContain('aria-label="Redo"');
 
     server.clients = [];
-    server.answers = { ...server.answers, [REVISION_READ]: "revision_marked" };
+    server.answers = {
+      ...server.answers,
+      [REVISION_READ]: "revision_marked",
+      [STRUCTURES]: "structures_amendments",
+    };
     const marked = await remainingAt();
     expect(marked).not.toContain('aria-label="Undo"');
     expect(marked).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
+  });
+
+  it("is read only on a project that is not in progress, the structure listing the remaining to commit unavailable, and reads no category to create a line from [WF-RAE-0040-A]", async () => {
+    // Sur un projet qui n'est pas En cours, la grille ne propose ni création ni suppression de
+    // tâche ou de ligne : the structure says it (`project_in_progress` lacks), the front deduces
+    // nothing from the state of the project.
+    server.answers = { ...server.answers, [STRUCTURES]: "structures_without_tasks" };
+    const page = await remainingAt();
+    expect(page).not.toContain('aria-label="Undo"');
+    expect(page).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
+    const calls = server.clients.flatMap((client) => client.calls.map((call) => call.route));
+    expect(calls).not.toContain("GET /reference/cost-categories");
+  });
+
+  it("opens the grid to entry on a project in progress, where tasks and lines are created and deleted, and reads the categories a line is created from", async () => {
+    // The gestures themselves, in the menu of a cell, are proven on the grid (`structure-gestures.dom.test.tsx`).
+    const page = await remainingAt();
+    expect(page).toContain('aria-label="Undo"');
+    expect(page).toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
+    const calls = server.clients.flatMap((client) => client.calls.map((call) => call.route));
+    expect(calls).toContain("GET /reference/cost-categories");
+  });
+
+  it("offers the filter by a lot or a post, read from the work breakdown whole, as the planning and the estimate do [WF-RAE-0040-A]", async () => {
+    // Le lot ou le poste porté par une tâche rattachée : the server retains its subtree and its
+    // ancestors, the banner says the filter restricts the grid alone.
+    const page = await remainingAt({ order_item_id: ITEM });
+    expect(page).toMatch(/<label[^>]*>Work package or order item<\/label>/);
+    expect(page).toContain(`<option value="${LOT}">Work package: Lot 1</option>`);
+    expect(page).toContain(`<option value="${ITEM}" selected="">Order item: Poste 1.1</option>`);
+    expect(queryOf(NODES)).toMatchObject({ progress: "started", order_item_id: ITEM });
+    expect(text(page.slice(0, page.indexOf("</section>")))).toContain(
+      "Order item: Poste 1.1, on the grid only",
+    );
+    expect(queryOf(INDICATORS)).toEqual({ revision_id: REVISION });
+  });
+
+  it("opens without the filter when the API refuses the work breakdown, the grid read whole", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/work-breakdown": {
+        problem: { code: "VALIDATION_FAILED", status: 422 },
+      },
+    };
+    const page = await remainingAt();
+    expect(page).not.toContain("Work package or order item");
+    expect(queryOf(NODES)?.order_item_id).toBeUndefined();
   });
 });

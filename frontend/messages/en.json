@@ -250,6 +250,25 @@
         "redo": "Redo is unavailable: the server does not keep the history of the entries yet."
       }
     },
+    "structure": {
+      "insertFirst": "Insert a task",
+      "insertBelow": "Insert below",
+      "insertChild": "Insert a sub-task",
+      "insertLine": "Insert a line",
+      "delete": "Delete",
+      "deleteTitle": "Delete “{label}”?",
+      "deleteHint": "“{label}” is a summary: its subordinate tasks, their lines and their links are deleted with it.",
+      "deleteConfirm": "Delete",
+      "deleting": "Deleting…",
+      "deleted": "“{label}” deleted.",
+      "created": "“{label}” created.",
+      "refusedAt": "Refused at row {number}, “{label}”:",
+      "labelField": "Label",
+      "categoryField": "Category",
+      "quantityField": "Quantity",
+      "taskHint": "Name the task. It is created as a leaf, automatic, of one day, without predecessor.",
+      "lineHint": "Name the line, choose its category and its quantity. The other fields are entered in the grid."
+    },
     "columnsMenu": {
       "open": "Columns",
       "openIn": "Columns of “{grid}”",

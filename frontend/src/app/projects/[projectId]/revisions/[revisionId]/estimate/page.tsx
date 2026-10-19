@@ -12,8 +12,9 @@
  * reads anew (`grid-screen.ts`). The
  * indicators and the rates are read alongside the grid, and so are the categories and the roles a
  * line is chosen from (US-0120) — the server names those a line bears (#305). The grid is entered from the keyboard, and takes
- * a block pasted from a spreadsheet, when the revision lists `edit_estimate` available to the caller
- * (WF-IHM-0040, WF-IHM-0050). Its head leads to the workload of the project, a leaf of the estimate
+ * a block pasted from a spreadsheet, its tasks and its lines created and deleted, when the main
+ * structure lists `edit_estimate` available to the caller (WF-IHM-0040, WF-IHM-0050): on a project in
+ * progress it lists it unavailable, and the grid is read only (WF-DEV-0050). Its head leads to the workload of the project, a leaf of the estimate
  * with a screen of its own (FBS-4.4.4), in the same context, and, when the project lists the import
  * of an estimate, to the imports and exports, where it is exercised (#521). A refused read of the rates
  * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
@@ -265,7 +266,7 @@ export default async function EstimatePage({
   ]);
   // The sub-project of a line is entered from the list of the project, in a revision open to
   // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
-  const editable = screen.reading.edits.has("edit_estimate");
+  const editable = screen.commands.has("edit_estimate");
   const subprojectsEntered = editable && reference.subprojects !== undefined;
   return (
     <>
@@ -304,7 +305,7 @@ export default async function EstimatePage({
             filters={screen.filters}
             reference={reference}
             editable={editable}
-            tasksEditable={screen.reading.edits.has("edit_planning")}
+            tasksEditable={screen.commands.has("edit_planning")}
             query={screen.query}
             preferences={screen.preferences}
           />

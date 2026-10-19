@@ -128,7 +128,7 @@ export default async function PlanningPage({
     // The attachment of a task is chosen among the lots and the posts where it is entered.
     needsBreakdown: (reading) => reading.edits.has("edit_planning"),
   });
-  const editable = screen.reading.edits.has("edit_planning");
+  const editable = screen.commands.has("edit_planning");
   const skeleton = findOffer(
     screen.reading.revision?.available_commands ?? [],
     "generate_skeleton",
@@ -159,6 +159,7 @@ export default async function PlanningPage({
             query={screen.query}
             preferences={screen.preferences}
             undoable={editable}
+            editable={editable}
             // The attachment is chosen among the same items, where the planning may be entered.
             breakdown={editable ? screen.breakdown?.items : undefined}
             skeleton={skeleton}

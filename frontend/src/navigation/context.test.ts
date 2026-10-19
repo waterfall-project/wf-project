@@ -6,6 +6,7 @@ import {
   contextAddress,
   contextCookie,
   contextQuery,
+  isUuid,
   LAST_CONTEXT_COOKIE,
   pageSearch,
   readContext,
@@ -135,5 +136,15 @@ describe("the reading context", () => {
     expect(search.get("revision_id")).toBeNull();
     expect(search.get("toString")).toBeNull();
     expect(pageSearch({ as_of: [] }).get("as_of")).toBeNull();
+  });
+});
+
+describe("the identifiers an address may hold", () => {
+  it("takes an identifier as the contract writes it, whatever its case, and nothing else", () => {
+    expect(isUuid(PROJECT)).toBe(true);
+    expect(isUuid(PROJECT.toUpperCase())).toBe(true);
+    for (const refused of ["", "../x", PROJECT.slice(0, -1), `${PROJECT}0`, ` ${PROJECT}`]) {
+      expect(isUuid(refused)).toBe(false);
+    }
   });
 });
