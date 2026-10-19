@@ -159,7 +159,6 @@ export default async function PlanningPage({
             query={screen.query}
             preferences={screen.preferences}
             undoable={editable}
-            editable={editable}
             // The attachment is chosen among the same items, where the planning may be entered.
             breakdown={editable ? screen.breakdown?.items : undefined}
             skeleton={skeleton}

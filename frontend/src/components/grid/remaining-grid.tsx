@@ -38,8 +38,6 @@ import {
   type RemainingWrites,
 } from "./remaining";
 import type { GridPreferences } from "./settings";
-import { useStructureGestures } from "./structure-gestures";
-import type { LineCategory } from "./structure-rules";
 
 /**
  * What the reading asks that is the scope of the grid, not a filter: the states of the tasks — the
@@ -63,8 +61,6 @@ export interface RemainingGridProps {
    * to the caller. Then the grid places undo and redo too (US-0140); otherwise it is read only.
    */
   readonly editable: boolean;
-  /** The categories a line is created from; none, and no line is created. */
-  readonly categories?: readonly LineCategory[] | undefined;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
@@ -96,7 +92,6 @@ export function RemainingGrid({
   structure,
   filters,
   editable,
-  categories,
   query,
   preferences,
 }: RemainingGridProps) {
@@ -105,9 +100,6 @@ export function RemainingGrid({
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
-  );
-  const gestures = useStructureGestures<RemainingNode>(
-    editable ? { structure, tasks: true, lines: true, categories } : undefined,
   );
   const config = useMemo(
     () => remainingGrid(editable ? structureWrites(structure, filters) : undefined),
@@ -127,7 +119,6 @@ export function RemainingGrid({
       foldScope={structure.revision_id}
       narrowing={nodeNarrowing(filters, SCOPE)}
       undoable={editable}
-      commands={gestures}
     />
   );
 }

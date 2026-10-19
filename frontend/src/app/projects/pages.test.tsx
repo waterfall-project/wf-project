@@ -972,6 +972,7 @@ describe("the rows a page hands its grid", () => {
       const row = items[index] ?? {};
       expect(Object.keys(row).sort()).toEqual(kept(node, listed.node));
       expect(row).not.toHaveProperty("lineage_id");
+      expect(row).not.toHaveProperty("position");
       const facets = row as { task?: object | null; estimate_line?: object | null };
       expect(Object.keys(facets.task ?? {}).sort()).toEqual(kept(node.task ?? {}, listed.task));
       expect(Object.keys(facets.estimate_line ?? {}).sort()).toEqual(
@@ -981,7 +982,6 @@ describe("the rows a page hands its grid", () => {
   }
 
   it("the estimate asks for and hands its grid the fields it shows of each node, and those alone", async () => {
-    // Entered, the sub-project of a line crosses to the browser with the rest.
     server.answers = { ...server.answers, [STRUCTURES_READ]: "structures_estimator" };
     renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     expect(nodesFields()).toEqual(nodeFieldNames(ESTIMATE_FIELDS));

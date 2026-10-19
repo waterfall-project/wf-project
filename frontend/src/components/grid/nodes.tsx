@@ -129,7 +129,6 @@ export const COMMON_FIELDS = {
     "row_number",
     "level",
     "parent_id",
-    "position",
     "kind",
   ],
   task: ["label", "is_summary", "is_milestone"],

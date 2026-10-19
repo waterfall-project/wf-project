@@ -251,10 +251,8 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
   paste: { preview: unwritten, apply: unwritten, span: unwritten, name: unwritten },
 });
 
-// The position of a node among its siblings, which the gestures of structure place a task after
-// (US-0460/L3), weighs about a hundredth of each answer: 0.655, 0.475 and 0.63 before it.
-holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.67);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.485);
+holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.655);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.475);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:
 // 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1); the figures at the previous
@@ -263,5 +261,5 @@ holdsWhatTheGridReads(
   "remaining to commit",
   remainingGrid({ line: unwritten }),
   REMAINING_FIELDS,
-  0.64,
+  0.63,
 );

@@ -1647,25 +1647,6 @@ navigateur ; leur refus se dira comme tout refus, sa condition nommée par le ca
 annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
 (EP-14/L42p).
 
-### Les grilles : créer et supprimer des tâches et des lignes
-
-Une grille se saisit, et offre ses gestes de structure, selon la commande de la structure qu'elle
-lit (`CostStructure.available_commands`, WF-IHM-0090) : `readGridScreen` rend celles qui sont
-disponibles (`commands`), le planning lit `edit_planning`, le devis `edit_estimate`, le reste à
-engager `edit_remaining`. Le front ne déduit jamais la phase du projet : sur la structure principale
-d'un projet En cours le devis est en lecture seule, le reste à engager l'est avant (WF-DEV-0050,
-WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une ligne »,
-« Supprimer » — sont dans le menu contextuel des cellules et aux touches Insert, Alt+Insert,
-Ctrl+Insert et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans `structure-rules.ts`) ; la
-barre, tenue sur une ligne, n'offre que la première tâche d'une grille sans ligne. Une création passe
-par un dialogue qui la nomme (libellé ; pour une ligne, catégorie et quantité, que le contrat
-exige), `createNode` et `deleteNode` sont les actions de `src/api/actions/nodes.ts` ; la
-suppression d'une récapitulative est confirmée. La grille est relue après une écriture, la lecture
-du serveur faisant foi pour les numéros et les niveaux (#1160), et la version que la structure a
-atteinte est dite à la grille, que porte le collage suivant. Un refus — tâche terminée, poste hors
-du sous-arbre de son lot, version périmée — est dit au-dessus de la grille en nommant la ligne en
-cause, dont l'étiquette est marquée et décrite par lui.
-
 ### Les grilles arborescentes : plier et déplier
 
 Les grilles arborescentes — planning, devis, reste à engager — se plient et se déplient

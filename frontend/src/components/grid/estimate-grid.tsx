@@ -54,7 +54,6 @@ import {
 } from "./nodes";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
-import { useStructureGestures } from "./structure-gestures";
 
 /** What the grid of the estimate shows. */
 export interface EstimateGridProps {
@@ -215,16 +214,6 @@ export function EstimateGrid({
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
-  // The tasks and the lines are created and deleted where the estimate may be entered; the tasks where
-  // the planning may too. The version the structure moves on to is the next paste's.
-  const gestures = useStructureGestures<EstimateNode>(
-    editable
-      ? { structure, tasks: tasksEditable, lines: true, categories: reference.categories }
-      : undefined,
-    (written) => {
-      setMoved((before) => Math.max(before, written.structure_lock_version));
-    },
-  );
   const config = useMemo(() => {
     const told: Moved = {
       to: (next) => {
@@ -255,7 +244,6 @@ export function EstimateGrid({
       foldScope={structure.revision_id}
       narrowing={nodeNarrowing(filters)}
       undoable={editable}
-      commands={gestures}
     />
   );
 }
