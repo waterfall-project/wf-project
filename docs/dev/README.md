@@ -129,9 +129,12 @@ permission : les chronologies, FBS-4.3.1, les imports et exports, FBS-4.3.4, et 
 tâches, FBS-4.3.5, sous le planning (`/projects/[projectId]/revisions/[revisionId]/timelines`,
 `…/exchanges`, `…/task-tree`), le plan de charge du projet,
 FBS-4.4.4, sous le devis (`…/workload`), et le Kanban, FBS-4.5.3, sous le reste à engager
-(`…/kanban`). La navigation ne l'offre pas —
-l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
-mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
+(`…/kanban`). La navigation la montre, en retrait sous sa
+fonction, dans une liste imbriquée dans l'élément de celle-ci, avec la garde de la feuille et dans le
+même contexte ; l'écran de sa fonction y mène aussi. Le lien courant, `aria-current="page"`, est celui de la
+feuille ; sa fonction, qui est le chemin, porte `aria-current="true"`. Repliée en icônes, la barre ne
+montre que la fonction, marquée ainsi quand la page est l'une de ses feuilles. `readContext` la lit
+comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
 que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
 (`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
 montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
