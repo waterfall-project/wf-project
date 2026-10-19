@@ -1429,7 +1429,9 @@ EstimateLineUpdate:
         hors sous-projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur `/subproject_id`,
         motif `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le sous-projet quitté
         (`subproject_id`, `label`), et la ligne ne nomme pas ce champ dans `editable_fields`. Une
-        ligne d'une tâche non démarrée change de sous-projet (WF-PRJ-0050 ; C-359, #1066).
+        ligne d'une tâche non démarrée change de sous-projet (WF-PRJ-0050 ; C-359, #1066). Un
+        collage et un import refusent de même la cellule ou la ligne qui la déplacerait
+        (`PasteRejection`, `ImportRejection` ; #1152).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 NodeMove:
@@ -1554,7 +1556,8 @@ PastePreview:
     ligne et la colonne nommées (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien —
     un champ calculé pour ce nœud par `COMPUTED_VALUE`, un champ que sa nature refuse ou une
     colonne qu'aucune écriture ne porte, comme les montants, par `FIELD_NOT_ACCEPTED`
-    (EP-14/L42s). Un bloc plus large que
+    (EP-14/L42s) ; le sous-projet d'une ligne qui ne peut pas le quitter, par
+    `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`). Un bloc plus large que
     les colonnes de la facette à partir de la colonne visée est refusé par 422
     (`PASTE_TOO_WIDE`, `params.max_columns`).
   properties:
@@ -1601,7 +1604,14 @@ PasteRejection:
     n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche
     de la structure principale, elle suit les règles du rattachement (`TaskFacetUpdate`), et
     `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` porte dans `params` la tâche du lot et celles des postes
-    (`work_package_task`, `order_item_tasks`), comme le refus d'une cellule (EP-14/L42s).
+    (`work_package_task`, `order_item_tasks`), comme le refus d'une cellule (EP-14/L42s). Une
+    cellule de la colonne `subproject` collée sur une ligne dont la tâche est démarrée ou terminée,
+    et dont le sous-projet a reçu des coûts réels — une ligne qui ne nomme pas
+    `estimate_line.subproject_id` dans `editable_fields` —, est refusée par
+    `SUBPROJECT_HAS_ACTUAL_COSTS` si elle nomme un autre sous-projet, ou aucun, `params.subproject`
+    nommant le sous-projet que la ligne ne peut pas quitter (`subproject_id`, `label`), comme
+    `updateEstimateLine` ; une cellule qui nomme le sous-projet de la ligne ne la déplace pas, et
+    n'est pas refusée (WF-PRJ-0050 ; C-359, #1152).
   properties:
     row:
       type: integer
