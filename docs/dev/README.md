@@ -1817,8 +1817,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `tools/paths.toml` : les lectures de son cœur (`wftools.mockcore`, décrit une fois dans
   `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`, ses lignes triées sous
   chaque tâche par `wftools.mocksort`) ; les réponses des
-  écritures de grille, différence de deux lectures (`wftools.mockwrites`) ; son histoire, ses
-  révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
+  écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
+  de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`) ; son
+  histoire, ses révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
   les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`) ;

@@ -5667,6 +5667,9 @@ n'est encore déclaré ni par les saisies ni par la fusion : #788.
 la tâche d'un poste hors du sous-arbre de celle de son lot, section « Le lotissement en lots, postes
 et livrables ».*
 
+*Complété par US-0460/L2 : les saisies déclarent le code de l'horizon, section « Les gestes de
+structure et la saisie des tâches » ; la fusion reste à EP-16 (#788).*
+
 **Un poste sans tâche rattachée est présenté sans total** (#771, point 3 ; WF-DEV-0060 : « un poste
 sans tâche rattachée est présenté sans total » ; Vérif : « les totaux par poste sont absents plutôt
 que nuls »). `EstimateIndicators.by_order_item` n'est plus nullable : chaque poste du lotissement,
@@ -6286,6 +6289,106 @@ grille de devis ou de reste à engager, qui ne les présentent pas — est une f
 automatique, d'un jour, sans prédécesseur ; une ligne ajoutée après la référence porte un montant
 budgété nul. La phrase « une tâche ajoutée après la référence porte un montant budgété nul » devient
 celle d'une ligne : une tâche n'a de montant que la somme de ses lignes.
+
+## Les gestes de structure et la saisie des tâches (EP-15/US-0460, US-0470, US-0480)
+
+**Chaque geste de structure et chaque saisie d'une tâche a son exemple de succès** (K3 de la
+conception d'EP-15, #1056, #1073, #1065 ; WF-IHM-0040). Les grilles d'US-0460 à US-0480 créent,
+déplacent, mettent en retrait et suppriment, saisissent le mode, les dates, la durée et la
+description d'une tâche, ses prédécesseurs et ses inscriptions ; le contrat ne donnait l'exemple que
+de quelques-unes de ces écritures. Ils sont engendrés, comme les autres écritures de grille, par la
+différence de deux lectures du témoin (`wftools.mockgestures`, qui reprend `wftools.mockwrites`) :
+`node_created`, une tâche créée à côté du dossier de conception, son libellé seul envoyé — une
+feuille automatique d'un jour, sans prédécesseur, à la date de début de planning, non démarrée
+(K9) ; `node_created_child`, une sous-tâche créée sous elle, qui en fait sa récapitulative — elle
+suit la première, la structure à sa troisième version (#421) — ; `estimate_line_created`, une ligne
+de matériel sous la mise en service, au budgété nul (WF-RAE-0050) ; `nodes_moved`, une sélection de
+deux lignes d'une tâche tirée autour du cœur déplacées sous la suivante ; `nodes_indented`,
+l'installation sur site mise en retrait sous le poste de commande — une mise en retrait est un
+déplacement sous la tâche au-dessus, sans opération propre — ; `node_summary_deleted`,
+l'installation, non démarrée, supprimée avec ses subordonnées, leurs lignes et leurs liaisons
+(Vérif de WF-PLA-0070 : « le devis diminue d'autant ») ; `task_mode_changed`, la mise en service
+passée en mode manuel à ses dates, son prédécesseur devenu critique, puis `task_dates_entered`, ses
+dates saisies en 2027, qui la suit ; `task_duration_entered`, une durée saisie en semaines et rendue
+dans cette unité (WF-PLA-0160) ; `task_description_entered` ; `predecessors_entered`, deux liaisons
+de types différents, le décalage en semaines ; `node_tracked`, la revue de conception inscrite à la
+chronologie « Revue client ». Un nœud créé est rendu à sa première version, et les anciens ancêtres
+d'un nœud déplacé avec ses nouveaux, comme `NodesWritten` le dit déjà. Le témoin gagne ce qu'il faut
+pour les engendrer : une tâche porte l'unité de sa durée, une description et ses inscriptions quand
+une écriture les lui donne. Chaque nœud écrit l'est par ce seul exemple à sa version : les nœuds
+créés sont les tâches 581 et 582 et la ligne 583. La règle de #421 — deux exemples ne rendent
+jamais un même nœud, à une même version, avec deux contenus — vise les nœuds écrits, `nodes`, et
+non les `ancestors` : un exemple qui en suit un autre (`following`) fait évoluer ses ancêtres sans
+changer leur version, puisqu'il ne les écrit pas. Ainsi le nœud 581, feuille à sa version 1 dans
+`node_created`, revient à la même version, devenu récapitulative, parmi les ancêtres de
+`node_created_child`.
+
+**Une date calculée envoyée est refusée sans paramètre** (WF-PLA-0020, WF-IHM-0030).
+`task_date_computed_refused` : la fin du montage, en mode automatique, envoyée à `updateTaskFacet`,
+refusée par 422 `VALIDATION_FAILED`, `fields` sur `/finish`, motif `COMPUTED_VALUE`, comme le
+contrat le disait. Ce dont la valeur dépend se lit par `getComputedValueDependencies`, que la grille
+appelle déjà : le refus ne le recopie pas.
+
+**Les refus des liaisons sont des 422, et la boucle nomme ses tâches** (WF-PLA-0030, WF-PLA-0040 ;
+#788). `setPredecessors` déclarait `LINK_CYCLE` et `LINK_FORBIDDEN` sous un 409, quand le
+catalogue des codes les range parmi les 422 des règles métier et que la conception d'EP-15 dit « le
+422 `LINK_CYCLE` » : ce n'est pas l'état d'un objet qui refuse, c'est la valeur envoyée. Le 409 de
+l'opération reprend la réponse commune des conflits d'état. `LINK_CYCLE` porte `params.cycle`, les
+tâches de la boucle, chacune par son nœud et son libellé, de la tâche saisie au prédécesseur envoyé
+qui la suit déjà, chacune précédant la suivante — « la raison en est nommée à l'utilisateur »
+(Vérif de WF-PLA-0030), la grille, filtrée, pouvant ne pas les lire ; `LINK_FORBIDDEN`, la liaison
+d'une récapitulative et de sa subordonnée, n'a pas de paramètre, son code disant la raison et la
+conception n'en prévoyant pas. Exemples : `predecessors_cycle_refused`, la réception usine donnée à
+suivre la mise en service, qui la suit par le montage — trois tâches, dans l'ordre des liaisons — ;
+`predecessors_forbidden`, le montage donné à suivre sa propre récapitulative. Écartés : garder le
+409, contre le catalogue ; un refus par champ, `/predecessors/<n>`, qui localiserait la liaison mais
+pas la boucle, faite de liaisons déjà enregistrées.
+
+**Un déplacement ou une mise en retrait refusent les mêmes liaisons** (#1164, tranché par l'auteur
+le 2026-10-19, et #1167 ; WF-PLA-0030, WF-PLA-0040). Une récapitulative couvre ses subordonnées : ce
+qui la précède les précède, ce qui la suit les suit. Mettre en retrait B sous A quand A est le
+prédécesseur de B fait de A la récapitulative de B avec la liaison A → B, celle que WF-PLA-0030
+refuse ; déplacer une tâche sous une autre qu'elle suit déjà par une chaîne de liaisons ferme une
+boucle à travers la hiérarchie. `moveNodes` déclare donc `LINK_FORBIDDEN`, sans paramètre comme pour
+`setPredecessors`, et `LINK_CYCLE`, `params.cycle` nommant les tâches de la chaîne, de la
+récapitulative qui recevrait le nœud — ou de l'un de ses ancêtres — à la tâche reçue ou à l'une de
+ses subordonnées, ou dans l'autre sens, chacune précédant la suivante, la plus courte rendue. Une
+chaîne d'une seule liaison est la liaison interdite : le code le plus précis l'emporte. Exemples,
+engendrés par `wftools.mockgestures` : `nodes_indent_forbidden`, la mise en service mise en retrait
+sous le montage, la tâche au-dessus d'elle et son prédécesseur ; `nodes_move_cycle_refused`,
+« Documentation 1.1.7 », tâche tirée autour du cœur, déplacée sous « Préparation 1.1.1 », qu'elle
+suit par « Réalisation 1.1.4 ». `mockcore.schedule` refuse les deux structures que ces gestes
+laisseraient, comme celle que `predecessors_cycle_refused` laisserait : le faux back ne date pas ce
+que le serveur refuse. `createNode` ne déclare ni l'un ni l'autre (#1167, tranché par l'auteur le
+2026-10-19) : son corps ne porte pas de liaison (`TaskFacetWrite`, sans `predecessors`), et créer un
+enfant sous une tâche ne lie ni elle ni l'un de ses ancêtres au nœud créé — les deux refus y sont
+inatteignables. #1164 les y étendait ; une création qui portera des liaisons les déclarera avec
+elles. Écartés : nommer la liaison interdite par un paramètre, que la conception ne prévoit pas plus
+que pour `setPredecessors` ; un 409, pour la raison dite plus haut.
+
+**L'horizon refuse les saisies qui déplacent une date** (WF-PLA-0150 : « une saisie, un import ou une
+fusion qui la porterait au-delà est refusé, et le refus nomme la tâche en cause » ; #788, part
+« saisies »). `PROJECT_HORIZON_EXCEEDED`, code du rejet entier d'un import (EP-14/L42s), devient
+aussi le refus, par 422 sans `fields`, de `updateTaskFacet`, `setPredecessors`, `createNode` et
+`moveNodes` ; `params.task` nomme la tâche que la saisie écrit — celle dont la durée, les dates ou
+les prédécesseurs se saisissent, celle que la création ajouterait, par le libellé envoyé et son
+nœud nul comme une tâche qu'un fichier crée, la tâche déplacée ou celle qui reçoit la ligne
+déplacée —, pas la dernière tâche de la structure qu'elle repousse : c'est la cellule saisie que la
+grille marque (Vérif : « le déplacement d'une tâche … est refusé, et la tâche est nommée »). Un
+refus sans `fields`, parce que la cause n'est pas une valeur hors de ses bornes mais la durée du
+projet entier. Exemples : `task_horizon_exceeded`, la fin des pupitres opérateurs, manuels, saisie
+quinze ans et un jour après le début du projet, le 2 mars 2026 — le Vérif mot pour mot — ;
+`predecessors_horizon_exceeded`, la mise en service décalée de deux cents mois de travail ;
+`node_create_horizon_exceeded`, une tâche créée de deux cents mois. `moveNodes` n'a pas d'exemple :
+un déplacement ne change une date qu'en changeant le calendrier d'une tâche, et aucun déplacement du
+témoin ne porte si loin. Les refus sont engendrés avec les succès, pour que leurs libellés soient ceux
+des lectures ; la conception d'EP-15 les disait écrits à la main. La part « fusion » de #788 — le
+refus de l'horizon et du cycle par `mergeCostStructure` et son compte rendu — reste à EP-16.
+
+**Le suivi temps/temps d'une tâche qui n'est pas un jalon n'a pas encore d'exemple.** La conception
+nomme `node_tracking_milestone_refused`, un 422, sans dire le code ni le pointeur, que le catalogue
+n'a pas : ce lot ne l'invente pas, et le refus reste à trancher avant le lot d'écran qui le
+dit.
 
 ## Collage et annulation
 

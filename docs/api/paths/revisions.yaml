@@ -685,7 +685,10 @@
       (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type
       provision n'est créée que par la déclaration d'un risque : sa création à la main est
       refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif
-      `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010).
+      `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010). Une tâche créée dont la durée ou
+      les dates porteraient la durée du projet au-delà de quinze ans est refusée par 422
+      `PROJECT_HORIZON_EXCEEDED`, `params.task` la nommant par le libellé envoyé, son nœud nul
+      (WF-PLA-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -703,6 +706,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              created: { $ref: ../../../fixtures/api/node_created.json }
+              created_child: { $ref: ../../../fixtures/api/node_created_child.json }
+              line_created: { $ref: ../../../fixtures/api/estimate_line_created.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -716,13 +723,16 @@
           (`/position`) ou un délai de paiement (`/estimate_line/payment_delay_days`) négatifs
           (`VALUE_OUT_OF_RANGE`, `params.minimum` à `0`), un champ que la ligne n'accepte pas
           (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s) ; ou une ligne qui laisserait sa
-          tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010).
+          tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans
+          `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans
+          (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               provision_refused: { $ref: ../../../fixtures/api/estimate_line_provision_refused.json }
               out_of_range: { $ref: ../../../fixtures/api/node_create_out_of_range.json }
+              horizon_exceeded: { $ref: ../../../fixtures/api/node_create_horizon_exceeded.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
@@ -731,8 +741,9 @@
     tags: [revisions]
     summary: Supprimer un nœud
     description: >-
-      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090).
-      Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une
+      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090) ;
+      celle d'une récapitulative emporte aussi ses subordonnées, leurs lignes et leurs liaisons,
+      et le devis diminue d'autant (Vérif de WF-PLA-0070). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une
       récapitulative qui perd sa dernière subordonnée garde son rattachement au lotissement
       (WF-PLA-0170). Une écriture de grille comme les autres : elle rend ses ancêtres
       recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour
@@ -754,6 +765,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               deleted: { $ref: ../../../fixtures/api/node_deleted.json }
+              summary_deleted: { $ref: ../../../fixtures/api/node_summary_deleted.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -821,7 +833,8 @@
       récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle
       (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps
       écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser
-      quinze ans (WF-PLA-0150). Le rattachement à un lot ou à un poste du lotissement se pose,
+      quinze ans (WF-PLA-0150) : une durée, des dates ou un mode qui l'y porteraient sont refusés
+      par 422 `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche. Le rattachement à un lot ou à un poste du lotissement se pose,
       se change et se retire ici, sur une tâche récapitulative, feuille ou jalon, aux règles
       de `TaskFacetUpdate` (WF-PLA-0170). Seul le compteur lu est exigé : seul ce qui est
       envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
@@ -849,6 +862,10 @@
               renamed: { $ref: ../../../fixtures/api/task_renamed.json }
               lengthened: { $ref: ../../../fixtures/api/volume/task_lengthened.json }
               attached: { $ref: ../../../fixtures/api/task_attached.json }
+              mode_changed: { $ref: ../../../fixtures/api/task_mode_changed.json }
+              dates_entered: { $ref: ../../../fixtures/api/task_dates_entered.json }
+              duration_entered: { $ref: ../../../fixtures/api/task_duration_entered.json }
+              description_entered: { $ref: ../../../fixtures/api/task_description_entered.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -858,15 +875,22 @@
       '422':
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
-          calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé —
+          calculée — une date d'une tâche en mode automatique, sans paramètre, la grille lisant ce
+          dont elle dépend (`getComputedValueDependencies`) — (`COMPUTED_VALUE`, WF-PLA-0020,
+          WF-IHM-0030), ou un rattachement au lotissement refusé —
           tâche hors de la structure principale, lot ou poste inconnu, lot et poste ensemble,
           lot ou poste déjà porté par une autre tâche, nommée par son nœud et son libellé, tâche
           d'un poste sortie du sous-arbre de la tâche de son lot, les tâches du lot et des postes
-          nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`).
+          nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`). Ou, sans
+          `fields`, une saisie qui porterait la durée du projet au-delà de quinze ans :
+          `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé
+          (WF-PLA-0150).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
+              date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
+              horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
               attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_work_package.json }
               attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }
@@ -953,8 +977,10 @@
     description: >-
       Les quatre types de liaison, avec un décalage positif ou négatif dans l'unité de sa
       saisie — temps de travail, temps écoulé ou pourcentage de la durée du prédécesseur
-      (WF-PLA-0030, WF-PLA-0160). Une liaison entre une récapitulative et l'une de ses
-      subordonnées est refusée (WF-PLA-0040).
+      (WF-PLA-0030, WF-PLA-0160). Des prédécesseurs qui fermeraient une boucle de liaisons sont
+      refusés, comme une liaison entre une récapitulative et l'une de ses subordonnées
+      (WF-PLA-0030, WF-PLA-0040), et des liaisons qui porteraient la durée du projet au-delà de
+      quinze ans (WF-PLA-0150) : 422, rien n'est écrit.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -976,17 +1002,31 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               set: { $ref: ../../../fixtures/api/predecessor_set.json }
+              entered: { $ref: ../../../fixtures/api/predecessors_entered.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409':
-        description: Cycle de liaisons, ou liaison interdite (WF-PLA-0030, WF-PLA-0040).
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Liaisons refusées, rien n'est écrit : une boucle de liaisons, `LINK_CYCLE`,
+          `params.cycle` nommant ses tâches par leur nœud et leur libellé, dans l'ordre des
+          liaisons, de la tâche saisie au prédécesseur envoyé qui la suit déjà (WF-PLA-0030) ; une
+          liaison entre une récapitulative et l'une de ses subordonnées, `LINK_FORBIDDEN`, sans
+          paramètre (WF-PLA-0040) ; ou des liaisons qui porteraient la durée du projet au-delà de
+          quinze ans, `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche saisie
+          (WF-PLA-0150) ; ou une valeur hors règle, `fields` la localisant, comme la réponse
+          commune `UnprocessableEntity` le dit. Le code nomme la raison, que la colonne des
+          prédécesseurs dit à sa cellule.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+            examples:
+              cycle_refused: { $ref: ../../../fixtures/api/predecessors_cycle_refused.json }
+              forbidden: { $ref: ../../../fixtures/api/predecessors_forbidden.json }
+              horizon_exceeded: { $ref: ../../../fixtures/api/predecessors_horizon_exceeded.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress:
@@ -1106,6 +1146,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              tracked: { $ref: ../../../fixtures/api/node_tracked.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1127,7 +1169,15 @@
       rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated`
       (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
       rattachement au lotissement ; un déplacement qui sortirait la tâche d'un poste du
-      sous-arbre de la tâche de son lot est refusé (WF-PLA-0170, `NodeMove`).
+      sous-arbre de la tâche de son lot est refusé (WF-PLA-0170, `NodeMove`), comme un
+      déplacement qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). La
+      récapitulative qui reçoit un nœud le couvre, avec ses ancêtres : ce qui la précède le
+      précède, ce qui la suit le suit (WF-PLA-0040). Un déplacement ou une mise en retrait qui
+      relierait ainsi une récapitulative à l'une de ses subordonnées — mettre en retrait une
+      tâche sous celle au-dessus d'elle, qui est son prédécesseur — est refusé par 422
+      `LINK_FORBIDDEN` ; un déplacement qui fermerait une boucle de liaisons à travers elle, par
+      422 `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030) ; rien
+      n'est écrit.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1141,10 +1191,14 @@
       '200':
         description: >-
           Nœuds déplacés ; leurs anciens et nouveaux ancêtres recalculés, et les totaux
-          (`NodesWritten`).
+          (`NodesWritten`). Une mise en retrait est un déplacement sous la tâche au-dessus, à son
+          niveau (`nodes_indented`).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              moved: { $ref: ../../../fixtures/api/nodes_moved.json }
+              indented: { $ref: ../../../fixtures/api/nodes_indented.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1163,13 +1217,23 @@
           heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
           `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
           (WF-PLA-0010). Ou une position négative : `fields` sur `/position`,
-          `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`.
+          `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`. Ou, sans `fields`, un déplacement qui, en
+          changeant le calendrier d'une tâche, porterait la durée du projet au-delà de quinze ans :
+          `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit
+          la ligne déplacée (WF-PLA-0150). Ou, sans `fields`, un déplacement ou une mise en
+          retrait qui relierait la récapitulative qui reçoit le nœud, ou l'un de ses ancêtres, au
+          nœud ou à l'une de ses subordonnées : `LINK_FORBIDDEN`, sans paramètre (WF-PLA-0030,
+          WF-PLA-0040) ; ou qui fermerait une boucle de liaisons à travers elle : `LINK_CYCLE`,
+          `params.cycle` nommant les tâches de la boucle par leur nœud et leur libellé, dans
+          l'ordre des liaisons (WF-PLA-0030) — la grille, filtrée, peut ne pas les lire.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               position_out_of_range: { $ref: ../../../fixtures/api/nodes_move_position_out_of_range.json }
               outside_work_package: { $ref: ../../../fixtures/api/nodes_move_outside_work_package.json }
+              indent_forbidden: { $ref: ../../../fixtures/api/nodes_indent_forbidden.json }
+              cycle_refused: { $ref: ../../../fixtures/api/nodes_move_cycle_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:

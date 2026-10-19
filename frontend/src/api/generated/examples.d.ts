@@ -6,7 +6,7 @@
  */
 export interface Examples {
   "DELETE /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}": {
-    200: "node_deleted";
+    200: "node_deleted" | "node_summary_deleted";
   };
   "GET /access-roles": {
     200: "access_roles" | "access_roles_by_updated_by" | "access_roles_composed" | "access_roles_unheld" | "access_roles_updated_by_anonymized" | "access_roles_updated_by_deactivated";
@@ -237,7 +237,7 @@ export interface Examples {
     200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
-    200: "task_attached" | "task_renamed" | "volume/task_lengthened";
+    200: "task_attached" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
   };
   "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
     200: "subproject_updated";
@@ -305,6 +305,12 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/skeleton": {
     201: "skeleton_generated";
   };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
+    201: "estimate_line_created" | "node_created" | "node_created_child";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move": {
+    200: "nodes_indented" | "nodes_moved";
+  };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
     200: "paste_applied" | "paste_applied_partial";
   };
@@ -357,10 +363,13 @@ export interface Examples {
     200: "contributors_set";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
-    200: "predecessor_set";
+    200: "predecessor_set" | "predecessors_entered";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining": {
     200: "remaining_reestimated";
+  };
+  "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking": {
+    200: "node_tracked";
   };
   "PUT /projects/{project_id}/work-breakdown": {
     200: "work_breakdown_saved";
