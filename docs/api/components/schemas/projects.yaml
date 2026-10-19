@@ -208,7 +208,8 @@ CommandCondition:
     la structure principale (`StructureCommand.edit_estimate`) dès En cours, la grille de devis
     restant lisible, et `project_in_progress` à celle de son reste à engager
     (`StructureCommand.edit_remaining`) hors de l'état En cours, avant lui comme dans un état
-    terminal : en chiffrage le devis, en réalisation le reste à engager (WF-DEV-0050, WF-RAE-0040 ; C-358).
+    terminal : en chiffrage le devis, en réalisation le reste à engager (WF-DEV-0050, WF-RAE-0040 ;
+    C-358).
     Trois tiennent à un sous-projet, et le sous-projet les nomme
     (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression
     d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les

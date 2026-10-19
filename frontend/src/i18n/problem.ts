@@ -13,9 +13,9 @@
  * their labels and codes, the projects a calendar would leave a task without hours in (`projects`)
  * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the task of a
  * lot and those of its posts a write would move out of its subtree (`work_package_task`,
- * `order_item_tasks`, WF-PLA-0170) by their labels, the sub-project a line of a started task does
- * not leave (`subproject`, WF-PRJ-0050) by its label, the lines
- * and the projects beyond a few counted, the notice listing them; a state without its enumeration,
+ * `order_item_tasks`, WF-PLA-0170) by their labels, the lines and the projects beyond a few
+ * counted, the notice listing them, the sub-project a line of a started task does not leave
+ * (`subproject`, WF-PRJ-0050) by its label; a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
  * working hour (`resource_role_ids`): the calendar of its one role, which has no hour, or those of

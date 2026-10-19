@@ -243,6 +243,7 @@ describe("the sentence of a refusal", () => {
         "does not leave: “Poste de commande”.",
     );
     // The refusal of the field, said at the field, by its own code and the same sub-project.
+    expect(refused.fields?.[0]?.params).toBeDefined();
     const params = refused.fields?.[0]?.params ?? {};
     expect(say({ code: "SUBPROJECT_HAS_ACTUAL_COSTS", params }, "fr")).toBe(
       "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le " +

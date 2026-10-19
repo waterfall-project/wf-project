@@ -312,14 +312,13 @@ StructureCommand:
     Sur la structure principale, en chiffrage le devis, en réalisation le reste à engager :
     `edit_estimate` est indisponible dès que le projet a atteint En cours, ou un état terminal,
     `project_before_in_progress` manquante — la grille de devis reste lisible, en lecture seule
-    (WF-DEV-0050) — ; `edit_remaining` est indisponible hors de l'état En cours,
-    avant lui comme dans un état terminal, `project_in_progress` manquante (WF-RAE-0040). `edit_planning` n'a pas
-    de condition de phase : le planning se travaille en chiffrage avec le devis, en réalisation
-    avec le reste à engager. Sur un différentiel et sur le devis propre d'un risque,
-    `edit_planning` et `edit_estimate` n'ont pas de condition de phase — un avenant et un risque
-    se chiffrent quel que soit l'état du projet (WF-DEV-0050, WF-REV-0100, WF-RIS-0030) — et
-    `edit_remaining` n'est jamais listée : seule la structure principale a un reste à engager
-    (WF-RAE-0040).
+    (WF-DEV-0050) — ; `edit_remaining` est indisponible hors de l'état En cours, avant lui comme
+    dans un état terminal, `project_in_progress` manquante (WF-RAE-0040). `edit_planning` n'a pas de
+    condition de phase : le planning se travaille en chiffrage avec le devis, en réalisation avec le
+    reste à engager. Sur un différentiel et sur le devis propre d'un risque, `edit_planning` et
+    `edit_estimate` n'ont pas de condition de phase — un avenant et un risque se chiffrent quel que
+    soit l'état du projet (WF-DEV-0050, WF-REV-0100, WF-RIS-0030) — et `edit_remaining` n'est jamais
+    listée : seule la structure principale a un reste à engager (WF-RAE-0040).
 
     La condition de phase vient d'abord, propre à la commande ; puis les conditions d'état de la
     révision, telles que la commande de même nom de la révision les nomme — `revision_draft` sur
