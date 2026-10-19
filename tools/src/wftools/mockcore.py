@@ -42,6 +42,7 @@ from wftools.mockcalendar import (
     follow,
     to_hours,
 )
+from wftools.mocklinks import refuse_through_summaries
 from wftools.mockstructure import (
     LABOUR_RATES,
     JsonObject,
@@ -60,6 +61,7 @@ from wftools.mockstructure import (
 from wftools.mockwitness import (
     CORE,
     INSCRIBED,
+    MILESTONE_TRACKING,
     STUDIES_STARTED,
     TODAY,
     TRACKED,
@@ -122,7 +124,7 @@ class Dated:
     @property
     def hours(self) -> Decimal:
         """Return the duration of the task in hours of work (WF-PLA-0160)."""
-        return to_hours(self.task.days, "d")
+        return to_hours(self.task.days, self.task.unit)
 
     @property
     def total_float(self) -> Decimal | None:
@@ -154,7 +156,9 @@ def schedule(roots: Iterable[Task] = CORE) -> Mapping[int, Dated]:
     (WF-PLA-0040). The tasks are dated in the order of their links, each after its
     predecessors, whatever their order in the plan. Backward: a task may finish as late as its
     successors allow, at the finish of the core without any. A structure is dated once: the
-    readings of the indicators and of the curves date it again and again.
+    readings of the indicators and of the curves date it again and again. A structure whose
+    links close a loop, or bind a summary to one of its subordinates, is not dated: the server
+    refuses it (``in_link_order``, ``wftools.mocklinks``).
     """
     return _schedule(tuple(roots))
 
@@ -165,6 +169,7 @@ def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
     origin = Instant(STUDIES_STARTED.on)
     tasks = tasks_in_order(roots)
     linked = in_link_order(tasks)
+    refuse_through_summaries(tasks)
     dated: dict[int, Dated] = {}
     for task in linked:
         if task.children:
@@ -188,7 +193,7 @@ def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
             )
             for link in task.links
         ]
-        start, finish = follow(calendar, predecessors, to_hours(task.days, "d"), origin)
+        start, finish = follow(calendar, predecessors, to_hours(task.days, task.unit), origin)
         dated[task.number] = Dated(task, calendar, start, finish)
     for task in reversed(tasks):
         if task.children:
@@ -515,11 +520,14 @@ class _Emitter:
         """Return the facet of a task: its mode, its dates, its progress, its float."""
         task = placed.task
         state = progress_at(self.dated, task.number, self.today)
-        duration = placed.calendar.work_between(placed.start, placed.finish) / HOURS_PER_DAY
+        # The duration in the unit it was entered in, as kept (WF-PLA-0160).
+        work = placed.calendar.work_between(placed.start, placed.finish)
+        duration = work / to_hours(1, task.unit)
         facet: JsonObject = {
             "label": task.label,
+            **({} if task.description is None else {"description": task.description}),
             "scheduling_mode": "automatic" if task.manual is None else "manual",
-            "duration": {"value": decimal(duration), "unit": "d"},
+            "duration": {"value": decimal(duration), "unit": task.unit},
             "start": _instant(placed.start),
             "finish": _instant(placed.finish),
             "progress": state,
@@ -540,7 +548,7 @@ class _Emitter:
             facet["order_item_id"] = None if lot else task.bears.identifier
             facet["work_package_id"] = task.bears.identifier if lot else None
             facet["work_breakdown_label"] = task.bears.label
-        tracking = _tracking(task.number)
+        tracking = _tracking(task)
         if tracking:
             facet["tracking"] = tracking
         if not task.children:
@@ -611,12 +619,22 @@ class _Emitter:
         }
 
 
-def _tracking(number: int) -> list[JsonValue]:
-    """Return the inscriptions of a task: to its timelines, and to the time/time tracking."""
+def _tracking(task: Task) -> list[JsonValue]:
+    """Return the inscriptions of a task: to its timelines, and to the time/time tracking.
+
+    Those a write gave it, or else those of the witness (``INSCRIBED``, ``TRACKED``).
+    """
+    if task.inscriptions is not None:
+        return [
+            {"kind": MILESTONE_TRACKING, "timeline_id": None}
+            if entry == MILESTONE_TRACKING
+            else {"kind": "timeline", "timeline_id": entry}
+            for entry in task.inscriptions
+        ]
     entries: list[JsonValue] = [
-        {"kind": "timeline", "timeline_id": timeline} for timeline in INSCRIBED.get(number, ())
+        {"kind": "timeline", "timeline_id": timeline} for timeline in INSCRIBED.get(task.number, ())
     ]
-    if number in TRACKED:
+    if task.number in TRACKED:
         entries.append({"kind": "milestone_tracking", "timeline_id": None})
     return entries
 

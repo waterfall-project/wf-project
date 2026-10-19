@@ -1,0 +1,9 @@
+{
+  "summary": "Le « Montage des armoires sur site » donné à suivre sa propre récapitulative, « Installation sur site » : une liaison entre une récapitulative et l'une de ses subordonnées est refusée, le code en disant la raison ; rien n'est écrit (WF-PLA-0030, WF-PLA-0040).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "LINK_FORBIDDEN",
+    "status": 422,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001172"
+  }
+}

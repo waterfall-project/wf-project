@@ -43,7 +43,9 @@ readings of the readable core of the witness, described once in ``wftools.mockwi
 dated in ``wftools.mockcore``, so that every example names each node by one identifier, one
 lineage and one figure (EP-02/L21, #287); and the answers of the writes of the grids, made on
 that core or on the structure of a thousand tasks, written beside them by ``wftools.mockwrites``
-(EP-02/L22).
+(EP-02/L22), and those of the gestures of the structure and of the entries of a task, by
+``wftools.mockgestures`` (EP-15/US-0460), and the refusals of a paste and of an import, by
+``wftools.mockexchanges`` (EP-15/US-0460).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -71,6 +73,8 @@ from wftools import (
     mockaudit,
     mockcore,
     mockcosts,
+    mockexchanges,
+    mockgestures,
     mockhistory,
     mockids,
     mocklists,
@@ -329,6 +333,8 @@ def named() -> dict[str, JsonObject]:
     return {
         **readings(),
         **mockwrites.writes(),
+        **mockgestures.examples(),
+        **mockexchanges.examples(),
         **mockhistory.examples(),
         **mocktoday.examples(),
         **mockcosts.examples(),

@@ -202,7 +202,29 @@ Problem:
         (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la
         durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche
         en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que
-        le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans
+        le fichier ou le différentiel crée — et, pour une saisie qui déplace une date
+        (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460), la
+        tâche que la saisie écrit : celle dont la durée, les dates ou les prédécesseurs se
+        saisissent, celle que la création ajouterait, nommée par le libellé envoyé et son nœud nul,
+        la tâche déplacée ou celle qui reçoit la ligne déplacée ; `cycle` pour des prédécesseurs
+        qui fermeraient une boucle de liaisons (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030) : les
+        tâches de la boucle, chacune par son nœud et son libellé (`node_id`, `label`), de celle
+        dont les prédécesseurs se saisissent au prédécesseur envoyé qui la suit déjà, chacune
+        précédant la suivante — « la raison en est nommée à l'utilisateur », la grille, filtrée,
+        pouvant ne pas les lire ; quand plusieurs prédécesseurs envoyés ferment une boucle, la
+        plus courte est rendue, puis, à longueur égale, la première dans l'ordre des liaisons, et
+        une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche ; et
+        pour un déplacement ou une mise en retrait qui fermerait une boucle à travers la
+        récapitulative qui recevrait le nœud (`moveNodes`, WF-PLA-0030, WF-PLA-0040 ; #1164,
+        #1167) — une récapitulative couvre ses subordonnées : ce qui la précède les
+        précède, ce qui la suit les suit —, les tâches de la chaîne de liaisons qui mène de cette
+        récapitulative, ou de l'un de ses ancêtres, à la tâche qu'elle recevrait ou à l'une de
+        ses subordonnées, ou de celles-ci à celle-là, chacune précédant la suivante : la plus
+        courte, puis, à longueur égale, celle qui part de l'ancêtre le plus proche, puis de la
+        tâche reçue et de ses subordonnées dans l'ordre du plan. Une chaîne d'une seule liaison
+        est la liaison d'une récapitulative et de sa subordonnée : `LINK_FORBIDDEN`, sans
+        paramètre.
+        Les paramètres d'un motif par champ sont dans
         `fields[].params` : ainsi `conflicting_object_id` et
         `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou
         le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
@@ -218,7 +240,9 @@ Problem:
         WF-RAE-0040) ; `subproject`, dans `fields[].params`, le sous-projet qu'une ligne d'une
         tâche démarrée ou terminée ne peut pas quitter, parce qu'il a reçu des coûts réels, par
         son identifiant et son libellé (`subproject_id`, `label` ; `SUBPROJECT_HAS_ACTUAL_COSTS`,
-        WF-PRJ-0050) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
+        WF-PRJ-0050), et le même paramètre au motif d'une cellule de sous-projet collée
+        (`PasteRejection.params`) ou d'une ligne d'import rejetée (`ImportRejection.params`,
+        WF-INTF-0100, WF-INTF-0120) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
         (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de
@@ -324,6 +348,12 @@ ErrorCode:
     - VALIDATION_FAILED
     - COMPUTED_VALUE
     - SUMMARY_TASK_DERIVED
+    # Des prédécesseurs qui fermeraient une boucle de liaisons, `params.cycle` nommant ses
+    # tâches, ou une liaison entre une récapitulative et l'une de ses subordonnées, sans
+    # paramètre (`setPredecessors`, WF-PLA-0030, WF-PLA-0040 ; EP-15/US-0460) ; de même un
+    # déplacement ou une mise en retrait qui ferait d'une tâche la récapitulative d'une tâche
+    # qui lui est liée, ou fermerait une boucle à travers elle (`moveNodes` ; #1164). Une
+    # création ne porte aucune liaison : `createNode` ne rend ni l'un ni l'autre (#1167).
     - LINK_CYCLE
     - LINK_FORBIDDEN
     - RESOURCE_ROLE_REQUIRED
@@ -438,17 +468,22 @@ ErrorCode:
     # Un planning qui porterait la durée du projet, de la date de début de sa première tâche à la
     # date de fin de sa dernière, au-delà de quinze ans ; le motif qui rejette entier un fichier
     # d'import, `params.task` nommant la tâche en cause (`ImportReport.refusals`, WF-PLA-0150 ;
-    # EP-14/L42s).
+    # EP-14/L42s), et le refus, par 422, d'une saisie qui déplace une date (`updateTaskFacet`,
+    # `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460).
     - PROJECT_HORIZON_EXCEEDED
     # Un champ que le nœud n'accepte pas, ni saisi ni calculé pour lui (`editable_fields`) : le
     # délai de paiement d'une ligne de provision, qui n'en porte pas (WF-DEV-0020), un champ
     # d'une autre nature de ligne (`EstimateLineWrite`, `EstimateLineUpdate`), la durée d'un
     # jalon (`TaskFacetUpdate`), et le motif d'une cellule collée sur une telle colonne
-    # (`PastePreview` ; EP-14/L42s).
+    # (`PastePreview` ; EP-14/L42s), sauf le sous-projet d'une ligne qui ne peut pas le quitter,
+    # refusé par `SUBPROJECT_HAS_ACTUAL_COSTS`.
     - FIELD_NOT_ACCEPTED
     # Une ligne dont la tâche est démarrée ou terminée, passée hors d'un sous-projet qui a reçu
     # des coûts réels (`/subproject_id`, `updateEstimateLine`, WF-PRJ-0050) ;
-    # `fields[].params.subproject` nomme ce sous-projet.
+    # `fields[].params.subproject` nomme ce sous-projet. Aussi le motif d'une cellule de
+    # sous-projet collée sur une telle ligne (`PasteRejection`) et d'une ligne d'un devis ou
+    # d'un reste à engager importée dans un autre sous-projet (`ImportRejection`, WF-INTF-0100,
+    # WF-INTF-0120 ; C-359, #1152), `params.subproject` nommant le sous-projet.
     - SUBPROJECT_HAS_ACTUAL_COSTS
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).

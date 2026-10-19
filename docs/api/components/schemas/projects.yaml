@@ -209,7 +209,8 @@ CommandCondition:
     restant lisible, et `project_in_progress` à celle de son reste à engager
     (`StructureCommand.edit_remaining`) hors de l'état En cours, avant lui comme dans un état
     terminal : en chiffrage le devis, en réalisation le reste à engager (WF-DEV-0050, WF-RAE-0040 ;
-    C-358).
+    C-358). `project_before_in_progress` manque de même à l'import d'un devis sur la structure
+    principale, que `openImport` et `applyImport` nomment dans leur 409 (WF-INTF-0100 ; C-358).
     Trois tiennent à un sous-projet, et le sous-projet les nomme
     (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression
     d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les
@@ -321,6 +322,10 @@ ProjectCommand:
     gardée par sa permission —, que l'import applique à la révision en cours et crée au
     besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de
     révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer.
+    `import_estimate` reste disponible sur un projet En cours, l'import du devis restant ouvert
+    sur une structure différentielle et sur le devis propre d'un risque ; sur la structure
+    principale, il est refusé (`openImport`), ce que sa commande `edit_estimate` dit d'avance
+    (`StructureCommand`, WF-INTF-0100 ; C-358).
     La saisie des risques est une commande de la révision (`RevisionCommand.edit_risks`,
     WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet
     porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions

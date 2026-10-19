@@ -1,0 +1,10 @@
+{
+  "summary": "L'import d'un devis demandé aujourd'hui sur la structure principale du projet témoin, En cours : refusé, la condition manquante nommée — un projet qui n'a pas atteint En cours —, comme la principale la nomme à la saisie de son devis (StructureCommand.edit_estimate) ; rien n'est analysé. Il reste ouvert sur un différentiel et sur le devis propre d'un risque (WF-INTF-0100).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"project_before_in_progress"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001175"
+  }
+}
