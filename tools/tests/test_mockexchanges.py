@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of the refusals of a paste and of an import (EP-15/US-0460/L2, #1152, #1153).
+"""Tests of the refusals of a paste and of an import (EP-15/US-0460/L2b, #1152, #1153).
 
 As those of the other writes of the grids, they try the simplifications of the fake back against
 the readings of the witness, not the Vérif of a requirement: none cites one (WF-QUA-0010, « un
@@ -78,28 +78,32 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
     assert set(examples) <= set(mockdata.named())
 
 
-def test_a_line_held_by_its_subproject_refuses_another_and_none_but_not_its_own(
+def test_a_line_held_by_its_subproject_refuses_another_but_not_its_own(
     read: dict[int, Node],
 ) -> None:
-    # The labour of the wiring, started, borne by the control station, charged: held.
+    # The labour of the wiring, started, borne by the control station, charged: held, and the
+    # grid reads it so, the line not taking its subproject.
     labour = node(read, N.LABOUR)
     assert node(read, N.WIRING)["task"]["progress"] == "started"
     assert _charged(labour["estimate_line"]["subproject_id"])
-    assert mockexchanges.is_held(labour)
-    for other in (SUBPROJECT_TESTS, None):
-        assert mockexchanges.held_refusal(labour, other) == {
-            "code": "SUBPROJECT_HAS_ACTUAL_COSTS",
-            "params": _named(labour),
-        }
-    assert mockexchanges.held_refusal(labour, SUBPROJECT_CONTROL) is None
+    assert mockexchanges.is_held(read, labour)
+    assert "estimate_line.subproject_id" not in labour["editable_fields"]
+    refused = {"code": "SUBPROJECT_HAS_ACTUAL_COSTS", "params": _named(labour)}
+    for pasted in (True, False):
+        assert mockexchanges.held_refusal(read, labour, SUBPROJECT_TESTS, pasted=pasted) == refused
+        assert mockexchanges.held_refusal(read, labour, SUBPROJECT_CONTROL, pasted=pasted) is None
+    # None: an empty cell pasted writes nothing; one imported would leave the subproject.
+    assert mockexchanges.held_refusal(read, labour, None, pasted=True) is None
+    assert mockexchanges.held_refusal(read, labour, None, pasted=False) == refused
     # A line of a task not started takes any; a provision computes its own, refused otherwise.
     commissioning = node(read, N.COMMISSIONING_LINE)
     assert node(read, N.COMMISSIONING)["task"]["progress"] == "not_started"
-    assert not mockexchanges.is_held(commissioning)
-    assert mockexchanges.held_refusal(commissioning, SUBPROJECT_TESTS) is None
+    assert not mockexchanges.is_held(read, commissioning)
+    assert "estimate_line.subproject_id" in commissioning["editable_fields"]
+    assert mockexchanges.held_refusal(read, commissioning, SUBPROJECT_TESTS, pasted=False) is None
     provision = node(read, N.PROVISION)
-    assert not mockexchanges.is_held(provision)
-    assert mockexchanges.held_refusal(provision, SUBPROJECT_TESTS) is None
+    assert not mockexchanges.is_held(read, provision)
+    assert mockexchanges.held_refusal(read, provision, SUBPROJECT_TESTS, pasted=False) is None
 
 
 def test_a_subproject_pasted_on_a_held_line_is_refused_and_names_it(
@@ -111,7 +115,7 @@ def test_a_subproject_pasted_on_a_held_line_is_refused_and_names_it(
     labour = node(read, N.LABOUR)
     below = list(read.values())[ordered.index(labour["node_id"]) + 1]
     assert below["node_id"] == node(read, N.BLOCKS)["node_id"]
-    assert mockexchanges.is_held(below)
+    assert mockexchanges.is_held(read, below)
     assert below["estimate_line"]["subproject_id"] == mockexchanges.PASTED[1]
     assert plan["rejected"] == [
         {
@@ -122,6 +126,9 @@ def test_a_subproject_pasted_on_a_held_line_is_refused_and_names_it(
         }
     ]
     assert plan["accepted"] == 1
+    # An empty cell on the held labour writes nothing, and is not refused.
+    empty = _json(mockexchanges.paste_plan((None,)))
+    assert (empty["accepted"], empty["rejected"]) == (1, [])
 
 
 def test_a_line_in_the_tab_of_another_subproject_moves_unless_held(

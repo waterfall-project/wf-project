@@ -1608,10 +1608,11 @@ PasteRejection:
     cellule de la colonne `subproject` collée sur une ligne dont la tâche est démarrée ou terminée,
     et dont le sous-projet a reçu des coûts réels — une ligne qui ne nomme pas
     `estimate_line.subproject_id` dans `editable_fields` —, est refusée par
-    `SUBPROJECT_HAS_ACTUAL_COSTS` si elle nomme un autre sous-projet, ou aucun, `params.subproject`
+    `SUBPROJECT_HAS_ACTUAL_COSTS` si elle nomme un autre sous-projet, `params.subproject`
     nommant le sous-projet que la ligne ne peut pas quitter (`subproject_id`, `label`), comme
     `updateEstimateLine` ; une cellule qui nomme le sous-projet de la ligne ne la déplace pas, et
-    n'est pas refusée (WF-PRJ-0050 ; C-359, #1152).
+    n'est pas refusée, ni une cellule vide, qui n'écrit rien (`PastePreview`) (WF-PRJ-0050 ;
+    C-359, #1152).
   properties:
     row:
       type: integer

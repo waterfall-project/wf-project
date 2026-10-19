@@ -4,12 +4,13 @@
 
 A line whose task is started or completed does not leave a subproject charged with actual costs,
 a share of those costs being its own (WF-PRJ-0050, C-359): the line read does not name its
-subproject among the fields it accepts (``mockstructure.line_fields``), and a cell of a block
-pasted, or a line of a file imported, that would move it elsewhere is refused by the code the
-entry of the line gives, `SUBPROJECT_HAS_ACTUAL_COSTS`, which names that subproject (#1152). The
-import of the estimate is refused on the main structure of a project in progress, the condition
-named as the main structure names it (WF-INTF-0100, C-358, #1153). Each refusal is judged on the
-readings of the witness, as the server judges it, never written by hand.
+subproject among the fields it accepts (``mockstructure.line_fields``). Held is judged as the
+entry of the line judges it, on the state of its task and the actual costs of its subproject; a
+cell of a block pasted, or a line of a file imported, that would move it elsewhere is refused by
+the code the entry of the line gives, `SUBPROJECT_HAS_ACTUAL_COSTS`, which names that
+subproject (#1152). The import of the estimate is refused on the main structure of a project in
+progress, the condition named as the main structure names it (WF-INTF-0100, C-358, #1153). Each
+refusal is judged on the readings of the witness, as the server judges it, never written by hand.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from wftools import mockcore, mocktext
 from wftools.mockids import hex_identifier, universe
+from wftools.mockstructure import charged_subprojects
 from wftools.mockwitness import (
     SUBPROJECT_CONTROL,
     SUBPROJECT_TESTS,
@@ -33,33 +35,50 @@ if TYPE_CHECKING:
 
 type Node = dict[str, Any]
 
-SUBPROJECT_FIELD = "estimate_line.subproject_id"
-"""The field of a line that bears its subproject (`EditableField`)."""
-
 
 def read() -> dict[int, Node]:
     """Return the nodes of the structure of the witness read today, by their number."""
     return {row.number: row.node for row in mockcore.current()}
 
 
-def is_held(line: Node) -> bool:
-    """Whether a line is held by its subproject: it neither accepts it, nor computes it.
-
-    A provision computes its subproject from its risk, refused by `COMPUTED_VALUE` instead
-    (WF-RIS-0010); a line held by its subproject does not name it at all (WF-PRJ-0050, #1066).
-    """
-    return SUBPROJECT_FIELD not in line["editable_fields"] + line["computed_fields"]
+def task_of(nodes: dict[int, Node], line: Node) -> Node:
+    """Return the task that bears a line, its parent among the nodes read."""
+    [task] = [each for each in nodes.values() if each["node_id"] == line["parent_id"]]
+    return task
 
 
-def held_refusal(line: Node, subproject: str | None) -> JsonObject | None:
-    """Return the refusal of a subproject sent to a line, or None if the line takes it.
+def is_held(nodes: dict[int, Node], line: Node) -> bool:
+    """Whether a line is held by its subproject, as the entry of the line judges it.
 
-    A line held by its subproject refuses any other, and none: it names the subproject it may not
-    leave, by its identifier and its label, as `updateEstimateLine` does. Its own subproject sent
-    again moves nothing, and is not refused.
+    Its task is started or completed, and its subproject received actual costs
+    (`Subproject.has_actual_costs`, WF-PRJ-0050, #1066), as ``mockcore`` reads it to leave the
+    subproject out of the fields the line accepts. A provision computes its subproject from its
+    risk, refused by `COMPUTED_VALUE` instead (WF-RIS-0010): it is never held.
     """
     facet = line["estimate_line"]
-    if not is_held(line) or subproject == facet["subproject_id"]:
+    return (
+        not facet["is_computed"]
+        and task_of(nodes, line)["task"]["progress"] != "not_started"
+        and facet["subproject_id"] in charged_subprojects()
+    )
+
+
+def held_refusal(
+    nodes: dict[int, Node], line: Node, subproject: str | None, *, pasted: bool
+) -> JsonObject | None:
+    """Return the refusal of a subproject sent to a line, or None if the line takes it.
+
+    A line held by its subproject refuses any other: it names the subproject it may not leave, by
+    its identifier and its label, as `updateEstimateLine` does. Its own subproject sent again
+    moves nothing, and is not refused. None sent differs: an empty cell pasted writes nothing
+    (`PastePreview`), and is not refused; an empty cell of an estimate imported, like the tab
+    « Hors sous-projet » of a remaining to commit, would leave the line out of any subproject,
+    refused then (`ImportRejection`).
+    """
+    facet = line["estimate_line"]
+    if pasted and subproject is None:
+        return None
+    if not is_held(nodes, line) or subproject == facet["subproject_id"]:
         return None
     return {
         "code": "SUBPROJECT_HAS_ACTUAL_COSTS",
@@ -100,22 +119,27 @@ def pasted_lines(nodes: dict[int, Node], count: int) -> list[Node]:
     return ordered[first : first + count]
 
 
-def paste_plan_subproject_held() -> JsonObject:
-    """Return what previewPaste answers to a block of subprojects pasted on a line held by its own.
+def paste_plan(block: Sequence[str | None]) -> JsonObject:
+    """Return what previewPaste answers to a block of one column of subprojects, from PASTED_ON.
 
     A row whose subproject cell would move a held line elsewhere is refused, its column named and
     the subproject it may not leave with it; a row naming the line's own subproject moves nothing,
-    and is accepted (WF-IHM-0050, WF-PRJ-0050).
+    and is accepted, as is an empty cell, None, which writes nothing (WF-IHM-0050, WF-PRJ-0050).
     """
     nodes = read()
     rejected: list[JsonValue] = []
     for row, (line, subproject) in enumerate(
-        zip(pasted_lines(nodes, len(PASTED)), PASTED, strict=True)
+        zip(pasted_lines(nodes, len(block)), block, strict=True)
     ):
-        refusal = held_refusal(line, subproject)
+        refusal = held_refusal(nodes, line, subproject, pasted=True)
         if refusal is not None:
             rejected.append({"row": row, "column": "subproject", **refusal})
-    return {"paste_id": HELD_PASTE, "accepted": len(PASTED) - len(rejected), "rejected": rejected}
+    return {"paste_id": HELD_PASTE, "accepted": len(block) - len(rejected), "rejected": rejected}
+
+
+def paste_plan_subproject_held() -> JsonObject:
+    """Return what previewPaste answers to the block PASTED, on a line held by its own."""
+    return paste_plan(PASTED)
 
 
 # --- A remaining to commit imported, a line in the tab of another subproject -------------------
@@ -146,7 +170,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
     differences: list[JsonValue] = []
     for row, number in enumerate(IMPORTED, start=FIRST_ROW):
         line = nodes[number]
-        refusal = held_refusal(line, TAB)
+        refusal = held_refusal(nodes, line, TAB, pasted=False)
         if refusal is not None:
             rejected.append({"row": row, **refusal})
         elif line["estimate_line"]["subproject_id"] != TAB:

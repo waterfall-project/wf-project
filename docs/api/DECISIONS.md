@@ -6384,7 +6384,10 @@ lot prend la plus proche des refus existants, le code et les paramètres que la 
 saisie, comme `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` au collage et `TASK_WITHOUT_WORKING_HOURS` à
 l'import. Une cellule ou un onglet qui nomme le sous-projet de la ligne ne la déplace pas, et n'est
 pas refusé : un bloc ou un fichier repris d'un export porte les sous-projets tels qu'ils sont. Une
-ligne d'une tâche non démarrée change de sous-projet, et le compte rendu le présente comme un écart,
+cellule vide se lit autrement au collage et à l'import : collée, elle n'écrit rien, comme toute
+cellule vide (`PastePreview`), et n'est pas refusée ; importée dans la colonne d'un devis, elle
+laisserait la ligne hors sous-projet — ce qu'un reste à engager dit par son onglet « Hors
+sous-projet » —, et la ligne est rejetée. Une ligne d'une tâche non démarrée change de sous-projet, et le compte rendu le présente comme un écart,
 `fields` à `subproject`. Exemples engendrés (`wftools.mockexchanges`), jugés sur la lecture du
 témoin comme le serveur les juge : `paste_plan_subproject_held`, deux sous-projets collés depuis la
 main-d'œuvre du câblage, démarré — l'un refusé, l'autre, celui des borniers, le leur, accepté — ;
