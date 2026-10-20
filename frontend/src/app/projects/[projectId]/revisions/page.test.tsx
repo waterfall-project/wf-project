@@ -247,8 +247,8 @@ describe("the comparison of two revisions", () => {
       "Libellé Nature Essais préliminaires sur site Tâche Location du banc d'essais Ligne de devis",
     );
     // The four nodes of the core first, in the order of the API; then every line of labour drawn
-    // around it, re-estimated at the rates of 2026 (EP-14/L45a): one row per node the API gives,
-    // none left out by the front.
+    // around it, re-estimated at the rates of 2026 (EP-14/L45a): one row per node the API marks
+    // modified for what changes of it, none left out by the front.
     const changed = table(page, "Modifications");
     const core =
       "Libellé Nature Ce qui change Dossier de conception Tâche Dates Durée " +
@@ -256,7 +256,11 @@ describe("the comparison of two revisions", () => {
       "Câblage sur site Ligne de devis Montant réestimé " +
       "Mise en service sur site Ligne de devis Montant réestimé ";
     expect(changed.slice(0, core.length)).toBe(core);
-    expect(rows(page, "Modifications")).toBe(COMPARISON.changed.length);
+    expect(rows(page, "Modifications")).toBe(
+      COMPARISON.nodes.filter(
+        (node) => node.difference === "modified" && (node.changes ?? []).length > 0,
+      ).length,
+    );
     // The deviations as the API gives them, in its order, each named by the label it resolves
     // (#204), or as the catalogue names one without a label: no total the front would add up, no
     // identifier shown.

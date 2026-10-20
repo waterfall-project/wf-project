@@ -315,7 +315,7 @@ describe("the grid of the journal", () => {
   it("leads the import of an estimate applied to a revision to the exchanges of that revision, its report shown", () => {
     render(journal({ shown: applied }));
     expect(
-      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+      within(grid()).getByRole("link", { name: "devis-avenant-2-reprise-des-essais.xlsx" }),
     ).toHaveAttribute("href", `${CURRENT}/exchanges?import=01926f3a-7c00-7000-8000-000000000a11`);
   });
 
@@ -328,7 +328,7 @@ describe("the grid of the journal", () => {
       within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
     ).toHaveAttribute("href", CURRENT);
     expect(
-      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+      within(grid()).getByRole("link", { name: "devis-avenant-2-reprise-des-essais.xlsx" }),
     ).toHaveAttribute("href", CURRENT);
     expect(
       within(grid()).getByRole("link", { name: "Avenant 1 — extension du poste" }),
@@ -340,7 +340,7 @@ describe("the grid of the journal", () => {
     rerender(journal({ shown: applied, session: "me_auditor" }));
     for (const name of [
       "Retard de livraison des armoires",
-      "devis-poste-de-commande.xlsx",
+      "devis-avenant-2-reprise-des-essais.xlsx",
       "Avenant 1 — extension du poste",
       "Référence",
     ]) {
