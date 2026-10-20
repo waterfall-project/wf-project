@@ -69,7 +69,7 @@ export interface PlanningGridProps {
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
   /**
-   * Whether the revision may be planned (`edit_planning`): its grid places undo and redo, which
+   * Whether the main structure read lists `edit_planning` available (`GridScreen.commands`): its grid places undo and redo, which
    * act on the entries of the planning once EP-06 keeps them; none, and it places none.
    */
   readonly undoable?: boolean | undefined;

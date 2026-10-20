@@ -26,6 +26,9 @@ import { openHydrated, openMenu, WORKING } from "./hydration";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
+// The remaining to commit, which the session may enter on the project in progress, where the
+// estimate is read only (WF-DEV-0050, WF-RAE-0040).
+const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 
 /** The rows of the answer, and the header and totals around them. */
 const ROW_COUNT = "6002";
@@ -33,6 +36,11 @@ const ROW_COUNT = "6002";
 /** The grid of the estimate. */
 function grid(page: Page) {
   return page.getByRole("treegrid", { name: "Grille de devis" });
+}
+
+/** The grid of the remaining to commit. */
+function remainingGrid(page: Page) {
+  return page.getByRole("treegrid", { name: "Grille de reste à engager" });
 }
 
 /** The cell of the totals under the header of a column. */
@@ -298,25 +306,30 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
     request.headers()["next-action"] !== undefined &&
     (request.postData() ?? "").includes("revue") &&
     !(request.postData() ?? "").includes("lock_version");
-  await page.route(`**${GRID}*`, async (route) => {
+  await page.route(`**${REMAINING}*`, async (route) => {
     if (isRetotal(route.request())) {
       await new Promise((resolve) => setTimeout(resolve, HELD));
     }
     await route.continue().catch(() => undefined);
   });
-  await openHydrated(page, `${GRID}?search=revue`);
-  // The label of row 28, the first line drawn after the core, entered: the fake back answers its
-  // line. Past the rows in view as the grid opens: scrolled to first.
-  const label = (await scrollToPosition(grid(page), 28)).getByRole("gridcell").nth(1);
-  await label.click();
-  await page.keyboard.type("Heures de câblage");
+  await openHydrated(page, `${REMAINING}?search=revue`);
+  // The effort of row 10, a line of labour, re-estimated: the main structure of the project in
+  // progress lists the remaining to commit available, where it lists the estimate unavailable,
+  // and the fake back answers the write whatever is sent.
+  const remaining = remainingGrid(page);
+  const effort = await remaining
+    .getByRole("columnheader", { name: "Charge (h)", exact: true })
+    .evaluate((th) => (th instanceof HTMLTableCellElement ? th.cellIndex : -1));
+  const hours = rowAt(remaining, 10).getByRole("gridcell").nth(effort);
+  await hours.click();
+  await page.keyboard.type("9");
   const retotal = page.waitForRequest(isRetotal);
   await page.keyboard.press("Enter");
-  await expect(label).toHaveText("Heures de câblage");
   await retotal;
-  const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
+  await expect(hours.getByRole("textbox")).toHaveCount(0);
+  const header = remaining.getByRole("columnheader", { name: "Calculé Montant budgété" });
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?search=revue&sort_by=base_amount&sort_order=asc`, {
+  await expect(page).toHaveURL(`${REMAINING}?search=revue&sort_by=budgeted_amount&sort_order=asc`, {
     timeout: WORKING,
   });
   await expect(header).toHaveAttribute("aria-sort", "ascending");

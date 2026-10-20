@@ -8,8 +8,11 @@
  * date —; the indicators of the remaining to commit (`RemainingSummary`); and the grid on the
  * main structure of the revision, its tasks and their lines, asked and handed the fields it shows
  * alone (`grid-screen.ts`), the lines of the tasks started alone unless the address asks the tasks
- * not started too (`progress`), which a link of its head offers. The grid is entered from the keyboard, and places undo and
- * redo, when the revision lists `edit_remaining` available to the caller (US-0140). Its head leads
+ * not started too (`progress`), which a link of its head offers, and filtered by a lot or a post of
+ * the work breakdown read whole, above it, as the estimate's (WF-RAE-0040). The grid is entered from
+ * the keyboard, and places undo and redo, when the structure lists `edit_remaining` available
+ * to the caller (US-0140, WF-RAE-0040): before the project is in progress it lists it unavailable,
+ * and the grid is read only. Its head leads
  * to the Kanban of the start of the tasks, a leaf with a screen of its own (FBS-4.5.3), in the
  * same context, and, when the project lists the import of a remaining to commit, to the imports
  * and exports, where it is exercised (#521). Indicators the API does not find are said unavailable, the rest of the screen
@@ -24,7 +27,10 @@ import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
+import { breakdownChip } from "@/components/grid/breakdown-filter";
+import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
 import type { NodeTotals } from "@/components/grid/nodes";
+import { PendingAddress } from "@/components/grid/pending-address";
 import {
   REMAINING_FIELDS,
   REMAINING_GRID,
@@ -69,8 +75,15 @@ async function readIndicators({ revision }: GridAddress) {
   );
 }
 
-/** The filter of the screen its indicators do not take: the sub-project restricts the grid alone. */
-const RESTRICTS: Restrictions = { subproject_id: "grid" };
+/**
+ * The filters of the screen its indicators do not take: the sub-project, the lot and the post
+ * restrict the grid alone.
+ */
+const RESTRICTS: Restrictions = {
+  subproject_id: "grid",
+  work_package_id: "grid",
+  order_item_id: "grid",
+};
 
 /** The Kanban of the start of the tasks, a leaf of the remaining to commit (FBS-4.5.3). */
 const KANBAN = leafOf("FBS-4.5.3");
@@ -145,13 +158,24 @@ export default async function RemainingPage({
       sortable: REMAINING_SORT_COLUMNS,
       fields: REMAINING_FIELDS,
       progress: [...progress],
+      byBreakdown: true,
     }),
     readIndicators(at),
   ]);
   const notStarted = progress.includes("not_started");
+  const editable = screen.commands.has("edit_remaining");
   return (
     <>
-      <ContextBanner reading={screen.reading} restricts={RESTRICTS} />
+      <ContextBanner
+        reading={screen.reading}
+        restricts={RESTRICTS}
+        breakdown={breakdownChip(
+          screen.breakdownFilter,
+          screen.breakdown?.items,
+          at.pathname,
+          searchQuery(search),
+        )}
+      />
       <Screen density={FUNCTION_DENSITY.remaining} fill>
         <RemainingHeader
           label={screen.label}
@@ -164,14 +188,19 @@ export default async function RemainingPage({
           }
         />
         <RemainingSummary indicators={indicators} />
-        <RemainingGrid
-          nodes={screen.nodes}
-          structure={screen.structure}
-          filters={screen.filters}
-          editable={screen.reading.edits.has("edit_remaining")}
-          query={screen.query}
-          preferences={screen.preferences}
-        />
+        <PendingAddress>
+          {screen.breakdown === undefined ? null : (
+            <BreakdownFilterChoice choices={screen.breakdown} />
+          )}
+          <RemainingGrid
+            nodes={screen.nodes}
+            structure={screen.structure}
+            filters={screen.filters}
+            editable={editable}
+            query={screen.query}
+            preferences={screen.preferences}
+          />
+        </PendingAddress>
       </Screen>
     </>
   );

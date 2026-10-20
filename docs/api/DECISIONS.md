@@ -6290,6 +6290,15 @@ automatique, d'un jour, sans prédécesseur ; une ligne ajoutée après la réf�
 budgété nul. La phrase « une tâche ajoutée après la référence porte un montant budgété nul » devient
 celle d'une ligne : une tâche n'a de montant que la somme de ses lignes.
 
+**Un exemple ajouté par un lot de front, hors conception : `structures_estimator`** (US-0460/L3,
+#1094 ; WF-IHM-0090, WF-DEV-0050). Aucun exemple existant ne dit la structure d'un estimateur — il
+n'a ni `planning.write` ni `remaining.write`, si bien que la principale ne liste que
+`edit_estimate`, disponible. L'exemple se lit sur la révision `revision_without_tasks` et sa
+structure principale, d'un projet qui n'est pas En cours, où le devis se saisit, comme
+`structures_without_tasks` ; il ne porte pas ceux du témoin, dont le projet est En cours. Il sert
+aux tests de l'écran de devis : l'estimateur y saisit les lignes, non le libellé d'une tâche, qui
+est au planning.
+
 ## Les gestes de structure et la saisie des tâches (EP-15/US-0460, US-0470, US-0480)
 
 **Chaque geste de structure et chaque saisie d'une tâche a son exemple de succès** (K3 de la

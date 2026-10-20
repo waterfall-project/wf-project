@@ -330,6 +330,7 @@
               witness: { $ref: ../../../fixtures/api/structures.json }
               amendments: { $ref: ../../../fixtures/api/structures_amendments.json }
               without_tasks: { $ref: ../../../fixtures/api/structures_without_tasks.json }
+              estimator: { $ref: ../../../fixtures/api/structures_estimator.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
