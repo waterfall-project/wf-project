@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What of the shell frames the page the browser shows: the side bar, the bar above the page and
- * the panel of the background tasks. The page keeps its place in the tree. A navigation waits for
+ * the panel of the tasks and the messages, with the line under the bar that says the last task
+ * handed over or ended. The page keeps its place in the tree. A navigation waits for
  * the writes under way, and does not take place when one is refused (`useNavigationHold`).
  */
 "use client";

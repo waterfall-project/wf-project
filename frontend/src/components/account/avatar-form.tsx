@@ -118,7 +118,7 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
           setOutcome(undefined);
         }}
       />
-      <DoneNotice title={done === undefined ? undefined : t(done)} />
+      <DoneNotice title={done === undefined ? undefined : t(done)} of={outcome} />
       <div className="flex flex-wrap gap-2">
         <Button type="submit" aria-disabled={blocked} className={WAITING}>
           <Upload aria-hidden="true" />

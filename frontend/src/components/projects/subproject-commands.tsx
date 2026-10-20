@@ -62,6 +62,7 @@ import { UnmetConditions } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";
@@ -110,8 +111,7 @@ interface Commands {
    */
   readonly estimate: (subproject: string) => string | undefined;
   readonly opened: Opened | undefined;
-  readonly said:
-    { readonly text: string; readonly count: number; readonly lead: Lead | undefined } | undefined;
+  readonly said: Said<Lead> | undefined;
   readonly answers: ReadonlyMap<string, Subproject>;
   readonly deleted: ReadonlySet<string>;
   /** The sub-projects whose modification is under way: their command waits for the answer. */
@@ -121,7 +121,7 @@ interface Commands {
   readonly write: (id: string, writing: boolean) => void;
   readonly remove: (id: string) => void;
   /** Say a sentence in the region of the list, and the link that follows it, if any. */
-  readonly say: (text: string, lead?: Lead) => void;
+  readonly say: Say<Lead>;
   readonly open: (opened: Omit<Opened, "opening">) => void;
   /** Close what is open; given an opening, only if it is still the one open. */
   readonly close: (opening?: number) => void;
@@ -179,7 +179,7 @@ export function SubprojectCommands({
   const [opened, setOpened] = useState<Opened>();
   // How many times a form or a confirmation was opened: what tells an opening from the next.
   const openings = useRef(0);
-  const [said, setSaid] = useState<Commands["said"]>();
+  const [said, say] = useSaid<Lead>();
   const [answers, setAnswers] = useState<ReadonlyMap<string, Subproject>>(() => new Map());
   const [deleted, setDeleted] = useState<ReadonlySet<string>>(() => new Set());
   const [writing, setWriting] = useState<ReadonlySet<string>>(() => new Set());
@@ -218,9 +218,7 @@ export function SubprojectCommands({
                 return after;
               });
             },
-            say: (text, lead) => {
-              setSaid((before) => ({ text, count: (before?.count ?? 0) + 1, lead }));
-            },
+            say,
             open: (next) => {
               openings.current += 1;
               setOpened({ ...next, opening: openings.current });
@@ -231,7 +229,7 @@ export function SubprojectCommands({
               );
             },
           },
-    [project, estimated, opened, said, answers, deleted, writing],
+    [project, estimated, opened, said, say, answers, deleted, writing],
   );
   return <SubprojectContext value={commands}>{children}</SubprojectContext>;
 }
@@ -322,7 +320,7 @@ function UnavailableCommand({
       name={name}
       offer={offer}
       onPress={(unmet) => {
-        commands?.say(t("unavailable", { command: name, unmet }), lead);
+        commands?.say(t("unavailable", { command: name, unmet }), { lead, noted: false });
       }}
     >
       {children}
@@ -464,7 +462,7 @@ function DeleteConfirmation({
       const outcome = await held(deleteSubproject(commands.project, row.subproject_id));
       if (outcome.kind === "done") {
         commands.remove(row.subproject_id);
-        commands.say(t("deleted", { code: row.code }));
+        commands.say(t("deleted", { code: row.code }), { object: row.code });
       } else {
         list?.report({
           outcome,
@@ -557,6 +555,7 @@ export function SubprojectDialog() {
         required("label", columns("label"), LABEL_LENGTH),
       ]}
       initial={row === undefined ? {} : { code: row.code, label: row.label }}
+      subject={row?.code}
       ask={({ code = "", label = "" }) =>
         writeSubproject(
           commands.project,
@@ -586,6 +585,7 @@ export function SubprojectDialog() {
         }
         commands.say(
           form(row === undefined ? "created" : "saved", { name: answer.code, kind: "subproject" }),
+          { object: answer.code },
         );
         commands.close(opening);
       }}

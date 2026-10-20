@@ -58,7 +58,8 @@ test("folded into a rail on the page of a leaf, the bar shows its function alone
   // From the first entry of the bar on, Tab goes entry by entry until it leaves the bar: never
   // to a leaf, which the rail hides.
   await nav.getByRole("link").first().focus();
-  for (let step = 0; step < 80; step += 1) {
+  let left = false;
+  for (let step = 0; step < 80 && !left; step += 1) {
     const where = await page.evaluate(() => {
       const active = document.activeElement;
       return {
@@ -66,12 +67,14 @@ test("folded into a rail on the page of a leaf, the bar shows its function alone
         inLeaves: active?.closest("[data-slot=sidebar-menu-sub]") != null,
       };
     });
-    if (!where.inBar) {
-      break;
-    }
+    left = !where.inBar;
     expect(where.inLeaves).toBe(false);
-    await page.keyboard.press("Tab");
+    if (!left) {
+      await page.keyboard.press("Tab");
+    }
   }
+  // Eighty steps that never left the bar would prove nothing of the leaves past them.
+  expect(left).toBe(true);
 });
 
 test("an open block of the FBS is not painted as the page shown", async ({ page }) => {

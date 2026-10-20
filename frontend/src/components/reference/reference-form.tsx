@@ -56,7 +56,11 @@ import {
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
+import {
+  type ObjectNames,
+  OutcomeNotice,
+  useNoteRefusal,
+} from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { Button } from "@/components/ui/button";
 import {
@@ -204,6 +208,11 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
    * (#661).
    */
   readonly onWriting?: ((writing: boolean) => void) | undefined;
+  /**
+   * What the form writes, by its name — the object modified —, which the history of the messages
+   * notes with a refusal; none for a creation, which names no object yet.
+   */
+  readonly subject?: string | undefined;
 }
 
 /**
@@ -415,6 +424,7 @@ export function ReferenceForm<T = ReferenceObject>({
   onWriting,
   onClose,
   onClosed,
+  subject,
 }: ReferenceFormProps<T>) {
   const t = useTranslations("reference.form");
   const locale = useLocale();
@@ -429,6 +439,7 @@ export function ReferenceForm<T = ReferenceObject>({
   // refusal: the dialog closed meanwhile, its click is held all the same (#688).
   const own = useHeldCommand();
   const held = list?.held ?? own;
+  const noteRefusal = useNoteRefusal();
   const controls = useRef<Partial<Record<string, HTMLInputElement | HTMLSelectElement | null>>>({});
   const open = useRef(true);
   useEffect(() => {
@@ -477,9 +488,13 @@ export function ReferenceForm<T = ReferenceObject>({
         if (answer.kind === "done") {
           onDone(answer.data);
         } else if (!open.current) {
-          list?.report({ outcome: answer, generation, names, target });
+          list?.report({ outcome: answer, generation, names, target, subject });
         } else {
           const told = placed(fields, answer);
+          if (told.refused.size > 0) {
+            // Said at its fields: noted whole, the notice of the rest noting nothing more.
+            noteRefusal(answer, { subject, parts: [told.told] });
+          }
           refuse(told.refused);
           setOutcome(told.told);
         }
@@ -608,6 +623,7 @@ export function ReferenceForm<T = ReferenceObject>({
               setOutcome(undefined);
             }}
             onDismissed={onClose}
+            subject={subject}
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

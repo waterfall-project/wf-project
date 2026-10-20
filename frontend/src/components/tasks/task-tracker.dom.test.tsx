@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { markRevision } from "@/api/actions/revisions";
 import type { ApiClient } from "@/api/client";
 import type { BackgroundTask, Outcome } from "@/api/problem";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -20,6 +21,7 @@ import {
   type Problem,
   unreachable,
 } from "@/test/fixtures";
+import { closeTasks, tasksButton, tasksRegion } from "@/test/task-panel";
 
 import { STORAGE_KEY } from "./storage";
 import { POLL_INTERVAL } from "./task-entry";
@@ -113,11 +115,6 @@ function shell(page: ReactNode, signedIn = false, running?: Promise<readonly Bac
   );
 }
 
-/** The button of the bar that shows or hides the panel, whatever the number it names. */
-function panelButton() {
-  return screen.getByRole("button", { name: /^Tâches de fond/ });
-}
-
 /** Render a screen that starts a task, and start it. */
 async function started(given: BackgroundTask, launch?: Launch) {
   const view = render(shell(<Starting given={given} launch={launch} />));
@@ -147,19 +144,14 @@ async function tick(times = 1) {
   }
 }
 
-/** The tasks the shell follows. */
-function panel() {
-  return screen.getByRole("region", { name: "Tâches de fond" });
-}
-
 /** The tasks the panel lists, apart from the log that repeats their ends. */
 function entries() {
-  return within(panel()).getByRole("list");
+  return within(tasksRegion()).getByRole("list");
 }
 
-/** The log of the ends of the tasks. */
+/** The log of the ends of the tasks: outside the panel, or within it while it is open. */
 function endLog() {
-  return within(panel()).getByRole("log");
+  return screen.getByRole("log");
 }
 
 /** The ends the log reads out, each in its sentences, as they are written: typography included. */
@@ -171,17 +163,17 @@ function ends(): (string | null)[][] {
 
 /** The button that dismisses a task, by the name of the task. */
 function dismissal(name: string) {
-  return screen.getByRole("button", { name: `Retirer du suivi\u00A0: ${name}` });
+  return within(tasksRegion()).getByRole("button", { name: `Retirer du suivi\u00A0: ${name}` });
 }
 
 /** The button that runs a failed task again, by the name of the task. */
 function relaunchButton(name = "Marquage d’une révision") {
-  return within(panel()).getByRole("button", { name: `Relancer\u00A0: ${name}` });
+  return within(tasksRegion()).getByRole("button", { name: `Relancer\u00A0: ${name}` });
 }
 
 /** What the progress of the task says next to its bar. */
 function progressText(): string | null | undefined {
-  return within(panel()).getByRole("progressbar").nextElementSibling?.textContent;
+  return within(tasksRegion()).getByRole("progressbar").nextElementSibling?.textContent;
 }
 
 /** The paths the tracker asked the API. */
@@ -194,6 +186,7 @@ beforeEach(() => {
   // The time of the tracker is the test's: a read comes when the test lets it come.
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -211,6 +204,7 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).getByText("En attente")).toBeVisible();
 
     // The user goes to another screen: the one that started the import is gone.
+    closeTasks();
     view.rerender(shell(<Screen name="Planning" />));
     expect(screen.getByRole("heading", { name: "Planning" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Lancer" })).toBeNull();
@@ -262,7 +256,7 @@ describe("the tracker of background tasks", () => {
   it("shows how far a task has gone, asks again while it runs, and stops once it has ended", async () => {
     const client = serve({ [TASK]: ["task_running", "task_succeeded"] });
     const { container } = await started(task("task_mark_queued"));
-    const bar = within(panel()).getByRole("progressbar", { name: "Marquage d’une révision" });
+    const bar = within(tasksRegion()).getByRole("progressbar", { name: "Marquage d’une révision" });
     expect(bar).toHaveAttribute("aria-valuenow", "0");
     expect(progressText()).toBe("0\u202F%");
     await expectAccessible(container);
@@ -273,14 +267,14 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).getByText("En cours")).toBeVisible();
 
     await tick();
-    expect(within(panel()).queryByRole("progressbar")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("progressbar")).toBeNull();
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
 
     await tick(3);
     expect(reads(client)).toHaveLength(2);
   });
 
-  it("offers to reload the screen once a task has succeeded, and never reloads by itself", async () => {
+  it("offers to reload the screen once a task has succeeded, never reloads by itself, and closes the panel on the screen read anew", async () => {
     serve({ [TASK]: "task_succeeded" });
     await started(task("task_mark_queued"));
     await tick();
@@ -289,6 +283,8 @@ describe("the tracker of background tasks", () => {
     expect(router.refresh).not.toHaveBeenCalled();
     await userEvent.click(reload);
     expect(router.refresh).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(tasksButton()).toHaveFocus();
   });
 
   it("offers no reload of the screen while a task runs, nor once it has failed", async () => {
@@ -306,7 +302,7 @@ describe("the tracker of background tasks", () => {
     const unmeasured = task("task_mark_queued");
     delete unmeasured.progress;
     await started(unmeasured);
-    expect(within(panel()).getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
+    expect(within(tasksRegion()).getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
     expect(within(entries()).queryByText(/%/)).toBeNull();
   });
 
@@ -322,12 +318,12 @@ describe("the tracker of background tasks", () => {
     const client = serve({ [TASK]: "task_running" });
     await started(task("task_import_queued"));
     await userEvent.click(dismissal("Application d’un import"));
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     await tick(2);
     expect(reads(client)).toEqual([]);
   });
 
-  it("takes the focus from a task dismissed to the next, else the one before, else the main content", async () => {
+  it("takes the focus from a task dismissed to the next, else the one before, else the region of the tasks", async () => {
     serve({ [TASK]: "task_running" });
     const all = [
       task("task_mark_queued"),
@@ -342,13 +338,11 @@ describe("the tracker of background tasks", () => {
     await userEvent.click(third ?? document.body);
     expect(second).toHaveFocus();
     await userEvent.click(second ?? document.body);
-    // The last one gone, the region is empty, without a height to show a focus: the focus
-    // goes to the main content of the page, outside the order of the keyboard, never to the
-    // document.
-    expect(within(panel()).queryByRole("list")).toBeNull();
-    const main = screen.getByRole("main");
-    expect(main).toHaveFocus();
-    expect(main).toHaveAttribute("tabindex", "-1");
+    // The last one gone, the focus goes to the region of the tasks, outside the order of the
+    // keyboard: within the panel, which holds it, never to the document.
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
+    expect(tasksRegion()).toHaveFocus();
+    expect(tasksRegion()).toHaveAttribute("tabindex", "-1");
     expect(document.activeElement).not.toBe(document.body);
   });
 
@@ -377,7 +371,7 @@ describe("the tracker of background tasks", () => {
 
   it("keeps its region and its log in place while it follows no task, and lists nothing", () => {
     render(shell(<Screen name="Planning" />));
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     expect(endLog()).toBeEmptyDOMElement();
   });
 
@@ -385,13 +379,13 @@ describe("the tracker of background tasks", () => {
     server.client = unreachable();
     await started(task("task_mark_queued"));
     await tick();
-    expect(within(panel()).getByRole("alert").textContent).toBe(
+    expect(within(tasksRegion()).getByRole("alert").textContent).toBe(
       "Le service est injoignable\u202F; réessayez dans un instant.",
     );
 
     serve({ [TASK]: "task_succeeded" });
     await tick();
-    expect(within(panel()).queryByRole("alert")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("alert")).toBeNull();
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
   });
 
@@ -402,7 +396,9 @@ describe("the tracker of background tasks", () => {
     } as unknown as ApiClient;
     await started(task("task_mark_queued"));
     await tick();
-    expect(within(panel()).getByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(within(tasksRegion()).getByRole("alert")).toHaveTextContent(
+      "Le service est injoignable",
+    );
   });
 
   it("interrupts the follow-up once the API refuses to say where the task stands, and says why", async () => {
@@ -414,8 +410,8 @@ describe("the tracker of background tasks", () => {
     // No longer said to run, no progress, no alert: an announcement among the others.
     expect(within(entries()).getByText("Suivi interrompu")).toBeVisible();
     expect(within(entries()).queryByText("En attente")).toBeNull();
-    expect(within(panel()).queryByRole("progressbar")).toBeNull();
-    expect(within(panel()).queryByRole("alert")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("progressbar")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("alert")).toBeNull();
     expect(within(entries()).getByText(/^Introuvable/).textContent).toBe(refusal);
     expect(ends()).toEqual([["Suivi interrompu\u00A0: Marquage d’une révision.", refusal]]);
     // Not kept for a reload: there is nothing more to follow.
@@ -472,12 +468,14 @@ describe("the tracker of background tasks", () => {
     server.client = unreachable();
     await started(task("task_mark_queued"));
     await tick();
-    expect(within(panel()).getByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(within(tasksRegion()).getByRole("alert")).toHaveTextContent(
+      "Le service est injoignable",
+    );
 
     serve({ [TASK]: { problem: { code: "NOT_FOUND", status: 404 } } });
     await tick();
     expect(within(entries()).getByText("Suivi interrompu")).toBeVisible();
-    expect(within(panel()).queryByRole("alert")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("alert")).toBeNull();
   });
 
   it("tells the refusal of a relaunch, and keeps the failed task to run again", async () => {
@@ -488,11 +486,17 @@ describe("the tracker of background tasks", () => {
     const command = () => markRevision(PROJECT, REVISION, { version_name: "V2", lock_version: 4 });
     await started(task("task_mark_queued"), { command, subject: "V2" });
     await tick();
-    await userEvent.click(relaunchButton("Marquage d’une révision «\u00A0V2\u00A0»"));
+    const name = "Marquage d’une révision «\u00A0V2\u00A0»";
+    await userEvent.click(relaunchButton(name));
 
-    expect(within(panel()).getByRole("alert")).toHaveTextContent("Cet élément existe déjà.");
+    expect(within(tasksRegion()).getByRole("alert")).toHaveTextContent("Cet élément existe déjà.");
     expect(within(entries()).getByText("Échouée")).toBeVisible();
-    expect(relaunchButton("Marquage d’une révision «\u00A0V2\u00A0»")).toBeVisible();
+    expect(relaunchButton(name)).toBeVisible();
+    // Noted once, about the task, by the follow-up: the panel opened again, its entry notes nothing.
+    closeTasks();
+    tasksRegion();
+    const noted = readMessages().messages.filter(({ sentence }) => sentence.startsWith("Cet élé"));
+    expect(noted).toEqual([expect.objectContaining({ tone: "refusal", object: name })]);
   });
 
   it("offers no relaunch bound to be refused again once the object changed since it was read", async () => {
@@ -508,17 +512,17 @@ describe("the tracker of background tasks", () => {
     // The same version of the revision would be refused again: the command goes, and the
     // entry says where to start the treatment again. The focus, on the button gone, stays in
     // the entry, on its dismissal.
-    expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(within(tasksRegion()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
     expect(dismissal("Marquage d’une révision")).toHaveFocus();
     expect(document.activeElement).not.toBe(document.body);
     expect(
       within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
     ).toBeVisible();
     expect(client.calls.filter((call) => call.route === MARK)).toHaveLength(1);
-    const alert = within(panel()).getByRole("alert");
+    const alert = within(tasksRegion()).getByRole("alert");
     await userEvent.click(within(alert).getByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
-    expect(within(panel()).queryByRole("alert")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("alert")).toBeNull();
     expect(within(entries()).getByText("Échouée")).toBeVisible();
   });
 
@@ -528,7 +532,9 @@ describe("the tracker of background tasks", () => {
     await started(task("task_mark_queued"), { command });
     await tick();
     await userEvent.click(relaunchButton());
-    expect(within(panel()).getByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(within(tasksRegion()).getByRole("alert")).toHaveTextContent(
+      "Le service est injoignable",
+    );
   });
 
   it("offers no relaunch of a failed task handed over without its command", async () => {
@@ -536,12 +542,124 @@ describe("the tracker of background tasks", () => {
     await started(task("task_mark_queued"));
     await tick();
     expect(within(entries()).getByText("Échouée")).toBeVisible();
-    expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(within(tasksRegion()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
   });
 
   it("is a piece of the shell: a screen outside it cannot hand a task over", () => {
     expect(() => render(<Starting given={task("task_mark_queued")} />)).toThrow(
       "within the TaskTracker of the shell",
+    );
+  });
+});
+
+/** The messages of the history the panel shows, the last first. */
+function history(): HTMLElement[] {
+  tasksRegion();
+  const region = screen.getByRole("region", { name: "Messages" });
+  return within(region).queryAllByRole("listitem");
+}
+
+/** The screens the tests go to, as the browser shows them. */
+const EXCHANGES = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
+const PLANNING = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+
+describe("the history of the messages", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", EXCHANGES);
+  });
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps the end of an import for a user who changed screens, with when, where, and a link back [WF-IHM-0080-A]", async () => {
+    // Un utilisateur qui change d'écran pendant un import est informé de son aboutissement.
+    serve({ [TASK]: "task_import_succeeded" });
+    const view = await started(task("task_import_queued"), { subject: "devis.xlsx" });
+    window.history.replaceState(null, "", PLANNING);
+    view.rerender(shell(<Screen name="Planning" />));
+    await tick();
+
+    const [ended, launched] = history();
+    const name = "Application d’un import « devis.xlsx »";
+    expect(ended).toHaveTextContent(/^Réussite\s:/);
+    expect(ended).toHaveTextContent(`Tâche terminée : ${name}.`);
+    expect(ended).toHaveTextContent(`Objet : ${name}.`);
+    const back = within(ended ?? document.body).getByRole("link");
+    expect(back).toHaveAttribute("href", EXCHANGES);
+    expect(back).toHaveTextContent("Imports et exports");
+    expect(ended?.querySelector("time")).toHaveAttribute("datetime");
+    expect(launched).toHaveTextContent(`Tâche lancée : ${name}.`);
+    // The link back to the screen closes the panel.
+    await userEvent.click(back);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps the correlation identifier of an import failed by an unexpected error, which its message gives [WF-OBS-0020-A]", async () => {
+    // Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul
+    // identifiant, que le message présenté à l'utilisateur contient. The task handed over has
+    // failed already: its end is logged at once.
+    const failed: BackgroundTask = {
+      ...task("task_import_queued"),
+      status: "failed",
+      problem: { code: "INTERNAL_ERROR", status: 500, correlation_id: "req-7f3a9c" },
+    };
+    await started(failed);
+    const [ended] = history();
+    expect(ended).toHaveTextContent(/^Refus\s:/);
+    expect(ended).toHaveTextContent("Tâche échouée : Application d’un import.");
+    expect(ended).toHaveTextContent("Erreur inattendue du service.");
+    expect(ended).toHaveTextContent("Référence : req-7f3a9c");
+  });
+
+  it("counts the refusals not read yet on the button of the panel, until the panel shows them", async () => {
+    serve({ [TASK]: "task_failed" });
+    await started(task("task_mark_queued"));
+    await tick();
+    expect(tasksButton()).toHaveAccessibleName(
+      "Tâches et messages\u00A0: 1 tâche suivie, 1 refus non lu",
+    );
+    expect(history()).toHaveLength(2);
+    closeTasks();
+    expect(tasksButton()).toHaveAccessibleName("Tâches et messages\u00A0: 1 tâche suivie");
+  });
+
+  it("counts the API out of reach during the follow-up while the panel stays closed [WF-IHM-0080-A]", async () => {
+    server.client = unreachable();
+    await started(task("task_mark_queued"));
+    await tick();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(tasksButton()).toHaveAccessibleName(
+      "Tâches et messages\u00A0: 1 tâche suivie, 1 refus non lu",
+    );
+  });
+
+  it("notes the API out of reach once for reads refused in a row, every two seconds, and anew after a read answered", async () => {
+    const GET = vi.fn(() => Promise.reject(new TypeError("Failed to fetch")));
+    server.client = { GET } as unknown as ApiClient;
+    await started(task("task_mark_queued"));
+    await tick(5);
+    // One read every two seconds, never more: the refusals do not hasten the follow-up.
+    expect(GET).toHaveBeenCalledTimes(5);
+    const outOfReach = "Le service est injoignable\u202F; réessayez dans un instant.";
+    const refusals = () =>
+      readMessages().messages.flatMap(({ tone, sentence }) =>
+        tone === "refusal" ? [sentence] : [],
+      );
+    expect(refusals()).toEqual([outOfReach]);
+    expect(tasksButton()).toHaveAccessibleName(
+      "Tâches et messages\u00A0: 1 tâche suivie, 1 refus non lu",
+    );
+
+    // A read answered ends the series; out of reach again, a new one begins.
+    const client = serve({ [TASK]: "task_running" });
+    await tick();
+    expect(reads(client)).toHaveLength(1);
+    server.client = unreachable();
+    await tick(3);
+    expect(refusals()).toEqual([outOfReach, outOfReach]);
+    expect(tasksButton()).toHaveAccessibleName(
+      "Tâches et messages\u00A0: 1 tâche suivie, 2 refus non lus",
     );
   });
 });
@@ -573,15 +691,15 @@ describe("the follow-up across a full reload of the tab", () => {
     const client = serve({ [TASK]: "task_failed" });
     render(shell(<Screen name="Planning" />));
 
-    expect(within(panel()).getAllByRole("listitem")).toHaveLength(1);
-    expect(within(panel()).getByRole("listitem")).toHaveTextContent(
+    expect(within(tasksRegion()).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(tasksRegion()).getByRole("listitem")).toHaveTextContent(
       "Marquage d’une révision « V2 »",
     );
     await tick();
     expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
     expect(ends()[0]?.[0]).toBe("Tâche échouée\u00A0: Marquage d’une révision «\u00A0V2\u00A0».");
     // The command did not survive the reload: the entry says where to start it again.
-    expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(within(tasksRegion()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
     expect(
       within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
     ).toBeVisible();
@@ -590,11 +708,11 @@ describe("the follow-up across a full reload of the tab", () => {
   it("follows nothing again when the storage holds no list", () => {
     window.sessionStorage.setItem(STORAGE_KEY, "{not json");
     const view = render(shell(<Screen name="Planning" />));
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     view.unmount();
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ key: MARKING }));
     render(shell(<Screen name="Planning" />));
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
   });
 
   it("follows the tasks all the same when the browser refuses the storage", async () => {
@@ -609,56 +727,68 @@ describe("the follow-up across a full reload of the tab", () => {
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
   });
 
-  it("shows the panel from the button of the bar, which names the number of the tasks followed", async () => {
+  it("opens the panel from the button of the bar, which names the number of the tasks followed", async () => {
     serve({ [TASK]: "task_running" });
     render(shell(<Starting given={task("task_mark_queued")} />));
-    const button = panelButton();
-    expect(button).toHaveAccessibleName("Tâches de fond");
+    const button = tasksButton();
+    expect(button).toHaveAccessibleName("Tâches et messages");
     expect(button).toHaveAttribute("aria-expanded", "false");
-    expect(button).toHaveAttribute("aria-controls", panel().id);
+    expect(button).toHaveAttribute("aria-haspopup", "dialog");
     expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
 
-    // Shown before any task, the panel says it follows none.
-    await userEvent.click(button);
-    expect(button).toHaveAttribute("aria-expanded", "true");
-    expect(within(panel()).getByText("Aucune tâche de fond suivie.")).toBeVisible();
-    await userEvent.click(button);
-    expect(within(panel()).queryByText("Aucune tâche de fond suivie.")).toBeNull();
-
-    // A task handed over shows the panel, and the button counts it.
+    // A task handed over does not open the panel: the line under the bar says it, and the button
+    // counts it.
     await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
-    expect(button).toHaveAccessibleName("Tâches de fond\u00A0: 1 suivie");
+    expect(button).toHaveAccessibleName("Tâches et messages\u00A0: 1 tâche suivie");
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Tâche lancée : Marquage d’une révision.")).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await userEvent.click(button);
     expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(button).toHaveAttribute("aria-controls", screen.getByRole("dialog").id);
     expect(within(entries()).getByText("Marquage d’une révision")).toBeVisible();
     await expectAccessible(document.body);
   });
 
-  it("follows the tasks still, and reads out their ends, with the panel hidden", async () => {
+  it("follows the tasks still, and reads out their ends, with the panel closed", async () => {
     const client = serve({ [TASK]: ["task_running", "task_succeeded"] });
     await started(task("task_mark_queued"));
-    await userEvent.click(panelButton());
-    expect(panelButton()).toHaveAttribute("aria-expanded", "false");
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(tasksButton()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("dialog")).toBeNull();
 
     await tick(2);
     expect(reads(client)).toHaveLength(2);
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
 
-    // Shown again, the panel lists the task as it now stands.
-    await userEvent.click(panelButton());
+    // The line under the bar says the end, on whatever screen; opened, the panel lists the task as
+    // it now stands.
+    const said = screen
+      .getAllByText("Tâche terminée : Marquage d’une révision.")
+      .filter((line) => line.closest("[role=log]") === null);
+    expect(said).toHaveLength(1);
+    expect(said[0]).toBeVisible();
+    await userEvent.click(tasksButton());
     expect(within(entries()).getByText("Réussie")).toBeVisible();
   });
 
-  it("shows the panel again on the next task handed over, once the user hid it", async () => {
+  it("holds the focus in the panel, closes it on Escape, and gives the focus back to its button", async () => {
     serve({ [TASK]: "task_running" });
-    const view = await started(task("task_mark_queued"));
-    await userEvent.click(panelButton());
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    await started(task("task_mark_queued"));
+    await userEvent.click(tasksButton());
+    const dialog = screen.getByRole("dialog", { name: "Tâches et messages" });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.tab();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(tasksButton()).toHaveFocus();
 
-    view.rerender(shell(<Starting given={task("task_import_queued")} />));
-    await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
-    expect(panelButton()).toHaveAttribute("aria-expanded", "true");
-    expect(panelButton()).toHaveAccessibleName("Tâches de fond\u00A0: 2 suivies");
+    // Its close button closes it too.
+    await userEvent.click(tasksButton());
+    await userEvent.click(screen.getByRole("button", { name: "Fermer les tâches et messages" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(tasksButton()).toHaveFocus();
   });
 });
 
@@ -692,7 +822,7 @@ describe("the tasks of its user the API lists", () => {
     await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
 
     // The marking another tab started, streamed by the layout.
-    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+    expect(await within(tasksRegion()).findByRole("listitem")).toHaveTextContent(
       "Marquage d’une révision",
     );
     expect(client.calls).toEqual([]);
@@ -700,7 +830,7 @@ describe("the tasks of its user the API lists", () => {
     expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
     expect(ends()[0]?.[0]).toBe("Tâche échouée\u00A0: Marquage d’une révision.");
     // The list does not say which command started it: it is run again from its screen.
-    expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(within(tasksRegion()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
     expect(
       within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
     ).toBeVisible();
@@ -710,12 +840,12 @@ describe("the tasks of its user the API lists", () => {
     const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
     await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_none")));
     const asked = () => client.calls.filter((call) => call.route === TASKS);
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     // Hidden, the tab asks nothing; shown again, it asks.
     showTab("hidden");
     expect(asked()).toEqual([]);
     showTab("visible");
-    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+    expect(await within(tasksRegion()).findByRole("listitem")).toHaveTextContent(
       "Marquage d’une révision",
     );
     expect(asked().map((call) => call.query.get("status"))).toEqual(["queued,running"]);
@@ -724,15 +854,15 @@ describe("the tasks of its user the API lists", () => {
   it("brings back no task the user dismissed, when the tab shows again and the list is read anew", async () => {
     const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
     await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
-    await within(panel()).findByRole("listitem");
+    await within(tasksRegion()).findByRole("listitem");
     await userEvent.click(dismissal("Marquage d’une révision"));
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     showTab("visible");
     await vi.waitFor(() => {
       expect(client.calls.filter((call) => call.route === TASKS)).toHaveLength(1);
     });
     await act(() => Promise.resolve());
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
   });
 
   it("follows once a task the tab already follows, with what the user named it after", async () => {
@@ -745,8 +875,8 @@ describe("the tasks of its user the API lists", () => {
     serve({ [TASK]: "task_running" });
     await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
     await tick();
-    expect(within(panel()).getAllByRole("listitem")).toHaveLength(1);
-    expect(within(panel()).getByRole("listitem")).toHaveTextContent(
+    expect(within(tasksRegion()).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(tasksRegion()).getByRole("listitem")).toHaveTextContent(
       "Marquage d’une révision « V2 »",
     );
   });
@@ -758,12 +888,12 @@ describe("the tasks of its user the API lists", () => {
     await vi.waitFor(() => {
       expect(client.calls.map((call) => call.route)).toEqual([TASKS]);
     });
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
     server.client = unreachable();
     showTab("visible");
     await tick();
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
   });
 
   it("renders the page and its panel while the tasks of the user are on their way", async () => {
@@ -774,12 +904,12 @@ describe("the tasks of its user the API lists", () => {
     });
     await renderStreamed(shell(<Screen name="Planning" />, true, coming));
     expect(screen.getByRole("heading", { name: "Planning" })).toBeVisible();
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     await act(async () => {
       answer((example("tasks_running") as { readonly items: readonly BackgroundTask[] }).items);
       await coming;
     });
-    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+    expect(await within(tasksRegion()).findByRole("listitem")).toHaveTextContent(
       "Marquage d’une révision",
     );
   });

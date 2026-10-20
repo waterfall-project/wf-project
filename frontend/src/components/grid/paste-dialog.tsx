@@ -21,6 +21,8 @@ import { CircleAlert, ClipboardPaste, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { useNoteMessage } from "@/components/notices/message-history";
+import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -128,7 +130,7 @@ function Report({ plan, block }: { readonly plan: PastePlan; readonly block: Pas
 
 /** What a paste applied did not write, and how to forget it. */
 export interface PasteAppliedNoticeProps {
-  /** What the last paste applied did not write; none when it wrote every row, or before any. */
+  /** What the last paste applied wrote and did not write; none before any. */
   readonly applied: PasteReport | undefined;
   /** Forget it. */
   readonly onClear: () => void;
@@ -140,7 +142,9 @@ export interface PasteAppliedNoticeProps {
  * Tell, once a paste is applied, where the block was pasted from, how many rows the server wrote and
  * the rows it did not, each with its place in the block, its cells and its reason — those the
  * confirmation refused judging the accepted rows again among them —, until the user dismisses it;
- * nothing when every row was written. The rows refused are a region of their own, named, described
+ * nothing when every row was written, the grid showing them. Either is noted in the history of the
+ * messages: a success when every row was written, a refusal otherwise, with how many rows were
+ * refused. The rows refused are a region of their own, named, described
  * by what the alert says, reached by the keyboard, whose height is bounded: they scroll, and the grid
  * under them stays in the window, the sentence and the command to dismiss staying out of the scroll.
  * The alert says where the block was pasted from and how many rows were written and refused, never
@@ -150,20 +154,31 @@ export function PasteAppliedNotice({ applied, onClear, onDismissed }: PasteAppli
   const t = useTranslations("grid");
   const outcome = useTranslations("outcome");
   const told = useId();
-  if (applied === undefined) {
+  const sentence =
+    applied === undefined
+      ? undefined
+      : t("paste.appliedFrom", {
+          row: applied.target.row,
+          column: headingOf(applied.target.column, (key) => t(`columns.${key}`)),
+          count: applied.written,
+        });
+  const refused = applied === undefined ? 0 : refusedRows(applied.rejected);
+  useNoteMessage(
+    applied,
+    sentence === undefined
+      ? undefined
+      : refused === 0
+        ? { tone: "success", sentence }
+        : { tone: "refusal", sentence, detail: t("paste.rejectedCount", { count: refused }) },
+    useShownProjectLabel(),
+  );
+  if (applied === undefined || refused === 0) {
     return null;
   }
-  const { target } = applied;
   return (
     <div className="space-y-1 text-sm">
       <div role="alert" id={told} className="space-y-1">
-        <p className="font-medium">
-          {t("paste.appliedFrom", {
-            row: target.row,
-            column: headingOf(target.column, (key) => t(`columns.${key}`)),
-            count: applied.written,
-          })}
-        </p>
+        <p className="font-medium">{sentence}</p>
         <RefusedCount rejected={applied.rejected} listed />
       </div>
       {/* However many rows are refused, the grid stays in the window: the list scrolls (#163). */}
@@ -273,16 +288,23 @@ export function UnshownNotice({
   readonly heading: (column: ColumnName) => string;
 }) {
   const t = useTranslations("grid.paste");
+  let text: string | undefined;
   if (unshown === undefined) {
-    return null;
-  }
-  let text: string;
-  if (unshown.shown === "hidden") {
+    text = undefined;
+  } else if (unshown.shown === "hidden") {
     text = t("hiddenColumn", { column: heading(unshown.column) });
   } else if (unshown.shown === "absent") {
     text = t("absentColumn", { column: unshown.name });
   } else {
     text = t(ROWS_REFUSAL[unshown.shown]);
+  }
+  useNoteMessage(
+    unshown,
+    text === undefined ? undefined : { tone: "refusal", sentence: text },
+    useShownProjectLabel(),
+  );
+  if (text === undefined) {
+    return null;
   }
   return (
     <p role="alert" className="text-sm text-destructive">

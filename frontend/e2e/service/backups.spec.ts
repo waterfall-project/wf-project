@@ -43,16 +43,17 @@ test.beforeEach(async ({ request }) => {
 /**
  * Press a command that hands a task over to the tracker, on a page that may not be hydrated yet:
  * again until React answered — a press answered is never repeated, which would ask a second task.
+ * `followed` is the button of the panel once it counts a task.
  */
-async function handOver(command: Locator, entries: Locator): Promise<void> {
+async function handOver(command: Locator, followed: Locator): Promise<void> {
   await expect(async () => {
-    if ((await command.getAttribute("aria-busy")) !== "true" && (await entries.count()) === 0) {
+    if ((await command.getAttribute("aria-busy")) !== "true" && (await followed.count()) === 0) {
       await command.click();
     }
     await expect
       .poll(
         async () =>
-          (await command.getAttribute("aria-busy")) === "true" || (await entries.count()) > 0,
+          (await command.getAttribute("aria-busy")) === "true" || (await followed.count()) > 0,
         { timeout: 1_000 },
       )
       .toBe(true);
@@ -69,9 +70,11 @@ test(
     await signIn(page, ADMINISTRATOR, BACKUPS);
 
     // The backup, followed by the tracker until the worker has taken and verified it.
+    const followed = page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ });
     const tasks = page.getByRole("region", { name: "Tâches de fond" });
     const entries = tasks.getByRole("listitem");
-    await handOver(page.getByRole("button", { name: "Sauvegarder maintenant" }), entries);
+    await handOver(page.getByRole("button", { name: "Sauvegarder maintenant" }), followed);
+    await followed.click();
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 180_000 });
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
     const newest = page.getByRole("grid", { name: "Sauvegardes" }).getByRole("row").nth(1);

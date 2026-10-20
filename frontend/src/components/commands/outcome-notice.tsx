@@ -27,7 +27,7 @@
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { createContext, type ReactNode, useContext, useId } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useId, useMemo } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -38,9 +38,17 @@ import {
   namedLines,
   namedProjects,
   problemMessage,
+  type ProblemText,
   projectName,
   type Say,
 } from "@/i18n/problem";
+import {
+  type MessageDraft,
+  type MessageScreen,
+  noteMessage,
+  useNoteMessage,
+} from "@/components/notices/message-history";
+import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { asksIdentifiers, loginHref } from "@/navigation/login";
 
 /**
@@ -87,6 +95,11 @@ export interface OutcomeNoticeProps {
    * refused —; one of its own otherwise.
    */
   readonly id?: string | undefined;
+  /**
+   * What the command was about, by its name, which the history of the messages notes with the
+   * refusal: the object in conflict otherwise, when the refusal names one.
+   */
+  readonly subject?: string | undefined;
 }
 
 /**
@@ -217,12 +230,143 @@ export function refusalDescription(outcome: Outcome<unknown> | undefined, told: 
 }
 
 /** The identifier of the sentence of a notice: the one given, or one of its own. */
-function useTold(id: string | undefined): string {
+function useSentenceId(id: string | undefined): string {
   const own = useId();
   return id ?? own;
 }
 
-/** Tell of the outcome of an action; nothing on success. */
+/** The correlation identifier an unexpected error shows (WF-OBS-0020); none for another refusal. */
+function referenceOf(problem: Problem): string | undefined {
+  return problem.code === "INTERNAL_ERROR" ? problem.correlation_id : undefined;
+}
+
+/** A refusal, as a notice tells it. */
+interface Told {
+  readonly refusal: Exclude<Outcome<unknown>, { kind: "done" }>;
+  /** Its sentence, from the catalogue. */
+  readonly sentence: string;
+  /** The name of the object in conflict, when it names one. */
+  readonly name: string | undefined;
+}
+
+/**
+ * What a notice tells of a refusal, in a sentence of the catalogue, and the object it names, by its
+ * name; nothing on success, nor before any outcome.
+ */
+function told(
+  outcome: Outcome<unknown> | undefined,
+  known: ObjectNames,
+  say: { readonly unreachable: string; readonly problem: (problem: Problem) => string },
+): Told | undefined {
+  if (outcome === undefined || outcome.kind === "done") {
+    return undefined;
+  }
+  if (outcome.kind === "unreachable") {
+    return { refusal: outcome, sentence: say.unreachable, name: undefined };
+  }
+  const { problem, conflictingObjectId } = outcome;
+  return {
+    refusal: outcome,
+    sentence: say.problem(problem),
+    name:
+      conflictingObjectId === null
+        ? undefined
+        : (known[conflictingObjectId] ?? labelOf(problem, conflictingObjectId)),
+  };
+}
+
+/**
+ * What the history of the messages notes of a refusal told: about the object given, else the one in
+ * conflict.
+ */
+function draftOf(
+  refusal: Told,
+  subject: string | undefined,
+  screen?: MessageScreen,
+  detail?: string,
+): MessageDraft {
+  return {
+    tone: "refusal",
+    sentence: refusal.sentence,
+    detail,
+    object: subject ?? refusal.name,
+    reference: "problem" in refusal.refusal ? referenceOf(refusal.refusal.problem) : undefined,
+    screen,
+  };
+}
+
+/** How a refusal is told, in the language of the moment, with the names the screen lends. */
+function useSay(known: ObjectNames) {
+  const t = useTranslations("outcome");
+  const locale = useLocale();
+  const messages = useMessages();
+  return useMemo(
+    () => ({
+      unreachable: t("unreachable"),
+      problem: (problem: ProblemText) =>
+        problemMessage(problem, { locale, messages, names: known }),
+    }),
+    [t, locale, messages, known],
+  );
+}
+
+/**
+ * The refusal a notice tells, noted in the history of the messages (`message-history.ts`) once
+ * told — with the object it is about, the one the screen gives, else the object in conflict.
+ */
+function useTold(
+  outcome: Outcome<unknown> | undefined,
+  known: ObjectNames,
+  subject: string | undefined,
+): Told | undefined {
+  const refusal = told(outcome, known, useSay(known));
+  useNoteMessage(
+    refusal?.refusal,
+    refusal === undefined ? undefined : draftOf(refusal, subject),
+    useShownProjectLabel(),
+  );
+  return refusal;
+}
+
+/** What a refusal noted without a notice is about, where it was made, and what tells the rest. */
+export interface NotedRefusal {
+  /** What the command was about, by its name; the object in conflict otherwise. */
+  readonly subject?: string | undefined;
+  /** The screen it was made on, when it is not the one shown: a screen left since. */
+  readonly screen?: MessageScreen | undefined;
+  /** The parts of it a notice tells besides (`noteMessage`), which note nothing more. */
+  readonly parts?: readonly (object | undefined)[] | undefined;
+}
+
+/**
+ * Note in the history of the messages a refusal the screen tells otherwise than by a notice — at the
+ * fields of a form, by the bar of the shell —, in the sentence a notice would tell it in, once, what
+ * its fields refuse in a second sentence: the same outcome told by a notice after it notes nothing
+ * more. Nothing for an outcome done.
+ */
+export function useNoteRefusal(): (outcome: Outcome<unknown>, noted?: NotedRefusal) => void {
+  const known = useContext(Known);
+  const say = useSay(known);
+  const project = useShownProjectLabel();
+  return useCallback(
+    (outcome: Outcome<unknown>, { subject, screen, parts }: NotedRefusal = {}) => {
+      const refusal = told(outcome, known, say);
+      if (refusal === undefined) {
+        return;
+      }
+      const fields = "problem" in outcome ? (outcome.problem.fields ?? []) : [];
+      const detail =
+        fields.length === 0 ? undefined : fields.map((field) => say.problem(field)).join(" ");
+      noteMessage(outcome, draftOf(refusal, subject, screen, detail), project(), parts);
+    },
+    [known, say, project],
+  );
+}
+
+/**
+ * Tell of the outcome of an action; nothing on success. A refusal told is noted in the history of the
+ * messages, and announced by this notice alone: the history says nothing aloud.
+ */
 export function OutcomeNotice({
   outcome,
   names = {},
@@ -230,57 +374,54 @@ export function OutcomeNotice({
   dismissible = false,
   onDismissed,
   id,
+  subject,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
   const failure = useTranslations("failure");
-  const locale = useLocale();
-  const messages = useMessages();
-  const told = useTold(id);
-  const known = { ...useContext(Known), ...names };
-  if (outcome === undefined || outcome.kind === "done") {
+  const sentenceId = useSentenceId(id);
+  const told = useTold(outcome, { ...useContext(Known), ...names }, subject);
+  if (told === undefined) {
     return null;
   }
+  const { refusal } = told;
   const dismissed = () => {
     onClear();
     onDismissed?.();
   };
-  const dismiss = dismissible ? <Dismiss onClear={dismissed} told={told} /> : null;
-  if (outcome.kind === "unreachable") {
+  const dismiss = dismissible ? <Dismiss onClear={dismissed} told={sentenceId} /> : null;
+  if (refusal.kind === "unreachable") {
     return (
       <div role="alert" className={ALERT}>
-        <p id={told} className={SENTENCE}>
+        <p id={sentenceId} className={SENTENCE}>
           <WifiOff aria-hidden="true" className={ICON} />
-          {t("unreachable")}
+          {told.sentence}
         </p>
         {dismiss}
       </div>
     );
   }
-  const { kind, problem, conflictingObjectId } = outcome;
-  const name =
-    conflictingObjectId === null
-      ? undefined
-      : (known[conflictingObjectId] ?? labelOf(problem, conflictingObjectId));
+  const { kind, problem } = refusal;
+  const { name } = told;
   // The unexpected error shows its reference, as the screen of failure does (WF-OBS-0020): the
   // correlation identifier of the API, or the reference of a server action that threw (`rejected`).
-  const reference = problem.code === "INTERNAL_ERROR" ? problem.correlation_id : undefined;
+  const reference = referenceOf(problem);
   return (
     <div className={ALERT}>
       <div role="alert" className="space-y-1">
-        <p id={told} className={SENTENCE}>
+        <p id={sentenceId} className={SENTENCE}>
           <CircleAlert aria-hidden="true" className={ICON} />
-          {problemMessage(problem, { locale, messages, names: known })}
+          {told.sentence}
         </p>
         {reference === undefined ? null : <p>{failure("reference", { reference })}</p>}
         {name === undefined ? null : (
-          <p id={conflictId(told)}>{t("conflictingObject", { name })}</p>
+          <p id={conflictId(sentenceId)}>{t("conflictingObject", { name })}</p>
         )}
         {kind === "signed_out" ? <SignIn reauthenticate={asksIdentifiers(problem.code)} /> : null}
         {/* Reloading forgets the outcome as dismissing it does, the focus given back the same way. */}
         {kind === "stale" ? <Reload onClear={dismissed} /> : null}
         {dismiss}
       </div>
-      <NamedItems problem={problem} told={told} />
+      <NamedItems problem={problem} told={sentenceId} />
     </div>
   );
 }

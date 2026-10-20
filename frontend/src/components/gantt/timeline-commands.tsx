@@ -46,6 +46,7 @@ import type { components } from "@/api/generated/schema";
 import { UnmetConditions } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { useSaid } from "@/components/notices/said";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -163,7 +164,8 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
   const held = list?.held ?? own;
   const id = useId();
   const { deleted, drop } = useDeletions();
-  const [said, setSaid] = useState<{ readonly text: string; readonly count: number }>();
+  // What the last write did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const [opened, setOpened] = useState<Opened>();
   // How many times a dialog was opened: what tells an opening from the next.
   const openings = useRef(0);
@@ -190,9 +192,6 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
   }, []);
   const unmet = offer === undefined ? undefined : unmetId(offer, id);
   const deleting = opened?.deleting;
-  const say = (text: string) => {
-    setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-  };
   const open = (deleting: Timeline | undefined, trigger: HTMLElement) => {
     if (offer?.is_available === true) {
       openings.current += 1;
@@ -218,7 +217,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
       const outcome = await held(deleteTimeline(project, timeline.timeline_id));
       if (outcome.kind === "done") {
         drop(timeline.timeline_id);
-        say(t("deleted", { label: timeline.label }));
+        say(t("deleted", { label: timeline.label }), { object: timeline.label });
         // The timeline still shown deleted, the screen shows the first one the project keeps — what
         // the page shows when its address names none it has; left, or another timeline shown since,
         // the screen stays where it is.
@@ -310,7 +309,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
           target={undefined}
           answering={(answer) => answer}
           onDone={(timeline) => {
-            say(t("created", { label: timeline.label }));
+            say(t("created", { label: timeline.label }), { object: timeline.label });
             close(opened.opening);
           }}
           onClose={() => {

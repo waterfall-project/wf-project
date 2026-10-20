@@ -9,6 +9,7 @@ import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -172,6 +173,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -349,6 +351,39 @@ describe("the work breakdown edited in its grid", () => {
       expect(refresh).not.toHaveBeenCalled();
     },
   );
+
+  it("notes once a refusal said at the field of the dialog, its rest told under it", async () => {
+    serve({
+      [SET]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [
+            { pointer: "/work_packages/0/order_items/1/label", code: "VALUE_REQUIRED" },
+            { pointer: "/lock_version", code: "VALUE_REQUIRED" },
+          ],
+        },
+      },
+    });
+    render(list());
+    await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
+    const dialog = await enter(ADDED);
+    const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+    await vi.waitFor(() => {
+      expect(field).toHaveAttribute("aria-invalid", "true");
+    });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Les données saisies ne sont pas valides.",
+    );
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Les données saisies ne sont pas valides.",
+        detail: "Une valeur est requise. Une valeur est requise.",
+        object: ADDED,
+      }),
+    ]);
+  });
 
   it("names the element a refusal points at when it is not the one the dialog writes", async () => {
     // The order item added first; then « Poste 1.1 » renamed, the server refusing the order item

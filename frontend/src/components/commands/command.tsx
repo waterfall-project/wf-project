@@ -46,6 +46,8 @@ export interface CommandProps {
    * name —, in place of an action: pressed available, it opens or closes it.
    */
   readonly disclosure?: Disclosure | undefined;
+  /** What the command is about, by its name, which the history of the messages notes. */
+  readonly subject?: string | undefined;
 }
 
 /** A command that opens what it asks before it runs. */
@@ -100,7 +102,7 @@ export function useUnmet(): (offer: CommandOffer) => string {
 }
 
 /** Render a command as the screen offers it, and tell of the outcome of running it. */
-export function Command({ offer, label, icon, action, names, disclosure }: CommandProps) {
+export function Command({ offer, label, icon, action, names, disclosure, subject }: CommandProps) {
   const id = useId();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
@@ -149,6 +151,7 @@ export function Command({ offer, label, icon, action, names, disclosure }: Comma
         onClear={() => {
           setOutcome(undefined);
         }}
+        subject={subject}
       />
     </div>
   );

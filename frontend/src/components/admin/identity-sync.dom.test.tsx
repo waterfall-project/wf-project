@@ -7,10 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
-import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
+import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
 import { IdentitySync, type IdentitySyncReport } from "./identity-sync";
 
@@ -49,6 +50,7 @@ function open(shown: IdentitySyncReport | undefined, startable = true) {
   const tree = (given: IdentitySyncReport | undefined) => (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <TaskTracker>
+        <TasksButton />
         <TaskPanel />
         <main>
           <IdentitySync report={given} startable={startable} />
@@ -105,17 +107,17 @@ describe("the reading of the accounts", () => {
 
     await userEvent.click(within(section()).getByRole("button", { name: "Lire les comptes" }));
     expect(client.calls.map((call) => call.route)).toEqual([START]);
-    const tasks = screen.getByRole("region", { name: "Tâches de fond" });
-    expect(within(tasks).getByText("En attente")).toBeVisible();
     // Nothing of the screen is withheld while the worker reads.
     expect(document.querySelector("[aria-modal], [inert], :disabled")).toBeNull();
+    const tasks = tasksRegion();
+    expect(within(tasks).getByText("En attente")).toBeVisible();
 
     await tick();
     expect(client.calls.filter((call) => call.route === TASK).map((call) => call.path)).toEqual([
       "/tasks/01926f3a-7c00-7000-8000-000000000941",
     ]);
     expect(within(tasks).getByText("Réussie")).toBeVisible();
-    expect(within(tasks).getByRole("log").textContent).toBe(
+    expect(screen.getByRole("log").textContent).toBe(
       "Tâche terminée : Lecture des comptes du fournisseur d’identité.",
     );
     // Its result is a report to read on the screen, not a file to download.
@@ -123,7 +125,7 @@ describe("the reading of the accounts", () => {
     await userEvent.click(within(tasks).getByRole("button", { name: "Recharger l’écran" }));
     expect(router.refresh).toHaveBeenCalledOnce();
 
-    // The screen read anew shows the report of the reading that has just ended.
+    // The screen read anew, the panel closed, shows the report of the reading that has just ended.
     show(report("identity_sync_report_flagged"));
     expect(within(section()).getByText("2 comptes créés, sans rôle")).toBeVisible();
   });

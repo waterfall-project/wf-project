@@ -4,7 +4,9 @@ import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -15,7 +17,7 @@ import { ROW, UNKNOWN } from "@/test/paste-grid";
 import type { PastePlan } from "./columns";
 import type { NodesWritten } from "./nodes";
 import type { PasteReport } from "./paste";
-import { PasteAppliedNotice, PasteDialog } from "./paste-dialog";
+import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
 
 /** What a confirmation that wrote two rows of three answers, as the contract gives it. */
 type PasteApplied = NodesWritten & { readonly rejected: PasteReport["rejected"] };
@@ -143,5 +145,50 @@ describe("the notice of a paste applied", () => {
     await userEvent.click(screen.getByRole("button", { name: "Fermer l’avis" }));
     expect(onClear).toHaveBeenCalledOnce();
     expect(onDismissed).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the history of the messages, of a paste", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    forgetMessages();
+  });
+
+  it("notes a paste applied in part as a refusal, with how many rows it refused in a second sentence", () => {
+    inLanguage(<PasteAppliedNotice applied={report} onClear={vi.fn()} onDismissed={vi.fn()} />);
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        // The sentence the alert says, repeated as it was said.
+        sentence: screen.getByRole("alert").firstElementChild?.textContent,
+        detail: "1 ligne a été refusée.",
+      }),
+    ]);
+  });
+
+  it("notes a paste that wrote every row as a success, and tells nothing in place", () => {
+    const { container } = inLanguage(
+      <PasteAppliedNotice
+        applied={{ ...report, written: 3, rejected: [] }}
+        onClear={vi.fn()}
+        onDismissed={vi.fn()}
+      />,
+      "en",
+    );
+    expect(container).toBeEmptyDOMElement();
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: `Paste applied from row ${ROW.toString()}, column “Label”: 3 rows were written.`,
+        detail: undefined,
+      }),
+    ]);
+  });
+
+  it("notes a block refused before the server is asked, as it tells it", () => {
+    inLanguage(<UnshownNotice unshown={{ shown: "folded" }} heading={() => ""} />);
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "refusal", sentence: screen.getByRole("alert").textContent }),
+    ]);
   });
 });
