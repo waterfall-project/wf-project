@@ -70,6 +70,7 @@ class ErrorCode(StrEnum):
     INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
     ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
     NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
+    MILESTONE_REQUIRED = "MILESTONE_REQUIRED"
     UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
     BACKUP_FROM_NEWER_VERSION = "BACKUP_FROM_NEWER_VERSION"
     TASK_INTERRUPTED_BY_RESTORE = "TASK_INTERRUPTED_BY_RESTORE"
@@ -2403,301 +2404,6 @@ class NodeKind(StrEnum):
     estimate_line = "estimate_line"
 
 
-class Change(StrEnum):
-    dates = "dates"
-    duration = "duration"
-    progress = "progress"
-    budgeted_amount = "budgeted_amount"
-    reestimated_amount = "reestimated_amount"
-    parent = "parent"
-
-
-class ComparedNode(ContractModel):
-    lineage_id: Uuid
-    label: str
-    kind: NodeKind
-    changes: list[Change] | None = None
-
-
-class Dimension(StrEnum):
-    cost_type = "cost_type"
-    subproject = "subproject"
-
-
-class AmountDelta(ContractModel):
-    dimension: Dimension
-    key: Annotated[
-        str,
-        Field(
-            description="L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020)."
-        ),
-    ]
-    label: Annotated[
-        str | None,
-        Field(
-            description="Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme."
-        ),
-    ]
-    delta: Annotated[
-        Money,
-        Field(
-            description="L'écart de montant de la nature ou du sous-projet, à l'année de référence de chaque révision : la révision comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), positif quand la comparée porte davantage — le sens où une tâche est dite ajoutée, et celui du devis en cours moins le devis comparé (`EstimateIndicators.delta_to_reference`)."
-        ),
-    ]
-
-
-class RevisionComparison(ContractModel):
-    from_revision_id: Uuid
-    to_revision_id: Uuid
-    added: list[ComparedNode]
-    removed: list[ComparedNode]
-    changed: list[ComparedNode]
-    amount_deltas: Annotated[
-        list[AmountDelta],
-        Field(
-            description="Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020)."
-        ),
-    ]
-
-
-class StructureKind(StrEnum):
-    main = "main"
-    amendment = "amendment"
-    risk = "risk"
-
-
-class StructureCommand(StrEnum):
-    edit_planning = "edit_planning"
-    edit_estimate = "edit_estimate"
-    edit_remaining = "edit_remaining"
-
-
-class StructureCommandAvailability(ContractModel):
-    command: StructureCommand
-    is_available: bool
-    missing_conditions: Annotated[
-        list[CommandCondition], Field(description="Vide lorsque la commande est disponible.")
-    ]
-
-
-class CostStructure(ContractModel):
-    structure_id: Uuid
-    revision_id: Uuid
-    kind: StructureKind
-    label: Annotated[str, Field(max_length=300)]
-    risk_id: Annotated[
-        Uuid | None,
-        Field(description="Renseigné pour une structure de nature `risk` (WF-RIS-0030)."),
-    ] = None
-    is_merged: Annotated[
-        bool,
-        Field(
-            description="Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050)."
-        ),
-    ]
-    available_commands: Annotated[
-        list[StructureCommandAvailability],
-        Field(
-            description="Commandes de saisie de la structure que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090) : ce que la grille qui la lit offre — la saisie des cellules, les gestes de structure, le collage —, sans rien déduire de l'état du projet (`StructureCommand`). Une grille dont la commande est absente ou indisponible se présente en lecture seule."
-        ),
-    ]
-    lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110)."
-        ),
-    ]
-
-
-class StructureCreate(ContractModel):
-    kind: StructureKind
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    risk_id: Uuid | None = None
-
-
-class NodeColumn(StrEnum):
-    label = "label"
-    description = "description"
-    scheduling_mode = "scheduling_mode"
-    duration = "duration"
-    start = "start"
-    finish = "finish"
-    progress = "progress"
-    physical_progress = "physical_progress"
-    total_float = "total_float"
-    is_critical = "is_critical"
-    predecessors = "predecessors"
-    work_breakdown = "work_breakdown"
-    cost_category = "cost_category"
-    resource_role = "resource_role"
-    quantity = "quantity"
-    hours = "hours"
-    unit_disbursement = "unit_disbursement"
-    subproject = "subproject"
-    payment_delay_days = "payment_delay_days"
-    consumption_year = "consumption_year"
-    base_amount = "base_amount"
-    budgeted_amount = "budgeted_amount"
-    reestimated_amount = "reestimated_amount"
-    inflated_amount = "inflated_amount"
-    previous_quantity = "previous_quantity"
-    previous_hours = "previous_hours"
-    previous_unit_disbursement = "previous_unit_disbursement"
-    previous_reestimated_amount = "previous_reestimated_amount"
-
-
-class ActualCostColumn1(StrEnum):
-    document_date = "document_date"
-    document_number = "document_number"
-    amount = "amount"
-    subproject = "subproject"
-
-
-class ActualCostColumn2(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.",
-            pattern="^passthrough\\..+$",
-        ),
-    ]
-
-
-class ActualCostColumn(RootModel[ActualCostColumn1 | ActualCostColumn2]):
-    root: Annotated[
-        ActualCostColumn1 | ActualCostColumn2,
-        Field(
-            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier."
-        ),
-    ]
-
-
-class Change1(StrEnum):
-    added = "added"
-    removed = "removed"
-    updated = "updated"
-    kept = "kept"
-
-
-class Target(StrEnum):
-    task = "task"
-    estimate_line = "estimate_line"
-    link = "link"
-    actual_cost_line = "actual_cost_line"
-
-
-class ImportDifference(ContractModel):
-    change: Annotated[
-        Change1,
-        Field(
-            description="Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`."
-        ),
-    ]
-    target: Target
-    lineage_id: Annotated[
-        Uuid | None,
-        Field(
-            description="La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien."
-        ),
-    ] = None
-    label: Annotated[
-        str | None,
-        Field(
-            description="Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une autre ligne."
-        ),
-    ] = None
-    predecessor_label: Annotated[
-        str | None,
-        Field(
-            description="Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet."
-        ),
-    ] = None
-    work_breakdown_label: Annotated[
-        str | None,
-        Field(
-            description="Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k)."
-        ),
-    ] = None
-    fields: Annotated[
-        list[NodeColumn | ActualCostColumn] | None,
-        Field(
-            description="Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`."
-        ),
-    ] = None
-
-
-class ImportCompletedTask(ContractModel):
-    lineage_id: Uuid
-    label: str
-    completed_on: Annotated[
-        PlanningDate | None,
-        Field(
-            description="Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué."
-        ),
-    ]
-
-
-class ReportRefusal(ContractModel):
-    code: ErrorCode
-    params: dict[str, Any] | None = None
-
-
-class StructureMergeReport(ContractModel):
-    main_structure_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
-        ),
-    ]
-    amendment_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur du différentiel lu (`CostStructure.lock_version`), de même."
-        ),
-    ]
-    differences: Annotated[
-        list[ImportDifference],
-        Field(
-            description="Les écarts du différentiel avec la structure principale, tâches, lignes de devis et liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée dans la structure principale."
-        ),
-    ]
-    completed_tasks: Annotated[
-        list[ImportCompletedTask],
-        Field(
-            description="Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur reste à engager à zéro (WF-REV-0050, WF-RAE-0040)."
-        ),
-    ]
-    refusals: Annotated[
-        list[ReportRefusal],
-        Field(
-            description="Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue (`ReportRefusal`). Vide quand la fusion s'applique."
-        ),
-    ]
-
-
-class StructureMerge(ContractModel):
-    confirmed: Literal[True]
-    version_name: Annotated[str, Field(max_length=100, min_length=1)]
-    main_structure_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur de la structure principale que le compte rendu a lu (`StructureMergeReport.main_structure_lock_version`)."
-        ),
-    ]
-    amendment_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`)."
-        ),
-    ]
-
-
-class TaskProgress(StrEnum):
-    not_started = "not_started"
-    started = "started"
-    completed = "completed"
-
-
 class SchedulingMode(StrEnum):
     automatic = "automatic"
     manual = "manual"
@@ -2729,6 +2435,12 @@ class Duration(ContractModel):
 class WorkInstant(ContractModel):
     date: PlanningDate
     hours: Hours
+
+
+class TaskProgress(StrEnum):
+    not_started = "not_started"
+    started = "started"
+    completed = "completed"
 
 
 class NotComputableReason(StrEnum):
@@ -3092,6 +2804,22 @@ class EditableField(StrEnum):
     estimate_line_subproject_id = "estimate_line.subproject_id"
 
 
+class NodeDifference(StrEnum):
+    added = "added"
+    removed = "removed"
+    modified = "modified"
+    unchanged = "unchanged"
+
+
+class NodeChange(StrEnum):
+    dates = "dates"
+    duration = "duration"
+    progress = "progress"
+    budgeted_amount = "budgeted_amount"
+    reestimated_amount = "reestimated_amount"
+    parent = "parent"
+
+
 class Node(ContractModel):
     node_id: Uuid
     lineage_id: Uuid
@@ -3100,14 +2828,14 @@ class Node(ContractModel):
     position: Annotated[
         int,
         Field(
-            description="Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183).",
+            description="Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place qu'ils avaient (`NodeDifference`).",
             ge=1,
         ),
     ]
     row_number: Annotated[
         int,
         Field(
-            description="Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri.",
+            description="Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri. Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne (`NodeDifference`).",
             ge=1,
         ),
     ]
@@ -3128,6 +2856,294 @@ class Node(ContractModel):
         ),
     ]
     lock_version: LockVersion
+    difference: Annotated[
+        NodeDifference | None,
+        Field(
+            description="L'écart du nœud, que le serveur rend et que le front ne calcule pas : sur la lecture d'un différentiel, avec la structure principale de sa révision ; dans une comparaison de deux révisions (`RevisionComparison`), avec la révision de base (WF-REV-0080, WF-REV-0100, C-361). Toujours rendu sur ces deux lectures, que `fields` le nomme ou non ; nul — ou omis — sur la structure principale et sur le devis propre d'un risque, qui ne se lisent par rapport à rien."
+        ),
+    ] = None
+    changes: Annotated[
+        list[NodeChange] | None,
+        Field(
+            description="Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` : vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée."
+        ),
+    ] = None
+
+
+class Dimension(StrEnum):
+    cost_type = "cost_type"
+    subproject = "subproject"
+
+
+class AmountDelta(ContractModel):
+    dimension: Dimension
+    key: Annotated[
+        str,
+        Field(
+            description="L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020)."
+        ),
+    ]
+    label: Annotated[
+        str | None,
+        Field(
+            description="Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme."
+        ),
+    ]
+    delta: Annotated[
+        Money,
+        Field(
+            description="L'écart de montant de la nature ou du sous-projet, à l'année de référence de chaque révision : la révision comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), positif quand la comparée porte davantage — le sens où une tâche est dite ajoutée, et celui du devis en cours moins le devis comparé (`EstimateIndicators.delta_to_reference`)."
+        ),
+    ]
+
+
+class RevisionComparison(ContractModel):
+    from_revision_id: Uuid
+    to_revision_id: Uuid
+    nodes: Annotated[
+        list[Node],
+        Field(
+            description="L'arbre de la révision comparée (`to_revision_id`), en parcours profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` le rend : chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080, C-361)."
+        ),
+    ]
+    amount_deltas: Annotated[
+        list[AmountDelta],
+        Field(
+            description="Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020)."
+        ),
+    ]
+
+
+class StructureKind(StrEnum):
+    main = "main"
+    amendment = "amendment"
+    risk = "risk"
+
+
+class StructureCommand(StrEnum):
+    edit_planning = "edit_planning"
+    edit_estimate = "edit_estimate"
+    edit_remaining = "edit_remaining"
+
+
+class StructureCommandAvailability(ContractModel):
+    command: StructureCommand
+    is_available: bool
+    missing_conditions: Annotated[
+        list[CommandCondition], Field(description="Vide lorsque la commande est disponible.")
+    ]
+
+
+class CostStructure(ContractModel):
+    structure_id: Uuid
+    revision_id: Uuid
+    kind: StructureKind
+    label: Annotated[str, Field(max_length=300)]
+    risk_id: Annotated[
+        Uuid | None,
+        Field(description="Renseigné pour une structure de nature `risk` (WF-RIS-0030)."),
+    ] = None
+    is_merged: Annotated[
+        bool,
+        Field(
+            description="Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050)."
+        ),
+    ]
+    available_commands: Annotated[
+        list[StructureCommandAvailability],
+        Field(
+            description="Commandes de saisie de la structure que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090) : ce que la grille qui la lit offre — la saisie des cellules, les gestes de structure, le collage —, sans rien déduire de l'état du projet (`StructureCommand`). Une grille dont la commande est absente ou indisponible se présente en lecture seule."
+        ),
+    ]
+    lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110)."
+        ),
+    ]
+
+
+class StructureCreate(ContractModel):
+    kind: StructureKind
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    risk_id: Uuid | None = None
+
+
+class NodeColumn(StrEnum):
+    label = "label"
+    description = "description"
+    scheduling_mode = "scheduling_mode"
+    duration = "duration"
+    start = "start"
+    finish = "finish"
+    progress = "progress"
+    physical_progress = "physical_progress"
+    total_float = "total_float"
+    is_critical = "is_critical"
+    predecessors = "predecessors"
+    work_breakdown = "work_breakdown"
+    cost_category = "cost_category"
+    resource_role = "resource_role"
+    quantity = "quantity"
+    hours = "hours"
+    unit_disbursement = "unit_disbursement"
+    subproject = "subproject"
+    payment_delay_days = "payment_delay_days"
+    consumption_year = "consumption_year"
+    base_amount = "base_amount"
+    budgeted_amount = "budgeted_amount"
+    reestimated_amount = "reestimated_amount"
+    inflated_amount = "inflated_amount"
+    previous_quantity = "previous_quantity"
+    previous_hours = "previous_hours"
+    previous_unit_disbursement = "previous_unit_disbursement"
+    previous_reestimated_amount = "previous_reestimated_amount"
+
+
+class ActualCostColumn1(StrEnum):
+    document_date = "document_date"
+    document_number = "document_number"
+    amount = "amount"
+    subproject = "subproject"
+
+
+class ActualCostColumn2(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.",
+            pattern="^passthrough\\..+$",
+        ),
+    ]
+
+
+class ActualCostColumn(RootModel[ActualCostColumn1 | ActualCostColumn2]):
+    root: Annotated[
+        ActualCostColumn1 | ActualCostColumn2,
+        Field(
+            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier."
+        ),
+    ]
+
+
+class Change(StrEnum):
+    added = "added"
+    removed = "removed"
+    updated = "updated"
+    kept = "kept"
+
+
+class Target(StrEnum):
+    task = "task"
+    estimate_line = "estimate_line"
+    link = "link"
+    actual_cost_line = "actual_cost_line"
+
+
+class ImportDifference(ContractModel):
+    change: Annotated[
+        Change,
+        Field(
+            description="Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`."
+        ),
+    ]
+    target: Target
+    lineage_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien."
+        ),
+    ] = None
+    label: Annotated[
+        str | None,
+        Field(
+            description="Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une autre ligne."
+        ),
+    ] = None
+    predecessor_label: Annotated[
+        str | None,
+        Field(
+            description="Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet."
+        ),
+    ] = None
+    work_breakdown_label: Annotated[
+        str | None,
+        Field(
+            description="Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k)."
+        ),
+    ] = None
+    fields: Annotated[
+        list[NodeColumn | ActualCostColumn] | None,
+        Field(
+            description="Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`."
+        ),
+    ] = None
+
+
+class ImportCompletedTask(ContractModel):
+    lineage_id: Uuid
+    label: str
+    completed_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué."
+        ),
+    ]
+
+
+class ReportRefusal(ContractModel):
+    code: ErrorCode
+    params: dict[str, Any] | None = None
+
+
+class StructureMergeReport(ContractModel):
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
+        ),
+    ]
+    amendment_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du différentiel lu (`CostStructure.lock_version`), de même."
+        ),
+    ]
+    differences: Annotated[
+        list[ImportDifference],
+        Field(
+            description="Les écarts du différentiel avec la structure principale, tâches, lignes de devis et liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée dans la structure principale."
+        ),
+    ]
+    completed_tasks: Annotated[
+        list[ImportCompletedTask],
+        Field(
+            description="Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur reste à engager à zéro (WF-REV-0050, WF-RAE-0040)."
+        ),
+    ]
+    refusals: Annotated[
+        list[ReportRefusal],
+        Field(
+            description="Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue (`ReportRefusal`). Vide quand la fusion s'applique."
+        ),
+    ]
+
+
+class StructureMerge(ContractModel):
+    confirmed: Literal[True]
+    version_name: Annotated[str, Field(max_length=100, min_length=1)]
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale que le compte rendu a lu (`StructureMergeReport.main_structure_lock_version`)."
+        ),
+    ]
+    amendment_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`)."
+        ),
+    ]
 
 
 class NodeTotals(ContractModel):
@@ -4309,7 +4325,7 @@ class ImportReport(ContractModel):
     rejected: Annotated[
         list[ImportRejection],
         Field(
-            description="Les lignes rejetées, chacune par son onglet et son rang, avec son motif ; les autres s'appliquent (WF-INTF-0080). Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`, WF-INTF-0100, WF-INTF-0120)."
+            description="Les lignes rejetées, chacune par son rang, et son onglet quand le fichier en a plusieurs, avec son motif ; les autres s'appliquent (WF-INTF-0080). Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`, WF-INTF-0100, WF-INTF-0120)."
         ),
     ]
     refusals: Annotated[

@@ -276,10 +276,20 @@
     tags: [revisions]
     summary: Comparer deux révisions marquées
     description: >-
-      Tâches ajoutées, retirées et modifiées, et écarts de montants par nature et par
-      sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030).
-      Une paire identique — la même révision deux fois — rend une comparaison vide,
-      jamais un refus.
+      L'arbre de la révision comparée, avec les marques d'un différentiel, et les écarts de
+      montants par nature et par sous-projet, rapprochés par l'identifiant de lignée
+      (WF-REV-0080, WF-DAT-0030, C-361). Les tâches et les lignes de la structure principale de la
+      révision comparée (`to_revision_id`) sont rendues dans l'ordre du plan, sans pagination,
+      comme `listNodes` les rend, chacune avec son écart à la révision de base
+      (`from_revision_id`) — `difference` et `changes`, toujours rendus —, et celles que la
+      révision de base portait et que la comparée n'a plus à la place qu'elles avaient, en
+      lecture seule (`NodeDifference`) : une tâche ajoutée, retirée ou modifiée — par ses dates, sa
+      durée, son état ou son parent —, une ligne par ses montants ou son parent, et une
+      récapitulative dont le contenu change, marquée modifiée. La grille de la comparaison est
+      celle des structures, avec les mêmes marques que la lecture d'un différentiel. `fields`
+      choisit ce que la comparaison rend de chaque nœud, comme pour `listNodes`. Une paire
+      identique — la même révision deux fois — rend chaque nœud inchangé et aucun écart de
+      montant, jamais un refus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: from_revision_id
@@ -290,6 +300,7 @@
         in: query
         required: true
         schema: { $ref: ../components/common.yaml#/Uuid }
+      - $ref: ../components/parameters.yaml#/NodeFields
     responses:
       '200':
         description: Comparaison.
@@ -299,6 +310,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/comparison.json }
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -395,6 +407,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/StructureMergeReport }
             examples:
               applicable: { $ref: ../../../fixtures/api/structure_merge_report.json }
+              started_task: { $ref: ../../../fixtures/api/structure_merge_report_started_task.json }
               refused: { $ref: ../../../fixtures/api/structure_merge_report_refused.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -516,6 +529,17 @@
       dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les
       propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` :
       une lecture qui en nomme ne rend que ce qu'elle nomme.
+
+      La lecture d'un différentiel est un diff avec la structure principale de sa révision, que
+      le serveur calcule et que le front ne recalcule pas (WF-REV-0100, C-361) : chaque nœud
+      porte son écart, `difference` — ajouté, retiré, modifié ou inchangé — et ce qui change de
+      lui, `changes`, rapprochés par la lignée, et les nœuds que le différentiel retire sont
+      rendus à la place qu'ils avaient, entre les nœuds qui les entouraient, en lecture seule
+      (`NodeDifference`) ; un nœud déplacé est rendu une fois, à sa place nouvelle, modifié par
+      son parent. `difference` et `changes` y sont toujours rendus, comme les quatre ; les
+      totaux ne comptent pas les nœuds retirés, qui ne sont plus de la structure (`nodes_amendment`).
+      Sur la structure principale et sur le devis propre d'un risque, `difference` est nul ou
+      omis.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -617,18 +641,7 @@
           contrat.
         schema: { $ref: ../components/schemas/revisions.yaml#/NodeColumn }
       - $ref: ../components/parameters.yaml#/SortOrder
-      - name: fields
-        in: query
-        description: >-
-          Les propriétés à rendre de chaque nœud, en plus des quatre toujours rendues ; une
-          propriété inconnue est refusée (400).
-        schema:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            pattern: '^((task|estimate_line)\.)?[a-z_]+$'
-        explode: false
+      - $ref: ../components/parameters.yaml#/NodeFields
     responses:
       '200':
         description: >-
@@ -661,6 +674,7 @@
               summaries_leaves: { $ref: ../../../fixtures/api/nodes_summaries_leaves.json }
               timeline: { $ref: ../../../fixtures/api/nodes_timeline.json }
               empty: { $ref: ../../../fixtures/api/nodes_empty.json }
+              amendment: { $ref: ../../../fixtures/api/nodes_amendment.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1129,6 +1143,10 @@
       Une tâche s'inscrit à une chronologie, un jalon au suivi temps/temps ; les jalons
       contractuels ne sont rien d'autre que des jalons inscrits (WF-PLA-0060). Une tâche de la
       structure principale le dit d'avance, `task.tracking` dans ses `editable_fields` (#1065).
+      Le suivi temps/temps est celui des jalons : une tâche qui n'est pas un jalon, envoyée avec
+      une entrée `milestone_tracking`, est refusée par 422 `VALIDATION_FAILED`, `fields` sur le
+      genre de cette entrée (`/entries/<n>/kind`, `n` son rang dans `entries`, à partir de 0),
+      motif `MILESTONE_REQUIRED`, et rien n'est écrit (#1159).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1159,7 +1177,17 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Refusé, rien n'étant écrit : le suivi temps/temps d'une tâche qui n'est pas un jalon,
+          `VALIDATION_FAILED`, `fields` sur `/entries/<n>/kind`, motif `MILESTONE_REQUIRED`
+          (WF-PLA-0060, #1159) ; ou une valeur hors règle, `fields` la localisant, comme la réponse
+          commune `UnprocessableEntity` le dit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              milestone_refused: { $ref: ../../../fixtures/api/node_tracking_milestone_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move:

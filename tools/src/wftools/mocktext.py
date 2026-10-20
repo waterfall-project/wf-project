@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -63,6 +63,12 @@ def day(value: date) -> str:
     """Write a day as French does: 3 juin 2026, 1er février 2027."""
     number = "1er" if value.day == 1 else str(value.day)
     return f"{number} {_MONTHS[value.month - 1]} {value.year}"
+
+
+def hour(instant: str) -> str:
+    """Write the hour of an instant the contract carries, as French does: 10 h 20, 8 h 05."""
+    found = datetime.fromisoformat(instant)
+    return f"{found.hour} h {found.minute:02d}"
 
 
 def count(value: int) -> str:

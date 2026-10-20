@@ -52,13 +52,23 @@ class Family:
         return self.first <= int(number, 16 if self.hexadecimal else 10) <= self.last
 
 
-NODES, LINEAGES, PROJECTS, CATEGORIES, RISKS, MILESTONES, AUDIT_EVENTS, CORRELATIONS, COST_LINES = (
-    range(1, 10)
-)
+(
+    NODES,
+    LINEAGES,
+    PROJECTS,
+    CATEGORIES,
+    RISKS,
+    MILESTONES,
+    AUDIT_EVENTS,
+    CORRELATIONS,
+    COST_LINES,
+    AMENDMENT_NODES,
+) = range(1, 11)
 """The generated families: the nodes of the structure of a thousand tasks and their lineages; the
 projects, rate categories, risks and milestone lineages of the portfolio (EP-02/L26); the journal of
-audit, its inscriptions and the correlations of their requests (``mockaudit``, EP-02/L42); and the
-lines of actual cost of the tasks drawn about the core (``mockcosts``, EP-14/L45a)."""
+audit, its inscriptions and the correlations of their requests (``mockaudit``, EP-02/L42); the
+lines of actual cost of the tasks drawn about the core (``mockcosts``, EP-14/L45a); and the nodes
+the amendment 2 copies of those drawn (``mockamendment``, #421)."""
 
 _GENERATED = 99_999_999
 
@@ -84,6 +94,7 @@ IDENTIFIERS = (
     Family("collages", 990, 999),
     Family("chronologies", 1000, 1009),
     Family("corrélations, suite", 1010, 1199),
+    Family("nœuds de l'avenant 2, celui du nœud 5nn de la principale en 12nn", 1200, 1299),
     Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
     Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
     Family("imports de coûts réels", 0xC10, 0xCFF, hexadecimal=True),
@@ -96,6 +107,7 @@ IDENTIFIERS = (
     Family("inscriptions du journal d'audit", 1, _GENERATED, AUDIT_EVENTS),
     Family("corrélations engendrées", 1, _GENERATED, CORRELATIONS),
     Family("lignes de coût réel engendrées", 1, _GENERATED, COST_LINES),
+    Family("nœuds engendrés de l'avenant 2", 1, _GENERATED, AMENDMENT_NODES),
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 
@@ -106,7 +118,9 @@ attach it outside the subtree of the task of its lot speaks of it
 (`task_attach_outside_work_package`), and the work breakdown names it, with its one deliverable
 713 (`work_breakdown`, WF-PRJ-0020, C-350). The lot 714 and its post 715 make the work breakdown
 of a project whose order was not entered (`work_breakdown_default`). The correlations
-written by hand go on past the chronologies, their first range being full (EP-02/L42d)."""
+written by hand go on past the chronologies, their first range being full (EP-02/L42d). The nodes
+of the amendment 2 have identifiers of their own, apart from those of the main structure whose
+lineages they share, so that one identifier at one version names one content (#421, US-0500/L1)."""
 
 
 def hex_identifier(number: int) -> str:

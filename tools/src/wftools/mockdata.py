@@ -70,6 +70,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from wftools import (
     REPOSITORY,
+    mockamendment,
     mockaudit,
     mockcore,
     mockcosts,
@@ -335,6 +336,7 @@ def named() -> dict[str, JsonObject]:
         **mockwrites.writes(),
         **mockgestures.examples(),
         **mockexchanges.examples(),
+        **mockamendment.examples(),
         **mockhistory.examples(),
         **mocktoday.examples(),
         **mockcosts.examples(),

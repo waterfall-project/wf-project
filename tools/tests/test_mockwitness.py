@@ -50,7 +50,7 @@ def test_today_is_the_instant_every_first_example_describes() -> None:
 
 def test_the_families_of_identifiers_lie_on_disjoint_ranges() -> None:
     generated = sorted(family.generated for family in mockids.IDENTIFIERS if family.generated)
-    assert generated == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert generated == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     tails = {f"{n:012d}" for n in range(1_000)} | {f"{n:012x}" for n in range(0x1000)}
     for tail in sorted(tails):
         held = [family.what for family in mockids.IDENTIFIERS if family.holds(PREFIX + tail)]
@@ -279,7 +279,12 @@ def test_the_figures_of_the_core_are_those_of_the_other_examples() -> None:
     assert (lines[553].hours or 0) * Decimal(rate["amount"]) == Decimal("1000.00")
 
 
-_STRUCTURE = ("nœuds de la structure", "nœuds engendrés")
+_STRUCTURE = (
+    "nœuds de la structure",
+    "nœuds engendrés",
+    "nœuds de l'avenant 2, celui du nœud 5nn de la principale en 12nn",
+    "nœuds engendrés de l'avenant 2",
+)
 _KEYS = {
     "node_id": _STRUCTURE,
     "predecessor_node_id": _STRUCTURE,

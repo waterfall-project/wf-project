@@ -187,7 +187,7 @@ describe("the first step of an import", () => {
     open(importCommands());
     await userEvent.click(screen.getByRole("button", { name: "Importer un devis" }));
     const form = screen.getByRole("form", { name: "Importer un devis" });
-    const file = new File(["devis"], "devis-poste-de-commande.xlsx");
+    const file = new File(["devis"], "devis-avenant-2-reprise-des-essais.xlsx");
     await userEvent.upload(within(form).getByLabelText("Fichier à importer"), file);
     await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
     await waitFor(() => {
@@ -200,7 +200,7 @@ describe("the first step of an import", () => {
     });
     expect(screen.queryByRole("form")).toBeNull();
     expect(
-      within(tasks()).getByText("Analyse d’un import « devis-poste-de-commande.xlsx »"),
+      within(tasks()).getByText("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
     ).toBeVisible();
   });
 
@@ -223,7 +223,7 @@ describe("the first step of an import", () => {
     const form = screen.getByRole("form", { name: "Importer un devis" });
     await userEvent.upload(
       within(form).getByLabelText("Fichier à importer"),
-      new File(["devis"], "devis-poste-de-commande.xlsx"),
+      new File(["devis"], "devis-avenant-2-reprise-des-essais.xlsx"),
     );
     await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
     await waitFor(() => {
@@ -236,7 +236,7 @@ describe("the first step of an import", () => {
     });
     expect(router.push).not.toHaveBeenCalled();
     expect(
-      within(tasks()).getByText("Analyse d’un import « devis-poste-de-commande.xlsx »"),
+      within(tasks()).getByText("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
     ).toBeVisible();
   });
 
@@ -309,7 +309,7 @@ describe("the report of an import", () => {
     });
     const { container } = open(report(example("import_analysed") as Import));
     const section = screen.getByRole("region", {
-      name: "Compte rendu de l’import « devis-poste-de-commande.xlsx »",
+      name: "Compte rendu de l’import « devis-avenant-2-reprise-des-essais.xlsx »",
     });
     const rejected = within(section).getByRole("table", { name: "Lignes rejetées" });
     expect(
@@ -321,7 +321,7 @@ describe("the report of an import", () => {
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
     expect(within(confirmation).getByRole("paragraph")).toHaveTextContent(
-      "Appliquer au projet l’import « devis-poste-de-commande.xlsx », en une seule opération ?",
+      "Appliquer au projet l’import « devis-avenant-2-reprise-des-essais.xlsx », en une seule opération ?",
     );
     expect(
       within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
@@ -340,7 +340,9 @@ describe("the report of an import", () => {
     ]);
     expect(screen.getByRole("button", { name: "Appliquer l’import" })).toHaveFocus();
     expect(
-      within(tasks()).getByText("Application d’un import « devis-poste-de-commande.xlsx »"),
+      within(tasks()).getByText(
+        "Application d’un import « devis-avenant-2-reprise-des-essais.xlsx »",
+      ),
     ).toBeVisible();
   });
 

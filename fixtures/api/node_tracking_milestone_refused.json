@@ -1,0 +1,12 @@
+{
+  "summary": "La « Mise en service », qui n'est pas un jalon, envoyée avec ses inscriptions — la chronologie « Comité de pilotage » — et une entrée au suivi temps/temps : le suivi temps/temps est celui des jalons, et la saisie est refusée sur le genre de cette entrée, la 2e envoyée ; rien n'est écrit (WF-PLA-0060, #1159).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/entries/1/kind","code":"MILESTONE_REQUIRED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001180"
+  }
+}

@@ -44,7 +44,7 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   await imports.getByRole("button", { name: "Importer un devis" }).click();
   const form = imports.getByRole("form", { name: "Importer un devis" });
   await form.getByLabel("Fichier à importer").setInputFiles({
-    name: "devis-poste-de-commande.xlsx",
+    name: "devis-avenant-2-reprise-des-essais.xlsx",
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("devis"),
   });
@@ -53,7 +53,7 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   // The report of the import the analysis opened, its lines rejected each with its motive.
   await expect(page).toHaveURL(`${START}&import=${IMPORT}`);
   const report = page.getByRole("region", {
-    name: "Compte rendu de l’import « devis-poste-de-commande.xlsx »",
+    name: "Compte rendu de l’import « devis-avenant-2-reprise-des-essais.xlsx »",
   });
   const rejected = report.getByRole("table", { name: "Lignes rejetées" }).getByRole("row");
   await expect(rejected).toHaveText([
@@ -72,7 +72,7 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
   const panel = page.getByRole("dialog", { name: "Tâches et messages" });
   const tasks = panel.getByRole("region", { name: "Tâches de fond" });
-  const application = "Application d’un import « devis-poste-de-commande.xlsx »";
+  const application = "Application d’un import « devis-avenant-2-reprise-des-essais.xlsx »";
   await expect(tasks.getByText(application)).toBeVisible();
   await expect(tasks.getByRole("progressbar", { name: application })).toBeVisible();
   await page.keyboard.press("Escape");

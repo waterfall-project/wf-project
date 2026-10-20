@@ -166,7 +166,7 @@ describe("the screen of the imports and exports", () => {
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
     expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=20`]);
     expect(text(page)).toContain(
-      "Imports of the project File Kind Status Opened on devis-poste-de-commande.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-correction.xlsx Actual costs Expired",
+      "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-correction.xlsx Actual costs Expired",
     );
     expect(links(page)).toContain(`${PATHNAME}?import=${IMPORT}`);
     expect(text(page)).toContain("planning-poste-de-commande.xml MS Project schedule Abandoned");
@@ -196,14 +196,14 @@ describe("the screen of the imports and exports", () => {
     const page = await exchangesAt({ import: IMPORT, as_of: "2026-05-31" });
     expect(calls(GET_IMPORT)).toEqual([`/projects/${PROJECT}/imports/${IMPORT}?`]);
     expect(page).toContain(
-      '<section aria-label="Report of the import “devis-poste-de-commande.xlsx”"',
+      '<section aria-label="Report of the import “devis-avenant-2-reprise-des-essais.xlsx”"',
     );
     expect(text(page)).toContain("5 lines read.");
     expect(text(page)).toContain(
       "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
     );
     expect(text(page)).toContain(
-      "3 differences with the existing data Change Object Label Fields Added Estimate line Essais de continuité Updated Estimate line Raccordement des borniers Hours Removed Estimate line Borniers",
+      "3 differences with the existing data Change Object Label Fields Added Estimate line Essais de continuité Updated Estimate line Assistance à la reprise des essais Hours Removed Estimate line Câblage sur site",
     );
     expect(buttons(page).slice(0, 2)).toEqual(["Apply the import", "Abandon the import"]);
     const current = [...page.matchAll(/<a aria-current="page"[^>]*href="([^"]*)"/g)];
@@ -241,7 +241,7 @@ describe("the screen of the imports and exports", () => {
 
   it("names the fields a difference changes by the columns of its object, in the language of its reader [WF-ARC-0110-A]", async () => {
     const french = text(await exchangesAt({ import: IMPORT }, "fr"));
-    expect(french).toContain("Modifié Ligne de devis Raccordement des borniers Charge");
+    expect(french).toContain("Modifié Ligne de devis Assistance à la reprise des essais Charge");
     server.answers = {
       ...server.answers,
       [GET_IMPORT]: { example: "import_actual_costs_analysed", status: 200 },

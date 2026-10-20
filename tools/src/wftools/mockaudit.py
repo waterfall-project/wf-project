@@ -412,7 +412,7 @@ def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
 def import_applied_today() -> Inscription:
     """Return the application of the estimate imported this morning, which succeeds today.
 
-    The import of the estimate of the « Poste de commande », analysed this morning
+    The import of the estimate of the amendment 2, « reprise des essais », analysed this morning
     (`import_analysed`), confirmed today and applied by its task, which succeeds at 14 h 08 min 30 s
     (`task_import_succeeded`): the instant of the inscription is the one the task succeeded at. By
     the account of the witness, which confirmed it; in the revision in progress, where an import
@@ -786,8 +786,9 @@ def examples() -> dict[str, JsonObject]:
         ),
         "audit_events_import_applied.json": mocktext.example(
             f"Le journal d'audit du projet témoin juste après l'application de l'import du devis "
-            f"du Poste de commande (import_analysed), confirmée le {day} et aboutie à 14 h 08 min "
-            f"30 s (task_import_succeeded) : l'application en tête, par Camille Martin, avec la "
+            f"de l'avenant 2 « reprise des essais » (import_analysed), confirmée le {day} et "
+            f"aboutie à 14 h 08 min 30 s (task_import_succeeded) : l'application en tête, par "
+            f"Camille Martin, avec la "
             f"révision en cours où elle s'écrit, qui n'a pas encore de nom de version "
             f"(WF-INTF-0090) ; puis les mêmes inscriptions qu'avant elle (WF-SEC-0030).",
             _page(imported),
