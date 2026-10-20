@@ -3,7 +3,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { type ReactNode, use, useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -17,6 +16,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { estimateReference } from "@/test/reference";
 
 import { EstimateGrid } from "./estimate-grid";
@@ -41,6 +41,7 @@ const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined
 const NODES = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const CREATE = `POST ${NODES}` as const;
 const DELETE = `DELETE ${NODES}/{node_id}` as const;
+const MOVE = `POST ${NODES}/move` as const;
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
@@ -89,35 +90,6 @@ function estimateGrid(editable = true, tasksEditable = true, nodes: NodeList = e
       />
     </NextIntlClientProvider>
   );
-}
-
-// The reading that follows a write is a transition of Next that stays pending until the server
-// answers: the wrapper suspends, inside the transition, on a promise the test releases.
-const reading = vi.hoisted(
-  (): { hold?: (wait: Promise<void>) => void; release?: () => void } => ({}),
-);
-
-/** Wrap a grid so that `router.refresh()` keeps its transition pending until `reading.release()`. */
-function Reading({ children }: { readonly children: ReactNode }) {
-  const [wait, hold] = useState<Promise<void>>();
-  useEffect(() => {
-    reading.hold = hold;
-  }, [hold]);
-  if (wait !== undefined) {
-    use(wait);
-  }
-  return children;
-}
-
-/** Make the next `router.refresh()` a reading that lasts until `reading.release()`. */
-function holdReading(): void {
-  router.refresh.mockImplementation(() => {
-    reading.hold?.(
-      new Promise<void>((resolve) => {
-        reading.release = resolve;
-      }),
-    );
-  });
 }
 
 /** The cell of the label of the row at an index. */
@@ -237,8 +209,7 @@ beforeEach(() => {
 
 afterEach(() => {
   // A reading a test held is let go, so that none outlives it.
-  reading.release?.();
-  delete reading.release;
+  releaseReading();
   vi.restoreAllMocks();
 });
 
@@ -408,7 +379,7 @@ describe("the gestures that delete tasks and lines", () => {
 
     /** Delete the line at once, the reading of the grid being held. */
     async function deleteHeld() {
-      holdReading();
+      holdReading(router.refresh);
       serve({ [DELETE]: "node_deleted" });
       const view = render(estimateGrid(), { wrapper: Reading });
       await activate(LINE);
@@ -441,7 +412,7 @@ describe("the gestures that delete tasks and lines", () => {
       const view = await deleteHeld();
       await act(async () => {
         view.rerender(without());
-        reading.release?.();
+        releaseReading();
         await Promise.resolve();
       });
       await waitFor(() => {
@@ -475,7 +446,7 @@ describe("the gestures that delete tasks and lines", () => {
         await Promise.resolve();
       });
       await act(async () => {
-        reading.release?.();
+        releaseReading();
         await Promise.resolve();
       });
       expect(document.activeElement).toBe(field);
@@ -490,7 +461,7 @@ describe("the gestures that delete tasks and lines", () => {
         await Promise.resolve();
       });
       await act(async () => {
-        reading.release?.();
+        releaseReading();
         await Promise.resolve();
       });
       const field = filter();
@@ -565,10 +536,38 @@ describe("the refusal of a gesture, said to the row in cause", () => {
       `Refusé à la ligne ${String(node(TASK)?.row_number)}, « Câblage des armoires » :`,
     );
     expect(alert).toHaveTextContent(
-      "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
+      "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : la grille est relue.",
     );
     // The reading is stale: the grid is read anew, and the refusal stays told.
     expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives the focus back to the grid when the reading a node that is no sibling asks removes the cell that had it", async () => {
+    // The refusal comes from a reading gone stale: the reading anew may no longer hold the row.
+    holdReading(router.refresh);
+    serve({
+      [MOVE]: { problem: example("nodes_move_after_not_sibling") as Problem & { status: 422 } },
+    });
+    const view = render(estimateGrid(), { wrapper: Reading });
+    const risk = rowOf("Risque survenu — Retard de livraison des armoires");
+    await activate(risk);
+    await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
+    await screen.findByRole("alert");
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      view.rerender(
+        estimateGrid(true, true, {
+          ...estimate,
+          items: estimate.items.filter((_, index) => index !== risk),
+        }),
+      );
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("treegrid")).toContainElement(
+        document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      );
+    });
   });
 
   it("passes every write of the hook, the deletion too, through the reading of the reason of a field, which leaves a refusal without field as it is", async () => {

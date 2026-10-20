@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What the gestures of structure of a grid are (US-0460): which a row takes, which a key asks, and
- * the body of the node each creates (`NodeCreate`) or of the move it makes (`NodeMove`). Pure,
- * neither server nor client: the grid offers a gesture the structure it reads lists available
- * (`tasks`, `lines`), an indentation only where the rows shown hold the neighbour it goes under,
- * and the server judges the rest.
+ * What the gestures of structure of a grid are (US-0460): which a row — or the selection of
+ * contiguous rows it stands in — takes, which a key asks, and the body of the node each creates
+ * (`NodeCreate`) or of the move it makes (`NodeMove`). Pure, neither server nor client: the grid
+ * offers a gesture the structure it reads lists available (`tasks`, `lines`), a move only where the
+ * rows shown hold the neighbour it rests on, and the server judges the rest.
  */
 import type { components } from "@/api/generated/schema";
 
@@ -46,16 +46,19 @@ export interface StructureGestures {
 
 /**
  * The gestures: a first task, a task below a row, a sub-task, a line, an indentation, an
- * outdentation, a deletion.
+ * outdentation, a move up or down by a rank, a deletion.
  */
-export type Gesture = "first" | "below" | "child" | "line" | "indent" | "outdent" | "delete";
+export type Gesture =
+  "first" | "below" | "child" | "line" | "indent" | "outdent" | "up" | "down" | "delete";
 
-/** The gestures that move tasks in the tree, with no dialog to ask. */
-export type Moving = "indent" | "outdent";
+/** The gestures that move nodes in the tree, with no dialog to ask. */
+export type Moving = "indent" | "outdent" | "up" | "down";
 
-/** Whether a gesture moves tasks. */
+const MOVING: readonly Gesture[] = ["indent", "outdent", "up", "down"] satisfies Moving[];
+
+/** Whether a gesture moves nodes. */
 export function moves(gesture: Gesture): gesture is Moving {
-  return gesture === "indent" || gesture === "outdent";
+  return MOVING.includes(gesture);
 }
 
 /** What a dialog of creation gathered: the label, and for a line its category and its quantity. */
@@ -75,91 +78,183 @@ function linesOffered(scope: StructureGestures): boolean {
 }
 
 /**
- * The task that precedes a task among its siblings, if the rows the grid shows hold it: the nearest
- * task above it under the same parent, which is the true neighbour only when its rank
- * (`Node.position`, from 1, the lines of a task counting before its sub-tasks) is that of the row
- * less one. A search, a filter or the states the remaining to commit retains leave rows out: a
- * sibling between the two missing, the one shown above is not the one the server would put the task
- * under.
+ * The sibling of a row at a rank (`Node.position`, from 1, the lines of a task counting before its
+ * sub-tasks), if the rows the grid shows hold it. A rank names the true neighbour whatever the grid
+ * leaves out: a search, a filter, the states the remaining to commit retains or the planning, which
+ * reads no line, leave rows out, and the row shown above a task is not always the one the server
+ * would put it under.
  */
-function precedingSibling(row: GridNode, rows: readonly GridNode[]): GridNode | undefined {
-  const at = rows.findIndex((each) => each.node_id === row.node_id);
-  const above = rows
-    .slice(0, Math.max(at, 0))
-    .findLast((each) => each.kind === "task" && each.parent_id === row.parent_id);
-  return above?.position === row.position - 1 ? above : undefined;
+function siblingAt(row: GridNode, rank: number, rows: readonly GridNode[]): GridNode | undefined {
+  return rows.find((each) => each.parent_id === row.parent_id && each.position === rank);
 }
 
 /**
- * The place a task takes by an indentation or an outdentation, as MS Project does: an indentation
- * puts it under the task that precedes it among its siblings, in the last place (`after_node_id`
- * absent) — none for the first of its siblings, nor where the grid does not show that task, nor
- * under a milestone, which bears nothing —; an outdentation puts it after its parent, under the
- * parent of that one — none for a task already at the root, nor where the grid does not show its
- * parent. The place never rests on a row the grid leaves out.
+ * The nodes of a selection that bear the others — those none of whose ancestors is selected —, in
+ * the order of the grid: a summary moved carries its subordinates, which the server would refuse to
+ * move again under it. The ancestors are read up the rows shown, which a tree shows above each row.
+ */
+export function topsOf<Node extends GridNode>(
+  nodes: readonly Node[],
+  rows: readonly GridNode[],
+): Node[] {
+  const chosen = new Set(nodes.map((each) => each.node_id));
+  const parents = new Map(rows.map((each) => [each.node_id, each.parent_id]));
+  return nodes.filter((node) => {
+    let above: string | null | undefined = node.parent_id;
+    while (above !== null && above !== undefined) {
+      if (chosen.has(above)) {
+        return false;
+      }
+      above = parents.get(above);
+    }
+    return true;
+  });
+}
+
+/** Whether nodes follow each other rank by rank among the same siblings, of one kind. */
+function inRun(nodes: readonly GridNode[]): boolean {
+  return nodes.every((node, at) => {
+    const before = nodes[at - 1];
+    return (
+      before === undefined ||
+      (node.parent_id === before.parent_id &&
+        node.kind === before.kind &&
+        node.position === before.position + 1)
+    );
+  });
+}
+
+/** Whether the grid lets nodes of a kind move: tasks where it lists tasks, lines where it lists lines. */
+function movable(nodes: readonly GridNode[], scope: StructureGestures): boolean {
+  return nodes.every((node) => (node.kind === "task" ? scope.tasks : scope.lines));
+}
+
+/** A move without the version it carries. */
+type Placed = Omit<NodeMove, "lock_version">;
+
+/**
+ * The move by a rank of contiguous siblings of one kind: up, the sibling just above the first goes
+ * after the last; down, they go after the sibling just below the last — each of their kind, and
+ * shown.
+ */
+function byRank(
+  gesture: "up" | "down",
+  first: GridNode,
+  last: GridNode,
+  rows: readonly GridNode[],
+): Placed | undefined {
+  const neighbour =
+    gesture === "up"
+      ? siblingAt(first, first.position - 1, rows)
+      : siblingAt(last, last.position + 1, rows);
+  if (neighbour?.kind !== first.kind) {
+    return undefined;
+  }
+  return gesture === "up"
+    ? { node_ids: [neighbour.node_id], parent_id: first.parent_id, after_node_id: last.node_id }
+    : { node_ids: [], parent_id: first.parent_id, after_node_id: neighbour.node_id };
+}
+
+/**
+ * The move by a level of contiguous sibling tasks: an indentation puts them under the task just
+ * above the first one, last (`after_node_id` absent) — none under a milestone, which bears nothing
+ * —; an outdentation after their parent, under the parent of that one.
+ */
+function byLevel(
+  gesture: "indent" | "outdent",
+  first: GridNode,
+  rows: readonly GridNode[],
+): Placed | undefined {
+  if (first.kind !== "task") {
+    return undefined;
+  }
+  if (gesture === "indent") {
+    const above = siblingAt(first, first.position - 1, rows);
+    return above?.kind !== "task" || above.task?.is_milestone === true
+      ? undefined
+      : { node_ids: [], parent_id: above.node_id };
+  }
+  const parent = rows.find((each) => each.node_id === first.parent_id);
+  return parent === undefined
+    ? undefined
+    : { node_ids: [], parent_id: parent.parent_id, after_node_id: parent.node_id };
+}
+
+/**
+ * The move a gesture makes of the nodes that bear a selection, contiguous siblings of one kind, as
+ * MS Project does (`byLevel`, `byRank`), the nodes moved being those, but for a move up, which moves
+ * the sibling above them. None where the grid does not show the neighbour or the parent the move
+ * rests on: the place never rests on a row the grid leaves out.
  */
 function placeOf(
   gesture: Moving,
-  row: GridNode,
+  tops: readonly GridNode[],
   rows: readonly GridNode[],
-): Pick<NodeMove, "parent_id" | "after_node_id"> | undefined {
-  if (gesture === "indent") {
-    const above = precedingSibling(row, rows);
-    return above === undefined || above.task?.is_milestone === true
-      ? undefined
-      : { parent_id: above.node_id };
+): Placed | undefined {
+  const [first] = tops;
+  const last = tops.at(-1);
+  if (first === undefined || last === undefined || !inRun(tops)) {
+    return undefined;
   }
-  const parent = rows.find((each) => each.node_id === row.parent_id);
-  return parent === undefined
-    ? undefined
-    : { parent_id: parent.parent_id, after_node_id: parent.node_id };
+  const place =
+    gesture === "up" || gesture === "down"
+      ? byRank(gesture, first, last, rows)
+      : byLevel(gesture, first, rows);
+  if (place === undefined) {
+    return undefined;
+  }
+  return place.node_ids.length > 0
+    ? place
+    : { ...place, node_ids: tops.map((each) => each.node_id) };
 }
 
-/** The gestures a task takes: a task below it, a sub-task, a line, its move, its deletion. */
-function onTask(row: GridNode, scope: StructureGestures): readonly Gesture[] {
-  const milestone = row.task?.is_milestone === true;
-  const summary = row.task?.is_summary === true;
-  const gestures: Gesture[] = [];
-  if (scope.tasks) {
-    gestures.push("below");
-    if (!milestone) {
-      gestures.push("child");
-    }
+/** The moves the nodes that bear the rows acted on take, in the order they are offered. */
+function movesOf(rows: readonly GridNode[], scope: StructureGestures): readonly Moving[] {
+  const tops = topsOf(rows, scope.rows);
+  if (!movable(tops, scope)) {
+    return [];
   }
-  if (linesOffered(scope) && !milestone && !summary) {
-    gestures.push("line");
-  }
-  if (scope.tasks) {
-    const movable = (["indent", "outdent"] as const).filter(
-      (gesture) => placeOf(gesture, row, scope.rows) !== undefined,
-    );
-    gestures.push(...movable, "delete");
-  }
-  return gestures;
+  return (["indent", "outdent", "up", "down"] as const).filter(
+    (gesture) => placeOf(gesture, tops, scope.rows) !== undefined,
+  );
 }
 
 /**
- * The gestures a row takes, in the order they are offered, none the grid does not list. A task
- * takes a task below it, a sub-task unless it is a milestone, a line unless it is a summary or a
- * milestone, an indentation unless it is the first of its siblings, follows a milestone, or has the
- * grid not show the sibling that precedes it, an outdentation unless it is at the root or the grid
- * does not show its parent, and its deletion; a line takes a line below it and its deletion; no
- * row — the header, an empty grid — a first task.
+ * The gestures a row takes, in the order they are offered, none the grid does not list: a task a
+ * task below it, a sub-task unless it is a milestone, a line unless it is a summary or a milestone;
+ * a line a line below it; no row — the header, an empty grid — a first task. The moves are those of
+ * the rows acted on — the selection the row stands in, or the row alone —: an indentation unless the
+ * first is the first of its siblings, follows a milestone, or has the grid not show the sibling that
+ * precedes it, an outdentation unless it is at the root or the grid does not show its parent, up and
+ * down where the grid shows the sibling of their kind just above or just below. The deletion is that
+ * of the row alone, offered where no selection of several rows is acted on.
  */
 export function gesturesOn(
   row: GridNode | undefined,
   scope: StructureGestures,
+  acted: readonly GridNode[] = row === undefined ? [] : [row],
 ): readonly Gesture[] {
   if (row === undefined) {
     return scope.tasks ? ["first"] : [];
   }
-  if (row.kind === "task") {
-    return onTask(row, scope);
-  }
+  const deletes = (row.kind === "task" ? scope.tasks : scope.lines) && acted.length <= 1;
   return [
-    ...(linesOffered(scope) ? (["line"] as const) : []),
-    ...(scope.lines ? (["delete"] as const) : []),
+    ...createdOn(row, scope),
+    ...movesOf(acted, scope),
+    ...(deletes ? ["delete" as const] : []),
   ];
+}
+
+/**
+ * The creations a row takes: a task a task below it, a sub-task unless it is a milestone, a line
+ * unless it is a summary or a milestone; a line a line below it.
+ */
+function createdOn(row: GridNode, scope: StructureGestures): readonly Gesture[] {
+  const milestone = row.task?.is_milestone === true;
+  const task = row.kind === "task";
+  const tasks: readonly Gesture[] = milestone ? ["below"] : ["below", "child"];
+  const line = linesOffered(scope) && (!task || (!milestone && row.task?.is_summary !== true));
+  return [...(task && scope.tasks ? tasks : []), ...(line ? ["line" as const] : [])];
 }
 
 /** The keys a gesture is asked by, as `aria-keyshortcuts` names them. */
@@ -170,6 +265,8 @@ export const GESTURE_KEYS: Readonly<Record<Gesture, string>> = {
   line: "Control+Insert",
   indent: "Alt+Shift+ArrowRight",
   outdent: "Alt+Shift+ArrowLeft",
+  up: "Alt+Shift+ArrowUp",
+  down: "Alt+Shift+ArrowDown",
   delete: "Control+Delete",
 };
 
@@ -182,22 +279,31 @@ interface Pressed {
   readonly metaKey?: boolean | undefined;
 }
 
-/** The move an arrow asks with Alt and Shift: right indents, left outdents, Ctrl and Cmd aside. */
+/** The moves the arrows ask with Alt and Shift, as MS Project does. */
+const ARROWS: Readonly<Partial<Record<string, Moving>>> = {
+  ArrowRight: "indent",
+  ArrowLeft: "outdent",
+  ArrowUp: "up",
+  ArrowDown: "down",
+};
+
+/** The move an arrow asks with Alt and Shift, Ctrl and Cmd aside. */
 function movingKey(pressed: Pressed): Moving | undefined {
   if (!pressed.altKey || !pressed.shiftKey || pressed.ctrlKey || pressed.metaKey === true) {
     return undefined;
   }
-  return pressed.key === "ArrowRight" ? "indent" : "outdent";
+  return ARROWS[pressed.key];
 }
 
 /**
  * The gesture a key asks of a row, if it asks one: Insert a task below — a line below a line —,
  * Alt+Insert a sub-task, Ctrl+Insert a line, Alt+Shift+Right an indentation, Alt+Shift+Left an
- * outdentation, Ctrl+Delete the deletion. Shift+Insert pastes, and is the grid's; Ctrl or Cmd with
- * the arrows is not asked — AltGr is Ctrl and Alt together.
+ * outdentation, Alt+Shift+Up and Alt+Shift+Down a move by a rank, Ctrl+Delete the deletion.
+ * Shift+Insert pastes, and is the grid's; Shift and an arrow alone extend the selection, and are the
+ * grid's too; Ctrl or Cmd with the arrows is not asked — AltGr is Ctrl and Alt together.
  */
 export function gestureOfKey(row: GridNode | undefined, pressed: Pressed): Gesture | undefined {
-  if (pressed.key === "ArrowRight" || pressed.key === "ArrowLeft") {
+  if (pressed.key in ARROWS) {
     return movingKey(pressed);
   }
   if (pressed.shiftKey) {
@@ -252,19 +358,18 @@ export function bodyOf(gesture: Gesture, row: GridNode | undefined, entered: Ent
 }
 
 /**
- * The body of the move a gesture asks of tasks: the nodes in the order of the grid, under the
- * parent and after the node the place of the first one names (`placeOf`) — absent for an
- * indentation, which goes last (#1183). Made for a list of nodes, a selection of contiguous rows;
- * none when the first one has no such place. The version is that of the structure read.
+ * The body of the move a gesture asks of the rows acted on — a selection of contiguous rows, or the
+ * row alone —: the nodes that bear them (`topsOf`), in the order of the grid, at the place
+ * `placeOf` gives — `after_node_id` absent for an indentation, which goes last (#1183). None where
+ * they have no such place, or are of a kind the grid does not move. The version is that of the
+ * structure, as the last write left it.
  */
 export function moveOf(
   gesture: Moving,
   nodes: readonly GridNode[],
   scope: StructureGestures,
 ): NodeMove | undefined {
-  const [first] = nodes;
-  const place = first === undefined ? undefined : placeOf(gesture, first, scope.rows);
-  return place === undefined
-    ? undefined
-    : { node_ids: nodes.map((each) => each.node_id), ...place, lock_version: scope.version };
+  const tops = topsOf(nodes, scope.rows);
+  const place = movable(tops, scope) ? placeOf(gesture, tops, scope.rows) : undefined;
+  return place === undefined ? undefined : { ...place, lock_version: scope.version };
 }

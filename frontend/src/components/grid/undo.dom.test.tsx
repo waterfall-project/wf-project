@@ -225,6 +225,7 @@ describe("undo and redo, placed in the grids", () => {
       "Insérer une sous-tâche",
       "Insérer une ligne",
       "Désindenter",
+      "Descendre",
       "Supprimer",
       "Plier la ligne",
       "Tout déplier",

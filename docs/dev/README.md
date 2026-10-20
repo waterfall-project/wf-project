@@ -1697,46 +1697,72 @@ disponibles (`commands`), le planning lit `edit_planning`, le devis `edit_estima
 engager `edit_remaining`. Le front ne déduit jamais la phase du projet : sur la structure principale
 d'un projet En cours le devis est en lecture seule, le reste à engager l'est avant (WF-DEV-0050,
 WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
-ligne », « Indenter », « Désindenter », « Supprimer » — sont dans le menu contextuel des cellules et
-aux touches Insert, Alt+Insert, Ctrl+Insert, Alt+Maj+→, Alt+Maj+← et Ctrl+Suppr
-(`structure-gestures.tsx`, règles pures dans `structure-rules.ts`) ; la barre, tenue sur une ligne,
-n'offre que la première tâche d'une grille sans ligne. Une création passe par un dialogue qui la
-nomme, et nomme la ligne sous laquelle il agit (libellé ; pour une ligne, catégorie et quantité, que
-le contrat exige), `createNode` et `deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une
-création désigne sa place par le nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un
-rang qu'une grille filtrée ne saurait compter : la ligne active pour « Insérer au-dessous » et pour
-une ligne sous une ligne ; sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous
-une tâche après sa dernière ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183,
-#1187). « Indenter » déplace la tâche sous celle qui la précède parmi ses frères, en dernière place
-(`after_node_id` absent) ; « Désindenter » la place après son parent, sous le parent de celui-ci
-(`after_node_id` = l'ancien parent) ; la tâche emporte ses subordonnées, sans dialogue. Les
-lignes que la grille montre ne sont pas toujours l'arbre : une recherche, un filtre, ou le reste à
-engager, qui ne lit par défaut que les tâches commencées, en laissent. « Indenter » n'est donc
-offerte, au menu comme à la touche, que si la tâche rendue juste au-dessus sous le même parent est
-la vraie voisine, c'est-à-dire si son rang (`Node.position`, à partir de 1, les lignes d'une tâche
-comptant avant ses sous-tâches) est celui de la ligne moins un ; sinon le geste n'est pas offert, et
-il ne l'est pas non plus à la première de ses sœurs, sous un jalon, ni à une tâche dont la voisine
-est une ligne. « Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent
-(`parent_id`, `node_id`), mais elle n'est pas offerte si la grille ne montre pas ce parent, ni à la
-racine. `moveNodes` s'appelle pour une liste de nœuds, la place étant celle du premier (`moveOf`),
-et la ligne active, une tâche avec ses subordonnées, est la seule que le lot L4 de US-0460 ferme ;
-la sélection de plusieurs tâches est celle de US-0460/L5. La version de la structure qu'il porte
-est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) : la plus
-haute entre celle de la page et celles que les écritures ont rendues (`NodesWritten.structure_lock_version`), cellule saisie, création, déplacement, suppression ou collage, car le
-contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Un refus par champ se
-dit par la raison du champ (`byField`), pour toute écriture du hook — création, déplacement et
-`deleteNode`, dont le contrat ne cite aucun champ, son refus se disant alors par son code —, comme
-celui d'une cellule ; `NODE_NOT_SIBLING`, qui vient d'une lecture périmée,
-relit en outre la grille. La suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas,
-et le focus revient alors à la cellule active de la grille. La grille est relue après une
-écriture, la lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version
-que la structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de
-tâche du devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de
-`edit_estimate` : créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que
-saisir le devis n'en crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la
-grille en nommant la ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une
-création sans ligne (la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit
-par `useSaid` et le refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
+ligne », « Indenter », « Désindenter », « Monter », « Descendre », « Supprimer » — sont dans le menu
+contextuel des cellules et aux touches Insert, Alt+Insert, Ctrl+Insert, Alt+Maj+→, Alt+Maj+←,
+Alt+Maj+↑, Alt+Maj+↓ et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans
+`structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
+sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne sous laquelle il agit
+(libellé ; pour une ligne, catégorie et quantité, que le contrat exige), `createNode` et
+`deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une création désigne sa place par le
+nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un rang qu'une grille filtrée ne
+saurait compter : la ligne active pour « Insérer au-dessous » et pour une ligne sous une ligne ;
+sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous une tâche après sa dernière
+ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183, #1187).
+
+La cellule du numéro de chaque ligne en est la poignée (`row-selection.tsx`), dans une grille dont
+l'écran agit sur une sélection (`RowCommands.selects`) : nommée par le numéro de sa ligne, décrite
+par la façon de sélectionner et de déplacer, elle se traverse aux flèches comme les autres cellules.
+Un clic la sélectionne seule, Maj et un clic étendent la sélection depuis son ancre ; au clavier,
+sur la colonne des poignées, Espace sélectionne, Maj+↑ et Maj+↓ étendent la sélection avec la cellule
+active, Échap la lève. La sélection est faite de lignes contiguës, gardées par leur identité : une
+relecture qui les déplace les garde sélectionnées, et la cellule active les suit ; une relecture
+qui ne montre plus l'une de ses extrémités — un filtre, un pliage — la lève. La cellule active suit
+aussi la ligne qu'un geste a déplacée, sélectionnée ou non (`RowCommands.moved`), à l'arrivée de la
+relecture, qui lui rend le focus s'il était dans la grille. Chaque ligne dit si elle l'est
+(`aria-selected`), la grille qu'elle en prend plusieurs (`aria-multiselectable`), un statut combien
+— les lignes montrées : les subordonnées pliées sous une récapitulative sélectionnée la suivent
+sans être comptées. Une cellule calculée sélectionnée garde son ombre. Un geste de déplacement
+porte sur la sélection quand la ligne d'où il part en est, sur cette ligne seule sinon, et sur les
+nœuds qui portent les autres (`topsOf`) : une récapitulative emporte ses subordonnées. La
+suppression ne porte que sur une ligne seule.
+
+« Indenter » place les tâches sous celle qui précède la première parmi ses frères, en dernière place
+(`after_node_id` absent) ; « Désindenter » les place après leur parent, sous le parent de celui-ci
+(`after_node_id` = l'ancien parent) ; « Descendre » les place après la sœur de leur genre qui suit
+la dernière, et « Monter » place la sœur qui précède la première après la dernière — le même ordre,
+sans reposer sur une ligne que la grille ne montre pas. Les lignes que la grille montre ne sont pas
+toujours l'arbre : une recherche, un filtre, le reste à engager, qui ne lit par défaut que les
+tâches commencées, ou le planning, qui ne lit aucune ligne, en laissent. Un déplacement n'est donc
+offert, au menu comme à la touche, que si les nœuds déplacés sont des frères de rang en rang, d'un
+même genre, et que la voisine sur laquelle il repose est rendue : son rang (`Node.position`, à
+partir de 1, les lignes d'une tâche comptant avant ses sous-tâches) est celui de la première moins
+un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni sous une ligne.
+« Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent (`parent_id`,
+`node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine. Alt+Maj et
+une flèche, là où le déplacement n'est pas offert, sont pris sans effet : la cellule active ne bouge
+pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours, puis la relecture qui la
+suit, retiennent les gestes, la grille se disant occupée (`aria-busy`) : le suivant part des
+voisines que la relecture a rendues, jamais de celles d'avant avec une version déjà avancée.
+
+`moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure
+qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :
+la plus haute entre celle de la page et celles que les écritures ont rendues
+(`NodesWritten.structure_lock_version`), cellule saisie, création, déplacement, suppression ou
+collage, car le contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Un
+refus par champ se dit par la raison du champ (`byField`), pour toute écriture du hook — création,
+déplacement et `deleteNode`, dont le contrat ne cite aucun champ, son refus se disant alors par son
+code —, comme celui d'une cellule ; `NODE_NOT_SIBLING`, qui vient d'une lecture périmée, relit en
+outre la grille, le focus rendu à la grille si la relecture retire la cellule qui l'avait. La
+suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et
+le focus revient alors à la cellule active de la grille. La grille est relue après une écriture, la
+lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version que la
+structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de tâche du
+devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de `edit_estimate` :
+créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que saisir le devis n'en
+crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la grille en nommant la
+ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une création sans ligne
+(la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit par `useSaid` et le
+refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
 
 ### Les grilles arborescentes : plier et déplier
 
@@ -1755,7 +1781,7 @@ que la disposition du clavier demande pour taper le caractère, sur le pavé num
 caractère est celui que la touche a tapé, et, quand il ne nomme aucune commande, celui que la
 touche porte dans la disposition que le navigateur dit (`navigator.keyboard.getLayoutMap`) —
 jamais la seule place de la touche, qui porte un autre caractère sur une autre disposition. Ctrl
-et AltGr sont exclus ; Alt+Maj+→ et Alt+Maj+← sont l'indentation et la désindentation des tâches. Ces raccourcis
+et AltGr sont exclus ; Alt+Maj et les flèches déplacent les tâches. Ces raccourcis
 ne sont que des accélérateurs : sans `getLayoutMap`, sous Safari et Firefox pour Mac, Option et une
 touche tapent un autre caractère, et ils ne sont pas reconnus. Le menu contextuel des cellules
 (Maj+F10, touche Menu, clic droit), offert dans toute grille arborescente, Annuler et Rétablir ou
