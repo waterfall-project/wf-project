@@ -219,6 +219,19 @@ interface MenuOpened {
 export interface RowCommands<Row> {
   readonly bar: (row: Row | undefined) => ReactNode;
   readonly menu: (row: Row | undefined, opened: Omit<MenuOpened, "at">) => ReactNode;
+  /**
+   * The keys of the commands, on the row of the active cell: whether the key pressed is one of them,
+   * in which case the grid takes it. None, and the screen has no key.
+   */
+  readonly keys?:
+    ((row: Row | undefined, event: KeyboardEvent<HTMLElement>) => boolean) | undefined;
+  /** What the commands put around the grid: the dialogs they open, what they answered. */
+  readonly around?: ReactNode;
+  /**
+   * The row a command was refused at, and the identifier of the sentence that says why: the grid marks
+   * its label and has it describe the refusal.
+   */
+  readonly refused?: { readonly row: Row; readonly described: string } | undefined;
 }
 
 /**
@@ -229,14 +242,19 @@ export interface RowCommands<Row> {
 export function onRows<Row>(
   commands: RowCommands<Row> | undefined,
   rowAt: (index: number) => Row | undefined,
-): { readonly bar: (index: number) => ReactNode; readonly menu: MenuCommands | undefined } {
+): {
+  readonly bar: (index: number) => ReactNode;
+  readonly menu: MenuCommands | undefined;
+  readonly keys: (index: number, event: KeyboardEvent<HTMLElement>) => boolean;
+} {
   if (commands === undefined) {
-    return { bar: () => null, menu: undefined };
+    return { bar: () => null, menu: undefined, keys: () => false };
   }
   return {
     bar: (index) => commands.bar(rowAt(index)),
     menu: ({ at, ...opened }) =>
       commands.menu(at === undefined ? undefined : rowAt(at.row), opened),
+    keys: (index, event) => commands.keys?.(rowAt(index), event) ?? false,
   };
 }
 

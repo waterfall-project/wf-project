@@ -214,12 +214,22 @@ describe("undo and redo, placed in the grids", () => {
     render(estimateGrid());
     const cell = focusLabel();
     await userEvent.pointer({ keys: "[MouseRight]", target: cell });
-    // Undo and redo, after the folding of the row, the grid being a tree.
+    // The gestures of structure, then the folding of the row, the grid being a tree, then undo and
+    // redo.
     expect(
       within(cellMenu())
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Plier la ligne", "Tout déplier", "AnnulerCtrl+Z", "RétablirCtrl+Maj+Z"]);
+    ).toEqual([
+      "Insérer au-dessous",
+      "Insérer une sous-tâche",
+      "Insérer une ligne",
+      "Supprimer",
+      "Plier la ligne",
+      "Tout déplier",
+      "AnnulerCtrl+Z",
+      "RétablirCtrl+Maj+Z",
+    ]);
     await userEvent.keyboard("{Escape}");
     // The grid stays one stop: its active cell, the only one in the order of tabulation.
     expect(screen.getByRole("treegrid").querySelectorAll('[tabindex="0"]')).toHaveLength(1);

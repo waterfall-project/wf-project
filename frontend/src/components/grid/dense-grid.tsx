@@ -792,8 +792,18 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     draft: keyboard.draft,
     refusal: keyboard.refusal,
     pending: writes.pending,
-    writeRefusal: (row, column) =>
-      writes.refused(row, column) ? refusalDescription(writes.outcome, refusalId) : undefined,
+    writeRefusal: (row, column) => {
+      if (writes.refused(row, column)) {
+        return refusalDescription(writes.outcome, refusalId);
+      }
+      // A command refused at a row marks its label and has the refusal describe it.
+      const refused = commands?.refused;
+      return refused !== undefined &&
+        column === config.columns[0]?.key &&
+        row === config.rowKey(refused.row)
+        ? refused.described
+        : undefined;
+    },
     closeRefusal: keyboard.closeRefusal,
     dismissRefusal: keyboard.dismissRefusal,
     menu: hasCellMenu(undoable, folding.menu, screenCommands.menu),
@@ -852,6 +862,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         onDismissed={keyboard.refocus}
         dismissible
       />
+      {commands?.around}
       <PasteAppliedNotice
         applied={paste.applied}
         onClear={paste.clear}
@@ -935,7 +946,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           <TableBody
             {...keyboard.body}
             onKeyDown={(event) => {
-              if (folding.onKeyDown(event)) {
+              if (folding.onKeyDown(event) || screenCommands.keys(cursor.active.row, event)) {
                 event.preventDefault();
               } else {
                 keyboard.body.onKeyDown(event);
