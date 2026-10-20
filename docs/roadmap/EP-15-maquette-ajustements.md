@@ -969,8 +969,7 @@ référence se déplace, et qu'EP-08 serve ce parcours tel qu'il est validé.
 - écart : `WF-REV-0050-A` — « Après fusion, le projet ne comporte plus de révision en cours. » :
   EP-08.
 - propre à l'US : « Préparer un avenant » est une commande de la révision en cours, offerte comme
-  elle la liste (`create_structure`), indisponible avec sa condition quand un avenant non fusionné
-  existe (`unmerged_amendment_exists`) ; elle demande un libellé, crée le différentiel et l'ouvre
+  elle la liste (`create_structure`) ; elle demande un libellé, crée le différentiel et l'ouvre
   dans la grille de planning (US-0500), où les gestes d'US-0460 s'appliquent ;
 - propre à l'US : « Contractualiser l'avenant » présente le compte rendu — les tâches et les lignes
   ajoutées, modifiées et retirées dans les marques `+`, `-`, `M` ; les tâches démarrées qui seront
