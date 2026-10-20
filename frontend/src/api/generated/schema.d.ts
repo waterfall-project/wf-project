@@ -1558,7 +1558,7 @@ export interface paths {
         };
         /**
          * Comparer deux révisions marquées
-         * @description L'arbre de la révision comparée, avec les marques d'un différentiel, et les écarts de montants par nature et par sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030, C-361). Les tâches et les lignes de la structure principale de la révision comparée (`to_revision_id`) sont rendues dans l'ordre du plan, sans pagination, comme `listNodes` les rend, chacune avec son écart à la révision de base (`from_revision_id`) — `difference` et `changes`, toujours rendus —, et celles que la révision de base portait et que la comparée n'a plus à la place qu'elles avaient, en lecture seule (`NodeDifference`) : une tâche ajoutée, retirée ou modifiée — par ses dates, sa durée, son état ou son parent —, une ligne par ses montants ou son parent, et une récapitulative dont le contenu change, marquée modifiée. La grille de la comparaison est celle des structures, avec les mêmes marques que la lecture d'un différentiel. `fields` choisit ce que la comparaison rend de chaque nœud, comme pour `listNodes`. Une paire identique — la même révision deux fois — rend chaque nœud inchangé et aucun écart de montant, jamais un refus.
+         * @description L'arbre de la révision comparée, avec les marques d'un différentiel, et les écarts de montants par nature et par sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030, C-361). La comparaison se lit comme `listNodes` (#1193) : les mêmes paramètres, partagés — `kinds`, la recherche, les filtres, le tri des lignes et `fields` —, la même réponse — `items`, `totals` et `meta` —, et la même mécanique : la structure principale de la révision comparée (`to_revision_id`) est rendue entière, dans l'ordre du plan, sans pagination, comme `listNodes` rend une structure, et une lecture filtrée — un sous-arbre (`subtree_of`), les seules tâches (`kinds`), une recherche — en est une fenêtre, retenue comme `listNodes` la retient ; `fields` choisit ce qu'elle rend de chaque nœud. Chaque nœud porte son écart à la révision de base (`from_revision_id`) — `difference` et `changes`, toujours rendus —, et ceux que la révision de base portait et que la comparée n'a plus sont rendus à la place qu'ils avaient, en lecture seule (`NodeDifference`) : une tâche ajoutée, retirée ou modifiée — par ses dates, sa durée, son état ou son parent —, une ligne par ses montants ou son parent, et une récapitulative dont le contenu change, marquée modifiée. Les filtres, la recherche et le tri s'y appliquent comme à la lecture d'un différentiel, et `subtree_of` nomme une tâche de l'arbre rendu. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues, sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ; `meta` dit la structure de la révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme `totals`, et se calcule de même sur les lignes retenues, retirées comprises, quel que soit `kinds` : une lecture sans filtre rend les écarts de toute la structure, celle d'un sous-arbre les siens (`comparison`). La grille de la comparaison est celle des structures, avec les mêmes marques que la lecture d'un différentiel. Une paire identique — la même révision deux fois — rend chaque nœud inchangé et aucun écart de montant, jamais un refus.
          */
         get: operations["compareRevisions"];
         put?: never;
@@ -3879,6 +3879,16 @@ export interface components {
          */
         NodeKind: "task" | "estimate_line";
         /**
+         * @description État d'avancement d'une tâche (WF-PLA-0130, WF-RAE-0030).
+         * @enum {string}
+         */
+        TaskProgress: "not_started" | "started" | "completed";
+        /**
+         * @description Colonne d'une grille de la structure, nommée comme `sort_by` de `listNodes` et `PastePreview.target_column` la nomment : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le lot ou le poste du lotissement auquel la tâche est rattachée (WF-PLA-0170) ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à engager, et, au reste à engager précédent, les grandeurs puis le montant réestimé (WF-RAE-0040). C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050). Seules les grilles de devis et de reste à engager trient, par les colonnes de la ligne : la grille de planning n'en trie aucune (`sort_by`, WF-IHM-0060).
+         * @enum {string}
+         */
+        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float" | "is_critical" | "predecessors" | "work_breakdown" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "base_amount" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_quantity" | "previous_hours" | "previous_unit_disbursement" | "previous_reestimated_amount";
+        /**
          * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
          * @enum {string}
          */
@@ -3899,11 +3909,6 @@ export interface components {
             date: components["schemas"]["PlanningDate"];
             hours: components["schemas"]["Hours"];
         };
-        /**
-         * @description État d'avancement d'une tâche (WF-PLA-0130, WF-RAE-0030).
-         * @enum {string}
-         */
-        TaskProgress: "not_started" | "started" | "completed";
         /**
          * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ; ni `work_package_without_task`, le total d'un lot du lotissement qu'aucune tâche ne porte : « un lot sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
          * @enum {string}
@@ -4095,13 +4100,32 @@ export interface components {
             /** @description Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` : vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée. */
             changes?: components["schemas"]["NodeChange"][];
         };
-        /** @description Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030) : l'arbre de la structure principale de la révision comparée, avec les marques d'un différentiel, et les écarts de montants. */
+        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. Chaque montant est la somme du montant de même nom des lignes retenues (`EstimateLineFacet`) : à l'année de référence, sauf le montant corrigé de l'inflation (WF-DEV-0050). `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de provision comprises : ce n'est pas le budget de référence, diminué des provisions selon WF-RIS-0050. */
+        NodeTotals: {
+            task_count: number;
+            estimate_line_count: number;
+            hours: components["schemas"]["Hours"];
+            base_amount: components["schemas"]["Money"];
+            budgeted_amount: components["schemas"]["Money"];
+            reestimated_amount: components["schemas"]["Money"];
+            inflated_amount: components["schemas"]["Money"];
+        };
+        /** @description Ce que la lecture dit de la structure lue elle-même, et non des nœuds qu'elle rend : les filtres, la recherche, `kinds` et `fields` n'y changent rien. */
+        NodeListMeta: {
+            /** @description Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level` compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative. L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit (WF-PLA-0110). */
+            summary_depth: number;
+        };
+        /** @description Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030) : l'arbre de la structure principale de la révision comparée, avec les marques d'un différentiel, et les écarts de montants. Elle a la forme de la réponse de `listNodes` — `items`, `totals`, `meta` —, et se lit comme elle, entière ou par la fenêtre que ses filtres retiennent (#1193). */
         RevisionComparison: {
             from_revision_id: components["schemas"]["Uuid"];
             to_revision_id: components["schemas"]["Uuid"];
-            /** @description L'arbre de la révision comparée (`to_revision_id`), en parcours profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` le rend : chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080, C-361). */
-            nodes: components["schemas"]["Node"][];
-            /** @description Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). */
+            /** @description Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend : chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080, C-361). */
+            items: components["schemas"]["Node"][];
+            /** @description Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes retenues, sans les nœuds retirés, qui ne sont plus de sa structure. */
+            totals: components["schemas"]["NodeTotals"];
+            /** @description Ce que la lecture dit de la structure principale de la révision comparée. */
+            meta: components["schemas"]["NodeListMeta"];
+            /** @description Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de même sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens. */
             amount_deltas: {
                 /** @enum {string} */
                 dimension: "cost_type" | "subproject";
@@ -4152,11 +4176,6 @@ export interface components {
             label: string;
             risk_id?: components["schemas"]["Uuid"] | null;
         };
-        /**
-         * @description Colonne d'une grille de la structure, nommée comme `sort_by` de `listNodes` et `PastePreview.target_column` la nomment : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le lot ou le poste du lotissement auquel la tâche est rattachée (WF-PLA-0170) ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à engager, et, au reste à engager précédent, les grandeurs puis le montant réestimé (WF-RAE-0040). C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050). Seules les grilles de devis et de reste à engager trient, par les colonnes de la ligne : la grille de planning n'en trie aucune (`sort_by`, WF-IHM-0060).
-         * @enum {string}
-         */
-        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float" | "is_critical" | "predecessors" | "work_breakdown" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "base_amount" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_quantity" | "previous_hours" | "previous_unit_disbursement" | "previous_reestimated_amount";
         /** @description Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier. */
         ActualCostColumn: string | ("document_date" | "document_number" | "amount" | "subproject");
         /** @description Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s). */
@@ -4215,21 +4234,6 @@ export interface components {
             main_structure_lock_version: components["schemas"]["LockVersion"];
             /** @description Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`). */
             amendment_lock_version: components["schemas"]["LockVersion"];
-        };
-        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. Chaque montant est la somme du montant de même nom des lignes retenues (`EstimateLineFacet`) : à l'année de référence, sauf le montant corrigé de l'inflation (WF-DEV-0050). `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de provision comprises : ce n'est pas le budget de référence, diminué des provisions selon WF-RIS-0050. */
-        NodeTotals: {
-            task_count: number;
-            estimate_line_count: number;
-            hours: components["schemas"]["Hours"];
-            base_amount: components["schemas"]["Money"];
-            budgeted_amount: components["schemas"]["Money"];
-            reestimated_amount: components["schemas"]["Money"];
-            inflated_amount: components["schemas"]["Money"];
-        };
-        /** @description Ce que la lecture dit de la structure lue elle-même, et non des nœuds qu'elle rend : les filtres, la recherche, `kinds` et `fields` n'y changent rien. */
-        NodeListMeta: {
-            /** @description Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level` compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative. L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit (WF-PLA-0110). */
-            summary_depth: number;
         };
         /** @description Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). Le rattachement à un lot ou à un poste est accepté de toute tâche de la structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son lot. */
         TaskFacetWrite: {
@@ -5257,11 +5261,34 @@ export interface components {
         SubprojectId: components["schemas"]["Uuid"];
         TimelineId: components["schemas"]["Uuid"];
         RevisionId: components["schemas"]["Uuid"];
+        /** @description Restreint aux tâches ou aux lignes, selon la grille affichée. */
+        NodeKinds: components["schemas"]["NodeKind"][];
+        /** @description Restreint au sous-arbre d'une tâche récapitulative, elle comprise (WF-PLA-0080, WF-DEV-0050). */
+        NodeSubtreeOf: components["schemas"]["Uuid"];
+        /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+        SubprojectFilter: "unassigned" | components["schemas"]["Uuid"];
+        /** @description Restreint aux lignes d'une nature de coût (WF-DEV-0050). */
+        NodeCostTypeFilter: components["schemas"]["Uuid"];
+        /** @description Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, au niveau 2, elle comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient rien. */
+        NodeOrderItemFilter: components["schemas"]["Uuid"];
+        /** @description Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, au niveau 1, elle comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien. */
+        NodeWorkPackageFilter: components["schemas"]["Uuid"];
+        NodeCostCategoryFilter: components["schemas"]["Uuid"];
+        NodeResourceRoleFilter: components["schemas"]["Uuid"];
+        /** @description Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre par défaut que leurs lignes (WF-RAE-0040). */
+        NodeProgressFilter: components["schemas"]["TaskProgress"][];
+        NodeCriticalFilter: boolean;
+        /** @description Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne restreint rien. */
+        NodeSummariesOnly: boolean;
+        /** @description Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110). Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau. */
+        NodeMaxLevel: number;
+        /** @description Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans inscription, ou qui n'est pas une chronologie du projet, ne retient rien. */
+        NodeTimelineFilter: components["schemas"]["Uuid"];
+        /** @description Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number` (WF-IHM-0060) : trié par montant décroissant, le devis rend sous chaque tâche ses lignes du plus grand montant au plus petit, et ses tâches à leur place (`estimate_sorted`). Un nombre se compare par sa valeur ; le libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé, caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans l'ordre croissant, avant dans le décroissant (`estimate_hours`). Des lignes d'une même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y laisse toutes. Les grilles de devis et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes qu'elles présentent pour les lignes ; la grille de planning, qui ne rend pas les lignes, ne propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou une chronologie. Une colonne de ligne qui manquerait ici est un constat sur le contrat. */
+        NodeSortBy: components["schemas"]["NodeColumn"];
         /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même. */
         NodeFields: string[];
         StructureId: components["schemas"]["Uuid"];
-        /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
-        SubprojectFilter: "unassigned" | components["schemas"]["Uuid"];
         NodeId: components["schemas"]["Uuid"];
         /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
@@ -9123,6 +9150,35 @@ export interface operations {
             query: {
                 from_revision_id: components["schemas"]["Uuid"];
                 to_revision_id: components["schemas"]["Uuid"];
+                /** @description Restreint aux tâches ou aux lignes, selon la grille affichée. */
+                kinds?: components["parameters"]["NodeKinds"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint au sous-arbre d'une tâche récapitulative, elle comprise (WF-PLA-0080, WF-DEV-0050). */
+                subtree_of?: components["parameters"]["NodeSubtreeOf"];
+                /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+                subproject_id?: components["parameters"]["SubprojectFilter"];
+                /** @description Restreint aux lignes d'une nature de coût (WF-DEV-0050). */
+                cost_type_id?: components["parameters"]["NodeCostTypeFilter"];
+                /** @description Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, au niveau 2, elle comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient rien. */
+                order_item_id?: components["parameters"]["NodeOrderItemFilter"];
+                /** @description Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, au niveau 1, elle comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien. */
+                work_package_id?: components["parameters"]["NodeWorkPackageFilter"];
+                cost_category_id?: components["parameters"]["NodeCostCategoryFilter"];
+                resource_role_id?: components["parameters"]["NodeResourceRoleFilter"];
+                /** @description Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre par défaut que leurs lignes (WF-RAE-0040). */
+                progress?: components["parameters"]["NodeProgressFilter"];
+                is_critical?: components["parameters"]["NodeCriticalFilter"];
+                /** @description Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne restreint rien. */
+                summaries_only?: components["parameters"]["NodeSummariesOnly"];
+                /** @description Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110). Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau. */
+                max_level?: components["parameters"]["NodeMaxLevel"];
+                /** @description Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans inscription, ou qui n'est pas une chronologie du projet, ne retient rien. */
+                timeline_id?: components["parameters"]["NodeTimelineFilter"];
+                /** @description Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number` (WF-IHM-0060) : trié par montant décroissant, le devis rend sous chaque tâche ses lignes du plus grand montant au plus petit, et ses tâches à leur place (`estimate_sorted`). Un nombre se compare par sa valeur ; le libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé, caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans l'ordre croissant, avant dans le décroissant (`estimate_hours`). Des lignes d'une même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y laisse toutes. Les grilles de devis et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes qu'elles présentent pour les lignes ; la grille de planning, qui ne rend pas les lignes, ne propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou une chronologie. Une colonne de ligne qui manquerait ici est un constat sur le contrat. */
+                sort_by?: components["parameters"]["NodeSortBy"];
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
                 /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même. */
                 fields?: components["parameters"]["NodeFields"];
             };
@@ -9286,32 +9342,32 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Restreint aux tâches ou aux lignes, selon la grille affichée. */
-                kinds?: components["schemas"]["NodeKind"][];
+                kinds?: components["parameters"]["NodeKinds"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint au sous-arbre d'une tâche récapitulative, elle comprise (WF-PLA-0080, WF-DEV-0050). */
-                subtree_of?: components["schemas"]["Uuid"];
+                subtree_of?: components["parameters"]["NodeSubtreeOf"];
                 /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
                 subproject_id?: components["parameters"]["SubprojectFilter"];
                 /** @description Restreint aux lignes d'une nature de coût (WF-DEV-0050). */
-                cost_type_id?: components["schemas"]["Uuid"];
+                cost_type_id?: components["parameters"]["NodeCostTypeFilter"];
                 /** @description Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, au niveau 2, elle comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient rien. */
-                order_item_id?: components["schemas"]["Uuid"];
+                order_item_id?: components["parameters"]["NodeOrderItemFilter"];
                 /** @description Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, au niveau 1, elle comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien. */
-                work_package_id?: components["schemas"]["Uuid"];
-                cost_category_id?: components["schemas"]["Uuid"];
-                resource_role_id?: components["schemas"]["Uuid"];
+                work_package_id?: components["parameters"]["NodeWorkPackageFilter"];
+                cost_category_id?: components["parameters"]["NodeCostCategoryFilter"];
+                resource_role_id?: components["parameters"]["NodeResourceRoleFilter"];
                 /** @description Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre par défaut que leurs lignes (WF-RAE-0040). */
-                progress?: components["schemas"]["TaskProgress"][];
-                is_critical?: boolean;
+                progress?: components["parameters"]["NodeProgressFilter"];
+                is_critical?: components["parameters"]["NodeCriticalFilter"];
                 /** @description Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne restreint rien. */
-                summaries_only?: boolean;
+                summaries_only?: components["parameters"]["NodeSummariesOnly"];
                 /** @description Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110). Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau. */
-                max_level?: number;
+                max_level?: components["parameters"]["NodeMaxLevel"];
                 /** @description Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans inscription, ou qui n'est pas une chronologie du projet, ne retient rien. */
-                timeline_id?: components["schemas"]["Uuid"];
+                timeline_id?: components["parameters"]["NodeTimelineFilter"];
                 /** @description Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number` (WF-IHM-0060) : trié par montant décroissant, le devis rend sous chaque tâche ses lignes du plus grand montant au plus petit, et ses tâches à leur place (`estimate_sorted`). Un nombre se compare par sa valeur ; le libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé, caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans l'ordre croissant, avant dans le décroissant (`estimate_hours`). Des lignes d'une même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y laisse toutes. Les grilles de devis et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes qu'elles présentent pour les lignes ; la grille de planning, qui ne rend pas les lignes, ne propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou une chronologie. Une colonne de ligne qui manquerait ici est un constat sur le contrat. */
-                sort_by?: components["schemas"]["NodeColumn"];
+                sort_by?: components["parameters"]["NodeSortBy"];
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
                 /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même. */

@@ -91,6 +91,129 @@ NodeFields:
       pattern: '^((task|estimate_line)\.)?[a-z_]+$'
   explode: false
 
+# Ce que lit une lecture des nœuds, `listNodes` et `compareRevisions` de même (#1193) : sa
+# description dit ce que chacun retient, rend et totalise.
+
+NodeKinds:
+  name: kinds
+  in: query
+  description: Restreint aux tâches ou aux lignes, selon la grille affichée.
+  schema:
+    type: array
+    items: { $ref: schemas/revisions.yaml#/NodeKind }
+  explode: false
+
+NodeSubtreeOf:
+  name: subtree_of
+  in: query
+  description: >-
+    Restreint au sous-arbre d'une tâche récapitulative, elle comprise
+    (WF-PLA-0080, WF-DEV-0050).
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeCostTypeFilter:
+  name: cost_type_id
+  in: query
+  description: Restreint aux lignes d'une nature de coût (WF-DEV-0050).
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeOrderItemFilter:
+  name: order_item_id
+  in: query
+  description: >-
+    Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, au niveau 2,
+    elle comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne
+    retient rien.
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeWorkPackageFilter:
+  name: work_package_id
+  in: query
+  description: >-
+    Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, au niveau 1, elle
+    comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
+    WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien.
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeCostCategoryFilter:
+  name: cost_category_id
+  in: query
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeResourceRoleFilter:
+  name: resource_role_id
+  in: query
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeProgressFilter:
+  name: progress
+  in: query
+  description: >-
+    Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la
+    grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre
+    par défaut que leurs lignes (WF-RAE-0040).
+  schema:
+    type: array
+    items: { $ref: schemas/revisions.yaml#/TaskProgress }
+  explode: false
+
+NodeCriticalFilter:
+  name: is_critical
+  in: query
+  schema: { type: boolean }
+
+NodeSummariesOnly:
+  name: summaries_only
+  in: query
+  description: >-
+    Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que
+    l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne
+    restreint rien.
+  schema: { type: boolean }
+
+NodeMaxLevel:
+  name: max_level
+  in: query
+  description: >-
+    Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier
+    niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les
+    récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110).
+    Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau.
+  schema: { type: integer, minimum: 1 }
+
+NodeTimelineFilter:
+  name: timeline_id
+  in: query
+  description: >-
+    Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet
+    (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans
+    inscription, ou qui n'est pas une chronologie du projet, ne retient rien.
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeSortBy:
+  name: sort_by
+  in: query
+  description: >-
+    Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne
+    que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et
+    leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number`
+    (WF-IHM-0060) : trié par montant décroissant, le devis rend sous chaque tâche
+    ses lignes du plus grand montant au plus petit, et ses tâches à leur place
+    (`estimate_sorted`). Un nombre se compare par sa valeur ; le
+    libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé,
+    caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans
+    valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans
+    l'ordre croissant, avant dans le décroissant (`estimate_hours`). Des lignes d'une
+    même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la
+    seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y
+    laisse toutes. Les grilles de devis
+    et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes
+    qu'elles présentent pour les lignes ; la grille de planning, qui ne rend pas les
+    lignes, ne propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou
+    une chronologie. Une colonne de ligne qui manquerait ici est un constat sur le
+    contrat.
+  schema: { $ref: schemas/revisions.yaml#/NodeColumn }
+
 UserId:
   name: user_id
   in: path

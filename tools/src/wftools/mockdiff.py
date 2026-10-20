@@ -138,3 +138,16 @@ def marked(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonOb
         node["changes"] = own.get(number, [])
         nodes.append(node)
     return nodes
+
+
+def window(nodes: list[JsonObject], root: str) -> list[JsonObject]:
+    """Return the nodes of a marked tree under a task, it included, in the order of the plan.
+
+    ``subtree_of`` on a tree marked, as ``listNodes`` reads it (#1193): the nodes removed under
+    the task at the place they had, a node moved under its new parent alone, where it is rendered.
+    """
+    below = {root}
+    for node in nodes:
+        if node["parent_id"] in below:
+            below.add(cast("str", node["node_id"]))
+    return [node for node in nodes if node["node_id"] in below]
