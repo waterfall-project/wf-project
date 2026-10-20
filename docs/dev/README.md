@@ -1665,17 +1665,23 @@ lit (`CostStructure.available_commands`, WF-IHM-0090) : `readGridScreen` rend ce
 disponibles (`commands`), le planning lit `edit_planning`, le devis `edit_estimate`, le reste à
 engager `edit_remaining`. Le front ne déduit jamais la phase du projet : sur la structure principale
 d'un projet En cours le devis est en lecture seule, le reste à engager l'est avant (WF-DEV-0050,
-WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une ligne »,
-« Supprimer » — sont dans le menu contextuel des cellules et aux touches Insert, Alt+Insert,
-Ctrl+Insert et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans `structure-rules.ts`) ; la
-barre, tenue sur une ligne, n'offre que la première tâche d'une grille sans ligne. Une création passe
-par un dialogue qui la nomme (libellé ; pour une ligne, catégorie et quantité, que le contrat
-exige), `createNode` et `deleteNode` sont les actions de `src/api/actions/nodes.ts` ; la
-suppression d'une récapitulative est confirmée. La grille est relue après une écriture, la lecture
-du serveur faisant foi pour les numéros et les niveaux (#1160), et la version que la structure a
-atteinte est dite à la grille, que porte le collage suivant. Un refus — tâche terminée, poste hors
-du sous-arbre de son lot, version périmée — est dit au-dessus de la grille en nommant la ligne en
-cause, dont l'étiquette est marquée et décrite par lui.
+WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
+ligne », « Supprimer » — sont dans le menu contextuel des cellules et aux touches Insert,
+Alt+Insert, Ctrl+Insert et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans
+`structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
+sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne sous laquelle il agit
+(libellé ; pour une ligne, catégorie et quantité, que le contrat exige), `createNode` et
+`deleteNode` sont les actions de `src/api/actions/nodes.ts` ; la suppression d'une récapitulative
+est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et le focus revient alors à la
+cellule active de la grille. La grille est relue après une écriture, la lecture du serveur faisant
+foi pour les numéros et les niveaux (#1160), et la version que la structure a atteinte est dite à la
+grille, que porte le collage suivant. Les gestes de tâche du devis exigent `edit_planning`
+(`tasksEditable` de `estimate-grid.tsx`) en plus de `edit_estimate` : créer ou supprimer une tâche
+écrit le planning, et un chiffreur qui ne peut que saisir le devis n'en crée pas. Un refus — tâche
+terminée, par exemple — est dit au-dessus de la grille en nommant la ligne en cause, dont
+l'étiquette est marquée et décrite par lui ; celui d'une création sans ligne (la première tâche
+d'une grille vide) nomme la tâche tentée. Le succès se dit par `useSaid` et le refus par
+`OutcomeNotice`, tous deux notés dans l'historique des messages.
 
 ### Les grilles arborescentes : plier et déplier
 

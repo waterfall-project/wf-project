@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What the gestures of structure of a grid are (US-0460): which a row takes, which a key asks, and the
- * body of the node each creates (`NodeCreate`). Pure, neither server nor client: the grid offers a
- * gesture the structure it reads lists available (`tasks`, `lines`), and the server judges the rest.
+ * What the gestures of structure of a grid are (US-0460): which a row takes, which a key asks, and
+ * the body of the node each creates (`NodeCreate`). Pure, neither server nor client: the grid
+ * offers a gesture the structure it reads lists available (`tasks`, `lines`), and the server judges
+ * the rest.
  */
 import type { components } from "@/api/generated/schema";
 
@@ -72,10 +73,10 @@ function onTask(row: GridNode, scope: StructureGestures): readonly Gesture[] {
 }
 
 /**
- * The gestures a row takes, in the order they are offered, none the grid does not list. A task takes a
- * task below it, a sub-task unless it is a milestone, a line unless it is a summary or a milestone, and
- * its deletion; a line takes a line below it and its deletion; no row — the header, an empty grid — a
- * first task.
+ * The gestures a row takes, in the order they are offered, none the grid does not list. A task
+ * takes a task below it, a sub-task unless it is a milestone, a line unless it is a summary or a
+ * milestone, and its deletion; a line takes a line below it and its deletion; no row — the header,
+ * an empty grid — a first task.
  */
 export function gesturesOn(
   row: GridNode | undefined,
@@ -112,8 +113,8 @@ interface Pressed {
 
 /**
  * The gesture a key asks of a row, if it asks one: Insert a task below — a line below a line —,
- * Alt+Insert a sub-task, Ctrl+Insert a line, Ctrl+Delete the deletion. Shift+Insert pastes, and is the
- * grid's.
+ * Alt+Insert a sub-task, Ctrl+Insert a line, Ctrl+Delete the deletion. Shift+Insert pastes, and is
+ * the grid's.
  */
 export function gestureOfKey(row: GridNode | undefined, pressed: Pressed): Gesture | undefined {
   if (pressed.shiftKey) {
@@ -138,10 +139,10 @@ export function gestureOfKey(row: GridNode | undefined, pressed: Pressed): Gestu
 }
 
 /**
- * The body of the node a gesture creates from a row, with what its dialog gathered: a task below a row
- * at the place after it among its siblings, a sub-task or a line at the end of the row, a line below a
- * line at the place after it. The server gives the rest: a task created is a leaf, automatic, of one
- * day, without predecessor (WF-DEV-0050).
+ * The body of the node a gesture creates from a row, with what its dialog gathered: a task below a
+ * row at the place after it among its siblings, a sub-task or a line at the end of the row, a line
+ * below a line at the place after it. The server gives the rest: a task created is a leaf,
+ * automatic, of one day, without predecessor (WF-DEV-0050).
  */
 export function bodyOf(gesture: Gesture, row: GridNode | undefined, entered: Entered): NodeCreate {
   if (entered.line !== undefined) {

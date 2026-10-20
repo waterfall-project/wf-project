@@ -41,6 +41,7 @@ type Problem = "label" | "quantity";
 export function CreateForm({
   created,
   title,
+  under,
   categories,
   pending,
   onCreate,
@@ -49,6 +50,8 @@ export function CreateForm({
   readonly created: Created;
   /** What the dialog is titled: the gesture, with the row it acts on. */
   readonly title: string;
+  /** The row the dialog acts on, named; none for the first task of a grid with no row. */
+  readonly under: string | undefined;
   /** The categories a line is created from, the active ones. */
   readonly categories: readonly LineCategory[];
   readonly pending: boolean;
@@ -92,11 +95,14 @@ export function CreateForm({
     setProblem(undefined);
     onCreate({ label: typed, line: { category, quantity: parsed } });
   };
+  const hint = t(created === "task" ? "taskHint" : "lineHint");
   return (
     <>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{t(created === "task" ? "taskHint" : "lineHint")}</DialogDescription>
+        <DialogDescription>
+          {under === undefined ? hint : t("underHint", { under, hint })}
+        </DialogDescription>
       </DialogHeader>
       <form aria-label={title} noValidate onSubmit={submit} className="grid gap-3">
         <div className="grid gap-1">
@@ -175,8 +181,8 @@ export function CreateForm({
 }
 
 /**
- * The confirmation of the deletion of a node that carries others away: a summary, whose subordinates,
- * their lines and their links go with it (WF-PLA-0070).
+ * The confirmation of the deletion of a node that carries others away: a summary, whose
+ * subordinates, their lines and their links go with it (WF-PLA-0070).
  */
 export function DeleteConfirmation({
   label,

@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
@@ -64,11 +65,11 @@ function serve(answers: FakeAnswers, hold?: Promise<unknown>): FakeClient {
 }
 
 /** The grid of the estimate, entered or read only, in French. */
-function estimateGrid(editable = true, tasksEditable = true) {
+function estimateGrid(editable = true, tasksEditable = true, nodes: NodeList = estimate) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
-        nodes={estimate}
+        nodes={nodes}
         structure={STRUCTURE}
         structureVersion={1}
         reference={estimateReference()}
@@ -158,11 +159,11 @@ function planningGrid(nodes: NodeList, editable: boolean) {
 }
 
 /** The grid of the remaining to commit, entered or read only, its categories given or not. */
-function remainingGrid(editable: boolean, withCategories = true) {
+function remainingGrid(editable: boolean, withCategories = true, nodes: NodeList = estimate) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <RemainingGrid
-        nodes={estimate}
+        nodes={nodes}
         structure={STRUCTURE}
         filters={{ progress: ["started"] }}
         editable={editable}
@@ -187,6 +188,8 @@ const STALE_REFUSED = {
 } as const;
 
 beforeEach(() => {
+  window.sessionStorage.clear();
+  forgetMessages();
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   router.refresh.mockClear();
@@ -201,7 +204,11 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     const client = serve({ [CREATE]: { example: "node_created", status: 201 } });
     render(estimateGrid());
     await choose(TASK, "Insérer au-dessous");
-    expect(screen.getByRole("dialog", { name: "Insérer au-dessous" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Insérer au-dessous" });
+    // The dialog names the row it acts under.
+    expect(dialog).toHaveAccessibleDescription(
+      new RegExp(`^Ligne ${String(node(TASK)?.row_number)}, « Câblage des armoires »\\. `),
+    );
     await create("Note de calcul des protections");
     expect(created(client)).toEqual({
       kind: "task",
@@ -213,6 +220,14 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(await screen.findByText("« Note de calcul des protections » créée.")).toBeVisible();
     expect(router.refresh).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // The success is noted in the history of the messages, once, with the node it is about.
+    const { messages } = readMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      tone: "success",
+      sentence: "« Note de calcul des protections » créée.",
+      object: "Note de calcul des protections",
+    });
   });
 
   it("inserts a sub-task at the end of the row, with no position", async () => {
@@ -308,6 +323,23 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
   });
 });
 
+describe("the refusal of the first task of a grid with no row", () => {
+  it("is told in the alert, naming the task tried, and noted once in the history of the messages", async () => {
+    const client = serve({ [CREATE]: COMPLETED_REFUSED });
+    render(planningGrid(example("nodes_empty") as NodeList, true));
+    await userEvent.click(screen.getByRole("button", { name: "Insérer une tâche" }));
+    await create("Études");
+    expect(client.calls.map((call) => call.route)).toEqual([CREATE]);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Création de « Études » refusée :");
+    expect(alert).toHaveTextContent("Condition non remplie");
+    const { messages } = readMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ tone: "refusal", object: "Études" });
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+});
+
 describe("the gestures that delete tasks and lines", () => {
   it("deletes a line at once, and reads the grid anew", async () => {
     const client = serve({ [DELETE]: "node_deleted" });
@@ -319,6 +351,30 @@ describe("the gestures that delete tasks and lines", () => {
     ]);
     expect(await screen.findByText("« Raccordement des borniers » supprimée.")).toBeVisible();
     expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(readMessages().messages).toMatchObject([
+      { tone: "success", sentence: "« Raccordement des borniers » supprimée." },
+    ]);
+  });
+
+  it("gives the focus back to a cell of the grid once the row deleted at once is read away", async () => {
+    serve({ [DELETE]: "node_deleted" });
+    const view = render(estimateGrid());
+    await activate(LINE);
+    await userEvent.keyboard("{Control>}{Delete}{/Control}");
+    await screen.findByText("« Raccordement des borniers » supprimée.");
+    // The server's reading, without the row: the cell that had the focus is gone with it.
+    view.rerender(
+      estimateGrid(true, true, {
+        ...estimate,
+        items: estimate.items.filter((_, index) => index !== LINE),
+      }),
+    );
+    await waitFor(() => {
+      expect(document.activeElement).not.toBe(document.body);
+      expect(screen.getByRole("treegrid")).toContainElement(
+        document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      );
+    });
   });
 
   it("confirms the deletion of a summary, which carries its subordinates away, before it sends it", async () => {
@@ -349,12 +405,11 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     await create("Pièces");
     expect(client.calls.map((call) => call.route)).toEqual([CREATE]);
     const row = node(COMPLETED);
-    expect(
-      await screen.findByText(
-        `Refusé à la ligne ${String(row?.row_number)}, « Relance du fournisseur » :`,
-      ),
-    ).toBeVisible();
-    const alert = screen.getByRole("alert");
+    const alert = await screen.findByRole("alert");
+    // The row is named inside the alert, which is read whole.
+    expect(alert).toHaveTextContent(
+      `Refusé à la ligne ${String(row?.row_number)}, « Relance du fournisseur » :`,
+    );
     expect(alert).toHaveTextContent("Condition non remplie");
     const cell = labelAt(COMPLETED);
     expect(cell).toBeInvalid();
@@ -365,17 +420,31 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     // Nothing was written: the grid is not read anew, and the dialog is gone.
     expect(router.refresh).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // The refusal is noted once, about the node tried.
+    const { messages } = readMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ tone: "refusal", object: "Pièces" });
+  });
+
+  it("marks the row it was asked from, though the active row changed while the write was under way", async () => {
+    const hold = held();
+    serve({ [DELETE]: STALE_REFUSED }, hold.until);
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    await activate(TASK);
+    hold.release();
+    await screen.findByRole("alert");
+    expect(labelAt(LINE)).toBeInvalid();
+    expect(labelAt(TASK)).not.toBeInvalid();
   });
 
   it("says a stale version at the row, with the offer to read it anew", async () => {
     serve({ [DELETE]: STALE_REFUSED });
     render(estimateGrid());
     await choose(LINE, "Supprimer");
-    expect(
-      await screen.findByText(
-        `Refusé à la ligne ${String(node(LINE)?.row_number)}, « Raccordement des borniers » :`,
-      ),
-    ).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      `Refusé à la ligne ${String(node(LINE)?.row_number)}, « Raccordement des borniers » :`,
+    );
     expect(screen.getByRole("button", { name: "Recharger" })).toBeInTheDocument();
     expect(labelAt(LINE)).toBeInvalid();
   });
@@ -405,6 +474,18 @@ describe("the keys of the gestures", () => {
     expect(cell).toHaveFocus();
     await userEvent.keyboard("{Control>}{Delete}{/Control}");
     expect(client.calls.map((call) => call.route)).toEqual([DELETE]);
+  });
+
+  it("leaves Insert and Ctrl+Delete to a cell being entered", async () => {
+    const client = serve({ [DELETE]: "node_deleted" });
+    render(estimateGrid());
+    await activate(LINE);
+    await userEvent.keyboard("{F2}");
+    const input = within(screen.getByRole("treegrid")).getByRole("textbox");
+    expect(input).toHaveFocus();
+    await userEvent.keyboard("{Insert}{Control>}{Delete}{/Control}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(client.calls).toEqual([]);
   });
 
   it("inserts a sub-task on Alt+Insert", async () => {
@@ -449,7 +530,7 @@ describe("the grids that offer no gesture", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("offers no line in the estimate where the planning is not listed, and no task either", async () => {
+  it("offers a line, and no task, in the estimate where the planning is not listed", async () => {
     serve({});
     render(estimateGrid(true, false));
     expect(await offered(TASK)).toEqual(["Insérer une ligne"]);
@@ -480,8 +561,17 @@ describe("the grids that offer no gesture", () => {
     ]);
     unmount();
     // Sur un projet qui n'est pas En cours, la grille ne propose ni création ni suppression.
-    render(remainingGrid(false));
+    const client = serve({});
+    const readOnly = render(remainingGrid(false));
     expect(await offered(TASK)).toEqual([]);
+    await activate(TASK);
+    await userEvent.keyboard("{Insert}{Alt>}{Insert}{/Alt}{Control>}{Insert}{Delete}{/Control}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(client.calls).toEqual([]);
+    readOnly.unmount();
+    const empty = render(remainingGrid(false, true, example("nodes_empty") as NodeList));
+    expect(screen.queryByRole("button", { name: "Insérer une tâche" })).not.toBeInTheDocument();
+    empty.unmount();
   });
 
   it("offers no line where no category can be chosen", async () => {

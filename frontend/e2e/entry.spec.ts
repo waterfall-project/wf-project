@@ -40,7 +40,17 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
   return rowAt(grid, row).getByRole("gridcell").nth(column);
 }
 
-/** A screen of the journeys: its address, its grid, its columns by heading, and the one it opens on. */
+/** Let the round trips under way come back, which a write sent late would have joined. */
+async function settle(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 750);
+      }),
+  );
+}
+
+/** A screen of the journeys: its address, its grid, its columns by heading, the one it opens on. */
 interface Screen<K extends string> {
   readonly path: string;
   readonly grid: string;
@@ -245,7 +255,9 @@ test("re-estimates the figures of a line of the remaining to commit from the key
   });
   const writes: string[] = [];
   page.on("request", (request) => {
-    if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+    // A write carries the version of the node it changes; the read of the totals after it does not.
+    const body = request.method() === "POST" ? request.postData() : null;
+    if (body?.includes("lock_version") === true && request.headers()["next-action"] !== undefined) {
       writes.push(request.url());
     }
   });
@@ -270,10 +282,15 @@ test("re-estimates the figures of a line of the remaining to commit from the key
   await page.keyboard.press("7");
   await page.keyboard.type("1,5");
   await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("71,5");
+  // Nothing was written by the Escape, nor by the typing: a write is a round trip, which a check
+  // made at once would not wait for.
+  await settle(page);
   expect(writes).toEqual([]);
   await page.keyboard.press("Tab");
   await expect.poll(() => writes.length).toBe(1);
   await expect(hours.getByRole("textbox")).toHaveCount(0);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  // And only one: a second write would come later, from the entry validated.
+  await settle(page);
   expect(writes).toHaveLength(1);
 });

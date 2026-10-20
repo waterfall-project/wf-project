@@ -277,7 +277,8 @@ describe("the screen of the remaining to commit", () => {
   });
 
   it("opens the grid to entry on a project in progress, where tasks and lines are created and deleted, and reads the categories a line is created from", async () => {
-    // The gestures themselves, in the menu of a cell, are proven on the grid (`structure-gestures.dom.test.tsx`).
+    // The gestures themselves, in the menu of a cell, are proven on the grid
+    // (`structure-gestures.dom.test.tsx`).
     const page = await remainingAt();
     expect(page).toContain('aria-label="Undo"');
     expect(page).toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);

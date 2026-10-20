@@ -4,10 +4,11 @@
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
  * `updateEstimateLine`, `setLineRemaining`), a task or a line created and a node deleted
- * (`createNode`, `deleteNode`), a block pasted from a spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew (`listNodes`), the skeleton of the planning
- * generated on an empty main structure (`generatePlanningSkeleton`) —:
- * the grid asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the
- * one decoder makes of its answer (`src/api/problem.ts`).
+ * (`createNode`, `deleteNode`), a block pasted from a spreadsheet (`previewPaste`, `applyPaste`),
+ * the totals of a filtered reading read anew (`listNodes`), the skeleton of the planning generated
+ * on an empty main structure (`generatePlanningSkeleton`) —: the grid asks the server of Next,
+ * which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer
+ * (`src/api/problem.ts`).
  */
 "use server";
 
@@ -167,9 +168,10 @@ export async function applyPaste(
 /**
  * Create a task or a line of the estimate in the structure of a grid, under the parent and at the
  * position the gesture names (WF-PLA-0130, WF-DEV-0050): the API answers the node created with its
- * ancestors, the totals of the structure and the version it moved on to — or refuses it, a line under
- * a task completed or a task that takes the project past its horizon among its reasons. The same
- * write from the three grids: which of them may exercise it is the command of the structure read.
+ * ancestors, the totals of the structure and the version it moved on to — or refuses it, a line
+ * under a task completed or a task that takes the project past its horizon among its reasons. The
+ * same write from the three grids: which of them may exercise it is the command of the structure
+ * read.
  */
 export async function createNode(
   structure: StructurePath,
@@ -186,8 +188,8 @@ export async function createNode(
 /**
  * Delete a node of the structure of a grid (WF-PLA-0070): a task with its lines and its links, a
  * summary with its subordinates too. The API answers the ancestors recalculated, the totals and the
- * version the structure moved on to — or refuses it, a task already started or bearing an actual cost
- * among its reasons.
+ * version the structure moved on to — or refuses it, a task already started or bearing an actual
+ * cost among its reasons.
  */
 export async function deleteNode(
   structure: StructurePath,
