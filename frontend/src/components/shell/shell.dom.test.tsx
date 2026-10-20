@@ -383,6 +383,21 @@ describe("the shell", () => {
     expect(within(nav).queryByRole("link", { name: "Portefeuille de projets" })).toBeNull();
   });
 
+  it("shows, in the rail, the function alone, marked current when the page is one of its leaves, and hides the list of its leaves", () => {
+    visit(`/projects/${PROJECT}/revisions/${REVISION}/workload`);
+    shell({ sidebarOpen: false });
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    const estimate = within(nav).getByRole("link", { name: "Chiffrage et devis" });
+    expect(estimate).toHaveAttribute("aria-current", "true");
+    expect(document.querySelector("[data-slot=sidebar]")).toHaveAttribute(
+      "data-state",
+      "collapsed",
+    );
+    const leaves = within(nav).getByRole("link", { name: "Plan de charge" }).closest("ul");
+    expect(leaves).toHaveAttribute("data-rail-hidden");
+    expect(leaves?.parentElement).toBe(estimate.closest("li"));
+  });
+
   it("shows no breadcrumb where the address leads nowhere, nor its separator alone", () => {
     visit("/admin/nobody");
     shell();

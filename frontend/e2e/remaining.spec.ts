@@ -97,7 +97,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
 
   // The Kanban, in the same context: the tasks not started, started and completed, no figure to
   // enter. It reads the thousand tasks of the structure too: the same bound.
-  await page.getByRole("link", { name: "Kanban — démarrage des tâches" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Kanban — démarrage des tâches" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/kanban?subproject_id=${SUBPROJECT}`, {
     timeout: WORKING,
   });

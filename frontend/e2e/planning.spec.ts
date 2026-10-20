@@ -248,7 +248,7 @@ test("leads from the planning to its task tree, read only, its depth in the addr
   await compile(page.request, `${IN_REVISION}/task-tree`);
   // Hydrated, the planning follows its link in the browser: the tree arrives answering the keys.
   await openHydrated(page, `${IN_REVISION}/planning`);
-  await page.getByRole("link", { name: "Arborescence de tâches" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Arborescence de tâches" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/task-tree`, { timeout: WORKING });
   await expect(page).toHaveTitle(
     "Arborescence de tâches · Modernisation du poste de commande — Waterfall",
@@ -278,7 +278,7 @@ test("leads from the planning to the timelines of the project, read only", async
   test.slow();
   await compile(page.request, `${IN_REVISION}/timelines`);
   await openHydrated(page, `${IN_REVISION}/planning`);
-  await page.getByRole("link", { name: "Chronologies" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Chronologies" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/timelines`, { timeout: WORKING });
   await expect(page).toHaveTitle("Chronologies · Modernisation du poste de commande — Waterfall");
   await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
