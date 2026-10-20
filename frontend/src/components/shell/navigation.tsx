@@ -51,7 +51,6 @@ import {
 } from "@/navigation/context";
 import {
   diagnosticGroups,
-  findScreen,
   type FunctionGroup,
   functionHref,
   type NavigationFunction,
@@ -61,7 +60,7 @@ import {
 import { HOME } from "@/navigation/home";
 import type { ThemePreference } from "@/theme/theme";
 
-import { FUNCTION_ICONS, GROUP_ICONS } from "./function-display";
+import { FUNCTION_ICONS, GROUP_ICONS, LEAF_ICONS } from "./function-display";
 import { Logo } from "./logo";
 import { ProjectSwitcher } from "./project-switcher";
 
@@ -86,16 +85,21 @@ interface Entry {
   readonly icon: LucideIcon;
   /**
    * Whether it leads to the page shown, whatever the query (`page`); to the function whose leaf
-   * the page shown is, which the bar does not offer (`true`); or to neither.
+   * the page shown is, the path that leads to it (`true`); or to neither.
    */
   readonly current: false | "page" | "true";
+  /**
+   * Its leaves that have a screen of their own, indented under it; folded into a rail, the bar
+   * shows the entry alone, marked as the path when the page is one of them.
+   */
+  readonly leaves?: readonly Entry[];
 }
 
-/** The entries of a list, in the order given. */
+/** The entries of a list, in the order given, each with its leaves in a list within its item. */
 function Entries({ entries }: { readonly entries: readonly Entry[] }) {
   return (
     <SidebarMenu>
-      {entries.map(({ key, href, label, icon: Icon, current }) => (
+      {entries.map(({ key, href, label, icon: Icon, current, leaves = [] }) => (
         <SidebarMenuItem key={key}>
           <SidebarMenuButton asChild tooltip={label}>
             <Link href={href} aria-current={current || undefined}>
@@ -103,6 +107,20 @@ function Entries({ entries }: { readonly entries: readonly Entry[] }) {
               <span>{label}</span>
             </Link>
           </SidebarMenuButton>
+          {leaves.length === 0 ? null : (
+            <SidebarMenuSub>
+              {leaves.map((leaf) => (
+                <SidebarMenuSubItem key={leaf.key}>
+                  <SidebarMenuSubButton>
+                    <Link href={leaf.href} aria-current={leaf.current || undefined}>
+                      <leaf.icon aria-hidden="true" />
+                      <span>{leaf.label}</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              ))}
+            </SidebarMenuSub>
+          )}
         </SidebarMenuItem>
       ))}
     </SidebarMenu>
@@ -132,6 +150,36 @@ function Section({
 /** The name of a function, in the language of the page. */
 type Naming = (fn: NavigationFunction) => string;
 
+/** The icon of a leaf, by its code. */
+const LEAF_ICON_OF = new Map<string, LucideIcon>(Object.entries(LEAF_ICONS));
+
+/** The leaves of a function, as entries in the context of the page shown. */
+function leafEntries(
+  fn: NavigationFunction,
+  context: ProjectContext | undefined,
+  pathname: string,
+  name: Naming,
+): Entry[] {
+  return (fn.leaves ?? []).flatMap((leaf) => {
+    const href = functionHref(leaf, context);
+    const icon = LEAF_ICON_OF.get(leaf.code);
+    if (icon === undefined) {
+      throw new Error(`the leaf ${leaf.code} has no icon`);
+    }
+    return href === undefined
+      ? []
+      : [
+          {
+            key: leaf.code,
+            href,
+            label: name(leaf),
+            icon,
+            current: href.split("?")[0] === pathname ? ("page" as const) : false,
+          },
+        ];
+  });
+}
+
 /** The functions of a scope among those given, as entries in the context of the page shown. */
 function functionEntries(
   functions: readonly NavigationFunction[],
@@ -140,29 +188,31 @@ function functionEntries(
   pathname: string,
   name: Naming,
 ): Entry[] {
-  // The function whose leaf the page shown is, if it is one: its entry stands for the leaf.
-  const parent = findScreen(pathname.split("/").slice(1))?.parent;
-  const current = (href: string, fn: NavigationFunction): Entry["current"] => {
-    if (href.split("?")[0] === pathname) {
-      return "page";
-    }
-    return fn.code === parent?.code ? "true" : false;
-  };
   return functions
     .filter((fn) => fn.scope === scope)
     .flatMap((fn) => {
       const href = functionHref(fn, context);
-      return href === undefined
-        ? []
-        : [
-            {
-              key: fn.code,
-              href,
-              label: name(fn),
-              icon: FUNCTION_ICONS[fn.permission],
-              current: current(href, fn),
-            },
-          ];
+      if (href === undefined) {
+        return [];
+      }
+      const leaves = leafEntries(fn, context, pathname, name);
+      // The page is the function's own, or one of its leaves, which the function is the path to.
+      const current =
+        href.split("?")[0] === pathname
+          ? ("page" as const)
+          : leaves.some((leaf) => leaf.current)
+            ? ("true" as const)
+            : false;
+      return [
+        {
+          key: fn.code,
+          href,
+          label: name(fn),
+          icon: FUNCTION_ICONS[fn.permission],
+          current,
+          leaves,
+        },
+      ];
     });
 }
 
