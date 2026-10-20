@@ -115,6 +115,30 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
     expect([inPricing?.editable, inPricing?.tasksEditable]).toEqual([true, true]);
   });
 
+  it.each([
+    {
+      kind: "the amendment 2, a differential",
+      structure: "01926f3a-7c00-7000-8000-000000000203",
+      version: 2,
+    },
+    {
+      kind: "the own estimate of a risk",
+      structure: "01926f3a-7c00-7000-8000-000000000204",
+      version: 1,
+    },
+  ])(
+    "hands the grid entered on $kind the address names, at its version, the project in progress",
+    async ({ structure, version }) => {
+      // The differential and the own estimate of a risk list `edit_estimate` available whatever
+      // the state of the project (`structures`): their estimate is entered where the main one is not.
+      await estimatePage("me", { structure });
+      const grid = grids.estimate.at(-1);
+      expect(grid?.structure.structure_id).toBe(structure);
+      expect([grid?.editable, grid?.tasksEditable]).toEqual([true, true]);
+      expect(grid?.structureVersion).toBe(version);
+    },
+  );
+
   it("presents neither the duration nor the predecessors of a task, which the planning enters [WF-DEV-0050-A]", () => {
     // La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs d'une tâche :
     // the entered grid has no such column.

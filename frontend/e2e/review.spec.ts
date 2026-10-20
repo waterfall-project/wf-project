@@ -310,13 +310,16 @@ async function pageIn(browser: Browser, language: Language): Promise<Page> {
 }
 
 /**
- * A grid of the revision that shows labels: its screen, its name, a row holding a label, and
- * whether a label is entered there — none now: the estimate of a project in progress is read only
- * (WF-DEV-0050), the remaining to commit re-estimates figures alone, and the planning is entered
- * from EP-06.
+ * A grid of the revision that shows labels: its screen, the structure its address names, its name,
+ * a row holding a label, and whether a label is entered there — in the estimate of the amendment 2,
+ * a differential entered whatever the state of the project, where the estimate of the main
+ * structure of a project in progress is read only (WF-DEV-0050, #1176); the remaining to commit
+ * re-estimates figures alone, and the planning is entered from EP-06.
  */
 interface EntryGrid {
   readonly segment: "planning" | "estimate" | "remaining";
+  /** The structure the address names (`structure`); none, the main one. */
+  readonly structure?: string;
   readonly name: (language: Language) => string;
   readonly row: number;
   readonly label: string;
@@ -333,11 +336,13 @@ const ENTRY_GRIDS: readonly EntryGrid[] = [
   },
   {
     segment: "estimate",
+    // The amendment 2 « reprise des essais » (`structures`), whose estimate is entered; the fake
+    // back serves the first example of `listNodes` for it, the nodes of the main structure.
+    structure: "01926f3a-7c00-7000-8000-000000000203",
     name: ({ names }) => names.estimateGrid,
     row: 3,
     label: "Ingénierie de détail",
-    // The project is in progress: its main structure lists the estimate unavailable.
-    entered: false,
+    entered: true,
   },
   {
     segment: "remaining",
@@ -352,7 +357,8 @@ const ENTRY_GRIDS: readonly EntryGrid[] = [
 /** What a user reads of a grid: its headings, the labels of its first rows, the revision state. */
 async function readGrid(page: Page, language: Language, entry: EntryGrid) {
   const { names } = language;
-  await page.goto(`${IN_REVISION}/${entry.segment}`);
+  const structure = entry.structure === undefined ? "" : `?structure=${entry.structure}`;
+  await page.goto(`${IN_REVISION}/${entry.segment}${structure}`);
   const grid = page.getByRole("treegrid", { name: entry.name(language) });
   await expect(grid).toBeVisible({ timeout: WORKING });
   const { label } = await columnsOf(grid, { label: names.labelColumn });

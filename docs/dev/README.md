@@ -572,10 +572,19 @@ fois par requête — et le montre par `ContextBanner`, au-dessus de son `<main>
 (WF-IHM-0020). La lecture porte `edits`, les commandes `edit_*` de la révision que
 l'appelant peut exercer (`read-only.ts`), qu'un écran reçoit plutôt que de les déduire. Ce qu'une
 grille offre — la saisie, les gestes, le collage — ne se lit pourtant pas là, mais dans la
-structure principale qu'elle lit (`screen.commands`, de `grid-screen.ts`, d'après
+structure qu'elle lit (`screen.commands`, de `grid-screen.ts`, d'après
 `available_commands`) : sa propre commande — `edit_planning` pour le planning —, car la phase du
-projet n'est pas celle de la révision (le devis d'un projet En cours est en lecture seule, le
-reste à engager non) et qu'un chiffreur peut saisir le devis sans toucher au planning. `readOnly` —
+projet n'est pas celle de la révision (le devis de la principale d'un projet En cours est en
+lecture seule, le reste à engager non, le devis d'un différentiel ou d'un risque non plus) et qu'un
+chiffreur peut saisir le devis sans toucher au planning. Le planning et le devis lisent la
+structure que nomme l'adresse (`structure`, `components/context/structure.ts`) — la principale
+par défaut, un différentiel d'avenant, le devis propre d'un risque —, que la révision liste
+(`listCostStructures`), une autre étant introuvable ; le reste à engager, les chronologies et
+l'arborescence, la seule principale (`GridReading.chooses`). Le bandeau nomme la structure lue,
+sa nature quand ce n'est pas la principale, et offre les autres de la révision
+(`StructureChoice`) ; ce paramètre est celui de la grille, que les liens entre fonctions ne
+portent pas. La grille se monte par structure (`key`), et le squelette ne s'offre que sur la
+principale (US-0500). `readOnly` —
 révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
 valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
@@ -726,7 +735,7 @@ qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hy
 premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
-lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les
+lecture de la structure que nomme l'adresse (`grid-screen.ts`) ; le planning demande au serveur les
 seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâche, récapitulative
 comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
 l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The grid of the planning of a revision (WF-PLA-0080, US-0220), at the route of its function
- * (`functions.json`): the banner of its reading context (WF-IHM-0020), and the grid on the main
- * structure of the revision, its tasks alone — the server renders no line for it (`kinds`) —,
+ * (`functions.json`): the banner of its reading context (WF-IHM-0020), which names the structure
+ * read and offers the others of the revision, and the grid on the structure the address names — the
+ * main one by default, a differential, the own estimate of a risk (US-0500) —, mounted anew for
+ * each (#819.3), its tasks alone — the server renders no line for it (`kinds`) —,
  * asked and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer,
  * with the totals of the answer: a header clicked or a search entered changes the address, and
  * this page reads anew (`grid-screen.ts`). The Gantt is the last column of the grid, row for row
@@ -16,9 +18,11 @@
  * ancestors, and the banner shows the filter active; the filter is not offered when the API
  * refuses the work breakdown. Where the revision lists `edit_planning` available, the attachment
  * of a task is entered in its column, chosen among the same posts and lots (WF-PLA-0170), and the
- * screen cannot do without the work breakdown; in the empty grid, the skeleton is offered as the
- * revision lists `generate_skeleton` (WF-PRJ-0030). Once, under its header, the screen then says
- * that the fake back keeps none of what they write (`MockupNotice`, EP-14/L44d).
+ * screen cannot do without the work breakdown; in the empty grid of the main structure, the skeleton
+ * is offered as the revision lists `generate_skeleton` (WF-PRJ-0030) — never on a differential nor on
+ * the own estimate of a risk, which the skeleton, generated on the main structure, would not fill.
+ * Once, under its header, the screen then says that the fake back keeps none of what they write
+ * (`MockupNotice`, EP-14/L44d).
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -109,7 +113,7 @@ function PlanningHeader({
   );
 }
 
-/** Render the grid of the planning on the main structure of a revision. */
+/** Render the grid of the planning on the structure of a revision the address names. */
 export default async function PlanningPage({
   params,
   searchParams,
@@ -127,16 +131,18 @@ export default async function PlanningPage({
     byBreakdown: true,
     // The attachment of a task is chosen among the lots and the posts where it is entered.
     needsBreakdown: (reading) => reading.edits.has("edit_planning"),
+    chooses: true,
   });
   const editable = screen.commands.has("edit_planning");
-  const skeleton = findOffer(
-    screen.reading.revision?.available_commands ?? [],
-    "generate_skeleton",
-  );
+  const skeleton =
+    screen.kind === "main"
+      ? findOffer(screen.reading.revision?.available_commands ?? [], "generate_skeleton")
+      : undefined;
   return (
     <>
       <ContextBanner
         reading={screen.reading}
+        structure={screen.structures}
         breakdown={breakdownChip(
           screen.breakdownFilter,
           screen.breakdown?.items,
@@ -152,6 +158,7 @@ export default async function PlanningPage({
             <BreakdownFilterChoice choices={screen.breakdown} />
           )}
           <PlanningGrid
+            key={screen.structure.structure_id}
             nodes={screen.nodes}
             structure={screen.structure}
             structureVersion={screen.structureVersion}

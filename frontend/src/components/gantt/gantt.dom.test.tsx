@@ -46,6 +46,7 @@ function renderPlanning(locale: Locale = "fr") {
       <PlanningGrid
         nodes={planning}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={{}}
         query={NO_QUERY}
         preferences={undefined}

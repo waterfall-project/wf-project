@@ -315,4 +315,16 @@ describe("the screen of the remaining to commit", () => {
     expect(page).not.toContain("Work package or order item");
     expect(queryOf(NODES)?.order_item_id).toBeUndefined();
   });
+
+  it("reads the main structure alone, whatever structure the address names, and offers no other", async () => {
+    // The remaining to commit is the main structure of the current revision, read by its
+    // re-estimated amounts: a differential or the own estimate of a risk has none (WF-RAE-0040).
+    const page = await remainingAt({ structure: "01926f3a-7c00-7000-8000-000000000203" });
+    const nodes = server.clients
+      .flatMap((client) => client.calls)
+      .find((call) => call.route === NODES);
+    expect(nodes?.path).toContain("/structures/01926f3a-7c00-7000-8000-000000000201/nodes");
+    expect(page).not.toContain("Change the structure");
+    expect(page).not.toContain("Avenant 2");
+  });
 });

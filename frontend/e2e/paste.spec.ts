@@ -17,9 +17,18 @@ import { rowAt, scrollToPosition } from "./scroll";
 // those three rows written (`paste_applied`). What the front sends is read in the server action
 // the browser posts; what the grid does with a plan that refuses a row is proven on its own
 // example by the tests of the grid (`paste.dom.test.tsx`).
+//
+// The estimate is read on the amendment 2 its address names (`structure=`, US-0500), a differential
+// not merged of the current revision, at its version 2, which lists the estimate entered whatever
+// the state of the project (`structures`), where the main structure of the project in progress
+// lists it read only (#1176). The fake back serves the first example of an operation whatever its
+// path: the nodes are those of the first example of `listNodes`, the main structure — it serves
+// `nodes_amendment` for no address —, pasted on under the commands of the amendment.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
+// The amendment 2 « reprise des essais », a differential of the current revision (`structures`).
+const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
+const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate?structure=${AMENDMENT}`;
 const LINE_4 = "01926f3a-7c00-7000-8000-000100000028";
 const FIRST = 28;
 
@@ -103,13 +112,7 @@ function argumentsWith(posted: readonly Request[], field: string): unknown[] | u
   return data === null || data === undefined ? undefined : (JSON.parse(data) as unknown[]);
 }
 
-// TODO(#1176): the witness project is in progress, so its main structure lists its estimate
-// unavailable (`project_before_in_progress`, WF-DEV-0050), and the fake back serves that structure
-// whatever the address: the grid never offers an estimate to enter, and the journeys on the
-// estimate are `test.fixme`. The same journeys are proven on the grid itself by
-// `paste.dom.test.tsx`; they come back here when the screen reads the structure its address names
-// (`structure=`, US-0500/L2), the own estimate of a risk being listed enterable.
-test.fixme("a block of three rows and four columns pasted from a spreadsheet produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async ({
+test("a block of three rows and four columns pasted from a spreadsheet produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async ({
   page,
 }) => {
   const posted = actions(page);
@@ -133,11 +136,11 @@ test.fixme("a block of three rows and four columns pasted from a spreadsheet pro
 
   await dialog.getByRole("button", { name: "Appliquer le collage" }).click();
   await expect(dialog).toHaveCount(0);
-  // One operation: the plan confirmed, with the version of the structure read.
+  // One operation: the plan confirmed, with the version of the structure read, the amendment's.
   expect(argumentsWith(posted, "paste_id")?.[1]).toEqual({
     paste_id: "01926f3a-7c00-7000-8000-000000000991",
     confirmed: true,
-    lock_version: 1,
+    lock_version: 2,
   });
   // The three rows the server wrote, in place of those read; the focus back on the cell.
   await expect(cellAt(grid, FIRST, at.label)).toHaveText("Heures de câblage et repérage");
@@ -152,7 +155,7 @@ test.fixme("a block of three rows and four columns pasted from a spreadsheet pro
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-test.fixme("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
+test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
   page,
 }) => {
   const posted = actions(page);
@@ -177,9 +180,7 @@ test.fixme("a block whose cell names an unknown category is sent as copied for t
   await expect(cellAt(grid, FIRST + 2, at.quantity)).toHaveText("2");
 });
 
-test.fixme("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({
-  page,
-}) => {
+test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page);
   // Eighteen columns from the label, where a line has seventeen in the contract (#223, #424).

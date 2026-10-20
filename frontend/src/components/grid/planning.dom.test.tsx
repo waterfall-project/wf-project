@@ -66,6 +66,7 @@ function renderPlanning(nodes: NodeList = planning, locale: Locale = "fr") {
       <PlanningGrid
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={{}}
         query={NO_QUERY}
         preferences={undefined}
@@ -127,6 +128,7 @@ describe("the grids of the planning and of the estimate", () => {
         <PlanningGrid
           nodes={planning}
           structure={STRUCTURE}
+          structureVersion={1}
           filters={{}}
           query={NO_QUERY}
           preferences={undefined}

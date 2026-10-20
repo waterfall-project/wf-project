@@ -286,6 +286,7 @@ describe("undo and redo, placed in the grids", () => {
         <PlanningGrid
           nodes={example("nodes_planning") as NodeList}
           structure={STRUCTURE}
+          structureVersion={1}
           filters={{}}
           query={NO_QUERY}
           preferences={undefined}
