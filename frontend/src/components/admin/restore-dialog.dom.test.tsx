@@ -24,6 +24,7 @@ import {
   type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
 // The server of Next, as far as the restoration needs it: the fake back behind both clients — the
 // probe asked without any token —, and the page read anew once a date is refused.
@@ -146,9 +147,7 @@ describe("the restoration of the platform", () => {
     ]);
     // The screen of the maintenance follows it, never the tracker: it restarts from the
     // confirmation alone.
-    expect(
-      within(screen.getByRole("region", { name: "Tâches de fond" })).queryAllByRole("listitem"),
-    ).toEqual([]);
+    expect(within(tasksRegion()).queryAllByRole("listitem")).toEqual([]);
   });
 
   it("stays open while the restoration is asked, closed neither by Escape nor by « Annuler », and tells the refusal that answers it", async () => {
@@ -271,9 +270,7 @@ describe("the restoration of the platform", () => {
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(bodies(client, RESTORE)).toHaveLength(1);
-    expect(
-      within(screen.getByRole("region", { name: "Tâches de fond" })).queryByText(/^Restauration/),
-    ).toBeNull();
+    expect(within(tasksRegion()).queryByText(/^Restauration/)).toBeNull();
   });
 
   it.each([

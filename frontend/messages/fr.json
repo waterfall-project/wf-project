@@ -895,12 +895,15 @@
     "interrupted": "Suivi interrompu",
     "interruptedLine": "Suivi interrompu : {task}.",
     "dismiss": "Retirer du suivi : {task}",
-    "toggle": "{count, plural, =0 {Tâches de fond} one {Tâches de fond : # suivie} other {Tâches de fond : # suivies}}",
+    "toggle": "Tâches et messages{count, plural, =0 {} one { : # tâche suivie} other { : # tâches suivies}}{unread, plural, =0 {} one {, # refus non lu} other {, # refus non lus}}",
     "none": "Aucune tâche de fond suivie.",
     "download": "Télécharger le résultat",
     "downloadLabel": "Télécharger le résultat : {task}",
     "resultUnavailable": "Le résultat de cette tâche n’est plus disponible.",
-    "resultRefused": "Le résultat d’une tâche n’a pas pu être téléchargé."
+    "resultRefused": "Le résultat d’une tâche n’a pas pu être téléchargé.",
+    "panel": "Tâches et messages",
+    "close": "Fermer les tâches et messages",
+    "started": "Tâche lancée : {task}."
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -2667,5 +2670,14 @@
     "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous pour la connaître.",
     "doneTitle": "Restauration terminée",
     "done": "La plateforme a été restaurée. Reconnectez-vous pour continuer."
+  },
+  "messages": {
+    "label": "Messages",
+    "none": "Aucun message dans cette session.",
+    "success": "Réussite :",
+    "refusal": "Refus :",
+    "object": "Objet : {object}.",
+    "screenInProject": "{screen} — {project}",
+    "unknownScreen": "Écran d’origine"
   }
 }

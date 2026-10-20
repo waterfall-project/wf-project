@@ -38,6 +38,7 @@ import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { useLocalTimestamp } from "@/components/local-time";
+import { useNoteMessage } from "@/components/notices/message-history";
 import { Reactivations } from "@/components/reference/reactivation";
 import {
   type Draft,
@@ -255,13 +256,17 @@ function TestOutcome({ test }: { readonly test: ExternalBackupLocationTest }) {
     folder: test.path == null ? "root" : "path",
     path: test.path ?? "",
   };
-  return (
-    <>
-      {test.failure == null
-        ? t("tested", where)
-        : t("testFailed", { ...where, failure: failures(test.failure) })}
-    </>
-  );
+  const sentence =
+    test.failure == null
+      ? t("tested", where)
+      : t("testFailed", { ...where, failure: failures(test.failure) });
+  // A success no screen shows but this sentence, kept in the history of the messages too.
+  useNoteMessage(test, {
+    tone: test.failure == null ? "success" : "refusal",
+    sentence,
+    object: test.location,
+  });
+  return <>{sentence}</>;
 }
 
 /**

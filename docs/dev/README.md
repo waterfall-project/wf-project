@@ -210,7 +210,7 @@ groupes — la plateforme, par bloc de la FBS repliable ; le projet, avec la lis
 le « retour au projet » ; la révision lue —, le bouton qui la replie au pied ; au-dessus de la
 page, la barre (`top-bar.tsx`) : le bouton qui replie la barre latérale, le fil d'Ariane
 (`frontend/src/navigation/breadcrumbs.ts`), la recherche — en place, sans fonction encore —, le
-bouton des tâches de fond et le menu du compte. La barre latérale repliée garde son état dans
+bouton du panneau des tâches et des messages et le menu du compte. La barre latérale repliée garde son état dans
 un témoin du front, `wf_sidebar_state`, que le layout racine lit pour la rendre telle
 côté serveur. Le layout, rendu une fois, ne connaît pas l'adresse : le libellé du projet vient
 de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à la coquille par
@@ -220,7 +220,8 @@ mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le 
 clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconnexion
 (`closeMySessions`, qui ferme toutes les sessions du compte ; un 401 valant session déjà close,
 le compte désactivé ou non admis compris) oublie ce que le navigateur gardait de la session — le
-témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi — puis charge en
+témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi, l'historique des
+messages (`wf_messages`) — puis charge en
 document entier l'adresse que rend l'action : `/login`, d'ordinaire. `/login?next=…` est un
 gestionnaire de route (`src/app/login/route.ts`), non une page : Waterfall n'a ni formulaire de
 connexion, ni liste de fournisseurs, ni mot de passe oublié, le fournisseur d'identité tenant ses
@@ -1721,11 +1722,19 @@ y en a un, le nom que l'utilisateur lui a donné (WF-IHM-0080). Le suivi est com
 genres de tâche : il relit la tâche toutes les deux secondes tant qu'elle court, par l'action
 serveur `readBackgroundTask`, en montre l'avancement, ajoute sa fin à un journal
 (`role="log"`) lu quel que soit l'écran, offre de recharger l'écran quand elle a abouti — il
-ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Son panneau est
-sous la barre de la coquille, dans le flux de la page ; le bouton des tâches de fond
-(`TasksButton`), qui en dit le nombre, le montre ou le cache, et une tâche remise le montre.
-Caché, le panneau suit encore ses tâches — ses entrées restent montées — et son journal, hors
-de ce qui se cache, parle toujours. Une relance
+ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Son panneau est une
+feuille (`Sheet`) le long du bord droit de la fenêtre, qui porte aussi l'historique des messages
+(ci-dessous) : un dialogue modal titré « Tâches et messages », qui garde le focus tant qu'il est
+ouvert et que ferment Échap, son bouton de fermeture, le bouton de la barre ou « Recharger
+l'écran », le focus rendu à ce bouton. Le bouton de la barre (`TasksButton`) l'ouvre et dit, dans
+son nom et ses pastilles, le nombre des tâches suivies et celui des refus non lus. Rien ne l'ouvre
+de lui-même, sauf le refus d'un résultat au retour du navigateur, dont le téléchargement est parti
+du panneau. Une tâche remise ou finie se dit sous la barre, dans le flux de la page, sur l'écran où
+l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante — la confirmation sur
+place d'un succès que l'écran ne montre pas —, sans annonce, le journal parlant pour les fins.
+Fermé, le panneau suit encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées
+— et son journal parle toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est
+gardé. Une relance
 refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
 (404, 401) interrompt le suivi, qui le dit. Aucun écran ne suit ses tâches lui-même. Une
 réponse ne s'applique qu'à la tâche pour laquelle elle a été demandée, jamais à celle qu'une
@@ -1746,6 +1755,43 @@ liste ne se relance pas du suivi : échouée, son entrée dit de la relancer dep
 objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de
 version.
+
+### L'historique des messages
+
+L'historique des messages (#1043, `components/notices/message-history.ts`) garde chaque issue d'une
+commande que les écrans ont dite, succès comme refus, pour qu'un avis fermé ou laissé sur un autre
+écran se relise. Ce n'est pas le journal d'audit (WF-SEC-0030) : une aide à l'utilisateur, pour lui
+seul, propre à la session de navigation — le stockage de session de l'onglet (`wf_messages`), les
+cent dernières, effacé à la déconnexion —, sans opération du contrat. Le panneau des tâches et des
+messages le montre, la dernière en tête (`MessageList`) ; ouvert, il les a toutes montrées, et le
+compte des refus non lus retombe à zéro.
+
+Une entrée (`Message`) garde :
+
+- **l'heure** où l'avis a été dit, un instant du poste, montré par `LocalTime` ;
+- **le ton** — `success` ou `refusal`, dit en mots, jamais par la seule couleur ; le service
+  injoignable, une tâche échouée ou interrompue, des lignes refusées d'un collage sont des refus ;
+- **la phrase de l'avis**, telle qu'elle a été dite, dans la langue du moment : l'historique répète,
+  il ne réécrit pas ; et, pour une tâche échouée, **le motif** en seconde phrase (`detail`) ;
+- **l'objet**, quand l'avis en nomme un : celui que l'écran donne (`subject` d'`OutcomeNotice`),
+  sinon l'objet en conflit, la tâche — son genre et le nom que l'utilisateur lui a donné —, la copie
+  externe éprouvée ;
+- **la référence de corrélation** d'une erreur inattendue (`INTERNAL_ERROR`, WF-OBS-0020) ;
+- **l'écran** : son adresse, où ramène un lien, et le projet qu'il montrait (`useShownProjectLabel`) ;
+  le lien se nomme comme la fin du fil d'Ariane (`crumbsOf`), suivi du projet ; un écran que le fil
+  ne nomme pas est « Écran d'origine ». La fin d'une tâche garde l'écran d'où elle a été lancée ;
+  une tâche retrouvée — par la liste de l'API, après un rechargement — l'écran où sa fin est dite.
+
+Ce qui l'alimente : `OutcomeNotice`, pour chaque refus qu'il dit — les avis de la grille compris,
+qui passent par lui —, `PasteAppliedNotice` et `UnshownNotice` de la grille, `DoneNotice`, pour
+chaque succès qu'il confirme (son `of` : l'issue qu'il dit, une par enregistrement), le test d'une
+copie externe (`LocationTest`), et le suivi : une tâche remise (`useTrackTask`) et chaque fin de
+son journal. Chacun y inscrit l'issue une fois, quelle que soit la fréquence de ses rendus
+(l'identité de l'issue, `noteMessage`), dans un effet, sans rien annoncer : l'avis sur place reste
+l'alerte (`role="alert"`) ou le statut, et l'historique n'est pas une région vivante. Sur place,
+rien ne change. N'y entrent pas : un refus d'écriture partie d'un écran quitté (`LeftRefusals`),
+dont la retenue ne garde que le compte, et les statuts écrits à la main de quelques écrans
+(`role="status"` d'une liste du référentiel).
 
 ### L'image de développement
 

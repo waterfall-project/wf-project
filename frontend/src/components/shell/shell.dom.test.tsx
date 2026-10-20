@@ -13,6 +13,7 @@ import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { dismissLeftRefusals } from "@/navigation/held-writes";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
 import { Shell, type ShellProps } from "./shell";
 import { ShowProject } from "./shown-project";
@@ -116,7 +117,7 @@ describe("the shell", () => {
       );
       expect(bar().getByRole("searchbox", { name: search })).toBeInTheDocument();
       expect(
-        bar().getByRole("button", { name: /^(Tâches de fond|Background tasks)$/ }),
+        bar().getByRole("button", { name: /^(Tâches et messages|Tasks and messages)$/ }),
       ).toHaveAttribute("aria-expanded", "false");
       expect(bar().getByRole("button", { name: account })).toHaveAttribute("aria-haspopup", "menu");
       expect(
@@ -445,9 +446,7 @@ describe("the shell", () => {
       await Promise.resolve();
       return rendered;
     });
-    expect(screen.getByRole("region", { name: "Tâches de fond" })).toHaveTextContent(
-      "Marquage d’une révision",
-    );
+    expect(tasksRegion()).toHaveTextContent("Marquage d’une révision");
     // Nothing is asked as the shell mounts: the layout streamed the tasks.
     expect(signedIn.calls).toEqual([]);
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");

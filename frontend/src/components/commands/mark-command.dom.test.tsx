@@ -11,10 +11,11 @@ import type { components } from "@/api/generated/schema";
 import type { Revision } from "@/components/context/read-only";
 import { AccountMenu } from "@/components/shell/account-menu";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
-import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
+import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { RevisionCommands } from "./object-commands";
 
@@ -54,6 +55,7 @@ function open(name = "revision", beside?: ReactNode) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
+        <TasksButton />
         <TaskPanel />
         <main>
           {beside}
@@ -122,7 +124,7 @@ describe("the marking of a revision", () => {
     expect(screen.queryByRole("form", { name: "Marquer la révision" })).toBeNull();
     expect(markCommand()).toHaveFocus();
 
-    const tasks = screen.getByRole("region", { name: "Tâches de fond" });
+    const tasks = tasksRegion();
     await tick();
     const progress = within(tasks).getByRole("progressbar", {
       name: "Marquage d’une révision «\u00A0V2\u00A0»",
@@ -130,9 +132,10 @@ describe("the marking of a revision", () => {
     expect(progress).toHaveAttribute("aria-valuenow", "40");
     expect(within(tasks).getByText("En cours")).toBeVisible();
 
-    // While the task runs, nothing of the screen is withheld: no dialog, nothing inert or
-    // disabled, and the user goes on — here, choosing the language of the interface and
-    // applying it, which the server records while the revision is marked.
+    // While the task runs, nothing of the screen is withheld — the panel read closed again —: no
+    // dialog, nothing inert or disabled, and the user goes on — here, choosing the language of
+    // the interface and applying it, which the server records while the revision is marked.
+    closeTasks();
     expect(document.querySelector("[aria-modal], [inert], :disabled")).toBeNull();
     const account = screen.getByRole("button", { name: "Compte de Camille Martin" });
     await userEvent.click(account);
@@ -144,13 +147,13 @@ describe("the marking of a revision", () => {
     expect(
       client.calls.filter((call) => call.route === PREFERENCES).map((call) => call.body),
     ).toEqual([{ language: "en" }]);
-    expect(progress).toHaveAttribute("aria-valuenow", "40");
+    expect(within(tasksRegion()).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "40");
 
     await tick();
-    expect(within(tasks).getByRole("log").textContent).toBe(
+    expect(screen.getByRole("log").textContent).toBe(
       "Tâche terminée\u00A0: Marquage d’une révision «\u00A0V2\u00A0».",
     );
-    expect(within(tasks).queryByRole("progressbar")).toBeNull();
+    expect(within(tasksRegion()).queryByRole("progressbar")).toBeNull();
     expect(client.calls.filter((call) => call.route === TASK)).toHaveLength(2);
   });
 
@@ -234,7 +237,7 @@ describe("the marking of a revision", () => {
     await mark("V1");
     const form = screen.getByRole("form", { name: "Marquer la révision" });
     expect(within(form).getByRole("alert").textContent).toBe("Cet élément existe déjà.");
-    const tasks = screen.getByRole("region", { name: "Tâches de fond" });
+    const tasks = tasksRegion();
     expect(within(tasks).queryByRole("list")).toBeNull();
   });
 

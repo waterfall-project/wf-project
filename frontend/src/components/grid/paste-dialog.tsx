@@ -21,6 +21,8 @@ import { CircleAlert, ClipboardPaste, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { useNoteMessage } from "@/components/notices/message-history";
+import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -150,20 +152,27 @@ export function PasteAppliedNotice({ applied, onClear, onDismissed }: PasteAppli
   const t = useTranslations("grid");
   const outcome = useTranslations("outcome");
   const told = useId();
+  const sentence =
+    applied === undefined
+      ? undefined
+      : t("paste.appliedFrom", {
+          row: applied.target.row,
+          column: headingOf(applied.target.column, (key) => t(`columns.${key}`)),
+          count: applied.written,
+        });
+  // Told only when the server refused rows: a refusal, for the history of the messages.
+  useNoteMessage(
+    applied,
+    sentence === undefined ? undefined : { tone: "refusal", sentence },
+    useShownProjectLabel(),
+  );
   if (applied === undefined) {
     return null;
   }
-  const { target } = applied;
   return (
     <div className="space-y-1 text-sm">
       <div role="alert" id={told} className="space-y-1">
-        <p className="font-medium">
-          {t("paste.appliedFrom", {
-            row: target.row,
-            column: headingOf(target.column, (key) => t(`columns.${key}`)),
-            count: applied.written,
-          })}
-        </p>
+        <p className="font-medium">{sentence}</p>
         <RefusedCount rejected={applied.rejected} listed />
       </div>
       {/* However many rows are refused, the grid stays in the window: the list scrolls (#163). */}
@@ -273,16 +282,23 @@ export function UnshownNotice({
   readonly heading: (column: ColumnName) => string;
 }) {
   const t = useTranslations("grid.paste");
+  let text: string | undefined;
   if (unshown === undefined) {
-    return null;
-  }
-  let text: string;
-  if (unshown.shown === "hidden") {
+    text = undefined;
+  } else if (unshown.shown === "hidden") {
     text = t("hiddenColumn", { column: heading(unshown.column) });
   } else if (unshown.shown === "absent") {
     text = t("absentColumn", { column: unshown.name });
   } else {
     text = t(ROWS_REFUSAL[unshown.shown]);
+  }
+  useNoteMessage(
+    unshown,
+    text === undefined ? undefined : { tone: "refusal", sentence: text },
+    useShownProjectLabel(),
+  );
+  if (text === undefined) {
+    return null;
   }
   return (
     <p role="alert" className="text-sm text-destructive">

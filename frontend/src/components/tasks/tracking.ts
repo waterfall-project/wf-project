@@ -20,6 +20,7 @@
  * again from the screen of its object.
  */
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
+import type { MessageScreen } from "@/components/notices/message-history";
 
 import type { ResultRefusal } from "./result-refusal";
 
@@ -82,6 +83,8 @@ export interface Launch {
   readonly command?: TaskCommand | undefined;
   /** What the user named the task after — a version name —, shown as it was typed. */
   readonly subject?: string | undefined;
+  /** The screen it was started from, which the history of the messages leads back to. */
+  readonly from?: MessageScreen | undefined;
 }
 
 /** A refusal of the API, as the decoder classes it. */
@@ -95,6 +98,8 @@ export interface TrackedTask {
   readonly subject: string | undefined;
   /** The command that started it; gone when running it again is bound to be refused. */
   readonly command: TaskCommand | undefined;
+  /** The screen it was started from; none for a task found again, its screen unknown. */
+  readonly from?: MessageScreen | undefined;
   /** The last relaunch refused, or the API out of reach at the last read: told as an alert. */
   readonly outcome: Outcome<unknown> | undefined;
   /** The refusal of the API to say where the task stands: its follow-up stops there. */
@@ -112,6 +117,7 @@ export interface EndLine {
   readonly end: EndKind;
   readonly task: BackgroundTask;
   readonly subject: string | undefined;
+  readonly from?: MessageScreen | undefined;
   /** The motive of a failure, or the refusal that interrupted the follow-up. */
   readonly problem: Problem | undefined;
 }
@@ -174,11 +180,11 @@ export function isPolled({ task, interrupted }: TrackedTask): boolean {
 function logged(
   log: readonly EndLine[],
   end: EndKind,
-  { task, subject }: Pick<TrackedTask, "task" | "subject">,
+  { task, subject, from }: Pick<TrackedTask, "task" | "subject" | "from">,
   problem: Problem | undefined,
 ): readonly EndLine[] {
   const id = (log.at(-1)?.id ?? 0) + 1;
-  return [...log, { id, end, task, subject, problem }].slice(-LOG_LENGTH);
+  return [...log, { id, end, task, subject, from, problem }].slice(-LOG_LENGTH);
 }
 
 /**
@@ -291,6 +297,7 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
         key,
         task,
         subject: launch.subject,
+        from: launch.from,
         command: launch.command,
         outcome: undefined,
         interrupted: undefined,

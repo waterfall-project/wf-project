@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { type ReactNode, Suspense } from "react";
@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { markRevision } from "@/api/actions/revisions";
 import type { ApiClient } from "@/api/client";
 import type { BackgroundTask, Outcome } from "@/api/problem";
+import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -113,9 +114,19 @@ function shell(page: ReactNode, signedIn = false, running?: Promise<readonly Bac
   );
 }
 
-/** The button of the bar that shows or hides the panel, whatever the number it names. */
+/**
+ * The button of the bar that opens or closes the panel, whatever the numbers it names — hidden from
+ * the reader while the panel, a modal dialog, is open.
+ */
 function panelButton() {
-  return screen.getByRole("button", { name: /^Tâches de fond/ });
+  return screen.getByRole("button", { name: /^Tâches et messages/, hidden: true });
+}
+
+/** Close the panel, as its button does. */
+function closePanel() {
+  if (screen.queryByRole("dialog") !== null) {
+    fireEvent.click(panelButton());
+  }
 }
 
 /** Render a screen that starts a task, and start it. */
@@ -147,8 +158,11 @@ async function tick(times = 1) {
   }
 }
 
-/** The tasks the shell follows. */
+/** The tasks the shell follows, in its panel, opened by its button when it is closed. */
 function panel() {
+  if (screen.queryByRole("dialog") === null) {
+    fireEvent.click(panelButton());
+  }
   return screen.getByRole("region", { name: "Tâches de fond" });
 }
 
@@ -157,9 +171,9 @@ function entries() {
   return within(panel()).getByRole("list");
 }
 
-/** The log of the ends of the tasks. */
+/** The log of the ends of the tasks: outside the panel, or within it while it is open. */
 function endLog() {
-  return within(panel()).getByRole("log");
+  return screen.getByRole("log");
 }
 
 /** The ends the log reads out, each in its sentences, as they are written: typography included. */
@@ -171,7 +185,7 @@ function ends(): (string | null)[][] {
 
 /** The button that dismisses a task, by the name of the task. */
 function dismissal(name: string) {
-  return screen.getByRole("button", { name: `Retirer du suivi\u00A0: ${name}` });
+  return within(panel()).getByRole("button", { name: `Retirer du suivi\u00A0: ${name}` });
 }
 
 /** The button that runs a failed task again, by the name of the task. */
@@ -194,6 +208,7 @@ beforeEach(() => {
   // The time of the tracker is the test's: a read comes when the test lets it come.
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -211,6 +226,7 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).getByText("En attente")).toBeVisible();
 
     // The user goes to another screen: the one that started the import is gone.
+    closePanel();
     view.rerender(shell(<Screen name="Planning" />));
     expect(screen.getByRole("heading", { name: "Planning" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Lancer" })).toBeNull();
@@ -280,7 +296,7 @@ describe("the tracker of background tasks", () => {
     expect(reads(client)).toHaveLength(2);
   });
 
-  it("offers to reload the screen once a task has succeeded, and never reloads by itself", async () => {
+  it("offers to reload the screen once a task has succeeded, never reloads by itself, and closes the panel on the screen read anew", async () => {
     serve({ [TASK]: "task_succeeded" });
     await started(task("task_mark_queued"));
     await tick();
@@ -289,6 +305,8 @@ describe("the tracker of background tasks", () => {
     expect(router.refresh).not.toHaveBeenCalled();
     await userEvent.click(reload);
     expect(router.refresh).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(panelButton()).toHaveFocus();
   });
 
   it("offers no reload of the screen while a task runs, nor once it has failed", async () => {
@@ -327,7 +345,7 @@ describe("the tracker of background tasks", () => {
     expect(reads(client)).toEqual([]);
   });
 
-  it("takes the focus from a task dismissed to the next, else the one before, else the main content", async () => {
+  it("takes the focus from a task dismissed to the next, else the one before, else the region of the tasks", async () => {
     serve({ [TASK]: "task_running" });
     const all = [
       task("task_mark_queued"),
@@ -342,13 +360,11 @@ describe("the tracker of background tasks", () => {
     await userEvent.click(third ?? document.body);
     expect(second).toHaveFocus();
     await userEvent.click(second ?? document.body);
-    // The last one gone, the region is empty, without a height to show a focus: the focus
-    // goes to the main content of the page, outside the order of the keyboard, never to the
-    // document.
+    // The last one gone, the focus goes to the region of the tasks, outside the order of the
+    // keyboard: within the panel, which holds it, never to the document.
     expect(within(panel()).queryByRole("list")).toBeNull();
-    const main = screen.getByRole("main");
-    expect(main).toHaveFocus();
-    expect(main).toHaveAttribute("tabindex", "-1");
+    expect(panel()).toHaveFocus();
+    expect(panel()).toHaveAttribute("tabindex", "-1");
     expect(document.activeElement).not.toBe(document.body);
   });
 
@@ -546,6 +562,79 @@ describe("the tracker of background tasks", () => {
   });
 });
 
+/** The messages of the history the panel shows, the last first. */
+function history(): HTMLElement[] {
+  panel();
+  const region = screen.getByRole("region", { name: "Messages" });
+  return within(region).queryAllByRole("listitem");
+}
+
+/** The screens the tests go to, as the browser shows them. */
+const EXCHANGES = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
+const PLANNING = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+
+describe("the history of the messages", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", EXCHANGES);
+  });
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps the end of an import for a user who changed screens, with when, where, and a link back [WF-IHM-0080-A]", async () => {
+    // Un utilisateur qui change d'écran pendant un import est informé de son aboutissement.
+    serve({ [TASK]: "task_import_succeeded" });
+    const view = await started(task("task_import_queued"), { subject: "devis.xlsx" });
+    window.history.replaceState(null, "", PLANNING);
+    view.rerender(shell(<Screen name="Planning" />));
+    await tick();
+
+    const [ended, launched] = history();
+    const name = "Application d’un import « devis.xlsx »";
+    expect(ended).toHaveTextContent(/^Réussite\s:/);
+    expect(ended).toHaveTextContent(`Tâche terminée : ${name}.`);
+    expect(ended).toHaveTextContent(`Objet : ${name}.`);
+    const back = within(ended ?? document.body).getByRole("link");
+    expect(back).toHaveAttribute("href", EXCHANGES);
+    expect(back).toHaveTextContent("Imports et exports");
+    expect(ended?.querySelector("time")).toHaveAttribute("datetime");
+    expect(launched).toHaveTextContent(`Tâche lancée : ${name}.`);
+    // The link back to the screen closes the panel.
+    await userEvent.click(back);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps the correlation identifier of an import failed by an unexpected error, which its message gives [WF-OBS-0020-A]", async () => {
+    // Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul
+    // identifiant, que le message présenté à l'utilisateur contient. The task handed over has
+    // failed already: its end is logged at once.
+    const failed: BackgroundTask = {
+      ...task("task_import_queued"),
+      status: "failed",
+      problem: { code: "INTERNAL_ERROR", status: 500, correlation_id: "req-7f3a9c" },
+    };
+    await started(failed);
+    const [ended] = history();
+    expect(ended).toHaveTextContent(/^Refus\s:/);
+    expect(ended).toHaveTextContent("Tâche échouée : Application d’un import.");
+    expect(ended).toHaveTextContent("Erreur inattendue du service.");
+    expect(ended).toHaveTextContent("Référence : req-7f3a9c");
+  });
+
+  it("counts the refusals not read yet on the button of the panel, until the panel shows them", async () => {
+    serve({ [TASK]: "task_failed" });
+    await started(task("task_mark_queued"));
+    await tick();
+    expect(panelButton()).toHaveAccessibleName(
+      "Tâches et messages\u00A0: 1 tâche suivie, 1 refus non lu",
+    );
+    expect(history()).toHaveLength(2);
+    closePanel();
+    expect(panelButton()).toHaveAccessibleName("Tâches et messages\u00A0: 1 tâche suivie");
+  });
+});
+
 describe("the follow-up across a full reload of the tab", () => {
   it("keeps the tasks that still run in the storage of the tab, and forgets them once ended", async () => {
     serve({ [TASK]: ["task_running", "task_succeeded"] });
@@ -609,56 +698,68 @@ describe("the follow-up across a full reload of the tab", () => {
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
   });
 
-  it("shows the panel from the button of the bar, which names the number of the tasks followed", async () => {
+  it("opens the panel from the button of the bar, which names the number of the tasks followed", async () => {
     serve({ [TASK]: "task_running" });
     render(shell(<Starting given={task("task_mark_queued")} />));
     const button = panelButton();
-    expect(button).toHaveAccessibleName("Tâches de fond");
+    expect(button).toHaveAccessibleName("Tâches et messages");
     expect(button).toHaveAttribute("aria-expanded", "false");
-    expect(button).toHaveAttribute("aria-controls", panel().id);
+    expect(button).toHaveAttribute("aria-haspopup", "dialog");
     expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
 
-    // Shown before any task, the panel says it follows none.
-    await userEvent.click(button);
-    expect(button).toHaveAttribute("aria-expanded", "true");
-    expect(within(panel()).getByText("Aucune tâche de fond suivie.")).toBeVisible();
-    await userEvent.click(button);
-    expect(within(panel()).queryByText("Aucune tâche de fond suivie.")).toBeNull();
-
-    // A task handed over shows the panel, and the button counts it.
+    // A task handed over does not open the panel: the line under the bar says it, and the button
+    // counts it.
     await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
-    expect(button).toHaveAccessibleName("Tâches de fond\u00A0: 1 suivie");
+    expect(button).toHaveAccessibleName("Tâches et messages\u00A0: 1 tâche suivie");
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Tâche lancée : Marquage d’une révision.")).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await userEvent.click(button);
     expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(button).toHaveAttribute("aria-controls", screen.getByRole("dialog").id);
     expect(within(entries()).getByText("Marquage d’une révision")).toBeVisible();
     await expectAccessible(document.body);
   });
 
-  it("follows the tasks still, and reads out their ends, with the panel hidden", async () => {
+  it("follows the tasks still, and reads out their ends, with the panel closed", async () => {
     const client = serve({ [TASK]: ["task_running", "task_succeeded"] });
     await started(task("task_mark_queued"));
-    await userEvent.click(panelButton());
     expect(panelButton()).toHaveAttribute("aria-expanded", "false");
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
 
     await tick(2);
     expect(reads(client)).toHaveLength(2);
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
 
-    // Shown again, the panel lists the task as it now stands.
+    // The line under the bar says the end, on whatever screen; opened, the panel lists the task as
+    // it now stands.
+    const said = screen
+      .getAllByText("Tâche terminée : Marquage d’une révision.")
+      .filter((line) => line.closest("[role=log]") === null);
+    expect(said).toHaveLength(1);
+    expect(said[0]).toBeVisible();
     await userEvent.click(panelButton());
     expect(within(entries()).getByText("Réussie")).toBeVisible();
   });
 
-  it("shows the panel again on the next task handed over, once the user hid it", async () => {
+  it("holds the focus in the panel, closes it on Escape, and gives the focus back to its button", async () => {
     serve({ [TASK]: "task_running" });
-    const view = await started(task("task_mark_queued"));
+    await started(task("task_mark_queued"));
     await userEvent.click(panelButton());
-    expect(within(panel()).queryByRole("list")).toBeNull();
+    const dialog = screen.getByRole("dialog", { name: "Tâches et messages" });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.tab();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(panelButton()).toHaveFocus();
 
-    view.rerender(shell(<Starting given={task("task_import_queued")} />));
-    await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
-    expect(panelButton()).toHaveAttribute("aria-expanded", "true");
-    expect(panelButton()).toHaveAccessibleName("Tâches de fond\u00A0: 2 suivies");
+    // Its close button closes it too.
+    await userEvent.click(panelButton());
+    await userEvent.click(screen.getByRole("button", { name: "Fermer les tâches et messages" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(panelButton()).toHaveFocus();
   });
 });
 

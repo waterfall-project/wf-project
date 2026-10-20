@@ -1268,7 +1268,7 @@ des cartes au-dessus de la grille se vérifie avec US-0560.
 
 ## US-0560 — Le cadre de l'application : grilles, historique des messages, menu
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`, `WF-OBS-0020-A`
 - **opérations** : `listBackgroundTasks`, `getBackgroundTask`
 - **issue** : #1119

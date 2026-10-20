@@ -35,6 +35,7 @@ import {
   type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
 import { readDownloadRefusal } from "./backup-address";
 
@@ -203,7 +204,7 @@ describe("the commands of the backups", () => {
       );
     });
     expect(bodies(client, START)).toEqual([undefined]);
-    const tasks = screen.getByRole("region", { name: "Tâches de fond" });
+    const tasks = tasksRegion();
     expect(within(tasks).getByText("Sauvegarde")).toBeVisible();
     // Failed, the task offers to run its command again: another backup is started.
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
@@ -218,9 +219,7 @@ describe("the commands of the backups", () => {
     render(backupList());
     await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
     expect(await screen.findByRole("alert")).toBeVisible();
-    expect(
-      within(screen.getByRole("region", { name: "Tâches de fond" })).queryByText("Sauvegarde"),
-    ).toBeNull();
+    expect(within(tasksRegion()).queryByText("Sauvegarde")).toBeNull();
   });
 
   it("say above the list a backup refused while another runs, naming the condition that lacks (409) [WF-IHM-0090-A]", async () => {

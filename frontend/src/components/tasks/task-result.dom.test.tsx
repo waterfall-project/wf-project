@@ -9,8 +9,9 @@ import type { ApiClient } from "@/api/client";
 import type { BackgroundTask } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
-import { TaskPanel, TaskTracker, useTrackTask } from "./task-tracker";
+import { TaskPanel, TasksButton, TaskTracker, useTrackTask } from "./task-tracker";
 
 // The server of Next, as far as the tracker needs it: the fake back behind serverClient, and the
 // screen shown.
@@ -57,6 +58,7 @@ function tracker() {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker signedIn={false}>
+        <TasksButton />
         <TaskPanel />
         <Exporting />
       </TaskTracker>
@@ -68,6 +70,7 @@ function tracker() {
 async function exported() {
   tracker();
   await userEvent.click(screen.getByRole("button", { name: "Exporter" }));
+  tasksRegion();
 }
 
 /** The offer to download the result of the export. */
@@ -220,7 +223,7 @@ describe("the refusal of a result the browser came back with", () => {
       `${SCREEN}?refused_task=${EXPORTED}&refusal=409:STATE_FORBIDS_OPERATION`,
     );
     tracker();
-    const panel = screen.getByRole("region", { name: "Tâches de fond" });
+    const panel = tasksRegion();
     expect(await within(panel).findByRole("alert")).toHaveTextContent(
       "L’état actuel ne permet pas cette opération.",
     );

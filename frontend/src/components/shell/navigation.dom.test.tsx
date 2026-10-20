@@ -73,7 +73,13 @@ async function openBlocks(): Promise<string[]> {
 
 /** The French name of a function of the table, read in the catalogue from its label. */
 function nameOf(fn: NavigationFunction): string {
-  const key = fn.label.slice("functions.".length) as keyof Catalogue["functions"];
+  const prefix = "functions.";
+  if (!fn.label.startsWith(prefix)) {
+    throw new Error(
+      `the label of the function ${fn.code} is not in the functions of the catalogue`,
+    );
+  }
+  const key = fn.label.slice(prefix.length) as keyof Catalogue["functions"];
   return CATALOGUES.fr.functions[key];
 }
 
@@ -229,17 +235,24 @@ describe("the navigation", () => {
           .map((link) => link.textContent),
       ).toEqual(leaves);
     }
-    // The tab order: a function, then its leaves, then the next function.
-    const order = FUNCTION_GROUPS.flatMap((group) => group.functions)
-      .filter((fn) => fn.scope === "revision")
-      .flatMap((fn) => [fn, ...(fn.leaves ?? [])])
-      .map(nameOf);
+    // The tab order: a function, then its leaves, then the next function — written out, not
+    // read from the table that draws the bar, which a permutation would follow.
+    const order = [
+      "Planification",
+      "Chronologies",
+      "Imports et exports",
+      "Arborescence de tâches",
+      "Chiffrage et devis",
+      "Plan de charge",
+      "Estimation du reste à engager",
+      "Kanban — démarrage des tâches",
+    ];
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    // The revision is the last group of the bar.
-    expect(names.slice(-order.length)).toEqual(order);
-    expect(order.indexOf("Chronologies")).toBe(order.indexOf("Planification") + 1);
+    // The revision is the last group of the bar: its first functions and their leaves open it.
+    const revision = names.indexOf("Planification");
+    expect(names.slice(revision, revision + order.length)).toEqual(order);
     expect(href("Plan de charge")).toBe(`${IN_PROJECT}/workload${CONTEXT}`);
     expect(href("Chronologies")).toBe(`${IN_PROJECT}/timelines${CONTEXT}`);
     expect(href("Imports et exports")).toBe(`${IN_PROJECT}/exchanges${CONTEXT}`);

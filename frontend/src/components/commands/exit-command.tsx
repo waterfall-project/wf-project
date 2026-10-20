@@ -163,7 +163,8 @@ function ExitCommand({
 }: ExitCommandProps) {
   const t = useTranslations();
   const form = useId();
-  const [done, setDone] = useState<ProjectState>();
+  // What the exit made of the project, an object for each exit: the history notes each one.
+  const [done, setDone] = useState<{ readonly state: ProjectState }>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const button = useRef<HTMLButtonElement>(null);
   // The page read again may no longer offer the exit: its confirmation closes.
@@ -210,7 +211,7 @@ function ExitCommand({
           projectId={projectId}
           onClose={close}
           onDone={(state) => {
-            setDone(state);
+            setDone({ state });
             setOutcome(undefined);
             close();
           }}
@@ -228,8 +229,9 @@ function ExitCommand({
         title={
           done === undefined
             ? undefined
-            : t("exitProject.done", { state: t(`enums.ProjectState.${done}`) })
+            : t("exitProject.done", { state: t(`enums.ProjectState.${done.state}`) })
         }
+        of={done}
       />
     </div>
   );
