@@ -16,6 +16,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { estimateReference } from "@/test/reference";
 
 import { EstimateGrid } from "./estimate-grid";
@@ -75,11 +76,11 @@ function serve(answers: FakeAnswers, hold?: Promise<unknown>): FakeClient {
 }
 
 /** The grid of the estimate, in French. */
-function estimateGrid(editable = true) {
+function estimateGrid(editable = true, nodes = estimate) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
-        nodes={estimate}
+        nodes={nodes}
         structure={STRUCTURE}
         structureVersion={VERSION}
         reference={estimateReference()}
@@ -194,6 +195,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  releaseReading();
   vi.restoreAllMocks();
 });
 
@@ -369,6 +371,28 @@ describe("the indentation of a task", () => {
     expect(moved(client)).toMatchObject([{ lock_version: 3 }]);
   });
 
+  it("leaves the focus in a cell entered while the reading anew the move asked is under way [WF-IHM-0100-A]", async () => {
+    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : the field of a
+    // cell opened before the reading comes keeps the focus through it, the row moved not followed.
+    holdReading(router.refresh);
+    serve({ [MOVE]: "nodes_indented" });
+    const view = render(estimateGrid(), { wrapper: Reading });
+    await choose(RISK, "Indenter");
+    await screen.findByText(/indentée\.$/);
+    await activate(LEAF);
+    await act(async () => {
+      await userEvent.keyboard("{F2}");
+    });
+    const field = within(screen.getByRole("treegrid")).getByRole("textbox");
+    expect(field).toHaveFocus();
+    await act(async () => {
+      view.rerender(estimateGrid(true, { ...estimate, items: [...estimate.items] }));
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(field).toHaveFocus();
+  });
+
   it("holds the move while a write is under way", async () => {
     const hold = held();
     const client = serve({ [MOVE]: "nodes_indented" }, hold.until);
@@ -420,8 +444,13 @@ describe("the refusal of a move, said to the row in cause", () => {
     ["nodes_indent_forbidden", "Cette liaison n’est pas permise.", 0],
     ["nodes_move_cycle_refused", "Cette liaison créerait une boucle.", 0],
     [
+      "nodes_move_outside_work_package",
+      "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot.",
+      0,
+    ],
+    [
       "nodes_move_after_not_sibling",
-      "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
+      "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : la grille est relue.",
       1,
     ],
   ])(

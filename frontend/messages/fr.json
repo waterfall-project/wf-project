@@ -250,6 +250,11 @@
         "redo": "Rétablir est indisponible : le serveur ne conserve pas encore l’historique des saisies."
       }
     },
+    "selection": {
+      "handle": "{number} — poignée de la ligne",
+      "hint": "Espace sélectionne la ligne, Maj et une flèche étendent la sélection, Échap la lève. Alt+Maj et une flèche la déplacent : Alt+Maj+↑ et Alt+Maj+↓ d’un rang, Alt+Maj+→ et Alt+Maj+← en l’indentant et en la désindentant.",
+      "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}"
+    },
     "structure": {
       "insertFirst": "Insérer une tâche",
       "insertBelow": "Insérer au-dessous",
@@ -257,8 +262,14 @@
       "insertLine": "Insérer une ligne",
       "indent": "Indenter",
       "outdent": "Désindenter",
-      "indented": "« {label} » indentée.",
-      "outdented": "« {label} » désindentée.",
+      "up": "Monter",
+      "down": "Descendre",
+      "moved": {
+        "indented": "{others, plural, =0 {« {label} » indentée.} one {« {label} » et la ligne suivante indentées.} other {« {label} » et les # lignes suivantes indentées.}}",
+        "outdented": "{others, plural, =0 {« {label} » désindentée.} one {« {label} » et la ligne suivante désindentées.} other {« {label} » et les # lignes suivantes désindentées.}}",
+        "up": "{others, plural, =0 {« {label} » montée d’un rang.} one {« {label} » et la ligne suivante montées d’un rang.} other {« {label} » et les # lignes suivantes montées d’un rang.}}",
+        "down": "{others, plural, =0 {« {label} » descendue d’un rang.} one {« {label} » et la ligne suivante descendues d’un rang.} other {« {label} » et les # lignes suivantes descendues d’un rang.}}"
+      },
       "delete": "Supprimer",
       "deleteTitle": "Supprimer « {label} » ?",
       "deleteHint": "« {label} » est une récapitulative : ses tâches subordonnées, leurs lignes et leurs liaisons sont supprimées avec elle.",
@@ -1761,7 +1772,7 @@
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
     "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
-    "NODE_NOT_SIBLING": "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
+    "NODE_NOT_SIBLING": "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : la grille est relue.",
     "MILESTONE_REQUIRED": "Seul un jalon s’inscrit au suivi temps/temps.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
