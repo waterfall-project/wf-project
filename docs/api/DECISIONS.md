@@ -6631,6 +6631,63 @@ ligne « par son rang, et son onglet quand le fichier en a plusieurs », `sheet`
 fichier à un seul onglet. Le résumé d'`import_remaining_subproject_held` écrit « qu'imports », et
 tire ses heures des instants de l'import (`mocktext.hour`).
 
+## La comparaison de révisions se lit comme `listNodes` (EP-15/US-0500/L5)
+
+**`compareRevisions` adopte la mécanique de `listNodes`** (décision de l'auteur du 2026-10-20 sur
+#1193). L'arbre entier de la comparaison — 5 999 nœuds rendus entiers, un exemple `comparison` de
+7,4 Mo (US-0500/L1, ci-dessus) — se lisait autrement que les grilles de la structure ; il se lit
+désormais comme elles, et la grille dense, déjà virtualisée, le lira comme les autres. Les mêmes
+paramètres : les filtres, la recherche et le tri de `listNodes`, écrits jusqu'ici dans son chemin,
+deviennent des paramètres partagés — `NodeKinds`, `NodeSubtreeOf`, `NodeCostTypeFilter`,
+`NodeOrderItemFilter`, `NodeWorkPackageFilter`, `NodeCostCategoryFilter`, `NodeResourceRoleFilter`,
+`NodeProgressFilter`, `NodeCriticalFilter`, `NodeSummariesOnly`, `NodeMaxLevel`,
+`NodeTimelineFilter`, `NodeSortBy` —, que les deux opérations citent avec `Search`,
+`SubprojectFilter`, `SortOrder` et `NodeFields`, sans que `listNodes` en change. La même réponse :
+`RevisionComparison` rend `items`, à la place de `nodes`, `totals` (`NodeTotals`) et `meta`
+(`NodeListMeta`), de la révision comparée, à côté de `from_revision_id`, `to_revision_id` et
+`amount_deltas`. La même mécanique : `listNodes` rend la structure entière, sans pagination — un
+arbre ne se lit pas par pages, une page couperait une tâche de ses lignes (EP-02, « `listNodes` rend
+la structure entière ») —, et une lecture filtrée en est une fenêtre ; la comparaison de même, ses
+filtres s'appliquant comme à la lecture d'un différentiel. `difference` et `changes` restent
+toujours rendus, `totals` ne compte pas les nœuds retirés, qui ne sont plus de la structure
+comparée.
+
+**`amount_deltas` vient dans chaque réponse, comme `totals`**, et se calcule de même sur les lignes
+que la lecture retient — les lignes retirées comprises, rendues à leur place —, quel que soit
+`kinds` : sans filtre, les écarts de toute la structure ; d'un sous-arbre, les siens. `listNodes`
+n'ayant pas de pagination, il n'y a pas de « première fenêtre » : chaque lecture porte ses écarts,
+comme chaque lecture de `listNodes` ses totaux. Écarté : des écarts toujours de toute la structure,
+qui feraient d'`amount_deltas` la seule valeur de la réponse que ses filtres ne restreignent pas.
+
+**L'écart se compte par ligne retenue, selon le parent de la révision comparée.** Le diff rend un
+nœud déplacé une fois, à sa place nouvelle ; la fenêtre le retient par cette place, et ses écarts
+de même : une ligne déplacée dans un sous-arbre y apporte son écart entier — son montant dans la
+révision comparée moins celui de la révision de base —, une ligne déplacée hors de lui n'y compte
+plus rien. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière,
+chaque ligne comptée une fois. Écarté : compter une ligne déplacée dans chaque fenêtre, pour son
+montant de base dans celle qu'elle quitte et son montant comparé dans celle où elle entre — la
+ligne y serait sans être rendue, et une fenêtre compterait ce qu'elle ne montre pas.
+
+**`subtree_of` sur une tâche retirée** rend le sous-arbre qu'elle avait dans la révision de base,
+ses nœuds retirés à leur place : la tâche est de l'arbre rendu, et la grille offre de la déplier
+comme les autres. Ses totaux sont nuls, la révision comparée n'en ayant aucune ligne, et ses écarts
+sont ceux de ses lignes retirées. Écarté : un refus 422, qui rendrait illisible une tâche que la
+comparaison rend. **Le tri** ne réordonne que les lignes sous chaque tâche ; la place qu'il donne
+à une ligne retirée, dans une comparaison comme dans la lecture d'un différentiel par `listNodes`,
+reste à trancher (#1201, point 4). `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
+les grilles de `listNodes`, que son chemin dit désormais.
+
+**Les exemples sont des fenêtres**, engendrés par `wftools.mockhistory`. `comparison`, le premier,
+est le sous-arbre de l'installation sur site (`subtree_of`), comme `nodes_amendment` sur le
+différentiel : 9 nœuds, et chaque marque — deux ajoutés, la tâche et la ligne retirées, à leur
+place, deux lignes réestimées, trois tâches modifiées par leur seul contenu —, les totaux de
+`listNodes` sur ce sous-arbre de la référence, les écarts de ses lignes ; 13 ko au lieu de 7,4 Mo.
+`comparison_identical` garde le cœur de l'offre comparé à lui-même, lu entier. Le sous-arbre d'un
+arbre marqué se prend par `wftools.mockdiff.window`, que `nodes_amendment` emploie aussi. Les faits
+de toute la structure — 5 999 nœuds, 2 770 modifiés par leurs valeurs, 1 027 251,25 d'écart — restent
+tenus par `tools/tests/test_mockhistory.py` sur la comparaison lue entière, que le générateur calcule
+sans qu'un exemple la rende. Aucune variante ne montre une page suivante : `listNodes` n'en a pas.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

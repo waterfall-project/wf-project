@@ -302,7 +302,21 @@ def test_751_and_753_are_at_the_scale_of_the_structure_and_752_at_its_verif() ->
 
 def _marked(compared: Node, difference: str) -> list[Node]:
     """Return the nodes of a comparison of one difference, in the order of the plan."""
-    return [node for node in compared["nodes"] if node["difference"] == difference]
+    return [node for node in compared["items"] if node["difference"] == difference]
+
+
+@pytest.fixture(scope="module")
+def whole() -> Node:
+    """Return the comparison of the offer and the reference read whole, without a filter (#1193)."""
+    return cast(
+        "Node",
+        mockhistory.comparison(
+            mockhistory.offer_rows(),
+            mockhistory.reference_rows(),
+            mockhistory.OFFER,
+            mockhistory.REFERENCE,
+        ),
+    )
 
 
 def _label(node: Node) -> str:
@@ -310,12 +324,12 @@ def _label(node: Node) -> str:
 
 
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
-    history: dict[str, Any],
+    whole: Node,
 ) -> None:
     # C12 and C13 (#287): the comparison names the nodes of the core by their lineages and
     # labels — the factory acceptance is the core's, 656 —, and the provision of 751 the
     # reference added is the 250,000 it then had, not the 500,000 of today.
-    compared = history["comparison"]
+    compared = whole
     assert (compared["from_revision_id"], compared["to_revision_id"]) == (
         mockhistory.OFFER,
         mockhistory.REFERENCE,
@@ -372,26 +386,102 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
             if entry["dimension"] == dimension
         ]
         assert sum(deltas, Decimal(0)) == difference == Decimal("1027251.25")
+    # Read whole, its totals are those of listNodes on the reference (#1193).
+    assert len(compared["items"]) == 5_999
+    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 2_770
+    assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
+    assert compared["meta"] == mockcore.whole(mockhistory.reference_rows())["meta"]
+
+
+def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_one(
+    history: dict[str, Any], whole: Node
+) -> None:
+    # #1193: the example is a window, the subtree of the installation on site, as the readings of
+    # listNodes are (`nodes_amendment`): the nodes of the whole comparison under the task, those
+    # removed at their place; the totals and the meta of listNodes on the reference; the deltas of
+    # the lines it retains, those removed with them, which the deltas of the whole sum beyond.
+    window = history["comparison"]
+    reference = mockhistory.reference_rows()
+    numbers = (
+        N.INSTALLATION,
+        N.MOUNTING,
+        N.WIRING_ON_SITE,
+        N.TESTS_LINE,
+        N.COMMISSIONING,
+        N.COMMISSIONING_LINE,
+        N.REFERENCE_PROVISION_753,
+        N.SITE_TRIALS,
+        N.SITE_TRIALS_LINE,
+    )
+    below = [universe(number) for number in numbers]
+    assert [node["node_id"] for node in window["items"]] == below
+    assert window["items"] == [node for node in whole["items"] if node["node_id"] in below]
+    reading = mockcore.subtree(reference, N.INSTALLATION)
+    assert (window["totals"], window["meta"]) == (reading["totals"], reading["meta"])
+    assert {node["difference"] for node in window["items"]} == {
+        "added",
+        "removed",
+        "modified",
+    }
+    offer = {row.number: row for row in mockhistory.offer_rows()}
+    referenced = {row.number: row for row in reference}
+    lines = [
+        number
+        for number in numbers
+        if (offer.get(number) or referenced[number]).kind == "estimate_line"
+    ]
+
+    def base(rows: dict[int, mockcore.Row], number: int) -> Decimal:
+        return rows[number].amounts.base if number in rows else Decimal(0)
+
+    expected = sum((base(referenced, n) - base(offer, n) for n in lines), Decimal(0))
+    for dimension in ("cost_type", "subproject"):
+        deltas = [
+            Decimal(entry["delta"])
+            for entry in window["amount_deltas"]
+            if entry["dimension"] == dimension
+        ]
+        assert sum(deltas, Decimal(0)) == expected == Decimal("602950.00")
     summary = str(mockhistory.examples()["comparison.json"]["summary"])
-    rerated = mocktext.count(2_768)
-    assert f"les {rerated} lignes de main-d'œuvre que l'avenant ne désigne pas" in summary
+    assert "sous-arbre « Installation sur site » (subtree_of)" in summary
+    assert "9 nœuds dans l'ordre du plan" in summary
+    assert "« Essais préliminaires sur site » et « Location du banc d'essais »" in summary
     assert "« Câblage sur site » et « Mise en service sur site »" in summary
-    assert f"{mocktext.count(5_999)} nœuds dans l'ordre du plan" in summary
-    assert f"{mocktext.count(2_770)} modifiés par leurs propres valeurs" in summary
+
+
+def test_the_comparison_names_the_lines_reestimated_without_being_designated(
+    whole: Node,
+) -> None:
+    # Those of the core, under the installation on site, by their label in the window the example
+    # reads; those drawn about it, in the comparison read whole (EP-14/L45a, #1193).
+    core = {mockcore.lineage(row.number) for row in mockcore.alone()}
+    rerated = [entry for entry in whole["items"] if entry["changes"] == ["reestimated_amount"]]
+    kept = [entry["estimate_line"]["label"] for entry in rerated if entry["lineage_id"] in core]
+    assert kept == ["Câblage sur site", "Mise en service sur site"]
+    assert len(rerated) - len(kept) == 2_766
+    example = mockhistory.examples()["comparison.json"]
+    window = cast("list[Node]", cast("Node", example["value"])["items"])
+    assert [
+        entry["estimate_line"]["label"]
+        for entry in window
+        if entry["changes"] == ["reestimated_amount"]
+    ] == kept
+    assert all(f"« {label} »" in str(example["summary"]) for label in kept)
+    assert "réestimées au taux de 2026 de leur catégorie" in str(example["summary"])
 
 
 def test_the_comparison_is_the_tree_of_the_reference_with_the_nodes_removed_at_their_place(
-    history: dict[str, Any],
+    whole: Node,
 ) -> None:
     # C-361: the comparison renders the tree of the revision compared, in the order of the plan,
     # the nodes it no longer bears where they were, read only, numbered with the rest; a summary
     # whose content changes is modified, with no change of its own.
-    nodes = history["comparison"]["nodes"]
+    nodes = whole["items"]
     reference = mockhistory.reference_rows()
     assert len(nodes) == len(reference) + 2
     assert [node["row_number"] for node in nodes] == list(range(1, len(nodes) + 1))
     by_id = {node["node_id"]: node for node in nodes}
-    trials, rental = _marked(history["comparison"], "removed")
+    trials, rental = _marked(whole, "removed")
     assert trials["parent_id"] == universe(N.INSTALLATION)
     assert rental["parent_id"] == trials["node_id"]
     assert rental["row_number"] == trials["row_number"] + 1
@@ -433,12 +523,12 @@ def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() 
 def test_a_revision_compared_with_itself_has_no_difference() -> None:
     rows = mockhistory.reference_rows()
     same = mockhistory.comparison(rows, rows, mockhistory.REFERENCE, mockhistory.REFERENCE)
-    nodes = cast("list[Node]", same["nodes"])
+    nodes = cast("list[Node]", same["items"])
     assert {node["difference"] for node in nodes} == {"unchanged"}
     assert len(nodes) == len(rows)
     assert same["amount_deltas"] == []
     identical = mockwitness.fixture("comparison_identical")
-    assert {node["difference"] for node in identical["nodes"]} == {"unchanged"}
+    assert {node["difference"] for node in identical["items"]} == {"unchanged"}
     assert identical["amount_deltas"] == []
 
 
@@ -447,7 +537,7 @@ def test_a_node_moved_under_another_parent_is_changed_by_its_parent() -> None:
     # The design file under the control station instead of the studies.
     moved = [replace(row, parent=551) if row.number == 526 else row for row in rows]
     compared = mockhistory.comparison(rows, moved, mockhistory.REFERENCE, mockhistory.REFERENCE)
-    nodes = cast("list[Node]", compared["nodes"])
+    nodes = cast("list[Node]", compared["items"])
     [design_file] = [node for node in nodes if node["changes"]]
     assert (design_file["lineage_id"], design_file["difference"], design_file["changes"]) == (
         mockcore.lineage(526),
@@ -655,7 +745,7 @@ def test_the_history_is_the_fixtures_the_front_reads(history: dict[str, Any]) ->
         assert mockwitness.fixture(name) == value, name
 
 
-def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
+def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> None:
     # The offer, of the reference year 2025, is at the rates of 2025 of the volume of rates, as
     # #232 proposes (WF-REV-0030): 78.50 for the electrical engineering, 73.50 for the
     # commissioning; the reference at those of 2026, one rate a category, the lines the amendment 1
@@ -670,12 +760,8 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
         Decimal(6000),
     ]
     assert [reference[n].amounts.budgeted for n in (563, 566)] == [Decimal(9420), Decimal(5880)]
-    labour = next(
-        entry
-        for entry in mockwitness.fixture("comparison")["amount_deltas"]
-        if entry["key"] == mockstructure.LABOR
-    )
-    # The 3,515 of the core, and the step of 1.50 an hour on the labour drawn about it.
+    labour = next(entry for entry in whole["amount_deltas"] if entry["key"] == mockstructure.LABOR)
+    # Read whole: the 3,515 of the core, and the step of 1.50 an hour on the labour drawn about it.
     assert Decimal(labour["delta"]) == Decimal("3515.00") + Decimal("174026.25")
     drawn_hours = sum(
         (row.hours for row in reference.values() if row.number >= GENERATED), Decimal(0)

@@ -1759,29 +1759,50 @@ PasteApply:
 
 RevisionComparison:
   type: object
-  required: [from_revision_id, to_revision_id, nodes, amount_deltas]
+  required: [from_revision_id, to_revision_id, items, totals, meta, amount_deltas]
   description: >-
     Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée
     (WF-REV-0080, WF-DAT-0030) : l'arbre de la structure principale de la révision comparée, avec
-    les marques d'un différentiel, et les écarts de montants.
+    les marques d'un différentiel, et les écarts de montants. Elle a la forme de la réponse de
+    `listNodes` — `items`, `totals`, `meta` —, et se lit comme elle, entière ou par la fenêtre
+    que ses filtres retiennent (#1193).
   properties:
     from_revision_id: { $ref: ../common.yaml#/Uuid }
     to_revision_id: { $ref: ../common.yaml#/Uuid }
-    nodes:
+    items:
       type: array
       description: >-
-        L'arbre de la révision comparée (`to_revision_id`), en parcours profondeur d'abord dans
-        l'ordre du plan, sans pagination, comme `listNodes` le rend : chaque nœud avec son écart
-        à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les
-        nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une
-        paire identique rend chaque nœud inchangé (WF-REV-0080, C-361).
+        Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours
+        profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend :
+        chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs
+        que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de
+        base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080,
+        C-361).
       items: { $ref: '#/Node' }
+    totals:
+      allOf: [{ $ref: '#/NodeTotals' }]
+      description: >-
+        Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes
+        retenues, sans les nœuds retirés, qui ne sont plus de sa structure.
+    meta:
+      allOf: [{ $ref: '#/NodeListMeta' }]
+      description: Ce que la lecture dit de la structure principale de la révision comparée.
     amount_deltas:
       type: array
       description: >-
         Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun
         nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne
-        joint rien (WF-ARC-0020).
+        joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de
+        même sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` :
+        sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens. L'écart se
+        compte par ligne retenue, selon son parent dans la révision comparée
+        (`to_revision_id`) : chaque ligne retenue y apporte son écart entier, son montant dans
+        la révision comparée moins celui de la révision de base, où qu'elle fût dans celle-ci.
+        Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne
+        déplacée dedans y compte son écart entier, et non son seul montant dans la révision
+        comparée ; une ligne
+        retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints
+        s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois.
       items:
         type: object
         required: [dimension, key, label, delta]
