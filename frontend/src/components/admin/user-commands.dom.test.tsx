@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
   account,
@@ -67,6 +68,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   serve({});
   page.search = "";
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -771,6 +773,38 @@ describe("the creation of a local account", () => {
     });
     expect(email).toHaveAccessibleDescription(CATALOGUES.fr.errors.ALREADY_EXISTS);
     expect(within(form).queryByRole("alert")).toBeNull();
+  });
+
+  it("notes once a creation refused at a field, the rest of the refusal told under the form", async () => {
+    serve({
+      "POST /users": {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [
+            { pointer: "/email", code: "ALREADY_EXISTS" },
+            { pointer: "/locale", code: "VALUE_REQUIRED" },
+          ],
+        },
+      },
+    });
+    render(accounts());
+    const form = await openCreation();
+    await createGarnier(form);
+    const email = within(form).getByLabelText("Adresse électronique");
+    await waitFor(() => {
+      expect(email).toHaveFocus();
+    });
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Les données saisies ne sont pas valides.",
+    );
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Les données saisies ne sont pas valides.",
+        detail: `${CATALOGUES.fr.errors.ALREADY_EXISTS} Une valeur est requise.`,
+      }),
+    ]);
   });
 });
 

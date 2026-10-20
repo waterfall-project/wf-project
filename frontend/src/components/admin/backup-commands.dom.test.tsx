@@ -11,6 +11,7 @@ import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -92,6 +93,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -212,6 +214,34 @@ describe("the commands of the backups", () => {
     await vi.waitFor(() => {
       expect(bodies(client, START)).toHaveLength(2);
     });
+  });
+
+  it("note nothing of a command unavailable pressed, nothing having been sent", async () => {
+    serve();
+    render(backupList([PENDING], { startable: false }));
+    await userEvent.click(
+      within(row(PENDING)).getByRole("button", {
+        name: `Télécharger la sauvegarde du ${dated(PENDING)}`,
+      }),
+    );
+    expect(announced()).toContain(
+      `Télécharger la sauvegarde du ${dated(PENDING)}\u00a0: indisponible. Condition non remplie\u00a0: sauvegarde vérifiée.`,
+    );
+    expect(readMessages().messages).toEqual([]);
+  });
+
+  it("note a backup started once, as the task the tracker is handed, not as what the list says", async () => {
+    serve();
+    render(backupList());
+    await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
+    await vi.waitFor(() => {
+      expect(announced()).toContain(
+        "Sauvegarde lancée\u00a0: son avancement se suit dans les tâches de fond.",
+      );
+    });
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: "Tâche lancée\u00a0: Sauvegarde." }),
+    ]);
   });
 
   it("say above the list a backup the server refuses to start, nothing tracked", async () => {

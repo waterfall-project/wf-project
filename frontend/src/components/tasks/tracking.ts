@@ -205,6 +205,17 @@ function refused(
   source: "read" | "relaunch" | "download",
   outcome: Exclude<Outcome<BackgroundTask>, { kind: "done" }>,
 ): TrackedTask {
+  if (
+    source === "read" &&
+    outcome.kind === "unreachable" &&
+    entry.outcome?.kind === "unreachable"
+  ) {
+    // Out of reach again at a read: the same refusal, the one already told and noted in the
+    // history — a read every few seconds while the API is out of reach notes it once, until a read
+    // is answered. The entry is a new one all the same, which asks again a while later; a relaunch
+    // the user presses is told anew.
+    return { ...entry };
+  }
   if (outcome.kind === "unreachable" || source === "download") {
     // Told in place, by the notice of the entry: the follow-up of the task is not interrupted —
     // a result gone, a session lost say nothing of a task that has ended.

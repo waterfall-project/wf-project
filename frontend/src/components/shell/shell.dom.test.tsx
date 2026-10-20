@@ -564,6 +564,35 @@ describe("the writes refused once their screen is gone (#863)", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it("note a write refused without an outcome in the sentence of the bar, for one write, with the screen it was made on", async () => {
+    forgetMessages();
+    const made = `/projects/${PROJECT}/settings`;
+    window.history.replaceState(null, "", made);
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    window.history.replaceState(null, "", "/system");
+    visit("/system");
+    view.rerender(inShell({}, <main />));
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().getByRole("alert")).toBeInTheDocument();
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence:
+          "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.",
+        object: undefined,
+        screen: { href: made, project: undefined },
+      }),
+    ]);
+    view.rerender(inShell({}, <main />));
+    expect(readMessages().messages).toHaveLength(1);
+    window.history.replaceState(null, "", "/");
+  });
+
   it("say nothing of a write applied once its screen was gone", async () => {
     const { Screen, answer } = writing();
     const view = shell({}, <Screen />);

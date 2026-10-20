@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { Project } from "@/components/context/reading";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -172,6 +173,26 @@ describe("the creation of a project", () => {
       expect(router.push).not.toHaveBeenCalled();
     },
   );
+
+  it("notes the project created once, with the screen of the project created", async () => {
+    forgetMessages();
+    serve();
+    const created = example("project_created") as Project;
+    const form = await openCreation();
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalledOnce();
+    });
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: `«\u00a0${created.label}\u00a0» créé.`,
+        object: created.label,
+        screen: { href: `/projects/${created.project_id}`, project: created.label },
+      }),
+    ]);
+  });
 
   it("leads nowhere once the home is gone: a creation answered after the user left does not take the place of their navigation", async () => {
     const settles: (() => void)[] = [];

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
 import { expectAccessible } from "@/test/axe";
@@ -148,6 +149,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -313,6 +315,17 @@ describe("the creation of a nature or a category", () => {
     expect(within(form).getByRole("alert")).toHaveTextContent(
       /^Les données saisies ne sont pas valides\.$/,
     );
+    // Noted whole, once, the notice of the rest noting nothing more; a creation names no object yet.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Les données saisies ne sont pas valides. Valeur minimale\u00a0: 7.",
+        detail:
+          "La valeur est trop longue. La valeur sort des limites admises. Valeur minimale\u00a0: 7. " +
+          "Ce n’est pas un nombre valide.",
+        object: undefined,
+      }),
+    ]);
     expect(code).toHaveAttribute("aria-required", "true");
     await expectAccessible(form);
   });
@@ -338,6 +351,14 @@ describe("the modification of a nature or a category", () => {
     await vi.waitFor(() => {
       expect(announced()).toContain("«\u00a0Sous-traitance générale\u00a0» enregistrée.");
     });
+    // Noted once in the history of the messages, about the object saved.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: "«\u00a0Sous-traitance générale\u00a0» enregistrée.",
+        object: "Sous-traitance générale",
+      }),
+    ]);
     expect(writes(client)).toEqual([
       {
         route: CATEGORY,
@@ -493,6 +514,14 @@ describe("a write whose dialog is closed, and the focus", () => {
       "Vous n’avez pas la permission nécessaire.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+    // Noted once, about the object the dialog modified.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Vous n’avez pas la permission nécessaire.",
+        object: "Sous-traitance",
+      }),
+    ]);
   });
 
   it("holds a link clicked once the dialog is closed while it sends, and does not follow it when the server refuses the write: the refusal is told above the list (#688)", async () => {
