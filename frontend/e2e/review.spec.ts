@@ -311,7 +311,9 @@ async function pageIn(browser: Browser, language: Language): Promise<Page> {
 
 /**
  * A grid of the revision that shows labels: its screen, its name, a row holding a label, and
- * whether a label is entered there — none now: the estimate of a project in progress is read only (WF-DEV-0050), the remaining to commit re-estimates figures alone, and the planning is entered from EP-06.
+ * whether a label is entered there — none now: the estimate of a project in progress is read only
+ * (WF-DEV-0050), the remaining to commit re-estimates figures alone, and the planning is entered
+ * from EP-06.
  */
 interface EntryGrid {
   readonly segment: "planning" | "estimate" | "remaining";

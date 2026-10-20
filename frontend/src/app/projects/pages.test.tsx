@@ -968,9 +968,7 @@ describe("the rows a page hands its grid", () => {
     for (const [index, node] of answer.items.entries()) {
       const row = items[index] ?? {};
       expect(Object.keys(row).sort()).toEqual(kept(node, listed.node));
-      for (const left of ["lineage_id", "position"]) {
-        expect(row).not.toHaveProperty(left);
-      }
+      expect(row).not.toHaveProperty("lineage_id");
       const facets = row as { task?: object | null; estimate_line?: object | null };
       expect(Object.keys(facets.task ?? {}).sort()).toEqual(kept(node.task ?? {}, listed.task));
       expect(Object.keys(facets.estimate_line ?? {}).sort()).toEqual(

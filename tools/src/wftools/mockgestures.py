@@ -13,7 +13,7 @@ would bind a summary to its subordinate, or close a loop through it, is refused 
 entered are (#1164), the structure it would leave refused by ``mockcore.schedule`` too.
 
 Every node the gestures write is one no other write renders at the same version (#421): the
-tasks they create are numbered 581 to 583, after the nodes of the skeleton.
+nodes they create are numbered 581 to 584, after the nodes of the skeleton.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ from wftools.mockwitness import (
     EQUIPMENT,
     INSTALLATION,
     STUDIES,
+    SUBPROJECT_CONTROL,
     SUBPROJECT_TESTS,
     TIMELINES,
     Line,
@@ -62,7 +63,7 @@ any of its structures (WF-PLA-0150)."""
 
 # --- The structure created, moved, deleted -----------------------------------------------------
 
-CREATED, CREATED_CHILD, CREATED_LINE = 581, 582, 583
+CREATED, CREATED_CHILD, CREATED_LINE, CREATED_SHARED = 581, 582, 583, 584
 
 SIBLING = Task(CREATED, "Note de calcul des protections", days=1, progress="not_started")
 """The task created beside the design file, a label alone sent: a leaf in automatic mode, of one
@@ -117,6 +118,34 @@ def node_created_child() -> JsonObject:
 def estimate_line_created() -> JsonObject:
     """Return what createNode answers to a line created under the commissioning."""
     return core_write(amended(CORE, added(N.COMMISSIONING, line=TEST_SUPPLIES)), [CREATED_LINE])
+
+
+SHARED_UNDER, SHARED_AFTER = N.CONTROL_STATION, N.FACTORY_ACCEPTANCE
+"""The summary a line is created under, and the node it is sent to follow: its last subordinate,
+the factory acceptance. The lines of a task precede its subordinates: a line sent after a
+subordinate falls back on the boundary, after the last line of the task (#1187)."""
+
+SHARED_TOOLING = Line(
+    CREATED_SHARED,
+    "Outillage commun du poste",
+    EQUIPMENT,
+    unit=Decimal("420.00"),
+    subproject=SUBPROJECT_CONTROL,
+    budgeted=Decimal(0),
+)
+"""The line created under the control station, a summary that bears no line of its own: sent
+after its last subordinate, it becomes its first child, before the wiring of the cabinets."""
+
+
+def estimate_line_created_after_subtask() -> JsonObject:
+    """Return what createNode answers to a line created under the station, after a subordinate.
+
+    The witness renders the lines of a task before its subordinates (``mockcore``): the line
+    added last among the lines of the station is at the place the contract gives a line that
+    names a subordinate to follow (``NodeCreate``, #1187).
+    """
+    roots = amended(CORE, added(SHARED_UNDER, line=SHARED_TOOLING))
+    return core_write(roots, [CREATED_SHARED])
 
 
 def network_task(label: str) -> Task:
@@ -509,6 +538,51 @@ def node_create_horizon_exceeded() -> JsonObject:
     return horizon_exceeded(created, CREATE_HORIZON_CORRELATION)
 
 
+# --- The place a creation or a move names ------------------------------------------------------
+
+CREATED_UNDER, CREATED_AFTER = N.STUDIES, N.WIRING
+"""The parent a task is created under, and the node it is sent to follow: the wiring of the
+cabinets, a subordinate of the control station, not of the studies."""
+
+MOVED_AWAY, MOVED_UNDER, MOVED_AFTER = N.BLOCKS, N.COMMISSIONING, N.LABOUR
+"""The line moved, the task it is moved under, and the node it is sent to follow: the connection
+of the blocks, which stays under the wiring of the cabinets."""
+
+CREATE_PLACE_CORRELATION, MOVE_PLACE_CORRELATION = universe(1178), universe(1179)
+
+
+def not_sibling(parent: int, after: int, correlation: str, moved: Iterable[int] = ()) -> JsonObject:
+    """Return the refusal of a place named after a node that is not a sibling under the parent.
+
+    A creation or a move names the node it follows among the siblings under its parent, never a
+    rank (#1183): a node read under another parent, or one of the nodes moved, is refused on
+    ``/after_node_id``, without a parameter — the grid names the node it sent.
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    if rows[after].parent == parent and after not in set(moved):
+        message = f"the node {after} is a sibling under {parent}"
+        raise ValueError(message)
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": "/after_node_id", "code": "NODE_NOT_SIBLING"}],
+        "correlation_id": correlation,
+    }
+
+
+def node_create_after_not_sibling() -> JsonObject:
+    """Return what createNode answers to a task created under the studies, after the wiring."""
+    return not_sibling(CREATED_UNDER, CREATED_AFTER, CREATE_PLACE_CORRELATION)
+
+
+def nodes_move_after_not_sibling() -> JsonObject:
+    """Return what moveNodes answers to the blocks moved under the commissioning, after a line.
+
+    The line they are sent to follow stays under the wiring of the cabinets.
+    """
+    return not_sibling(MOVED_UNDER, MOVED_AFTER, MOVE_PLACE_CORRELATION, moved=(MOVED_AWAY,))
+
+
 TRACKED_TASK = N.DESIGN_REVIEW
 
 
@@ -590,6 +664,7 @@ def examples() -> dict[str, JsonObject]:
 
 def _structure_examples() -> dict[str, JsonObject]:
     created, child, line = node_created(), node_created_child(), estimate_line_created()
+    shared = estimate_line_created_after_subtask()
     moved, indented, deleted = nodes_moved(), nodes_indented(), node_summary_deleted()
     rows = {row.number: row for row in mockcore.current()}
     created_task = _task(created)
@@ -597,6 +672,7 @@ def _structure_examples() -> dict[str, JsonObject]:
         node["task"] for node in _nodes(child, "ancestors") if node["node_id"] == universe(CREATED)
     ]
     [new_line] = _nodes(line)
+    [shared_line] = _nodes(shared)
     supplies = cast("Node", new_line["estimate_line"])
     [indented_node] = _nodes(indented)
     gone = [rows[number] for number in (N.MOUNTING, N.COMMISSIONING)]
@@ -630,6 +706,19 @@ def _structure_examples() -> dict[str, JsonObject]:
             f"{_labels(line, 'ancestors')}, dont le montant suit, et {totals_said(line)}, le "
             f"budgété inchangé (WF-DEV-0050).",
             line,
+        ),
+        "estimate_line_created_after_subtask.json": mocktext.example(
+            f"La ligne « {SHARED_TOOLING.label} » créée sous le "
+            f"« {rows[SHARED_UNDER].label} », une récapitulative sans ligne propre, après sa "
+            f"dernière subordonnée, la « {rows[SHARED_AFTER].label} » (after_node_id) : les "
+            f"lignes d'une tâche précèdent toujours ses sous-tâches, et une ligne qui suit une "
+            f"sous-tâche se place après la dernière ligne. Elle devient le premier enfant du "
+            f"poste, au rang {shared_line['position']}, avant le « {rows[N.WIRING].label} » ; "
+            f"{money_said(shared_line['estimate_line']['base_amount'])} de matériel, son "
+            f"montant budgété nul (WF-RAE-0050), à sa première version (201). Avec elle, ses "
+            f"ancêtres, {_labels(shared, 'ancestors')}, dont le montant suit, et "
+            f"{totals_said(shared)}, le budgété inchangé (WF-DEV-0050 ; #1187).",
+            shared,
         ),
         "nodes_moved.json": mocktext.example(
             f"Une sélection de deux lignes, « {MOVED_LINES[0]} » et « {MOVED_LINES[1]} » de "
@@ -775,12 +864,38 @@ def _link_examples() -> dict[str, JsonObject]:
     }
 
 
+def _parent(rows: dict[int, mockcore.Row], number: int) -> str:
+    """Return the label of the task a node of the core is under."""
+    parent = rows[number].parent
+    if parent is None:
+        message = f"the node {number} is a root"
+        raise ValueError(message)
+    return rows[parent].label
+
+
 def _move_refusal_examples() -> dict[str, JsonObject]:
     rows = {row.number: row for row in mockcore.current()}
     moved, under = loop_move()
     loop = [rows[number].label for number in move_loop(moved, under, described())]
     through = mocktext.listed([f"« {label} »" for label in loop[1:-1]])
+    created_beside, moved_beside = _parent(rows, CREATED_AFTER), _parent(rows, MOVED_AFTER)
     return {
+        "node_create_after_not_sibling.json": mocktext.example(
+            f"La tâche « {SIBLING.label} » créée sous les « {rows[CREATED_UNDER].label} », "
+            f"après le « {rows[CREATED_AFTER].label} », qui est une subordonnée du "
+            f"« {created_beside} » : le nœud après lequel se placer n'est pas un frère sous le "
+            f"parent visé. La création est refusée sur ce champ, sans paramètre ; rien n'est "
+            f"écrit (#1183).",
+            node_create_after_not_sibling(),
+        ),
+        "nodes_move_after_not_sibling.json": mocktext.example(
+            f"Les « {rows[MOVED_AWAY].label} » déplacés sous la "
+            f"« {rows[MOVED_UNDER].label} », après le « {rows[MOVED_AFTER].label} », qui "
+            f"reste sous le « {moved_beside} » : le nœud après lequel se placer n'est pas un "
+            f"frère sous le parent visé. Le déplacement est refusé sur ce champ, sans paramètre ; "
+            f"rien ne bouge (#1183).",
+            nodes_move_after_not_sibling(),
+        ),
         "nodes_indent_forbidden.json": mocktext.example(
             f"La « {rows[INDENTED_FORBIDDEN].label} » mise en retrait sous le "
             f"« {rows[INDENTED_UNDER].label} », la tâche au-dessus d'elle à son niveau, qui est "

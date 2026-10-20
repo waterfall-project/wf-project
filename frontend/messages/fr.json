@@ -250,6 +250,28 @@
         "redo": "Rétablir est indisponible : le serveur ne conserve pas encore l’historique des saisies."
       }
     },
+    "structure": {
+      "insertFirst": "Insérer une tâche",
+      "insertBelow": "Insérer au-dessous",
+      "insertChild": "Insérer une sous-tâche",
+      "insertLine": "Insérer une ligne",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer « {label} » ?",
+      "deleteHint": "« {label} » est une récapitulative : ses tâches subordonnées, leurs lignes et leurs liaisons sont supprimées avec elle.",
+      "deleteConfirm": "Supprimer",
+      "deleting": "Suppression…",
+      "deleted": "« {label} » supprimée.",
+      "created": "« {label} » créée.",
+      "refusedAt": "Refusé à la ligne {number}, « {label} » :",
+      "refusedCreating": "Création de « {label} » refusée :",
+      "onRow": "Ligne {number}, « {label} »",
+      "underHint": "{under}. {hint}",
+      "labelField": "Libellé",
+      "categoryField": "Catégorie",
+      "quantityField": "Quantité",
+      "taskHint": "Nommez la tâche. Elle est créée feuille, en mode automatique, d'un jour, sans prédécesseur.",
+      "lineHint": "Nommez la ligne, choisissez sa catégorie et sa quantité. Les autres champs se saisissent dans la grille."
+    },
     "columnsMenu": {
       "open": "Colonnes",
       "openIn": "Colonnes de « {grid} »",
@@ -1735,6 +1757,7 @@
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
     "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
+    "NODE_NOT_SIBLING": "La ligne après laquelle se placer n’est pas sous la même tâche.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "PROVISION_CATEGORY_REQUIRED": "La provision d’un risque porte une catégorie de type provision pour risques.",

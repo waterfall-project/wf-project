@@ -12,7 +12,7 @@
  * reads anew (`grid-screen.ts`). The
  * indicators and the rates are read alongside the grid, and so are the categories and the roles a
  * line is chosen from (US-0120) — the server names those a line bears (#305). The grid is entered from the keyboard, and takes
- * a block pasted from a spreadsheet, when the main
+ * a block pasted from a spreadsheet, its tasks and its lines created and deleted, when the main
  * structure lists `edit_estimate` available to the caller (WF-IHM-0040, WF-IHM-0050): on a project in
  * progress it lists it unavailable, and the grid is read only (WF-DEV-0050). Its head leads to the workload of the project, a leaf of the estimate
  * with a screen of its own (FBS-4.4.4), in the same context, and, when the project lists the import

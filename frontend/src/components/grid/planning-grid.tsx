@@ -54,6 +54,7 @@ import {
 import { type BreakdownItem, byField } from "./planning-attachment";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
+import { useStructureGestures } from "./structure-gestures";
 
 /** What the grid of the planning shows. */
 export interface PlanningGridProps {
@@ -71,10 +72,16 @@ export interface PlanningGridProps {
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
   /**
-   * Whether the main structure read lists `edit_planning` available (`GridScreen.commands`): its grid places undo and redo, which
-   * act on the entries of the planning once EP-06 keeps them; none, and it places none.
+   * Whether the main structure read lists `edit_planning` available (`GridScreen.commands`): its
+   * grid places undo and redo, which act on the entries of the planning once EP-06 keeps them;
+   * none, and it places none.
    */
   readonly undoable?: boolean | undefined;
+  /**
+   * Whether the structure lists `edit_planning` available: the tasks are created and deleted from
+   * the grid (US-0460). Not, and it offers no gesture of structure.
+   */
+  readonly editable?: boolean | undefined;
   /**
    * The posts and the lots of the work breakdown read whole, which the attachment of a task is chosen
    * among, given where the planning may be entered; none, and the attachment is read only.
@@ -145,6 +152,7 @@ export function PlanningGrid({
   query,
   preferences,
   undoable,
+  editable,
   breakdown,
   skeleton,
 }: PlanningGridProps) {
@@ -205,6 +213,9 @@ export function PlanningGrid({
     }
     return outcome;
   };
+  const gestures = useStructureGestures<PlanningNode>(
+    editable === true ? { structure, tasks: true, lines: false, categories: undefined } : undefined,
+  );
   const offered = nodes.items.length === 0 || ours !== undefined;
   return (
     <>
@@ -222,6 +233,7 @@ export function PlanningGrid({
         foldScope={structure.revision_id}
         narrowing={nodeNarrowing(filters)}
         undoable={undoable}
+        commands={gestures}
         around={(rows, table) => <GanttRows rows={rows}>{table}</GanttRows>}
       />
     </>

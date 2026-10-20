@@ -57,20 +57,32 @@ def money(value: str) -> Decimal:
 
 
 OPERATIONS = {
-    "createNode": ("201", ["node_created", "node_created_child", "estimate_line_created"]),
+    "createNode": (
+        "201",
+        [
+            "node_created",
+            "node_created_child",
+            "estimate_line_created",
+            "estimate_line_created_after_subtask",
+        ],
+    ),
     "deleteNode": ("200", ["node_summary_deleted"]),
     "moveNodes": ("200", ["nodes_moved", "nodes_indented"]),
     "setNodeTracking": ("200", ["node_tracked"]),
 }
 REFUSALS = {
-    "createNode": ["node_create_horizon_exceeded"],
+    "createNode": ["node_create_horizon_exceeded", "node_create_after_not_sibling"],
     "updateTaskFacet": ["task_date_computed_refused", "task_horizon_exceeded"],
     "setPredecessors": [
         "predecessors_cycle_refused",
         "predecessors_forbidden",
         "predecessors_horizon_exceeded",
     ],
-    "moveNodes": ["nodes_indent_forbidden", "nodes_move_cycle_refused"],
+    "moveNodes": [
+        "nodes_move_after_not_sibling",
+        "nodes_indent_forbidden",
+        "nodes_move_cycle_refused",
+    ],
 }
 
 
@@ -178,6 +190,27 @@ def test_a_line_created_after_the_reference_has_no_budget(
     assert created["totals"]["budgeted_amount"] == totals["budgeted_amount"]
 
 
+def test_a_line_sent_after_a_subordinate_goes_after_the_last_line_of_its_task(
+    read: dict[str, Node],
+) -> None:
+    # The lines of a task precede its subordinates (#1187): a line that names a subordinate to
+    # follow falls back on the boundary, after the last line — here the first child of the
+    # station, which bears none, and the row right under it, before the wiring of the cabinets.
+    after = read[universe(mockgestures.SHARED_AFTER)]
+    station = read[universe(mockgestures.SHARED_UNDER)]
+    assert after["parent_id"] == station["node_id"]
+    assert after["kind"] == "task"
+    assert not mockwitness.CONTROL_STATION.lines
+    [line] = gesture("estimate_line_created_after_subtask")["nodes"]
+    assert (line["node_id"], line["kind"], line["parent_id"]) == (
+        universe(mockgestures.CREATED_SHARED),
+        "estimate_line",
+        station["node_id"],
+    )
+    assert (line["position"], line["row_number"]) == (1, station["row_number"] + 1)
+    assert line["row_number"] == read[universe(N.WIRING)]["row_number"]
+
+
 def test_a_selection_moved_changes_the_task_that_bears_its_lines_and_nothing_else(
     read: dict[str, Node], totals: dict[str, Any]
 ) -> None:
@@ -217,7 +250,8 @@ def test_a_task_indented_goes_under_the_task_above_it_and_nothing_moves(
         was["level"] + 1,
         was["row_number"],
     )
-    assert task["position"] == len(mockwitness.CONTROL_STATION.children)
+    station_children = mockwitness.CONTROL_STATION.lines + mockwitness.CONTROL_STATION.children
+    assert task["position"] == len(station_children) + 1
     assert task["task"] == was["task"]
     [summary] = indented["ancestors"]
     assert summary["task"]["start"] == station["task"]["start"]
@@ -465,6 +499,32 @@ def test_a_task_moved_under_a_task_it_follows_is_refused_naming_the_loop(
     assert read[node_id(moved)]["parent_id"] == read[node_id(under)]["parent_id"]
     with pytest.raises(ValueError, match="close a loop through a summary"):
         mockcore.schedule(mockgestures.moved_under(described(), moved, under))
+
+
+@pytest.mark.parametrize(
+    ("name", "parent", "after"),
+    [
+        ("node_create_after_not_sibling", mockgestures.CREATED_UNDER, mockgestures.CREATED_AFTER),
+        ("nodes_move_after_not_sibling", mockgestures.MOVED_UNDER, mockgestures.MOVED_AFTER),
+    ],
+)
+def test_a_place_after_a_node_that_is_not_a_sibling_is_refused_on_its_field(
+    read: dict[str, Node], name: str, parent: int, after: int
+) -> None:
+    # The node to follow is read under another parent (#1183): refused on `/after_node_id`,
+    # without a parameter.
+    refused = gesture(name)
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [{"pointer": "/after_node_id", "code": "NODE_NOT_SIBLING"}]
+    assert read[universe(after)]["parent_id"] not in {None, universe(parent)}
+
+
+def test_a_place_after_a_sibling_is_not_refused() -> None:
+    # The node to follow under the parent, and not among the nodes moved, is a place.
+    with pytest.raises(ValueError, match="is a sibling"):
+        mockgestures.not_sibling(N.STUDIES, N.DESIGN_FILE, universe(1))
+    refused = mockgestures.not_sibling(N.WIRING, N.LABOUR, universe(1), moved=(N.LABOUR,))
+    assert refused["fields"] == [{"pointer": "/after_node_id", "code": "NODE_NOT_SIBLING"}]
 
 
 def test_a_move_that_closes_no_loop_is_not_refused() -> None:
