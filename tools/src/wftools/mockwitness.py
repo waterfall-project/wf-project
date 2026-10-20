@@ -342,7 +342,8 @@ class N:
     """The numbers of the nodes of the core, said once — the node 5nn, its lineage 6nn.
 
     Every module names the core by this table, never by its digits, so that it is renumbered in
-    one place alone (#376, revue d'EP-02/L24).
+    one place alone (#376, revue d'EP-02/L24). From 591, the nodes the amendment 2 adds, which the
+    main structure does not bear (``mockamendment``, #791).
     """
 
     STUDIES = 521
@@ -373,6 +374,9 @@ class N:
     REFERENCE_PROVISION_753 = 567
     SITE_TRIALS = 568
     SITE_TRIALS_LINE = 569
+    SITE_TESTS = 591
+    TESTS_RESUMED = 592
+    TESTS_RESUMED_LINE = 593
 
 
 FIRST_ITEM = OrderItem(

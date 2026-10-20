@@ -503,6 +503,47 @@ Node:
         révision, pas de cette liste.
       items: { $ref: '#/EditableField' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+    difference:
+      anyOf: [{ $ref: '#/NodeDifference' }, { type: 'null' }]
+      description: >-
+        L'écart du nœud, que le serveur rend et que le front ne calcule pas : sur la lecture d'un
+        différentiel, avec la structure principale de sa révision ; dans une comparaison de deux
+        révisions (`RevisionComparison`), avec la révision de base (WF-REV-0080, WF-REV-0100,
+        C-361). Toujours rendu sur ces deux lectures, que `fields` le nomme ou non ; nul — ou
+        omis — sur la structure principale et sur le devis propre d'un risque, qui ne se lisent
+        par rapport à rien.
+    changes:
+      type: array
+      description: >-
+        Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` :
+        vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son
+        seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée.
+      items: { $ref: '#/NodeChange' }
+
+NodeDifference:
+  type: string
+  enum: [added, removed, modified, unchanged]
+  description: >-
+    L'écart d'un nœud, rapproché par sa lignée (WF-DAT-0030) : `added`, absent de la structure de
+    base — la principale pour un différentiel, la révision de base pour une comparaison — ;
+    `removed`, absent de la structure lue, rendu à la place qu'il avait, entre les nœuds qui
+    l'entouraient, en lecture seule (`editable_fields` vide) ; `modified`, présent des deux côtés,
+    dont une valeur change (`changes`), ou une tâche sous laquelle un nœud est ajouté, retiré ou
+    modifié, ou d'où un nœud est déplacé, de sorte que la marque d'une récapitulative dit que son
+    contenu change ; `unchanged`,
+    tout le reste (WF-REV-0080, C-361). Un nœud retiré occupe sa ligne : `row_number` et `position`
+    comptent l'arbre rendu, nœuds retirés compris, et un nœud déplacé est rendu une fois, à sa
+    place nouvelle, `parent` parmi ses `changes`.
+
+NodeChange:
+  type: string
+  enum: [dates, duration, progress, budgeted_amount, reestimated_amount, parent]
+  description: >-
+    Ce qui change d'un nœud présent des deux côtés (WF-REV-0080) : pour une tâche, ses dates, sa
+    durée, son état d'avancement et son parent — « Une tâche déplacée sous une autre
+    récapitulative est présentée modifiée » — ; pour une ligne de devis, ses montants budgété et
+    réestimé, qui disent ses grandeurs, et son parent, la tâche qui la porte. Le montant d'une
+    tâche est celui de ses lignes, qui le disent.
 
 NotStartedTask:
   description: >-
@@ -1712,22 +1753,23 @@ PasteApply:
 
 RevisionComparison:
   type: object
-  required: [from_revision_id, to_revision_id, added, removed, changed, amount_deltas]
+  required: [from_revision_id, to_revision_id, nodes, amount_deltas]
   description: >-
     Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée
-    (WF-REV-0080, WF-DAT-0030).
+    (WF-REV-0080, WF-DAT-0030) : l'arbre de la structure principale de la révision comparée, avec
+    les marques d'un différentiel, et les écarts de montants.
   properties:
     from_revision_id: { $ref: ../common.yaml#/Uuid }
     to_revision_id: { $ref: ../common.yaml#/Uuid }
-    added:
+    nodes:
       type: array
-      items: { $ref: '#/ComparedNode' }
-    removed:
-      type: array
-      items: { $ref: '#/ComparedNode' }
-    changed:
-      type: array
-      items: { $ref: '#/ComparedNode' }
+      description: >-
+        L'arbre de la révision comparée (`to_revision_id`), en parcours profondeur d'abord dans
+        l'ordre du plan, sans pagination, comme `listNodes` le rend : chaque nœud avec son écart
+        à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les
+        nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une
+        paire identique rend chaque nœud inchangé (WF-REV-0080, C-361).
+      items: { $ref: '#/Node' }
     amount_deltas:
       type: array
       description: >-
@@ -1755,16 +1797,3 @@ RevisionComparison:
               (`from_revision_id`), positif quand la comparée porte davantage — le sens où une
               tâche est dite ajoutée, et celui du devis en cours moins le devis comparé
               (`EstimateIndicators.delta_to_reference`).
-
-ComparedNode:
-  type: object
-  required: [lineage_id, label, kind]
-  properties:
-    lineage_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string }
-    kind: { $ref: '#/NodeKind' }
-    changes:
-      type: array
-      items:
-        type: string
-        enum: [dates, duration, progress, budgeted_amount, reestimated_amount, parent]

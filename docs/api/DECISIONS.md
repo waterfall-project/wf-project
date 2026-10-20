@@ -6516,6 +6516,84 @@ tient. Le front envoie `after_node_id` : le nœud actif pour « Insérer au-dess
 ligne sous une ligne, rien pour une sous-tâche et une ligne sous une tâche, qui vont en fin
 (`bodyOf`, `structure-rules.ts`) ; `errors.NODE_NOT_SIBLING` a sa phrase dans les deux catalogues.
 
+## Le diff d'un différentiel, la comparaison en arbre, l'avenant 2 du témoin (EP-15/US-0500/L1)
+
+**Le serveur rend l'écart de chaque nœud, le front ne calcule rien** (C-361, #1060 ; WF-REV-0080,
+WF-REV-0100 ; partie K2 de la conception d'EP-15). `Node` gagne `difference`, sur une énumération
+nouvelle `NodeDifference` — `added`, `removed`, `modified`, `unchanged` —, et `changes`, l'énumération
+qu'avait `ComparedNode.changes`, nommée `NodeChange`, `parent` compris. Ils sont rendus sur deux
+lectures, toujours, que `fields` les nomme ou non : la lecture d'un différentiel (`listNodes`), par
+rapport à la structure principale de sa révision, et la comparaison de deux révisions, par rapport
+à la révision de base ; nuls, ou omis, sur la principale et sur le devis propre d'un risque, qui ne
+se lisent par rapport à rien. Les nœuds sont rapprochés par la lignée. Un nœud retiré est rendu à la
+place qu'il avait, après le dernier des frères qui le précédaient et que l'arbre rendu garde sous le
+même parent, en lecture seule (`editable_fields` vide) ; il occupe sa ligne, si bien que
+`row_number` et `position` comptent l'arbre rendu, nœuds retirés compris, et qu'un prédécesseur est
+nommé par la ligne où il est rendu. Un nœud déplacé est rendu une fois, à sa place nouvelle,
+`parent` parmi ses `changes`. Une tâche est `modified` par ses propres valeurs — dates, durée,
+avancement, parent —, une ligne par ses montants ou son parent, et une tâche aussi par son seul
+contenu, `changes` vide : une ligne ou une subordonnée ajoutée, retirée ou modifiée sous elle, ou
+déplacée d'elle — la marque « M » d'une récapitulative dont le contenu change, que l'US-0500 veut.
+Les totaux d'une lecture d'un différentiel ne comptent pas les nœuds retirés. Écartés : le diff
+calculé par le front, en lisant deux structures, contraire au principe que le front ne déduit rien
+(WF-ARC-0020) ; un nœud retiré rendu à part, en fin de lecture, qui ne se lirait pas « à sa place ».
+
+**`RevisionComparison` rend l'arbre comparé** : `nodes`, la structure principale de la révision
+comparée dans l'ordre du plan, sans pagination, comme `listNodes`, chaque nœud avec sa marque et les
+champs que `fields` nomme — `compareRevisions` prend `fields`, le paramètre `NodeFields` partagé avec
+`listNodes`, et déclare son 400 —, à la place de `added`, `removed` et `changed`. `amount_deltas`
+reste. `ComparedNode` disparaît ; ses clés de catalogue deviennent `enums.NodeChange`, et
+`enums.NodeDifference` s'ajoute. Une paire identique rend chaque nœud inchangé. L'exemple
+`comparison`, engendré, rend l'arbre entier de la référence 101 comparée à l'offre 100 — 5 999
+nœuds rendus entiers, puisqu'un exemple sans `fields` les rend tels, 7,4 Mo —, `comparison_identical`
+devient engendré, le cœur de l'offre comparé à lui-même, variante déclarée : la structure entière
+de l'offre aurait pesé autant que `comparison` pour ne rien montrer de plus.
+
+**L'avenant 2 « reprise des essais » est un différentiel non fusionné de la révision courante 102**
+(#791, constat de la relecture 1 d'EP-14/L42s). Il coexistait dans la référence 101 avec l'avenant
+1 ; la révision 102, créée d'elle, l'a repris (WF-REV-0100) : `structures` le liste, structure 203,
+`edit_planning` et `edit_estimate` disponibles, compteur 2. `wftools.mockamendment` le décrit sur la
+structure principale de 102 : sous l'installation sur site, une récapitulative « Essais sur site »
+porte la « Reprise des essais de câblage », nouvelle, avec sa ligne, et la « Mise en service »,
+déplacée sous elle, liée à la reprise au lieu du montage, allongée à quinze jours et sa ligne à
+120 h ; l'« Assistance aux essais de câblage » est retirée du montage. Ses tâches ne portent ni
+lot, ni poste, ni inscription, et ne nomment pas `task.order_item_id`, `task.work_package_id` ni
+`task.tracking` (WF-PLA-0170, WF-PLA-0060). `wftools.mockdiff` marque l'arbre, pour le différentiel
+comme pour la comparaison. Exemples engendrés : `nodes_amendment`, l'installation sur site lue sur
+le différentiel (`subtree_of`) ; `structure_merge_report`, devenu une lecture du témoin — les tâches
+et la ligne ajoutées, la liaison de la mise en service, sa durée et la charge de sa ligne, la ligne
+retirée ; aucune tâche démarrée retirée. Le Vérif de WF-REV-0050 qu'il portait (« Le compte rendu
+d'une fusion dont le différentiel retire une tâche démarrée nomme cette tâche comme terminée ») passe
+à une variante déclarée, écrite à la main, `structure_merge_report_started_task`, l'ancien premier
+exemple (« Avenant 3 — pupitres déportés »). Le déplacement de la mise en service ne se dit pas au
+compte rendu : `ImportDifference.fields` nomme des colonnes (`NodeColumn`), et aucune ne dit le
+parent ; la liaison et la durée, qui changent, s'y disent.
+
+**Le suivi temps/temps d'une tâche qui n'est pas un jalon est refusé** (#1159, décision de l'auteur
+du 2026-10-19 ; WF-PLA-0060). `setNodeTracking` le refuse par 422 `VALIDATION_FAILED`,
+`fields[].pointer` sur le genre de l'entrée qui le demande, `/entries/<n>/kind`, `n` son rang dans
+`entries` à partir de 0, motif nouveau `MILESTONE_REQUIRED`, sans paramètre, rien n'étant écrit ;
+`errors.MILESTONE_REQUIRED` a sa phrase dans les deux catalogues. Exemple engendré par
+`wftools.mockgestures`, corrélation 1180 : `node_tracking_milestone_refused`, la mise en service
+envoyée avec son inscription au comité de pilotage et une entrée au suivi temps/temps, la seconde.
+
+**L'import du devis du témoin vise l'avenant 2** (#1161, décision de l'auteur du 2026-10-19 ; C-358,
+WF-INTF-0100). Il visait la structure principale de PRJ-001, En cours, que C-358 refuse
+(`import_estimate_main_in_progress`). `import_analysed`, écrit à la main, est réécrit comme l'import
+du devis de l'avenant 2, le résumé nommant sa structure par son `structure_id` : ses lignes sont
+celles du différentiel (`nodes_amendment`), et ses deux lignes rejetées nomment leur onglet,
+« Hors lot », aucune tâche d'un différentiel ne portant de lot (#1168). `imports`, `import_analysing`,
+`file_upload`, `task_import_queued`, `task_import_succeeded` et le journal d'audit qui l'applique
+(`mockaudit`) suivent son nom de fichier et son résumé ; `imports_page`, qui ne le liste pas, ne
+change pas. `test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_progress`
+(`tools/tests/test_mockuniverse.py`) tient qu'aucun import du devis du témoin ne vise la principale
+d'un projet En cours.
+
+**Deux corrections de rédaction** (#1170). La description d'`ImportReport.rejected` dit chaque
+ligne « par son rang, et son onglet quand le fichier en a plusieurs », `sheet` étant nul pour un
+fichier à un seul onglet. Le résumé d'`import_remaining_subproject_held` écrit « qu'imports », et
+tire ses heures des instants de l'import (`mocktext.hour`).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

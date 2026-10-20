@@ -300,6 +300,15 @@ def test_751_and_753_are_at_the_scale_of_the_structure_and_752_at_its_verif() ->
     assert line.budgeted == mockwitness.reference_provision(rework) == Decimal("250000.00")
 
 
+def _marked(compared: Node, difference: str) -> list[Node]:
+    """Return the nodes of a comparison of one difference, in the order of the plan."""
+    return [node for node in compared["nodes"] if node["difference"] == difference]
+
+
+def _label(node: Node) -> str:
+    return cast("str", node[node["kind"]]["label"])
+
+
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
     history: dict[str, Any],
 ) -> None:
@@ -311,21 +320,26 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
         mockhistory.OFFER,
         mockhistory.REFERENCE,
     )
-    added = {entry["lineage_id"]: entry for entry in compared["added"]}
-    assert added[mockcore.lineage(556)] == {
-        "lineage_id": mockcore.lineage(556),
-        "label": "Réception usine",
-        "kind": "task",
-    }
+    added = {node["lineage_id"]: node for node in _marked(compared, "added")}
+    acceptance = added[mockcore.lineage(556)]
+    assert (_label(acceptance), acceptance["kind"], acceptance["changes"]) == (
+        "Réception usine",
+        "task",
+        [],
+    )
     reference = {row.number: row for row in mockhistory.reference_rows()}
     reference_ids = {mockcore.lineage(number) for number in reference if number < GENERATED}
     assert mockcore.lineage(555) in added
     assert reference[555].amounts.base == Decimal("250000.00")
-    assert [entry["label"] for entry in compared["removed"]] == [
+    assert [_label(node) for node in _marked(compared, "removed")] == [
         "Essais préliminaires sur site",
         "Location du banc d'essais",
     ]
-    changed = {entry["lineage_id"]: entry["changes"] for entry in compared["changed"]}
+    changed = {
+        node["lineage_id"]: node["changes"]
+        for node in _marked(compared, "modified")
+        if node["changes"]
+    }
     core = {lineage: changes for lineage, changes in changed.items() if lineage in reference_ids}
     assert core == {
         mockcore.lineage(526): ["dates", "duration"],
@@ -362,7 +376,32 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     rerated = mocktext.count(2_768)
     assert f"les {rerated} lignes de main-d'œuvre que l'avenant ne désigne pas" in summary
     assert "« Câblage sur site » et « Mise en service sur site »" in summary
-    assert f"{mocktext.count(2_770)} nœuds modifiés, 5 ajoutés, 2 retirés" in summary
+    assert f"{mocktext.count(5_999)} nœuds dans l'ordre du plan" in summary
+    assert f"{mocktext.count(2_770)} modifiés par leurs propres valeurs" in summary
+
+
+def test_the_comparison_is_the_tree_of_the_reference_with_the_nodes_removed_at_their_place(
+    history: dict[str, Any],
+) -> None:
+    # C-361: the comparison renders the tree of the revision compared, in the order of the plan,
+    # the nodes it no longer bears where they were, read only, numbered with the rest; a summary
+    # whose content changes is modified, with no change of its own.
+    nodes = history["comparison"]["nodes"]
+    reference = mockhistory.reference_rows()
+    assert len(nodes) == len(reference) + 2
+    assert [node["row_number"] for node in nodes] == list(range(1, len(nodes) + 1))
+    by_id = {node["node_id"]: node for node in nodes}
+    trials, rental = _marked(history["comparison"], "removed")
+    assert trials["parent_id"] == universe(N.INSTALLATION)
+    assert rental["parent_id"] == trials["node_id"]
+    assert rental["row_number"] == trials["row_number"] + 1
+    assert (trials["editable_fields"], rental["editable_fields"]) == ([], [])
+    installation = by_id[universe(N.INSTALLATION)]
+    assert (installation["difference"], installation["changes"]) == ("modified", [])
+    for node in nodes:
+        for link in node.get("predecessors", []):
+            predecessor = by_id[link["predecessor_node_id"]]
+            assert predecessor["row_number"] == link["predecessor_row_number"]
 
 
 def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() -> None:
@@ -394,12 +433,13 @@ def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() 
 def test_a_revision_compared_with_itself_has_no_difference() -> None:
     rows = mockhistory.reference_rows()
     same = mockhistory.comparison(rows, rows, mockhistory.REFERENCE, mockhistory.REFERENCE)
-    assert (same["added"], same["removed"], same["changed"], same["amount_deltas"]) == (
-        [],
-        [],
-        [],
-        [],
-    )
+    nodes = cast("list[Node]", same["nodes"])
+    assert {node["difference"] for node in nodes} == {"unchanged"}
+    assert len(nodes) == len(rows)
+    assert same["amount_deltas"] == []
+    identical = mockwitness.fixture("comparison_identical")
+    assert {node["difference"] for node in identical["nodes"]} == {"unchanged"}
+    assert identical["amount_deltas"] == []
 
 
 def test_a_node_moved_under_another_parent_is_changed_by_its_parent() -> None:
@@ -407,14 +447,18 @@ def test_a_node_moved_under_another_parent_is_changed_by_its_parent() -> None:
     # The design file under the control station instead of the studies.
     moved = [replace(row, parent=551) if row.number == 526 else row for row in rows]
     compared = mockhistory.comparison(rows, moved, mockhistory.REFERENCE, mockhistory.REFERENCE)
-    assert compared["changed"] == [
-        {
-            "lineage_id": mockcore.lineage(526),
-            "label": "Dossier de conception",
-            "kind": "task",
-            "changes": ["parent"],
-        }
-    ]
+    nodes = cast("list[Node]", compared["nodes"])
+    [design_file] = [node for node in nodes if node["changes"]]
+    assert (design_file["lineage_id"], design_file["difference"], design_file["changes"]) == (
+        mockcore.lineage(526),
+        "modified",
+        ["parent"],
+    )
+    assert design_file["parent_id"] == universe(551)
+    # Rendered once, at its new place: the two summaries whose content changes are modified.
+    assert [node["node_id"] for node in nodes].count(universe(526)) == 1
+    modified = {node["node_id"] for node in nodes if node["difference"] == "modified"}
+    assert modified == {universe(526), universe(N.STUDIES), universe(551)}
 
 
 def test_the_register_totals_its_provisions_and_sets_the_reserve_beside(
@@ -724,7 +768,7 @@ def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference(
         )
         compared = mockhistory.comparison(offered, rows, mockhistory.OFFER, mockhistory.REFERENCE)
     assert 599 not in {row.number for row in rows}
-    added = cast("list[Node]", compared["added"])
+    added = _marked(compared, "added")
     assert mockcore.lineage(599) not in {entry["lineage_id"] for entry in added}
     assert mockhistory.reserve(rows) == Decimal("850060.00")
 

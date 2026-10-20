@@ -593,6 +593,39 @@ def node_tracked() -> JsonObject:
     )
 
 
+UNTRACKED_TASK = N.COMMISSIONING
+MILESTONE_CORRELATION = universe(1180)
+
+
+def tracking_entries(number: int) -> list[JsonObject]:
+    """Return the entries sent for a task: its timelines kept, the time/time tracking added."""
+    timelines = mockwitness.INSCRIBED.get(number, ())
+    return [
+        *({"kind": "timeline", "timeline_id": timeline} for timeline in timelines),
+        {"kind": mockwitness.MILESTONE_TRACKING, "timeline_id": None},
+    ]
+
+
+def node_tracking_milestone_refused() -> JsonObject:
+    """Return what setNodeTracking answers when the commissioning is sent to the time/time tracking.
+
+    The time/time tracking follows milestones (WF-PLA-0060): a task that is not one is refused on
+    the kind of the entry that asks for it, by its rank among the entries sent, and nothing is
+    written (#1159).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    if cast("dict[str, Any]", rows[UNTRACKED_TASK].node["task"])["is_milestone"]:
+        message = f"the task {UNTRACKED_TASK} is a milestone"
+        raise ValueError(message)
+    rank = len(tracking_entries(UNTRACKED_TASK)) - 1
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": f"/entries/{rank}/kind", "code": "MILESTONE_REQUIRED"}],
+        "correlation_id": MILESTONE_CORRELATION,
+    }
+
+
 # --- The examples ------------------------------------------------------------------------------
 
 
@@ -814,6 +847,12 @@ def _link_examples() -> dict[str, JsonObject]:
     looped = [rows[number].label for number in cycle(CYCLE_ON, CYCLE_LINKS)]
     months, _ = HORIZON_LAG
     timelines = dict(TIMELINES)
+    kept = mocktext.listed(
+        [
+            f"la chronologie « {timelines[timeline]} »"
+            for timeline in mockwitness.INSCRIBED.get(UNTRACKED_TASK, ())
+        ]
+    )
     return {
         "predecessors_entered.json": mocktext.example(
             f"Les prédécesseurs de « {LINKED_TASK} », tâche tirée autour du cœur, saisis à "
@@ -853,6 +892,15 @@ def _link_examples() -> dict[str, JsonObject]:
             f"ans après le début du projet. Refusée, elle est nommée par le libellé envoyé, sans "
             f"nœud, et rien n'est créé (WF-PLA-0150).",
             node_create_horizon_exceeded(),
+        ),
+        "node_tracking_milestone_refused.json": mocktext.example(
+            f"La « {rows[UNTRACKED_TASK].label} », qui n'est pas un jalon, envoyée avec ses "
+            f"inscriptions — {kept} — et une entrée au "
+            f"suivi temps/temps : le suivi temps/temps est celui des jalons, et la saisie est "
+            f"refusée sur le genre de cette entrée, la "
+            f"{len(tracking_entries(UNTRACKED_TASK))}e envoyée ; rien n'est écrit (WF-PLA-0060, "
+            f"#1159).",
+            node_tracking_milestone_refused(),
         ),
         "node_tracked.json": mocktext.example(
             f"La « {rows[TRACKED_TASK].label} » inscrite à la chronologie "

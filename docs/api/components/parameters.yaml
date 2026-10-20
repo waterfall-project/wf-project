@@ -77,6 +77,20 @@ NodeId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+NodeFields:
+  name: fields
+  in: query
+  description: >-
+    Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une
+    propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même.
+  schema:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      pattern: '^((task|estimate_line)\.)?[a-z_]+$'
+  explode: false
+
 UserId:
   name: user_id
   in: path

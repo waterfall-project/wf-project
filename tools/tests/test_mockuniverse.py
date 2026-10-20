@@ -21,6 +21,7 @@ import pytest
 
 from wftools import (
     REPOSITORY,
+    mockamendment,
     mockcore,
     mockcosts,
     mockcurves,
@@ -428,8 +429,11 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
 def test_each_report_names_the_lineages_of_the_core_by_their_labels(
     examples: dict[str, Any],
 ) -> None:
+    # The core, and the differential of the amendment 2, whose estimate the witness imports.
     labels = {
-        cast("Node", row.node)["lineage_id"]: row.label for row in mockcore.core(mockwitness.CORE)
+        cast("Node", row.node)["lineage_id"]: row.label
+        for roots in (mockwitness.CORE, mockamendment.amendment(mockwitness.CORE))
+        for row in mockcore.core(roots)
     }
     documents = {line.document for line in COSTS}
     reports = [
@@ -445,6 +449,27 @@ def test_each_report_names_the_lineages_of_the_core_by_their_labels(
                 assert each["label"] in documents, name
             elif each["lineage_id"] is not None:
                 assert labels[each["lineage_id"]] == each["label"], name
+
+
+def test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_progress(
+    examples: dict[str, Any],
+) -> None:
+    # C-358 and WF-INTF-0100 (#1161): each estimate imported the examples of the imports list
+    # names, in a summary, the structure it aims at by its `structure_id`: never the main one.
+    assert examples["project.json"]["state"] == "in_progress"
+    kinds = {each["structure_id"]: each["kind"] for each in examples["structures.json"]}
+    identifier = re.compile(re.escape(PREFIX) + r"[0-9a-f]{12}")
+    aimed: dict[str, set[str]] = defaultdict(set)
+    for path in sorted(mockwitness.FIXTURES.glob("import*.json")):
+        example = json.loads(path.read_text(encoding="utf-8"))
+        for each in example["value"].get("items", [example["value"]]):
+            if each.get("kind") == "estimate":
+                said = identifier.findall(example["summary"])
+                aimed[each["import_id"]] |= {found for found in said if found in kinds}
+    assert aimed
+    for import_id, structures in aimed.items():
+        assert structures, import_id
+        assert all(kinds[structure] != "main" for structure in structures), import_id
 
 
 # --- The background tasks (C5) ------------------------------------------------------------------
