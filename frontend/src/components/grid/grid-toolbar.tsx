@@ -10,6 +10,7 @@
  */
 "use client";
 
+import type { RowData } from "@tanstack/react-table";
 import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode, SubmitEvent } from "react";
@@ -26,8 +27,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
+import type { GridColumn, GridConfig } from "./columns";
 import { useDatedEntry } from "./dated-entry";
 import { useFoldReach } from "./fold";
+import { configColumn, type GridTable } from "./grid-table";
 import { SEARCH_LENGTH } from "./query";
 import { UndoCommands } from "./undo-commands";
 
@@ -37,6 +40,29 @@ export interface ToggledColumn {
   readonly label: string;
   readonly visible: boolean;
   readonly toggle: (visible: boolean) => void;
+}
+
+/** The columns the user may show or hide, for the bar of the grid. */
+export function toggledColumns<Row extends RowData, Sort extends string, Totals>(
+  table: GridTable<Row>,
+  config: GridConfig<Row, Sort, Totals>,
+  label: (column: GridColumn<Row, Sort, Totals>) => string,
+): ToggledColumn[] {
+  return table.getAllLeafColumns().flatMap((column) => {
+    const configured = configColumn(config, column.id);
+    return configured === undefined || !column.getCanHide()
+      ? []
+      : [
+          {
+            key: column.id,
+            label: label(configured),
+            visible: column.getIsVisible(),
+            toggle: (visible: boolean) => {
+              column.toggleVisibility(visible);
+            },
+          },
+        ];
+  });
 }
 
 /** How the bar folds the tree of a grid. */

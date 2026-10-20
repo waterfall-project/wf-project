@@ -3,21 +3,23 @@
 /**
  * The gestures that add, move and remove tasks and lines in a grid of the structure (US-0460,
  * WF-PLA-0070, WF-PLA-0080, WF-PLA-0130, WF-DEV-0050, WF-RAE-0040): « Insert below » a task or a
- * line, « Insert a sub-task », « Insert a line », « Indent », « Outdent », « Delete », from the menu
- * of a cell — on its row — and from the keys: Insert, Alt+Insert, Ctrl+Insert, Alt+Shift+Right,
- * Alt+Shift+Left, Ctrl+Delete (`structure-rules.ts`); the bar of the grid,
- * kept to one line, offers only the first task of a grid with no row to act on. The same writes
- * from the planning, the estimate and the remaining to commit (`createNode`, `deleteNode`): which
- * grid offers them is the command of the structure it reads, never a phase the front deduces — the
- * screen hands the gestures what the structure lists available (`tasks`, `lines`).
+ * line, « Insert a sub-task », « Insert a line », « Indent », « Outdent », « Move up », « Move
+ * down », « Delete », from the menu of a cell — on its row, or on the selection it stands in — and
+ * from the keys: Insert, Alt+Insert, Ctrl+Insert, Alt+Shift and the arrows, Ctrl+Delete
+ * (`structure-rules.ts`); the bar of the grid, kept to one line, offers only the first task of a
+ * grid with no row to act on. The same writes from the planning, the estimate and the remaining to
+ * commit (`createNode`, `deleteNode`): which grid offers them is the command of the structure it
+ * reads, never a phase the front deduces — the screen hands the gestures what the structure lists
+ * available (`tasks`, `lines`).
  *
- * An indentation moves the task under the one that precedes it, in the last place, an outdentation
- * after its parent, under the parent of that one, as MS Project does (`moveNodes`): the task takes
- * its subordinates with it, and no dialog asks anything. The grid is read anew, the ancestors
- * recalculated and the tasks redated taking the place of the rows read; a refusal — a link a
- * summary would hold to its subordinate, a loop, a node that is no sibling — is told at the row,
- * and the last, which comes from a reading gone stale, reads the grid anew. An indentation is
- * offered only where the rows shown hold the sibling just above the task (`structure-rules.ts`).
+ * An indentation moves the tasks under the one that precedes the first, in the last place, an
+ * outdentation after their parent, under the parent of that one, as MS Project does; up and down
+ * move them by a rank among their siblings (`moveNodes`): a task takes its subordinates with it, and
+ * no dialog asks anything. The grid is read anew, the ancestors recalculated and the tasks redated
+ * taking the place of the rows read; a refusal — a link a summary would hold to its subordinate, a
+ * loop, a node that is no sibling — is told at the row, and the last, which comes from a reading
+ * gone stale, reads the grid anew, the focus kept in the grid. A move is offered only where the rows
+ * shown hold the neighbour it rests on (`structure-rules.ts`).
  *
  * A node is created from a dialog that names it — the label of a task; the label, the category and
  * the quantity of a line, which the contract requires —, and the row it acts on; the task inserted
@@ -32,13 +34,18 @@
  * A refusal — a task completed, for one — is told above the grid as any outcome, in the alert,
  * naming the row it was asked from, and that row is marked and described by it; that of a task
  * created from the bar, with no row, names the task tried. What was done is said in a status of its
- * own (`useSaid`). A write under way holds the commands, inactive and saying so; an answer closes
- * only the dialog it was sent from (défaut n° 24), and belongs to the structure it was written in
- * (défaut n° 1).
+ * own (`useSaid`). A write under way, and the reading anew that follows it, hold the commands,
+ * inactive and saying so: the next move starts from the neighbours that reading shows, never from
+ * those before it with a version already moved on. An answer closes only the dialog it was sent
+ * from (défaut n° 24), and belongs to the structure it was written in (défaut n° 1). The row a move
+ * was asked from is told the grid (`moved`), whose active cell follows it through the reading; the
+ * grid says it is busy as long as the gestures wait (`busy`).
  */
 "use client";
 
 import {
+  ArrowDown,
+  ArrowUp,
   CornerDownRight,
   ListIndentDecrease,
   ListIndentIncrease,
@@ -83,6 +90,7 @@ import {
   type Moving,
   moves,
   type StructureGestures,
+  topsOf,
 } from "./structure-rules";
 import type { RowCommands } from "./undo-commands";
 
@@ -94,8 +102,14 @@ const ICONS: Readonly<Record<Gesture, ReactNode>> = {
   line: <ListPlus aria-hidden="true" />,
   indent: <ListIndentIncrease aria-hidden="true" />,
   outdent: <ListIndentDecrease aria-hidden="true" />,
+  up: <ArrowUp aria-hidden="true" />,
+  down: <ArrowDown aria-hidden="true" />,
   delete: <Trash2 aria-hidden="true" />,
 };
+
+/** What a move says it did, by the gesture that asked it. */
+const DONE = { indent: "indented", outdent: "outdented", up: "up", down: "down" } as const;
+type Done = (typeof DONE)[Moving];
 
 /** The cell a tree grid keeps active, the one stop of its tabulation. */
 const ACTIVE_CELL = '[role="treegrid"] [tabindex="0"]';
@@ -264,6 +278,7 @@ export function useStructureGestures<Row extends GridNode>(
   const [opened, setOpened] = useState<Opened<Row>>();
   const [writing, setWriting] = useState(false);
   const [told, setTold] = useState<Told<Row>>();
+  const [moved, setMoved] = useState<{ readonly row: Row; readonly count: number }>();
   const openings = useRef(0);
   // The cell that had the focus when a row was deleted with no dialog: once the grid is read anew
   // without it, the focus goes back to the active cell, not to the page. It is forgotten as soon as
@@ -296,6 +311,8 @@ export function useStructureGestures<Row extends GridNode>(
     return undefined;
   }
   const structure = scope.structure.structure_id;
+  // A gesture waits for the write and for the reading anew that follows it.
+  const busy = writing || reading;
   const shown = told?.structure === structure ? told : undefined;
   const names: Readonly<Record<Gesture, string>> = {
     first: t("insertFirst"),
@@ -304,13 +321,15 @@ export function useStructureGestures<Row extends GridNode>(
     line: t("insertLine"),
     indent: t("indent"),
     outdent: t("outdent"),
+    up: t("up"),
+    down: t("down"),
     delete: t("delete"),
   };
   /** Send a write, and take its answer: the grid read anew when done, the refusal told otherwise. */
   const send = (
     call: () => Promise<Outcome<NodesWritten>>,
     row: Row | undefined,
-    node: { readonly label: string; readonly done: string },
+    node: { readonly label: string; readonly done: string; readonly moves?: Row },
     opening: number | undefined,
     cell?: HTMLElement,
   ) => {
@@ -327,6 +346,10 @@ export function useStructureGestures<Row extends GridNode>(
         onWritten(outcome.data);
         setTold(undefined);
         say(node.done, { object: node.label });
+        const { moves: bore } = node;
+        if (bore !== undefined) {
+          setMoved((before) => ({ row: bore, count: (before?.count ?? 0) + 1 }));
+        }
         lost.current = cell;
         readingBegun.current = false;
         refresh(() => {
@@ -334,8 +357,11 @@ export function useStructureGestures<Row extends GridNode>(
         });
       } else {
         setTold({ structure, refusal: { outcome, row, subject: node.label } });
-        // A node to follow that is no sibling comes from a reading gone stale: read it anew.
+        // A node to follow that is no sibling comes from a reading gone stale: read it anew, the
+        // focus given back to the grid should the reading remove the cell that had it.
         if (outcome.kind !== "unreachable" && outcome.problem.code === "NODE_NOT_SIBLING") {
+          lost.current = cell;
+          readingBegun.current = false;
           refresh(() => {
             router.refresh();
           });
@@ -353,27 +379,42 @@ export function useStructureGestures<Row extends GridNode>(
       cell,
     );
   };
-  /** Move the task of a row, with the subordinates it bears, and read the grid anew. */
-  const move = (gesture: Moving, row: Row, cell: HTMLElement | undefined) => {
-    const body = moveOf(gesture, [row], scope);
-    if (body === undefined) {
+  /**
+   * Move the rows acted on — the selection, or the row alone —, the subordinates they bear with
+   * them, and read the grid anew: told by the first of the nodes that bear them, and how many others.
+   */
+  const move = (
+    body: ReturnType<typeof moveOf>,
+    from: Row | undefined,
+    acted: readonly Row[],
+    done: Done,
+    cell: HTMLElement | undefined,
+  ) => {
+    const tops = topsOf(acted, scope.rows);
+    const [first] = tops;
+    if (body === undefined || first === undefined) {
       return;
     }
-    const label = labelOf(row);
+    const label = labelOf(first);
     send(
       () => moveNodes(scope.structure, body),
-      row,
-      { label, done: t(gesture === "indent" ? "indented" : "outdented", { label }) },
+      first,
+      { label, done: t(`moved.${done}`, { label, others: tops.length - 1 }), moves: from ?? first },
       undefined,
       cell,
     );
   };
-  const open = (gesture: Gesture, row: Row | undefined, trigger: HTMLElement | undefined) => {
-    if (writing) {
+  const open = (
+    gesture: Gesture,
+    row: Row | undefined,
+    acted: readonly Row[],
+    trigger: HTMLElement | undefined,
+  ) => {
+    if (busy) {
       return;
     }
-    if (moves(gesture) && row !== undefined) {
-      move(gesture, row, trigger);
+    if (moves(gesture)) {
+      move(moveOf(gesture, acted, scope), row, acted, DONE[gesture], trigger);
       return;
     }
     if (gesture === "delete" && row !== undefined && row.task?.is_summary !== true) {
@@ -411,27 +452,28 @@ export function useStructureGestures<Row extends GridNode>(
           size="icon"
           aria-label={names.first}
           title={names.first}
-          aria-disabled={writing ? true : undefined}
-          aria-busy={writing}
+          aria-disabled={busy ? true : undefined}
+          aria-busy={busy}
           aria-keyshortcuts={GESTURE_KEYS.first}
           className={`size-7 shrink-0 ${UNAVAILABLE}`}
           onClick={(event: MouseEvent<HTMLElement>) => {
-            open("first", undefined, event.currentTarget);
+            open("first", undefined, [], event.currentTarget);
           }}
         >
           {ICONS.first}
         </Button>
       ),
-    menu: (row, { cell, took }) =>
-      gesturesOn(row, scope).map((gesture) => (
+    menu: (row, { cell, took, rows }) =>
+      gesturesOn(row, scope, rows).map((gesture) => (
         <ContextMenuItem
           key={gesture}
-          aria-disabled={writing ? true : undefined}
+          aria-disabled={busy ? true : undefined}
           aria-keyshortcuts={GESTURE_KEYS[gesture]}
           className={UNAVAILABLE}
           onSelect={(event) => {
-            // Pressed while a write is under way, it does nothing, and the menu stays open.
-            if (writing) {
+            // Pressed while a write or its reading is under way, it does nothing, and the menu stays
+            // open.
+            if (busy) {
               event.preventDefault();
               return;
             }
@@ -439,26 +481,29 @@ export function useStructureGestures<Row extends GridNode>(
             if (confirms(gesture, row)) {
               took();
             }
-            open(gesture, row, cell);
+            open(gesture, row, rows, cell);
           }}
         >
           {ICONS[gesture]}
           {names[gesture]}
         </ContextMenuItem>
       )),
-    keys: (row, event) => {
+    keys: (row, event, rows) => {
       const gesture = gestureOfKey(row, event);
-      if (
-        gesture === undefined ||
-        opened !== undefined ||
-        entering(event.target) ||
-        !gesturesOn(row, scope).includes(gesture)
-      ) {
+      if (gesture === undefined || opened !== undefined || entering(event.target)) {
         return false;
       }
-      open(gesture, row, event.target instanceof HTMLElement ? event.target : undefined);
+      // A move not offered on a row — the first of its siblings asked up — is taken, and does
+      // nothing: Alt, Shift and an arrow would otherwise move the active cell as the arrow alone does.
+      if (!gesturesOn(row, scope, rows).includes(gesture)) {
+        return row !== undefined && moves(gesture);
+      }
+      open(gesture, row, rows, event.target instanceof HTMLElement ? event.target : undefined);
       return true;
     },
+    selects: true,
+    moved: moved === undefined ? undefined : { ...moved, settled: !reading },
+    busy,
     around: (
       <>
         <GestureNotice

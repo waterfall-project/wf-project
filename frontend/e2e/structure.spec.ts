@@ -37,7 +37,7 @@ test("inserts a task below, then a sub-task, in the planning, from the menu of a
   page,
 }) => {
   test.slow();
-  const { cell } = await focusRow(
+  const { table, cell } = await focusRow(
     page,
     "planning",
     "Grille de planning",
@@ -60,7 +60,9 @@ test("inserts a task below, then a sub-task, in the planning, from the menu of a
   // The focus goes back to the cell the menu opened on.
   await expect(cell).toBeFocused();
 
-  // From the keys, on the cell: Alt+Insert asks the sub-task; a label left blank creates nothing.
+  // From the keys, on the cell, once the grid is read anew: Alt+Insert asks the sub-task; a label
+  // left blank creates nothing.
+  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   await page.keyboard.press("Alt+Insert");
   const child = page.getByRole("dialog", { name: "Insérer une sous-tâche" });
   await child.getByRole("button", { name: "Créer" }).click();
@@ -112,7 +114,9 @@ test("confirms the deletion of a summary of the planning before it is sent, and 
     timeout: WORKING,
   });
 
-  // A task without subordinates is deleted at once, from the menu of its cell.
+  // A task without subordinates is deleted at once, from the menu of its cell, once the grid is
+  // read anew.
+  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   const leaf = await labelOf(table, /^9 .*Câblage des armoires/);
   await leaf.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
@@ -171,7 +175,8 @@ test("indents a summary under the task above it and outdents a task from the key
   ).toBeVisible({ timeout: WORKING });
   await expect(cell).toBeFocused();
 
-  // From the menu of the cell of a task under it: outdented.
+  // From the menu of the cell of a task under it, once the grid is read anew: outdented.
+  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   const task = await labelOf(table, /^16 .*Transport exceptionnel/);
   await task.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
@@ -184,6 +189,55 @@ test("indents a summary under the task above it and outdents a task from the key
     timeout: WORKING,
   });
   await expect(task).toBeFocused();
+});
+
+test("selects tasks of the planning by their handles and indents the group from the keys, said [WF-PLA-0080-A]", async ({
+  page,
+}) => {
+  test.slow();
+  // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : rows 4
+  // and 5, « Pupitres opérateurs » and « Revue de conception », follow « Études de détail » among
+  // the sub-tasks of « Études »; the fake back serves the first example of `moveNodes` whatever was
+  // sent, and what the gestures send is proven by `row-selection.dom.test.tsx`.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const table = page.getByRole("treegrid", { name: "Grille de planning" });
+  const handle = (number: number) =>
+    table.getByRole("gridcell", { name: `${String(number)} — poignée de la ligne`, exact: true });
+  await handle(4).click();
+  await handle(5).click({ modifiers: ["Shift"] });
+  await expect(table.getByRole("row", { selected: true })).toHaveCount(2);
+  await expect(page.getByText("2 lignes sélectionnées")).toBeAttached();
+
+  // From the keys, on the handle that has the focus: the group indented.
+  await expect(handle(5)).toBeFocused();
+  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await expect(
+    page.getByText("« Pupitres opérateurs » et la ligne suivante indentées."),
+  ).toBeVisible({ timeout: WORKING });
+});
+
+test("adds a task from the remaining to commit of a project in progress, below a row, the creation said and the grid read anew [WF-RAE-0040-A]", async ({
+  page,
+}) => {
+  test.slow();
+  // Une tâche ajoutée depuis la grille de reste à engager : the structure lists `edit_remaining`
+  // available, and the gesture is the planning's; that it appears in the planning, the reference
+  // unchanged, is the service's (EP-09).
+  const { cell } = await focusRow(
+    page,
+    "remaining",
+    "Grille de reste à engager",
+    /^9 .*Câblage des armoires/,
+  );
+  await page.keyboard.press("Insert");
+  const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
+  await dialog.getByRole("textbox", { name: "Libellé" }).fill("Reprise des borniers");
+  await dialog.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText("« Reprise des borniers » créée.")).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(dialog).toHaveCount(0);
+  await expect(cell).toBeFocused();
 });
 
 test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress [WF-DEV-0050-A]", async ({

@@ -11,6 +11,7 @@ import {
   gesturesOn,
   moveOf,
   type StructureGestures,
+  topsOf,
 } from "./structure-rules";
 
 const estimate = example("nodes_estimate") as NodeList;
@@ -49,12 +50,19 @@ const PRESSED = { key: "Insert", ctrlKey: false, altKey: false, shiftKey: false 
 
 describe("the gestures a row takes", () => {
   it("gives a task a task below, a sub-task, a line and its deletion, a summary no line", () => {
-    expect(gesturesOn(LEAF, offered())).toEqual(["below", "child", "line", "outdent", "delete"]);
+    expect(gesturesOn(LEAF, offered())).toEqual([
+      "below",
+      "child",
+      "line",
+      "outdent",
+      "down",
+      "delete",
+    ]);
     expect(gesturesOn(SUMMARY, offered())).toEqual(["below", "child", "delete"]);
   });
 
-  it("gives a line a line below and its deletion, and the header a first task", () => {
-    expect(gesturesOn(LINE, offered())).toEqual(["line", "delete"]);
+  it("gives a line a line below, its move down among the lines, and its deletion, and the header a first task", () => {
+    expect(gesturesOn(LINE, offered())).toEqual(["line", "down", "delete"]);
     expect(gesturesOn(undefined, offered())).toEqual(["first"]);
   });
 
@@ -64,34 +72,48 @@ describe("the gestures a row takes", () => {
       "below",
       "child",
       "outdent",
+      "down",
       "delete",
     ]);
     expect(gesturesOn(LEAF, offered({ categories: undefined }))).toEqual([
       "below",
       "child",
       "outdent",
+      "down",
       "delete",
     ]);
     expect(gesturesOn(LINE, offered({ categories: [{ ...CATEGORY, active: false }] }))).toEqual([
+      "down",
       "delete",
     ]);
+    // A line moves where the grid lists the lines.
+    expect(gesturesOn(LINE, offered({ lines: false }))).toEqual([]);
     expect(gesturesOn(undefined, offered({ tasks: false }))).toEqual([]);
     expect(gesturesOn(LEAF, offered({ tasks: false, lines: false }))).toEqual([]);
   });
 
   it("gives a milestone neither sub-task nor line", () => {
     const milestone = { ...LEAF, task: { ...LEAF.task, is_milestone: true } } as typeof LEAF;
-    expect(gesturesOn(milestone, offered())).toEqual(["below", "outdent", "delete"]);
+    expect(gesturesOn(milestone, offered())).toEqual(["below", "outdent", "down", "delete"]);
   });
 
   it("gives an indentation to a task that has a sibling above it, bearing tasks, and an outdentation to a task under another", () => {
-    expect(gesturesOn(RISK, offered())).toEqual(["below", "child", "indent", "outdent", "delete"]);
+    expect(gesturesOn(RISK, offered())).toEqual([
+      "below",
+      "child",
+      "indent",
+      "outdent",
+      "up",
+      "down",
+      "delete",
+    ]);
     // The first of its siblings has nothing to go under; a task at the root has nothing to leave.
     expect(gesturesOn(LEAF, offered())).not.toContain("indent");
     expect(gesturesOn(SUMMARY, offered())).not.toContain("outdent");
     expect(gesturesOn(SUMMARY, offered())).not.toContain("indent");
     // A line is moved with the move of its task; it takes neither.
-    expect(gesturesOn(LINE, offered())).toEqual(["line", "delete"]);
+    expect(gesturesOn(LINE, offered())).not.toContain("indent");
+    expect(gesturesOn(LINE, offered())).not.toContain("outdent");
   });
 
   it("gives an indentation only where the grid shows the sibling just above, whatever a search or a filter leaves out [WF-PLA-0080-A]", () => {
@@ -131,11 +153,14 @@ describe("the gesture a key asks", () => {
     expect(gestureOfKey(LEAF, { ...PRESSED, key: "Delete", ctrlKey: true })).toBe("delete");
   });
 
-  it("asks an indentation on Alt+Shift+Right and an outdentation on Alt+Shift+Left, and no other arrow", () => {
+  it("asks an indentation on Alt+Shift+Right, an outdentation on Alt+Shift+Left, a move by a rank on Alt+Shift+Up and Down", () => {
     const arrow = { ...PRESSED, key: "ArrowRight", altKey: true, shiftKey: true };
     expect(gestureOfKey(LEAF, arrow)).toBe("indent");
     expect(gestureOfKey(LEAF, { ...arrow, key: "ArrowLeft" })).toBe("outdent");
-    expect(gestureOfKey(LEAF, { ...arrow, key: "ArrowUp" })).toBeUndefined();
+    expect(gestureOfKey(LEAF, { ...arrow, key: "ArrowUp" })).toBe("up");
+    expect(gestureOfKey(LEAF, { ...arrow, key: "ArrowDown" })).toBe("down");
+    // Shift and an arrow alone extend the selection.
+    expect(gestureOfKey(LEAF, { ...arrow, key: "ArrowDown", altKey: false })).toBeUndefined();
     expect(gestureOfKey(LEAF, { ...arrow, shiftKey: false })).toBeUndefined();
     expect(gestureOfKey(LEAF, { ...arrow, altKey: false })).toBeUndefined();
     // AltGr is Ctrl and Alt together, and Cmd is the Mac's own.
@@ -213,25 +238,69 @@ describe("the body of the move a gesture asks", () => {
     });
   });
 
-  it("moves the group of several tasks in the order given, under the task above the first one listed, not the highest row of the list [WF-PLA-0080-A]", () => {
-    // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente.
-    expect(moveOf("indent", [RISK, MILESTONE], offered())).toMatchObject({
+  it("moves the group of a selection, the nodes that bear its rows, under the task above the first one [WF-PLA-0080-A]", () => {
+    // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : the
+    // selection from RISK to MILESTONE holds the subordinates of RISK, which go with it.
+    const selection = estimate.items.slice(
+      estimate.items.indexOf(RISK),
+      estimate.items.indexOf(MILESTONE) + 1,
+    );
+    expect(moveOf("indent", selection, offered())).toEqual({
       node_ids: [RISK.node_id, MILESTONE.node_id],
       parent_id: LEAF.node_id,
-    });
-    // The first node listed is the reference, though RISK, listed second, stands higher in the grid:
-    // the group goes under the task above the milestone, which is RISK.
-    expect(moveOf("indent", [MILESTONE, RISK], offered())).toEqual({
-      node_ids: [MILESTONE.node_id, RISK.node_id],
-      parent_id: RISK.node_id,
       lock_version: 4,
     });
-    expect(moveOf("outdent", [MILESTONE, RISK], offered())).toEqual({
-      node_ids: [MILESTONE.node_id, RISK.node_id],
+    expect(moveOf("outdent", selection, offered())).toEqual({
+      node_ids: [RISK.node_id, MILESTONE.node_id],
       parent_id: SUMMARY.parent_id,
       after_node_id: SUMMARY.node_id,
       lock_version: 4,
     });
+  });
+
+  it("moves nothing that is not a run of siblings rank by rank, of one kind", () => {
+    // Out of the order of the grid, under two parents, or a task and a line.
+    expect(moveOf("indent", [MILESTONE, RISK], offered())).toBeUndefined();
+    expect(moveOf("outdent", [TRANSPORT, MILESTONE], offered())).toBeUndefined();
+    expect(moveOf("up", [row("Affrètement"), MILESTONE], offered())).toBeUndefined();
+  });
+
+  it("moves a run by a rank: down after the sibling below the last, up by the sibling above the first going after the last", () => {
+    expect(moveOf("down", [LEAF, RISK], offered())).toEqual({
+      node_ids: [LEAF.node_id, RISK.node_id],
+      parent_id: SUMMARY.node_id,
+      after_node_id: MILESTONE.node_id,
+      lock_version: 4,
+    });
+    const run = estimate.items.slice(estimate.items.indexOf(LEAF), estimate.items.indexOf(RISK));
+    expect(moveOf("down", run, offered())).toEqual({
+      node_ids: [LEAF.node_id],
+      parent_id: SUMMARY.node_id,
+      after_node_id: RISK.node_id,
+      lock_version: 4,
+    });
+    expect(moveOf("up", [RISK, MILESTONE], offered())).toEqual({
+      node_ids: [LEAF.node_id],
+      parent_id: SUMMARY.node_id,
+      after_node_id: MILESTONE.node_id,
+      lock_version: 4,
+    });
+    // A line moves among the lines of its task: the last one has none below it.
+    expect(moveOf("up", [row("Borniers")], offered())).toMatchObject({
+      node_ids: [LINE.node_id],
+      after_node_id: row("Borniers").node_id,
+    });
+    expect(moveOf("down", [row("Provision — risque de reprise du câblage")], offered())).toBe(
+      undefined,
+    );
+  });
+
+  it("moves by a rank only where the grid shows the neighbour, of the kind of the run, and the kind moves", () => {
+    const withoutRisk = estimate.items.filter((each) => each.node_id !== RISK.node_id);
+    expect(moveOf("down", [LEAF], offered({ rows: withoutRisk }))).toBeUndefined();
+    expect(moveOf("up", [MILESTONE], offered({ rows: withoutRisk }))).toBeUndefined();
+    expect(moveOf("down", [LINE], offered({ lines: false }))).toBeUndefined();
+    expect(moveOf("down", [LEAF], offered({ tasks: false }))).toBeUndefined();
   });
 
   it("asks nothing where the grid does not show the sibling above the first node, the one shown being farther [WF-PLA-0080-A]", () => {
@@ -245,5 +314,13 @@ describe("the body of the move a gesture asks", () => {
     expect(moveOf("indent", [LEAF], offered())).toBeUndefined();
     expect(moveOf("outdent", [SUMMARY], offered())).toBeUndefined();
     expect(moveOf("indent", [], offered())).toBeUndefined();
+  });
+});
+
+describe("the nodes that bear a selection", () => {
+  it("keeps those none of whose ancestors is selected, in the order of the grid", () => {
+    const selection = estimate.items.slice(estimate.items.indexOf(LEAF));
+    expect(topsOf(selection, estimate.items)).toEqual([LEAF, RISK, MILESTONE]);
+    expect(topsOf([TRANSPORT, row("Affrètement")], estimate.items)).toEqual([TRANSPORT]);
   });
 });
