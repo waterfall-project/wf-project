@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What the gestures of structure of a grid are (US-0460): which a row takes, which a key asks, and
- * the body of the node each creates (`NodeCreate`) or of the move it makes (`NodeMove`). Pure, neither server nor client: the grid
- * offers a gesture the structure it reads lists available (`tasks`, `lines`), and the server judges
- * the rest.
+ * the body of the node each creates (`NodeCreate`) or of the move it makes (`NodeMove`). Pure,
+ * neither server nor client: the grid offers a gesture the structure it reads lists available
+ * (`tasks`, `lines`), an indentation only where the rows shown hold the neighbour it goes under,
+ * and the server judges the rest.
  */
 import type { components } from "@/api/generated/schema";
 
@@ -34,7 +35,10 @@ export interface StructureGestures {
   readonly lines: boolean;
   /** The categories a line is created from; none, and no line is created. */
   readonly categories: readonly LineCategory[] | undefined;
-  /** The rows the grid reads, in the order of the tree: what precedes a task, and what bears it. */
+  /**
+   * The rows the grid shows, in the order of the tree, those a search or a filter leaves out
+   * missing: what precedes a task among its siblings, and what bears it, only when shown.
+   */
   readonly rows: readonly GridNode[];
   /** The version of the structure read, which a move carries (`NodeMove.lock_version`). */
   readonly version: number;
@@ -70,19 +74,29 @@ function linesOffered(scope: StructureGestures): boolean {
   return scope.lines && (scope.categories ?? []).some((category) => category.active);
 }
 
-/** The task that precedes a task among its siblings, as the grid shows them. */
+/**
+ * The task that precedes a task among its siblings, if the rows the grid shows hold it: the nearest
+ * task above it under the same parent, which is the true neighbour only when its rank
+ * (`Node.position`, from 1, the lines of a task counting before its sub-tasks) is that of the row
+ * less one. A search, a filter or the states the remaining to commit retains leave rows out: a
+ * sibling between the two missing, the one shown above is not the one the server would put the task
+ * under.
+ */
 function precedingSibling(row: GridNode, rows: readonly GridNode[]): GridNode | undefined {
   const at = rows.findIndex((each) => each.node_id === row.node_id);
-  return rows
+  const above = rows
     .slice(0, Math.max(at, 0))
     .findLast((each) => each.kind === "task" && each.parent_id === row.parent_id);
+  return above?.position === row.position - 1 ? above : undefined;
 }
 
 /**
  * The place a task takes by an indentation or an outdentation, as MS Project does: an indentation
- * puts it under the task that precedes it, in the last place (`after_node_id` absent) — none for
- * the first of its siblings, nor under a milestone, which bears nothing —; an outdentation puts it
- * after its parent, under the parent of that one — none for a task already at the root.
+ * puts it under the task that precedes it among its siblings, in the last place (`after_node_id`
+ * absent) — none for the first of its siblings, nor where the grid does not show that task, nor
+ * under a milestone, which bears nothing —; an outdentation puts it after its parent, under the
+ * parent of that one — none for a task already at the root, nor where the grid does not show its
+ * parent. The place never rests on a row the grid leaves out.
  */
 function placeOf(
   gesture: Moving,
@@ -127,9 +141,10 @@ function onTask(row: GridNode, scope: StructureGestures): readonly Gesture[] {
 /**
  * The gestures a row takes, in the order they are offered, none the grid does not list. A task
  * takes a task below it, a sub-task unless it is a milestone, a line unless it is a summary or a
- * milestone, an indentation unless it is the first of its siblings or follows a milestone, an
- * outdentation unless it is at the root, and its deletion; a line takes a line below it and its deletion; no row — the header,
- * an empty grid — a first task.
+ * milestone, an indentation unless it is the first of its siblings, follows a milestone, or has the
+ * grid not show the sibling that precedes it, an outdentation unless it is at the root or the grid
+ * does not show its parent, and its deletion; a line takes a line below it and its deletion; no
+ * row — the header, an empty grid — a first task.
  */
 export function gesturesOn(
   row: GridNode | undefined,

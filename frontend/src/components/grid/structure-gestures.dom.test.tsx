@@ -566,6 +566,21 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(alert).toHaveTextContent(
       "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
     );
+    // The reading is stale: the grid is read anew, and the refusal stays told.
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes every write of the hook, the deletion too, through the reading of the reason of a field, which leaves a refusal without field as it is", async () => {
+    // `byField` holds for `deleteNode` as for `createNode` and `moveNodes`; the contract cites no
+    // field for a deletion, so its refusal is told by its own code.
+    serve({ [DELETE]: COMPLETED_REFUSED });
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      `Refusé à la ligne ${String(node(LINE)?.row_number)}, « Raccordement des borniers » :`,
+    );
+    expect(alert).toHaveTextContent("Condition non remplie");
     expect(router.refresh).not.toHaveBeenCalled();
   });
 

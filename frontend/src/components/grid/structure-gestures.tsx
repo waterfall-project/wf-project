@@ -15,7 +15,9 @@
  * after its parent, under the parent of that one, as MS Project does (`moveNodes`): the task takes
  * its subordinates with it, and no dialog asks anything. The grid is read anew, the ancestors
  * recalculated and the tasks redated taking the place of the rows read; a refusal — a link a
- * summary would hold to its subordinate, a loop, a node that is no sibling — is told at the row.
+ * summary would hold to its subordinate, a loop, a node that is no sibling — is told at the row,
+ * and the last, which comes from a reading gone stale, reads the grid anew. An indentation is
+ * offered only where the rows shown hold the sibling just above the task (`structure-rules.ts`).
  *
  * A node is created from a dialog that names it — the label of a task; the label, the category and
  * the quantity of a line, which the contract requires —, and the row it acts on; the task inserted
@@ -246,12 +248,12 @@ function GestureNotice<Row extends GridNode>({
 
 /**
  * The gestures of structure a grid gives its rows, as the structure it reads lists its commands:
- * none for a grid that offers none. Pass `onWritten` to be told the version the structure moved on
- * to.
+ * none for a grid that offers none. `onWritten` is told what each write answered, whose version the
+ * grid keeps (`useStructureVersion`) and brings back in `scope.version`, which the next move carries.
  */
 export function useStructureGestures<Row extends GridNode>(
   scope: StructureGestures | undefined,
-  onWritten?: (written: NodesWritten) => void,
+  onWritten: (written: NodesWritten) => void,
 ): RowCommands<Row> | undefined {
   const t = useTranslations("grid.structure");
   const router = useRouter();
@@ -262,10 +264,6 @@ export function useStructureGestures<Row extends GridNode>(
   const [opened, setOpened] = useState<Opened<Row>>();
   const [writing, setWriting] = useState(false);
   const [told, setTold] = useState<Told<Row>>();
-  const [reached, setReached] = useState<{
-    readonly structure: string;
-    readonly version: number;
-  }>();
   const openings = useRef(0);
   // The cell that had the focus when a row was deleted with no dialog: once the grid is read anew
   // without it, the focus goes back to the active cell, not to the page. It is forgotten as soon as
@@ -308,10 +306,6 @@ export function useStructureGestures<Row extends GridNode>(
     outdent: t("outdent"),
     delete: t("delete"),
   };
-  // The version the structure reached by the writes answered, which the next move carries: the page
-  // read anew brings it too, and the highest wins.
-  const version = Math.max(scope.version, reached?.structure === structure ? reached.version : 0);
-
   /** Send a write, and take its answer: the grid read anew when done, the refusal told otherwise. */
   const send = (
     call: () => Promise<Outcome<NodesWritten>>,
@@ -330,14 +324,7 @@ export function useStructureGestures<Row extends GridNode>(
         setOpened(undefined);
       }
       if (outcome.kind === "done") {
-        onWritten?.(outcome.data);
-        setReached((before) => ({
-          structure,
-          version: Math.max(
-            before?.structure === structure ? before.version : 0,
-            outcome.data.structure_lock_version,
-          ),
-        }));
+        onWritten(outcome.data);
         setTold(undefined);
         say(node.done, { object: node.label });
         lost.current = cell;
@@ -347,6 +334,12 @@ export function useStructureGestures<Row extends GridNode>(
         });
       } else {
         setTold({ structure, refusal: { outcome, row, subject: node.label } });
+        // A node to follow that is no sibling comes from a reading gone stale: read it anew.
+        if (outcome.kind !== "unreachable" && outcome.problem.code === "NODE_NOT_SIBLING") {
+          refresh(() => {
+            router.refresh();
+          });
+        }
       }
     });
   };
@@ -362,7 +355,7 @@ export function useStructureGestures<Row extends GridNode>(
   };
   /** Move the task of a row, with the subordinates it bears, and read the grid anew. */
   const move = (gesture: Moving, row: Row, cell: HTMLElement | undefined) => {
-    const body = moveOf(gesture, [row], { ...scope, version });
+    const body = moveOf(gesture, [row], scope);
     if (body === undefined) {
       return;
     }

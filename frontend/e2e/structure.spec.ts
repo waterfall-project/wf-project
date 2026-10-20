@@ -143,12 +143,15 @@ test("gives the focus to a cell of the grid once a task is deleted by the keys",
     timeout: WORKING,
   });
   // The fake back keeps the structure whole: the grid read anew is the same, and the focus is on
-  // its active cell, never on the page.
-  await expect(table.locator('[tabindex="0"]')).toBeFocused();
+  // the cell of the label at the place of the row deleted — the row that takes it with a real back
+  // —, never on the page.
+  const place = await cell.getAttribute("data-row");
+  expect(place).not.toBeNull();
+  await expect(table.locator(`td[data-row="${place ?? ""}"][data-column="label"]`)).toBeFocused();
   await expect(cell).toBeVisible();
 });
 
-test("indents a summary under the task above it and outdents a task from the keys and from the menu, each said and the grid read anew [WF-PLA-0080-A]", async ({
+test("indents a summary under the task above it and outdents a task from the keys and from the menu, each said [WF-PLA-0080-A]", async ({
   page,
 }) => {
   test.slow();

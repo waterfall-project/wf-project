@@ -55,6 +55,7 @@ import { type BreakdownItem, byField } from "./planning-attachment";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
+import { useStructureVersion } from "./structure-version";
 
 /** What the grid of the planning shows. */
 export interface PlanningGridProps {
@@ -162,6 +163,8 @@ export function PlanningGrid({
   // revision left while it was generated — never shows it.
   const [generated, setGenerated] = useState<Generated>();
   const ours = generated?.structure === structure.structure_id ? generated : undefined;
+  // One account of the version the structure moved on to, whichever write moved it.
+  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
   // A reader for each reading: an answer names rows a new reading may have renumbered.
@@ -193,17 +196,20 @@ export function PlanningGrid({
             lock_version: node.lock_version,
           }),
         );
-        return outcome.kind === "done"
-          ? { kind: "done", data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) }
-          : outcome;
+        if (outcome.kind !== "done") {
+          return outcome;
+        }
+        reach(outcome.data.structure_lock_version);
+        return { kind: "done", data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) };
       },
     };
     return planningGrid(attachment);
-  }, [breakdown, kinds, structure, whole]);
+  }, [breakdown, kinds, structure, whole, reach]);
   const generate = async (): Promise<Outcome<NodesWritten>> => {
     const asked = structure.structure_id;
     const outcome = await generatePlanningSkeleton(structure.project_id, structure.revision_id);
     if (outcome.kind === "done") {
+      reach(outcome.data.structure_lock_version);
       const written = nodesWritten(outcome.data, PLANNING_FIELDS, true);
       setGenerated({
         structure: asked,
@@ -221,9 +227,12 @@ export function PlanningGrid({
           lines: false,
           categories: undefined,
           rows: shown.items,
-          version: Math.max(structureVersion, ours?.version ?? 0),
+          version,
         }
       : undefined,
+    (written) => {
+      reach(written.structure_lock_version);
+    },
   );
   const offered = nodes.items.length === 0 || ours !== undefined;
   return (

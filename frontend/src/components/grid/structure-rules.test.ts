@@ -94,6 +94,18 @@ describe("the gestures a row takes", () => {
     expect(gesturesOn(LINE, offered())).toEqual(["line", "delete"]);
   });
 
+  it("gives an indentation only where the grid shows the sibling just above, whatever a search or a filter leaves out [WF-PLA-0080-A]", () => {
+    // The rank of a node counts its siblings, lines included: the one above must be that less one.
+    const withoutRisk = estimate.items.filter((each) => each.node_id !== RISK.node_id);
+    expect(gesturesOn(MILESTONE, offered())).toContain("indent");
+    expect(gesturesOn(MILESTONE, offered({ rows: withoutRisk }))).not.toContain("indent");
+    // The parent being shown, the outdentation does not rest on a row left out.
+    expect(gesturesOn(MILESTONE, offered({ rows: withoutRisk }))).toContain("outdent");
+    // The parent left out, there is no place after it.
+    const withoutSummary = estimate.items.filter((each) => each.node_id !== SUMMARY.node_id);
+    expect(gesturesOn(RISK, offered({ rows: withoutSummary }))).not.toContain("outdent");
+  });
+
   it("gives no indentation under a milestone, which bears nothing, and none where the grid lists no task", () => {
     const rows = estimate.items.map((each) =>
       each.node_id === RISK.node_id
@@ -182,8 +194,8 @@ describe("the body of the node a gesture creates", () => {
 });
 
 describe("the body of the move a gesture asks", () => {
-  it("puts a task, and the summary that bears its group, under the task above it, last [WF-PLA-0080-A]", () => {
-    // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : the
+  it("puts the active task, a summary with its group, under the task above it, last [WF-PLA-0080-A]", () => {
+    // Part of the criterion — the active row, not a selection of several tasks (US-0460/L5): the
     // summary is moved by its identifier alone, its subordinates going with it on the server.
     expect(moveOf("indent", [RISK], offered())).toEqual({
       node_ids: [RISK.node_id],
@@ -201,11 +213,32 @@ describe("the body of the move a gesture asks", () => {
     });
   });
 
-  it("names every node of a list in the order given, the place being that of the first", () => {
+  it("moves the group of several tasks in the order given, under the task above the first one listed, not the highest row of the list [WF-PLA-0080-A]", () => {
+    // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente.
     expect(moveOf("indent", [RISK, MILESTONE], offered())).toMatchObject({
       node_ids: [RISK.node_id, MILESTONE.node_id],
       parent_id: LEAF.node_id,
     });
+    // The first node listed is the reference, though RISK, listed second, stands higher in the grid:
+    // the group goes under the task above the milestone, which is RISK.
+    expect(moveOf("indent", [MILESTONE, RISK], offered())).toEqual({
+      node_ids: [MILESTONE.node_id, RISK.node_id],
+      parent_id: RISK.node_id,
+      lock_version: 4,
+    });
+    expect(moveOf("outdent", [MILESTONE, RISK], offered())).toEqual({
+      node_ids: [MILESTONE.node_id, RISK.node_id],
+      parent_id: SUMMARY.parent_id,
+      after_node_id: SUMMARY.node_id,
+      lock_version: 4,
+    });
+  });
+
+  it("asks nothing where the grid does not show the sibling above the first node, the one shown being farther [WF-PLA-0080-A]", () => {
+    const withoutRisk = estimate.items.filter((each) => each.node_id !== RISK.node_id);
+    // LEAF, rank 1, is shown above the milestone, rank 3: it is not the neighbour.
+    expect(moveOf("indent", [MILESTONE], offered({ rows: withoutRisk }))).toBeUndefined();
+    expect(moveOf("indent", [MILESTONE], offered())).toBeDefined();
   });
 
   it("asks nothing where the first node has no such place", () => {

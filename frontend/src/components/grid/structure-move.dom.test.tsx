@@ -20,8 +20,10 @@ import { estimateReference } from "@/test/reference";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
+import { breakdownItems, type WorkBreakdownReading } from "./planning-attachment";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
+import { RemainingGrid } from "./remaining-grid";
 
 // The indentation and the outdentation of the tasks of a grid (US-0460/L4, WF-PLA-0080): what the
 // gesture sends to `moveNodes`, what the grid does of the answer, and the refusals said at the row.
@@ -39,6 +41,10 @@ vi.mock("next/navigation", async (original) => ({
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
 const MOVE =
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move" as const;
+const TASK =
+  "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
+const REMAINING =
+  "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining";
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
@@ -100,6 +106,42 @@ function planningGrid(editable = true) {
         preferences={undefined}
         undoable={editable}
         editable={editable}
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+/** The grid of the remaining to commit, in French, which shows the whole estimate. */
+function remainingGrid() {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <RemainingGrid
+        nodes={estimate}
+        structure={STRUCTURE}
+        structureVersion={VERSION}
+        filters={{}}
+        editable
+        query={NO_QUERY}
+        preferences={undefined}
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+/** The grid of the planning of the tasks nested, its attachment entered. */
+function nestedGrid(nodes: NodeList) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <PlanningGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        structureVersion={VERSION}
+        filters={{ kinds: ["task"] }}
+        query={NO_QUERY}
+        preferences={undefined}
+        undoable
+        editable
+        breakdown={breakdownItems(example("work_breakdown") as WorkBreakdownReading)}
       />
     </NextIntlClientProvider>
   );
@@ -213,6 +255,45 @@ describe("the indentation of a task", () => {
     await userEvent.keyboard("{Escape}");
   });
 
+  it("offers it only where the grid shows the sibling just above, as a reading narrowed leaves rows out [WF-PLA-0080-A]", async () => {
+    // « Réception usine » is the third sibling of its parent: the reading without « Risque survenu »
+    // shows « Câblage des armoires », the first, above it, which is not its neighbour; the whole
+    // reading shows the neighbour.
+    const milestone = rowOf(estimate, "Réception usine");
+    const narrowed: NodeList = {
+      ...estimate,
+      items: estimate.items.filter((each) => each.node_id !== estimate.items[RISK]?.node_id),
+    };
+    const client = serve({});
+    const { unmount } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <EstimateGrid
+          nodes={narrowed}
+          structure={STRUCTURE}
+          structureVersion={VERSION}
+          reference={estimateReference()}
+          editable
+          tasksEditable
+          query={NO_QUERY}
+          filters={{}}
+          preferences={undefined}
+        />
+      </NextIntlClientProvider>,
+    );
+    const at = narrowed.items.findIndex((each) => each.task?.label === "Réception usine");
+    const menu = await openMenu(at);
+    expect(within(menu).queryByRole("menuitem", { name: "Indenter" })).not.toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await activate(at);
+    await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
+    expect(client.calls).toEqual([]);
+    unmount();
+    render(estimateGrid());
+    const whole = await openMenu(milestone);
+    expect(within(whole).getByRole("menuitem", { name: "Indenter" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+  });
+
   it("does nothing on the keys where the task has no place to go", async () => {
     const client = serve({});
     render(estimateGrid());
@@ -245,6 +326,47 @@ describe("the indentation of a task", () => {
     const [first, second] = moved(client) as { lock_version: number }[];
     expect(first?.lock_version).toBe(VERSION);
     expect(second?.lock_version).toBeGreaterThan(VERSION);
+  });
+
+  it("carries the version a cell of the planning reached, not the one read with the page [WF-PLA-0080-A]", async () => {
+    // A cell written moves the version of the structure (`structure_lock_version`): the indentation
+    // that follows carries it, or the server would refuse it as stale. The page keeps its own.
+    const nested = example("nodes_nested") as NodeList;
+    const client = serve({ [TASK]: "task_attached", [MOVE]: "nodes_indented" });
+    render(nestedGrid(nested));
+    const mounting = rowOf(nested, "Montage des armoires sur site");
+    const attachment = screen
+      .getByRole("treegrid")
+      .querySelector<HTMLElement>(
+        `td[data-row="${mounting.toString()}"][data-column="work_breakdown"]`,
+      );
+    attachment?.focus();
+    await userEvent.keyboard("P{Enter}");
+    await vi.waitFor(() => {
+      expect(client.calls.filter((call) => call.route === TASK)).toHaveLength(1);
+    });
+    await choose(mounting, "Indenter");
+    await screen.findByText(/indentée\.$/);
+    expect(moved(client)).toMatchObject([{ lock_version: 2 }]);
+  });
+
+  it("carries the version a cell of the remaining to commit reached, not the one read with the page [WF-PLA-0080-A]", async () => {
+    const client = serve({ [REMAINING]: "remaining_reestimated", [MOVE]: "nodes_indented" });
+    render(remainingGrid());
+    const line = rowOf(estimate, "Borniers");
+    const cell = screen
+      .getByRole("treegrid")
+      .querySelector<HTMLElement>(`td[data-row="${line.toString()}"][data-column="quantity"]`);
+    cell?.focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Qté" }));
+    await userEvent.keyboard("2{Enter}");
+    await vi.waitFor(() => {
+      expect(client.calls.filter((call) => call.route === REMAINING)).toHaveLength(1);
+    });
+    await choose(RISK, "Indenter");
+    await screen.findByText(/indentée\.$/);
+    expect(moved(client)).toMatchObject([{ lock_version: 3 }]);
   });
 
   it("holds the move while a write is under way", async () => {
@@ -295,15 +417,16 @@ describe("the outdentation of a task", () => {
 
 describe("the refusal of a move, said to the row in cause", () => {
   it.each([
-    ["nodes_indent_forbidden", "Cette liaison n’est pas permise."],
-    ["nodes_move_cycle_refused", "Cette liaison créerait une boucle."],
+    ["nodes_indent_forbidden", "Cette liaison n’est pas permise.", 0],
+    ["nodes_move_cycle_refused", "Cette liaison créerait une boucle.", 0],
     [
       "nodes_move_after_not_sibling",
       "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
+      1,
     ],
   ])(
-    "names the row of %s in the alert, marks it and reads nothing anew",
-    async (name, sentence) => {
+    "names the row of %s in the alert and marks it, the grid read anew only for a reading gone stale",
+    async (name, sentence, reads) => {
       const client = serve({ [MOVE]: refusal(name) });
       render(estimateGrid());
       await choose(RISK, "Indenter");
@@ -314,7 +437,9 @@ describe("the refusal of a move, said to the row in cause", () => {
       );
       expect(alert).toHaveTextContent(sentence);
       expect(labelAt(RISK)).toBeInvalid();
-      expect(router.refresh).not.toHaveBeenCalled();
+      // Nothing was written; a node to follow that is no sibling says the reading is stale, so
+      // the grid is read anew, and the refusal stays told.
+      expect(router.refresh).toHaveBeenCalledTimes(reads);
       expect(readMessages().messages).toMatchObject([{ tone: "refusal" }]);
     },
   );
