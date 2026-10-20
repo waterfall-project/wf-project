@@ -38,7 +38,8 @@
  * inactive and saying so: the next move starts from the neighbours that reading shows, never from
  * those before it with a version already moved on. An answer closes only the dialog it was sent
  * from (défaut n° 24), and belongs to the structure it was written in (défaut n° 1). The row a move
- * was asked from is told the grid (`moved`), whose active cell follows it through the reading.
+ * was asked from is told the grid (`moved`), whose active cell follows it through the reading; the
+ * grid says it is busy as long as the gestures wait (`busy`).
  */
 "use client";
 
@@ -502,6 +503,7 @@ export function useStructureGestures<Row extends GridNode>(
     },
     selects: true,
     moved: moved === undefined ? undefined : { ...moved, settled: !reading },
+    busy,
     around: (
       <>
         <GestureNotice

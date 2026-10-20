@@ -1712,9 +1712,10 @@ aussi la ligne qu'un geste a déplacée, sélectionnée ou non (`RowCommands.mov
 relecture, qui lui rend le focus s'il était dans la grille. Chaque ligne dit si elle l'est
 (`aria-selected`), la grille qu'elle en prend plusieurs (`aria-multiselectable`), un statut combien
 — les lignes montrées : les subordonnées pliées sous une récapitulative sélectionnée la suivent
-sans être comptées. Une cellule calculée sélectionnée garde son ombre. Un geste de déplacement porte sur la sélection quand la ligne d'où il part en est,
-sur cette ligne seule sinon, et sur les nœuds qui portent les autres (`topsOf`) : une récapitulative
-emporte ses subordonnées. La suppression ne porte que sur une ligne seule.
+sans être comptées. Une cellule calculée sélectionnée garde son ombre. Un geste de déplacement
+porte sur la sélection quand la ligne d'où il part en est, sur cette ligne seule sinon, et sur les
+nœuds qui portent les autres (`topsOf`) : une récapitulative emporte ses subordonnées. La
+suppression ne porte que sur une ligne seule.
 
 « Indenter » place les tâches sous celle qui précède la première parmi ses frères, en dernière place
 (`after_node_id` absent) ; « Désindenter » les place après leur parent, sous le parent de celui-ci
@@ -1731,8 +1732,8 @@ un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni s
 `node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine. Alt+Maj et
 une flèche, là où le déplacement n'est pas offert, sont pris sans effet : la cellule active ne bouge
 pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours, puis la relecture qui la
-suit, retiennent les gestes : le suivant part des voisines que la relecture a rendues, jamais de
-celles d'avant avec une version déjà avancée.
+suit, retiennent les gestes, la grille se disant occupée (`aria-busy`) : le suivant part des
+voisines que la relecture a rendues, jamais de celles d'avant avec une version déjà avancée.
 
 `moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure
 qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :

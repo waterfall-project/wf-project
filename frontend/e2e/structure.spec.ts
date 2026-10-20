@@ -37,7 +37,7 @@ test("inserts a task below, then a sub-task, in the planning, from the menu of a
   page,
 }) => {
   test.slow();
-  const { cell } = await focusRow(
+  const { table, cell } = await focusRow(
     page,
     "planning",
     "Grille de planning",
@@ -60,7 +60,9 @@ test("inserts a task below, then a sub-task, in the planning, from the menu of a
   // The focus goes back to the cell the menu opened on.
   await expect(cell).toBeFocused();
 
-  // From the keys, on the cell: Alt+Insert asks the sub-task; a label left blank creates nothing.
+  // From the keys, on the cell, once the grid is read anew: Alt+Insert asks the sub-task; a label
+  // left blank creates nothing.
+  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   await page.keyboard.press("Alt+Insert");
   const child = page.getByRole("dialog", { name: "Insérer une sous-tâche" });
   await child.getByRole("button", { name: "Créer" }).click();
@@ -112,7 +114,9 @@ test("confirms the deletion of a summary of the planning before it is sent, and 
     timeout: WORKING,
   });
 
-  // A task without subordinates is deleted at once, from the menu of its cell.
+  // A task without subordinates is deleted at once, from the menu of its cell, once the grid is
+  // read anew.
+  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   const leaf = await labelOf(table, /^9 .*Câblage des armoires/);
   await leaf.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
@@ -171,7 +175,8 @@ test("indents a summary under the task above it and outdents a task from the key
   ).toBeVisible({ timeout: WORKING });
   await expect(cell).toBeFocused();
 
-  // From the menu of the cell of a task under it: outdented.
+  // From the menu of the cell of a task under it, once the grid is read anew: outdented.
+  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   const task = await labelOf(table, /^16 .*Transport exceptionnel/);
   await task.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
@@ -179,10 +184,7 @@ test("indents a summary under the task above it and outdents a task from the key
     "aria-keyshortcuts",
     "Alt+Shift+ArrowRight",
   );
-  // The gestures wait for the reading anew the indentation asked.
-  const outdent = menu.getByRole("menuitem", { name: "Désindenter" });
-  await expect(outdent).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
-  await outdent.click();
+  await menu.getByRole("menuitem", { name: "Désindenter" }).click();
   await expect(page.getByText("« Transport exceptionnel » désindentée.")).toBeVisible({
     timeout: WORKING,
   });

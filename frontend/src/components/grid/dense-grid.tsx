@@ -483,6 +483,11 @@ function Spacer({ height, span }: { readonly height: number; readonly span: numb
   ) : null;
 }
 
+/** Whether the grid is busy: reading a sort or a search anew, or a command of its screen waiting. */
+function gridBusy(reading: boolean, commands: { readonly busy: boolean }): boolean {
+  return reading || commands.busy;
+}
+
 /** The width of the columns pinned at the start, which the other columns slide under. */
 function pinnedWidth<Row extends RowData>(table: GridTable<Row>): number {
   return table.getStartVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
@@ -803,7 +808,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-multiselectable={selection.multiselectable}
-        aria-busy={pending}
+        aria-busy={gridBusy(pending, screenCommands)}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,

@@ -349,9 +349,11 @@ describe("the moves through the reading anew they ask", () => {
     await screen.findByText("« Revue de conception » montée d’un rang.");
     await userEvent.keyboard(DOWN);
     expect(moved(client)).toHaveLength(1);
-    // The key is taken, and the active cell stays where it was.
+    // The key is taken, and the active cell stays where it was; the grid says it is busy.
     expect(cellAt(REVIEW, "label")).toHaveFocus();
+    expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "true");
     await reread(view, readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
+    expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "false");
     await userEvent.keyboard(DOWN);
     expect(moved(client)).toEqual([
       { node_ids: [id(DESKS)], parent_id: id(STUDIES), after_node_id: id(REVIEW), lock_version: 1 },
