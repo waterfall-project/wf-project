@@ -400,9 +400,19 @@ describe("the parts of the revision the screen reads in", () => {
 describe("the commands of the revision the screen reads in", () => {
   it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    for (const name of ["Créer une structure", "Marquer la révision"]) {
+    for (const name of [
+      "Fusionner une structure",
+      "Marquer la révision",
+      "Abandonner la révision",
+    ]) {
       expect(offered(page, name)).toBe("available");
     }
+    // The draft carries amendment 2, not merged: no other one opens until it is, and the command
+    // says the condition it lacks (#1195).
+    expect(offered(page, "Créer une structure")).toBe("unavailable");
+    expect(text(page)).toContain(
+      "Créer une structure Condition non remplie : aucun avenant non fusionné.",
+    );
   });
 
   it("offers no command of modification on a marked revision [WF-IHM-0020-A]", async () => {

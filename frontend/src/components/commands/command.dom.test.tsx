@@ -201,8 +201,14 @@ describe("a command of a revision", () => {
 
   it("is offered for modification on a draft, and not on a marked revision [WF-IHM-0020-A]", () => {
     const draft = french(revisionCommands("revision"));
-    expect(screen.getByRole("button", { name: "Créer une structure" })).not.toHaveAttribute(
-      "aria-disabled",
+    for (const name of ["Fusionner une structure", "Abandonner la révision"]) {
+      expect(screen.getByRole("button", { name })).not.toHaveAttribute("aria-disabled");
+    }
+    // The draft carries amendment 2, not merged: no other one opens until it is (#1195).
+    const create = screen.getByRole("button", { name: "Créer une structure" });
+    expect(create).toHaveAttribute("aria-disabled", "true");
+    expect(create).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: aucun avenant non fusionné.",
     );
     draft.unmount();
 
