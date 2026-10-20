@@ -57,13 +57,10 @@ import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { LocalTime, useLocalTimestamp } from "@/components/local-time";
+import { useNoteMessage } from "@/components/notices/message-history";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
-import {
-  ANOTHER_OBJECT,
-  focusBack,
-  type Said,
-  WrittenRegion,
-} from "@/components/reference/commands";
+import { ANOTHER_OBJECT, focusBack, WrittenRegion } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
 import { afterReveal, useTrackTask } from "@/components/tasks/task-tracker";
@@ -96,7 +93,7 @@ interface Commands {
   readonly shown: readonly Backup[];
   readonly answer: (answer: Backup) => void;
   readonly said: Said | undefined;
-  readonly say: (text: string) => void;
+  readonly say: Say;
   readonly opened: Opened | undefined;
   readonly open: (opened: Opened | undefined) => void;
 }
@@ -131,7 +128,7 @@ export function BackupCommands({
   readonly children: ReactNode;
 }) {
   const [held, setHeld] = useState<Held>(() => ({ reading: backups, answers: new Map() }));
-  const [said, setSaid] = useState<Said>();
+  const [said, say] = useSaid();
   const [opened, open] = useState<Opened>();
   let current = held;
   if (held.reading !== backups) {
@@ -152,13 +149,11 @@ export function BackupCommands({
         }));
       },
       said,
-      say: (text) => {
-        setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-      },
+      say,
       opened,
       open,
     }),
-    [reading, answers, said, opened],
+    [reading, answers, said, say, opened],
   );
   return <ListCommands value={commands}>{children}</ListCommands>;
 }
@@ -192,7 +187,8 @@ function StartBackupButton() {
           const outcome = await held(startBackup());
           if (outcome.kind === "done") {
             track(outcome.data, { command: startBackup });
-            commands?.say(t("started"));
+            // The tracker notes the task handed over: the history has it once.
+            commands?.say(t("started"), { noted: false });
           } else {
             list?.report({ outcome, generation, names: {}, target: "start" });
           }
@@ -241,7 +237,7 @@ function UnavailableCommand({
       name={name}
       offer={offer}
       onPress={(unmet) => {
-        commands?.say(t("unavailable", { command: name, unmet }));
+        commands?.say(t("unavailable", { command: name, unmet }), { noted: false });
       }}
     >
       {children}
@@ -289,6 +285,7 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
           t(outcome.data.is_retained ? "retainedSaid" : "releasedSaid", {
             date: formatTimestamp(backup.taken_at, locale),
           }),
+          { object: formatTimestamp(backup.taken_at, locale) },
         );
       } else {
         list?.report({ outcome, generation, names: {}, target: `retain ${backup.backup_id}` });
@@ -554,6 +551,7 @@ function deposited(upload: FileUpload): RestoreSubject | undefined {
  */
 export function BackupDeposit() {
   const t = useTranslations("admin.deposit");
+  const locale = useLocale();
   const held = useHeldCommand();
   const field = useId();
   const restore = useRef<HTMLButtonElement>(null);
@@ -580,6 +578,20 @@ export function BackupDeposit() {
     });
   };
   const subject = upload === undefined ? undefined : deposited(upload);
+  // The deposit done, noted in the history of the messages: the date in the time of the workstation.
+  useNoteMessage(
+    upload,
+    upload === undefined || subject === undefined
+      ? undefined
+      : {
+          tone: "success",
+          sentence: t.markup("deposited", {
+            name: upload.filename,
+            time: () => formatTimestamp(subject.takenAt, locale),
+          }),
+          object: upload.filename,
+        },
+  );
   return (
     <section aria-label={t("title")} className="shrink-0 space-y-2 text-sm">
       <h2 className="text-base font-semibold">{t("title")}</h2>

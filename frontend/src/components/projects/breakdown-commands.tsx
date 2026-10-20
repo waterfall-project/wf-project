@@ -51,9 +51,10 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { UnmetConditions, useUnmet } from "@/components/commands/command";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import type { RowCommands } from "@/components/grid/undo-commands";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { WritingNote } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuLabel } from "@/components/ui/context-menu";
@@ -134,7 +135,7 @@ interface Refusal {
 interface Commands {
   readonly editing: BreakdownEditing;
   readonly answered: WorkBreakdown | undefined;
-  readonly said: { readonly text: string; readonly count: number } | undefined;
+  readonly said: Said | undefined;
   /** A refusal answered once the dialog is gone, or of a deletion, told above the grid. */
   readonly refusal: Refusal | undefined;
   readonly opened: Opened | undefined;
@@ -142,7 +143,7 @@ interface Commands {
   readonly writing: boolean;
   readonly answer: (reading: WorkBreakdown) => void;
   readonly write: (writing: boolean) => void;
-  readonly say: (text: string) => void;
+  readonly say: Say;
   readonly refuse: (refusal: Refusal | undefined) => void;
   readonly open: (gesture: Gesture, trigger: HTMLElement | undefined) => void;
   /** Close the dialog; given an opening, only if it is still the one open. */
@@ -193,7 +194,7 @@ export function BreakdownCommands({
   readonly children: ReactNode;
 }) {
   const [answered, setAnswered] = useState<WorkBreakdown>();
-  const [said, setSaid] = useState<Commands["said"]>();
+  const [said, say] = useSaid();
   const [refusal, refuse] = useState<Refusal>();
   const [opened, setOpened] = useState<Opened>();
   // How many times a dialog was opened: what tells an opening from the next.
@@ -213,9 +214,7 @@ export function BreakdownCommands({
         answer: (reading) => {
           setAnswered((before) => (before === undefined ? reading : newer(before, reading)));
         },
-        say: (text) => {
-          setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-        },
+        say,
         open: (gesture, trigger) => {
           // A gesture is made on the reading whole, the newer one answered after it.
           const from = editing.whole === undefined ? undefined : newer(editing.whole, answered);
@@ -240,7 +239,7 @@ export function BreakdownCommands({
           );
         },
       },
-    [editing, answered, said, refusal, opened, writing],
+    [editing, answered, said, say, refusal, opened, writing],
   );
   return <BreakdownContext value={commands}>{children}</BreakdownContext>;
 }
@@ -470,6 +469,7 @@ function useSend(commands: Commands, opened: Opened) {
   const t = useTranslations("projectLists.workBreakdown");
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<Refusal>();
+  const noteRefusal = useNoteRefusal();
   const open = useRef(true);
   useEffect(() => {
     open.current = true;
@@ -497,6 +497,8 @@ function useSend(commands: Commands, opened: Opened) {
         } else if (open.current && gesture.kind !== "delete") {
           const { field, refusal: rest } = split(answer, sent, at);
           if (field !== undefined) {
+            // Said at its fields: noted whole, the notice of the rest noting nothing more.
+            noteRefusal(answer, { subject: told.label, parts: [rest?.outcome] });
             onField(field);
           }
           setRefusal(rest);

@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { RESTORATION_POLL } from "@/components/system/maintenance";
 import { expectAccessible } from "@/test/axe";
 import { backupList, backups, bodies, dated, KEPT, LAST_NIGHT, row } from "@/test/backups";
@@ -93,6 +94,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -214,6 +216,13 @@ describe("the restoration of the platform", () => {
       `sauvegarde du ${dated(LAST_NIGHT)}, vérifiée`,
     );
     expect(within(dialog).getAllByRole("alert")).toHaveLength(1);
+    // Said at the date, out of a notice, and kept in the history of the messages [WF-IHM-0080-A].
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Cette opération demande une confirmation explicite.",
+      }),
+    ]);
     expect(bodies(client, RESTORE)).toHaveLength(1);
     expect(router.refresh).toHaveBeenCalledOnce();
     expect(within(dialog).getByRole("button", { name: "Annuler" })).toBeEnabled();

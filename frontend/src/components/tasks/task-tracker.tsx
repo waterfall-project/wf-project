@@ -8,7 +8,8 @@
  * motive, which the same command can run again — whatever screen the user went to meanwhile.
  *
  * One tracker for every kind of task, in the root layout: a navigation within the application
- * keeps it, and nothing of it blocks the screen — no dialog, no control disabled. A full
+ * keeps it, and nothing of it blocks the screen while its panel is closed — no control disabled;
+ * open, the panel is a modal dialog, which the person closes when they will. A full
  * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`),
  * with what the user named them after; and, for a session, the tracker follows the tasks of its
  * user that still run, which the root layout reads and streams apart from the document
@@ -21,9 +22,9 @@
  * and takes it away from the address (`result-refusal.ts`).
  *
  * Its panel is a sheet along the right edge of the window, which carries the history of the
- * messages of the session too (`message-history.ts`, #1043): a dialog, titled, which holds the focus
- * while open, and which Escape, its close button or the button of the bar close, the focus given
- * back to that button. The button opens it, naming the number of the tasks followed and of the
+ * messages of the session too (`message-history.ts`, #1043): a modal dialog, titled, which holds the
+ * focus while open, and which Escape, its close button or a click outside it close, the focus given
+ * back to the button of the bar. The button opens it, naming the number of the tasks followed and of the
  * refusals not read yet, which its badges show. Nothing opens it by itself but the refusal of a
  * result the browser came back with, whose download left from it. A task handed over, or ended, is
  * said under the bar, in the flow of the page, on whatever screen the user is: the last of them, in

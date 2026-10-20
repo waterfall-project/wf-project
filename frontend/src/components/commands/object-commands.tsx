@@ -106,6 +106,7 @@ export function RevisionCommands({ revision }: { readonly revision: Revision }) 
               label={t(`enums.RevisionCommand.${offer.command}`)}
               icon={commandIcon(REVISION_COMMAND_ICONS[offer.command])}
               names={names}
+              subject={names[revision.revision_id]}
             />
           )}
         </li>

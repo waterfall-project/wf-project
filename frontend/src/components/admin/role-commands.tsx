@@ -31,8 +31,10 @@ import {
 import { createAccessRole, deleteAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
 import { UNAVAILABLE } from "@/components/commands/offer";
+import { useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { parsedEntry } from "@/components/grid/cell-values";
+import { useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import {
@@ -74,11 +76,8 @@ const DeletionsContext = createContext<Deletions | undefined>(undefined);
  */
 export function RoleCommands({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("admin.accessRoles");
-  // What the last write said, and the how-many-th it was.
-  const [said, setSaid] = useState<{ readonly text: string; readonly count: number }>();
-  const say = useCallback((text: string) => {
-    setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-  }, []);
+  // What the last write said, and the how-many-th it was, noted in the history of the messages.
+  const [said, say] = useSaid();
   return (
     <RoleAnswers>
       <Reactivations reads={ROLE_READS}>
@@ -195,6 +194,7 @@ export function CreateRole() {
   const list = useListReport();
   const [label, setLabel] = useState("");
   const [refused, setRefused] = useState<string>();
+  const noteRefusal = useNoteRefusal();
   const [pending, startTransition] = useTransition();
   const input = useRef<HTMLInputElement>(null);
   const field = useId();
@@ -232,6 +232,8 @@ export function CreateRole() {
             list?.report({ outcome, generation, names: {} });
             return;
           }
+          // Said at its field, out of a notice: noted in the history of the messages.
+          noteRefusal(outcome, { subject: asked });
           setRefused(problemMessage(own, { locale, messages }));
           input.current?.focus();
         });

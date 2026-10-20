@@ -17,22 +17,26 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import type { Outcome } from "@/api/problem";
-import { holdNavigation } from "@/navigation/held-writes";
+import { shownScreen } from "@/components/notices/message-history";
+import { useShownProjectLabel } from "@/components/shell/shown-project";
+import { holdNavigation, wasApplied, type WriteAnswer } from "@/navigation/held-writes";
 
 import { rejected } from "./rejection";
 
 /**
  * Hold the navigations of the page while the writes of the screen answer — each a promise of
- * whether it was applied —, until the screen goes, or until what tells their refusal changes
- * (`scope`): a list that tells a refusal on the reading it was asked from alone releases its writes
- * once it is read otherwise. A write refused once released is told by the bar of the shell, unless
- * `told` — given with the write, read as the refusal arrives — says that what asked it tells it
- * still: a dialog left open over the list, at its fields.
+ * whether it was applied, or of its outcome —, until the screen goes, or until what tells their
+ * refusal changes (`scope`): a list that tells a refusal on the reading it was asked from alone
+ * releases its writes once it is read otherwise. A write refused once released is told by the bar
+ * of the shell, and noted with the screen it was made on, unless `told` — given with the write, read
+ * as the refusal arrives — says that what asked it tells it still: a dialog left open over the list,
+ * at its fields.
  */
 export function useHeldWrites(
   scope?: string,
-): (write: Promise<boolean>, told?: () => boolean) => void {
+): (write: Promise<WriteAnswer>, told?: () => boolean) => void {
   const releases = useRef(new Set<() => void>());
+  const project = useShownProjectLabel();
   useEffect(() => {
     const held = releases.current;
     return () => {
@@ -42,20 +46,23 @@ export function useHeldWrites(
       held.clear();
     };
   }, [scope]);
-  return useCallback((write: Promise<boolean>, told?: () => boolean) => {
-    const release = holdNavigation(write, told);
-    releases.current.add(release);
-    // An applied write holds nothing more; a refused one holds the click of its gesture, as long
-    // as the screen tells it.
-    void write.then(
-      (applied) => {
-        if (applied) {
-          releases.current.delete(release);
-        }
-      },
-      () => undefined,
-    );
-  }, []);
+  return useCallback(
+    (write: Promise<WriteAnswer>, told?: () => boolean) => {
+      const release = holdNavigation(write, told, shownScreen(project()));
+      releases.current.add(release);
+      // An applied write holds nothing more; a refused one holds the click of its gesture, as long
+      // as the screen tells it.
+      void write.then(
+        (answer) => {
+          if (wasApplied(answer)) {
+            releases.current.delete(release);
+          }
+        },
+        () => undefined,
+      );
+    },
+    [project],
+  );
 }
 
 /**
@@ -71,10 +78,7 @@ export function useHeldCommand(
   return useCallback(
     <T>(command: Promise<Outcome<T>>, told?: () => boolean) => {
       const outcome = command.catch(rejected);
-      hold(
-        outcome.then((answer) => answer.kind === "done"),
-        told,
-      );
+      hold(outcome, told);
       return outcome;
     },
     [hold],

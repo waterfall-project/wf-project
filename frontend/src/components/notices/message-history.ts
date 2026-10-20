@@ -88,8 +88,11 @@ let noted = new WeakSet<object>();
 /** Those the history is told to when it changes. */
 const listeners = new Set<() => void>();
 
-/** Whether a value read back is a screen kept here. */
-function isScreen(value: unknown): value is MessageScreen {
+/**
+ * Whether a value read back is a screen kept here: an address of the application, which a link leads
+ * back to — never one of another site, `//elsewhere` or `/\elsewhere`, which a browser reads as such.
+ */
+export function isScreen(value: unknown): value is MessageScreen {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -97,6 +100,8 @@ function isScreen(value: unknown): value is MessageScreen {
   return (
     typeof screen.href === "string" &&
     screen.href.startsWith("/") &&
+    !screen.href.startsWith("//") &&
+    !screen.href.includes("\\") &&
     (screen.project === undefined || typeof screen.project === "string")
   );
 }
@@ -181,13 +186,25 @@ export function shownScreen(project: string | undefined): MessageScreen {
 
 /**
  * Note the outcome a notice told, once: `source` is the outcome itself — the same object however
- * often it is rendered —, and an outcome noted already notes nothing more.
+ * often it is rendered —, and an outcome noted already notes nothing more. `parts` are the parts of
+ * it another notice tells — the rest of a refusal said at its fields, told under the form —: noted
+ * with it, the other notice notes nothing more.
  */
-export function noteMessage(source: object, draft: MessageDraft, project?: string): void {
+export function noteMessage(
+  source: object,
+  draft: MessageDraft,
+  project?: string,
+  parts: readonly (object | undefined)[] = [],
+): void {
   if (noted.has(source)) {
     return;
   }
   noted.add(source);
+  for (const part of parts) {
+    if (part !== undefined) {
+      noted.add(part);
+    }
+  }
   const { messages, seen } = readMessages();
   const message: Message = {
     id: (messages.at(-1)?.id ?? 0) + 1,

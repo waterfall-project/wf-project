@@ -27,7 +27,7 @@
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { createContext, type ReactNode, useContext, useId } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useId, useMemo } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -38,10 +38,16 @@ import {
   namedLines,
   namedProjects,
   problemMessage,
+  type ProblemText,
   projectName,
   type Say,
 } from "@/i18n/problem";
-import { useNoteMessage } from "@/components/notices/message-history";
+import {
+  type MessageDraft,
+  type MessageScreen,
+  noteMessage,
+  useNoteMessage,
+} from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { asksIdentifiers, loginHref } from "@/navigation/login";
 
@@ -270,6 +276,41 @@ function told(
 }
 
 /**
+ * What the history of the messages notes of a refusal told: about the object given, else the one in
+ * conflict.
+ */
+function draftOf(
+  refusal: Told,
+  subject: string | undefined,
+  screen?: MessageScreen,
+  detail?: string,
+): MessageDraft {
+  return {
+    tone: "refusal",
+    sentence: refusal.sentence,
+    detail,
+    object: subject ?? refusal.name,
+    reference: "problem" in refusal.refusal ? referenceOf(refusal.refusal.problem) : undefined,
+    screen,
+  };
+}
+
+/** How a refusal is told, in the language of the moment, with the names the screen lends. */
+function useSay(known: ObjectNames) {
+  const t = useTranslations("outcome");
+  const locale = useLocale();
+  const messages = useMessages();
+  return useMemo(
+    () => ({
+      unreachable: t("unreachable"),
+      problem: (problem: ProblemText) =>
+        problemMessage(problem, { locale, messages, names: known }),
+    }),
+    [t, locale, messages, known],
+  );
+}
+
+/**
  * The refusal a notice tells, noted in the history of the messages (`message-history.ts`) once
  * told — with the object it is about, the one the screen gives, else the object in conflict.
  */
@@ -278,27 +319,48 @@ function useTold(
   known: ObjectNames,
   subject: string | undefined,
 ): Told | undefined {
-  const t = useTranslations("outcome");
-  const locale = useLocale();
-  const messages = useMessages();
-  const refusal = told(outcome, known, {
-    unreachable: t("unreachable"),
-    problem: (problem) => problemMessage(problem, { locale, messages, names: known }),
-  });
+  const refusal = told(outcome, known, useSay(known));
   useNoteMessage(
     refusal?.refusal,
-    refusal === undefined
-      ? undefined
-      : {
-          tone: "refusal",
-          sentence: refusal.sentence,
-          object: subject ?? refusal.name,
-          reference:
-            "problem" in refusal.refusal ? referenceOf(refusal.refusal.problem) : undefined,
-        },
+    refusal === undefined ? undefined : draftOf(refusal, subject),
     useShownProjectLabel(),
   );
   return refusal;
+}
+
+/** What a refusal noted without a notice is about, where it was made, and what tells the rest. */
+export interface NotedRefusal {
+  /** What the command was about, by its name; the object in conflict otherwise. */
+  readonly subject?: string | undefined;
+  /** The screen it was made on, when it is not the one shown: a screen left since. */
+  readonly screen?: MessageScreen | undefined;
+  /** The parts of it a notice tells besides (`noteMessage`), which note nothing more. */
+  readonly parts?: readonly (object | undefined)[] | undefined;
+}
+
+/**
+ * Note in the history of the messages a refusal the screen tells otherwise than by a notice — at the
+ * fields of a form, by the bar of the shell —, in the sentence a notice would tell it in, once, what
+ * its fields refuse in a second sentence: the same outcome told by a notice after it notes nothing
+ * more. Nothing for an outcome done.
+ */
+export function useNoteRefusal(): (outcome: Outcome<unknown>, noted?: NotedRefusal) => void {
+  const known = useContext(Known);
+  const say = useSay(known);
+  const project = useShownProjectLabel();
+  return useCallback(
+    (outcome: Outcome<unknown>, { subject, screen, parts }: NotedRefusal = {}) => {
+      const refusal = told(outcome, known, say);
+      if (refusal === undefined) {
+        return;
+      }
+      const fields = "problem" in outcome ? (outcome.problem.fields ?? []) : [];
+      const detail =
+        fields.length === 0 ? undefined : fields.map((field) => say.problem(field)).join(" ");
+      noteMessage(outcome, draftOf(refusal, subject, screen, detail), project(), parts);
+    },
+    [known, say, project],
+  );
 }
 
 /**

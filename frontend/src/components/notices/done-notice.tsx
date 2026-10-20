@@ -27,13 +27,15 @@ export interface DoneNoticeProps {
    * two outcomes, saved twice, is noted twice.
    */
   readonly of: object | undefined;
+  /** What the command was about, by its name, which the history of the messages notes. */
+  readonly subject?: string | undefined;
 }
 
 /** Render what the API has done, or the empty region that will say it. */
-export function DoneNotice({ title, children, of }: DoneNoticeProps) {
+export function DoneNotice({ title, children, of, subject }: DoneNoticeProps) {
   useNoteMessage(
     title === undefined ? undefined : of,
-    title === undefined ? undefined : { tone: "success", sentence: title },
+    title === undefined ? undefined : { tone: "success", sentence: title, object: subject },
     useShownProjectLabel(),
   );
   return (

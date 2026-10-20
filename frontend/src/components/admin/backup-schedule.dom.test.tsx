@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -636,6 +637,7 @@ describe("the schedule of the backups", () => {
 describe("the test of an external location", () => {
   beforeEach(() => {
     process.env.TZ = "UTC";
+    forgetMessages();
   });
 
   it("tests the location chosen in the folder typed, and says the witness file written then erased", async () => {
@@ -647,6 +649,14 @@ describe("the test of an external location", () => {
         "« secours-lyon » éprouvé le 3 juin 2026, 14:05, dossier waterfall/sauvegardes : le fichier témoin a été écrit puis effacé.",
       );
     });
+    // Kept in the history of the messages, a success, about the location tested [WF-IHM-0080-A].
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: within(form).getByRole("status").textContent,
+        object: "secours-lyon",
+      }),
+    ]);
     expect(client.calls.map(({ path, body }) => ({ path, body }))).toEqual([
       {
         path: "/external-backup-locations/secours-lyon/test",
@@ -668,6 +678,10 @@ describe("the test of an external location", () => {
         "« nas-siege » éprouvé le 3 juin 2026, 14:05, à sa racine : échec — Accès refusé.",
       );
     });
+    // Kept in the history of the messages, a refusal [WF-IHM-0080-A].
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "refusal", object: "nas-siege" }),
+    ]);
     expect(client.calls.map(({ path, body }) => ({ path, body }))).toEqual([
       { path: "/external-backup-locations/nas-siege/test", body: {} },
     ]);

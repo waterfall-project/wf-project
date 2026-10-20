@@ -10,7 +10,8 @@ import type { components } from "@/api/generated/schema";
 import { useHeldWrites } from "@/components/commands/held";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
-import { dismissLeftRefusals } from "@/navigation/held-writes";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
+import { dismissLeftRefusals, type WriteAnswer } from "@/navigation/held-writes";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
@@ -480,10 +481,10 @@ describe("the shell", () => {
   });
 });
 
-/** A screen that makes a write, answered when the test says: whether it was applied. */
-function writing(): { Screen: () => ReactElement; answer: (applied: boolean) => void } {
-  let answer: (applied: boolean) => void = () => undefined;
-  const write = new Promise<boolean>((resolve) => {
+/** A screen that makes a write, answered when the test says: whether it was applied, or its outcome. */
+function writing(): { Screen: () => ReactElement; answer: (answer: WriteAnswer) => void } {
+  let answer: (answer: WriteAnswer) => void = () => undefined;
+  const write = new Promise<WriteAnswer>((resolve) => {
     answer = resolve;
   });
   /** The screen, its write made once mounted. */
@@ -523,6 +524,44 @@ describe("the writes refused once their screen is gone (#863)", () => {
     await expectAccessible(view.container);
     await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
     expect(bar().queryByRole("alert")).toBeNull();
+  });
+
+  it("are each noted in the history of the messages, in the sentence of their refusal, with the object it names and the screen the write was made on [WF-IHM-0080-A]", async () => {
+    forgetMessages();
+    const made = `/projects/${PROJECT}/settings`;
+    window.history.replaceState(null, "", made);
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    window.history.replaceState(null, "", "/system");
+    visit("/system");
+    view.rerender(inShell({}, <main />));
+    expect(readMessages().messages).toEqual([]);
+
+    await act(async () => {
+      answer({
+        kind: "refused",
+        problem: {
+          code: "ALREADY_EXISTS",
+          status: 409,
+          params: { conflicting_object_id: REVISION, conflicting_object_label: "Lot A" },
+        },
+        conflictingObjectId: REVISION,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().getByRole("alert")).toBeInTheDocument();
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Cet élément existe déjà.",
+        object: "Lot A",
+        screen: { href: made, project: undefined },
+      }),
+    ]);
+    // Rendered again, the bar notes nothing more.
+    view.rerender(inShell({}, <main />));
+    expect(readMessages().messages).toHaveLength(1);
+    window.history.replaceState(null, "", "/");
   });
 
   it("say nothing of a write applied once its screen was gone", async () => {

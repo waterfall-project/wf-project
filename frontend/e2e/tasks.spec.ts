@@ -67,6 +67,12 @@ test("marking a revision gives the hand back, shows its progress, and tells on a
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
   await expect(button).toBeFocused();
+  // So does a click outside it, on the page its overlay covers, the focus back on its button.
+  await button.click();
+  await expect(panel).toBeVisible();
+  await page.mouse.click(10, 200);
+  await expect(panel).toHaveCount(0);
+  await expect(button).toBeFocused();
 
   // The user goes to another screen meanwhile, within the application — the document stays,
   // as the marker left on it shows —; the end of the marking is announced there.

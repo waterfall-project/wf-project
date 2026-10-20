@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ import { expectAccessible } from "@/test/axe";
 import { DoneNotice } from "./done-notice";
 import {
   forgetMessages,
+  isScreen,
   markMessagesSeen,
   MESSAGES_KEPT,
   MESSAGES_KEY,
@@ -21,6 +22,7 @@ import {
   unreadRefusals,
 } from "./message-history";
 import { MessageList } from "./message-list";
+import { type Say, useSaid } from "./said";
 
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -220,5 +222,62 @@ describe("the history of the messages", () => {
     render(french(<MessageList onFollow={vi.fn()} />));
     expect(listed()).toEqual([]);
     expect(screen.getByText("Aucun message dans cette session.")).toBeVisible();
+  });
+});
+
+describe("the screens the history keeps", () => {
+  it.each([
+    "//elsewhere.example/projects",
+    "/\\elsewhere.example",
+    "https://elsewhere.example",
+    "projects",
+  ])("keeps no address of another site, or none of the application: %s", (href) => {
+    expect(isScreen({ href })).toBe(false);
+  });
+
+  it("keeps an address of the application, with the project it showed", () => {
+    expect(isScreen({ href: `${SCREEN}?sort=label`, project: "Tramway" })).toBe(true);
+  });
+});
+
+describe("a status said by hand (useSaid)", () => {
+  /** A screen that says in its status what its commands did, and hands its way of saying over. */
+  function Saying({ onSay }: { readonly onSay: (say: Say) => void }) {
+    const [said, say] = useSaid();
+    onSay(say);
+    return (
+      <p role="status">{said === undefined ? null : <span key={said.count}>{said.text}</span>}</p>
+    );
+  }
+
+  it("says what a command did, and notes it in the history with the object it is about [WF-IHM-0080-A]", () => {
+    let say: Say = () => undefined;
+    render(<Saying onSay={(given) => (say = given)} />);
+    act(() => {
+      say("« Lot A » enregistré.", { object: "Lot A" });
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("« Lot A » enregistré.");
+    act(() => {
+      say("« Lot A » enregistré.", { object: "Lot A" });
+    });
+    // The same text said twice is two outcomes, noted twice.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: "« Lot A » enregistré.",
+        object: "Lot A",
+      }),
+      expect.objectContaining({ id: 2, sentence: "« Lot A » enregistré." }),
+    ]);
+  });
+
+  it("notes nothing of what an unavailable command pressed lacks: nothing was sent", () => {
+    let say: Say = () => undefined;
+    render(<Saying onSay={(given) => (say = given)} />);
+    act(() => {
+      say("Désactiver : il faut une révision en cours.", { noted: false });
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Désactiver");
+    expect(readMessages().messages).toEqual([]);
   });
 });

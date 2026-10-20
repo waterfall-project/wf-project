@@ -290,7 +290,7 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
         onClick={(event) => {
           if (lacking !== undefined) {
             // An unavailable command never runs: the press says the condition it lacks.
-            writes.say(told("unmet", { command, condition: lacking }));
+            writes.say(told("unmet", { command, condition: lacking }), { noted: false });
             return;
           }
           if (!held) {
@@ -347,7 +347,7 @@ export function AnonymizeCommand({ user }: { readonly user: User }) {
         onClick={() => {
           if (lacking !== undefined) {
             // An unavailable command never runs: the press says the condition it lacks.
-            writes.say(told("unmet", { command: named, condition: lacking }));
+            writes.say(told("unmet", { command: named, condition: lacking }), { noted: false });
             return;
           }
           if (!held) {

@@ -130,7 +130,7 @@ function Report({ plan, block }: { readonly plan: PastePlan; readonly block: Pas
 
 /** What a paste applied did not write, and how to forget it. */
 export interface PasteAppliedNoticeProps {
-  /** What the last paste applied did not write; none when it wrote every row, or before any. */
+  /** What the last paste applied wrote and did not write; none before any. */
   readonly applied: PasteReport | undefined;
   /** Forget it. */
   readonly onClear: () => void;
@@ -142,7 +142,9 @@ export interface PasteAppliedNoticeProps {
  * Tell, once a paste is applied, where the block was pasted from, how many rows the server wrote and
  * the rows it did not, each with its place in the block, its cells and its reason — those the
  * confirmation refused judging the accepted rows again among them —, until the user dismisses it;
- * nothing when every row was written. The rows refused are a region of their own, named, described
+ * nothing when every row was written, the grid showing them. Either is noted in the history of the
+ * messages: a success when every row was written, a refusal otherwise, with how many rows were
+ * refused. The rows refused are a region of their own, named, described
  * by what the alert says, reached by the keyboard, whose height is bounded: they scroll, and the grid
  * under them stays in the window, the sentence and the command to dismiss staying out of the scroll.
  * The alert says where the block was pasted from and how many rows were written and refused, never
@@ -160,13 +162,17 @@ export function PasteAppliedNotice({ applied, onClear, onDismissed }: PasteAppli
           column: headingOf(applied.target.column, (key) => t(`columns.${key}`)),
           count: applied.written,
         });
-  // Told only when the server refused rows: a refusal, for the history of the messages.
+  const refused = applied === undefined ? 0 : refusedRows(applied.rejected);
   useNoteMessage(
     applied,
-    sentence === undefined ? undefined : { tone: "refusal", sentence },
+    sentence === undefined
+      ? undefined
+      : refused === 0
+        ? { tone: "success", sentence }
+        : { tone: "refusal", sentence, detail: t("paste.rejectedCount", { count: refused }) },
     useShownProjectLabel(),
   );
-  if (applied === undefined) {
+  if (applied === undefined || refused === 0) {
     return null;
   }
   return (

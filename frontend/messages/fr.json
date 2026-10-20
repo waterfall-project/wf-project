@@ -277,6 +277,7 @@
       "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
       "rejectedListed": "{count, plural, one {# ligne est refusée, listée ci-dessous.} other {# lignes sont refusées, listées ci-dessous.}}",
+      "rejectedCount": "{count, plural, one {# ligne a été refusée.} other {# lignes ont été refusées.}}",
       "rejectedRow": "Ligne {row} du bloc — {reason}",
       "appliedFrom": "Collage appliqué à partir de la ligne {row}, colonne « {column} » : {count, plural, =0 {aucune ligne n’a été écrite} one {# ligne a été écrite} other {# lignes ont été écrites}}.",
       "refusedRows": "Lignes refusées par le collage",

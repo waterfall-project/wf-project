@@ -149,6 +149,7 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
       <OutcomeNotice
         outcome={outcome}
         names={names}
+        subject={names[revision.revision_id]}
         onClear={() => {
           setOutcome(undefined);
         }}

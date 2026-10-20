@@ -224,8 +224,10 @@ function ExitCommand({
         onClear={() => {
           setOutcome(undefined);
         }}
+        subject={names[projectId]}
       />
       <DoneNotice
+        subject={names[projectId]}
         title={
           done === undefined
             ? undefined

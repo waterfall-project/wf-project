@@ -31,6 +31,7 @@ import { type ComponentType, type ReactNode, useId, useRef, useState } from "rea
 import { updateReferenceSettings } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
 import { UNAVAILABLE } from "@/components/commands/offer";
+import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
@@ -281,12 +282,6 @@ function IndicatorForm({ settings, ...handlers }: SettingsFormProps) {
   );
 }
 
-/** What the last write did, and the how-many-th it was. */
-interface Said {
-  readonly text: string;
-  readonly count: number;
-}
-
 /**
  * The settings of a screen with the command that modifies them and its form: the answer of the
  * server shown while it is newer than the settings read, what the last write did said beside the
@@ -314,7 +309,8 @@ function SettingsWriter({
   const openings = useRef(0);
   // Whether a write is under way: the command waits for its answer, which brings the version.
   const [writing, setWriting] = useState(false);
-  const [said, setSaid] = useState<Said>();
+  // What the last write did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const trigger = useRef<HTMLButtonElement>(null);
   const why = useId();
   const shown =
@@ -356,7 +352,7 @@ function SettingsWriter({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
-            setSaid((before) => ({ text: saved, count: (before?.count ?? 0) + 1 }));
+            say(saved);
             // A guard of the waiting command (`onWriting`), which serves in no normal use: no other
             // opening can come before the answer.
             setEditing((current) => (current?.opening === editing.opening ? undefined : current));

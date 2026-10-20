@@ -50,6 +50,8 @@ import { Command, useUnmet } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
+import { noteMessage } from "@/components/notices/message-history";
+import { useSaid } from "@/components/notices/said";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { Reactivations } from "@/components/reference/reactivation";
 import {
@@ -95,6 +97,7 @@ function useIdentityFields(): FormField[] {
  */
 export function CreateProject({ ready }: { readonly ready: boolean }) {
   const t = useTranslations("projectForm");
+  const form = useTranslations("reference.form");
   const errors = useTranslations("errors");
   const router = useRouter();
   const identity = useIdentityFields();
@@ -145,11 +148,19 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
           target={undefined}
           answering={(answer) => answer}
           onDone={(project) => {
+            // Noted with the screen of the project created, where a link of the history leads.
+            const href = `/projects/${project.project_id}`;
+            noteMessage(project, {
+              tone: "success",
+              sentence: form("created", { name: project.label, kind: "project" }),
+              object: project.label,
+              screen: { href, project: project.label },
+            });
             if (!shown.current) {
               return;
             }
             setOpen(false);
-            router.push(`/projects/${project.project_id}`);
+            router.push(href);
           }}
           onClose={() => {
             setOpen(false);
@@ -263,6 +274,7 @@ function UpdateForm({
     <ReferenceForm<Project>
       kind="project"
       title={t("modifyTitle", { name: project.label })}
+      subject={project.label}
       hint={t("modifyHint")}
       creating={false}
       fields={fields}
@@ -288,12 +300,6 @@ interface Editing {
   readonly opening: number;
 }
 
-/** What the last modification did, and the how-many-th it was. */
-interface Said {
-  readonly text: string;
-  readonly count: number;
-}
-
 /**
  * The identity and the facts of a project on its settings, the command that modifies them as the
  * project lists it, and its form; the answer of the server shown while it is newer than the project
@@ -311,7 +317,8 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
   const openings = useRef(0);
   // Whether a write is under way: the command waits for its answer, which brings the version.
   const [writing, setWriting] = useState(false);
-  const [said, setSaid] = useState<Said>();
+  // What the last modification did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const trigger = useRef<HTMLButtonElement>(null);
   const why = useId();
   // An answer is for this project alone — the page keys the section by it, and an answer for
@@ -361,7 +368,7 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
-            setSaid((before) => ({ text: t("saved"), count: (before?.count ?? 0) + 1 }));
+            say(t("saved"), { object: answer.label });
             // Closed if it is still the opening the answer was sent from, never a later one: a guard
             // of the waiting command (`onWriting`), which serves in no normal use — no other opening
             // can come before the answer.

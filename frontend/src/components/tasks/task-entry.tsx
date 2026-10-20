@@ -39,7 +39,7 @@ import {
 
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
-import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, SignIn, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { rejected } from "@/components/commands/rejection";
@@ -328,7 +328,9 @@ export interface TaskEntryProps {
 
 /**
  * Follow a task while it runs, whether its entry shows or not: the panel that shows the entries
- * comes and goes, the follow-up stays with the shell.
+ * comes and goes, the follow-up stays with the shell — and so does the history of the messages, where
+ * a refusal of the follow-up, or of a relaunch, is noted as it arrives, the panel closed or open:
+ * its entry tells it once the panel shows it, and notes nothing more.
  */
 export function TaskPolling({
   entry,
@@ -338,6 +340,14 @@ export function TaskPolling({
   readonly dispatch: Dispatch<TrackingEvent>;
 }) {
   usePolling(entry, dispatch);
+  const noteRefusal = useNoteRefusal();
+  const name = useTaskName(entry);
+  const { outcome } = entry;
+  useEffect(() => {
+    if (outcome !== undefined) {
+      noteRefusal(outcome, { subject: name });
+    }
+  }, [outcome, noteRefusal, name]);
   return null;
 }
 
@@ -435,6 +445,7 @@ export function TaskEntry({
         onClear={() => {
           dispatch({ type: "clear", key });
         }}
+        subject={name}
       />
     </div>
   );

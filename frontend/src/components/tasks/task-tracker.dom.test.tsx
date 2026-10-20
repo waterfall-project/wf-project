@@ -633,6 +633,16 @@ describe("the history of the messages", () => {
     closePanel();
     expect(panelButton()).toHaveAccessibleName("Tâches et messages\u00A0: 1 tâche suivie");
   });
+
+  it("counts the API out of reach during the follow-up while the panel stays closed [WF-IHM-0080-A]", async () => {
+    server.client = unreachable();
+    await started(task("task_mark_queued"));
+    await tick();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(panelButton()).toHaveAccessibleName(
+      "Tâches et messages\u00A0: 1 tâche suivie, 1 refus non lu",
+    );
+  });
 });
 
 describe("the follow-up across a full reload of the tab", () => {

@@ -335,8 +335,9 @@ ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation pro
 (`router.push`), « Précédent » et « Suivant » du navigateur, un lien qui ouvre ailleurs —
 autre onglet, touche de modification, téléchargement, autre site. Une écriture encore en route quand
 son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
-survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `leftRefusals` de
-`held-writes.ts`, #863) ; une écriture refusée avant le départ de son écran y a été dite, et ne
+survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `refusedLeft` de
+`held-writes.ts`, #863), et l'inscrit dans l'historique des messages avec son refus et l'écran
+d'où elle était partie ; une écriture refusée avant le départ de son écran y a été dite, et ne
 l'est pas deux fois.
 Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion, désactivation, retrait
 des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du front et non une
@@ -1731,8 +1732,8 @@ serveur `readBackgroundTask`, en montre l'avancement, ajoute sa fin à un journa
 ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Son panneau est une
 feuille (`Sheet`) le long du bord droit de la fenêtre, qui porte aussi l'historique des messages
 (ci-dessous) : un dialogue modal titré « Tâches et messages », qui garde le focus tant qu'il est
-ouvert et que ferment Échap, son bouton de fermeture, le bouton de la barre ou « Recharger
-l'écran », le focus rendu à ce bouton. Le bouton de la barre (`TasksButton`) l'ouvre et dit, dans
+ouvert et que ferment Échap, son bouton de fermeture, un clic hors du panneau ou « Recharger
+l'écran », le focus rendu au bouton de la barre. Le bouton de la barre (`TasksButton`) l'ouvre et dit, dans
 son nom et ses pastilles, le nombre des tâches suivies et celui des refus non lus. Rien ne l'ouvre
 de lui-même, sauf le refus d'un résultat au retour du navigateur, dont le téléchargement est parti
 du panneau. Une tâche remise ou finie se dit sous la barre, dans le flux de la page, sur l'écran où
@@ -1779,25 +1780,44 @@ Une entrée (`Message`) garde :
   injoignable, une tâche échouée ou interrompue, des lignes refusées d'un collage sont des refus ;
 - **la phrase de l'avis**, telle qu'elle a été dite, dans la langue du moment : l'historique répète,
   il ne réécrit pas ; et, pour une tâche échouée, **le motif** en seconde phrase (`detail`) ;
-- **l'objet**, quand l'avis en nomme un : celui que l'écran donne (`subject` d'`OutcomeNotice`),
-  sinon l'objet en conflit, la tâche — son genre et le nom que l'utilisateur lui a donné —, la copie
-  externe éprouvée ;
+- **l'objet**, quand l'avis en nomme un : celui que l'écran donne — `subject` d'`OutcomeNotice`, de
+  `Command`, de `DoneNotice` et de `ReferenceForm` (l'objet modifié : une ligne du référentiel, un
+  projet, un sous-projet ; le projet d'une sortie du cycle de vie, la révision d'une commande de
+  révision), `object` de `useSaid` —, sinon l'objet en conflit, la tâche — son genre et le nom que
+  l'utilisateur lui a donné —, la copie externe éprouvée ;
 - **la référence de corrélation** d'une erreur inattendue (`INTERNAL_ERROR`, WF-OBS-0020) ;
 - **l'écran** : son adresse, où ramène un lien, et le projet qu'il montrait (`useShownProjectLabel`) ;
   le lien se nomme comme la fin du fil d'Ariane (`crumbsOf`), suivi du projet ; un écran que le fil
   ne nomme pas est « Écran d'origine ». La fin d'une tâche garde l'écran d'où elle a été lancée ;
   une tâche retrouvée — par la liste de l'API, après un rechargement — l'écran où sa fin est dite.
 
-Ce qui l'alimente : `OutcomeNotice`, pour chaque refus qu'il dit — les avis de la grille compris,
-qui passent par lui —, `PasteAppliedNotice` et `UnshownNotice` de la grille, `DoneNotice`, pour
-chaque succès qu'il confirme (son `of` : l'issue qu'il dit, une par enregistrement), le test d'une
-copie externe (`LocationTest`), et le suivi : une tâche remise (`useTrackTask`) et chaque fin de
-son journal. Chacun y inscrit l'issue une fois, quelle que soit la fréquence de ses rendus
-(l'identité de l'issue, `noteMessage`), dans un effet, sans rien annoncer : l'avis sur place reste
-l'alerte (`role="alert"`) ou le statut, et l'historique n'est pas une région vivante. Sur place,
-rien ne change. N'y entrent pas : un refus d'écriture partie d'un écran quitté (`LeftRefusals`),
-dont la retenue ne garde que le compte, et les statuts écrits à la main de quelques écrans
-(`role="status"` d'une liste du référentiel).
+Ce qui l'alimente — l'issue de chaque commande, succès comme refus :
+
+- **les refus** : `OutcomeNotice`, pour chaque refus qu'il dit — les avis de la grille compris, qui
+  passent par lui —, `UnshownNotice` de la grille ; un refus dit hors d'un avis, par
+  `useNoteRefusal`, dans la phrase même qu'un avis lui donnerait : un refus dit aux champs d'un
+  formulaire (`ReferenceForm`, la création d'un compte, d'un rôle, la liste des contributeurs, le
+  découpage), la date refusée d'une restauration, le refus d'une écriture partie d'un écran quitté,
+  que dit la barre (`LeftRefusals`) avec l'écran d'où elle était partie, et celui du suivi d'une
+  tâche, inscrit par `TaskPolling`, monté avec la coquille, panneau fermé ;
+- **les succès** : chaque statut d'un écran qui dit ce qu'une écriture a fait, par `useSaid`
+  (`components/notices/said.ts`), seul point d'entrée de ces statuts, qui le dit et l'inscrit ;
+  `DoneNotice` (son `of` : l'issue qu'il dit, une par enregistrement) ; le squelette engendré, le
+  dépôt d'une sauvegarde, le test d'une copie externe (`LocationTest`) ;
+- **les collages** : `PasteAppliedNotice`, un succès quand toutes les lignes sont écrites — rien ne
+  se dit alors sur place, la grille les montre —, un refus sinon, le nombre des lignes refusées en
+  seconde phrase ;
+- **le suivi** : une tâche remise (`useTrackTask`) et chaque fin de son journal.
+
+Chacun y inscrit l'issue une fois, quelle que soit la fréquence de ses rendus (l'identité de l'issue,
+`noteMessage`), sans rien annoncer : l'avis sur place reste l'alerte (`role="alert"`) ou le statut, et
+l'historique n'est pas une région vivante. Un refus dit en partie aux champs est inscrit entier, et la
+part que dit l'avis sous le formulaire n'est pas inscrite une seconde fois (`parts`). Sur place, rien
+ne change. N'y entrent pas, faute d'une commande partie : ce qu'une commande indisponible pressée
+n'a pas — ses conditions, que redit un statut (`noted: false` de `useSaid`, `ToldConditions` des
+listes du référentiel) —, et le refus d'une saisie que l'écran juge avant d'envoyer quoi que ce soit
+(un champ requis, un fichier trop lourd, une cellule mal tapée). Ni le statut « Sauvegarde lancée »,
+dont la tâche remise est déjà inscrite par le suivi.
 
 ### L'image de développement
 
@@ -3213,8 +3233,8 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
 - **La mise en page** suit la maquette validée par l'utilisateur (EP-02, « Charte
   graphique ») : la barre latérale est le Sidebar de shadcn/ui, repliable en rail d'icônes dont
   chaque entrée garde son nom et le montre en infobulle ; la barre du haut porte le fil
-  d'Ariane, la recherche, les tâches de fond et, à droite, le bouton de l'avatar qui déroule le
-  menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
+  d'Ariane, la recherche, le bouton du panneau des tâches et des messages et, à droite, le
+  bouton de l'avatar qui déroule le menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
   `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et `PageHeader`,
   le titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
 - **La densité** : les grilles et les listes sont denses — le plus d'informations sous les

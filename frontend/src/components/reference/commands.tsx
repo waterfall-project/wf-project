@@ -46,6 +46,7 @@ import { findOffer, type ListedCommand } from "@/components/commands/offer";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 
 import { CellCommand } from "./cell-command";
@@ -95,12 +96,6 @@ interface Opened {
   readonly trigger: HTMLElement;
 }
 
-/** What a write of a list did, said in its region, and the how-many-th it was. */
-export interface Said {
-  readonly text: string;
-  readonly count: number;
-}
-
 /** The commands of a list, its form open, and the answers of the server to the writes of its rows. */
 interface Commands {
   readonly kind: ReferenceKind;
@@ -109,7 +104,7 @@ interface Commands {
   readonly answers: ReadonlyMap<string, ReferenceObject>;
   /** Take the answers of the server to writes of rows: the newest answer of a row prevails. */
   readonly answer: (rows: readonly ReferenceObject[]) => void;
-  readonly say: (text: string) => void;
+  readonly say: Say;
   readonly open: (opened: Opened) => void;
   /** Close the form of an opening, if it is still the one open. */
   readonly close: (opened: Opened) => void;
@@ -168,7 +163,7 @@ export function CommandedList({
 }) {
   const [answers, setAnswers] = useState<ReadonlyMap<string, ReferenceObject>>(() => new Map());
   const [opened, setOpened] = useState<Opened>();
-  const [said, setSaid] = useState<Said>();
+  const [said, say] = useSaid();
   const commands = useMemo<Commands>(
     () => ({
       kind,
@@ -191,15 +186,13 @@ export function CommandedList({
           return after;
         });
       },
-      say: (text) => {
-        setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-      },
+      say,
       open: setOpened,
       close: (closing) => {
         setOpened((current) => (current === closing ? undefined : current));
       },
     }),
-    [kind, opened, said, answers],
+    [kind, opened, said, say, answers],
   );
   return <ListCommands value={commands}>{children}</ListCommands>;
 }
@@ -211,6 +204,8 @@ export interface ListForm {
   readonly row: ReferenceObject | undefined;
   /** The command and the object a refusal answered once the dialog is gone is told for. */
   readonly target: string | undefined;
+  /** The object modified, by its label, which the history of the messages notes with a refusal. */
+  readonly subject: string | undefined;
   /**
    * The answer of the server as the form takes it: the modification of another object than the one
    * modified is a failure of the service.
@@ -241,6 +236,7 @@ export function useListForm(): ListForm | undefined {
     kind,
     row,
     target: row === undefined ? undefined : `modify ${kind} ${idOf(kind, row)}`,
+    subject: row?.label,
     answering: (answer) =>
       row !== undefined && answer.kind === "done" && !isObject(kind, answer.data, idOf(kind, row))
         ? ANOTHER_OBJECT
@@ -249,7 +245,9 @@ export function useListForm(): ListForm | undefined {
       if (row !== undefined) {
         commands.answer([answer]);
       }
-      commands.say(t(row === undefined ? "created" : "saved", { name: answer.label, kind }));
+      commands.say(t(row === undefined ? "created" : "saved", { name: answer.label, kind }), {
+        object: answer.label,
+      });
       commands.close(opened);
     },
     onClose: () => {

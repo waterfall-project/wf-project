@@ -31,6 +31,8 @@ import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import { GanttRows } from "@/components/gantt/gantt";
+import { useNoteMessage } from "@/components/notices/message-history";
+import { useShownProjectLabel } from "@/components/shell/shown-project";
 
 import { DenseGrid } from "./dense-grid";
 import { nodeDependencies } from "./node-dependencies";
@@ -92,7 +94,7 @@ interface Generated {
 /**
  * The skeleton offered in the empty grid, as the revision lists it; once generated, what the screen
  * says in its place, which takes the focus the command had — the command gone, it would fall to the
- * page.
+ * page —, noted in the history of the messages.
  */
 function SkeletonOffer({
   offer,
@@ -108,10 +110,19 @@ function SkeletonOffer({
   useEffect(() => {
     told.current?.focus();
   }, [generated]);
-  if (generated !== undefined) {
+  const sentence =
+    generated === undefined
+      ? undefined
+      : t("planningGrid.skeletonGenerated", { tasks: generated.rows.totals.task_count });
+  useNoteMessage(
+    generated,
+    sentence === undefined ? undefined : { tone: "success", sentence },
+    useShownProjectLabel(),
+  );
+  if (sentence !== undefined) {
     return (
       <p ref={told} role="status" tabIndex={-1} className="text-sm outline-none">
-        {t("planningGrid.skeletonGenerated", { tasks: generated.rows.totals.task_count })}
+        {sentence}
       </p>
     );
   }
