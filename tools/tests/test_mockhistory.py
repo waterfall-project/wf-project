@@ -20,6 +20,7 @@ from wftools import (
     REPOSITORY,
     mockcore,
     mockdata,
+    mockdiff,
     mockhistory,
     mockstructure,
     mocktext,
@@ -391,6 +392,32 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 2_770
     assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
     assert compared["meta"] == mockcore.whole(mockhistory.reference_rows())["meta"]
+
+
+def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fields_of_its_screen(
+    whole: Node,
+) -> None:
+    # #1201, point 2: the volume the bound of the screen is tried on is the comparison read whole,
+    # at the scale of the witness, each node reduced by `fields` to the kind and the label the
+    # screen shows, besides the four and the mark always rendered (US-0500/L6).
+    volume = mockhistory.comparison_volume()
+    read = cast("Node", volume["value"])
+    assert len(read["items"]) == 5_999
+    assert sum(1 for node in _marked(read, "modified") if node["changes"]) == 2_770
+    kept = {*mockdiff.ALWAYS, "kind", "task", "estimate_line"}
+    for node, entire in zip(read["items"], whole["items"], strict=True):
+        assert set(node) <= kept
+        assert {key: node[key] for key in mockdiff.ALWAYS} == {
+            key: entire[key] for key in mockdiff.ALWAYS
+        }
+        assert node["kind"] == entire["kind"]
+        assert node[node["kind"]] == {"label": _label(entire)}
+    rest = ("from_revision_id", "to_revision_id", "totals", "meta", "amount_deltas")
+    assert {key: read[key] for key in rest} == {key: whole[key] for key in rest}
+    summary = str(volume["summary"])
+    assert "5 999 nœuds" in summary
+    assert "2 770 modifiés par leurs propres valeurs" in summary
+    assert "1 027 251,25 en tout" in summary
 
 
 def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_one(

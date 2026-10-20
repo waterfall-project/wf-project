@@ -8,6 +8,9 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
 
 - ``nodes_thousand.json``, ``listNodes``: the structure of a thousand tasks and their lines
   (``wftools.mockstructure``);
+- ``comparison_volume.json``, ``compareRevisions``: the offer and the reference compared over that
+  whole structure, read with ``fields`` as the screen of the comparison reads it
+  (``wftools.mockhistory``, #1201);
 - ``estimate_indicators_volume.json``, ``getEstimateIndicators``: the indicators of that estimate,
   the reading of the witness itself since it sums its whole structure (``wftools.mocktoday``,
   EP-14/L45a), so that the fake back tells the same story on both;
@@ -635,6 +638,7 @@ def volumes() -> dict[str, JsonObject]:
     rows = cast("list[JsonObject]", projects["items"])
     return {
         "nodes_thousand.json": _example(_structure_summary(nodes), nodes),
+        "comparison_volume.json": mockhistory.comparison_volume(),
         "summary_dependencies.json": _example(
             "Ce dont dépend la date de fin de la première récapitulative de la structure aux "
             "volumes du §4.6.2 : ses subordonnées directes, nommées par leur numéro et leur "

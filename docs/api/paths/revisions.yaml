@@ -342,6 +342,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/RevisionComparison }
             examples:
               witness: { $ref: ../../../fixtures/api/comparison.json }
+              volume: { $ref: ../../../fixtures/api/volume/comparison_volume.json }
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
