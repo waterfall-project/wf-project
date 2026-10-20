@@ -420,8 +420,13 @@ describe("the refusal of a move, said to the row in cause", () => {
     ["nodes_indent_forbidden", "Cette liaison n’est pas permise.", 0],
     ["nodes_move_cycle_refused", "Cette liaison créerait une boucle.", 0],
     [
+      "nodes_move_outside_work_package",
+      "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot.",
+      0,
+    ],
+    [
       "nodes_move_after_not_sibling",
-      "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
+      "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : la grille est relue.",
       1,
     ],
   ])(
