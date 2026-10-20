@@ -385,7 +385,11 @@ class Row:
 
 @dataclass(frozen=True, slots=True)
 class Place:
-    """Where a node sits: under which task, at which rank among its siblings, its row, its level."""
+    """Where a node sits: under which task, at which rank among its siblings, its row, its level.
+
+    The rank counts the siblings in the order of the plan — the lines of the task, then its
+    subordinates — from one, as the contract reads `Node.position` (#1183).
+    """
 
     parent: Task | None
     position: int
@@ -439,10 +443,10 @@ class _Emitter:
         above = None if parent is None else parent.number
         self.rows.append(Row(task.number, above, place.row, TASK, task.label, node))
         amounts = Amounts()
-        for index, line in enumerate(task.lines):
-            below = Place(task, index, self._number(line.number), level + 1)
+        for rank, line in enumerate(task.lines, start=1):
+            below = Place(task, rank, self._number(line.number), level + 1)
             amounts += self._line(line, below, progress=str(facet["progress"]))
-        for rank, child in enumerate(task.children):
+        for rank, child in enumerate(task.children, start=len(task.lines) + 1):
             amounts += self.task(child, task, rank, level + 1)
         facet.update(amounts.rendered())
         if task.children:
@@ -689,8 +693,8 @@ def _core(
 ) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
     emitter = _Emitter(schedule(roots), labels(), today, dict(rates), before, row_of=rows_of(roots))
-    for position, root in enumerate(roots):
-        emitter.task(root, None, position, 1)
+    for rank, root in enumerate(roots, start=1):
+        emitter.task(root, None, rank, 1)
     return tuple(emitter.rows)
 
 

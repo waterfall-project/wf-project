@@ -166,12 +166,12 @@ export async function applyPaste(
 }
 
 /**
- * Create a task or a line of the estimate in the structure of a grid, under the parent and at the
- * position the gesture names (WF-PLA-0130, WF-DEV-0050): the API answers the node created with its
- * ancestors, the totals of the structure and the version it moved on to — or refuses it, a line
- * under a task completed or a task that takes the project past its horizon among its reasons. The
- * same write from the three grids: which of them may exercise it is the command of the structure
- * read.
+ * Create a task or a line of the estimate in the structure of a grid, under the parent and after
+ * the node the gesture names (WF-PLA-0130, WF-DEV-0050; #1183): the API answers the node created
+ * with its ancestors, the totals of the structure and the version it moved on to — or refuses it,
+ * a line under a task completed or a task that takes the project past its horizon among its
+ * reasons. The same write from the three grids: which of them may exercise it is the command of
+ * the structure read.
  */
 export async function createNode(
   structure: StructurePath,

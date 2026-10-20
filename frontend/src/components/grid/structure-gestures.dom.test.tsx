@@ -230,7 +230,7 @@ afterEach(() => {
 });
 
 describe("the gestures that create tasks and lines in a grid of the structure", () => {
-  it("inserts a task below the row of a cell, at the place after it among its siblings, and reads the grid anew", async () => {
+  it("inserts a task below the row of a cell, after it among its siblings, and reads the grid anew", async () => {
     const client = serve({ [CREATE]: { example: "node_created", status: 201 } });
     render(estimateGrid());
     await choose(TASK, "Insérer au-dessous");
@@ -243,7 +243,7 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(created(client)).toEqual({
       kind: "task",
       parent_id: node(TASK)?.parent_id,
-      position: (node(TASK)?.position ?? 0) + 1,
+      after_node_id: node(TASK)?.node_id,
       task: { label: "Note de calcul des protections" },
     });
     // The server's reading prevails: the page is read anew, the dialog gone, the creation said.
@@ -260,7 +260,7 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     });
   });
 
-  it("inserts a sub-task at the end of the row, with no position", async () => {
+  it("inserts a sub-task at the end of the row, with no node to follow", async () => {
     const client = serve({ [CREATE]: { example: "node_created_child", status: 201 } });
     render(estimateGrid());
     await choose(TASK, "Insérer une sous-tâche");
@@ -296,7 +296,7 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(await screen.findByText("« Consommables d’essais » créée.")).toBeVisible();
   });
 
-  it("inserts a line below a line, at the place after it, and refuses a quantity that is no number", async () => {
+  it("inserts a line below a line, after it, and refuses a quantity that is no number", async () => {
     const client = serve({ [CREATE]: { example: "estimate_line_created", status: 201 } });
     render(estimateGrid());
     await choose(LINE, "Insérer une ligne");
@@ -314,7 +314,7 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(created(client)).toMatchObject({
       kind: "estimate_line",
       parent_id: node(LINE)?.parent_id,
-      position: (node(LINE)?.position ?? 0) + 1,
+      after_node_id: node(LINE)?.node_id,
     });
   });
 

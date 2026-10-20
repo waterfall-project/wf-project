@@ -63,14 +63,18 @@ OPERATIONS = {
     "setNodeTracking": ("200", ["node_tracked"]),
 }
 REFUSALS = {
-    "createNode": ["node_create_horizon_exceeded"],
+    "createNode": ["node_create_horizon_exceeded", "node_create_after_not_sibling"],
     "updateTaskFacet": ["task_date_computed_refused", "task_horizon_exceeded"],
     "setPredecessors": [
         "predecessors_cycle_refused",
         "predecessors_forbidden",
         "predecessors_horizon_exceeded",
     ],
-    "moveNodes": ["nodes_indent_forbidden", "nodes_move_cycle_refused"],
+    "moveNodes": [
+        "nodes_move_after_not_sibling",
+        "nodes_indent_forbidden",
+        "nodes_move_cycle_refused",
+    ],
 }
 
 
@@ -217,7 +221,8 @@ def test_a_task_indented_goes_under_the_task_above_it_and_nothing_moves(
         was["level"] + 1,
         was["row_number"],
     )
-    assert task["position"] == len(mockwitness.CONTROL_STATION.children)
+    station_children = mockwitness.CONTROL_STATION.lines + mockwitness.CONTROL_STATION.children
+    assert task["position"] == len(station_children) + 1
     assert task["task"] == was["task"]
     [summary] = indented["ancestors"]
     assert summary["task"]["start"] == station["task"]["start"]
@@ -465,6 +470,32 @@ def test_a_task_moved_under_a_task_it_follows_is_refused_naming_the_loop(
     assert read[node_id(moved)]["parent_id"] == read[node_id(under)]["parent_id"]
     with pytest.raises(ValueError, match="close a loop through a summary"):
         mockcore.schedule(mockgestures.moved_under(described(), moved, under))
+
+
+@pytest.mark.parametrize(
+    ("name", "parent", "after"),
+    [
+        ("node_create_after_not_sibling", mockgestures.CREATED_UNDER, mockgestures.CREATED_AFTER),
+        ("nodes_move_after_not_sibling", mockgestures.MOVED_UNDER, mockgestures.MOVED_AFTER),
+    ],
+)
+def test_a_place_after_a_node_that_is_not_a_sibling_is_refused_on_its_field(
+    read: dict[str, Node], name: str, parent: int, after: int
+) -> None:
+    # The node to follow is read under another parent (#1183): refused on `/after_node_id`,
+    # without a parameter.
+    refused = gesture(name)
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [{"pointer": "/after_node_id", "code": "NODE_NOT_SIBLING"}]
+    assert read[universe(after)]["parent_id"] not in {None, universe(parent)}
+
+
+def test_a_place_after_a_sibling_is_not_refused() -> None:
+    # The node to follow under the parent, and not among the nodes moved, is a place.
+    with pytest.raises(ValueError, match="is a sibling"):
+        mockgestures.not_sibling(N.STUDIES, N.DESIGN_FILE, universe(1))
+    refused = mockgestures.not_sibling(N.WIRING, N.LABOUR, universe(1), moved=(N.LABOUR,))
+    assert refused["fields"] == [{"pointer": "/after_node_id", "code": "NODE_NOT_SIBLING"}]
 
 
 def test_a_move_that_closes_no_loop_is_not_refused() -> None:

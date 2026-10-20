@@ -509,6 +509,51 @@ def node_create_horizon_exceeded() -> JsonObject:
     return horizon_exceeded(created, CREATE_HORIZON_CORRELATION)
 
 
+# --- The place a creation or a move names ------------------------------------------------------
+
+CREATED_UNDER, CREATED_AFTER = N.STUDIES, N.WIRING
+"""The parent a task is created under, and the node it is sent to follow: the wiring of the
+cabinets, a subordinate of the control station, not of the studies."""
+
+MOVED_AWAY, MOVED_UNDER, MOVED_AFTER = N.BLOCKS, N.COMMISSIONING, N.LABOUR
+"""The line moved, the task it is moved under, and the node it is sent to follow: the connection
+of the blocks, which stays under the wiring of the cabinets."""
+
+CREATE_PLACE_CORRELATION, MOVE_PLACE_CORRELATION = universe(1178), universe(1179)
+
+
+def not_sibling(parent: int, after: int, correlation: str, moved: Iterable[int] = ()) -> JsonObject:
+    """Return the refusal of a place named after a node that is not a sibling under the parent.
+
+    A creation or a move names the node it follows among the siblings under its parent, never a
+    rank (#1183): a node read under another parent, or one of the nodes moved, is refused on
+    ``/after_node_id``, without a parameter — the grid names the node it sent.
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    if rows[after].parent == parent and after not in set(moved):
+        message = f"the node {after} is a sibling under {parent}"
+        raise ValueError(message)
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": "/after_node_id", "code": "NODE_NOT_SIBLING"}],
+        "correlation_id": correlation,
+    }
+
+
+def node_create_after_not_sibling() -> JsonObject:
+    """Return what createNode answers to a task created under the studies, after the wiring."""
+    return not_sibling(CREATED_UNDER, CREATED_AFTER, CREATE_PLACE_CORRELATION)
+
+
+def nodes_move_after_not_sibling() -> JsonObject:
+    """Return what moveNodes answers to the blocks moved under the commissioning, after a line.
+
+    The line they are sent to follow stays under the wiring of the cabinets.
+    """
+    return not_sibling(MOVED_UNDER, MOVED_AFTER, MOVE_PLACE_CORRELATION, moved=(MOVED_AWAY,))
+
+
 TRACKED_TASK = N.DESIGN_REVIEW
 
 
@@ -775,12 +820,38 @@ def _link_examples() -> dict[str, JsonObject]:
     }
 
 
+def _parent(rows: dict[int, mockcore.Row], number: int) -> str:
+    """Return the label of the task a node of the core is under."""
+    parent = rows[number].parent
+    if parent is None:
+        message = f"the node {number} is a root"
+        raise ValueError(message)
+    return rows[parent].label
+
+
 def _move_refusal_examples() -> dict[str, JsonObject]:
     rows = {row.number: row for row in mockcore.current()}
     moved, under = loop_move()
     loop = [rows[number].label for number in move_loop(moved, under, described())]
     through = mocktext.listed([f"« {label} »" for label in loop[1:-1]])
+    created_beside, moved_beside = _parent(rows, CREATED_AFTER), _parent(rows, MOVED_AFTER)
     return {
+        "node_create_after_not_sibling.json": mocktext.example(
+            f"La tâche « {SIBLING.label} » créée sous les « {rows[CREATED_UNDER].label} », "
+            f"après le « {rows[CREATED_AFTER].label} », qui est une subordonnée du "
+            f"« {created_beside} » : le nœud après lequel se placer n'est pas un frère sous le "
+            f"parent visé. La création est refusée sur ce champ, sans paramètre ; rien n'est "
+            f"écrit (#1183).",
+            node_create_after_not_sibling(),
+        ),
+        "nodes_move_after_not_sibling.json": mocktext.example(
+            f"Les « {rows[MOVED_AWAY].label} » déplacés sous la "
+            f"« {rows[MOVED_UNDER].label} », après le « {rows[MOVED_AFTER].label} », qui "
+            f"reste sous le « {moved_beside} » : le nœud après lequel se placer n'est pas un "
+            f"frère sous le parent visé. Le déplacement est refusé sur ce champ, sans paramètre ; "
+            f"rien ne bouge (#1183).",
+            nodes_move_after_not_sibling(),
+        ),
         "nodes_indent_forbidden.json": mocktext.example(
             f"La « {rows[INDENTED_FORBIDDEN].label} » mise en retrait sous le "
             f"« {rows[INDENTED_UNDER].label} », la tâche au-dessus d'elle à son niveau, qui est "

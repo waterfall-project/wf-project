@@ -1756,6 +1756,7 @@
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
+    "NODE_NOT_SIBLING": "The row to place it after is not under the same task.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "PROVISION_CATEGORY_REQUIRED": "The provision of a risk takes a category of the kind provision for risks.",

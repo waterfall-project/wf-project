@@ -4619,6 +4619,11 @@ les rétentions de L42m — n'est publiée sans refus.
 colonne (#711), et `test_mockbounds.py` parcourt les corps de toutes les écritures, chaque borne
 publiée devant avoir son refus et son exemple.*
 
+*Remplacé en partie par US-0460/L3b (#1183) : `createNode` et `moveNodes` n'écrivent plus de
+`position` — leur place se désigne par `after_node_id`, refusé par `NODE_NOT_SIBLING` —, et
+n'en publient plus la borne ; `nodes_move_position_out_of_range` est remplacé par
+`nodes_move_after_not_sibling`, et `node_create_out_of_range` ne garde que le délai de paiement.*
+
 **Une sauvegarde déposée est vérifiée par sa restauration, avant toute déconnexion** (#679 ;
 WF-ADM-0150, WF-ADM-0160, WF-ARC-0090). Une sauvegarde de la liste ne se restaure que vérifiée
 après sa production (`backup_verified`, EP-14/L42h) ; une archive déposée n'avait aucune
@@ -6457,6 +6462,41 @@ lu le fichier pour refuser ce que l'état du projet suffit à refuser ; une cond
 `import_estimate`, qui aurait fermé l'import du différentiel avec celui de la principale. Les
 descriptions d'`openImport`, `getImport` et `applyImport` citent WF-INTF-0100 et, pour les deux
 premières, WF-INTF-0120.
+
+## La place d'un nœud créé ou déplacé (EP-15/US-0460/L3b, #1183)
+
+**Une création et un déplacement désignent leur place par le nœud qu'ils suivent** (décision de
+l'auteur du 2026-10-20, #1183, relevée à la revue de US-0460/L3b). Le contrat ne disait pas le sens
+de `position` à l'écriture — un index parmi les frères, à partir de 0 ou de 1, ou une clé d'ordre —,
+et les exemples se contredisaient : l'unique racine de `nodes_estimate` portait 1, son index étant
+0. Une grille filtrée ne lit qu'une partie des frères d'un nœud : elle ne peut pas compter un rang,
+seulement nommer le nœud qu'elle montre. `NodeCreate` et `NodeMove` portent donc `after_node_id`,
+le nœud après lequel se placer parmi les frères sous `parent_id` : nul, le nœud se place en tête de
+son parent ; absent, à la fin de ses frères, ce que font les gestes existants — une sous-tâche, une
+ligne sous une tâche, un déplacement sous une autre tâche (`node_created`, `estimate_line_created`,
+`nodes_moved`, `nodes_indented`). Les nœuds déplacés se suivent dans l'ordre de `node_ids`.
+`position` n'est plus écrit.
+
+**Un `after_node_id` qui n'est pas un frère est refusé** : 422 `VALIDATION_FAILED`,
+`fields[].pointer` à `/after_node_id`, motif nouveau `NODE_NOT_SIBLING`, sans paramètre — la grille
+nomme le nœud qu'elle a envoyé —, rien n'étant écrit. Est un tel nœud celui d'un autre parent, l'un
+des nœuds déplacés, ou un nœud que la structure n'a pas. Écartés : `UNKNOWN_TASK`, qui dit une tâche
+inconnue alors que le nœud suivi peut être une ligne, et connu sous un autre parent ;
+`VALUE_OUT_OF_RANGE`, qui dit une borne. Exemples engendrés par `wftools.mockgestures`, aux
+corrélations 1178 et 1179 : `node_create_after_not_sibling` (une tâche créée sous les études après
+le câblage des armoires, du poste de commande) et `nodes_move_after_not_sibling` (les borniers
+déplacés sous la mise en service après le raccordement des borniers, qui reste sous le câblage),
+celui-ci premier sous le 422 de `moveNodes`, à la place de `nodes_move_position_out_of_range`.
+
+**`Node.position` reste lu, en lecture seule** : le rang du nœud parmi les frères de son parent —
+ses tâches et ses lignes, dans l'ordre du plan —, à partir de 1. Le témoin le portait à partir de 0,
+lignes et sous-tâches comptées à part : `wftools.mockcore` le compte désormais à partir de 1, les
+lignes d'une tâche puis ses subordonnées, et `make mock-data` réécrit les lectures et les écritures
+qui le portent ; l'exemple écrit à la main `skeleton_generated` suit.
+`test_positions_count_the_siblings_of_one_parent_from_one` (`tools/tests/test_mockstructure.py`) le
+tient. Le front envoie `after_node_id` : le nœud actif pour « Insérer au-dessous » et pour une
+ligne sous une ligne, rien pour une sous-tâche et une ligne sous une tâche, qui vont en fin
+(`bodyOf`, `structure-rules.ts`) ; `errors.NODE_NOT_SIBLING` a sa phrase dans les deux catalogues.
 
 ## Collage et annulation
 

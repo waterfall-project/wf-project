@@ -140,9 +140,10 @@ export function gestureOfKey(row: GridNode | undefined, pressed: Pressed): Gestu
 
 /**
  * The body of the node a gesture creates from a row, with what its dialog gathered: a task below a
- * row at the place after it among its siblings, a sub-task or a line at the end of the row, a line
- * below a line at the place after it. The server gives the rest: a task created is a leaf,
- * automatic, of one day, without predecessor (WF-DEV-0050).
+ * row after it among its siblings, a sub-task or a line at the end of the row, a line below a line
+ * after it. The place is named by the node to follow (`after_node_id`), never by a rank a filtered
+ * grid could not count; without it, the node goes last under its parent (#1183). The server gives
+ * the rest: a task created is a leaf, automatic, of one day, without predecessor (WF-DEV-0050).
  */
 export function bodyOf(gesture: Gesture, row: GridNode | undefined, entered: Entered): NodeCreate {
   if (entered.line !== undefined) {
@@ -155,14 +156,14 @@ export function bodyOf(gesture: Gesture, row: GridNode | undefined, entered: Ent
       ? {
           kind: "estimate_line",
           parent_id: row.parent_id,
-          position: row.position + 1,
+          after_node_id: row.node_id,
           estimate_line: line,
         }
       : { kind: "estimate_line", parent_id: row?.node_id ?? null, estimate_line: line };
   }
   const task = { label: entered.label };
   if (gesture === "below" && row !== undefined) {
-    return { kind: "task", parent_id: row.parent_id, position: row.position + 1, task };
+    return { kind: "task", parent_id: row.parent_id, after_node_id: row.node_id, task };
   }
   return { kind: "task", parent_id: gesture === "child" ? (row?.node_id ?? null) : null, task };
 }

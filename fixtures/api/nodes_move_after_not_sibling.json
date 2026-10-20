@@ -1,0 +1,12 @@
+{
+  "summary": "Les « Borniers » déplacés sous la « Mise en service », après le « Raccordement des borniers », qui reste sous le « Câblage des armoires » : le nœud après lequel se placer n'est pas un frère sous le parent visé. Le déplacement est refusé sur ce champ, sans paramètre ; rien ne bouge (#1183).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/after_node_id","code":"NODE_NOT_SIBLING"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001179"
+  }
+}

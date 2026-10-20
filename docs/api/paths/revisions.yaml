@@ -720,9 +720,11 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
           type provision pour risques créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
-          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), une position
-          (`/position`) ou un délai de paiement (`/estimate_line/payment_delay_days`) négatifs
-          (`VALUE_OUT_OF_RANGE`, `params.minimum` à `0`), un champ que la ligne n'accepte pas
+          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), un délai de
+          paiement négatif (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`,
+          `params.minimum` à `0`), un nœud après lequel se placer qui n'est pas un frère sous le
+          parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), un champ que la
+          ligne n'accepte pas
           (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s) ; ou une ligne qui laisserait sa
           tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans
           `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans
@@ -734,6 +736,7 @@
               provision_refused: { $ref: ../../../fixtures/api/estimate_line_provision_refused.json }
               out_of_range: { $ref: ../../../fixtures/api/node_create_out_of_range.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/node_create_horizon_exceeded.json }
+              after_not_sibling: { $ref: ../../../fixtures/api/node_create_after_not_sibling.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
@@ -1217,8 +1220,9 @@
           change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
           heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
           `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
-          (WF-PLA-0010). Ou une position négative : `fields` sur `/position`,
-          `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`. Ou, sans `fields`, un déplacement qui, en
+          (WF-PLA-0010). Ou un nœud après lequel se placer qui n'est pas un frère sous le parent
+          visé : `fields` sur `/after_node_id`, `NODE_NOT_SIBLING`, sans paramètre (`NodeMove` ;
+          #1183). Ou, sans `fields`, un déplacement qui, en
           changeant le calendrier d'une tâche, porterait la durée du projet au-delà de quinze ans :
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit
           la ligne déplacée (WF-PLA-0150). Ou, sans `fields`, un déplacement ou une mise en
@@ -1231,7 +1235,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              position_out_of_range: { $ref: ../../../fixtures/api/nodes_move_position_out_of_range.json }
+              after_not_sibling: { $ref: ../../../fixtures/api/nodes_move_after_not_sibling.json }
               outside_work_package: { $ref: ../../../fixtures/api/nodes_move_outside_work_package.json }
               indent_forbidden: { $ref: ../../../fixtures/api/nodes_indent_forbidden.json }
               cycle_refused: { $ref: ../../../fixtures/api/nodes_move_cycle_refused.json }

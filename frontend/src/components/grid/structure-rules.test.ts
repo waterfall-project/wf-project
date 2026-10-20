@@ -87,16 +87,16 @@ describe("the body of the node a gesture creates", () => {
   const named = { label: "Étude", line: undefined };
   const line = { label: "Pièces", line: { category: CATEGORY.id, quantity: "2" } };
 
-  it("places a task below a row after it among its siblings", () => {
+  it("places a task below a row after it among its siblings, by the node it follows", () => {
     expect(bodyOf("below", LEAF, named)).toEqual({
       kind: "task",
       parent_id: LEAF.parent_id,
-      position: LEAF.position + 1,
+      after_node_id: LEAF.node_id,
       task: { label: "Étude" },
     });
   });
 
-  it("places a sub-task under the row, and a first task at the root, with no position", () => {
+  it("places a sub-task last under the row, and a first task at the root, with no node to follow", () => {
     expect(bodyOf("child", LEAF, named)).toEqual({
       kind: "task",
       parent_id: LEAF.node_id,
@@ -119,7 +119,7 @@ describe("the body of the node a gesture creates", () => {
     expect(bodyOf("line", LINE, line)).toEqual({
       kind: "estimate_line",
       parent_id: LINE.parent_id,
-      position: LINE.position + 1,
+      after_node_id: LINE.node_id,
       estimate_line: estimateLine,
     });
   });

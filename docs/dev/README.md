@@ -1671,8 +1671,11 @@ Alt+Insert, Ctrl+Insert et Ctrl+Suppr (`structure-gestures.tsx`, règles pures d
 `structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
 sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne sous laquelle il agit
 (libellé ; pour une ligne, catégorie et quantité, que le contrat exige), `createNode` et
-`deleteNode` sont les actions de `src/api/actions/nodes.ts` ; la suppression d'une récapitulative
-est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et le focus revient alors à la
+`deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une création désigne sa place par le
+nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un rang qu'une grille filtrée ne
+saurait compter : la ligne active pour « Insérer au-dessous » et pour une ligne sous une ligne ;
+sans lui, une sous-tâche ou une ligne sous une tâche va en fin de son parent (#1183). La
+suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et le focus revient alors à la
 cellule active de la grille. La grille est relue après une écriture, la lecture du serveur faisant
 foi pour les numéros et les niveaux (#1160), et la version que la structure a atteinte est dite à la
 grille, que porte le collage suivant. Les gestes de tâche du devis exigent `edit_planning`
