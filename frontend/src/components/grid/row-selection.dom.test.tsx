@@ -129,6 +129,13 @@ async function focus(cell: HTMLElement) {
   });
 }
 
+/** Press keys while a reading anew suspends the grid, awaited as it is. */
+async function keyDuringReading(keys: string) {
+  await act(async () => {
+    await userEvent.keyboard(keys);
+  });
+}
+
 /** The moves the fake back received. */
 function moved(client: FakeClient): unknown[] {
   return client.calls.filter((call) => call.route === MOVE).map((call) => call.body);
@@ -409,6 +416,24 @@ describe("the moves through the reading anew they ask", () => {
         lock_version: 2,
       },
     ]);
+  });
+
+  it("leaves the active cell and the focus on the row the arrows went to while the reading anew was under way [WF-IHM-0100-A]", async () => {
+    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : « Revue de
+    // conception » moved up, the user goes on down with the arrows before the reading comes, and
+    // the reading does not take them back to the row moved.
+    holdReading(router.refresh);
+    serve();
+    const view = render(planningGrid(), { wrapper: Reading });
+    await focus(cellAt(REVIEW, "label"));
+    await userEvent.keyboard(UP);
+    await screen.findByText("« Revue de conception » montée d’un rang.");
+    await keyDuringReading("{ArrowDown}");
+    expect(cellAt(MILESTONE, "label")).toHaveFocus();
+    await reread(view, readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
+    expect(cellAt(MILESTONE, "label")).toHaveAttribute("tabindex", "0");
+    expect(cellAt(MILESTONE, "label")).toHaveFocus();
+    expect(cellAt(DESKS, "label")).toHaveAttribute("tabindex", "-1");
   });
 
   it("takes Alt, Shift and an arrow a move is not offered for, and leaves the active cell in place", async () => {

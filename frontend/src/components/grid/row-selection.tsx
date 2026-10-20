@@ -15,7 +15,8 @@
  * a row selected, follows its row through a reading anew that moves it, so that the next move starts
  * from the same rows; so does it the row a command moved (`RowCommands.moved`), selected or not,
  * once the reading that command asked comes, the focus given back to it unless it went out of the
- * grid. A reading anew that no longer shows an end of the selection — a filter, a folding — lifts it,
+ * grid — but only for a user who stayed where its answer left them: one gone on with the arrows, or
+ * into a field, is left there. A reading anew that no longer shows an end of the selection — a filter, a folding — lifts it,
  * rather than leave it to come back of itself. The rows counted are those shown: the subordinates
  * folded under a summary selected go with it uncounted.
  */
@@ -149,17 +150,87 @@ function followedRow<Row>(
   return now < 0 || now === active ? undefined : { row: now, moved: false };
 }
 
+/** The row a command moved, and the active cell its answer found. */
+interface Following<Row> {
+  readonly row: Row;
+  readonly at: CellPosition;
+  /** Follow it no more, through the readings anew to come of the same move. */
+  readonly drop: () => void;
+}
+
 /**
  * The move a command told that the active cell follows: from its answer until the reading anew it
- * asked is over — the reading that brings the rows moved included —, never after.
+ * asked is over — the reading that brings the rows moved included —, never after; with the active
+ * cell its answer found.
  */
-function useFollowing<Row>(moved: RowMoved<Row> | undefined): RowMoved<Row> | undefined {
+function useFollowing<Row>(
+  moved: RowMoved<Row> | undefined,
+  active: CellPosition,
+): Following<Row> | undefined {
   const [followed, setFollowed] = useState(0);
-  const following = moved !== undefined && moved.count !== followed ? moved : undefined;
-  if (following?.settled === true) {
-    setFollowed(following.count);
+  const [answered, setAnswered] = useState<{ readonly count: number; readonly at: CellPosition }>();
+  if (moved === undefined || moved.count === followed) {
+    return undefined;
   }
-  return following;
+  let at = answered?.count === moved.count ? answered.at : undefined;
+  if (at === undefined) {
+    at = active;
+    setAnswered({ count: moved.count, at });
+  }
+  if (moved.settled) {
+    setFollowed(moved.count);
+  }
+  return {
+    row: moved.row,
+    at,
+    drop: () => {
+      setFollowed(moved.count);
+    },
+  };
+}
+
+/**
+ * Whether the user stayed where a move left them since its answer: the active cell is the one the
+ * answer found, and the focus is on it, or nowhere — not gone to another cell, nor into a field.
+ */
+function stayed(
+  at: CellPosition,
+  active: CellPosition,
+  scroller: RefObject<HTMLElement | null>,
+): boolean {
+  if (active.row !== at.row || active.column !== at.column) {
+    return false;
+  }
+  const { activeElement } = document;
+  if (activeElement === null || activeElement === document.body) {
+    return true;
+  }
+  const focused = positionOf(activeElement);
+  return (
+    scroller.current?.contains(activeElement) === true &&
+    focused?.row === at.row &&
+    focused.column === at.column
+  );
+}
+
+/**
+ * The row moved that a reading anew takes the active cell to: followed only by a user who stayed
+ * where the move left them; one gone on with the arrows, or into a field, keeps where they went, and
+ * the move is followed no more.
+ */
+function movedFollowed<Row>(
+  following: Following<Row> | undefined,
+  active: CellPosition,
+  scroller: RefObject<HTMLElement | null>,
+): Row | undefined {
+  if (following === undefined) {
+    return undefined;
+  }
+  if (!stayed(following.at, active, scroller)) {
+    following.drop();
+    return undefined;
+  }
+  return following.row;
 }
 
 /**
@@ -207,7 +278,7 @@ export function useRowSelection<Row>({
   };
   const offered = commands?.selects === true;
   const bounds = offered ? boundsOf(range, keyAt, rows.length) : undefined;
-  const following = useFollowing(commands?.moved);
+  const following = useFollowing(commands?.moved, cursor.active);
   const take = useTakenFocus(focusAt, scroller);
   // The rows the active cell was among: a reading anew that moves the row a command moved, or the
   // row of the active cell, selected, takes the active cell with it.
@@ -217,7 +288,12 @@ export function useRowSelection<Row>({
     if (range !== undefined && boundsOf(range, keyAt, rows.length) === undefined) {
       setRange(undefined);
     }
-    const next = followedRow({ seen, rows, keyOf }, range, cursor.active.row, following?.row);
+    const next = followedRow(
+      { seen, rows, keyOf },
+      range,
+      cursor.active.row,
+      movedFollowed(following, cursor.active, scroller),
+    );
     if (next !== undefined) {
       const at = { row: next.row, column: cursor.active.column };
       cursor.set(at);
