@@ -3,15 +3,13 @@
 /**
  * What the gestures of structure of a grid are (US-0460): which a row — or the selection of
  * contiguous rows it stands in — takes, which a key asks, and the body of the node each creates
- * (`NodeCreate`) or of the move it makes (`NodeMove`), from a gesture or from rows dropped. Pure,
- * neither server nor client: the grid offers a gesture the structure it reads lists available
- * (`tasks`, `lines`), a move only where the rows shown hold the neighbour it rests on, and the
- * server judges the rest.
+ * (`NodeCreate`) or of the move it makes (`NodeMove`). Pure, neither server nor client: the grid
+ * offers a gesture the structure it reads lists available (`tasks`, `lines`), a move only where the
+ * rows shown hold the neighbour it rests on, and the server judges the rest.
  */
 import type { components } from "@/api/generated/schema";
 
 import type { GridNode, StructurePath } from "./nodes";
-import type { DropPlace } from "./row-selection";
 
 /** The body of a node created. */
 type NodeCreate = components["schemas"]["NodeCreate"];
@@ -374,85 +372,4 @@ export function moveOf(
   const tops = topsOf(nodes, scope.rows);
   const place = movable(tops, scope) ? placeOf(gesture, tops, scope.rows) : undefined;
   return place === undefined ? undefined : { ...place, lock_version: scope.version };
-}
-
-/** Whether a row is one of the nodes, or under one of them, by its ancestors shown. */
-function within(row: GridNode, nodes: readonly GridNode[], rows: readonly GridNode[]): boolean {
-  const chosen = new Set(nodes.map((each) => each.node_id));
-  const parents = new Map(rows.map((each) => [each.node_id, each.parent_id]));
-  let at: string | null | undefined = row.node_id;
-  while (at !== null && at !== undefined) {
-    if (chosen.has(at)) {
-      return true;
-    }
-    at = parents.get(at);
-  }
-  return false;
-}
-
-/** Whether a task bears rows of a kind dropped under it: tasks unless a milestone, lines unless a summary too. */
-function bears(target: GridNode, kind: GridNode["kind"]): boolean {
-  return (
-    target.kind === "task" &&
-    target.task?.is_milestone !== true &&
-    (kind === "task" || target.task?.is_summary !== true)
-  );
-}
-
-/**
- * The place rows dropped beside a row take: under it, last of their kind, where it bears them
- * (`bears`); before it, after the sibling just above it, or first where it is the first of its
- * siblings; after it, the last row of the grid. The rows go at the level of the row they are dropped
- * before or after, which is of their kind. None where the grid does not show the sibling the place
- * rests on, nor where the place is among the rows dropped or under them, which would leave them
- * where they are or put them under themselves.
- */
-function dropPlace(
-  tops: readonly GridNode[],
-  target: GridNode,
-  place: DropPlace,
-  rows: readonly GridNode[],
-): Pick<NodeMove, "parent_id" | "after_node_id"> | undefined {
-  const [first] = tops;
-  if (
-    first === undefined ||
-    tops.some((each) => each.kind !== first.kind) ||
-    within(target, tops, rows)
-  ) {
-    return undefined;
-  }
-  if (place === "into") {
-    return bears(target, first.kind) ? { parent_id: target.node_id } : undefined;
-  }
-  if (target.kind !== first.kind) {
-    return undefined;
-  }
-  if (place === "after" || target.position === 1) {
-    return {
-      parent_id: target.parent_id,
-      after_node_id: place === "after" ? target.node_id : null,
-    };
-  }
-  const above = siblingAt(target, target.position - 1, rows);
-  return above === undefined || within(above, tops, rows)
-    ? undefined
-    : { parent_id: target.parent_id, after_node_id: above.node_id };
-}
-
-/**
- * The body of the move of rows dropped beside a row (`DropPlace`): the nodes that bear them, in the
- * order of the grid, where `dropPlace` puts them. None where it puts them nowhere, or where they are
- * of a kind the grid does not move.
- */
-export function dropOf(
-  nodes: readonly GridNode[],
-  target: GridNode,
-  place: DropPlace,
-  scope: StructureGestures,
-): NodeMove | undefined {
-  const tops = topsOf(nodes, scope.rows);
-  const at = movable(tops, scope) ? dropPlace(tops, target, place, scope.rows) : undefined;
-  return at === undefined
-    ? undefined
-    : { node_ids: tops.map((each) => each.node_id), ...at, lock_version: scope.version };
 }

@@ -186,7 +186,7 @@ test("indents a summary under the task above it and outdents a task from the key
   await expect(task).toBeFocused();
 });
 
-test("selects tasks of the planning by their handles, indents the group from the keys and drags it under a task, each said [WF-PLA-0080-A]", async ({
+test("selects tasks of the planning by their handles and indents the group from the keys, said [WF-PLA-0080-A]", async ({
   page,
 }) => {
   test.slow();
@@ -209,14 +209,6 @@ test("selects tasks of the planning by their handles, indents the group from the
   await expect(
     page.getByText("« Pupitres opérateurs » et la ligne suivante indentées."),
   ).toBeVisible({ timeout: WORKING });
-
-  // By the handle, dragged onto the middle of the row of « Études de détail »: under it.
-  const target = await labelOf(table, /^2 .*Études de détail/);
-  await handle(4).dragTo(target, { targetPosition: { x: 20, y: 14 } });
-  await expect(
-    page.getByText("« Pupitres opérateurs » et la ligne suivante déplacées."),
-  ).toBeVisible({ timeout: WORKING });
-  await expect(table.getByRole("row", { selected: true })).toHaveCount(2);
 });
 
 test("adds a task from the remaining to commit of a project in progress, below a row, the creation said and the grid read anew [WF-RAE-0040-A]", async ({

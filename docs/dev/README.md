@@ -1701,10 +1701,10 @@ sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous une
 ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183, #1187).
 
 La cellule du numéro de chaque ligne en est la poignée (`row-selection.tsx`), dans une grille dont
-l'écran déplace des lignes (`RowCommands.drag`) : nommée par le numéro de sa ligne, décrite par la
-façon de sélectionner et de déplacer, elle se traverse aux flèches comme les autres cellules. Un
-clic la sélectionne seule, Maj et un clic étendent la sélection depuis son ancre ; au clavier, sur
-la colonne des poignées, Espace sélectionne, Maj+↑ et Maj+↓ étendent la sélection avec la cellule
+l'écran agit sur une sélection (`RowCommands.selects`) : nommée par le numéro de sa ligne, décrite
+par la façon de sélectionner et de déplacer, elle se traverse aux flèches comme les autres cellules.
+Un clic la sélectionne seule, Maj et un clic étendent la sélection depuis son ancre ; au clavier,
+sur la colonne des poignées, Espace sélectionne, Maj+↑ et Maj+↓ étendent la sélection avec la cellule
 active, Échap la lève. La sélection est faite de lignes contiguës, gardées par leur identité : une
 relecture qui les déplace les garde sélectionnées, et la cellule active les suit. Chaque ligne dit
 si elle l'est (`aria-selected`), la grille qu'elle en prend plusieurs (`aria-multiselectable`), un
@@ -1725,16 +1725,6 @@ partir de 1, les lignes d'une tâche comptant avant ses sous-tâches) est celui 
 un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni sous une ligne. «
 Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent (`parent_id`,
 `node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine.
-
-La poignée glisse la sélection — ou sa seule ligne, qui n'en est pas — à côté d'une autre ligne :
-avant elle ou après elle, à son niveau, par le quart haut ou bas de la ligne, ou sous elle, en
-dernière place de son genre, par son milieu ; entre deux lignes, c'est avant celle du bas. Une ligne
-se glisse sous une tâche qui porte des lignes, une tâche sous une tâche qui n'est pas un jalon.
-Avant une ligne, la place est celle qui suit la sœur de rang moins un, rendue, ou la tête
-(`after_node_id` nul) au rang 1. L'indicateur — un trait entre les lignes, ou la ligne grisée — ne
-paraît qu'où le dépôt est accepté (`dropOf`) : jamais parmi les lignes glissées ni sous elles, ni à
-côté d'une ligne d'un autre genre. Le glisser a son équivalent au clavier, les gestes au clavier sur
-la sélection.
 
 `moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure
 qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :
