@@ -17,6 +17,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
+import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
 import { RiskMatrixView } from "@/components/risks/risk-matrix";
 import { Signal } from "@/components/signal/signal";
@@ -88,24 +89,26 @@ export function PerformanceView({
   ] as const;
   return (
     <>
-      <ViewSection title={t("portfolio.performance.indices")}>
-        <dl className="flex flex-wrap gap-x-10 gap-y-3">
-          <PortfolioIndex name={t("indicator.names.costIndex")} index={performance.cost_index} />
-          <PortfolioIndex
-            name={t("indicator.names.scheduleIndex")}
-            index={performance.schedule_index}
-          />
-          <Figure name={t("projectIndicators.figures.costVariance")}>
-            <Amount amount={performance.cost_variance} />
-          </Figure>
-          <Figure name={t("projectIndicators.figures.scheduleVariance")}>
-            <Amount amount={performance.schedule_variance} />
-          </Figure>
-          <Figure name={t("projectIndicators.figures.referenceBudget")}>
-            <Amount amount={performance.reference_budget} />
-          </Figure>
-        </dl>
-      </ViewSection>
+      <FiguresGrid className="grid-cols-1">
+        <FiguresCard title={t("portfolio.performance.indices")}>
+          <FiguresList>
+            <PortfolioIndex name={t("indicator.names.costIndex")} index={performance.cost_index} />
+            <PortfolioIndex
+              name={t("indicator.names.scheduleIndex")}
+              index={performance.schedule_index}
+            />
+            <Figure name={t("projectIndicators.figures.costVariance")}>
+              <Amount amount={performance.cost_variance} />
+            </Figure>
+            <Figure name={t("projectIndicators.figures.scheduleVariance")}>
+              <Amount amount={performance.schedule_variance} />
+            </Figure>
+            <Figure name={t("projectIndicators.figures.referenceBudget")}>
+              <Amount amount={performance.reference_budget} />
+            </Figure>
+          </FiguresList>
+        </FiguresCard>
+      </FiguresGrid>
       <ViewSection title={t("portfolio.performance.projections")}>
         <ListTable
           label={t("portfolio.performance.projections")}
@@ -231,18 +234,25 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
   const t = useTranslations("portfolio.risks");
   return (
     <>
-      <dl className="flex flex-wrap gap-x-8 gap-y-2">
-        <ComputedTotal name={t("identifiedTotal")} amount={risks.identified_total} />
-        <ComputedTotal name={t("occurred")} amount={risks.period_outcome.occurred_provisions} />
-        <ComputedTotal name={t("dismissed")} amount={risks.period_outcome.dismissed_provisions} />
-      </dl>
-      <ViewSection title={t("coverage")}>
-        <dl className="flex flex-wrap gap-x-8 gap-y-2">
-          {COVERAGE.map(([field, name]) => (
-            <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
-          ))}
-        </dl>
-      </ViewSection>
+      <FiguresGrid>
+        <FiguresCard title={t("provisions")}>
+          <FiguresList>
+            <ComputedTotal name={t("identifiedTotal")} amount={risks.identified_total} />
+            <ComputedTotal name={t("occurred")} amount={risks.period_outcome.occurred_provisions} />
+            <ComputedTotal
+              name={t("dismissed")}
+              amount={risks.period_outcome.dismissed_provisions}
+            />
+          </FiguresList>
+        </FiguresCard>
+        <FiguresCard title={t("coverage")}>
+          <FiguresList>
+            {COVERAGE.map(([field, name]) => (
+              <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
+            ))}
+          </FiguresList>
+        </FiguresCard>
+      </FiguresGrid>
       <div className="space-y-6">
         <ViewSection title={t("heaviest")}>
           <ListTable label={t("heaviest")} columns={[t("risk"), t("project"), t("provision")]}>

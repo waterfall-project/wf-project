@@ -7,13 +7,14 @@
  * list of terms, a value that may not be computable. Nothing is summed, averaged nor divided here
  * (WF-ARC-0020): a sum is marked computed, Σ (WF-IHM-0030), and a value the server could not
  * compute is said so with its reason, never zero. Every figure carries the date of calculation of
- * its view, under its title (`PortfolioHeader`).
+ * its view, under its title (`PortfolioHeader`). The value lies in a card of figures (US-0550).
  */
 import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
+import { FigureTerm, FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { formatPlanningDate, formatShare } from "@/i18n/format";
 
 type Schemas = components["schemas"];
@@ -62,12 +63,7 @@ export function Figure({
   readonly name: string;
   readonly children: ReactNode;
 }) {
-  return (
-    <div className="space-y-0.5">
-      <dt className="text-xs text-muted-foreground">{name}</dt>
-      <dd className="font-semibold tabular-nums">{children}</dd>
-    </div>
-  );
+  return <FigureTerm name={name}>{children}</FigureTerm>;
 }
 
 /** The period the statistics of the value are computed on, as the server retained it. */
@@ -103,19 +99,21 @@ export function PortfolioValueView({ value }: { readonly value: Schemas["Portfol
     ["delivered", value.delivered],
   ] as const;
   return (
-    <ViewSection title={t("title")}>
-      <ValuePeriod scope={value.scope} />
-      <dl className="flex flex-wrap gap-x-8 gap-y-2">
-        {amounts.map(([name, amount]) => (
-          <ComputedTotal key={name} name={t(name)} amount={amount} />
-        ))}
-        <Figure name={t("conversionRate")}>
-          <ComputableValue
-            value={value.conversion_rate}
-            format={(rate) => formatShare(rate, locale, bounds)}
-          />
-        </Figure>
-      </dl>
-    </ViewSection>
+    <FiguresGrid className="grid-cols-1">
+      <FiguresCard title={t("title")}>
+        <ValuePeriod scope={value.scope} />
+        <FiguresList>
+          {amounts.map(([name, amount]) => (
+            <ComputedTotal key={name} name={t(name)} amount={amount} />
+          ))}
+          <Figure name={t("conversionRate")}>
+            <ComputableValue
+              value={value.conversion_rate}
+              format={(rate) => formatShare(rate, locale, bounds)}
+            />
+          </Figure>
+        </FiguresList>
+      </FiguresCard>
+    </FiguresGrid>
   );
 }

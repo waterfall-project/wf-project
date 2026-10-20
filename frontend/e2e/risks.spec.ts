@@ -39,7 +39,7 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
   await expect(total).toHaveText(/^Total général\s*1\s100\s060,00$/);
   expect(await withinBox(grid, total)).toBe(true);
   await expect(page.getByRole("region", { name: "Provisions des risques retenus" })).toHaveText(
-    /^Risques identifiés\s*500\s000,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600\s000,00\s*Total général\s*1\s100\s060,00$/,
+    /^Provisions des risques retenus\s*Risques identifiés\s*500\s000,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600\s000,00\s*Total général\s*1\s100\s060,00$/,
   );
   // The coverage of the risks, each amount as the server computes it, the variance signed.
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(

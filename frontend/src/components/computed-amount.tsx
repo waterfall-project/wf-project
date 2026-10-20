@@ -8,6 +8,7 @@
 import { Sigma } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { FigureTerm } from "@/components/figures-card";
 import { formatMoney } from "@/i18n/format";
 
 /**
@@ -34,11 +35,8 @@ export function ComputedTotal({
   readonly amount: string;
 }) {
   return (
-    <div className="space-y-0.5">
-      <dt className="text-xs text-muted-foreground">{name}</dt>
-      <dd className="font-semibold">
-        <ComputedAmount amount={amount} />
-      </dd>
-    </div>
+    <FigureTerm name={name}>
+      <ComputedAmount amount={amount} />
+    </FigureTerm>
   );
 }

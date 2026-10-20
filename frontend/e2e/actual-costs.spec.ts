@@ -45,7 +45,7 @@ test("reads the actual costs of a project: the lines and their three totals, the
   await expect.poll(() => withinBox(grid, total)).toBe(true);
   const totals = page.getByRole("region", { name: "Totaux des lignes retenues" });
   await expect(totals).toHaveText(
-    /Périmètre suivi\s*1\s412\s970,20\s*Exclu du périmètre suivi\s*650,00\s*Total général\s*1\s413\s620,20\s*Dernier import\s*3 juin 2026/,
+    /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s412\s970,20\s*Exclu du périmètre suivi\s*650,00\s*Total général\s*1\s413\s620,20\s*Dernier import\s*3 juin 2026/,
   );
   await expect(page.getByRole("region", { name: "Journal des imports" })).toHaveCount(1);
   await expect(

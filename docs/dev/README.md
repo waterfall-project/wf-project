@@ -640,6 +640,24 @@ zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphiq
 référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
 la décaler, et, décalée, garde la commande qui retire le décalage.
 
+### Les chiffres clés en cartes
+
+Les chiffres clés d'un écran se présentent par `FiguresCard` (`src/components/figures-card.tsx`),
+jamais en ligne dans un `<dl className="flex …">` posé sur la page : une carte est une région
+nommée par son titre (`role="region"`, `aria-label` du titre), qui porte la date de calcul quand la
+réponse a un contexte (`context`, `CalculationDate`, WF-IHM-0020) et ses chiffres dans une liste de
+termes (`FiguresList`, un `dl`) — le nom, puis la valeur, pour un lecteur d'écran. Les cartes d'un
+écran sont rangées dans `FiguresGrid`, qui passe à la ligne selon la largeur ; une carte seule y
+reste de la largeur d'une colonne. Une carte porte un bloc de chiffres qui se lit ensemble — les
+totaux, une ventilation en liste, la couverture des risques —, jamais la page entière. Les valeurs,
+leur format et leurs signaux (`Signal`, WF-IHM-0070) sont ceux que l'écran avait : la carte
+n'ajoute que l'encadré. `IndicatorCard` (écran des indicateurs) la réemploie. Les six écrans qui
+la suivent sont les risques, le devis, le reste à engager, les coûts réels et les deux vues du
+portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau du contexte de
+lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la hauteur des
+cartes au-dessus de la grille est mesurée par `e2e/grid-frame.spec.ts`. *Contrôle* : la revue ;
+`src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
+
 ### Les grilles
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par

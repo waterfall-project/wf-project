@@ -66,13 +66,13 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   page,
 }) => {
   await openHydrated(page, GRID);
-  const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
-  const byLot = indicators.locator("dt", { hasText: /^Par lot$/ });
+  const indicators = page.getByRole("main");
+  const byLot = indicators.getByRole("region", { name: "Par lot" });
   await expect(byLot).toBeVisible();
-  // The list that follows the term holds the lot of the witness, whose posts it contains, with the
+  // The card holds a list with the lot of the witness, whose posts it contains, with the
   // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56, its
   // share of the estimate after it (`test_mockdata.py` holds the lot of the volume).
-  const lot = byLot.locator("xpath=following-sibling::dd[1]").getByRole("listitem");
+  const lot = byLot.getByRole("listitem");
   await expect(lot).toHaveCount(1);
   await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s\(0,76\s%\)$/);
   await expect(indicators.getByText("Par poste")).toHaveCount(0);

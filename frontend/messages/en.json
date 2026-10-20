@@ -569,6 +569,7 @@
       "unnamed": "Unnamed"
     },
     "risks": {
+      "provisions": "Risk provisions",
       "identifiedTotal": "Provisions of the identified risks",
       "occurred": "Provisions occurred over the period",
       "dismissed": "Provisions dismissed over the period",

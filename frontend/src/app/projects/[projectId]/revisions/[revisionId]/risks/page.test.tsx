@@ -191,15 +191,20 @@ describe("the screen of the risks", () => {
     expect(text(page)).toContain(
       "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
     );
-    expect(page).toContain('<section aria-label="Provisions of the risks retained"><dl');
+    expect(page).toMatch(/role="region" aria-label="Provisions of the risks retained"/);
+    // The card is a list of terms under its title.
+    expect(page).toMatch(/<h2[^>]*>Provisions of the risks retained<\/h2>.*?<dl/);
   });
 
   it("shows the risk reserve of the reference revision in the coverage alone, never among the totals of the provisions", async () => {
     // Decision of the author of 2026-10-07 (#409): the reserve has its sense beside the provisions
     // remaining, the cost of the risks occurred and the variance.
     const page = await risksAt();
-    const start = page.indexOf('<section aria-label="Provisions of the risks retained">');
-    const totals = page.slice(start, page.indexOf("</section>", start));
+    const start = page.indexOf(
+      "<dl",
+      page.indexOf('aria-label="Provisions of the risks retained"'),
+    );
+    const totals = page.slice(start, page.indexOf("</dl>", start));
     expect(text(totals)).toBe(
       "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
     );
@@ -209,7 +214,7 @@ describe("the screen of the risks", () => {
   it("reads the coverage of the risks in the revision of its route, and shows its four amounts as the server computes them, the variance signed [WF-RIS-0050-A]", async () => {
     const page = await risksAt();
     expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
-    expect(page).toContain('<section aria-label="Risk coverage"><dl');
+    expect(page).toMatch(/role="region" aria-label="Risk coverage"/);
     expect(text(page)).toContain(
       "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
     );

@@ -99,8 +99,12 @@ function cellTag(page: string, row: number, column: string): string {
 
 /** The section a page names, from its opening tag to its end. */
 function section(page: string, name: string): string {
-  const start = page.indexOf(`<section aria-label="${name}"`);
-  return start < 0 ? "" : page.slice(start, page.indexOf("</section>", start));
+  // The cards of figures, from the first one, which carries the name, to the grid that follows.
+  const named = page.indexOf(`role="region" aria-label="${name}"`);
+  const start = page.lastIndexOf("<div", named);
+  return named < 0
+    ? ""
+    : page.slice(start, page.indexOf('aria-label="Remaining to commit grid"', start));
 }
 
 beforeEach(() => {

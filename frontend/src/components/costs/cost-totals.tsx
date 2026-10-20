@@ -5,12 +5,13 @@
  * the total excluded and the general total, of every line the filters retained — not of the page
  * shown —, each as the server gives it (WF-CRE-0040, WF-ARC-0020) and marked computed; and the
  * date of the last import, from which the figures read date (WF-CRE-0050), in the local time of
- * the workstation, or that nothing has been imported yet.
+ * the workstation, or that nothing has been imported yet. All in a card of figures (US-0550).
  */
 import { useTranslations } from "next-intl";
 
 import { LocalTime } from "@/components/local-time";
 import { ComputedTotal } from "@/components/computed-amount";
+import { FigureTerm, FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 
 import type { ActualCostTotals } from "./cost-grid";
 
@@ -31,18 +32,17 @@ export function CostSummary({
 }) {
   const t = useTranslations("actualCosts");
   return (
-    <section aria-label={t("totals.title")}>
-      <dl className="flex flex-wrap gap-x-8 gap-y-2">
-        {TOTALS.map((total) => (
-          <ComputedTotal key={total} name={t(`totals.${total}`)} amount={totals[total]} />
-        ))}
-        <div className="space-y-0.5">
-          <dt className="text-xs text-muted-foreground">{t("lastImport.label")}</dt>
-          <dd className="font-semibold">
+    <FiguresGrid className="grid-cols-1">
+      <FiguresCard title={t("totals.title")} inline>
+        <FiguresList>
+          {TOTALS.map((total) => (
+            <ComputedTotal key={total} name={t(`totals.${total}`)} amount={totals[total]} />
+          ))}
+          <FigureTerm name={t("lastImport.label")}>
             {lastImport === null ? t("lastImport.never") : <LocalTime value={lastImport} />}
-          </dd>
-        </div>
-      </dl>
-    </section>
+          </FigureTerm>
+        </FiguresList>
+      </FiguresCard>
+    </FiguresGrid>
   );
 }

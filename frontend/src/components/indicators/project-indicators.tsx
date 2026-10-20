@@ -17,13 +17,9 @@ import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
-import {
-  CalculationDate,
-  type CalculationContext,
-  ComputedIndicator,
-} from "@/components/context/indicator";
+import { type CalculationContext, ComputedIndicator } from "@/components/context/indicator";
+import { FiguresCard } from "@/components/figures-card";
 import { Signal } from "@/components/signal/signal";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/i18n/format";
 
 import { type IndexHistory, IndexChart } from "./index-chart";
@@ -79,15 +75,9 @@ function IndicatorCard({
   readonly children: ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>
-          <CalculationDate context={context} />
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
-    </Card>
+    <FiguresCard title={title} context={context} className="gap-4 py-5">
+      {children}
+    </FiguresCard>
   );
 }
 

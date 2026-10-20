@@ -151,3 +151,40 @@ test("a grid of a few rows is no taller than its content, in a window that would
   // The table and the two borders of the frame: no band under the totals (#1041).
   expect(heights.frame).toBeLessThanOrEqual(heights.table + 2);
 });
+
+/** The screens whose key figures lie in cards above their grid (US-0550), and the most they take. */
+const CARD_SCREENS = [
+  { address: path(`${REVISION}/estimate`), at1366: 230, at911: 380 },
+  { address: path(`${REVISION}/remaining`), at1366: 300, at911: 600 },
+  { address: path(`${REVISION}/actual-costs`), at1366: 70, at911: 130 },
+  { address: path(`${REVISION}/risks`), at1366: 115, at911: 165 },
+] as const;
+
+for (const { address, at1366, at911 } of CARD_SCREENS) {
+  test(`${address}: the cards of figures above the grid take no more of the window than their budget`, async ({
+    page,
+  }) => {
+    await compile(page.request, address);
+    for (const [size, most] of [
+      [WINDOWS[0], at1366],
+      [WINDOWS[1], at911],
+    ] as const) {
+      await open(page, address, { width: size.width, height: 768 });
+      const taken = await page.evaluate(() => {
+        const cards = Array.from(
+          document.querySelectorAll("main [data-slot='card'][role='region']"),
+        );
+        const boxes = cards.map((card) => card.getBoundingClientRect());
+        return {
+          count: boxes.length,
+          height:
+            Math.max(...boxes.map((box) => box.bottom)) - Math.min(...boxes.map((box) => box.top)),
+        };
+      });
+      expect(taken.count, `the cards of ${address}`).toBeGreaterThan(0);
+      expect(taken.height, `the cards of ${address} at ${String(size.width)}`).toBeLessThanOrEqual(
+        most,
+      );
+    }
+  });
+}
