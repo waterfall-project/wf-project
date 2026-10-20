@@ -573,9 +573,9 @@ grille offre — la saisie, les gestes, le collage — ne se lit pourtant pas l�
 structure principale qu'elle lit (`screen.commands`, de `grid-screen.ts`, d'après
 `available_commands`) : sa propre commande — `edit_planning` pour le planning —, car la phase du
 projet n'est pas celle de la révision (le devis d'un projet En cours est en lecture seule, le
-reste à engager non) et qu'un chiffreur peut saisir le devis sans toucher au planning. `readOnly` — révision marquée, ou
-aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une valeur sous
-enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
+reste à engager non) et qu'un chiffreur peut saisir le devis sans toucher au planning. `readOnly` —
+révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
+valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
 (`enums.NotComputableReason.*`, `indicator.tsx`).
 

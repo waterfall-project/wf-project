@@ -70,13 +70,14 @@ export interface PlanningGridProps {
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
   /**
-   * Whether the main structure read lists `edit_planning` available (`GridScreen.commands`): its grid places undo and redo, which
-   * act on the entries of the planning once EP-06 keeps them; none, and it places none.
+   * Whether the main structure read lists `edit_planning` available (`GridScreen.commands`): its
+   * grid places undo and redo, which act on the entries of the planning once EP-06 keeps them;
+   * none, and it places none.
    */
   readonly undoable?: boolean | undefined;
   /**
-   * Whether the structure lists `edit_planning` available: the tasks are created and deleted from the
-   * grid (US-0460). Not, and it offers no gesture of structure.
+   * Whether the structure lists `edit_planning` available: the tasks are created and deleted from
+   * the grid (US-0460). Not, and it offers no gesture of structure.
    */
   readonly editable?: boolean | undefined;
   /**

@@ -40,18 +40,34 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
   return rowAt(grid, row).getByRole("gridcell").nth(column);
 }
 
+/** A screen of the journeys: its address, its grid, its columns by heading, and the one it opens on. */
+interface Screen<K extends string> {
+  readonly path: string;
+  readonly grid: string;
+  readonly columns: Readonly<Record<K, string | RegExp>>;
+  readonly first: NoInfer<K>;
+}
+
+const ESTIMATE_SCREEN: Screen<keyof typeof COLUMNS> = {
+  path: ESTIMATE,
+  grid: "Grille de devis",
+  columns: COLUMNS,
+  first: "label",
+};
+
 /**
- * Open the estimate hydrated, and reach its active cell by Tab alone, as the keyboard does: past
- * the shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip
- * to the browser, which the journey is given the time of (`test.slow`).
+ * Open a screen hydrated, and reach the active cell of its grid by Tab alone, as the keyboard
+ * does: past the shell and the bar of the grid, to the one stop of the grid (#182) — each stop a
+ * round trip to the browser, which the journey is given the time of (`test.slow`). The columns are
+ * those of the grid, by their heading.
  */
-async function tabIntoGrid(page: Page): Promise<{
-  readonly grid: Locator;
-  readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
-}> {
+async function tabIntoGrid<K extends string>(
+  page: Page,
+  screen: Screen<K>,
+): Promise<{ readonly grid: Locator; readonly at: Readonly<Record<K, number>> }> {
   test.slow();
-  await openHydrated(page, ESTIMATE);
-  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  await openHydrated(page, screen.path);
+  const grid = page.getByRole("treegrid", { name: screen.grid });
   const active = grid.locator('td[tabindex="0"]');
   await expect(active).toHaveCount(1);
   await expect
@@ -63,8 +79,8 @@ async function tabIntoGrid(page: Page): Promise<{
       { intervals: [0], timeout: 30_000 },
     )
     .toBe(true);
-  const at = await columnsOf(grid, COLUMNS);
-  await expect(cellAt(grid, 1, at.label)).toBeFocused();
+  const at = await columnsOf(grid, screen.columns);
+  await expect(cellAt(grid, 1, at[screen.first])).toBeFocused();
   return { grid, at };
 }
 
@@ -93,7 +109,7 @@ function times(key: string, count: number): string[] {
 test.fixme("enters a whole line of the estimate without the mouse — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
   // Each cell validated leaves by a server action of its own.
   const writes: string[] = [];
   page.on("request", (request) => {
@@ -157,7 +173,7 @@ test.fixme("enters a whole line of the estimate without the mouse — label, cat
 test.fixme("leaves a cell at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
   await press(page, ...times("ArrowDown", LINE - 1), ...times("ArrowRight", at.hours - at.label));
   const hours = cellAt(grid, LINE, at.hours);
   await expect(hours).toBeFocused();
@@ -172,7 +188,7 @@ test.fixme("leaves a cell at its value before when its entry under way is abando
 test.fixme("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");
   await expect(cellAt(grid, PROVISION, at.label)).toBeFocused();
@@ -191,7 +207,7 @@ test.fixme("traverses the computed cells of a line entered along its row, withou
 test.fixme("opens the entry of the effort on a digit typed, and the refusal of the amount, with no field, on the same digit [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
   await press(page, ...times("ArrowDown", LINE - 1), ...times("ArrowRight", at.hours - at.label));
   const hours = cellAt(grid, LINE, at.hours);
   await expect(hours).toBeFocused();
@@ -220,14 +236,13 @@ const REMAINING_LINE = 10;
 test("re-estimates the figures of a line of the remaining to commit from the keyboard, the entry abandoned leaving the figure as it was, the entry validated writing it [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  test.slow();
-  await openHydrated(page, REMAINING);
-  const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
-  // The effort re-estimated now, past the one of the remaining to commit before.
-  const header = grid.getByRole("columnheader", { name: "Charge (h)", exact: true });
-  const position = await header.evaluate((th) =>
-    th instanceof HTMLTableCellElement ? th.cellIndex : -1,
-  );
+  const { grid, at } = await tabIntoGrid(page, {
+    path: REMAINING,
+    grid: "Grille de reste à engager",
+    // « Charge (h) » alone: the column of the review before is headed the same, and goes on.
+    columns: { label: "Libellé", hours: /^Charge \(h\)$/ },
+    first: "label",
+  });
   const writes: string[] = [];
   page.on("request", (request) => {
     if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
@@ -236,20 +251,29 @@ test("re-estimates the figures of a line of the remaining to commit from the key
   });
 
   // A key typed opens the entry of the effort, with it; abandoned, the effort is as it was.
-  const hours = cellAt(grid, REMAINING_LINE, position);
-  await hours.click();
+  await press(
+    page,
+    ...times("ArrowDown", REMAINING_LINE - 1),
+    ...times("ArrowRight", at.hours - at.label),
+  );
+  const hours = cellAt(grid, REMAINING_LINE, at.hours);
+  await expect(hours).toBeFocused();
   const before = await hours.innerText();
   await page.keyboard.press("7");
   await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("7");
   await page.keyboard.press("Escape");
   await expect(hours.getByRole("textbox")).toHaveCount(0);
   await expect(hours).toHaveText(before);
-  expect(writes).toEqual([]);
 
-  // Validated by Tab, the effort is written, the entry closed and no refusal told.
-  await page.keyboard.type("31,5");
+  // Validated by Tab, the effort is written once, by the Tab and not by the Escape before it, the
+  // entry closed and no refusal told.
+  await page.keyboard.press("7");
+  await page.keyboard.type("1,5");
+  await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("71,5");
+  expect(writes).toEqual([]);
   await page.keyboard.press("Tab");
-  await expect.poll(() => writes.length).toBeGreaterThan(0);
+  await expect.poll(() => writes.length).toBe(1);
   await expect(hours.getByRole("textbox")).toHaveCount(0);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  expect(writes).toHaveLength(1);
 });
