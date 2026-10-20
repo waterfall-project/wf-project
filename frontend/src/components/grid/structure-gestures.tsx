@@ -236,7 +236,7 @@ export function useStructureGestures<Row extends GridNode>(
   const t = useTranslations("grid.structure");
   const router = useRouter();
   const held = useHeldCommand();
-  const [, refresh] = useTransition();
+  const [reading, refresh] = useTransition();
   const [said, say] = useSaid();
   const noticeId = useId();
   const [opened, setOpened] = useState<Opened<Row>>();
@@ -244,12 +244,27 @@ export function useStructureGestures<Row extends GridNode>(
   const [told, setTold] = useState<Told<Row>>();
   const openings = useRef(0);
   // The cell that had the focus when a row was deleted with no dialog: once the grid is read anew
-  // without it, the focus goes back to the active cell, not to the page.
+  // without it, the focus goes back to the active cell, not to the page. It is forgotten as soon as
+  // that reading is over, whether the cell was removed or not, and the focus is only given back
+  // when it is on the page, never taken from a field the user went to.
   const lost = useRef<HTMLElement>(undefined);
+  const readingBegun = useRef(false);
   useEffect(() => {
-    if (lost.current !== undefined && !lost.current.isConnected) {
+    const cell = lost.current;
+    if (cell === undefined) {
+      return;
+    }
+    if (!cell.isConnected) {
       lost.current = undefined;
-      refocus(undefined);
+      readingBegun.current = false;
+      if (document.activeElement === null || document.activeElement === document.body) {
+        refocus(undefined);
+      }
+    } else if (reading) {
+      readingBegun.current = true;
+    } else if (readingBegun.current) {
+      lost.current = undefined;
+      readingBegun.current = false;
     }
   });
   if (scope === undefined) {
@@ -285,6 +300,7 @@ export function useStructureGestures<Row extends GridNode>(
         setTold(undefined);
         say(node.done, { object: node.label });
         lost.current = cell;
+        readingBegun.current = false;
         refresh(() => {
           router.refresh();
         });

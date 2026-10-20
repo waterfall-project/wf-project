@@ -3,6 +3,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { type ReactNode, use, useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -81,6 +82,35 @@ function estimateGrid(editable = true, tasksEditable = true, nodes: NodeList = e
       />
     </NextIntlClientProvider>
   );
+}
+
+// The reading that follows a write is a transition of Next that stays pending until the server
+// answers: the wrapper suspends, inside the transition, on a promise the test releases.
+const reading = vi.hoisted(
+  (): { hold?: (wait: Promise<void>) => void; release?: () => void } => ({}),
+);
+
+/** Wrap a grid so that `router.refresh()` keeps its transition pending until `reading.release()`. */
+function Reading({ children }: { readonly children: ReactNode }) {
+  const [wait, hold] = useState<Promise<void>>();
+  useEffect(() => {
+    reading.hold = hold;
+  }, [hold]);
+  if (wait !== undefined) {
+    use(wait);
+  }
+  return children;
+}
+
+/** Make the next `router.refresh()` a reading that lasts until `reading.release()`. */
+function holdReading(): void {
+  router.refresh.mockImplementation(() => {
+    reading.hold?.(
+      new Promise<void>((resolve) => {
+        reading.release = resolve;
+      }),
+    );
+  });
 }
 
 /** The cell of the label of the row at an index. */
@@ -356,24 +386,77 @@ describe("the gestures that delete tasks and lines", () => {
     ]);
   });
 
-  it("gives the focus back to a cell of the grid once the row deleted at once is read away", async () => {
-    serve({ [DELETE]: "node_deleted" });
-    const view = render(estimateGrid());
-    await activate(LINE);
-    await userEvent.keyboard("{Control>}{Delete}{/Control}");
-    await screen.findByText("« Raccordement des borniers » supprimée.");
-    // The server's reading, without the row: the cell that had the focus is gone with it.
-    view.rerender(
+  describe("the focus of a row deleted at once", () => {
+    const without = () =>
       estimateGrid(true, true, {
         ...estimate,
         items: estimate.items.filter((_, index) => index !== LINE),
-      }),
-    );
-    await waitFor(() => {
-      expect(document.activeElement).not.toBe(document.body);
-      expect(screen.getByRole("treegrid")).toContainElement(
-        document.activeElement instanceof HTMLElement ? document.activeElement : null,
-      );
+      });
+
+    /** Delete the line at once, the reading of the grid being held. */
+    async function deleteHeld() {
+      holdReading();
+      serve({ [DELETE]: "node_deleted" });
+      const view = render(estimateGrid(), { wrapper: Reading });
+      await activate(LINE);
+      await userEvent.keyboard("{Control>}{Delete}{/Control}");
+      await screen.findByText("« Raccordement des borniers » supprimée.");
+      return view;
+    }
+
+    const filter = () => {
+      const field = document.createElement("input");
+      document.body.append(field);
+      field.focus();
+      return field;
+    };
+
+    it("gives the focus back to a cell when the reading removes the cell and nothing else has it", async () => {
+      const view = await deleteHeld();
+      await act(async () => {
+        view.rerender(without());
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(screen.getByRole("treegrid")).toContainElement(
+          document.activeElement instanceof HTMLElement ? document.activeElement : null,
+        );
+      });
+    });
+
+    it("does not take the focus from a field the user went to during the reading", async () => {
+      const view = await deleteHeld();
+      const field = filter();
+      await act(async () => {
+        view.rerender(without());
+        await Promise.resolve();
+      });
+      await act(async () => {
+        reading.release?.();
+        await Promise.resolve();
+      });
+      expect(document.activeElement).toBe(field);
+      field.remove();
+    });
+
+    it("forgets the cell once the reading is over, so a later removal takes no focus", async () => {
+      const view = await deleteHeld();
+      // The cell is recycled, and stays connected through the reading.
+      await act(async () => {
+        view.rerender(estimateGrid());
+        await Promise.resolve();
+      });
+      await act(async () => {
+        reading.release?.();
+        await Promise.resolve();
+      });
+      const field = filter();
+      await act(async () => {
+        view.rerender(without());
+        await Promise.resolve();
+      });
+      expect(document.activeElement).toBe(field);
+      field.remove();
     });
   });
 
