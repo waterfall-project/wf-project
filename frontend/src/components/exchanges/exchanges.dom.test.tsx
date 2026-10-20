@@ -39,6 +39,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 type Import = components["schemas"]["Import"];
+type Report = components["schemas"]["ImportReport"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -480,6 +481,17 @@ describe("the report of an import", () => {
     const differences = screen.getByRole("table", { name: "Differences with the existing data" });
     // `passthrough.Fournisseur`, a column of the file no catalogue translates (#365).
     expect(differences).toHaveTextContent("FA-2026-0412Amount and Fournisseur");
+  });
+
+  it("names the parent a node changes, which no column of the structure holds", () => {
+    // The differences of the merge of amendment 2, which moves « Mise en service » under « Essais
+    // sur site » (#1194): `ImportDifference`, the one schema of the differences of an import.
+    const { differences: moved } = example("structure_merge_report") as Pick<Report, "differences">;
+    const entry = example("import_planning_mismatch") as Import & { report: Report };
+    serve({});
+    open(report({ ...entry, report: { ...entry.report, differences: moved } }));
+    const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
+    expect(differences).toHaveTextContent("ModifiéTâcheMise en serviceDurée et Rattachement");
   });
 });
 

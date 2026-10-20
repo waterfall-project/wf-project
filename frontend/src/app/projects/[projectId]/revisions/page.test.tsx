@@ -400,7 +400,14 @@ describe("the parts of the revision the screen reads in", () => {
 describe("the commands of the revision the screen reads in", () => {
   it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    for (const name of ["Créer une structure", "Marquer la révision"]) {
+    // The draft carries amendment 2, not merged: another one opens all the same, several
+    // coexisting (WF-REV-0100, #1211).
+    for (const name of [
+      "Créer une structure",
+      "Fusionner une structure",
+      "Marquer la révision",
+      "Abandonner la révision",
+    ]) {
       expect(offered(page, name)).toBe("available");
     }
   });

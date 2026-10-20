@@ -1999,7 +1999,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`, ses lignes triées sous
   chaque tâche par `wftools.mocksort`) ; les réponses des
   écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
-  de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`), et les refus
+  de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un
+  nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`), et les refus
   d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
   (`wftools.mockexchanges`) ; son
   histoire, ses révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
