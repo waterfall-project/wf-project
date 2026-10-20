@@ -1674,17 +1674,18 @@ sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne 
 `deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une création désigne sa place par le
 nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un rang qu'une grille filtrée ne
 saurait compter : la ligne active pour « Insérer au-dessous » et pour une ligne sous une ligne ;
-sans lui, une sous-tâche ou une ligne sous une tâche va en fin de son parent (#1183). La
-suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et le focus revient alors à la
-cellule active de la grille. La grille est relue après une écriture, la lecture du serveur faisant
-foi pour les numéros et les niveaux (#1160), et la version que la structure a atteinte est dite à la
-grille, que porte le collage suivant. Les gestes de tâche du devis exigent `edit_planning`
-(`tasksEditable` de `estimate-grid.tsx`) en plus de `edit_estimate` : créer ou supprimer une tâche
-écrit le planning, et un chiffreur qui ne peut que saisir le devis n'en crée pas. Un refus — tâche
-terminée, par exemple — est dit au-dessus de la grille en nommant la ligne en cause, dont
-l'étiquette est marquée et décrite par lui ; celui d'une création sans ligne (la première tâche
-d'une grille vide) nomme la tâche tentée. Le succès se dit par `useSaid` et le refus par
-`OutcomeNotice`, tous deux notés dans l'historique des messages.
+sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous une tâche après sa
+dernière ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183, #1187). La
+suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas,
+et le focus revient alors à la cellule active de la grille. La grille est relue après une
+écriture, la lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version
+que la structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de
+tâche du devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de
+`edit_estimate` : créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que
+saisir le devis n'en crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la
+grille en nommant la ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une
+création sans ligne (la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit
+par `useSaid` et le refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
 
 ### Les grilles arborescentes : plier et déplier
 

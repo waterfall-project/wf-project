@@ -57,7 +57,15 @@ def money(value: str) -> Decimal:
 
 
 OPERATIONS = {
-    "createNode": ("201", ["node_created", "node_created_child", "estimate_line_created"]),
+    "createNode": (
+        "201",
+        [
+            "node_created",
+            "node_created_child",
+            "estimate_line_created",
+            "estimate_line_created_after_subtask",
+        ],
+    ),
     "deleteNode": ("200", ["node_summary_deleted"]),
     "moveNodes": ("200", ["nodes_moved", "nodes_indented"]),
     "setNodeTracking": ("200", ["node_tracked"]),
@@ -180,6 +188,27 @@ def test_a_line_created_after_the_reference_has_no_budget(
     assert created["totals"]["estimate_line_count"] == totals["estimate_line_count"] + 1
     assert money(created["totals"]["base_amount"]) == money(totals["base_amount"]) + 350
     assert created["totals"]["budgeted_amount"] == totals["budgeted_amount"]
+
+
+def test_a_line_sent_after_a_subordinate_goes_after_the_last_line_of_its_task(
+    read: dict[str, Node],
+) -> None:
+    # The lines of a task precede its subordinates (#1187): a line that names a subordinate to
+    # follow falls back on the boundary, after the last line — here the first child of the
+    # station, which bears none, and the row right under it, before the wiring of the cabinets.
+    after = read[universe(mockgestures.SHARED_AFTER)]
+    station = read[universe(mockgestures.SHARED_UNDER)]
+    assert after["parent_id"] == station["node_id"]
+    assert after["kind"] == "task"
+    assert not mockwitness.CONTROL_STATION.lines
+    [line] = gesture("estimate_line_created_after_subtask")["nodes"]
+    assert (line["node_id"], line["kind"], line["parent_id"]) == (
+        universe(mockgestures.CREATED_SHARED),
+        "estimate_line",
+        station["node_id"],
+    )
+    assert (line["position"], line["row_number"]) == (1, station["row_number"] + 1)
+    assert line["row_number"] == read[universe(N.WIRING)]["row_number"]
 
 
 def test_a_selection_moved_changes_the_task_that_bears_its_lines_and_nothing_else(

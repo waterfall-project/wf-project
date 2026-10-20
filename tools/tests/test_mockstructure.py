@@ -158,6 +158,15 @@ def test_positions_count_the_siblings_of_one_parent_from_one(items: list[Node]) 
     for node in items:
         siblings.setdefault(node["parent_id"], []).append(node["position"])
     assert all(positions == list(range(1, len(positions) + 1)) for positions in siblings.values())
+    # The witness, which the gestures amend, ranks so too: the lines of a task, then its
+    # subordinates.
+    ranks: dict[int | None, list[tuple[object, str]]] = {}
+    for row in mockcore.current():
+        ranks.setdefault(row.parent, []).append((row.node["position"], row.kind))
+    for each in ranks.values():
+        assert [position for position, _ in each] == list(range(1, len(each) + 1))
+        kinds = [kind == "task" for _, kind in each]
+        assert kinds == sorted(kinds)
 
 
 def test_a_line_drawn_is_priced_exactly_and_paid_by_its_nature(items: list[Node]) -> None:

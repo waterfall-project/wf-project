@@ -305,6 +305,7 @@ paths = [
     "fixtures/api/node_created.json",
     "fixtures/api/node_created_child.json",
     "fixtures/api/estimate_line_created.json",
+    "fixtures/api/estimate_line_created_after_subtask.json",
     "fixtures/api/nodes_moved.json",
     "fixtures/api/nodes_indented.json",
     "fixtures/api/node_summary_deleted.json",

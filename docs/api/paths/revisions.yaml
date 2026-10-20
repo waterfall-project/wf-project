@@ -711,6 +711,8 @@
               created: { $ref: ../../../fixtures/api/node_created.json }
               created_child: { $ref: ../../../fixtures/api/node_created_child.json }
               line_created: { $ref: ../../../fixtures/api/estimate_line_created.json }
+              line_created_after_subtask:
+                $ref: ../../../fixtures/api/estimate_line_created_after_subtask.json
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

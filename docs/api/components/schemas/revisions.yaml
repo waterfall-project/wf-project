@@ -453,8 +453,8 @@ Node:
       minimum: 1
       readOnly: true
       description: >-
-        Rang du nœud parmi les frères de son parent — ses tâches et ses lignes, dans l'ordre du
-        plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement
+        Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses
+        sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement
         désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`,
         `NodeMove.after_node_id` ; #1183).
     row_number:
@@ -1288,9 +1288,13 @@ NodeCreate:
   type: object
   required: [kind, parent_id]
   description: >-
-    Le nœud créé prend place sous `parent_id`, après le frère que nomme `after_node_id` : en tête
-    de son parent si `after_node_id` est nul, à la fin de ses frères s'il est absent. Un
-    `after_node_id` qui n'est pas un frère sous le parent visé — un nœud d'un autre parent, ou
+    Le nœud créé prend place sous `parent_id`, après le frère que nomme `after_node_id`. Les
+    lignes d'une tâche précèdent toujours ses sous-tâches (`Node.position`) : nul, une ligne se
+    place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne se place
+    après la dernière ligne, une tâche après la dernière sous-tâche. Un `after_node_id` d'un
+    autre genre que le nœud créé se replie sur la frontière entre lignes et sous-tâches : une
+    ligne envoyée après une sous-tâche se place après la dernière ligne, une tâche envoyée après
+    une ligne en tête des sous-tâches (#1187). Un `after_node_id` qui n'est pas un frère sous le parent visé — un nœud d'un autre parent, ou
     qui n'est pas de la structure — est refusé par 422 `VALIDATION_FAILED`, `fields[].pointer` à
     `/after_node_id`, motif `NODE_NOT_SIBLING`, rien n'étant écrit : la grille désigne la place
     par le nœud qu'elle lit, jamais par un rang qu'une lecture filtrée ne lui permet pas de
@@ -1461,8 +1465,17 @@ NodeMove:
     `fields[].params.work_package_task` et `order_item_tasks` nommant la tâche du lot et celles
     des postes, chacune par son nœud et son libellé (`node_id`, `label`) : la grille, filtrée, peut
     ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s). Les nœuds déplacés prennent place
-    sous `parent_id`, dans l'ordre de `node_ids`, après le frère que nomme `after_node_id` : en
-    tête du parent s'il est nul, à la fin de ses frères s'il est absent. Un `after_node_id` qui
+    sous `parent_id`, dans l'ordre de `node_ids`, après le frère que nomme `after_node_id`, selon
+    la règle de `NodeCreate` : les lignes d'une tâche précèdent toujours ses sous-tâches ; nul,
+    une ligne se place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne
+    après la dernière ligne, une tâche après la dernière sous-tâche ; un `after_node_id` d'un
+    autre genre se replie sur la frontière entre lignes et sous-tâches, une ligne après une
+    sous-tâche se plaçant après la dernière ligne, une tâche après une ligne en tête des
+    sous-tâches. Une sélection qui mêle lignes et tâches applique cette règle à chaque nœud,
+    dans l'ordre de `node_ids` : le premier nœud de chaque genre prend la place que la règle lui
+    donne après `after_node_id`, et chacun des suivants se place après le précédent de son genre
+    — les lignes déplacées restent ensemble parmi les lignes, les tâches parmi les sous-tâches
+    (#1187). Un `after_node_id` qui
     n'est pas un frère sous le parent visé — un nœud d'un autre parent, l'un des nœuds déplacés,
     ou un nœud qui n'est pas de la structure — est refusé par 422 `VALIDATION_FAILED`,
     `fields[].pointer` à `/after_node_id`, motif `NODE_NOT_SIBLING`, rien ne bougeant (#1183).

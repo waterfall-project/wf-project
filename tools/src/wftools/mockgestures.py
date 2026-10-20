@@ -13,7 +13,7 @@ would bind a summary to its subordinate, or close a loop through it, is refused 
 entered are (#1164), the structure it would leave refused by ``mockcore.schedule`` too.
 
 Every node the gestures write is one no other write renders at the same version (#421): the
-tasks they create are numbered 581 to 583, after the nodes of the skeleton.
+nodes they create are numbered 581 to 584, after the nodes of the skeleton.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ from wftools.mockwitness import (
     EQUIPMENT,
     INSTALLATION,
     STUDIES,
+    SUBPROJECT_CONTROL,
     SUBPROJECT_TESTS,
     TIMELINES,
     Line,
@@ -62,7 +63,7 @@ any of its structures (WF-PLA-0150)."""
 
 # --- The structure created, moved, deleted -----------------------------------------------------
 
-CREATED, CREATED_CHILD, CREATED_LINE = 581, 582, 583
+CREATED, CREATED_CHILD, CREATED_LINE, CREATED_SHARED = 581, 582, 583, 584
 
 SIBLING = Task(CREATED, "Note de calcul des protections", days=1, progress="not_started")
 """The task created beside the design file, a label alone sent: a leaf in automatic mode, of one
@@ -117,6 +118,34 @@ def node_created_child() -> JsonObject:
 def estimate_line_created() -> JsonObject:
     """Return what createNode answers to a line created under the commissioning."""
     return core_write(amended(CORE, added(N.COMMISSIONING, line=TEST_SUPPLIES)), [CREATED_LINE])
+
+
+SHARED_UNDER, SHARED_AFTER = N.CONTROL_STATION, N.FACTORY_ACCEPTANCE
+"""The summary a line is created under, and the node it is sent to follow: its last subordinate,
+the factory acceptance. The lines of a task precede its subordinates: a line sent after a
+subordinate falls back on the boundary, after the last line of the task (#1187)."""
+
+SHARED_TOOLING = Line(
+    CREATED_SHARED,
+    "Outillage commun du poste",
+    EQUIPMENT,
+    unit=Decimal("420.00"),
+    subproject=SUBPROJECT_CONTROL,
+    budgeted=Decimal(0),
+)
+"""The line created under the control station, a summary that bears no line of its own: sent
+after its last subordinate, it becomes its first child, before the wiring of the cabinets."""
+
+
+def estimate_line_created_after_subtask() -> JsonObject:
+    """Return what createNode answers to a line created under the station, after a subordinate.
+
+    The witness renders the lines of a task before its subordinates (``mockcore``): the line
+    added last among the lines of the station is at the place the contract gives a line that
+    names a subordinate to follow (``NodeCreate``, #1187).
+    """
+    roots = amended(CORE, added(SHARED_UNDER, line=SHARED_TOOLING))
+    return core_write(roots, [CREATED_SHARED])
 
 
 def network_task(label: str) -> Task:
@@ -635,6 +664,7 @@ def examples() -> dict[str, JsonObject]:
 
 def _structure_examples() -> dict[str, JsonObject]:
     created, child, line = node_created(), node_created_child(), estimate_line_created()
+    shared = estimate_line_created_after_subtask()
     moved, indented, deleted = nodes_moved(), nodes_indented(), node_summary_deleted()
     rows = {row.number: row for row in mockcore.current()}
     created_task = _task(created)
@@ -642,6 +672,7 @@ def _structure_examples() -> dict[str, JsonObject]:
         node["task"] for node in _nodes(child, "ancestors") if node["node_id"] == universe(CREATED)
     ]
     [new_line] = _nodes(line)
+    [shared_line] = _nodes(shared)
     supplies = cast("Node", new_line["estimate_line"])
     [indented_node] = _nodes(indented)
     gone = [rows[number] for number in (N.MOUNTING, N.COMMISSIONING)]
@@ -675,6 +706,19 @@ def _structure_examples() -> dict[str, JsonObject]:
             f"{_labels(line, 'ancestors')}, dont le montant suit, et {totals_said(line)}, le "
             f"budgété inchangé (WF-DEV-0050).",
             line,
+        ),
+        "estimate_line_created_after_subtask.json": mocktext.example(
+            f"La ligne « {SHARED_TOOLING.label} » créée sous le "
+            f"« {rows[SHARED_UNDER].label} », une récapitulative sans ligne propre, après sa "
+            f"dernière subordonnée, la « {rows[SHARED_AFTER].label} » (after_node_id) : les "
+            f"lignes d'une tâche précèdent toujours ses sous-tâches, et une ligne qui suit une "
+            f"sous-tâche se place après la dernière ligne. Elle devient le premier enfant du "
+            f"poste, au rang {shared_line['position']}, avant le « {rows[N.WIRING].label} » ; "
+            f"{money_said(shared_line['estimate_line']['base_amount'])} de matériel, son "
+            f"montant budgété nul (WF-RAE-0050), à sa première version (201). Avec elle, ses "
+            f"ancêtres, {_labels(shared, 'ancestors')}, dont le montant suit, et "
+            f"{totals_said(shared)}, le budgété inchangé (WF-DEV-0050 ; #1187).",
+            shared,
         ),
         "nodes_moved.json": mocktext.example(
             f"Une sélection de deux lignes, « {MOVED_LINES[0]} » et « {MOVED_LINES[1]} » de "

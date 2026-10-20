@@ -6477,6 +6477,24 @@ ligne sous une tâche, un déplacement sous une autre tâche (`node_created`, `e
 `nodes_moved`, `nodes_indented`). Les nœuds déplacés se suivent dans l'ordre de `node_ids`.
 `position` n'est plus écrit.
 
+**Les lignes d'une tâche précèdent toujours ses sous-tâches**, à la création comme au déplacement
+(relevé à la revue du contrat de L3b, à valider avec le reste de #1187). Une ligne et une tâche
+sont frères sous une même tâche, et `after_node_id` peut nommer un frère de l'autre genre ;
+« absent, en fin » ne disait pas où va une ligne sous une tâche qui a des sous-tâches. La règle
+retenue est celle que `Node.position` lisait déjà et que suit le témoin, `wftools.mockcore`, qui
+rend les lignes d'une tâche puis ses subordonnées : nul, une ligne se place en tête des lignes,
+une tâche en tête des sous-tâches ; absent, une ligne après la dernière ligne, une tâche après la
+dernière sous-tâche ; un `after_node_id` d'un autre genre se replie sur la frontière entre lignes
+et sous-tâches — une ligne envoyée après une sous-tâche se place après la dernière ligne, une
+tâche envoyée après une ligne en tête des sous-tâches. Une sélection de `moveNodes` qui mêle
+lignes et tâches applique la règle à chaque nœud, dans l'ordre de `node_ids` : le premier nœud de
+chaque genre prend la place que la règle lui donne après `after_node_id`, chacun des suivants se
+place après le précédent de son genre. Écartés : refuser un `after_node_id` de l'autre genre, un
+refus de plus pour une place que la règle sait dire ; mêler lignes et sous-tâches dans un ordre
+libre, que ni la lecture ni le témoin ne connaissent. Exemple engendré par `wftools.mockgestures` : `estimate_line_created_after_subtask`,
+une ligne créée sous le poste de commande, qui n'en porte aucune, après la réception usine, sa
+dernière subordonnée — elle devient son premier enfant, au rang 1, avant le câblage des armoires.
+
 **Un `after_node_id` qui n'est pas un frère est refusé** : 422 `VALIDATION_FAILED`,
 `fields[].pointer` à `/after_node_id`, motif nouveau `NODE_NOT_SIBLING`, sans paramètre — la grille
 nomme le nœud qu'elle a envoyé —, rien n'étant écrit. Est un tel nœud celui d'un autre parent, l'un
