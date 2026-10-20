@@ -6713,8 +6713,9 @@ devaient aller dans `test_mockhistory.py`, mais il aurait dépassé les mille li
   Une version de plus : les lectures de la 101 marquée la portent désormais à 2, au lieu de 1,
   qu'aucune écriture n'expliquait. `mockwitness.RATES_UPDATED` date cet instant antérieur, que
   `test_mockhistory.py` admet pour cet exemple seul.
-- `amendment_created` (201) : l'avenant 1 « extension du poste », ouvert dans la révision 101
-  alors en cours. C'est le premier différentiel du témoin, à sa première version.
+- `amendment_created` (201) : l'avenant 2 « reprise des essais », ouvert dans la révision 101
+  alors en cours, pendant que l'avenant 1 « extension du poste » l'est encore, à sa première
+  version. Deux différentiels coexistent ainsi dans une même révision (WF-REV-0100, #1211).
 - `task_merge_queued` (202) : la fusion de l'avenant 2, confirmée aujourd'hui à 14 h 09, la suite
   d'une écriture, à un instant à elle.
 
@@ -6760,11 +6761,19 @@ nommé la cause à l'envers. `createCostStructure` la nomme dans son 409, pour u
 différentiel, garde la commande disponible. Le test du « si et seulement si » de #1196 tient les
 deux commandes, dans les deux sens, sur les deux révisions en cours.
 
-La règle contredit WF-REV-0100 : son corps dit que plusieurs différentiels coexistent, et son
-Vérif qu'il y en a deux dans une même révision. Elle contredit aussi le témoin, dont la révision
-101 a porté les avenants 1 et 2 ensemble. Elle est portée telle que l'auteur l'a décidée, et la
-contradiction est à trancher (#1211). C'est pourquoi `amendment_created` montre l'avenant 1, le
-premier ouvert.
+La règle contredisait WF-REV-0100 : son corps dit que plusieurs différentiels coexistent, et son
+Vérif qu'il y en a deux dans une même révision. Elle contredisait aussi le témoin, dont la
+révision 101 a porté les avenants 1 et 2 ensemble.
+
+*Remplacé par la décision de l'auteur du 2026-10-20 sur #1211, réalisée par US-0490/L1 : on suit
+WF-REV-0100, et plusieurs avenants non fusionnés coexistent. `create_structure` reste disponible
+quand un avenant de la révision n'est pas fusionné ; la condition `no_unmerged_amendment`, sa clé
+de catalogue, le 409 `amendment_unmerged_exists` de `createCostStructure` et son exemple sont
+retirés, et `createCostStructure` garde la réponse 409 commune. `unmerged_amendment_exists` reste
+la condition qui manque à `merge_structure` quand aucun différentiel n'est à fusionner.
+`amendment_created` montre l'ouverture de l'avenant 2 pendant que l'avenant 1 est ouvert. Le test
+du « si et seulement si » de #1196 tient la fusion dans les deux sens, et l'ouverture offerte sur
+les deux révisions en cours. Le texte ci-dessus est gardé pour l'histoire.*
 
 **Le compte rendu de la fusion dit le déplacement d'un nœud** (#1194, tranché par l'auteur le
 2026-10-20). `ImportDifference.fields` gagne `parent`, comme `NodeChange`, par un schéma nommé,

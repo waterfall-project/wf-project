@@ -229,14 +229,12 @@ CommandCondition:
     terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
     et à la création d'une ligne sous une tâche terminée, qui se rouvre d'abord depuis le Kanban :
     `createNode` la nomme dans son 409 (WF-DEV-0050, WF-RAE-0030 ; #1184).
-    Deux tiennent aux différentiels d'une révision en cours, et la révision les nomme
-    (`Revision.available_commands`), l'une le contraire de l'autre : `unmerged_amendment_exists`
-    manque à la fusion (`merge_structure`) tant qu'aucun différentiel de la révision n'est à
-    fusionner ; `no_unmerged_amendment` à l'ouverture d'un différentiel (`create_structure`)
-    tant qu'un avenant de la révision n'est pas fusionné — un avenant se prépare et se
-    contractualise avant le suivant (EP-15/US-0510, #1061, #1195) —, et `createCostStructure`
-    la nomme dans son 409 pour un différentiel. Deux tiennent à la désignation de la référence
-    (`designate_reference`), après `revision_marked`, qui manque à une révision en cours :
+    `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun
+    différentiel de la révision n'est à fusionner, et la révision la nomme
+    (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en
+    dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211). Deux tiennent
+    à la désignation de la référence (`designate_reference`), après `revision_marked`, qui
+    manque à une révision en cours :
     `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte
     aucune tâche ou aucune ligne de devis — « La désignation comme référence d'une révision qui
     ne porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition
@@ -261,7 +259,6 @@ CommandCondition:
     - reference_correctable
     - revision_has_tasks_and_lines
     - unmerged_amendment_exists
-    - no_unmerged_amendment
     - task_not_completed
     - hourly_rates_set
     - no_background_task_running

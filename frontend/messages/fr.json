@@ -2151,7 +2151,6 @@
       "reference_correctable": "référence encore corrigeable",
       "revision_has_tasks_and_lines": "révision portant au moins une tâche et une ligne de devis",
       "unmerged_amendment_exists": "un avenant non fusionné",
-      "no_unmerged_amendment": "aucun avenant non fusionné",
       "task_not_completed": "tâche non terminée",
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",

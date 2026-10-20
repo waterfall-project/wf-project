@@ -2151,7 +2151,6 @@
       "reference_correctable": "reference still correctable",
       "revision_has_tasks_and_lines": "revision bearing at least one task and one estimate line",
       "unmerged_amendment_exists": "an unmerged amendment",
-      "no_unmerged_amendment": "no unmerged amendment",
       "task_not_completed": "task not completed",
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",

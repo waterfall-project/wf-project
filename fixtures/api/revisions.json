@@ -156,10 +156,8 @@
           },
           {
             "command": "create_structure",
-            "is_available": false,
-            "missing_conditions": [
-              "no_unmerged_amendment"
-            ]
+            "is_available": true,
+            "missing_conditions": []
           },
           {
             "command": "merge_structure",

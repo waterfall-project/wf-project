@@ -629,7 +629,6 @@ class CommandCondition(StrEnum):
     reference_correctable = "reference_correctable"
     revision_has_tasks_and_lines = "revision_has_tasks_and_lines"
     unmerged_amendment_exists = "unmerged_amendment_exists"
-    no_unmerged_amendment = "no_unmerged_amendment"
     task_not_completed = "task_not_completed"
     hourly_rates_set = "hourly_rates_set"
     no_background_task_running = "no_background_task_running"

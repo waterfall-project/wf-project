@@ -92,26 +92,40 @@ def test_the_rates_are_accepted_from_the_reference_in_progress_before_its_markin
     assert commands["create_structure"]["is_available"]
 
 
-def test_the_amendment_1_is_opened_in_the_reference_while_it_is_in_progress() -> None:
-    # createCostStructure answers the amendment 1 at its first version, not merged, in the
-    # revision 101, which its merge marks: the structure the readings of 101 list, merged since.
+def test_the_amendment_2_is_opened_in_the_reference_while_the_amendment_1_is_open() -> None:
+    # createCostStructure answers the amendment 2 at its first version, not merged, in the
+    # revision 101, while the amendment 1 is open there: the two differentials the readings of 101
+    # list, the amendment 1 merged since, which marks it, the amendment 2 still not, which the
+    # current revision took over (WF-REV-0100, #1211).
     created = mockwitness.fixture("amendment_created")
-    [listed] = [
-        each
+    amendments = {
+        each["structure_id"]: each
         for each in mockwitness.fixture("structures_amendments")
-        if each["structure_id"] == created["structure_id"]
-    ]
+        if each["kind"] == "amendment"
+    }
+    listed = amendments.pop(created["structure_id"])
+    [first] = amendments.values()
     assert (created["revision_id"], created["kind"]) == (mockhistory.REFERENCE, "amendment")
+    assert first["revision_id"] == listed["revision_id"] == mockhistory.REFERENCE
     assert created["label"] == listed["label"]
-    assert (created["is_merged"], listed["is_merged"]) == (False, True)
-    assert created["lock_version"] < listed["lock_version"]
+    assert (created["is_merged"], listed["is_merged"], first["is_merged"]) == (False, False, True)
+    assert created["lock_version"] == listed["lock_version"]
     assert all(each["is_available"] for each in created["available_commands"])
     journal = mockwitness.fixture("audit_events")["items"]
     merge = mockhistory.stamp(AMENDMENT_MERGED.instant)
     assert any(
         (each["action"], each["object"]["label"], each["occurred_at"])
-        == ("amendment_merge", created["label"], merge)
+        == ("amendment_merge", first["label"], merge)
         for each in journal
+    )
+    [taken_over] = [
+        each
+        for each in mockwitness.fixture("structures")
+        if each["kind"] == "amendment" and not each["is_merged"]
+    ]
+    assert (taken_over["revision_id"], taken_over["label"]) == (
+        mockhistory.CURRENT,
+        created["label"],
     )
 
 
@@ -136,7 +150,7 @@ def test_the_merge_of_the_amendment_2_is_queued_today_or_refused_stale() -> None
     assert report["amendment_lock_version"] == amendment["lock_version"]
 
 
-# --- The commands of a draft revision (#1102, #1195) -------------------------------------------
+# --- The commands of a draft revision (#1102, #1211) -------------------------------------------
 
 
 def _command(revision: dict[str, Any], name: str) -> dict[str, Any]:
@@ -156,13 +170,13 @@ def _command(revision: dict[str, Any], name: str) -> dict[str, Any]:
     ],
     ids=["current", "without_tasks"],
 )
-def test_a_revision_offers_the_merge_and_not_a_differential_iff_it_bears_one_not_merged(
+def test_a_revision_offers_the_merge_iff_it_bears_a_differential_not_merged(
     examples: dict[str, Any], readings: tuple[str, ...], listed: str
 ) -> None:
     # `merge_structure` misses `unmerged_amendment_exists` when no differential of the revision
-    # is left to merge, `create_structure` misses `no_unmerged_amendment` while one is (#1102,
-    # #1195): the readings of a draft revision say what its `structures` lists — the current
-    # revision bears the amendment 2, the revision opened on the project created today none.
+    # is left to merge (#1102): the readings of a draft revision say what its `structures` lists —
+    # the current revision bears the amendment 2, the revision opened on the project created today
+    # none. The opening of a differential misses neither: several coexist (WF-REV-0100, #1211).
     first = examples[readings[0]]
     unmerged = any(
         each["kind"] == "amendment" and not each["is_merged"]
@@ -183,13 +197,17 @@ def test_a_revision_offers_the_merge_and_not_a_differential_iff_it_bears_one_not
         merge = _command(revision, "merge_structure")
         create = _command(revision, "create_structure")
         assert ("unmerged_amendment_exists" in merge["missing_conditions"]) is not unmerged
-        assert ("no_unmerged_amendment" in create["missing_conditions"]) is unmerged
-        assert not create["is_available"] or not unmerged
+        assert "unmerged_amendment_exists" not in create["missing_conditions"]
     # Without a background task running, nothing else is missing: the merge is offered if and
-    # only if a differential is left to merge, the opening of another if and only if none is.
+    # only if a differential is left to merge, the opening of another whether one is or not.
     for revision in (examples[readings[0]], *drafts[len(readings) :]):
         assert _command(revision, "merge_structure")["is_available"] is unmerged
-        assert _command(revision, "create_structure")["is_available"] is not unmerged
+        create = _command(revision, "create_structure")
+        assert (create["is_available"], create["missing_conditions"]) == (True, [])
+    # During a marking or an import, the background task alone is missing to the opening.
+    for revision in drafts[1 : len(readings)]:
+        missing = _command(revision, "create_structure")["missing_conditions"]
+        assert missing == ["no_background_task_running"]
 
 
 def test_the_designation_of_the_current_revision_misses_its_marking_then_its_correction(
