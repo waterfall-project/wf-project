@@ -513,6 +513,17 @@ def test_an_amendment_steps_the_budget_by_two_points_at_its_date(today: dict[str
     assert budget[-1]["amount"] == "65445697.64"
 
 
+def test_the_amendment_of_the_curve_is_another_than_the_amendment_2_of_the_witness(
+    examples: dict[str, Any],
+) -> None:
+    # The witness bears an amendment 2, « reprise des essais », not merged (#791): the
+    # counterfactual of the curve, which reworks the detailed studies, is not given its number.
+    summary = str(examples["cost_curve_amendment.json"]["summary"])
+    assert "un autre avenant que l'avenant 2 « reprise des essais »" in summary
+    assert summary.count("avenant 2") == 1
+    assert date(2026, 3, 10) == mocktoday.OTHER_AMENDMENT_ON
+
+
 def test_the_disbursements_to_come_sum_to_the_remaining(today: dict[str, Any]) -> None:
     curve = today["cost_curve_payment_delays"]
     months = curve["cash_out_by_month"]

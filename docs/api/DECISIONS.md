@@ -6443,7 +6443,7 @@ seul onglet, un planning MS Project ou une extraction de coûts réels. Le champ
 un compte rendu sans onglet reste lisible. L'exemple engendré `import_remaining_subproject_held` le
 renseigne, l'onglet « Essais et mise en service », et son résumé dit la ligne 3 de cet onglet.
 L'exemple écrit à la main `import_analysed`, un devis Excel dont deux lignes sont rejetées, ne le
-porte pas encore : il n'est pas réécrit ici. Le contrat garde sa citation de WF-INTF-0100, dont le
+porte pas encore : il n'est pas réécrit ici (réécrit par US-0500/L1). Le contrat garde sa citation de WF-INTF-0100, dont le
 texte complété attend son intégration par l'auteur (#1166).
 
 **L'import du devis est refusé sur la structure principale d'un projet En cours** (C-358, #1153 ;
@@ -6534,7 +6534,11 @@ nommé par la ligne où il est rendu. Un nœud déplacé est rendu une fois, à 
 avancement, parent —, une ligne par ses montants ou son parent, et une tâche aussi par son seul
 contenu, `changes` vide : une ligne ou une subordonnée ajoutée, retirée ou modifiée sous elle, ou
 déplacée d'elle — la marque « M » d'une récapitulative dont le contenu change, que l'US-0500 veut.
-Les totaux d'une lecture d'un différentiel ne comptent pas les nœuds retirés. Écartés : le diff
+Les totaux d'une lecture d'un différentiel ne comptent pas les nœuds retirés. Les tâches modifiées
+par leurs propres valeurs se comptent sur un `changes` non vide, celles modifiées par leur seul
+contenu ayant un `changes` vide (relecture 1) ; les descriptions de `NodeDifference`, de
+`Node.row_number` et de `Node.position` le disent, et que les nœuds retirés comptent dans le rang et
+la ligne. Écartés : le diff
 calculé par le front, en lisant deux structures, contraire au principe que le front ne déduit rien
 (WF-ARC-0020) ; un nœud retiré rendu à part, en fin de lecture, qui ne se lirait pas « à sa place ».
 
@@ -6568,6 +6572,39 @@ d'une fusion dont le différentiel retire une tâche démarrée nomme cette tâc
 exemple (« Avenant 3 — pupitres déportés »). Le déplacement de la mise en service ne se dit pas au
 compte rendu : `ImportDifference.fields` nomme des colonnes (`NodeColumn`), et aucune ne dit le
 parent ; la liaison et la durée, qui changent, s'y disent.
+
+**La révision courante offre la fusion** (relecture 1). Puisqu'elle porte l'avenant 2 non fusionné,
+`merge_structure` y est disponible, sans condition manquante, dans `revision` et l'item 102 de
+`revisions` ; pendant un marquage ou un import (`revision_marking`, `revision_importing`), il ne
+manque que de `no_background_task_running`. `revision_without_tasks`, sur le projet créé
+aujourd'hui, sans différentiel, garde `unmerged_amendment_exists`.
+`test_the_current_revision_offers_the_merge_if_and_only_if_it_bears_a_differential_not_merged`
+(`tools/tests/test_mockuniverse.py`) tient que la commande est disponible si et seulement si
+`structures` liste un différentiel non fusionné. La variante `cost_curve_amendment`, dont la marche
+du 10 mars s'appelait « avenant 2 », dit désormais « un autre avenant » que celui du témoin
+(`mocktoday.OTHER_AMENDMENT`).
+
+**Un nœud, à une version, n'a qu'un contenu, sur toutes les lectures d'une révision** (#421 étendu,
+relecture 1). Les nœuds de l'avenant 2 portaient les identifiants de ceux de la structure principale
+qu'ils copient — l'installation sur site, 561 à 566, à la version 1 —, avec d'autres valeurs : deux
+lectures rendaient un même nœud, à une même version, sous deux contenus. Ils ont désormais leurs
+identifiants à eux, sur une plage dédiée : le nœud 5nn de la principale est 12nn dans le
+différentiel, un nœud tiré a sa famille engendrée (`mockids`, `mockamendment.own_id`), et ceux que
+l'avenant ajoute vont de 1291 à 1293 ; ils gardent la lignée de la principale, qui les rapproche
+(6nn, de 691 à 693 pour les ajoutés), si bien que le compte rendu de la fusion et l'import du devis
+de l'avenant (`import_analysed` : 663 retirée, 693 mise à jour), qui nomment des lignées, ne changent
+pas. Le parent et les prédécesseurs d'un nœud du différentiel sont nommés par ces identifiants, et
+une ligne est numérotée dans l'arbre rendu. La règle : deux exemples ne rendent jamais un même nœud,
+à une même version, avec deux contenus — sur les clés que tous deux rendent, une lecture ne rendant
+que les champs qu'elle demande —, qu'il s'agisse des lectures d'une structure ou des réponses de
+ses écritures (`nodes`). En sont exemptés, nommément : les comparaisons de deux révisions marquées
+(`comparison`, `comparison_identical`), qui nomment leurs nœuds par les identifiants de la révision
+courante selon la convention de #287 (C12) ; les variantes contrefactuelles déclarées, et
+`nodes_summaries`, lecture de la variante à quatre niveaux ; la suite d'une écriture
+(`startable_tasks_milestone`), et ce qu'une écriture rend sans l'écrire (`ancestors`,
+`rescheduled`, `reinflated`), qui évolue sans changer de version.
+`test_two_examples_never_render_one_node_at_one_version_with_two_contents`
+(`tools/tests/test_mockversions.py`, où le test des écritures est passé) la tient.
 
 **Le suivi temps/temps d'une tâche qui n'est pas un jalon est refusé** (#1159, décision de l'auteur
 du 2026-10-19 ; WF-PLA-0060). `setNodeTracking` le refuse par 422 `VALIDATION_FAILED`,

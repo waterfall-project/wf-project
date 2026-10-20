@@ -11,8 +11,11 @@ fifteen days and its line to 120 hours; the assistance to the trials of the wiri
 rework replaces, is withdrawn from the mounting. No task of a differential bears a lot or a post,
 nor an inscription to a timeline or to the time/time tracking: those are the main structure's
 alone (WF-PLA-0170, WF-PLA-0060), and its tasks do not name them among the fields they accept.
-Its nodes are named by the identifiers of the main structure's, as every reading of the witness
-names them (#287); those it adds, from 591.
+Its nodes have identifiers of their own (``own_id``): the node 5nn of the main structure is 12nn
+in the differential, a node drawn has its own family, and those it adds are numbered from 591, so
+12nn from 1291. They share the lineages of the main structure's, by which the reading marks them
+(6nn, and from 691 for those it adds): one identifier at one version names one content, whatever
+the reading (#421).
 
 What the examples say of it is read from this description, never written by hand: its reading,
 the tree of the installation on site marked against the main structure (``nodes_amendment``,
@@ -28,10 +31,12 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mockdiff, mocktext
+from wftools.mockids import AMENDMENT_NODES, identifier, universe
 from wftools.mockstructure import described
 from wftools.mockwitness import (
     COMMISSIONING,
     COMMISSIONING_TECHNICIAN,
+    GENERATED,
     SUBPROJECT_TESTS,
     Line,
     Link,
@@ -76,6 +81,23 @@ assisting it as he assisted the trials it replaces."""
 MAIN_ONLY = ("task.order_item_id", "task.work_package_id", "task.tracking")
 """What a task of the main structure accepts and a task of a differential does not (#1065)."""
 
+OWN_OFFSET = 700
+"""What separates the identifier of a node of the differential from the number of its node in the
+main structure: the node 5nn is 12nn in the differential (#421)."""
+
+NODE_KEYS = ("node_id", "parent_id")
+"""The keys of a node that name a node of its structure, besides its predecessors."""
+
+
+def own_id(number: int) -> str:
+    """Return the identifier of the node of this number in the differential: 12nn for 5nn.
+
+    A node drawn has its own family; the lineage of either stays that of the main structure.
+    """
+    if number < GENERATED:
+        return universe(number + OWN_OFFSET)
+    return identifier(AMENDMENT_NODES, number - GENERATED)
+
 
 def amendment(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
     """Return the differential described: the main structure given, its trials resumed.
@@ -115,12 +137,23 @@ def marked() -> list[JsonObject]:
     """Return the whole differential read today, marked against the main structure.
 
     The main structure as the differential copies it, so that a node removed renders as a node of
-    the differential would; the marks are those of its values alone (``mockdiff``).
+    the differential would; the marks are those of its values alone (``mockdiff``); every node
+    named by its identifier in the differential (``own_id``).
     """
-    nodes = mockdiff.marked(mockcore.current(_copied(described())), rows())
+    before, after = mockcore.current(_copied(described())), rows()
+    nodes = mockdiff.marked(before, after)
+    own = {node_id(row.number): own_id(row.number) for row in (*before, *after)}
     for node in nodes:
         fields = cast("list[JsonValue]", node["editable_fields"])
         node["editable_fields"] = [field for field in fields if field not in MAIN_ONLY]
+        for key in NODE_KEYS:
+            if node[key] is not None:
+                node[key] = own[cast("str", node[key])]
+        if "predecessors" in node:
+            node["predecessors"] = [
+                {**link, "predecessor_node_id": own[cast("str", link["predecessor_node_id"])]}
+                for link in cast("list[JsonObject]", node["predecessors"])
+            ]
     return nodes
 
 
@@ -136,7 +169,7 @@ def nodes_amendment() -> JsonObject:
     its place; the totals those of the differential, which no longer bears it (`NodeTotals`).
     """
     nodes = marked()
-    below = {node_id(N.INSTALLATION)}
+    below = {own_id(N.INSTALLATION)}
     for node in nodes:
         if node["parent_id"] in below:
             below.add(cast("str", node["node_id"]))
@@ -199,13 +232,13 @@ def structure_merge_report() -> JsonObject:
     """
     nodes = marked()
     by_id = {cast("str", node["node_id"]): node for node in nodes}
-    task, before, after = (by_id[node_id(number)] for number in RELINKED)
+    task, before, after = (by_id[own_id(number)] for number in RELINKED)
     differences: list[JsonValue] = [
         _difference("added", node) for node in nodes if node["difference"] == mockdiff.ADDED
     ]
     differences.append(_link("added", task, after))
     differences.extend(
-        _difference("updated", by_id[node_id(number)], fields)
+        _difference("updated", by_id[own_id(number)], fields)
         for number, fields in DESIGNATED.items()
     )
     differences.append(_link("removed", task, before))
@@ -226,7 +259,7 @@ def structure_merge_report() -> JsonObject:
 
 def _label(nodes: list[JsonObject], number: int) -> str:
     """Return the label of a node of the witness among the nodes read, by its number."""
-    [node] = [each for each in nodes if each["node_id"] == node_id(number)]
+    [node] = [each for each in nodes if each["node_id"] == own_id(number)]
     return cast("str", cast("JsonObject", node[cast("str", node["kind"])])["label"])
 
 

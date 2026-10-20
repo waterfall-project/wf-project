@@ -211,8 +211,11 @@ def test_the_skeleton_is_offered_on_a_main_structure_that_reads_empty_and_there_
     assert read["totals"]["task_count"] > 0
     assert (SKELETON, False, [WITHOUT_TASKS]) in _commands(witness)
     # Its other commands are those of the witness's, but the declaration of a risk, which a main
-    # structure without task forbids (EP-14/L42s); the skeleton advances the counter read.
-    own = (SKELETON, "declare_risk")
+    # structure without task forbids (EP-14/L42s), and the merge, the witness bearing a
+    # differential not merged and it none (#1102); the skeleton advances the counter read.
+    own = (SKELETON, "declare_risk", "merge_structure")
+    assert ("merge_structure", False, ["unmerged_amendment_exists"]) in _commands(revision)
+    assert ("merge_structure", True, []) in _commands(witness)
     others = [command for command in _commands(revision) if command[0] not in own]
     assert others == [command for command in _commands(witness) if command[0] not in own]
     assert fixture("skeleton_generated")["structure_lock_version"] == structure["lock_version"] + 1

@@ -343,7 +343,8 @@ class N:
 
     Every module names the core by this table, never by its digits, so that it is renumbered in
     one place alone (#376, revue d'EP-02/L24). From 591, the nodes the amendment 2 adds, which the
-    main structure does not bear (``mockamendment``, #791).
+    main structure does not bear (``mockamendment``, #791); the differential renders the node of
+    number 5nn as 12nn, its identifier of its own (``mockamendment.own_id``, #421).
     """
 
     STUDIES = 521

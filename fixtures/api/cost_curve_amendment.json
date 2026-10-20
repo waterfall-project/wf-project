@@ -1,5 +1,5 @@
 {
-  "summary": "La même courbe si un avenant 2 — reprise des études de détail, 15 000,00 de plus sur leur ligne de sous-traitance — avait été contractualisé le 10 mars 2026 : une seconde marche, le budget de référence portant deux points à cette date, avant et après — 23 333,33 puis 26 833,33 —, puis cumulé sur la nouvelle référence, jusqu'à 65 445 697,64 ; les études étant terminées, le reste à engager et la projection ne changent pas (WF-IND-0100).",
+  "summary": "La même courbe si un autre avenant que l'avenant 2 « reprise des essais », que la révision courante porte sans l'avoir fusionné — la reprise des études de détail, 15 000,00 de plus sur leur ligne de sous-traitance — avait été contractualisé le 10 mars 2026 : une seconde marche, le budget de référence portant deux points à cette date, avant et après — 23 333,33 puis 26 833,33 —, puis cumulé sur la nouvelle référence, jusqu'à 65 445 697,64 ; les études étant terminées, le reste à engager et la projection ne changent pas (WF-IND-0100).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},

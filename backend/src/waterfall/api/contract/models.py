@@ -2828,14 +2828,14 @@ class Node(ContractModel):
     position: Annotated[
         int,
         Field(
-            description="Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183).",
+            description="Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place qu'ils avaient (`NodeDifference`).",
             ge=1,
         ),
     ]
     row_number: Annotated[
         int,
         Field(
-            description="Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri.",
+            description="Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri. Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne (`NodeDifference`).",
             ge=1,
         ),
     ]

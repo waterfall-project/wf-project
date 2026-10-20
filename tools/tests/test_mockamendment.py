@@ -14,7 +14,7 @@ from typing import Any, cast
 import pytest
 
 from wftools import mockamendment, mockcore, mockdiff
-from wftools.mockids import universe
+from wftools.mockamendment import own_id
 from wftools.mockwitness import N, fixture
 
 type Node = dict[str, Any]
@@ -51,23 +51,44 @@ def test_the_reading_of_the_differential_marks_each_node_against_the_main_struct
     # summary modified by its content alone; every other node unchanged.
     marks = {node["node_id"]: (node["difference"], node["changes"]) for node in whole}
     assert {key for key, (mark, _) in marks.items() if mark == mockdiff.ADDED} == {
-        universe(number) for number in (N.SITE_TESTS, N.TESTS_RESUMED, N.TESTS_RESUMED_LINE)
+        own_id(number) for number in (N.SITE_TESTS, N.TESTS_RESUMED, N.TESTS_RESUMED_LINE)
     }
-    removed = _by_id(whole)[universe(N.TESTS_LINE)]
-    assert (removed["difference"], removed["parent_id"]) == ("removed", universe(N.MOUNTING))
+    removed = _by_id(whole)[own_id(N.TESTS_LINE)]
+    assert (removed["difference"], removed["parent_id"]) == ("removed", own_id(N.MOUNTING))
     assert removed["editable_fields"] == []
-    assert marks[universe(N.MOUNTING)] == ("modified", [])
-    assert marks[universe(N.COMMISSIONING)] == ("modified", ["dates", "duration", "parent"])
-    assert marks[universe(N.COMMISSIONING_LINE)] == (
+    assert marks[own_id(N.MOUNTING)] == ("modified", [])
+    assert marks[own_id(N.COMMISSIONING)] == ("modified", ["dates", "duration", "parent"])
+    assert marks[own_id(N.COMMISSIONING_LINE)] == (
         "modified",
         ["budgeted_amount", "reestimated_amount"],
     )
-    commissioning = _by_id(whole)[universe(N.COMMISSIONING)]
-    assert commissioning["parent_id"] == universe(N.SITE_TESTS)
+    commissioning = _by_id(whole)[own_id(N.COMMISSIONING)]
+    assert commissioning["parent_id"] == own_id(N.SITE_TESTS)
     assert [node["row_number"] for node in whole] == list(range(1, len(whole) + 1))
     main = mockcore.current()
     # The main structure, its line removed still rendered, and the three nodes added.
     assert len(whole) == len(main) + 3
+
+
+def test_the_differential_names_its_nodes_by_its_own_identifiers_the_lineages_of_the_main(
+    whole: list[Node],
+) -> None:
+    # #421: a node of the differential is not the node of the main structure it copies, though it
+    # shares its lineage; no identifier of the main structure is rendered in the differential,
+    # neither a node, nor its parent, nor a predecessor.
+    main = {cast("str", row.node["node_id"]) for row in mockcore.current()}
+    lineages = {cast("str", row.node["lineage_id"]) for row in mockcore.current()}
+    named = [
+        *(node["node_id"] for node in whole),
+        *(node["parent_id"] for node in whole if node["parent_id"] is not None),
+        *(link["predecessor_node_id"] for node in whole for link in node.get("predecessors", [])),
+    ]
+    assert not main & set(named)
+    kept = [node for node in whole if node["difference"] != "added"]
+    assert {node["lineage_id"] for node in kept} == lineages
+    assert len({node["node_id"] for node in whole}) == len(whole)
+    assert own_id(N.INSTALLATION) == "01926f3a-7c00-7000-8000-000000001261"
+    assert own_id(N.TESTS_RESUMED_LINE) == "01926f3a-7c00-7000-8000-000000001293"
 
 
 def test_no_task_of_the_differential_bears_what_the_main_structure_alone_bears(
@@ -85,7 +106,7 @@ def test_no_task_of_the_differential_bears_what_the_main_structure_alone_bears(
 def test_the_example_reads_the_installation_its_totals_without_the_line_removed() -> None:
     example = fixture("nodes_amendment")
     nodes = example["items"]
-    assert nodes[0]["node_id"] == universe(N.INSTALLATION)
+    assert nodes[0]["node_id"] == own_id(N.INSTALLATION)
     retained = [node for node in nodes if node["difference"] != "removed"]
     lines = [node for node in retained if node["kind"] == "estimate_line"]
     assert example["totals"]["task_count"] == len(retained) - len(lines)
@@ -124,7 +145,7 @@ def test_the_report_before_the_merge_says_what_the_differential_marks(whole: lis
         ("added", "Reprise des essais de câblage"),
         ("removed", "Montage des armoires sur site"),
     ]
-    commissioning = _by_id(whole)[universe(N.COMMISSIONING)]
+    commissioning = _by_id(whole)[own_id(N.COMMISSIONING)]
     [link] = commissioning["predecessors"]
-    assert link["predecessor_node_id"] == universe(N.TESTS_RESUMED)
+    assert link["predecessor_node_id"] == own_id(N.TESTS_RESUMED)
     assert (report["completed_tasks"], report["refusals"]) == ([], [])
