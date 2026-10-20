@@ -17,7 +17,16 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcore, mockdata, mockgestures, mocktree, mockwitness, mockwrites
+from wftools import (
+    REPOSITORY,
+    mockamendment,
+    mockcore,
+    mockdata,
+    mockgestures,
+    mocktree,
+    mockwitness,
+    mockwrites,
+)
 from wftools.mockids import universe
 from wftools.mockstructure import described
 from wftools.mocktree import AT_END, LINE, TASK, After
@@ -556,7 +565,7 @@ def test_a_place_after_a_sibling_is_not_refused() -> None:
 
 def test_a_move_that_closes_no_loop_is_not_refused() -> None:
     # The indentation the contract shows succeeding (nodes_indented) binds no summary.
-    assert mocktree.move_loop(N.INSTALLATION, N.CONTROL_STATION, CORE) == []
+    assert mocktree.move_loop((N.INSTALLATION,), N.CONTROL_STATION, CORE) == []
     with pytest.raises(ValueError, match="closes no loop"):
         mockgestures.move_refused(N.INSTALLATION, N.CONTROL_STATION, CORE, universe(1176))
 
@@ -659,12 +668,12 @@ def test_a_loop_through_the_hierarchy_names_the_summary_and_the_subordinate_it_c
     # summary W spanning Z — what precedes W precedes Z. No chain of links alone closes it.
     p, w, z, m = 901, 902, 903, 904
     down = (_leaf(p), Task(w, "W", links=(Link(p),), children=(_leaf(z),)), _leaf(m, z))
-    assert mocktree.move_loop(m, p, down) == [p, w, z, m]
+    assert mocktree.move_loop((m,), p, down) == [p, w, z, m]
     with pytest.raises(ValueError, match="close a loop through a summary"):
         mockcore.schedule(_moved_root(down, m, p))
     # Up: P → Z, Z a subordinate of W, W → M — what follows W follows Z.
     up = (_leaf(p), Task(w, "W", children=(_leaf(z, p),)), _leaf(m, w))
-    assert mocktree.move_loop(m, p, up) == [p, z, w, m]
+    assert mocktree.move_loop((m,), p, up) == [p, z, w, m]
     with pytest.raises(ValueError, match="close a loop through a summary"):
         mockcore.schedule(_moved_root(up, m, p))
     # Predecessors entered cross it too: W given P as predecessor, Z → M and M under P.
@@ -673,6 +682,47 @@ def test_a_loop_through_the_hierarchy_names_the_summary_and_the_subordinate_it_c
     looped = mockwrites.amended(entered, mockwrites.on_task(w, links=(Link(p),)))
     with pytest.raises(ValueError, match="close a loop through a summary"):
         mockcore.schedule(looped)
+
+
+def test_a_selection_is_judged_with_all_its_tasks_moved() -> None:
+    # P → W, W the summary of Z, Z → M: M alone under P closes the loop P, W, Z, M; Z moved with
+    # it leaves W without the subordinate the chain crossed, and the selection closes none.
+    p, w, z, m = 901, 902, 903, 904
+    down = (_leaf(p), Task(w, "W", links=(Link(p),), children=(_leaf(z),)), _leaf(m, z))
+    assert mocktree.move_loop((m,), p, down) == [p, w, z, m]
+    assert mocktree.move_loop((m, z), p, down) == []
+
+
+def test_a_selection_names_the_loop_of_the_first_in_cause_in_the_order_of_the_plan() -> None:
+    # P → X → A and P → Y → B: A and B each close a loop under P. Sent B first, the selection
+    # names the loop of A, first in the order of the plan; `node_ids` only places them.
+    p, x, a, y, b = 901, 902, 903, 904, 905
+    roots = (_leaf(p), _leaf(x, p), _leaf(a, x), _leaf(y, p), _leaf(b, y))
+    assert mocktree.move_loop((b,), p, roots) == [p, y, b]
+    assert mocktree.move_loop((b, a), p, roots) == [p, x, a]
+
+
+def test_a_task_moved_under_itself_or_its_subordinate_is_no_move() -> None:
+    w, z = 902, 903
+    roots = (Task(w, "W", children=(_leaf(z),)),)
+    with pytest.raises(ValueError, match="which it spans"):
+        mocktree.move_loop((w,), w, roots)
+    with pytest.raises(ValueError, match="which it spans"):
+        mocktree.move_loop((w,), z, roots)
+
+
+def test_a_chain_as_short_takes_the_links_before_the_hierarchy() -> None:
+    # T → A → S and T, the summary of B, B → S: both chains have three tasks; the link first.
+    t, a, b, s = 901, 902, 903, 904
+    roots = (Task(t, "T", children=(_leaf(b),)), _leaf(a, t), _leaf(s, a, b))
+    assert mocktree.cycle(t, (Link(s),), roots) == [t, a, s]
+
+
+def test_a_chain_as_short_takes_the_subordinates_before_the_summary() -> None:
+    # T, the summary of B, B → S, and T a subordinate of U, U → S: down to B before up to U.
+    u, t, b, s = 901, 902, 903, 904
+    roots = (Task(u, "U", children=(Task(t, "T", children=(_leaf(b),)),)), _leaf(s, u, b))
+    assert mocktree.cycle(t, (Link(s),), roots) == [t, b, s]
 
 
 def _moved_root(roots: tuple[Task, ...], number: int, parent: int) -> tuple[Task, ...]:
@@ -729,29 +779,43 @@ def test_a_place_after_a_node_moved_or_not_a_sibling_is_refused(after: int) -> N
         mocktree.placed(LINES, TASKS, ((11, LINE),), after)
 
 
-def test_the_mixed_selection_of_the_contract_is_placed_by_the_rule(read: dict[str, Node]) -> None:
-    # The body of the example: a line and a task moved under the station after the wiring; the
-    # line goes first of its lines, which it has none, the task right after the wiring (#1188).
+def test_the_mixed_selection_of_the_contract_is_placed_by_the_rule() -> None:
+    # The body of the example: a line and a task moved under the station after the wiring, on the
+    # amendment 2, whose estimate is open; the line goes first of its lines, which it has none,
+    # the task right after the wiring (#1188).
     body = gesture("nodes_move_mixed")
-    assert body["node_ids"] == [universe(number) for number, _ in mockgestures.MIXED]
+    own = mockamendment.own_id
+    assert body["node_ids"] == [own(number) for number, _ in mockgestures.MIXED]
     assert (body["parent_id"], body["after_node_id"]) == (
-        universe(mockgestures.MIXED_UNDER),
-        universe(mockgestures.MIXED_AFTER),
+        own(mockgestures.MIXED_UNDER),
+        own(mockgestures.MIXED_AFTER),
     )
+    read = {node["node_id"]: node for node in mockamendment.marked()}
     assert read[body["after_node_id"]]["parent_id"] == body["parent_id"]
     assert [read[each]["kind"] for each in body["node_ids"]] == ["estimate_line", "task"]
     lines, tasks = mockgestures.mixed_places()
     assert lines == [N.BLOCKS]
     assert tasks[: tasks.index(N.TRANSPORT) + 1] == [N.WIRING, N.TRANSPORT]
-    [main] = [each for each in mockwitness.fixture("structures") if each["kind"] == "main"]
-    assert body["lock_version"] == main["lock_version"]
+    amendment = _json(mockamendment.structure("amendment"))
+    assert body["lock_version"] == amendment["lock_version"]
+    assert {"command": "edit_estimate", "is_available": True, "missing_conditions": []} in (
+        amendment["available_commands"]
+    )
+    assert str(amendment["label"]) in _summary("nodes_move_mixed")
 
 
-def test_a_line_created_under_a_completed_task_is_refused_naming_the_condition(
-    read: dict[str, Node],
-) -> None:
-    # WF-DEV-0050, WF-RAE-0030: a task completed is reopened from the Kanban first (#1184).
+def test_a_line_created_under_a_completed_task_is_refused_naming_the_condition() -> None:
+    # WF-DEV-0050, WF-RAE-0030: a task completed is reopened from the Kanban first (#1184); on the
+    # amendment 2, whose estimate is open.
     refused = gesture("estimate_line_completed_refused")
     assert (refused["code"], refused["status"]) == ("STATE_FORBIDS_OPERATION", 409)
     assert refused["params"] == {"missing_condition": "task_not_completed"}
-    assert read[universe(mockgestures.COMPLETED_UNDER)]["task"]["progress"] == "completed"
+    read = {node["node_id"]: node for node in _json(mockamendment.marked())}
+    task = read[mockamendment.own_id(mockgestures.COMPLETED_UNDER)]["task"]
+    assert task["progress"] == "completed"
+    label = mockamendment.structure("amendment")["label"]
+    assert str(label) in _summary("estimate_line_completed_refused")
+
+
+def _summary(name: str) -> str:
+    return str(mockgestures.examples()[f"{name}.json"]["summary"])

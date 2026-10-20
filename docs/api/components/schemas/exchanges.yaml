@@ -426,8 +426,15 @@ ImportDifference:
         anyOf:
           - $ref: revisions.yaml#/NodeColumn
           - $ref: '#/ActualCostColumn'
-          - type: string
-            enum: [parent]
+          - $ref: '#/ImportDifferenceField'
+
+ImportDifferenceField:
+  type: string
+  enum: [parent]
+  description: >-
+    Champ d'un écart `updated` qu'aucune colonne ne présente (`ImportDifference.fields`) : le
+    parent d'une tâche ou d'une ligne déplacée sous une autre récapitulative ou une autre tâche
+    porteuse, comme `NodeChange.parent` (WF-REV-0080, WF-REV-0050 ; #1194).
 
 ActualCostColumn:
   type: string

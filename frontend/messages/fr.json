@@ -2561,10 +2561,10 @@
         "estimate_line": "Ligne de devis",
         "link": "Liaison",
         "actual_cost_line": "Ligne de coût réel"
-      },
-      "fields": {
-        "parent": "Rattachement"
       }
+    },
+    "ImportDifferenceField": {
+      "parent": "Rattachement"
     },
     "ImportIgnoredKind": {
       "resources": "Ressources",

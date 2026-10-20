@@ -2561,10 +2561,10 @@
         "estimate_line": "Estimate line",
         "link": "Link",
         "actual_cost_line": "Actual cost line"
-      },
-      "fields": {
-        "parent": "Parent"
       }
+    },
+    "ImportDifferenceField": {
+      "parent": "Parent"
     },
     "ImportIgnoredKind": {
       "resources": "Resources",

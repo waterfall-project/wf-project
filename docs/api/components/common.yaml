@@ -221,15 +221,19 @@ Problem:
         récapitulative, ou de l'un de ses ancêtres, à la tâche qu'elle recevrait ou à l'une de
         ses subordonnées, ou de celles-ci à celle-là, chacune précédant la suivante : la plus
         courte, puis, à longueur égale, celle qui part de l'ancêtre le plus proche, puis de la
-        tâche reçue et de ses subordonnées dans l'ordre du plan ; pour une sélection, la boucle
-        que ferme le premier nœud en cause dans l'ordre du plan (#1169). Une chaîne d'une seule
+        tâche reçue et de ses subordonnées dans l'ordre du plan ; pour une sélection, jugée sur la
+        structure que le déplacement laisserait, tous ses nœuds déplacés, la boucle que ferme le
+        premier nœud en cause dans l'ordre du plan de la structure lue — non dans celui de
+        `node_ids`, qui ne règle que leur placement (`NodeMove` ; #1169). Une chaîne d'une seule
         liaison est la liaison d'une récapitulative et de sa subordonnée : `LINK_FORBIDDEN`, sans
         paramètre. Une chaîne, d'un déplacement comme de prédécesseurs, suit les liaisons et
         traverse la hiérarchie, une récapitulative couvrant ses subordonnées : d'une tâche
         atteinte à son début à l'une de ses subordonnées, que ce qui la précède précède, et d'une
         tâche à sa récapitulative, que ce qui la suit suit ; elle nomme chaque tâche qu'elle
         traverse, la récapitulative et la subordonnée — une boucle P → W, W récapitulative d'une
-        tâche Z qui précède M, M déplacée sous P, nomme P, W, Z et M (#1169).
+        tâche Z qui précède M, M déplacée sous P, nomme P, W, Z et M (#1169). Entre deux chaînes
+        aussi courtes, celle qui est rendue prend, à chaque tâche, ses liaisons avant la
+        hiérarchie, et ses subordonnées avant sa récapitulative.
         Les paramètres d'un motif par champ sont dans
         `fields[].params` : ainsi `conflicting_object_id` et
         `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou

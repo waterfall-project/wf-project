@@ -6733,15 +6733,20 @@ révision n'est pas marquée (C-362).
     à sa désignation.
   - Puis `reference_correctable`, refusée par son code propre, `REFERENCE_NOT_CORRECTABLE`, sans
     paramètre (WF-REV-0040 ; `reference_not_correctable`, l'offre désignée de nouveau
-    aujourd'hui).
+    aujourd'hui). La révision courante 102 la nomme aussi, après `revision_marked` : le témoin a
+    reçu des coûts réels et marqué la 101 depuis la désignation de l'offre. `revision`,
+    `revisions`, `revision_marking` et `revision_importing` la portent, et
+    `test_mockcycle.py` le tient.
 
   Écartée : l'enveloppe commune, `STATE_FORBIDS_OPERATION` à `reference_correctable`. Le
   catalogue porte ce code depuis EP-02, comme `CURRENT_REVISION_EXISTS` pour `createRevision`, et
   le cadrage le nomme. `test_mockproject.py` tient qu'un refus qui nomme une condition est celui de
   l'enveloppe commune : ce code n'en nomme donc aucune.
 - **`applyRateUpdate`** refuse une révision marquée par 409 `STATE_FORBIDS_OPERATION` à
-  `revision_draft` (`rate_update_revision_marked`). C'est une commande de la révision, comme son
-  marquage, et non une saisie d'une grille, qu'une révision marquée refuse par 403.
+  `revision_draft` (`rate_update_revision_marked`). C'est une écriture de la révision, comme son
+  marquage, et non une saisie d'une grille, qu'une révision marquée refuse par 403. Aucune
+  `RevisionCommand` ne la dit d'avance : son 409 seul nomme `revision_draft`, ou
+  `no_background_task_running` pendant un traitement de fond sur la révision.
 - **`mergeCostStructure`** a l'exemple de son 412 : `merge_report_stale`, dont
   `expected_lock_version` est le compteur courant du différentiel.
 
@@ -6762,8 +6767,9 @@ contradiction est à trancher (#1211). C'est pourquoi `amendment_created` montre
 premier ouvert.
 
 **Le compte rendu de la fusion dit le déplacement d'un nœud** (#1194, tranché par l'auteur le
-2026-10-20). `ImportDifference.fields` gagne `parent`, comme `NodeChange`. Aucune colonne ne le
-présente, et le front le rend par sa clé `enums.ImportDifference.fields.parent`.
+2026-10-20). `ImportDifference.fields` gagne `parent`, comme `NodeChange`, par un schéma nommé,
+`ImportDifferenceField`. Aucune colonne ne le présente, et le front le rend par sa clé
+`enums.ImportDifferenceField.parent`.
 `structure_merge_report` dit la « Mise en service » déplacée sous les « Essais sur site ».
 
 **Un filtre et un tri jugent un nœud retiré sur ses valeurs de base** (#1205, tranché par l'auteur
@@ -6784,8 +6790,13 @@ suit les liaisons et traverse la hiérarchie, pour un déplacement comme pour de
 Elle nomme chaque tâche traversée : P, W, Z, M. `wftools.mocktree` (`chain`, `move_loop`,
 `cycle`) le calcule sur la structure que le déplacement laisserait. Les exemples existants ne
 changent pas. Une sélection se juge sur la structure que le déplacement laisserait, tous ses
-nœuds déplacés : un refus qui nomme un nœud nomme le premier en cause dans l'ordre du plan, et
-`cycle` la boucle que ferme celui-ci (`NodeMove`).
+nœuds déplacés : un refus qui nomme un nœud nomme le premier en cause dans l'ordre du plan de la
+structure lue, et `cycle` la boucle que ferme celui-ci (`NodeMove`). L'ordre du refus est celui du
+plan ; celui de `node_ids` ne règle que le placement. `move_loop` juge ainsi une sélection, et
+lève une `ValueError` pour un parent qui est l'une des tâches déplacées ou l'une de leurs
+subordonnées. Entre deux chaînes aussi courtes, `chain` prend, à chaque tâche, les liaisons avant
+la hiérarchie, les subordonnées avant la récapitulative ; `params.cycle` le dit, et des tests de
+`tools/tests/test_mockgestures.py` le fixent, comme le jugement d'une sélection.
 
 **La règle du rang est une fonction, éprouvée cas par cas** (#1188).
 - `mocktree.placed` dit la règle de `NodeCreate` et `NodeMove`. Les gestes engendrés passent par
@@ -6796,13 +6807,17 @@ nœuds déplacés : un refus qui nomme un nœud nomme le premier en cause dans l
 - « Absent » se lit hors nœuds déplacés : un nœud déplacé ne compte pas parmi les frères qu'il
   suivrait.
 - L'exemple de requête `nodes_move_mixed` montre une sélection mêlée : une ligne et une tâche sous
-  le poste de commande, après le câblage.
+  le poste de commande, après le câblage, sur l'avenant 2 (structure 203), dont le devis est
+  ouvert. La structure principale d'un projet En cours ne saisit plus son devis (WF-DEV-0050), et
+  une ligne déplacée change de tâche.
 - Les descriptions de `Node.position`, `NodeCreate`, `NodeMove` et `deleteNode` sont refluées.
 
 **Les gestes ont les exemples de leurs refus** (#1184).
 - `estimate_line_completed_refused` : une ligne créée sous les « Études de détail », terminées,
-  refusée par 409 `STATE_FORBIDS_OPERATION` à `task_not_completed` (WF-DEV-0050, WF-RAE-0030 ;
-  corrélation 1186).
+  sur l'avenant 2 (structure 203), refusée par 409 `STATE_FORBIDS_OPERATION` à
+  `task_not_completed` (WF-DEV-0050, WF-RAE-0030 ; corrélation 1186). Sur la structure principale,
+  le projet étant En cours, la création d'une ligne manquerait d'abord le devis lui-même.
+  `CommandCondition` dit que `task_not_completed` manque aussi à la création d'une ligne.
 - Le 412 de `deleteNode` n'a pas d'exemple : la requête ne porte aucun compteur, et le 412 est
   inatteignable (#1210, à trancher).
 

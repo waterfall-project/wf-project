@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import mockcore, mocktext, mockwitness
+from wftools import mockamendment, mockcore, mocktext, mockwitness
 from wftools.mockcalendar import START_TO_START
 from wftools.mockids import universe
 from wftools.mockstructure import NETWORK, JsonObject, described
@@ -214,9 +214,17 @@ def nodes_indented() -> JsonObject:
     """Return what moveNodes answers when the installation on site is indented under the station.
 
     The task above it at its level becomes its parent, its subordinates going down a level with
-    it: no date, no amount changes; the summary that receives it spans it (WF-PLA-0040).
+    it: no date, no amount changes; the summary that receives it spans it (WF-PLA-0040). Sent
+    without a node to follow, it goes after the last subordinate of the station (``placed``).
     """
-    station = replace(CONTROL_STATION, children=(*CONTROL_STATION.children, INSTALLATION))
+    by_number = {child.number: child for child in (*CONTROL_STATION.children, INSTALLATION)}
+    _, order = placed(
+        [line.number for line in CONTROL_STATION.lines],
+        [child.number for child in CONTROL_STATION.children],
+        [(N.INSTALLATION, TASK)],
+        AT_END,
+    )
+    station = replace(CONTROL_STATION, children=tuple(by_number[number] for number in order))
     return core_write((STUDIES, station), [N.INSTALLATION])
 
 
@@ -438,7 +446,7 @@ def move_refused(number: int, parent: int, roots: Iterable[Task], correlation: s
     subordinates, is refused without a parameter (`LINK_FORBIDDEN`); a longer chain is a loop,
     whose tasks the refusal names in the order of the links (`LINK_CYCLE`, WF-PLA-0030).
     """
-    loop = move_loop(number, parent, roots)
+    loop = move_loop((number,), parent, roots)
     if not loop:
         message = f"the move of the task {number} under {parent} closes no loop"
         raise ValueError(message)
@@ -533,25 +541,24 @@ MIXED = ((N.BLOCKS, LINE), (N.TRANSPORT, TASK))
 """A selection that mixes a line and a task — the blocks of the wiring of the cabinets and the
 exceptional transport of the subtree the occurrence merged —, moved under the control station
 after the wiring, its first subordinate: the line falls back on the boundary, the task follows the
-wiring (#1187, #1188)."""
+wiring (#1187, #1188). On the amendment 2, whose estimate is open: the main structure of a project
+in progress no longer edits its estimate (WF-DEV-0050), and a line moved changes its task."""
 
 
 def mixed_places() -> tuple[list[int], list[int]]:
-    """Return the lines and the subordinates of the station once the mixed selection is placed."""
-    under = [row for row in mockcore.current() if row.parent == MIXED_UNDER]
+    """Return the lines and the subordinates of the station on the amendment 2, the mix placed."""
+    under = [row for row in mockamendment.rows() if row.parent == MIXED_UNDER]
     lines = [row.number for row in under if row.kind == LINE]
     return placed(lines, [row.number for row in under if row.kind == TASK], MIXED, MIXED_AFTER)
 
 
 def nodes_move_mixed() -> JsonObject:
-    """Return the body of moveNodes for a selection of a line and a task, after a subordinate."""
-    structures = cast("list[Node]", mockwitness.fixture("structures"))
-    [main] = [each for each in structures if each["kind"] == "main"]
+    """Return the body of moveNodes for a line and a task, on the amendment 2, by its own ids."""
     return {
-        "node_ids": [mockwitness.node_id(number) for number, _ in MIXED],
-        "parent_id": mockwitness.node_id(MIXED_UNDER),
-        "after_node_id": mockwitness.node_id(MIXED_AFTER),
-        "lock_version": main["lock_version"],
+        "node_ids": [mockamendment.own_id(number) for number, _ in MIXED],
+        "parent_id": mockamendment.own_id(MIXED_UNDER),
+        "after_node_id": mockamendment.own_id(MIXED_AFTER),
+        "lock_version": mockamendment.structure("amendment")["lock_version"],
     }
 
 
@@ -560,13 +567,13 @@ COMPLETED_CORRELATION = universe(1186)
 
 
 def estimate_line_completed_refused() -> JsonObject:
-    """Return what createNode answers to a line created under a task completed.
+    """Return what createNode answers to a line created under a task completed, on the amendment 2.
 
     No line is created, modified, moved or deleted under a task completed, which is reopened from
     the Kanban first (WF-DEV-0050, WF-RAE-0030): the state of the task refuses it, by the condition
-    a line under it misses (#1184).
+    a line under it misses (#1184). The main structure of a project in progress closes its estimate.
     """
-    rows = {row.number: row for row in mockcore.current()}
+    rows = {row.number: row for row in mockamendment.rows()}
     if cast("dict[str, Any]", rows[COMPLETED_UNDER].node["task"])["progress"] != "completed":
         message = f"the task {COMPLETED_UNDER} is not completed"
         raise ValueError(message)
@@ -920,7 +927,7 @@ def _parent(rows: dict[int, mockcore.Row], number: int) -> str:
 def _move_refusal_examples() -> dict[str, JsonObject]:
     rows = {row.number: row for row in mockcore.current()}
     moved, under = loop_move()
-    loop = [rows[number].label for number in move_loop(moved, under, described())]
+    loop = [rows[number].label for number in move_loop((moved,), under, described())]
     through = mocktext.listed([f"« {label} »" for label in loop[1:-1]])
     created_beside, moved_beside = _parent(rows, CREATED_AFTER), _parent(rows, MOVED_AFTER)
     return {
@@ -962,12 +969,14 @@ def _move_refusal_examples() -> dict[str, JsonObject]:
 
 
 def _place_examples() -> dict[str, JsonObject]:
-    rows = {row.number: row for row in mockcore.current()}
+    rows = {row.number: row for row in mockamendment.rows()}
     lines, tasks = mixed_places()
     (line, _), (task, _) = MIXED
+    amendment = mockamendment.structure("amendment")
+    on = f"Sur l'« {amendment['label']} », différentiel non fusionné de la révision courante"
     return {
         "nodes_move_mixed.json": mocktext.example(
-            f"Une sélection qui mêle une ligne et une tâche, « {rows[line].label} » du "
+            f"{on}, une sélection qui mêle une ligne et une tâche, « {rows[line].label} » du "
             f"« {_parent(rows, line)} » et « {rows[task].label} », envoyée sous le "
             f"« {rows[MIXED_UNDER].label} » après le « {rows[MIXED_AFTER].label} », sa première "
             f"subordonnée (after_node_id). Chaque nœud suit la règle, dans l'ordre de node_ids : "
@@ -979,7 +988,8 @@ def _place_examples() -> dict[str, JsonObject]:
             nodes_move_mixed(),
         ),
         "estimate_line_completed_refused.json": mocktext.example(
-            f"Une ligne créée sous les « {rows[COMPLETED_UNDER].label} », terminées : aucune "
+            f"{on}, une ligne créée sous les « {rows[COMPLETED_UNDER].label} », "
+            f"terminées : aucune "
             f"ligne ne se crée sous une tâche terminée, qui se rouvre d'abord depuis le Kanban. "
             f"La création est refusée, la condition nommée ; rien n'est créé (WF-DEV-0050, "
             f"WF-RAE-0030, #1184).",

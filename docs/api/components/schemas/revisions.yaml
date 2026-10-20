@@ -1514,7 +1514,8 @@ NodeMove:
     peut ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s). Une sélection se juge sur la
     structure que le déplacement laisserait, tous ses nœuds déplacés : un refus qui nomme un
     nœud nomme le premier en cause dans l'ordre du plan de la structure lue, et `LINK_CYCLE` la
-    boucle que ferme le déplacement de celui-ci (#1169). Les nœuds déplacés prennent place sous
+    boucle que ferme le déplacement de celui-ci (#1169) : l'ordre du refus est celui du plan,
+    l'ordre de `node_ids` ne règle que le placement. Les nœuds déplacés prennent place sous
     `parent_id`, dans l'ordre de `node_ids`, après le frère que nomme `after_node_id`, selon la
     règle de `NodeCreate` : les lignes d'une tâche précèdent toujours ses sous-tâches ; nul, une
     ligne se place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne

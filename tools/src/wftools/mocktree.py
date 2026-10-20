@@ -151,9 +151,11 @@ def cycle(task: int, links: Iterable[Link], roots: Iterable[Task] = CORE) -> lis
     """Return the tasks of the loop that predecessors sent for a task would close, in link order.
 
     From the task to the predecessor sent that already follows it, each preceding the next, the
-    chain crossing the hierarchy as a move's does (``chain``): the shortest, the first in the order
-    of its links when several predecessors sent close a loop as short; the task alone when it is
-    sent as its own predecessor; none when no predecessor sent follows it.
+    chain crossing the hierarchy as a move's does (``chain``): the shortest; at equal length, the
+    first ``chain`` finds — at each task, its links before the hierarchy, its subordinates before
+    its summary, and the links in the order of the plan —, which is the first in the order of the
+    links when several predecessors sent close a loop as short; the task alone when it is sent as
+    its own predecessor; none when no predecessor sent follows it.
     """
     sent = {link.predecessor for link in links}
     if task in sent:
@@ -161,18 +163,40 @@ def cycle(task: int, links: Iterable[Link], roots: Iterable[Task] = CORE) -> lis
     return chain((task, START), lambda each, _: each in sent, plan_of(roots))
 
 
-def move_loop(number: int, parent: int, roots: Iterable[Task]) -> list[int]:
-    """Return the chain a move would close into a loop through the summary it receives.
+def move_loop(numbers: Sequence[int], parent: int, roots: Iterable[Task]) -> list[int]:
+    """Return the chain a move of tasks would close into a loop through the summary they receive.
 
-    The task moved goes under the parent, which spans it with its own ancestors (WF-PLA-0040): a
-    chain from one of them, left at its finish, to the task moved or one of its subordinates, or
-    from these, left at their finish, to one of them entered at its start, would be a loop — the
-    chain crossing the hierarchy of the structure the move leaves (``chain``, #1169). The
-    shortest, each task preceding the next; at equal length, from the nearest ancestor first, then
-    from the task moved and its subordinates in the order of the plan. Two tasks: a link between a
-    summary and its subordinate. None when the move closes no loop.
+    The tasks moved go under the parent, which spans them with its own ancestors (WF-PLA-0040). A
+    selection is judged on the structure the move would leave, all its tasks moved (#1169): the
+    loop is the one the first in cause closes, in the order of the plan of the structure read —
+    not in the order of ``numbers``, which only places them. For a task moved, a chain from one of
+    the ancestors, left at its finish, to the task or one of its subordinates, or from these, left
+    at their finish, to one of the ancestors entered at its start, would be a loop — the chain
+    crossing the hierarchy (``chain``). The shortest, each task preceding the next; at equal
+    length, from the nearest ancestor first, then from the task moved and its subordinates in the
+    order of the plan. Two tasks: a link between a summary and its subordinate. None when the move
+    closes no loop. A parent that is one of the tasks moved, or one of their subordinates, is no
+    move (``ValueError``): the tree would lose them.
     """
-    plan = plan_of(roots).moved(number, parent)
+    roots = tuple(roots)
+    read = plan_of(roots)
+    for number in numbers:
+        if parent in read.below(number):
+            message = f"the task {number} cannot be moved under {parent}, which it spans"
+            raise ValueError(message)
+    plan = read
+    for number in numbers:
+        plan = plan.moved(number, parent)
+    order = [each.number for each in mockcore.tasks_in_order(roots)]
+    for number in sorted(numbers, key=order.index):
+        found = _loop(plan, number, parent)
+        if found:
+            return found
+    return []
+
+
+def _loop(plan: Plan, number: int, parent: int) -> list[int]:
+    """Return the shortest loop a task moved under a parent closes in a plan, or none."""
     above, below = plan.above(parent), plan.below(number)
     chains = [chain((start, FINISH), lambda each, _: each in below, plan) for start in above]
     chains += [

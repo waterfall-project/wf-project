@@ -302,7 +302,9 @@
           Une révision marquée, qui ne se met plus à jour : `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` à `revision_draft`, rien n'étant écrit (WF-REV-0060,
           WF-DAT-0020) ; ou un traitement de fond qui court sur la révision,
-          `no_background_task_running` (EP-15/US-0490).
+          `no_background_task_running` (EP-15/US-0490). Aucune commande de la révision ne dit la
+          mise à jour d'avance (`RevisionCommand`) : la proposition la présente
+          (`getRateUpdateProposal`), et ce 409 seul nomme l'une ou l'autre condition.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1251,8 +1253,9 @@
       `LINK_FORBIDDEN` ; un déplacement qui fermerait une boucle de liaisons à travers elle, par
       422 `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030) — la chaîne
       peut traverser la hiérarchie, une récapitulative couvrant ses subordonnées (#1169) — ;
-      rien n'est écrit. Une sélection se juge sur la structure que le déplacement laisserait, et
-      le refus nomme le premier nœud en cause dans l'ordre du plan (`NodeMove`).
+      rien n'est écrit. Une sélection se juge sur la structure que le déplacement laisserait,
+      tous ses nœuds déplacés, et le refus nomme le premier nœud en cause dans l'ordre du plan de
+      la structure lue ; l'ordre de `node_ids` ne règle que le placement (`NodeMove`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

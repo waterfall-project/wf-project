@@ -58,7 +58,9 @@ def test_the_offer_is_designated_at_the_order_and_the_project_passes_in_progress
     assert designated["reference_revision_id"] == mockhistory.OFFER
     assert designated["current_revision_id"] == mockhistory.REFERENCE
     assert designated["audit"]["updated_at"] == at
-    assert designated["lock_version"] < today["lock_version"]
+    # Version 5 at the designation; the merge of the amendment 1 and the opening of the current
+    # revision bring it to 7, the one it bears today.
+    assert (designated["lock_version"], today["lock_version"]) == (5, 7)
     created, _ = mockhistory.REVISIONS[mockhistory.REFERENCE]
     _, marked = mockhistory.REVISIONS[mockhistory.OFFER]
     assert marked is not None
@@ -81,7 +83,9 @@ def test_the_rates_are_accepted_from_the_reference_in_progress_before_its_markin
     marked = mockwitness.fixture("revision_marked")
     assert applied["revision_id"] == marked["revision_id"] == mockhistory.REFERENCE
     assert applied["reference_year"] == mockwitness.fixture("rate_update")["target_year"]
-    assert applied["lock_version"] == marked["lock_version"]
+    # Opened at its first version, the revision 101 passes to 2 by the update, which its marked
+    # readings keep.
+    assert (applied["lock_version"], marked["lock_version"]) == (2, 2)
     commands = {each["command"]: each for each in applied["available_commands"]}
     assert commands["designate_reference"]["missing_conditions"] == ["revision_marked"]
     assert commands["merge_structure"]["missing_conditions"] == ["unmerged_amendment_exists"]
@@ -186,3 +190,31 @@ def test_a_revision_offers_the_merge_and_not_a_differential_iff_it_bears_one_not
     for revision in (examples[readings[0]], *drafts[len(readings) :]):
         assert _command(revision, "merge_structure")["is_available"] is unmerged
         assert _command(revision, "create_structure")["is_available"] is not unmerged
+
+
+def test_the_designation_of_the_current_revision_misses_its_marking_then_its_correction(
+    examples: dict[str, Any],
+) -> None:
+    # `designate_reference` lists its conditions in the order its 409 refuses by: the current
+    # revision 102 is not marked, and the designation no longer corrects itself, the witness
+    # having received actual costs and marked the revision 101 since the offer was designated
+    # (WF-REV-0040); the revision opened on the project created today misses neither.
+    current = [
+        *(
+            examples[name]
+            for name in ("revision.json", "revision_marking.json", "revision_importing.json")
+        ),
+        *(
+            each
+            for each in examples["revisions.json"]["items"]
+            if each["revision_id"] == mockhistory.CURRENT
+        ),
+    ]
+    assert len(current) == 4
+    for revision in current:
+        missing = _command(revision, "designate_reference")["missing_conditions"]
+        assert missing[:2] == ["revision_marked", "reference_correctable"]
+    marked = _command(examples["revision_marked.json"], "designate_reference")
+    assert marked["missing_conditions"] == ["reference_correctable"]
+    created = _command(examples["revision_created.json"], "designate_reference")
+    assert "reference_correctable" not in created["missing_conditions"]
