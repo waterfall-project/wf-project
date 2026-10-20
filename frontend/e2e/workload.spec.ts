@@ -18,7 +18,7 @@ test("leads from the estimate to the workload, drawn in bars, the capacity in it
 }) => {
   await compile(page.request, SCREEN);
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
-  await page.getByRole("link", { name: "Plan de charge" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
   await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16`);
   // The five seconds of an assertion, which the screen overran once under load: measures in #500.
   await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible();

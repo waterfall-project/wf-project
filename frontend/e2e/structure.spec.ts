@@ -133,8 +133,8 @@ test("proposes no entry and no command of writing in the estimate of the main st
 }) => {
   test.slow();
   // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
-  // ni aucune commande d'écriture : the structure lists the estimate unavailable
-  // (`project_before_in_progress`), and the grid is read only whatever the planning lists.
+  // : the structure lists the estimate unavailable (`project_before_in_progress`), and the grid is
+  // read only whatever the planning lists.
   const { table, cell } = await focusRow(
     page,
     "estimate",
@@ -144,6 +144,7 @@ test("proposes no entry and no command of writing in the estimate of the main st
   await expect(cell).toHaveAttribute("aria-readonly", "true");
   await expect(table.locator('td[data-column]:not([aria-readonly="true"])')).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Annuler", exact: true })).toHaveCount(0);
+  // No command of writing either: neither the keys nor the menu of the cell offer Insert or Delete.
   await page.keyboard.press("Insert");
   await page.keyboard.press("Control+Delete");
   await expect(page.getByRole("dialog")).toHaveCount(0);

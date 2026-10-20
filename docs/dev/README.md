@@ -129,9 +129,12 @@ permission : les chronologies, FBS-4.3.1, les imports et exports, FBS-4.3.4, et 
 tâches, FBS-4.3.5, sous le planning (`/projects/[projectId]/revisions/[revisionId]/timelines`,
 `…/exchanges`, `…/task-tree`), le plan de charge du projet,
 FBS-4.4.4, sous le devis (`…/workload`), et le Kanban, FBS-4.5.3, sous le reste à engager
-(`…/kanban`). La navigation ne l'offre pas —
-l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
-mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
+(`…/kanban`). La navigation la montre, en retrait sous sa
+fonction, dans une liste imbriquée dans l'élément de celle-ci, avec la garde de la feuille et dans le
+même contexte ; l'écran de sa fonction y mène aussi. Le lien courant, `aria-current="page"`, est celui de la
+feuille ; sa fonction, qui est le chemin, porte `aria-current="true"`. Repliée en icônes, la barre ne
+montre que la fonction, marquée ainsi quand la page est l'une de ses feuilles. `readContext` la lit
+comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
 que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
 (`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
 montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
@@ -565,9 +568,12 @@ Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
 fois par requête — et le montre par `ContextBanner`, au-dessus de son `<main>`
 (WF-IHM-0020). La lecture porte `edits`, les commandes `edit_*` de la révision que
-l'appelant peut exercer (`read-only.ts`), qu'un écran reçoit plutôt que de les déduire : une
-grille lit sa propre commande — `edits.has("edit_planning")` pour le planning —, car un
-chiffreur peut saisir le devis sans toucher au planning. `readOnly` — révision marquée, ou
+l'appelant peut exercer (`read-only.ts`), qu'un écran reçoit plutôt que de les déduire. Ce qu'une
+grille offre — la saisie, les gestes, le collage — ne se lit pourtant pas là, mais dans la
+structure principale qu'elle lit (`screen.commands`, de `grid-screen.ts`, d'après
+`available_commands`) : sa propre commande — `edit_planning` pour le planning —, car la phase du
+projet n'est pas celle de la révision (le devis d'un projet En cours est en lecture seule, le
+reste à engager non) et qu'un chiffreur peut saisir le devis sans toucher au planning. `readOnly` — révision marquée, ou
 aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une valeur sous
 enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
@@ -804,7 +810,7 @@ sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée
 « critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
 seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
 déplier. Sa colonne « Rattachement » présente le lot ou le poste que porte une tâche, par le libellé
-que le serveur résout (`work_breakdown_label`) ; là où la révision liste `edit_planning`, la cellule le
+que le serveur résout (`work_breakdown_label`) ; là où la structure lue liste `edit_planning`, la cellule le
 choisit parmi les lots et les postes du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
 — le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte
 (`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
@@ -874,7 +880,10 @@ précédent, puis les grandeurs et le réestimé courants (WF-RAE-0040) ; les tr
 colonnes calculées, les grandeurs précédentes des valeurs conservées, jamais saisies ; les grandeurs
 d'une ligne se réestiment une par une par `setLineRemaining`,
 là où la ligne dit l'accepter (`remaining_entry`) et où son nœud accepte le champ — jamais d'après
-l'avancement de sa tâche —, la commande `edit_remaining` posant Annuler et Rétablir ; la fin d'une
+l'avancement de sa tâche —, la commande `edit_remaining` de la structure lue (`screen.commands`)
+posant Annuler et Rétablir, et la grille, en lecture seule quand elle ne la liste pas ; elle se
+filtre aussi par un lot ou un poste du lotissement lu entier, comme le planning et le devis
+(`order_item_id`, `work_package_id`, restreignant la grille seule) ; la fin d'une
 tâche s'y montre sans se saisir, et la fin dépassée par une marque propre, que le serveur dit
 (`finish_overdue`). Son bandeau ne montre que le sous-projet, seul paramètre de contexte que ses
 lectures prennent, et dit qu'il ne restreint que la grille, ses indicateurs étant ceux du projet
@@ -1631,7 +1640,7 @@ collage partiel n'est éprouvé que par les tests de la grille (`paste-applied.d
 ### Les grilles : annuler et rétablir
 
 Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
-toute grille dont la révision en cours se saisit par sa commande `edit_*` les pose (`undoable`
+toute grille dont la structure lue liste sa commande `edit_*` disponible les pose (`undoable`
 de `DenseGrid`) — le devis par `edit_estimate`, le planning par `edit_planning`, le reste à
 engager par `edit_remaining` (#115) ; aucune grille hors d'une révision en cours ne les pose : ni
 le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne s'annulent. Une telle

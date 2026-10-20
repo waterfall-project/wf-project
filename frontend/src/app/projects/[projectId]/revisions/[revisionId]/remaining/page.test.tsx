@@ -285,7 +285,7 @@ describe("the screen of the remaining to commit", () => {
     expect(calls).toContain("GET /reference/cost-categories");
   });
 
-  it("offers the filter by a lot or a post, read from the work breakdown whole, as the planning and the estimate do [WF-RAE-0040-A]", async () => {
+  it("offers the filter by a lot or a post, read from the work breakdown whole, as the planning and the estimate do", async () => {
     // Le lot ou le poste porté par une tâche rattachée : the server retains its subtree and its
     // ancestors, the banner says the filter restricts the grid alone.
     const page = await remainingAt({ order_item_id: ITEM });
