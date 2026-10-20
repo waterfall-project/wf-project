@@ -11,19 +11,19 @@ y ajoute la section qu'elle établit, et une section encore vide nomme celle qui
 
 ## Arborescence
 
-| Chemin | Contenu | PBS |
-|---|---|---|
-| `backend/` | un seul projet Python, un seul paquet `waterfall` : le noyau (`core/`, un sous-paquet par module, calqué sur un bloc FBS), le service d'API (`api/`), le worker (`worker/`) ; les tests dans `backend/tests/` | PBS-2 |
-| `frontend/` | l'application Next.js ; le client engendré dans `frontend/src/api/` ; les parcours de bout en bout dans `frontend/e2e/` | PBS-1 |
-| `fixtures/` | le relevé engendré des exemples chiffrés des Vérif, et les fixtures qui s'y rattachent | — |
-| `tools/` | les outils du dépôt, un seul paquet Python, `wftools`, et leurs tests | PBS-5.2 |
-| `deploy/compose/`, `deploy/helm/` | l'empaquetage : Compose, puis le chart Helm en EP-13 | PBS-5.1 |
-| `deploy/keycloak/` | l'image de Keycloak : l'extension Java (`extension/`), les thèmes, le royaume `waterfall` (`realm/`), et ce que la plateforme de développement lui ajoute (`development/`) | PBS-5.4 |
-| `.github/workflows/` | la chaîne | PBS-5.2 |
-| `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap | — |
-| `docs/dev/` | ce guide, et les règles de codage par langage | — |
-| `LICENSES/`, `REUSE.toml` | les textes des licences, et la licence des fichiers qui ne portent pas d'en-tête | — |
-| `docs/legal/` | l'accord de licence de contribution, et les engagements envers l'édition communautaire | — |
+| Chemin                                     | Contenu                                                                                                                                                                                                       | PBS     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `backend/`                                 | un seul projet Python, un seul paquet `waterfall` : le noyau (`core/`, un sous-paquet par module, calqué sur un bloc FBS), le service d'API (`api/`), le worker (`worker/`) ; les tests dans `backend/tests/` | PBS-2   |
+| `frontend/`                                | l'application Next.js ; le client engendré dans `frontend/src/api/` ; les parcours de bout en bout dans `frontend/e2e/`                                                                                       | PBS-1   |
+| `fixtures/`                                | le relevé engendré des exemples chiffrés des Vérif, et les fixtures qui s'y rattachent                                                                                                                        | —       |
+| `tools/`                                   | les outils du dépôt, un seul paquet Python, `wftools`, et leurs tests                                                                                                                                         | PBS-5.2 |
+| `deploy/compose/`, `deploy/helm/`          | l'empaquetage : Compose, puis le chart Helm en EP-13                                                                                                                                                          | PBS-5.1 |
+| `deploy/keycloak/`                         | l'image de Keycloak : l'extension Java (`extension/`), les thèmes, le royaume `waterfall` (`realm/`), et ce que la plateforme de développement lui ajoute (`development/`)                                    | PBS-5.4 |
+| `.github/workflows/`                       | la chaîne                                                                                                                                                                                                     | PBS-5.2 |
+| `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap                                                                                                                                                                      | —       |
+| `docs/dev/`                                | ce guide, et les règles de codage par langage                                                                                                                                                                 | —       |
+| `LICENSES/`, `REUSE.toml`                  | les textes des licences, et la licence des fichiers qui ne portent pas d'en-tête                                                                                                                              | —       |
+| `docs/legal/`                              | l'accord de licence de contribution, et les engagements envers l'édition communautaire                                                                                                                        | —       |
 
 Un répertoire naît avec le lot qui y met le premier fichier : `backend/`, `frontend/`,
 `fixtures/` et `deploy/` n'existent pas encore tous. La conception d'EP-01 dit pourquoi
@@ -53,7 +53,7 @@ typées — vit dans `waterfall.platform`, sous le noyau : le noyau, l'API et le
 il n'importe aucun d'eux, et aucun de ses modules ne connaît une table du noyau. Le contrat de
 couches de `backend/pyproject.toml` le garde.
 
-*Contrôle* : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
+_Contrôle_ : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
 un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`). Une requête
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
 imports : elle relève des règles SQL d'EP-03 et de la revue.
@@ -90,7 +90,7 @@ validation des paramètres et du corps, après sa lecture : un corps illisible e
 l'appelant, 404 `NOT_FOUND` ; sans une autre, 403 `PERMISSION_MISSING`, `params.missing_permission` la
 nommant (WF-ADM-0110). L'évaluation elle-même, `require(actor, permission)`, est celle du module
 `waterfall.core.access_roles`, que les EPIC suivants complètent (la qualité de contributeur en
-EP-04). *Contrôle* : `backend/tests/test_access_evaluation.py` liste les permissions de chaque
+EP-04). _Contrôle_ : `backend/tests/test_access_evaluation.py` liste les permissions de chaque
 opération servie et vérifie que le contrat déclare le refus qu'elles peuvent donner — une route
 nouvelle s'y ajoute.
 
@@ -145,7 +145,7 @@ prend pas son nom de ce qu'il dit — : il se trouve par son texte dans la liste
 `within`, comme le taux d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ;
 `functions.test.ts` refuse toute autre section sans rôle.
 
-*Contrôle* : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
+_Contrôle_ : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
 modification, puisqu'il lit la projection comme le front) confronte la table aux fonctions de
 la FBS de la projection — les boîtes des figures de l'arborescence et de chaque bloc, qui les
 nomment toutes, et les titres de leurs paragraphes, lus en protection ; une flèche dont l'enfant ne
@@ -639,6 +639,28 @@ des indicateurs nuls ; une courbe sans point dit qu'elle n'a rien à tracer plut
 zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphique — le budget de
 référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
 la décaler, et, décalée, garde la commande qui retire le décalage.
+
+### Les chiffres clés en cartes
+
+Les chiffres clés d'un écran se présentent par `FiguresCard` (`src/components/figures-card.tsx`),
+jamais en ligne dans un `<dl className="flex …">` posé sur la page : une carte est une région
+nommée par son titre (`role="region"`, `aria-label` du titre), qui porte la date de calcul quand la
+réponse a un contexte (`context`, `CalculationDate`, WF-IHM-0020) et ses chiffres dans une liste de
+termes (`FiguresList`, un `dl`) — le nom, puis la valeur, pour un lecteur d'écran. Les cartes d'un
+écran sont rangées dans `FiguresGrid`, qui passe à la ligne selon la largeur ; les cartes y
+partagent la largeur, et une carte seule s'étire sur toute la rangée. La date de calcul se répète sur chaque
+carte d'une réponse qui en a une : chaque région se lit seule, avec son titre et sa date, sans
+qu'il faille remonter à une autre. Elle se place sous le titre, jamais à sa suite sur la
+même ligne : écrite après l'hydratation (`LocalTime`), elle ferait sauter la carte d'une ligne. Une carte porte un bloc de chiffres qui se lit ensemble — les
+totaux, une ventilation en liste, la couverture des risques —, jamais la page entière. Les valeurs,
+leur format et leurs signaux (`Signal`, WF-IHM-0070) sont ceux que l'écran avait : la carte
+n'ajoute que l'encadré. `IndicatorCard` (écran des indicateurs) la réemploie en gardant son aspect d'avant (`spacious`), les courbes et les tableaux qu'elle porte ayant besoin de la place ; les autres cartes sont compactes, pour que la grille garde ses totaux dans la fenêtre. Les six écrans qui
+la suivent sont les risques, le devis, le reste à engager, les coûts réels et les deux vues du
+portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau du contexte de
+lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la ligne des
+totaux de la grille reste dans la fenêtre sous les cartes, à 1366 et à 911 de large sur 768 de
+haut : `e2e/grid-frame.spec.ts` le vérifie. _Contrôle_ : la revue ;
+`src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
 ### Les grilles
 
@@ -1869,7 +1891,7 @@ fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors d
 `frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
 n'importe de `src/api/` que ses actions serveur (`src/api/actions/`) et des types.
 
-*Contrôles* : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
+_Contrôles_ : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
 contrat produit ; une modification du contrat réveille donc la famille front. ESLint refuse
 hors de `src/api/client.ts` les moyens connus d'atteindre le réseau — `fetch`,
 `XMLHttpRequest`, `WebSocket`, `EventSource`, un client http importé —, et, dans un fichier
@@ -1991,7 +2013,7 @@ Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'app
 la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
 front qui ne font que lire, jamais à éprouver une écriture.
 
-*Contrôles* : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
+_Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
 famille contract, que `fixtures/api/` réveille comme le contrat), `make lint-compose`.
 
@@ -2002,43 +2024,43 @@ Une commande que la chaîne exécute existe dans le Makefile, et un workflow n'�
 logique de contrôle de son côté ; un échec de la chaîne se reproduit donc par la même
 commande.
 
-| Commande | Ce qu'elle fait |
-|---|---|
-| `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
-| `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production` |
-| `make changes BASE=…` | les familles qu'une modification touche |
-| `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne |
-| `make service-install` | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal |
-| `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
-| `make e2e-service` | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` |
-| `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
-| `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
-| `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
-| `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service` |
-| `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
-| `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
-| `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
-| `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
-| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948), que la chaîne demande (`production.yml`, `images.yml`) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
-| `make check-production` | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites |
+| Commande                                                                | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make check BASE=origin/epic/EP-nn`                                     | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `make check-all`                                                        | toutes les familles de contrôles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make check-<famille>`                                                  | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make changes BASE=…`                                                   | les familles qu'une modification touche                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `make build-keycloak`                                                   | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make test-keycloak`                                                    | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service`                                                                                                 |
+| `make check-keycloak`                                                   | la famille `keycloak` : `build-keycloak`, puis `test-keycloak`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make images`                                                           | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `make prerendered-front`                                                | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make check-front-image`                                                | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `make production-trial`                                                 | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948), que la chaîne demande (`production.yml`, `images.yml`) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make check-production`                                                 | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
-| Variable | Ce qu'elle protège |
-|---|---|
-| `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
-| `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
-| `WATERFALL_BACKUP_DATABASE_PASSWORD` | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement |
-| `WATERFALL_REDIS_PASSWORD` | Redis |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
-| `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
-| `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
-| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
-| `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
-| `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
-| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652), et qui donne au royaume la langue de l'installation (`manage-realm`, #873) : ni l'API ni le worker ne le tiennent |
+| Variable                               | Ce qu'elle protège                                                                                                                                                                                                                                                                                  |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WATERFALL_POSTGRES_PASSWORD`          | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL                                                                                                                                 |
+| `WATERFALL_SERVICE_DATABASE_PASSWORD`  | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement                                                                            |
+| `WATERFALL_BACKUP_DATABASE_PASSWORD`   | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement                                                                      |
+| `WATERFALL_REDIS_PASSWORD`             | Redis                                                                                                                                                                                                                                                                                               |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur                                                                                                                                                                                                              |
+| `WATERFALL_STORAGE_SECRET`             | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut)                                                                                                                   |
+| `WATERFALL_STORAGE_RPC_SECRET`         | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme                                                                                                                                                                                   |
+| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`    | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
+| `WATERFALL_FRONT_CLIENT_SECRET`        | le client `waterfall-front` du royaume                                                                                                                                                                                                                                                              |
+| `WATERFALL_SERVICE_CLIENT_SECRET`      | le client `waterfall-service`, le compte de service de l'API et du worker                                                                                                                                                                                                                           |
+| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652), et qui donne au royaume la langue de l'installation (`manage-realm`, #873) : ni l'API ni le worker ne le tiennent                                                                   |
 
 Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
 exemple. Keycloak répond en HTTPS sur `https://localhost:8443/auth`, sa console d'administration
@@ -2300,7 +2322,7 @@ Règles des workflows :
 - un outil téléchargé hors d'une action est épinglé par sa version et vérifié par son
   empreinte, comme pandoc dans `spec.yml`.
 
-*Contrôle* : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
+_Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
 
 La protection des branches est un réglage de GitHub, fait par le propriétaire du dépôt :
 sur `epic/*`, pas de poussée directe, la porte exigée, la file de fusion ; sur `main`, la
@@ -2316,17 +2338,19 @@ objets du domaine sont ceux du tableau de correspondance du §4.4.1 de la spéci
 (`estimate_line`, `cost_line`, `revision`…), et les conventions du contrat — `snake_case`,
 `operationId` en `camelCase`, identifiants UUID — sont dans `docs/api/README.md`.
 
-*Contrôle* : aucun outil ne vérifie la langue d'un nom ; la revue le fait.
+_Contrôle_ : aucun outil ne vérifie la langue d'un nom ; la revue le fait.
 
 ## En-têtes et licences
 
 Chaque fichier de code commence par deux lignes, après la ligne `#!` s'il en a une :
 
 <!-- REUSE-IgnoreStart -->
+
 ```text
 SPDX-FileCopyrightText: 2026 waterfall-project
 SPDX-License-Identifier: AGPL-3.0-only
 ```
+
 <!-- REUSE-IgnoreEnd -->
 
 dans la syntaxe de commentaire du langage. Le nom du fichier n'y figure pas : il deviendrait
@@ -2341,7 +2365,7 @@ Un document qui cite ces deux lignes, comme celui-ci, les encadre de
 `REUSE-IgnoreStart` et `REUSE-IgnoreEnd`, faute de quoi l'outil les lirait comme la licence
 du document.
 
-*Contrôle* : `make reuse` échoue sur un fichier couvert ni par un en-tête ni par
+_Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni par
 `REUSE.toml`.
 
 ## Outils du dépôt
@@ -2353,7 +2377,7 @@ diverger sur ce qu'une exigence dit. Il compare les textes après normalisation 
 et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
 §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
 
-*Contrôle* : `make test-tools`.
+_Contrôle_ : `make test-tools`.
 
 ## La roadmap et les exigences
 
@@ -2378,7 +2402,7 @@ Il échoue aussi sur une commande `make` que cite un agent (`.claude/agents/`,
 `docs/dev/agents.md`) et que le Makefile n'a pas : une cible renommée ne laisse pas un agent
 appeler une commande disparue.
 
-*Contrôle* : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
+_Contrôle_ : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
 changement de la projection ou des agents.
 
 ## Commentaires
@@ -2386,7 +2410,7 @@ changement de la projection ou des agents.
 Un commentaire dit pourquoi, pas ce que fait le code : la raison d'un choix, un invariant,
 un cas limite. Il est en anglais, comme le code.
 
-*Contrôle* : aucun outil ne juge ce qu'un commentaire dit ; la revue le fait. La forme des
+_Contrôle_ : aucun outil ne juge ce qu'un commentaire dit ; la revue le fait. La forme des
 docstrings, le code commenté et les `TODO` — toujours `TODO(#12): …`, avec le numéro de
 l'issue — sont contrôlés : voir « Lint, typage et format ».
 
@@ -2411,7 +2435,7 @@ une, s'écrit dans la configuration de l'outil — `per-file-ignores` de `ruff.t
 raison. Aucun fichier source ne dépasse 1 000 lignes, lignes vides et commentaires compris ;
 les fichiers engendrés en sont exclus.
 
-*Contrôles* : `make lint-back`, `make typecheck-back`, `make lint-tools`,
+_Contrôles_ : `make lint-back`, `make typecheck-back`, `make lint-tools`,
 `make typecheck-tools` ; `make sources` pour les commentaires d'exemption et la taille des
 fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
 les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se déclare dans
@@ -2441,14 +2465,14 @@ Les commentaires de configuration dans le code ne sont pas honorés (`noInlineCo
 `TODO(#12): …` ; les autres étiquettes d'attente sont refusées — c'est `make sources` qui le
 vérifie, ESLint n'ayant pas d'équivalent aux règles `TD` et `FIX` de Ruff.
 
-*Contrôles* : `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
+_Contrôles_ : `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
 
 **Contrat** — `docs/api/redocly.yaml` étend `recommended-strict` : toute règle de Redocly
 bloque. Une opération à laquelle une règle ne s'applique pas — une sonde sans réponse 4xx,
 une redirection OIDC sans réponse 2xx — est déclarée dans `docs/api/.redocly.lint-ignore.yaml`,
 avec sa raison.
 
-*Contrôle* : `make lint-openapi`.
+_Contrôle_ : `make lint-openapi`.
 
 ## Règles de codage
 
@@ -2500,7 +2524,7 @@ indice de révision compris (WF-QUA-0010).
 Un test cite l'exigence dont il éprouve le Vérif, pas celle dont il parle. Un test qui ne
 couvre aucune exigence — un outil, un détail de réalisation — n'en cite aucune.
 
-*Contrôles* : `make requirements` lit les citations dans les fichiers de test, sans les
+_Contrôles_ : `make requirements` lit les citations dans les fichiers de test, sans les
 lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
 famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
 bout en bout contre le service (`frontend/e2e/service/**`, qui prime sur les autres parcours),
@@ -2902,7 +2926,7 @@ contraste d'un texte posé sur le dessin d'une courbe, et le contraste de l'indi
 (WCAG 1.4.11) n'est mesuré que par les jetons de `contrast.test.ts`. Ce qui les couvre ailleurs, et
 ce qui reste, est dit dans la note d'US-0200 (EP-14) et dans #782.
 
-*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
+_Contrôle_ : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
 échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
 
 ### Couverture du code
@@ -2922,7 +2946,7 @@ mesure par un commentaire ; une exclusion s'écrit dans la configuration, avec s
 `frontend/vitest.config.ts`). Un test qui passe sur des lignes sans rien vérifier est un
 défaut, que la revue relève.
 
-*Contrôles* : `make coverage-back`, `make coverage-front`, au palier complet : ils nomment
+_Contrôles_ : `make coverage-back`, `make coverage-front`, au palier complet : ils nomment
 les fichiers les moins couverts quand un seuil n'est pas atteint.
 
 ### Un test qui reprend un exemple chiffré
@@ -2943,7 +2967,7 @@ Les sockets y sont fermées : un exemple qui passe ne demande ni base, ni servic
 navigateur. Une phrase modifiée dans le document change de clé ; la fixture de l'ancienne
 fait alors échouer la chaîne, et on la réécrit d'après la nouvelle phrase.
 
-*Contrôles* : `make check-fixtures` — le relevé est à jour, chaque clé citée existe, et les
+_Contrôles_ : `make check-fixtures` — le relevé est à jour, chaque clé citée existe, et les
 exemples qu'aucune fixture ne cite encore sont listés, sans échec : leur nombre décroît avec
 les EPIC de calcul (EP-06 à EP-11).
 
@@ -2962,9 +2986,10 @@ ses paramètres, jamais une phrase.
   un identifiant, un compteur d'écriture — n'en reçoit pas. Un composant rend un refus par
   `problemMessage(problem, { locale, messages })`, jamais en écrivant la phrase.
 
-  *Contrôles* : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
+  _Contrôles_ : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
   catalogue français, que `problem.ts` lit par `errors.${code}` ; `make catalogs`, sur un
   code sans clé dans l'un des deux, ou sur une clé `errors.` que le contrat n'a plus.
+
 - **Réagir à un refus côté front** — une action serveur ne rend jamais la réponse brute de
   l'API : elle appelle le client par `decode` de `frontend/src/api/problem.ts`, le seul
   décodeur, et rend son `Outcome` — `done` ; `refused`, un `Problem` à dire tel quel ;
@@ -3000,8 +3025,9 @@ ses paramètres, jamais une phrase.
   adresse d'un autre site — et ramène sinon à l'accueil. Un 401 `ACCOUNT_DEACTIVATED` n'y mène
   pas, il bouclerait : `kindOf` le range en `refused`, et une lecture lève `AccountDeactivated`.
 
-  *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
+  _Contrôles_ : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
   qu'une action serveur passe par `decode`, et qu'un rejet passe par `rejected`, la revue.
+
 - **Ajouter un code côté service** — le code existe d'abord au contrat (`ErrorCode`), puis dans
   les modèles du service que `make generate-server-models` en engendre
   (`backend/src/waterfall/api/contract/models.py`, versionnés ; `make server-models-up-to-date`,
@@ -3041,10 +3067,11 @@ ses paramètres, jamais une phrase.
   valeur d'un objet compris ; un paramètre de requête ou de chemin en texte se type `Text`, du
   même module.
 
-  *Contrôles* : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
+  _Contrôles_ : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
   `test_access_roles_guard.py` pour le NUL) ; que tout paramètre en texte est un `Text`, que le
   code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
   réponses des tests d'API contre le contrat.
+
 - **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
   (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :
   une réponse hors schéma fait échouer le test. Les journaux sont ceux de structlog en JSON
@@ -3072,7 +3099,7 @@ ses paramètres, jamais une phrase.
   porte un `lock_version` le teste dans l'écriture même et lève `PreconditionFailedError` si la
   version n'est plus la bonne.
 
-  *Contrôles* : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
+  _Contrôles_ : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
   les frontières ; que l'écriture teste son `lock_version` dans la requête, la revue.
 
 - **Connaître l'appelant** — une route gardée prend `Caller` et, si elle lit ou écrit la base,
@@ -3103,7 +3130,7 @@ ses paramètres, jamais une phrase.
   (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak
   (`waterfall.platform.keycloak_admin`) s'éprouve contre la plateforme (`make test-keycloak`).
 
-  *Contrôles* : `make test-back` (`tests/test_api_authentication.py`, qui compte aussi les
+  _Contrôles_ : `make test-back` (`tests/test_api_authentication.py`, qui compte aussi les
   connexions prises pendant l'appel à Keycloak, `Watching` de `tests/support.py`),
   `make test-keycloak` (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne
   `Caller`, la revue.
@@ -3174,7 +3201,7 @@ langue se choisit.
   britannique (`en-GB`), comme ses catalogues s'écrivent : « 31 May 2026, 16:30 », les
   nombres restant « 1,234.56 ».
 
-*Contrôles* : `make typecheck-front` — next-intl est typé par le catalogue français, et une
+_Contrôles_ : `make typecheck-front` — next-intl est typé par le catalogue français, et une
 clé que le code emploie sans qu'il l'ait casse le typage, comme une clé qui manque au
 catalogue anglais (`frontend/src/i18n/catalogues.ts`) ; `make lint-front` —
 `react/jsx-no-literals` refuse le texte écrit dans le JSX, et `no-restricted-syntax` un
@@ -3287,7 +3314,7 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
   le mode sombre s'applique.
 
-*Contrôles* : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
+_Contrôles_ : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
 `frontend/eslint.config.mjs`) refuse, dans toute chaîne du code, une classe de couleur de la
 palette, une valeur arbitraire d'un utilitaire de couleur qui n'est ni une longueur ni un
 nombre, une variable passée à un utilitaire de couleur ou de police, une police arbitraire, une propriété arbitraire qui peint, pose une police ou une
@@ -3364,7 +3391,7 @@ celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
 lot, et seules les révisions qu'un outil engendre seul seraient déclarées dans
 `tools/paths.toml`.
 
-*Contrôles* : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
+_Contrôles_ : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
 appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
 vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
 contre PostgreSQL (voir « Tests ») ; la compatibilité

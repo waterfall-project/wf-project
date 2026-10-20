@@ -1181,7 +1181,7 @@ sans ligne se termine à une date saisie.
 
 ## US-0550 — Les graphiques et les cartes de chiffres clés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DEV-0070-A`, `WF-PTF-0060-A`, `WF-RIS-0040-A`, `WF-IHM-0130-A`
 - **opérations** : `getProjectWorkload`, `getPortfolioWorkload`, `getProjectRiskMatrix`,
   `getPortfolioRisks`, `getRiskCoverage`, `getEstimateIndicators`, `getRemainingIndicators`,
