@@ -1,0 +1,13 @@
+{
+  "summary": "Une sélection qui mêle une ligne et une tâche, « Borniers » du « Câblage des armoires » et « Transport exceptionnel », envoyée sous le « Poste de commande » après le « Câblage des armoires », sa première subordonnée (after_node_id). Chaque nœud suit la règle, dans l'ordre de node_ids : les lignes d'une tâche précèdent ses sous-tâches, et la ligne, envoyée après une sous-tâche, se place après la dernière ligne du poste, qui n'en porte aucune — au rang 1 — ; la tâche suit le « Câblage des armoires », au rang 3 (#1187, #1188).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "node_ids": [
+      "01926f3a-7c00-7000-8000-000000000554",
+      "01926f3a-7c00-7000-8000-000000000544"
+    ],
+    "parent_id": "01926f3a-7c00-7000-8000-000000000551",
+    "after_node_id": "01926f3a-7c00-7000-8000-000000000552",
+    "lock_version": 1
+  }
+}

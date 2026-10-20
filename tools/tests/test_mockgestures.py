@@ -10,16 +10,18 @@ test qui ne couvre aucune exigence »).
 import itertools
 import json
 import re
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcore, mockdata, mockgestures, mockwitness, mockwrites
+from wftools import REPOSITORY, mockcore, mockdata, mockgestures, mocktree, mockwitness, mockwrites
 from wftools.mockids import universe
 from wftools.mockstructure import described
-from wftools.mockwitness import CORE, CUSTOMER, Link, N, node_id
+from wftools.mocktree import AT_END, LINE, TASK, After
+from wftools.mockwitness import CORE, CUSTOMER, Link, N, Task, node_id
 
 type Node = dict[str, Any]
 
@@ -53,6 +55,23 @@ def money(value: str) -> Decimal:
     return Decimal(value)
 
 
+def moved_under(roots: tuple[Task, ...], number: int, parent: int) -> tuple[Task, ...]:
+    """Return a structure with a task, not a root, moved with its subordinates under another.
+
+    Last under it, as an indentation puts it under the task above it at its level (WF-PLA-0040):
+    the structure a refused move would leave, which ``mockcore.schedule`` refuses too.
+    """
+    [task] = [each for each in mockcore.tasks_in_order(roots) if each.number == number]
+
+    def move(each: Task) -> Task:
+        children = tuple(child for child in each.children if child.number != number)
+        if each.number == parent:
+            children = (*children, task)
+        return each if children == each.children else replace(each, children=children)
+
+    return mockwrites.amended(roots, move)
+
+
 # --- The contract cites each example under its operation ----------------------------------------
 
 
@@ -71,7 +90,11 @@ OPERATIONS = {
     "setNodeTracking": ("200", ["node_tracked"]),
 }
 REFUSALS = {
-    "createNode": ["node_create_horizon_exceeded", "node_create_after_not_sibling"],
+    "createNode": [
+        "estimate_line_completed_refused",
+        "node_create_horizon_exceeded",
+        "node_create_after_not_sibling",
+    ],
     "updateTaskFacet": ["task_date_computed_refused", "task_horizon_exceeded"],
     "setPredecessors": [
         "predecessors_cycle_refused",
@@ -85,6 +108,7 @@ REFUSALS = {
     ],
     "setNodeTracking": ["node_tracking_milestone_refused"],
 }
+REQUESTS = {"moveNodes": ["nodes_move_mixed"]}
 
 
 def _operation(name: str) -> str:
@@ -107,7 +131,11 @@ def test_every_gesture_is_an_example_the_contract_cites_under_its_answer() -> No
         cited |= set(names)
     for operation, names in REFUSALS.items():
         text = _operation(operation)
-        assert set(names) <= set(_cited(text[text.index("'422':") :])), operation
+        assert set(names) <= set(_cited(text[text.index("'401':") :])), operation
+        cited |= set(names)
+    for operation, names in REQUESTS.items():
+        text = _operation(operation)
+        assert set(names) <= set(_cited(text[: text.index("responses:")])), operation
         cited |= set(names)
     facet = _operation("updateTaskFacet")
     entries = _cited(facet[facet.index("'200':") : facet.index("'401':")])
@@ -439,11 +467,11 @@ def test_a_loop_of_links_is_refused_naming_its_tasks_in_the_order_of_the_links(
 
 
 def test_no_loop_is_found_when_no_predecessor_sent_follows_the_task() -> None:
-    assert mockgestures.cycle(N.COMMISSIONING, (Link(N.MOUNTING),)) == []
+    assert mocktree.cycle(N.COMMISSIONING, (Link(N.MOUNTING),)) == []
 
 
 def test_a_task_sent_as_its_own_predecessor_is_a_loop_of_itself() -> None:
-    assert mockgestures.cycle(N.MOUNTING, (Link(N.MOUNTING),)) == [N.MOUNTING]
+    assert mocktree.cycle(N.MOUNTING, (Link(N.MOUNTING),)) == [N.MOUNTING]
 
 
 def test_a_link_to_its_own_summary_is_refused_without_a_parameter(read: dict[str, Node]) -> None:
@@ -472,9 +500,7 @@ def test_a_task_indented_under_its_predecessor_is_refused_as_a_forbidden_link(
     above = read[universe(mockgestures.INDENTED_UNDER)]
     assert (task["parent_id"], task["position"]) == (above["parent_id"], above["position"] + 1)
     assert above["node_id"] in {link["predecessor_node_id"] for link in task["predecessors"]}
-    indented = mockgestures.moved_under(
-        CORE, mockgestures.INDENTED_FORBIDDEN, mockgestures.INDENTED_UNDER
-    )
+    indented = moved_under(CORE, mockgestures.INDENTED_FORBIDDEN, mockgestures.INDENTED_UNDER)
     with pytest.raises(ValueError, match="binds the summary"):
         mockcore.schedule(indented)
 
@@ -499,7 +525,7 @@ def test_a_task_moved_under_a_task_it_follows_is_refused_naming_the_loop(
         assert each["label"] == read[each["node_id"]]["task"]["label"]
     assert read[node_id(moved)]["parent_id"] == read[node_id(under)]["parent_id"]
     with pytest.raises(ValueError, match="close a loop through a summary"):
-        mockcore.schedule(mockgestures.moved_under(described(), moved, under))
+        mockcore.schedule(moved_under(described(), moved, under))
 
 
 @pytest.mark.parametrize(
@@ -530,7 +556,7 @@ def test_a_place_after_a_sibling_is_not_refused() -> None:
 
 def test_a_move_that_closes_no_loop_is_not_refused() -> None:
     # The indentation the contract shows succeeding (nodes_indented) binds no summary.
-    assert mockgestures.move_loop(N.INSTALLATION, N.CONTROL_STATION, CORE) == []
+    assert mocktree.move_loop(N.INSTALLATION, N.CONTROL_STATION, CORE) == []
     with pytest.raises(ValueError, match="closes no loop"):
         mockgestures.move_refused(N.INSTALLATION, N.CONTROL_STATION, CORE, universe(1176))
 
@@ -619,3 +645,113 @@ def test_no_gesture_moves_a_fact_already_recorded(read: dict[str, Node]) -> None
             was = read[entry["node_id"]]["task"]
             if was["progress"] != "not_started":
                 assert (entry["start"], entry["finish"]) == (was["start"], was["finish"]), name
+
+
+# --- The loops that cross the hierarchy (#1169) -------------------------------------------------
+
+
+def _leaf(number: int, *links: int) -> Task:
+    return Task(number, f"Tâche {number}", days=1, links=tuple(Link(each) for each in links))
+
+
+def test_a_loop_through_the_hierarchy_names_the_summary_and_the_subordinate_it_crosses() -> None:
+    # P → W, W the summary of Z, Z → M: M moved under P closes a loop through the hierarchy, the
+    # summary W spanning Z — what precedes W precedes Z. No chain of links alone closes it.
+    p, w, z, m = 901, 902, 903, 904
+    down = (_leaf(p), Task(w, "W", links=(Link(p),), children=(_leaf(z),)), _leaf(m, z))
+    assert mocktree.move_loop(m, p, down) == [p, w, z, m]
+    with pytest.raises(ValueError, match="close a loop through a summary"):
+        mockcore.schedule(_moved_root(down, m, p))
+    # Up: P → Z, Z a subordinate of W, W → M — what follows W follows Z.
+    up = (_leaf(p), Task(w, "W", children=(_leaf(z, p),)), _leaf(m, w))
+    assert mocktree.move_loop(m, p, up) == [p, z, w, m]
+    with pytest.raises(ValueError, match="close a loop through a summary"):
+        mockcore.schedule(_moved_root(up, m, p))
+    # Predecessors entered cross it too: W given P as predecessor, Z → M and M under P.
+    entered = (Task(p, "P", children=(_leaf(m, z),)), Task(w, "W", children=(_leaf(z),)))
+    assert mocktree.cycle(w, (Link(p),), entered) == [w, z, m, p]
+    looped = mockwrites.amended(entered, mockwrites.on_task(w, links=(Link(p),)))
+    with pytest.raises(ValueError, match="close a loop through a summary"):
+        mockcore.schedule(looped)
+
+
+def _moved_root(roots: tuple[Task, ...], number: int, parent: int) -> tuple[Task, ...]:
+    """Return a structure with a root task moved, with its subordinates, last under another."""
+    [task] = [each for each in roots if each.number == number]
+    kept = tuple(each for each in roots if each.number != number)
+    return mockwrites.amended(
+        kept,
+        lambda each: (
+            replace(each, children=(*each.children, task)) if each.number == parent else each
+        ),
+    )
+
+
+# --- The rank of a node created or moved (#1183, #1187, #1188) ---------------------------------
+
+LINES, TASKS = (11, 12), (21, 22)
+"""The lines and the subordinates of a task, in the order of the plan, that the cases place."""
+
+
+@pytest.mark.parametrize(
+    ("sent", "after", "lines", "tasks"),
+    [
+        # Nil: a line first of the lines, a task first of the subordinates.
+        (((1, LINE),), None, [1, 11, 12], [21, 22]),
+        (((1, TASK),), None, [11, 12], [1, 21, 22]),
+        # Absent: after the last of its kind.
+        (((1, LINE),), AT_END, [11, 12, 1], [21, 22]),
+        (((1, TASK),), AT_END, [11, 12], [21, 22, 1]),
+        # After a sibling of its kind: right after it.
+        (((1, LINE),), 11, [11, 1, 12], [21, 22]),
+        (((1, TASK),), 21, [11, 12], [21, 1, 22]),
+        # After a sibling of the other kind: on the boundary.
+        (((1, LINE),), 22, [11, 12, 1], [21, 22]),
+        (((1, TASK),), 11, [11, 12], [1, 21, 22]),
+        # A selection that mixes them: each kind after the previous one of its kind.
+        (((1, LINE), (2, TASK), (3, LINE)), 21, [11, 12, 1, 3], [21, 2, 22]),
+        (((1, TASK), (2, LINE), (3, TASK)), None, [2, 11, 12], [1, 3, 21, 22]),
+        # Absent, the nodes moved left out: a sibling moved is not the last to follow.
+        (((12, LINE),), AT_END, [11, 12], [21, 22]),
+        (((22, TASK), (12, LINE)), AT_END, [11, 12], [21, 22]),
+        (((11, LINE),), AT_END, [12, 11], [21, 22]),
+    ],
+)
+def test_the_rank_follows_the_rule_of_the_contract(
+    sent: tuple[tuple[int, str], ...], after: After, lines: list[int], tasks: list[int]
+) -> None:
+    assert mocktree.placed(LINES, TASKS, sent, after) == (lines, tasks)
+
+
+@pytest.mark.parametrize("after", [99, 11])
+def test_a_place_after_a_node_moved_or_not_a_sibling_is_refused(after: int) -> None:
+    with pytest.raises(ValueError, match="is not a sibling"):
+        mocktree.placed(LINES, TASKS, ((11, LINE),), after)
+
+
+def test_the_mixed_selection_of_the_contract_is_placed_by_the_rule(read: dict[str, Node]) -> None:
+    # The body of the example: a line and a task moved under the station after the wiring; the
+    # line goes first of its lines, which it has none, the task right after the wiring (#1188).
+    body = gesture("nodes_move_mixed")
+    assert body["node_ids"] == [universe(number) for number, _ in mockgestures.MIXED]
+    assert (body["parent_id"], body["after_node_id"]) == (
+        universe(mockgestures.MIXED_UNDER),
+        universe(mockgestures.MIXED_AFTER),
+    )
+    assert read[body["after_node_id"]]["parent_id"] == body["parent_id"]
+    assert [read[each]["kind"] for each in body["node_ids"]] == ["estimate_line", "task"]
+    lines, tasks = mockgestures.mixed_places()
+    assert lines == [N.BLOCKS]
+    assert tasks[: tasks.index(N.TRANSPORT) + 1] == [N.WIRING, N.TRANSPORT]
+    [main] = [each for each in mockwitness.fixture("structures") if each["kind"] == "main"]
+    assert body["lock_version"] == main["lock_version"]
+
+
+def test_a_line_created_under_a_completed_task_is_refused_naming_the_condition(
+    read: dict[str, Node],
+) -> None:
+    # WF-DEV-0050, WF-RAE-0030: a task completed is reopened from the Kanban first (#1184).
+    refused = gesture("estimate_line_completed_refused")
+    assert (refused["code"], refused["status"]) == ("STATE_FORBIDS_OPERATION", 409)
+    assert refused["params"] == {"missing_condition": "task_not_completed"}
+    assert read[universe(mockgestures.COMPLETED_UNDER)]["task"]["progress"] == "completed"

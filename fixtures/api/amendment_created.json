@@ -1,0 +1,23 @@
+{
+  "summary": "L'avenant 1 « extension du poste » ouvert dans la révision 101, alors en cours, le premier différentiel du témoin, avant l'avenant 2 (structures_amendments) : un différentiel non fusionné, copie de la structure principale à sa création, qui se saisit au planning et au devis quel que soit l'état du projet, sans reste à engager, à sa première version (WF-REV-0100, WF-DEV-0050, WF-RAE-0040).",
+  "value": {
+    "structure_id": "01926f3a-7c00-7000-8000-000000000212",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+    "kind": "amendment",
+    "label": "Avenant 1 — extension du poste",
+    "is_merged": false,
+    "available_commands": [
+      {
+        "command": "edit_planning",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "edit_estimate",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "lock_version": 1
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "summary": "La désignation comme référence de la révision du projet créé aujourd'hui, marquée aussitôt ouverte, sans aucune tâche ni ligne de devis (revision_without_tasks) : refusée en nommant la condition manquante, et le projet reste sans référence, en chiffrage ; rien n'est écrit (WF-CYC-0030).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "revision_has_tasks_and_lines"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001181"
+  }
+}

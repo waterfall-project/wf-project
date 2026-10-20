@@ -6443,8 +6443,9 @@ seul onglet, un planning MS Project ou une extraction de coûts réels. Le champ
 un compte rendu sans onglet reste lisible. L'exemple engendré `import_remaining_subproject_held` le
 renseigne, l'onglet « Essais et mise en service », et son résumé dit la ligne 3 de cet onglet.
 L'exemple écrit à la main `import_analysed`, un devis Excel dont deux lignes sont rejetées, ne le
-porte pas encore : il n'est pas réécrit ici (réécrit par US-0500/L1). Le contrat garde sa citation de WF-INTF-0100, dont le
-texte complété attend son intégration par l'auteur (#1166).
+porte pas encore : il n'est pas réécrit ici, mais l'a été depuis, par US-0500/L1. Le contrat
+garde sa citation de WF-INTF-0100, dont le texte complété attend son intégration par l'auteur
+(#1166).
 
 **L'import du devis est refusé sur la structure principale d'un projet En cours** (C-358, #1153 ;
 WF-INTF-0100 : « l'import du devis est refusé sur la structure principale, en nommant la
@@ -6472,10 +6473,11 @@ et les exemples se contredisaient : l'unique racine de `nodes_estimate` portait 
 0. Une grille filtrée ne lit qu'une partie des frères d'un nœud : elle ne peut pas compter un rang,
 seulement nommer le nœud qu'elle montre. `NodeCreate` et `NodeMove` portent donc `after_node_id`,
 le nœud après lequel se placer parmi les frères sous `parent_id` : nul, le nœud se place en tête de
-son parent ; absent, à la fin de ses frères, ce que font les gestes existants — une sous-tâche, une
+son genre ; absent, à la fin de son genre, ce que font les gestes existants — une sous-tâche, une
 ligne sous une tâche, un déplacement sous une autre tâche (`node_created`, `estimate_line_created`,
-`nodes_moved`, `nodes_indented`). Les nœuds déplacés se suivent dans l'ordre de `node_ids`.
-`position` n'est plus écrit.
+`nodes_moved`, `nodes_indented`) ; le paragraphe suivant dit les deux genres, les lignes d'une
+tâche puis ses sous-tâches. Les nœuds déplacés se suivent dans l'ordre de `node_ids`. `position`
+n'est plus écrit.
 
 **Les lignes d'une tâche précèdent toujours ses sous-tâches**, à la création comme au déplacement
 (relevé à la revue du contrat de L3b, à valider avec le reste de #1187). Une ligne et une tâche
@@ -6491,9 +6493,10 @@ lignes et tâches applique la règle à chaque nœud, dans l'ordre de `node_ids`
 chaque genre prend la place que la règle lui donne après `after_node_id`, chacun des suivants se
 place après le précédent de son genre. Écartés : refuser un `after_node_id` de l'autre genre, un
 refus de plus pour une place que la règle sait dire ; mêler lignes et sous-tâches dans un ordre
-libre, que ni la lecture ni le témoin ne connaissent. Exemple engendré par `wftools.mockgestures` : `estimate_line_created_after_subtask`,
-une ligne créée sous le poste de commande, qui n'en porte aucune, après la réception usine, sa
-dernière subordonnée — elle devient son premier enfant, au rang 1, avant le câblage des armoires.
+libre, que ni la lecture ni le témoin ne connaissent. Exemple engendré par
+`wftools.mockgestures` : `estimate_line_created_after_subtask`, une ligne créée sous le poste de
+commande, qui n'en porte aucune, après la réception usine, sa dernière subordonnée — elle devient
+son premier enfant, au rang 1, avant le câblage des armoires.
 
 **Un `after_node_id` qui n'est pas un frère est refusé** : 422 `VALIDATION_FAILED`,
 `fields[].pointer` à `/after_node_id`, motif nouveau `NODE_NOT_SIBLING`, sans paramètre — la grille
@@ -6569,18 +6572,19 @@ et la ligne ajoutées, la liaison de la mise en service, sa durée et la charge 
 retirée ; aucune tâche démarrée retirée. Le Vérif de WF-REV-0050 qu'il portait (« Le compte rendu
 d'une fusion dont le différentiel retire une tâche démarrée nomme cette tâche comme terminée ») passe
 à une variante déclarée, écrite à la main, `structure_merge_report_started_task`, l'ancien premier
-exemple (« Avenant 3 — pupitres déportés »). Le déplacement de la mise en service ne se dit pas au
-compte rendu : `ImportDifference.fields` nomme des colonnes (`NodeColumn`), et aucune ne dit le
-parent ; la liaison et la durée, qui changent, s'y disent.
+exemple (« Avenant 3 — pupitres déportés »). Le déplacement de la mise en service ne se disait pas
+au compte rendu, `ImportDifference.fields` ne nommant que des colonnes (`NodeColumn`) ; il s'y dit
+depuis par `parent` (#1194, EP-15/US-0490/L1, ci-dessous), avec la liaison et la durée.
 
 **La révision courante offre la fusion** (relecture 1). Puisqu'elle porte l'avenant 2 non fusionné,
 `merge_structure` y est disponible, sans condition manquante, dans `revision` et l'item 102 de
 `revisions` ; pendant un marquage ou un import (`revision_marking`, `revision_importing`), il ne
 manque que de `no_background_task_running`. `revision_without_tasks`, sur le projet créé
 aujourd'hui, sans différentiel, garde `unmerged_amendment_exists`.
-`test_the_current_revision_offers_the_merge_if_and_only_if_it_bears_a_differential_not_merged`
-(`tools/tests/test_mockuniverse.py`) tient que la commande est disponible si et seulement si
-`structures` liste un différentiel non fusionné. La variante `cost_curve_amendment`, dont la marche
+`test_a_revision_offers_the_merge_and_not_a_differential_iff_it_bears_one_not_merged`
+(`tools/tests/test_mockcycle.py`, depuis EP-15/US-0490/L1) tient, sur la révision courante et sur
+celle du projet créé aujourd'hui, que la commande est disponible si et seulement si `structures`
+liste un différentiel non fusionné, dans les deux sens (#1196). La variante `cost_curve_amendment`, dont la marche
 du 10 mars s'appelait « avenant 2 », dit désormais « un autre avenant » que celui du témoin
 (`mocktoday.OTHER_AMENDMENT`).
 
@@ -6597,12 +6601,13 @@ pas. Le parent et les prédécesseurs d'un nœud du différentiel sont nommés p
 une ligne est numérotée dans l'arbre rendu. La règle : deux exemples ne rendent jamais un même nœud,
 à une même version, avec deux contenus — sur les clés que tous deux rendent, une lecture ne rendant
 que les champs qu'elle demande —, qu'il s'agisse des lectures d'une structure ou des réponses de
-ses écritures (`nodes`). En sont exemptés, nommément : les comparaisons de deux révisions marquées
-(`comparison`, `comparison_identical`), qui nomment leurs nœuds par les identifiants de la révision
-courante selon la convention de #287 (C12) ; les variantes contrefactuelles déclarées, et
-`nodes_summaries`, lecture de la variante à quatre niveaux ; la suite d'une écriture
-(`startable_tasks_milestone`), et ce qu'une écriture rend sans l'écrire (`ancestors`,
-`rescheduled`, `reinflated`), qui évolue sans changer de version.
+ses écritures (`nodes`). En sont exemptés, nommément : la comparaison de deux révisions marquées
+(`comparison`), qui nomme ses nœuds par les identifiants de la révision courante selon la
+convention de #287 (C12) ; les variantes contrefactuelles déclarées, dont le résumé s'ouvre par
+« Variante contrefactuelle » — `comparison_identical`, `nodes_summaries`, lecture de la variante à
+quatre niveaux, et `startable_tasks_milestone`, le Kanban du câblage supposé terminé, une lecture
+contrefactuelle et non la suite d'une écriture (#1196) — ; et ce qu'une écriture rend sans l'écrire
+(`ancestors`, `rescheduled`, `reinflated`), qui évolue sans changer de version.
 `test_two_examples_never_render_one_node_at_one_version_with_two_contents`
 (`tools/tests/test_mockversions.py`, où le test des écritures est passé) la tient.
 
@@ -6674,7 +6679,8 @@ comme les autres. Ses totaux sont nuls, la révision comparée n'en ayant aucune
 sont ceux de ses lignes retirées. Écarté : un refus 422, qui rendrait illisible une tâche que la
 comparaison rend. **Le tri** ne réordonne que les lignes sous chaque tâche ; la place qu'il donne
 à une ligne retirée, dans une comparaison comme dans la lecture d'un différentiel par `listNodes`,
-reste à trancher (#1201, point 4). `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
+restait à trancher (#1201, point 4) ; tranché depuis (#1205, EP-15/US-0490/L1, ci-dessous) : sur
+ses valeurs de base, comme tout nœud. `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
 les grilles de `listNodes`, que son chemin dit désormais.
 
 **Les exemples sont des fenêtres**, engendrés par `wftools.mockhistory`. `comparison`, le premier,
@@ -6687,6 +6693,122 @@ arbre marqué se prend par `wftools.mockdiff.window`, que `nodes_amendment` empl
 de toute la structure — 5 999 nœuds, 2 770 modifiés par leurs valeurs, 1 027 251,25 d'écart — restent
 tenus par `tools/tests/test_mockhistory.py` sur la comparaison lue entière, que le générateur calcule
 sans qu'un exemple la rende. Aucune variante ne montre une page suivante : `listNodes` n'en a pas.
+
+## Du projet créé au projet En cours, et l'avenant (EP-15/US-0490, US-0510)
+
+**Le cycle des révisions a ses exemples de succès** (partie K4 de la conception d'EP-15, #1074,
+#1072, #1061 ; US-0490/L1). Ils sont écrits à la main dans la chronologie du témoin, et
+`tools/tests/test_mockcycle.py` les date et les confronte aux lectures qu'ils suivent. Ces tests
+devaient aller dans `test_mockhistory.py`, mais il aurait dépassé les mille lignes.
+- `revision_created` (201) : la révision 103, ouverte aujourd'hui à 14 h 05 sur le projet créé à
+  la même heure. C'est celle que lit `revision_without_tasks`, à sa première version.
+- `reference_designated` (200) : le projet témoin le 15 janvier 2026 à 11 h, au moment où l'offre
+  v1.0, marquée pendant le chiffrage, est désignée référence à la commande. Le projet porte son
+  code, et passe donc En cours à cet instant, comme ses transitions et le journal le disent. Sa
+  version est 5 : la fusion de l'avenant 1 et l'ouverture de la révision courante la porteront à
+  7.
+- `rate_update_applied` (200) : la révision 101, le 12 janvier 2026 à 10 h 15. Ouverte un quart
+  d'heure plus tôt par une saisie de risque, elle portait les taux de l'offre projetés. La mise à
+  jour, toujours proposée depuis la révision en cours, est acceptée ensuite (C-362, WF-REV-0060).
+  Une version de plus : les lectures de la 101 marquée la portent désormais à 2, au lieu de 1,
+  qu'aucune écriture n'expliquait. `mockwitness.RATES_UPDATED` date cet instant antérieur, que
+  `test_mockhistory.py` admet pour cet exemple seul.
+- `amendment_created` (201) : l'avenant 1 « extension du poste », ouvert dans la révision 101
+  alors en cours. C'est le premier différentiel du témoin, à sa première version.
+- `task_merge_queued` (202) : la fusion de l'avenant 2, confirmée aujourd'hui à 14 h 09, la suite
+  d'une écriture, à un instant à elle.
+
+**L'abandon est hors de l'annulation** (C-363, WF-IHM-0110). La description d'`abandonRevision`
+le dit : l'abandon est irréversible, et l'écran le dit dans sa confirmation. Celle
+d'`applyRateUpdate` dit qu'une mise à jour refusée à la création s'accepte ensuite, tant que la
+révision n'est pas marquée (C-362).
+
+**Les refus du cycle, chacun avec son exemple** (corrélations 1181 à 1185) :
+- **`designateReferenceRevision`** dit son 409 dans l'ordre de la commande `designate_reference`.
+  - `revision_marked` d'abord.
+  - Puis la condition nouvelle `revision_has_tasks_and_lines` : une révision dont la structure
+    principale ne porte aucune tâche ou aucune ligne de devis (WF-CYC-0030).
+    `reference_without_tasks` montre ce refus sur la révision du projet créé aujourd'hui, marquée
+    sitôt ouverte. `revision_without_tasks` nomme aussi cette condition parmi celles qui manquent
+    à sa désignation.
+  - Puis `reference_correctable`, refusée par son code propre, `REFERENCE_NOT_CORRECTABLE`, sans
+    paramètre (WF-REV-0040 ; `reference_not_correctable`, l'offre désignée de nouveau
+    aujourd'hui).
+
+  Écartée : l'enveloppe commune, `STATE_FORBIDS_OPERATION` à `reference_correctable`. Le
+  catalogue porte ce code depuis EP-02, comme `CURRENT_REVISION_EXISTS` pour `createRevision`, et
+  le cadrage le nomme. `test_mockproject.py` tient qu'un refus qui nomme une condition est celui de
+  l'enveloppe commune : ce code n'en nomme donc aucune.
+- **`applyRateUpdate`** refuse une révision marquée par 409 `STATE_FORBIDS_OPERATION` à
+  `revision_draft` (`rate_update_revision_marked`). C'est une commande de la révision, comme son
+  marquage, et non une saisie d'une grille, qu'une révision marquée refuse par 403.
+- **`mergeCostStructure`** a l'exemple de son 412 : `merge_report_stale`, dont
+  `expected_lock_version` est le compteur courant du différentiel.
+
+**Un avenant non fusionné empêche d'en ouvrir un autre** (#1061, #1195). `create_structure` est
+indisponible sur la révision courante 102, qui porte l'avenant 2. La condition qui manque est
+nouvelle, `no_unmerged_amendment`. C'est le contraire d'`unmerged_amendment_exists`, qui manque à
+la fusion quand aucun différentiel n'est à fusionner : garder un seul nom pour les deux aurait
+nommé la cause à l'envers. `createCostStructure` la nomme dans son 409, pour un différentiel
+(`amendment_unmerged_exists`). Pendant un marquage ou un import, la condition vient avant
+`no_background_task_running`, comme pour la fusion. La révision du projet créé aujourd'hui, sans
+différentiel, garde la commande disponible. Le test du « si et seulement si » de #1196 tient les
+deux commandes, dans les deux sens, sur les deux révisions en cours.
+
+La règle contredit WF-REV-0100 : son corps dit que plusieurs différentiels coexistent, et son
+Vérif qu'il y en a deux dans une même révision. Elle contredit aussi le témoin, dont la révision
+101 a porté les avenants 1 et 2 ensemble. Elle est portée telle que l'auteur l'a décidée, et la
+contradiction est à trancher (#1211). C'est pourquoi `amendment_created` montre l'avenant 1, le
+premier ouvert.
+
+**Le compte rendu de la fusion dit le déplacement d'un nœud** (#1194, tranché par l'auteur le
+2026-10-20). `ImportDifference.fields` gagne `parent`, comme `NodeChange`. Aucune colonne ne le
+présente, et le front le rend par sa clé `enums.ImportDifference.fields.parent`.
+`structure_merge_report` dit la « Mise en service » déplacée sous les « Essais sur site ».
+
+**Un filtre et un tri jugent un nœud retiré sur ses valeurs de base** (#1205, tranché par l'auteur
+le 2026-10-20). Un nœud retiré d'un différentiel n'a plus que les valeurs de la structure
+principale, ou de la révision de base pour une comparaison. Un filtre sur une tâche, la recherche
+et un tri le jugent sur ces valeurs, comme tout autre nœud sur les siennes. Sans tri, il reste à
+la place qu'il avait. Les descriptions de `listNodes` et de `compareRevisions` le disent, à la
+place du renvoi à #1201. Écarté : le placer en fin de ses frères, ce qui l'aurait sorti de la
+place que le diff lui donne.
+
+**La boucle d'un déplacement traverse la hiérarchie** (#1169). `mocklinks` refuse déjà une boucle
+qui passe par une récapitulative. Exemple : P → W, W récapitulative d'une tâche Z qui précède M, et
+M déplacée sous P. `params.cycle` ne parlait que de chaînes de liaisons. Désormais, une chaîne
+suit les liaisons et traverse la hiérarchie, pour un déplacement comme pour des prédécesseurs :
+- d'une tâche atteinte à son début vers ses subordonnées, que ce qui la précède précède ;
+- d'une tâche vers sa récapitulative, que ce qui la suit suit.
+
+Elle nomme chaque tâche traversée : P, W, Z, M. `wftools.mocktree` (`chain`, `move_loop`,
+`cycle`) le calcule sur la structure que le déplacement laisserait. Les exemples existants ne
+changent pas. Une sélection se juge sur la structure que le déplacement laisserait, tous ses
+nœuds déplacés : un refus qui nomme un nœud nomme le premier en cause dans l'ordre du plan, et
+`cycle` la boucle que ferme celui-ci (`NodeMove`).
+
+**La règle du rang est une fonction, éprouvée cas par cas** (#1188).
+- `mocktree.placed` dit la règle de `NodeCreate` et `NodeMove`. Les gestes engendrés passent par
+  elle.
+- `test_the_rank_follows_the_rule_of_the_contract` (`tools/tests/test_mockgestures.py`) en
+  éprouve les cas : nul pour une ligne et pour une tâche, absent, après un frère de chaque genre,
+  la sélection mêlée, et les nœuds déplacés.
+- « Absent » se lit hors nœuds déplacés : un nœud déplacé ne compte pas parmi les frères qu'il
+  suivrait.
+- L'exemple de requête `nodes_move_mixed` montre une sélection mêlée : une ligne et une tâche sous
+  le poste de commande, après le câblage.
+- Les descriptions de `Node.position`, `NodeCreate`, `NodeMove` et `deleteNode` sont refluées.
+
+**Les gestes ont les exemples de leurs refus** (#1184).
+- `estimate_line_completed_refused` : une ligne créée sous les « Études de détail », terminées,
+  refusée par 409 `STATE_FORBIDS_OPERATION` à `task_not_completed` (WF-DEV-0050, WF-RAE-0030 ;
+  corrélation 1186).
+- Le 412 de `deleteNode` n'a pas d'exemple : la requête ne porte aucun compteur, et le 412 est
+  inatteignable (#1210, à trancher).
+
+**Les exemptions de #421 se réduisent** (#1196). `ELSEWHERE` ne garde que `comparison`. Les
+résumés de `nodes_summaries` et de `startable_tasks_milestone` s'ouvrent par « Variante
+contrefactuelle » : la seconde est une lecture contrefactuelle, et non la suite d'une écriture.
 
 ## Collage et annulation
 

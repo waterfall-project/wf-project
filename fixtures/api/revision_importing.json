@@ -57,6 +57,7 @@
         "command": "create_structure",
         "is_available": false,
         "missing_conditions": [
+          "no_unmerged_amendment",
           "no_background_task_running"
         ]
       },

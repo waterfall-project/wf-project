@@ -158,8 +158,9 @@ def test_positions_count_the_siblings_of_one_parent_from_one(items: list[Node]) 
     for node in items:
         siblings.setdefault(node["parent_id"], []).append(node["position"])
     assert all(positions == list(range(1, len(positions) + 1)) for positions in siblings.values())
-    # The witness, which the gestures amend, ranks so too: the lines of a task, then its
-    # subordinates.
+    # The core of the witness, which the answers of the gestures are read from, ranks so too: the
+    # lines of a task, then its subordinates, the order the rule of the rank keeps
+    # (`mocktree.placed`, #1188).
     ranks: dict[int | None, list[tuple[object, str]]] = {}
     for row in mockcore.current():
         ranks.setdefault(row.parent, []).append((row.node["position"], row.kind))

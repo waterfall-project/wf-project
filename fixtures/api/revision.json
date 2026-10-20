@@ -1,5 +1,5 @@
 {
-  "summary": "La révision courante du projet, en brouillon, créée en 2026 et portant cette année de référence (WF-REV-0060) : toutes ses commandes de saisie sont disponibles, sauf la génération du squelette de planning, que sa structure principale, qui porte déjà ses tâches, ne propose plus (WF-PRJ-0030).",
+  "summary": "La révision courante du projet, en brouillon, créée en 2026 et portant cette année de référence (WF-REV-0060) : toutes ses commandes de saisie sont disponibles, sauf la génération du squelette de planning, que sa structure principale, qui porte déjà ses tâches, ne propose plus (WF-PRJ-0030). Elle porte l'avenant 2, non fusionné (structures) : sa fusion est offerte, l'ouverture d'un autre différentiel indisponible tant qu'il ne l'est pas, no_unmerged_amendment manquante (#1195).",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000102",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -44,8 +44,10 @@
       },
       {
         "command": "create_structure",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_unmerged_amendment"
+        ]
       },
       {
         "command": "merge_structure",

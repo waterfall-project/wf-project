@@ -27,6 +27,7 @@ from wftools import mockcore, mocktext, mockwitness
 from wftools.mockcalendar import START_TO_START
 from wftools.mockids import universe
 from wftools.mockstructure import NETWORK, JsonObject, described
+from wftools.mocktree import AT_END, LINE, TASK, cycle, move_loop, placed
 from wftools.mockwitness import (
     CONTROL_STATION,
     CORE,
@@ -53,6 +54,8 @@ from wftools.mockwrites import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
+
+    from wftools.mocktree import After
 
 type Node = dict[str, Any]
 
@@ -84,16 +87,29 @@ TEST_SUPPLIES = Line(
 
 
 def added(
-    number: int, *, child: Task | None = None, line: Line | None = None
+    number: int, *, child: Task | None = None, line: Line | None = None, after: After = AT_END
 ) -> Callable[[Task], Task]:
-    """Add a subordinate or a line, last, to the task of a number, and to no other."""
+    """Add a subordinate or a line to the task of a number, and to no other, where it is sent.
+
+    At the end of its kind by default, as a creation that names no node to follow (``placed``).
+    """
 
     def add(each: Task) -> Task:
         if each.number != number:
             return each
-        children = each.children if child is None else (*each.children, child)
-        lines = each.lines if line is None else (*each.lines, line)
-        return replace(each, children=children, lines=lines)
+        new = [(node.number, kind) for node, kind in ((child, TASK), (line, LINE)) if node]
+        nodes = {node.number: node for node in (*each.lines, *each.children, child, line) if node}
+        lines, tasks = placed(
+            [node.number for node in each.lines],
+            [node.number for node in each.children],
+            new,
+            after,
+        )
+        return replace(
+            each,
+            lines=tuple(cast("Line", nodes[n]) for n in lines),
+            children=tuple(cast("Task", nodes[n]) for n in tasks),
+        )
 
     return add
 
@@ -144,7 +160,7 @@ def estimate_line_created_after_subtask() -> JsonObject:
     added last among the lines of the station is at the place the contract gives a line that
     names a subordinate to follow (``NodeCreate``, #1187).
     """
-    roots = amended(CORE, added(SHARED_UNDER, line=SHARED_TOOLING))
+    roots = amended(CORE, added(SHARED_UNDER, line=SHARED_TOOLING, after=SHARED_AFTER))
     return core_write(roots, [CREATED_SHARED])
 
 
@@ -161,10 +177,13 @@ after it in its lot — no calendar changes, no task is redated (WF-PLA-0010).""
 
 
 def moved_lines() -> tuple[tuple[Task, ...], list[int]]:
-    """Return the structure the selection moved leaves, and the lines it moves."""
+    """Return the structure the selection moved leaves, and the lines it moves.
+
+    Sent without a node to follow, they go after the last line of the task (``placed``).
+    """
     source, target = network_task(MOVED_FROM), network_task(MOVED_TO)
     lines = [line for line in source.lines if line.label in MOVED_LINES]
-    numbers = {line.number for line in lines}
+    numbers = [line.number for line in lines]
 
     def move(each: Task) -> Task:
         if each.number == source.number:
@@ -172,10 +191,17 @@ def moved_lines() -> tuple[tuple[Task, ...], list[int]]:
                 each, lines=tuple(line for line in each.lines if line.number not in numbers)
             )
         if each.number == target.number:
-            return replace(each, lines=(*each.lines, *lines))
+            order, _ = placed(
+                [line.number for line in each.lines],
+                [child.number for child in each.children],
+                [(number, LINE) for number in numbers],
+                AT_END,
+            )
+            by_number = {line.number: line for line in (*each.lines, *lines)}
+            return replace(each, lines=tuple(by_number[number] for number in order))
         return each
 
-    return amended(described(), move), [line.number for line in lines]
+    return amended(described(), move), numbers
 
 
 def nodes_moved() -> JsonObject:
@@ -374,47 +400,6 @@ CYCLE_CORRELATION, FORBIDDEN_CORRELATION = universe(1171), universe(1172)
 LINK_HORIZON_CORRELATION, CREATE_HORIZON_CORRELATION = universe(1173), universe(1174)
 
 
-def followers_of(roots: Iterable[Task]) -> dict[int, list[int]]:
-    """Return the successors of each task of a structure, in the order of the plan."""
-    followers: dict[int, list[int]] = {}
-    for each in mockcore.tasks_in_order(roots):
-        for link in each.links:
-            followers.setdefault(link.predecessor, []).append(each.number)
-    return followers
-
-
-def shortest(start: int, targets: set[int], followers: dict[int, list[int]]) -> list[int]:
-    """Return the shortest chain of links from a task down to one of others, each before the next.
-
-    The first in the order of the links when several are as short; none when no chain leads there.
-    """
-    paths = [[start]]
-    seen = {start}
-    while paths:
-        path = paths.pop(0)
-        for follower in followers.get(path[-1], []):
-            if follower in targets:
-                return [*path, follower]
-            if follower not in seen:
-                seen.add(follower)
-                paths.append([*path, follower])
-    return []
-
-
-def cycle(task: int, links: Iterable[Link], roots: Iterable[Task] = CORE) -> list[int]:
-    """Return the tasks of the loop that predecessors sent for a task would close, in link order.
-
-    From the task to the predecessor sent that already follows it, each preceding the next: the
-    shortest path down the successors of the structure, the first in the order of its links when
-    several predecessors sent close a loop as short; the task alone when it is sent as its own
-    predecessor; none when no predecessor sent follows it.
-    """
-    sent = {link.predecessor for link in links}
-    if task in sent:
-        return [task]
-    return shortest(task, sent, followers_of(roots))
-
-
 def predecessors_cycle_refused() -> JsonObject:
     """Return what setPredecessors answers to predecessors that would close a loop of links."""
     return {
@@ -444,46 +429,6 @@ MOVE_FORBIDDEN_CORRELATION, MOVE_CYCLE_CORRELATION = universe(1176), universe(11
 
 ONE_LINK = 2
 """The tasks of a chain of one link: a summary and its subordinate, bound directly."""
-
-
-def moved_under(roots: Iterable[Task], number: int, parent: int) -> tuple[Task, ...]:
-    """Return a structure with a task, not a root, moved with its subordinates under another.
-
-    Last under it, as an indentation puts it under the task above it at its level (WF-PLA-0040).
-    """
-    [task] = [each for each in mockcore.tasks_in_order(roots) if each.number == number]
-
-    def move(each: Task) -> Task:
-        children = tuple(child for child in each.children if child.number != number)
-        if each.number == parent:
-            children = (*children, task)
-        return each if children == each.children else replace(each, children=children)
-
-    return amended(roots, move)
-
-
-def move_loop(number: int, parent: int, roots: Iterable[Task]) -> list[int]:
-    """Return the chain of links a move would close into a loop through the summary it receives.
-
-    The task moved goes under the parent, which spans it with its own ancestors (WF-PLA-0040): a
-    chain of links from one of them down to the task moved or one of its subordinates, or from
-    these back to one of them, would be a loop. The shortest, each task preceding the next; at
-    equal length, from the nearest ancestor first, then from the task moved and its subordinates
-    in the order of the plan, each by the order of the links. Two tasks: a link between a summary
-    and its subordinate. None when the move closes no loop.
-    """
-    tasks = mockcore.tasks_in_order(roots)
-    parents = {child.number: each.number for each in tasks for child in each.children}
-    above = [parent]
-    while above[-1] in parents:
-        above.append(parents[above[-1]])
-    [task] = [each for each in tasks if each.number == number]
-    below = [each.number for each in mockcore.tasks_in_order((task,))]
-    followers = followers_of(roots)
-    chains = [shortest(start, set(below), followers) for start in above]
-    chains += [shortest(start, set(above), followers) for start in below]
-    found = [chain for chain in chains if chain]
-    return min(found, key=len) if found else []
 
 
 def move_refused(number: int, parent: int, roots: Iterable[Task], correlation: str) -> JsonObject:
@@ -581,6 +526,56 @@ def nodes_move_after_not_sibling() -> JsonObject:
     The line they are sent to follow stays under the wiring of the cabinets.
     """
     return not_sibling(MOVED_UNDER, MOVED_AFTER, MOVE_PLACE_CORRELATION, moved=(MOVED_AWAY,))
+
+
+MIXED_UNDER, MIXED_AFTER = N.CONTROL_STATION, N.WIRING
+MIXED = ((N.BLOCKS, LINE), (N.TRANSPORT, TASK))
+"""A selection that mixes a line and a task — the blocks of the wiring of the cabinets and the
+exceptional transport of the subtree the occurrence merged —, moved under the control station
+after the wiring, its first subordinate: the line falls back on the boundary, the task follows the
+wiring (#1187, #1188)."""
+
+
+def mixed_places() -> tuple[list[int], list[int]]:
+    """Return the lines and the subordinates of the station once the mixed selection is placed."""
+    under = [row for row in mockcore.current() if row.parent == MIXED_UNDER]
+    lines = [row.number for row in under if row.kind == LINE]
+    return placed(lines, [row.number for row in under if row.kind == TASK], MIXED, MIXED_AFTER)
+
+
+def nodes_move_mixed() -> JsonObject:
+    """Return the body of moveNodes for a selection of a line and a task, after a subordinate."""
+    structures = cast("list[Node]", mockwitness.fixture("structures"))
+    [main] = [each for each in structures if each["kind"] == "main"]
+    return {
+        "node_ids": [mockwitness.node_id(number) for number, _ in MIXED],
+        "parent_id": mockwitness.node_id(MIXED_UNDER),
+        "after_node_id": mockwitness.node_id(MIXED_AFTER),
+        "lock_version": main["lock_version"],
+    }
+
+
+COMPLETED_UNDER = N.DETAILED_STUDIES
+COMPLETED_CORRELATION = universe(1186)
+
+
+def estimate_line_completed_refused() -> JsonObject:
+    """Return what createNode answers to a line created under a task completed.
+
+    No line is created, modified, moved or deleted under a task completed, which is reopened from
+    the Kanban first (WF-DEV-0050, WF-RAE-0030): the state of the task refuses it, by the condition
+    a line under it misses (#1184).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    if cast("dict[str, Any]", rows[COMPLETED_UNDER].node["task"])["progress"] != "completed":
+        message = f"the task {COMPLETED_UNDER} is not completed"
+        raise ValueError(message)
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": "task_not_completed"},
+        "correlation_id": COMPLETED_CORRELATION,
+    }
 
 
 TRACKED_TASK = N.DESIGN_REVIEW
@@ -692,6 +687,7 @@ def examples() -> dict[str, JsonObject]:
         **_entry_examples(),
         **_link_examples(),
         **_move_refusal_examples(),
+        **_place_examples(),
     }
 
 
@@ -961,5 +957,32 @@ def _move_refusal_examples() -> dict[str, JsonObject]:
             f"déplacée, {mocktext.listed([f'« {label} »' for label in loop])} ; rien n'est "
             f"écrit (WF-PLA-0030, WF-PLA-0040).",
             nodes_move_cycle_refused(),
+        ),
+    }
+
+
+def _place_examples() -> dict[str, JsonObject]:
+    rows = {row.number: row for row in mockcore.current()}
+    lines, tasks = mixed_places()
+    (line, _), (task, _) = MIXED
+    return {
+        "nodes_move_mixed.json": mocktext.example(
+            f"Une sélection qui mêle une ligne et une tâche, « {rows[line].label} » du "
+            f"« {_parent(rows, line)} » et « {rows[task].label} », envoyée sous le "
+            f"« {rows[MIXED_UNDER].label} » après le « {rows[MIXED_AFTER].label} », sa première "
+            f"subordonnée (after_node_id). Chaque nœud suit la règle, dans l'ordre de node_ids : "
+            f"les lignes d'une tâche précèdent ses sous-tâches, et la ligne, envoyée après une "
+            f"sous-tâche, se place après la dernière ligne du poste, qui n'en porte aucune — au "
+            f"rang {lines.index(line) + 1} — ; la tâche suit le « {rows[MIXED_AFTER].label} », "
+            f"au rang "
+            f"{len(lines) + tasks.index(task) + 1} (#1187, #1188).",
+            nodes_move_mixed(),
+        ),
+        "estimate_line_completed_refused.json": mocktext.example(
+            f"Une ligne créée sous les « {rows[COMPLETED_UNDER].label} », terminées : aucune "
+            f"ligne ne se crée sous une tâche terminée, qui se rouvre d'abord depuis le Kanban. "
+            f"La création est refusée, la condition nommée ; rien n'est créé (WF-DEV-0050, "
+            f"WF-RAE-0030, #1184).",
+            estimate_line_completed_refused(),
         ),
     }

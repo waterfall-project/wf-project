@@ -225,6 +225,22 @@ CommandCondition:
     une tâche : « Elle n'est plus proposée dès que la structure principale comporte une tâche »
     (Vérif de WF-PRJ-0030) ; `generatePlanningSkeleton` nomme dans son 409 la première qui
     manque, dans l'ordre où la commande les liste (EP-14/L42k).
+    Deux tiennent aux différentiels d'une révision en cours, et la révision les nomme
+    (`Revision.available_commands`), l'une le contraire de l'autre : `unmerged_amendment_exists`
+    manque à la fusion (`merge_structure`) tant qu'aucun différentiel de la révision n'est à
+    fusionner ; `no_unmerged_amendment` à l'ouverture d'un différentiel (`create_structure`)
+    tant qu'un avenant de la révision n'est pas fusionné — un avenant se prépare et se
+    contractualise avant le suivant (EP-15/US-0510, #1061, #1195) —, et `createCostStructure`
+    la nomme dans son 409 pour un différentiel. Deux tiennent à la désignation de la référence
+    (`designate_reference`), après `revision_marked`, qui manque à une révision en cours :
+    `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte
+    aucune tâche ou aucune ligne de devis — « La désignation comme référence d'une révision qui
+    ne porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition
+    manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige
+    plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
+    dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
+    première qui manque, dans cet ordre — `reference_correctable` par son code propre,
+    `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490).
   enum:
     - is_contributor
     - is_project_manager
@@ -239,7 +255,9 @@ CommandCondition:
     - revision_draft
     - revision_marked
     - reference_correctable
+    - revision_has_tasks_and_lines
     - unmerged_amendment_exists
+    - no_unmerged_amendment
     - task_not_completed
     - hourly_rates_set
     - no_background_task_running
