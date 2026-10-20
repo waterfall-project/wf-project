@@ -7,10 +7,13 @@
  * them, as it gives it (WF-REV-0080): the tasks and lines added, removed and changed, each change
  * named, and the deviations of amounts by nature of cost and by sub-project.
  *
- * The server pairs the two revisions by the lineage of their objects (WF-DAT-0030): the front
- * pairs nothing, sums nothing and orders nothing (WF-ARC-0020). Each deviation is named by the
- * label the API resolves (#204); one it leaves out is said missing, never replaced by an
- * identifier.
+ * The server pairs the two revisions by the lineage of their objects (WF-DAT-0030) and marks each
+ * node of the compared tree with its `difference` (C-361): the front pairs nothing, sums nothing
+ * and orders nothing (WF-ARC-0020). It only splits the nodes of the tree into three parts by the
+ * mark the server gave them — added, removed, changed —, keeping the order of the plan within
+ * each, and leaves the unchanged ones out — the dense grid of the whole tree comes with
+ * US-0500/L4. Each deviation is named by the label the API resolves (#204); one it leaves out is
+ * said missing, never replaced by an identifier.
  */
 import { Calculator, ClipboardList, GitCompareArrows, type LucideIcon } from "lucide-react";
 import Form from "next/form";
@@ -37,7 +40,8 @@ import { type NamedRevision, useRevisionName } from "./revision-history";
 /** A comparison of two revisions, as the API renders it. */
 export type RevisionComparison = components["schemas"]["RevisionComparison"];
 
-type ComparedNode = components["schemas"]["ComparedNode"];
+type ComparisonNode = components["schemas"]["Node"];
+type NodeDifference = components["schemas"]["NodeDifference"];
 type AmountDelta = RevisionComparison["amount_deltas"][number];
 
 /** The two revisions the address asks to compare, as the contract names them. */
@@ -56,7 +60,7 @@ export function comparedRevisions(search: SearchParameters): ComparedRevisions |
 }
 
 /** The icon of each kind of node: a task, a line of the estimate. */
-const KIND_ICONS: Readonly<Record<ComparedNode["kind"], LucideIcon>> = {
+const KIND_ICONS: Readonly<Record<ComparisonNode["kind"], LucideIcon>> = {
   task: ClipboardList,
   estimate_line: Calculator,
 };
@@ -179,12 +183,12 @@ function Nodes({
 }: {
   readonly title: string;
   readonly none: string;
-  readonly nodes: readonly ComparedNode[];
+  readonly nodes: readonly ComparisonNode[];
   readonly withChanges: boolean;
 }) {
   const t = useTranslations("revisionScreen.comparison");
   const kind = useTranslations("enums.NodeKind");
-  const change = useTranslations("enums.ComparedNode.changes");
+  const change = useTranslations("enums.NodeChange");
   const columns = [t("label"), t("kind"), ...(withChanges ? [t("changes")] : [])];
   return (
     <Part title={title} empty={nodes.length === 0 ? none : undefined}>
@@ -193,7 +197,7 @@ function Nodes({
           const Icon = KIND_ICONS[node.kind];
           return (
             <TableRow key={node.lineage_id}>
-              <TableCell className={`${CELL} whitespace-normal`}>{node.label}</TableCell>
+              <TableCell className={`${CELL} whitespace-normal`}>{labelOf(node)}</TableCell>
               <TableCell className={CELL}>
                 <span className="inline-flex items-center gap-1.5">
                   <Icon aria-hidden="true" className={ICON} />
@@ -244,6 +248,24 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
   );
 }
 
+/** The label of a node, that of its task or of its line. */
+function labelOf(node: ComparisonNode): string | undefined {
+  return (node.task ?? node.estimate_line)?.label;
+}
+
+/**
+ * The nodes of the compared tree the server marked so, in the order of the plan. A changed node is
+ * one of which something changes itself (`changes`): a task marked modified for its content only
+ * — a line or a sub-task added, removed or changed — is not one, its content saying it.
+ */
+function marked(nodes: readonly ComparisonNode[], difference: NodeDifference): ComparisonNode[] {
+  return nodes.filter(
+    (node) =>
+      node.difference === difference &&
+      (difference !== "modified" || (node.changes ?? []).length > 0),
+  );
+}
+
 /** What the API gives for the two revisions compared. */
 function ComparisonResult({ comparison }: { readonly comparison: RevisionComparison }) {
   const t = useTranslations("revisionScreen.comparison");
@@ -252,16 +274,21 @@ function ComparisonResult({ comparison }: { readonly comparison: RevisionCompari
       <Nodes
         title={t("added")}
         none={t("noneAdded")}
-        nodes={comparison.added}
+        nodes={marked(comparison.nodes, "added")}
         withChanges={false}
       />
       <Nodes
         title={t("removed")}
         none={t("noneRemoved")}
-        nodes={comparison.removed}
+        nodes={marked(comparison.nodes, "removed")}
         withChanges={false}
       />
-      <Nodes title={t("changed")} none={t("noneChanged")} nodes={comparison.changed} withChanges />
+      <Nodes
+        title={t("changed")}
+        none={t("noneChanged")}
+        nodes={marked(comparison.nodes, "modified")}
+        withChanges
+      />
       <Deltas deltas={comparison.amount_deltas} />
     </div>
   );

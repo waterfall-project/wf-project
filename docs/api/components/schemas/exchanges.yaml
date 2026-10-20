@@ -185,8 +185,8 @@ ImportReport:
     rejected:
       type: array
       description: >-
-        Les lignes rejetées, chacune par son onglet et son rang, avec son motif ; les autres
-        s'appliquent (WF-INTF-0080).
+        Les lignes rejetées, chacune par son rang, et son onglet quand le fichier en a plusieurs,
+        avec son motif ; les autres s'appliquent (WF-INTF-0080).
         Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet
         qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`,
         WF-INTF-0100, WF-INTF-0120).

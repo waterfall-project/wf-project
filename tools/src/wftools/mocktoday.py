@@ -67,10 +67,12 @@ from wftools.mockwitness import (
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
 
-AMENDMENT_2 = Decimal("15000.00")
-AMENDMENT_2_ON = date(2026, 3, 10)
+OTHER_AMENDMENT = Decimal("15000.00")
+OTHER_AMENDMENT_ON = date(2026, 3, 10)
 """The counterfactual amendment of ``cost_curve_amendment``: the rework of the detailed studies,
-15,000 more on their line of subcontracting, as if contracted on 10 March 2026."""
+15,000 more on their line of subcontracting, as if contracted on 10 March 2026. Another amendment
+than the amendment 2 the current revision bears, not merged (``mockamendment``, #791): it is
+named by no number."""
 
 WORKSHOP = universe(472)
 """The node of organisation the filtered workload retains: the cabling workshop, under the
@@ -156,7 +158,7 @@ def values() -> dict[str, JsonValue]:
         mockwrites.amended(
             mockcore.REFERENCE,
             line=lambda line: (
-                replace(line, unit=cast("Decimal", line.unit) + AMENDMENT_2)
+                replace(line, unit=cast("Decimal", line.unit) + OTHER_AMENDMENT)
                 if line.number == STUDIES_LINE
                 else line
             ),
@@ -180,7 +182,9 @@ def values() -> dict[str, JsonValue]:
         "milestone_tracking": milestone_tracking(points[:-1], points[-1]),
         "cost_curve": cost_curve(now, found.eras, costs),
         "cost_curve_payment_delays": cost_curve(now, found.eras, costs, delays=True),
-        "cost_curve_amendment": cost_curve(now, [*found.eras, Era(AMENDMENT_2_ON, amended)], costs),
+        "cost_curve_amendment": cost_curve(
+            now, [*found.eras, Era(OTHER_AMENDMENT_ON, amended)], costs
+        ),
         "cost_curve_subproject": cost_curve(now, found.eras, costs, scope=SUBPROJECT_CONTROL),
         "cost_curve_subproject_empty": cost_curve(
             core.today, core.eras, core.costs, scope=SUBPROJECT_TESTS
@@ -538,9 +542,10 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
             f"(WF-IND-0100)."
         ),
         "cost_curve_amendment": (
-            f"La même courbe si un avenant 2 — reprise des études de détail, "
+            f"La même courbe si un autre avenant que l'avenant 2 « reprise des essais », que la "
+            f"révision courante porte sans l'avoir fusionné — la reprise des études de détail, "
             f"{_money(second['amount'])} de plus sur leur ligne de sous-traitance — avait été "
-            f"contractualisé le {_day(AMENDMENT_2_ON)} : une seconde marche, le budget de "
+            f"contractualisé le {_day(OTHER_AMENDMENT_ON)} : une seconde marche, le budget de "
             f"référence portant deux points à cette date, avant et après — {_money(before)} puis "
             f"{_money(after)} —, puis cumulé sur la nouvelle référence, jusqu'à "
             f"{_money(_series(amended, 'reference_budget')[-1]['amount'])} ; les études étant "

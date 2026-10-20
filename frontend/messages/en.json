@@ -1762,6 +1762,7 @@
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
     "NODE_NOT_SIBLING": "The node to place it after is not among the siblings of the new place: read the grid again.",
+    "MILESTONE_REQUIRED": "Only a milestone can be tracked on the time/time diagram.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "PROVISION_CATEGORY_REQUIRED": "The provision of a risk takes a category of the kind provision for risks.",
@@ -2241,15 +2242,19 @@
       "task": "Task",
       "estimate_line": "Estimate line"
     },
-    "ComparedNode": {
-      "changes": {
-        "dates": "Dates",
-        "duration": "Duration",
-        "progress": "Progress",
-        "budgeted_amount": "Budgeted amount",
-        "reestimated_amount": "Re-estimated amount",
-        "parent": "Parent"
-      }
+    "NodeChange": {
+      "dates": "Dates",
+      "duration": "Duration",
+      "progress": "Progress",
+      "budgeted_amount": "Budgeted amount",
+      "reestimated_amount": "Re-estimated amount",
+      "parent": "Parent"
+    },
+    "NodeDifference": {
+      "added": "Added",
+      "removed": "Removed",
+      "modified": "Modified",
+      "unchanged": "Unchanged"
     },
     "RevisionComparison": {
       "amount_deltas": {

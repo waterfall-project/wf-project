@@ -300,8 +300,9 @@ def examples() -> dict[str, JsonObject]:
             plan,
         ),
         "import_remaining_subproject_held.json": mocktext.example(
-            f"L'import d'un reste à engager lu aujourd'hui à 10 h 20 et analysé à 10 h 21, une "
-            f"variante que imports ne reprend pas : deux lignes du « {labels[SUBPROJECT_CONTROL]} "
+            f"L'import d'un reste à engager lu aujourd'hui à {mocktext.hour(SUBMITTED)} et analysé "
+            f"à {mocktext.hour(ANALYSED)}, une variante qu'imports ne reprend pas : deux lignes du "
+            f"« {labels[SUBPROJECT_CONTROL]} "
             f"» placées dans l'onglet « {labels[TAB]} ». « {moved['label']} », d'une tâche non "
             f"démarrée, change de sous-projet, un écart au compte rendu ; « {refused} », du « "
             f"{wiring['label']} », démarré le {started}, est rejetée à la ligne "

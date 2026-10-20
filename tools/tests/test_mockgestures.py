@@ -83,6 +83,7 @@ REFUSALS = {
         "nodes_indent_forbidden",
         "nodes_move_cycle_refused",
     ],
+    "setNodeTracking": ["node_tracking_milestone_refused"],
 }
 
 
@@ -572,6 +573,23 @@ def test_a_task_inscribed_to_a_timeline_renders_its_inscriptions(read: dict[str,
     assert task["task"]["tracking"] == [{"kind": "timeline", "timeline_id": CUSTOMER}]
     assert {**task["task"], "tracking": None} == {**was["task"], "tracking": None}
     assert "task.tracking" in task["editable_fields"]
+
+
+def test_the_time_time_tracking_of_a_task_that_is_no_milestone_is_refused_on_its_entry(
+    read: dict[str, Node],
+) -> None:
+    # #1159: the time/time tracking follows milestones; the refusal names the kind of the entry
+    # that asks for it, by its rank among the entries sent, with a code of its own.
+    refused = gesture("node_tracking_milestone_refused")
+    task = read[universe(mockgestures.UNTRACKED_TASK)]["task"]
+    assert task["is_milestone"] is False
+    entries = mockgestures.tracking_entries(mockgestures.UNTRACKED_TASK)
+    [rank] = [at for at, entry in enumerate(entries) if entry["kind"] == "milestone_tracking"]
+    assert [entry["timeline_id"] for entry in entries[:rank]] == [
+        each["timeline_id"] for each in task["tracking"]
+    ]
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [{"pointer": f"/entries/{rank}/kind", "code": "MILESTONE_REQUIRED"}]
 
 
 def test_an_inscription_given_by_a_write_replaces_those_of_the_witness() -> None:

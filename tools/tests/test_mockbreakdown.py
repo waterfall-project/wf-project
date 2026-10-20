@@ -211,8 +211,11 @@ def test_the_skeleton_is_offered_on_a_main_structure_that_reads_empty_and_there_
     assert read["totals"]["task_count"] > 0
     assert (SKELETON, False, [WITHOUT_TASKS]) in _commands(witness)
     # Its other commands are those of the witness's, but the declaration of a risk, which a main
-    # structure without task forbids (EP-14/L42s); the skeleton advances the counter read.
-    own = (SKELETON, "declare_risk")
+    # structure without task forbids (EP-14/L42s), and the merge, the witness bearing a
+    # differential not merged and it none (#1102); the skeleton advances the counter read.
+    own = (SKELETON, "declare_risk", "merge_structure")
+    assert ("merge_structure", False, ["unmerged_amendment_exists"]) in _commands(revision)
+    assert ("merge_structure", True, []) in _commands(witness)
     others = [command for command in _commands(revision) if command[0] not in own]
     assert others == [command for command in _commands(witness) if command[0] not in own]
     assert fixture("skeleton_generated")["structure_lock_version"] == structure["lock_version"] + 1
@@ -504,19 +507,24 @@ def test_the_report_before_a_merge_says_what_it_would_do_and_what_refuses_it() -
     revisions = (PATHS / "revisions.yaml").read_text(encoding="utf-8")
     path = revisions.split("structures/{structure_id}/merge:\n", 1)[1].split("\n/", 1)[0]
     assert path.index("operationId: getStructureMergeReport") < path.index("mergeCostStructure")
+    # The first example is the witness's own amendment, not merged (#791); the started task
+    # withdrawn, kept and completed, a declared variant.
     report = fixture("structure_merge_report")
-    [kept] = [each for each in report["differences"] if each["change"] == "kept"]
-    [completed] = report["completed_tasks"]
+    assert (report["completed_tasks"], report["refusals"]) == ([], [])
+    assert "variante déclarée" not in _summary("structure_merge_report")
+    variant = fixture("structure_merge_report_started_task")
+    [kept] = [each for each in variant["differences"] if each["change"] == "kept"]
+    [completed] = variant["completed_tasks"]
     desks = universe(mockwitness.N.DESKS)
     assert _core()[desks]["task"]["progress"] == "started"
     assert kept["lineage_id"] == completed["lineage_id"] == _core()[desks]["lineage_id"]
     assert kept["label"] == completed["label"] == _core()[desks]["task"]["label"]
-    assert (completed["completed_on"], report["refusals"]) == (None, [])
+    assert (completed["completed_on"], variant["refusals"]) == (None, [])
     refused = fixture("structure_merge_report_refused")
     [refusal] = refused["refusals"]
     assert refusal == {"code": "ORDER_ITEM_OUTSIDE_WORK_PACKAGE", "params": OUTSIDE}
     assert refused["completed_tasks"] == []
-    for name in ("structure_merge_report", "structure_merge_report_refused"):
+    for name in ("structure_merge_report_started_task", "structure_merge_report_refused"):
         assert "variante déclarée" in _summary(name), name
 
 
@@ -552,7 +560,13 @@ def test_the_confirmation_of_a_merge_carries_the_counters_its_report_read() -> N
     assert "hors des deux arbres" in read
     assert "fait échouer la tâche de fond sur le motif du refus" in read
     [main] = [each for each in fixture("structures") if each["kind"] == "main"]
-    for name in ("structure_merge_report", "structure_merge_report_refused"):
+    [amendment] = [each for each in fixture("structures") if each["kind"] == "amendment"]
+    assert fixture("structure_merge_report")["amendment_lock_version"] == amendment["lock_version"]
+    for name in (
+        "structure_merge_report",
+        "structure_merge_report_started_task",
+        "structure_merge_report_refused",
+    ):
         report = fixture(name)
         assert report["main_structure_lock_version"] == main["lock_version"], name
         assert report["amendment_lock_version"] >= 0, name

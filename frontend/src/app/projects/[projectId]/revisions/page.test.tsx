@@ -98,6 +98,14 @@ function rows(markup: string, name: string): number {
   return (found?.[1] ?? "").split("<tr").length - 2;
 }
 
+/** The texts of the first cell of each row of the table a page names so, its header left out. */
+function labels(markup: string, name: string): string[] {
+  const found = new RegExp(`<table[^>]*aria-label="${name}"[^>]*>(.*?)</table>`).exec(markup);
+  return [...(found?.[1] ?? "").matchAll(/<tr[^>]*><td[^>]*>(.*?)<\/td>/g)].map((match) =>
+    text(match[1] ?? ""),
+  );
+}
+
 /** The opening tag of the button a page names so, or `undefined` when it has none. */
 function button(markup: string, name: string): string | undefined {
   return [...markup.matchAll(/(<button[^>]*>)(.*?)<\/button>/g)].find(
@@ -247,8 +255,8 @@ describe("the comparison of two revisions", () => {
       "Libellé Nature Essais préliminaires sur site Tâche Location du banc d'essais Ligne de devis",
     );
     // The four nodes of the core first, in the order of the API; then every line of labour drawn
-    // around it, re-estimated at the rates of 2026 (EP-14/L45a): one row per node the API gives,
-    // none left out by the front.
+    // around it, re-estimated at the rates of 2026 (EP-14/L45a): one row per node the API marks
+    // modified for what changes of it, none left out by the front.
     const changed = table(page, "Modifications");
     const core =
       "Libellé Nature Ce qui change Dossier de conception Tâche Dates Durée " +
@@ -256,7 +264,16 @@ describe("the comparison of two revisions", () => {
       "Câblage sur site Ligne de devis Montant réestimé " +
       "Mise en service sur site Ligne de devis Montant réestimé ";
     expect(changed.slice(0, core.length)).toBe(core);
-    expect(rows(page, "Modifications")).toBe(COMPARISON.changed.length);
+    expect(rows(page, "Modifications")).toBe(2770);
+    // A summary task the API marks modified for its content alone, with no change of its own,
+    // has no row: its content says it.
+    const summary = COMPARISON.nodes.find((node) => node.task?.label === "Installation sur site");
+    expect(summary?.task?.is_summary).toBe(true);
+    expect(summary?.difference).toBe("modified");
+    expect(summary?.changes).toEqual([]);
+    const named = labels(page, "Modifications");
+    expect(named).toHaveLength(2770);
+    expect(named).not.toContain("Installation sur site");
     // The deviations as the API gives them, in its order, each named by the label it resolves
     // (#204), or as the catalogue names one without a label: no total the front would add up, no
     // identifier shown.

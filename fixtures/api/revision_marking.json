@@ -64,7 +64,6 @@
         "command": "merge_structure",
         "is_available": false,
         "missing_conditions": [
-          "unmerged_amendment_exists",
           "no_background_task_running"
         ]
       },

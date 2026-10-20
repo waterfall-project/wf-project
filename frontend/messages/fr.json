@@ -1762,6 +1762,7 @@
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
     "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
     "NODE_NOT_SIBLING": "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
+    "MILESTONE_REQUIRED": "Seul un jalon s’inscrit au suivi temps/temps.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "PROVISION_CATEGORY_REQUIRED": "La provision d’un risque porte une catégorie de type provision pour risques.",
@@ -2241,15 +2242,19 @@
       "task": "Tâche",
       "estimate_line": "Ligne de devis"
     },
-    "ComparedNode": {
-      "changes": {
-        "dates": "Dates",
-        "duration": "Durée",
-        "progress": "Avancement",
-        "budgeted_amount": "Montant budgété",
-        "reestimated_amount": "Montant réestimé",
-        "parent": "Rattachement"
-      }
+    "NodeChange": {
+      "dates": "Dates",
+      "duration": "Durée",
+      "progress": "Avancement",
+      "budgeted_amount": "Montant budgété",
+      "reestimated_amount": "Montant réestimé",
+      "parent": "Rattachement"
+    },
+    "NodeDifference": {
+      "added": "Ajouté",
+      "removed": "Retiré",
+      "modified": "Modifié",
+      "unchanged": "Inchangé"
     },
     "RevisionComparison": {
       "amount_deltas": {

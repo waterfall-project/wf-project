@@ -15,7 +15,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcore, mockstructure, mockwitness
+from wftools import REPOSITORY, mockamendment, mockcore, mockstructure, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
@@ -340,18 +340,18 @@ def _borne_by_the_current_revision() -> set[str]:
     """Return the subprojects the lines of the current revision 102 bear, on all its structures.
 
     The main structure whole — the core and the lots « Poste de commande » bear the control
-    station, the lots « Ligne d'essais » the tests and commissioning —, and the own estimates of the
-    risks, a line of which bears its subproject as any other (C-273); the subproject created today
-    none.
+    station, the lots « Ligne d'essais » the tests and commissioning —, the amendment 2, which bears
+    them as the main structure does (#791), and the own estimates of the risks, a line of which
+    bears its subproject as any other (C-273); the subproject created today none.
     """
     current = fixture("project")["current_revision_id"]
     structures = [each for each in fixture("structures") if each["revision_id"] == current]
-    assert {each["kind"] for each in structures} == {"main", "risk"}
+    assert {each["kind"] for each in structures} == {"main", "amendment", "risk"}
+    described = {"main": mockstructure.described, "amendment": mockamendment.amendment}
     borne: set[str] = set()
     for structure in structures:
-        roots = (
-            mockstructure.described() if structure["kind"] == "main" else _own_estimate(structure)
-        )
+        kind = structure["kind"]
+        roots = described[kind]() if kind in described else _own_estimate(structure)
         borne |= {
             line.subproject
             for task in mockcore.tasks_in_order(roots)

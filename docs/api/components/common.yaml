@@ -407,6 +407,10 @@ ErrorCode:
     # parent visé : un nœud d'un autre parent, l'un des nœuds déplacés, ou un nœud que la
     # structure n'a pas (`/after_node_id`, `createNode`, `moveNodes` ; #1183).
     - NODE_NOT_SIBLING
+    # Une entrée `milestone_tracking` envoyée pour une tâche qui n'est pas un jalon : le suivi
+    # temps/temps est celui des jalons (`/entries/<n>/kind`, `setNodeTracking`, WF-PLA-0060 ;
+    # #1159).
+    - MILESTONE_REQUIRED
     # Un dépôt désigné pour un autre usage que le sien : un import ouvert sur une sauvegarde
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).

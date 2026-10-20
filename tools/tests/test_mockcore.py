@@ -17,6 +17,7 @@ import pytest
 
 from wftools import (
     REPOSITORY,
+    mockamendment,
     mockcore,
     mockdata,
     mockhistory,
@@ -27,7 +28,7 @@ from wftools import (
     mockwrites,
 )
 from wftools.mockids import universe
-from wftools.mockwitness import TODAY, Line, Task
+from wftools.mockwitness import TODAY, Line, N, Task
 
 type Node = dict[str, Any]
 
@@ -511,7 +512,8 @@ def test_a_node_or_a_lineage_of_the_core_bears_one_kind_and_one_label_in_the_who
         for difference in mockwitness.fixture("import_analysed")["report"]["differences"]
         if difference["lineage_id"] is not None
     }
-    assert cited == {mockcore.lineage(LABOUR), mockcore.lineage(BLOCKS)}
+    # The import of the estimate of the amendment 2 names lines of the differential (#1161).
+    assert cited == {mockcore.lineage(N.TESTS_RESUMED_LINE), mockcore.lineage(N.WIRING_ON_SITE)}
 
 
 def test_an_example_that_names_a_label_of_the_core_names_it_by_the_core_identifiers(
@@ -675,6 +677,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_core": alone,
         "nodes_nested": nested,
         "nodes_summaries": nested,
+        "nodes_amendment": mockamendment.rows(),
     }
     depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
     depths["nodes_summaries_leaves"] = 0
@@ -909,10 +912,10 @@ def test_a_reading_says_the_critical_path_only_where_its_task_is_on_it(
 def test_the_comparison_names_the_lines_reestimated_without_being_designated() -> None:
     # Those of the core by their label; those drawn about it, counted (EP-14/L45a).
     example = mockhistory.examples()["comparison.json"]
-    changed = cast("list[Node]", cast("Node", example["value"])["changed"])
+    nodes = cast("list[Node]", cast("Node", example["value"])["nodes"])
     core = {mockcore.lineage(row.number) for row in mockcore.alone()}
-    rerated = [entry for entry in changed if entry["changes"] == ["reestimated_amount"]]
-    kept = [entry["label"] for entry in rerated if entry["lineage_id"] in core]
+    rerated = [entry for entry in nodes if entry["changes"] == ["reestimated_amount"]]
+    kept = [entry["estimate_line"]["label"] for entry in rerated if entry["lineage_id"] in core]
     assert kept == ["Câblage sur site", "Mise en service sur site"]
     assert all(f"« {label} »" in str(example["summary"]) for label in kept)
     drawn = mocktext.count(len(rerated) - len(kept))

@@ -49,10 +49,8 @@
       },
       {
         "command": "merge_structure",
-        "is_available": false,
-        "missing_conditions": [
-          "unmerged_amendment_exists"
-        ]
+        "is_available": true,
+        "missing_conditions": []
       },
       {
         "command": "mark",

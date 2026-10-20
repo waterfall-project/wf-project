@@ -1,0 +1,51 @@
+{
+  "summary": "Une variante déclarée : un autre différentiel de la révision courante, « Avenant 3 — pupitres déportés », que le témoin ne porte pas — son seul différentiel est l'avenant 2 (structure_merge_report) —, qui retire les « Pupitres opérateurs », démarrés, ajoute la tâche « Pupitres déportés » et sa ligne, et allonge la « Mise en service ». Le compte rendu préalable de sa fusion : la tâche et la ligne ajoutées, la durée modifiée, et les « Pupitres opérateurs », que la fusion ne retire pas mais conserve et termine, leur reste à engager porté à zéro, sans date tant qu'elle n'est pas appliquée ; aucun motif de refus, la confirmation est offerte, qui renverra les compteurs lus — celui de la structure principale de la révision courante, 1, comme `structures` le dit, et celui du différentiel, 2 (WF-REV-0050, WF-IHM-0110).",
+  "value": {
+    "main_structure_lock_version": 1,
+    "amendment_lock_version": 2,
+    "differences": [
+      {
+        "change": "added",
+        "target": "task",
+        "lineage_id": null,
+        "label": "Pupitres déportés",
+        "predecessor_label": null,
+        "fields": []
+      },
+      {
+        "change": "added",
+        "target": "estimate_line",
+        "lineage_id": null,
+        "label": "Pupitres déportés",
+        "predecessor_label": null,
+        "fields": []
+      },
+      {
+        "change": "updated",
+        "target": "task",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000665",
+        "label": "Mise en service",
+        "predecessor_label": null,
+        "fields": [
+          "duration"
+        ]
+      },
+      {
+        "change": "kept",
+        "target": "task",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+        "label": "Pupitres opérateurs",
+        "predecessor_label": null,
+        "fields": []
+      }
+    ],
+    "completed_tasks": [
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+        "label": "Pupitres opérateurs",
+        "completed_on": null
+      }
+    ],
+    "refusals": []
+  }
+}
