@@ -219,7 +219,14 @@ export function EstimateGrid({
   // the planning may too. The version the structure moves on to is the next paste's.
   const gestures = useStructureGestures<EstimateNode>(
     editable
-      ? { structure, tasks: tasksEditable, lines: true, categories: reference.categories }
+      ? {
+          structure,
+          tasks: tasksEditable,
+          lines: true,
+          categories: reference.categories,
+          rows: nodes.items,
+          version,
+        }
       : undefined,
     (written) => {
       setMoved((before) => Math.max(before, written.structure_lock_version));

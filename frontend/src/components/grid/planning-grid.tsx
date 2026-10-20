@@ -214,7 +214,16 @@ export function PlanningGrid({
     return outcome;
   };
   const gestures = useStructureGestures<PlanningNode>(
-    editable === true ? { structure, tasks: true, lines: false, categories: undefined } : undefined,
+    editable === true
+      ? {
+          structure,
+          tasks: true,
+          lines: false,
+          categories: undefined,
+          rows: shown.items,
+          version: Math.max(structureVersion, ours?.version ?? 0),
+        }
+      : undefined,
   );
   const offered = nodes.items.length === 0 || ours !== undefined;
   return (

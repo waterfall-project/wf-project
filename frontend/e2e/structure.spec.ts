@@ -128,6 +128,61 @@ test("confirms the deletion of a summary of the planning before it is sent, and 
   await expect(cell).toBeVisible();
 });
 
+test("gives the focus to a cell of the grid once a task is deleted by the keys", async ({
+  page,
+}) => {
+  test.slow();
+  const { table, cell } = await focusRow(
+    page,
+    "planning",
+    "Grille de planning",
+    /^9 .*Câblage des armoires/,
+  );
+  await page.keyboard.press("Control+Delete");
+  await expect(page.getByText("« Câblage des armoires » supprimée.")).toBeVisible({
+    timeout: WORKING,
+  });
+  // The fake back keeps the structure whole: the grid read anew is the same, and the focus is on
+  // its active cell, never on the page.
+  await expect(table.locator('[tabindex="0"]')).toBeFocused();
+  await expect(cell).toBeVisible();
+});
+
+test("indents a summary under the task above it and outdents a task from the keys and from the menu, each said and the grid read anew [WF-PLA-0080-A]", async ({
+  page,
+}) => {
+  test.slow();
+  // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : the
+  // summary « Risque survenu » follows the task « Câblage des armoires » among the subordinates of
+  // « Poste de commande »; the fake back serves the first example of `moveNodes` whatever was
+  // sent, and what the gesture sends is proven by `structure-move.dom.test.tsx`.
+  const { table, cell } = await focusRow(
+    page,
+    "planning",
+    "Grille de planning",
+    /^13 .*Risque survenu — Retard de livraison/,
+  );
+  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await expect(
+    page.getByText("« Risque survenu — Retard de livraison des armoires » indentée."),
+  ).toBeVisible({ timeout: WORKING });
+  await expect(cell).toBeFocused();
+
+  // From the menu of the cell of a task under it: outdented.
+  const task = await labelOf(table, /^16 .*Transport exceptionnel/);
+  await task.click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "Menu de la cellule" });
+  await expect(menu.getByRole("menuitem", { name: "Indenter", exact: true })).toHaveAttribute(
+    "aria-keyshortcuts",
+    "Alt+Shift+ArrowRight",
+  );
+  await menu.getByRole("menuitem", { name: "Désindenter" }).click();
+  await expect(page.getByText("« Transport exceptionnel » désindentée.")).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(task).toBeFocused();
+});
+
 test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress [WF-DEV-0050-A]", async ({
   page,
 }) => {

@@ -106,6 +106,7 @@ function remaining(progress: NonNullable<NodeFilters["progress"]>, subproject?: 
       <RemainingGrid
         nodes={example("nodes_estimate") as NodeList}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={subproject === undefined ? { progress } : { progress, subproject_id: subproject }}
         editable={false}
         query={NO_QUERY}
@@ -676,6 +677,7 @@ describe("the keys the grid tells", () => {
         <RemainingGrid
           nodes={{ ...empty, items: [] }}
           structure={STRUCTURE}
+          structureVersion={1}
           filters={{ progress: ["started"] }}
           editable={false}
           query={NO_QUERY}

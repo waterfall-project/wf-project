@@ -1,14 +1,21 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The gestures that add and remove tasks and lines in a grid of the structure (US-0460,
- * WF-PLA-0070, WF-PLA-0130, WF-DEV-0050, WF-RAE-0040): « Insert below » a task or a line, « Insert
- * a sub-task », « Insert a line », « Delete », from the menu of a cell — on its row — and from the
- * keys: Insert, Alt+Insert, Ctrl+Insert, Ctrl+Delete (`structure-rules.ts`); the bar of the grid,
+ * The gestures that add, move and remove tasks and lines in a grid of the structure (US-0460,
+ * WF-PLA-0070, WF-PLA-0080, WF-PLA-0130, WF-DEV-0050, WF-RAE-0040): « Insert below » a task or a
+ * line, « Insert a sub-task », « Insert a line », « Indent », « Outdent », « Delete », from the menu
+ * of a cell — on its row — and from the keys: Insert, Alt+Insert, Ctrl+Insert, Alt+Shift+Right,
+ * Alt+Shift+Left, Ctrl+Delete (`structure-rules.ts`); the bar of the grid,
  * kept to one line, offers only the first task of a grid with no row to act on. The same writes
  * from the planning, the estimate and the remaining to commit (`createNode`, `deleteNode`): which
  * grid offers them is the command of the structure it reads, never a phase the front deduces — the
  * screen hands the gestures what the structure lists available (`tasks`, `lines`).
+ *
+ * An indentation moves the task under the one that precedes it, in the last place, an outdentation
+ * after its parent, under the parent of that one, as MS Project does (`moveNodes`): the task takes
+ * its subordinates with it, and no dialog asks anything. The grid is read anew, the ancestors
+ * recalculated and the tasks redated taking the place of the rows read; a refusal — a link a
+ * summary would hold to its subordinate, a loop, a node that is no sibling — is told at the row.
  *
  * A node is created from a dialog that names it — the label of a task; the label, the category and
  * the quantity of a line, which the contract requires —, and the row it acts on; the task inserted
@@ -29,7 +36,14 @@
  */
 "use client";
 
-import { CornerDownRight, ListPlus, Plus, Trash2 } from "lucide-react";
+import {
+  CornerDownRight,
+  ListIndentDecrease,
+  ListIndentIncrease,
+  ListPlus,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -42,7 +56,7 @@ import {
   useTransition,
 } from "react";
 
-import { createNode, deleteNode } from "@/api/actions/nodes";
+import { createNode, deleteNode, moveNodes } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
@@ -53,6 +67,7 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 import type { GridNode, NodesWritten } from "./nodes";
+import { byField } from "./planning-attachment";
 import { CreateForm, DeleteConfirmation } from "./structure-dialogs";
 import {
   bodyOf,
@@ -62,6 +77,9 @@ import {
   gestureOfKey,
   gesturesOn,
   labelOf,
+  moveOf,
+  type Moving,
+  moves,
   type StructureGestures,
 } from "./structure-rules";
 import type { RowCommands } from "./undo-commands";
@@ -72,6 +90,8 @@ const ICONS: Readonly<Record<Gesture, ReactNode>> = {
   below: <Plus aria-hidden="true" />,
   child: <CornerDownRight aria-hidden="true" />,
   line: <ListPlus aria-hidden="true" />,
+  indent: <ListIndentIncrease aria-hidden="true" />,
+  outdent: <ListIndentDecrease aria-hidden="true" />,
   delete: <Trash2 aria-hidden="true" />,
 };
 
@@ -242,6 +262,10 @@ export function useStructureGestures<Row extends GridNode>(
   const [opened, setOpened] = useState<Opened<Row>>();
   const [writing, setWriting] = useState(false);
   const [told, setTold] = useState<Told<Row>>();
+  const [reached, setReached] = useState<{
+    readonly structure: string;
+    readonly version: number;
+  }>();
   const openings = useRef(0);
   // The cell that had the focus when a row was deleted with no dialog: once the grid is read anew
   // without it, the focus goes back to the active cell, not to the page. It is forgotten as soon as
@@ -262,7 +286,10 @@ export function useStructureGestures<Row extends GridNode>(
       }
     } else if (reading) {
       readingBegun.current = true;
-    } else if (readingBegun.current) {
+    } else {
+      // The reading that follows a write shows as pending from the first render after it: a render
+      // that finds it neither pending nor begun is one the transition was not seen in, and the cell
+      // is forgotten, not kept for a removal that has nothing to do with the write.
       lost.current = undefined;
       readingBegun.current = false;
     }
@@ -277,8 +304,13 @@ export function useStructureGestures<Row extends GridNode>(
     below: t("insertBelow"),
     child: t("insertChild"),
     line: t("insertLine"),
+    indent: t("indent"),
+    outdent: t("outdent"),
     delete: t("delete"),
   };
+  // The version the structure reached by the writes answered, which the next move carries: the page
+  // read anew brings it too, and the highest wins.
+  const version = Math.max(scope.version, reached?.structure === structure ? reached.version : 0);
 
   /** Send a write, and take its answer: the grid read anew when done, the refusal told otherwise. */
   const send = (
@@ -289,7 +321,9 @@ export function useStructureGestures<Row extends GridNode>(
     cell?: HTMLElement,
   ) => {
     setWriting(true);
-    void held(call()).then((outcome) => {
+    // A refusal by field is told by the reason of its field — a node to follow that is no sibling —,
+    // the envelope saying only that the entry is invalid.
+    void held(call().then(byField)).then((outcome) => {
       setWriting(false);
       // A dialog is closed by the answer to what it sent, never by one it did not send.
       if (opening === undefined || opening === openings.current) {
@@ -297,6 +331,13 @@ export function useStructureGestures<Row extends GridNode>(
       }
       if (outcome.kind === "done") {
         onWritten?.(outcome.data);
+        setReached((before) => ({
+          structure,
+          version: Math.max(
+            before?.structure === structure ? before.version : 0,
+            outcome.data.structure_lock_version,
+          ),
+        }));
         setTold(undefined);
         say(node.done, { object: node.label });
         lost.current = cell;
@@ -319,8 +360,27 @@ export function useStructureGestures<Row extends GridNode>(
       cell,
     );
   };
+  /** Move the task of a row, with the subordinates it bears, and read the grid anew. */
+  const move = (gesture: Moving, row: Row, cell: HTMLElement | undefined) => {
+    const body = moveOf(gesture, [row], { ...scope, version });
+    if (body === undefined) {
+      return;
+    }
+    const label = labelOf(row);
+    send(
+      () => moveNodes(scope.structure, body),
+      row,
+      { label, done: t(gesture === "indent" ? "indented" : "outdented", { label }) },
+      undefined,
+      cell,
+    );
+  };
   const open = (gesture: Gesture, row: Row | undefined, trigger: HTMLElement | undefined) => {
     if (writing) {
+      return;
+    }
+    if (moves(gesture) && row !== undefined) {
+      move(gesture, row, trigger);
       return;
     }
     if (gesture === "delete" && row !== undefined && row.task?.is_summary !== true) {
@@ -343,9 +403,10 @@ export function useStructureGestures<Row extends GridNode>(
       current.opening,
     );
   };
-  // A deletion needs a confirmation of its own only for a summary, which carries others away.
+  // A dialog asks only a creation and the deletion of a summary, which carries others away: a leaf
+  // is deleted at once, and a move asks nothing.
   const confirms = (gesture: Gesture, row: Row | undefined) =>
-    gesture !== "delete" || row?.task?.is_summary === true;
+    gesture === "delete" ? row?.task?.is_summary === true : !moves(gesture);
   return {
     // The bar offers the first task of a grid with no row to act on — empty, or on its header —;
     // the others are offered by the menu of a cell and by the keys, which keep the bar to one line.

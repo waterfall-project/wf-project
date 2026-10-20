@@ -53,6 +53,8 @@ export interface RemainingGridProps {
   readonly nodes: NodeRows<RemainingNode>;
   /** The structure the rows belong to. */
   readonly structure: StructurePath;
+  /** The version of the structure read with the page, which a move of the gestures carries. */
+  readonly structureVersion: number;
   /**
    * What the reading asked of the nodes besides their fields and their sort, as it was sent — the
    * states of the tasks always —, whose totals the grid reads anew by the same request.
@@ -95,6 +97,7 @@ function structureWrites(structure: StructurePath, filters: NodeFilters): Remain
 export function RemainingGrid({
   nodes,
   structure,
+  structureVersion,
   filters,
   editable,
   categories,
@@ -108,7 +111,16 @@ export function RemainingGrid({
     [structure, nodes.items],
   );
   const gestures = useStructureGestures<RemainingNode>(
-    editable ? { structure, tasks: true, lines: true, categories } : undefined,
+    editable
+      ? {
+          structure,
+          tasks: true,
+          lines: true,
+          categories,
+          rows: nodes.items,
+          version: structureVersion,
+        }
+      : undefined,
   );
   const config = useMemo(
     () => remainingGrid(editable ? structureWrites(structure, filters) : undefined),

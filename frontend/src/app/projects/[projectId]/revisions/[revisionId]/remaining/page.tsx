@@ -221,6 +221,7 @@ export default async function RemainingPage({
           <RemainingGrid
             nodes={screen.nodes}
             structure={screen.structure}
+            structureVersion={screen.structureVersion}
             filters={screen.filters}
             editable={editable}
             categories={categories}
