@@ -239,6 +239,18 @@ export interface RowCommands<Row> {
   readonly refused?: { readonly row: Row; readonly described: string } | undefined;
   /** Whether the commands act on the selection the handles of the grid make; none, it selects nothing. */
   readonly selects?: boolean | undefined;
+  /**
+   * The row the last command moved, the how-many-th, and whether the reading anew it asked is over:
+   * the active cell follows that row through the reading, and the focus with it.
+   */
+  readonly moved?: RowMoved<Row> | undefined;
+}
+
+/** The row a command moved, as `RowCommands.moved` tells it. */
+export interface RowMoved<Row> {
+  readonly row: Row;
+  readonly count: number;
+  readonly settled: boolean;
 }
 
 /**

@@ -34,9 +34,11 @@
  * A refusal — a task completed, for one — is told above the grid as any outcome, in the alert,
  * naming the row it was asked from, and that row is marked and described by it; that of a task
  * created from the bar, with no row, names the task tried. What was done is said in a status of its
- * own (`useSaid`). A write under way holds the commands, inactive and saying so; an answer closes
- * only the dialog it was sent from (défaut n° 24), and belongs to the structure it was written in
- * (défaut n° 1).
+ * own (`useSaid`). A write under way, and the reading anew that follows it, hold the commands,
+ * inactive and saying so: the next move starts from the neighbours that reading shows, never from
+ * those before it with a version already moved on. An answer closes only the dialog it was sent
+ * from (défaut n° 24), and belongs to the structure it was written in (défaut n° 1). The row a move
+ * was asked from is told the grid (`moved`), whose active cell follows it through the reading.
  */
 "use client";
 
@@ -275,6 +277,7 @@ export function useStructureGestures<Row extends GridNode>(
   const [opened, setOpened] = useState<Opened<Row>>();
   const [writing, setWriting] = useState(false);
   const [told, setTold] = useState<Told<Row>>();
+  const [moved, setMoved] = useState<{ readonly row: Row; readonly count: number }>();
   const openings = useRef(0);
   // The cell that had the focus when a row was deleted with no dialog: once the grid is read anew
   // without it, the focus goes back to the active cell, not to the page. It is forgotten as soon as
@@ -307,6 +310,8 @@ export function useStructureGestures<Row extends GridNode>(
     return undefined;
   }
   const structure = scope.structure.structure_id;
+  // A gesture waits for the write and for the reading anew that follows it.
+  const busy = writing || reading;
   const shown = told?.structure === structure ? told : undefined;
   const names: Readonly<Record<Gesture, string>> = {
     first: t("insertFirst"),
@@ -323,7 +328,7 @@ export function useStructureGestures<Row extends GridNode>(
   const send = (
     call: () => Promise<Outcome<NodesWritten>>,
     row: Row | undefined,
-    node: { readonly label: string; readonly done: string },
+    node: { readonly label: string; readonly done: string; readonly moves?: Row },
     opening: number | undefined,
     cell?: HTMLElement,
   ) => {
@@ -340,6 +345,10 @@ export function useStructureGestures<Row extends GridNode>(
         onWritten(outcome.data);
         setTold(undefined);
         say(node.done, { object: node.label });
+        const { moves: bore } = node;
+        if (bore !== undefined) {
+          setMoved((before) => ({ row: bore, count: (before?.count ?? 0) + 1 }));
+        }
         lost.current = cell;
         readingBegun.current = false;
         refresh(() => {
@@ -375,6 +384,7 @@ export function useStructureGestures<Row extends GridNode>(
    */
   const move = (
     body: ReturnType<typeof moveOf>,
+    from: Row | undefined,
     acted: readonly Row[],
     done: Done,
     cell: HTMLElement | undefined,
@@ -388,7 +398,7 @@ export function useStructureGestures<Row extends GridNode>(
     send(
       () => moveNodes(scope.structure, body),
       first,
-      { label, done: t(`moved.${done}`, { label, others: tops.length - 1 }) },
+      { label, done: t(`moved.${done}`, { label, others: tops.length - 1 }), moves: from ?? first },
       undefined,
       cell,
     );
@@ -399,11 +409,11 @@ export function useStructureGestures<Row extends GridNode>(
     acted: readonly Row[],
     trigger: HTMLElement | undefined,
   ) => {
-    if (writing) {
+    if (busy) {
       return;
     }
     if (moves(gesture)) {
-      move(moveOf(gesture, acted, scope), acted, DONE[gesture], trigger);
+      move(moveOf(gesture, acted, scope), row, acted, DONE[gesture], trigger);
       return;
     }
     if (gesture === "delete" && row !== undefined && row.task?.is_summary !== true) {
@@ -441,8 +451,8 @@ export function useStructureGestures<Row extends GridNode>(
           size="icon"
           aria-label={names.first}
           title={names.first}
-          aria-disabled={writing ? true : undefined}
-          aria-busy={writing}
+          aria-disabled={busy ? true : undefined}
+          aria-busy={busy}
           aria-keyshortcuts={GESTURE_KEYS.first}
           className={`size-7 shrink-0 ${UNAVAILABLE}`}
           onClick={(event: MouseEvent<HTMLElement>) => {
@@ -456,12 +466,13 @@ export function useStructureGestures<Row extends GridNode>(
       gesturesOn(row, scope, rows).map((gesture) => (
         <ContextMenuItem
           key={gesture}
-          aria-disabled={writing ? true : undefined}
+          aria-disabled={busy ? true : undefined}
           aria-keyshortcuts={GESTURE_KEYS[gesture]}
           className={UNAVAILABLE}
           onSelect={(event) => {
-            // Pressed while a write is under way, it does nothing, and the menu stays open.
-            if (writing) {
+            // Pressed while a write or its reading is under way, it does nothing, and the menu stays
+            // open.
+            if (busy) {
               event.preventDefault();
               return;
             }
@@ -478,18 +489,19 @@ export function useStructureGestures<Row extends GridNode>(
       )),
     keys: (row, event, rows) => {
       const gesture = gestureOfKey(row, event);
-      if (
-        gesture === undefined ||
-        opened !== undefined ||
-        entering(event.target) ||
-        !gesturesOn(row, scope, rows).includes(gesture)
-      ) {
+      if (gesture === undefined || opened !== undefined || entering(event.target)) {
         return false;
+      }
+      // A move not offered on a row — the first of its siblings asked up — is taken, and does
+      // nothing: Alt, Shift and an arrow would otherwise move the active cell as the arrow alone does.
+      if (!gesturesOn(row, scope, rows).includes(gesture)) {
+        return row !== undefined && moves(gesture);
       }
       open(gesture, row, rows, event.target instanceof HTMLElement ? event.target : undefined);
       return true;
     },
     selects: true,
+    moved: moved === undefined ? undefined : { ...moved, settled: !reading },
     around: (
       <>
         <GestureNotice

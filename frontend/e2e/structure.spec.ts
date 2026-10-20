@@ -179,7 +179,10 @@ test("indents a summary under the task above it and outdents a task from the key
     "aria-keyshortcuts",
     "Alt+Shift+ArrowRight",
   );
-  await menu.getByRole("menuitem", { name: "Désindenter" }).click();
+  // The gestures wait for the reading anew the indentation asked.
+  const outdent = menu.getByRole("menuitem", { name: "Désindenter" });
+  await expect(outdent).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
+  await outdent.click();
   await expect(page.getByText("« Transport exceptionnel » désindentée.")).toBeVisible({
     timeout: WORKING,
   });

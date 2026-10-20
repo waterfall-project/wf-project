@@ -1687,8 +1687,8 @@ lit (`CostStructure.available_commands`, WF-IHM-0090) : `readGridScreen` rend ce
 disponibles (`commands`), le planning lit `edit_planning`, le devis `edit_estimate`, le reste à
 engager `edit_remaining`. Le front ne déduit jamais la phase du projet : sur la structure principale
 d'un projet En cours le devis est en lecture seule, le reste à engager l'est avant (WF-DEV-0050,
-WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une ligne
-», « Indenter », « Désindenter », « Monter », « Descendre », « Supprimer » — sont dans le menu
+WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
+ligne », « Indenter », « Désindenter », « Monter », « Descendre », « Supprimer » — sont dans le menu
 contextuel des cellules et aux touches Insert, Alt+Insert, Ctrl+Insert, Alt+Maj+→, Alt+Maj+←,
 Alt+Maj+↑, Alt+Maj+↓ et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans
 `structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
@@ -1706,9 +1706,13 @@ par la façon de sélectionner et de déplacer, elle se traverse aux flèches co
 Un clic la sélectionne seule, Maj et un clic étendent la sélection depuis son ancre ; au clavier,
 sur la colonne des poignées, Espace sélectionne, Maj+↑ et Maj+↓ étendent la sélection avec la cellule
 active, Échap la lève. La sélection est faite de lignes contiguës, gardées par leur identité : une
-relecture qui les déplace les garde sélectionnées, et la cellule active les suit. Chaque ligne dit
-si elle l'est (`aria-selected`), la grille qu'elle en prend plusieurs (`aria-multiselectable`), un
-statut combien. Un geste de déplacement porte sur la sélection quand la ligne d'où il part en est,
+relecture qui les déplace les garde sélectionnées, et la cellule active les suit ; une relecture
+qui ne montre plus l'une de ses extrémités — un filtre, un pliage — la lève. La cellule active suit
+aussi la ligne qu'un geste a déplacée, sélectionnée ou non (`RowCommands.moved`), à l'arrivée de la
+relecture, qui lui rend le focus s'il était dans la grille. Chaque ligne dit si elle l'est
+(`aria-selected`), la grille qu'elle en prend plusieurs (`aria-multiselectable`), un statut combien
+— les lignes montrées : les subordonnées pliées sous une récapitulative sélectionnée la suivent
+sans être comptées. Une cellule calculée sélectionnée garde son ombre. Un geste de déplacement porte sur la sélection quand la ligne d'où il part en est,
 sur cette ligne seule sinon, et sur les nœuds qui portent les autres (`topsOf`) : une récapitulative
 emporte ses subordonnées. La suppression ne porte que sur une ligne seule.
 
@@ -1722,9 +1726,13 @@ tâches commencées, ou le planning, qui ne lit aucune ligne, en laissent. Un d�
 offert, au menu comme à la touche, que si les nœuds déplacés sont des frères de rang en rang, d'un
 même genre, et que la voisine sur laquelle il repose est rendue : son rang (`Node.position`, à
 partir de 1, les lignes d'une tâche comptant avant ses sous-tâches) est celui de la première moins
-un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni sous une ligne. «
-Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent (`parent_id`,
-`node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine.
+un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni sous une ligne.
+« Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent (`parent_id`,
+`node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine. Alt+Maj et
+une flèche, là où le déplacement n'est pas offert, sont pris sans effet : la cellule active ne bouge
+pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours, puis la relecture qui la
+suit, retiennent les gestes : le suivant part des voisines que la relecture a rendues, jamais de
+celles d'avant avec une version déjà avancée.
 
 `moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure
 qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :
@@ -1757,29 +1765,31 @@ grille : la virtualisation ne les rend plus, le clavier ne les parcourt plus, et
 colonne de la même grille, les perd avec elle ; la cellule active reste sur sa ligne, ou passe à
 celle qui la porte. Le bouton du libellé — ou celui qui précède le crochet d'une récapitulative dans
 le Gantt — plie ou déplie sa ligne, hors de l'ordre de tabulation ; au clavier, comme dans Microsoft
-Project, Alt et moins plie la ligne de la cellule active — celle qui la porte, depuis une ligne sous
-laquelle rien ne se plie —, Alt et plus la déplie, Alt et * déplie tout, Maj ou non selon ce que la
-disposition du clavier demande pour taper le caractère, sur le pavé numérique aussi ; le caractère
-est celui que la touche a tapé, et, quand il ne nomme aucune commande, celui que la touche porte
-dans la disposition que le navigateur dit (`navigator.keyboard.getLayoutMap`) — jamais la seule
-place de la touche, qui porte un autre caractère sur une autre disposition. Ctrl et AltGr sont
-exclus ; Alt+Maj et les flèches déplacent les tâches (« Les grilles : créer… »). Ces raccourcis ne
-sont que des accélérateurs : sans `getLayoutMap`, sous Safari et Firefox pour Mac, Option et une
+Project, Alt et moins plie la ligne de la cellule active — celle qui la porte, depuis une ligne
+sous laquelle rien ne se plie —, Alt et plus la déplie, Alt et * déplie tout, Maj ou non selon ce
+que la disposition du clavier demande pour taper le caractère, sur le pavé numérique aussi ; le
+caractère est celui que la touche a tapé, et, quand il ne nomme aucune commande, celui que la
+touche porte dans la disposition que le navigateur dit (`navigator.keyboard.getLayoutMap`) —
+jamais la seule place de la touche, qui porte un autre caractère sur une autre disposition. Ctrl
+et AltGr sont exclus ; Alt+Maj et les flèches déplacent les tâches. Ces raccourcis
+ne sont que des accélérateurs : sans `getLayoutMap`, sous Safari et Firefox pour Mac, Option et une
 touche tapent un autre caractère, et ils ne sont pas reconnus. Le menu contextuel des cellules
 (Maj+F10, touche Menu, clic droit), offert dans toute grille arborescente, Annuler et Rétablir ou
-non, les remplace partout : « Plier la ligne » — « Plier « libellé » », qui nomme la ligne qui la
-porte, depuis une ligne sous laquelle rien ne se plie —, « Déplier la ligne » quand elle l'est, «
-Tout déplier », offert même hors d'une cellule, si bien que le menu n'est jamais vide ; le focus
+non, les remplace partout : « Plier la ligne » — « Plier « libellé » », qui nomme la ligne qui
+la porte, depuis une ligne sous laquelle rien ne se plie —, « Déplier la ligne » quand elle l'est,
+« Tout déplier », offert même hors d'une cellule, si bien que le menu n'est jamais vide ; le focus
 revient à la cellule active. Les touches se disent par `aria-keyshortcuts` — Maj+F10 sur chaque
 cellule, celles du pliage sur le libellé d'une ligne qui se plie, dans le menu et dans la barre —,
 autant que le navigateur les reconnaît (`useFoldReach`, lu après l'hydratation) : toutes hors d'un
 Mac ; sur un Mac, Alt et moins, Alt et plus quand `getLayoutMap` existe, aucune sinon ; Alt et *
-hors d'un Mac seulement. Un bloc collé qui s'étendrait, à partir de la ligne visée, sur une ligne
-pliée est refusé sans rien demander, comme celui qui atteint une colonne masquée. Le menu « Arbre »
-de la barre plie tout, déplie tout, ou plie jusqu'à un niveau. Une recherche ou un filtre qui
-retient une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état plié se garde
-dans le stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien
-envoyer au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
+hors d'un Mac seulement. Un
+bloc collé qui s'étendrait, à partir
+de la ligne visée, sur une ligne pliée est refusé sans rien demander, comme celui qui atteint une
+colonne masquée. Le menu « Arbre » de
+la barre plie tout, déplie tout, ou plie jusqu'à un niveau. Une recherche ou un filtre qui retient
+une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état plié se garde dans le
+stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
+au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
 
 ### Les commandes
 

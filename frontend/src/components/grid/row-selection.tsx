@@ -13,13 +13,24 @@
  *
  * A grid whose screen selects nothing (`RowCommands.selects`) shows no handle. The active cell, in
  * a row selected, follows its row through a reading anew that moves it, so that the next move starts
- * from the same rows.
+ * from the same rows; so does it the row a command moved (`RowCommands.moved`), selected or not,
+ * once the reading that command asked comes, the focus given back to it unless it went out of the
+ * grid. A reading anew that no longer shows an end of the selection — a filter, a folding — lifts it,
+ * rather than leave it to come back of itself. The rows counted are those shown: the subordinates
+ * folded under a summary selected go with it uncounted.
  */
 "use client";
 
 import { Check, GripVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, type MouseEvent, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type RefObject,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { TableCell } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
@@ -27,6 +38,7 @@ import { cn } from "@/components/ui/utils";
 import { cellAttributes, type CellState, cellKeys } from "./cell-attributes";
 import { ROW_NUMBER_KEY } from "./columns";
 import { type CellPosition, type Cursor, HEADER_ROW, positionOf } from "./grid-keyboard";
+import type { RowMoved } from "./undo-commands";
 
 /** The selection, by the identity of its rows: the one it started from, and the one it ends on. */
 interface Range {
@@ -86,12 +98,108 @@ export interface RowSelectionOptions<Row> {
   readonly rows: readonly Row[];
   readonly keyOf: (row: Row) => string;
   /** The commands of the screen, and whether they act on a selection; none, the grid selects nothing. */
-  readonly commands: { readonly selects?: boolean | undefined } | undefined;
+  readonly commands:
+    | { readonly selects?: boolean | undefined; readonly moved?: RowMoved<Row> | undefined }
+    | undefined;
   readonly cursor: Cursor;
+  /** Focus a cell, brought into view once it is rendered. */
+  readonly focusAt: (at: CellPosition) => void;
+  /** The element of the grid, which the focus is given back within. */
+  readonly scroller: RefObject<HTMLElement | null>;
+}
+
+/** Rows read anew, the rows they replace, and the identity of a row. */
+interface Reread<Row> {
+  readonly seen: readonly Row[];
+  readonly rows: readonly Row[];
+  readonly keyOf: (row: Row) => string;
+}
+
+/**
+ * The row the active cell goes to in rows read anew: that of the row a command moved, wherever the
+ * rows show it; or, from a row selected, that row where it went. None, and the active cell stays.
+ */
+function followedRow<Row>(
+  { seen, rows, keyOf }: Reread<Row>,
+  range: Range | undefined,
+  active: number,
+  moved: Row | undefined,
+): { readonly row: number; readonly moved: boolean } | undefined {
+  const indexOf = (row: Row) => {
+    const key = keyOf(row);
+    return rows.findIndex((each) => keyOf(each) === key);
+  };
+  if (moved !== undefined) {
+    const now = indexOf(moved);
+    return now < 0 ? undefined : { row: now, moved: true };
+  }
+  const was = seen[active];
+  const before = boundsOf(
+    range,
+    (index) => {
+      const row = seen[index];
+      return row === undefined ? undefined : keyOf(row);
+    },
+    seen.length,
+  );
+  if (was === undefined || before === undefined || active < before[0] || active > before[1]) {
+    return undefined;
+  }
+  const now = indexOf(was);
+  return now < 0 || now === active ? undefined : { row: now, moved: false };
+}
+
+/**
+ * The move a command told that the active cell follows: from its answer until the reading anew it
+ * asked is over — the reading that brings the rows moved included —, never after.
+ */
+function useFollowing<Row>(moved: RowMoved<Row> | undefined): RowMoved<Row> | undefined {
+  const [followed, setFollowed] = useState(0);
+  const following = moved !== undefined && moved.count !== followed ? moved : undefined;
+  if (following?.settled === true) {
+    setFollowed(following.count);
+  }
+  return following;
+}
+
+/**
+ * Give the focus to the cell a moved row took, once it is rendered — unless it went out of the grid
+ * meanwhile, to a field the user went to.
+ */
+function useTakenFocus(
+  focusAt: (at: CellPosition) => void,
+  scroller: RefObject<HTMLElement | null>,
+): (at: CellPosition) => void {
+  const [taken, setTaken] = useState<{ readonly at: CellPosition; readonly count: number }>();
+  const focused = useRef(0);
+  useLayoutEffect(() => {
+    if (taken === undefined || taken.count === focused.current) {
+      return;
+    }
+    focused.current = taken.count;
+    const { activeElement } = document;
+    if (
+      activeElement === null ||
+      activeElement === document.body ||
+      scroller.current?.contains(activeElement) === true
+    ) {
+      focusAt(taken.at);
+    }
+  });
+  return (at) => {
+    setTaken((before) => ({ at, count: (before?.count ?? 0) + 1 }));
+  };
 }
 
 /** Select rows of a grid. */
-export function useRowSelection<Row>({ rows, keyOf, commands, cursor }: RowSelectionOptions<Row>) {
+export function useRowSelection<Row>({
+  rows,
+  keyOf,
+  commands,
+  cursor,
+  focusAt,
+  scroller,
+}: RowSelectionOptions<Row>) {
   const [range, setRange] = useState<Range>();
   const keyAt = (index: number) => {
     const row = rows[index];
@@ -99,25 +207,23 @@ export function useRowSelection<Row>({ rows, keyOf, commands, cursor }: RowSelec
   };
   const offered = commands?.selects === true;
   const bounds = offered ? boundsOf(range, keyAt, rows.length) : undefined;
-  // The rows the active cell was among: a reading anew that moves the row of the active cell,
-  // selected, takes the active cell with it.
+  const following = useFollowing(commands?.moved);
+  const take = useTakenFocus(focusAt, scroller);
+  // The rows the active cell was among: a reading anew that moves the row a command moved, or the
+  // row of the active cell, selected, takes the active cell with it.
   const [seen, setSeen] = useState(rows);
   if (seen !== rows) {
     setSeen(rows);
-    const was = seen[cursor.active.row];
-    const before = boundsOf(
-      range,
-      (index) => {
-        const row = seen[index];
-        return row === undefined ? undefined : keyOf(row);
-      },
-      seen.length,
-    );
-    const selected =
-      before !== undefined && cursor.active.row >= before[0] && cursor.active.row <= before[1];
-    const now = was === undefined ? -1 : rows.findIndex((row) => keyOf(row) === keyOf(was));
-    if (selected && now >= 0 && now !== cursor.active.row) {
-      cursor.set({ row: now, column: cursor.active.column });
+    if (range !== undefined && boundsOf(range, keyAt, rows.length) === undefined) {
+      setRange(undefined);
+    }
+    const next = followedRow({ seen, rows, keyOf }, range, cursor.active.row, following?.row);
+    if (next !== undefined) {
+      const at = { row: next.row, column: cursor.active.column };
+      cursor.set(at);
+      if (next.moved) {
+        take(at);
+      }
     }
   }
   const isSelected = (index: number) =>
@@ -200,11 +306,14 @@ export type RowSelection<Row> = ReturnType<typeof useRowSelection<Row>>;
 /** The keys of a handle, as `aria-keyshortcuts` names them. */
 const HANDLE_KEYS = "Space Shift+ArrowUp Shift+ArrowDown Escape";
 
-/** The attributes and the classes of a row of a grid that selects. */
+/**
+ * The attributes and the classes of a row of a grid that selects: its cells tinted, but the computed
+ * ones — which open a dialog —, which keep the shade that tells them computed (WF-IHM-0030).
+ */
 export function selectedRow(selected: boolean | undefined) {
   return {
     "aria-selected": selected,
-    className: selected === true ? "[&>td]:bg-accent" : undefined,
+    className: selected === true ? "[&>td:not([aria-haspopup=dialog])]:bg-accent" : undefined,
   };
 }
 
