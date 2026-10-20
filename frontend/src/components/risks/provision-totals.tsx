@@ -7,11 +7,12 @@
  * reserve of the reference revision is not among them, though the server gives it: it shows in
  * the coverage of the risks alone, beside what it is read against (`RiskCoverageSummary`,
  * decision of the author of 2026-10-07, #409). Computed: each bears the one mark of a computed
- * value, Σ, named.
+ * value, Σ, named. They lie in a card of figures (`FiguresCard`, US-0550).
  */
 import { useTranslations } from "next-intl";
 
 import { ComputedTotal } from "@/components/computed-amount";
+import { FiguresCard, FiguresList } from "@/components/figures-card";
 
 import { RISK_STATES } from "./address";
 import type { ProvisionTotals } from "./risk-grid";
@@ -20,13 +21,13 @@ import type { ProvisionTotals } from "./risk-grid";
 export function ProvisionSummary({ totals }: { readonly totals: ProvisionTotals }) {
   const t = useTranslations("risks.provisions");
   return (
-    <section aria-label={t("title")}>
-      <dl className="flex flex-wrap gap-x-8 gap-y-2">
+    <FiguresCard title={t("title")}>
+      <FiguresList>
         {RISK_STATES.map((state) => (
           <ComputedTotal key={state} name={t(state)} amount={totals[state]} />
         ))}
         <ComputedTotal name={t("total")} amount={totals.total} />
-      </dl>
-    </section>
+      </FiguresList>
+    </FiguresCard>
   );
 }

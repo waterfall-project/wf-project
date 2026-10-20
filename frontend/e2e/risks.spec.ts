@@ -39,7 +39,7 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
   await expect(total).toHaveText(/^Total général\s*1\s100\s060,00$/);
   expect(await withinBox(grid, total)).toBe(true);
   await expect(page.getByRole("region", { name: "Provisions des risques retenus" })).toHaveText(
-    /^Risques identifiés\s*500\s000,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600\s000,00\s*Total général\s*1\s100\s060,00$/,
+    /^Provisions des risques retenus\s*Risques identifiés\s*500\s000,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600\s000,00\s*Total général\s*1\s100\s060,00$/,
   );
   // The coverage of the risks, each amount as the server computes it, the variance signed.
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
@@ -107,4 +107,20 @@ test("names the category and the sub-project a risk designates for its provision
   await expect(provision).toContainText(
     /Catégorie\s*Provisions pour risques\s*Sous-projet\s*Hors sous-projet/,
   );
+});
+
+test("lays the provisions and the coverage of the risks side by side on a wide window [WF-RIS-0050-A]", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openHydrated(page, RISKS);
+  const provisions = await page
+    .getByRole("region", { name: "Provisions des risques retenus" })
+    .boundingBox();
+  const coverage = await page.getByRole("region", { name: "Couverture des risques" }).boundingBox();
+  expect(provisions).not.toBeNull();
+  expect(coverage).not.toBeNull();
+  // On the one row: the same top, the second one to the right of the first.
+  expect(coverage?.y).toBeCloseTo(provisions?.y ?? Number.NaN, 0);
+  expect(coverage?.x ?? 0).toBeGreaterThan((provisions?.x ?? 0) + (provisions?.width ?? 0) - 1);
 });

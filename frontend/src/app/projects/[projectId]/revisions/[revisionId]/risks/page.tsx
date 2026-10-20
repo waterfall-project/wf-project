@@ -26,6 +26,7 @@ import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { readRisk, RISK_STATES, type RiskState, STATES } from "@/components/risks/address";
+import { FiguresGrid } from "@/components/figures-card";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { RiskDetail } from "@/components/risks/risk-detail";
@@ -190,10 +191,10 @@ export default async function RisksPage({
         <Screen density={FUNCTION_DENSITY.risks} fillWide>
           <RisksHeader count={risks.items.length} />
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-            <div className="flex flex-wrap gap-x-12 gap-y-3">
+            <FiguresGrid className="min-w-0 grow basis-[40rem]">
               <ProvisionSummary totals={risks.totals} />
-              <RiskCoverageSummary coverage={coverage} />
-            </div>
+              <RiskCoverageSummary coverage={coverage} context={coverage.context} />
+            </FiguresGrid>
             <RiskStateFilter states={states} />
           </div>
           <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">

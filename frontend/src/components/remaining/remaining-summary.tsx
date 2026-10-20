@@ -12,6 +12,8 @@
  * (`RiskCoverageSummary`, WF-RIS-0050). All with the date they are computed at
  * (WF-IHM-0020), or said unavailable when the API did not give them.
  *
+ * The figures lie in cards (`FiguresCard`, US-0550), one for each block above.
+ *
  * Every figure is the API's, formatted from its exact string: nothing is summed nor subtracted
  * here (WF-ARC-0020). A deviation the API does not give — no previous review — is left out,
  * absent rather than nil.
@@ -20,7 +22,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
-import { CalculationDate } from "@/components/context/indicator";
+import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { Signal } from "@/components/signal/signal";
 import { formatMoney, formatShare } from "@/i18n/format";
@@ -37,7 +39,7 @@ function useKeyName() {
     (item.key === UNASSIGNED ? t("enums.Scope.unassigned") : t("remainingSummary.unnamed"));
 }
 
-/** The figures of the indicators: the total, the deviations, the breakdowns. */
+/** The cards of the indicators: the total and the deviations, the breakdowns, the coverage. */
 function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
   const t = useTranslations("remainingSummary");
   const bounds = useTranslations("share");
@@ -45,20 +47,24 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
   const name = useKeyName();
   const reference = indicators.delta_to_reference;
   const previous = indicators.delta_to_previous_revision;
+  const { context } = indicators;
   const money = (amount: string) => formatMoney(amount, locale);
   return (
-    <dl className="flex flex-wrap gap-x-8 gap-y-2">
-      <ComputedTotal name={t("total")} amount={indicators.total} />
-      {reference === null || reference === undefined ? null : (
-        <ComputedTotal name={t("deltaToReference")} amount={reference} />
-      )}
-      {previous === null || previous === undefined ? null : (
-        <ComputedTotal name={t("deltaToPrevious")} amount={previous} />
-      )}
-      <div className="space-y-0.5">
-        <dt className="text-xs text-muted-foreground">{t("byCostType")}</dt>
-        <dd>
-          <ul className="flex flex-wrap gap-x-4 gap-y-0.5">
+    <FiguresGrid>
+      <FiguresCard title={t("title")} context={context}>
+        <FiguresList>
+          <ComputedTotal name={t("total")} amount={indicators.total} />
+          {reference === null || reference === undefined ? null : (
+            <ComputedTotal name={t("deltaToReference")} amount={reference} />
+          )}
+          {previous === null || previous === undefined ? null : (
+            <ComputedTotal name={t("deltaToPrevious")} amount={previous} />
+          )}
+        </FiguresList>
+      </FiguresCard>
+      {indicators.by_cost_type.length === 0 ? null : (
+        <FiguresCard title={t("byCostType")} context={context}>
+          <ul className="space-y-1 text-xs leading-snug">
             {indicators.by_cost_type.map((item) => (
               <li key={item.key} className="tabular-nums">
                 {item.share === undefined
@@ -71,28 +77,30 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
               </li>
             ))}
           </ul>
-        </dd>
-      </div>
-      <div className="space-y-0.5">
-        <dt className="text-xs text-muted-foreground">{t("bySubproject")}</dt>
-        <dd>
-          <ul className="flex flex-wrap gap-x-4 gap-y-0.5">
+        </FiguresCard>
+      )}
+      {indicators.by_subproject.length === 0 ? null : (
+        <FiguresCard title={t("bySubproject")} context={context}>
+          <ul className="space-y-1 text-xs leading-snug">
             {indicators.by_subproject.map((item) => (
-              <li key={item.key} className="flex flex-wrap items-center gap-x-2 tabular-nums">
-                <span>
+              <li key={item.key} className="flex items-center gap-x-2 leading-snug tabular-nums">
+                <span className="min-w-0 grow">
                   {t("balance", {
                     name: name(item),
                     remaining: money(item.remaining),
                     variance: money(item.variance),
                   })}
                 </span>
-                <Signal zone={item.zone} variant="icon" />
+                <span className="shrink-0">
+                  <Signal zone={item.zone} variant="icon" />
+                </span>
               </li>
             ))}
           </ul>
-        </dd>
-      </div>
-    </dl>
+        </FiguresCard>
+      )}
+      <RiskCoverageSummary coverage={indicators.coverage} context={context} />
+    </FiguresGrid>
   );
 }
 
@@ -103,20 +111,13 @@ export function RemainingSummary({
   readonly indicators: RemainingIndicators | undefined;
 }) {
   const t = useTranslations("remainingSummary");
-  return (
-    <section aria-label={t("title")} className="space-y-1.5 text-sm">
-      <div className="flex flex-wrap items-baseline gap-x-3">
-        <h2 className="text-sm font-semibold">{t("title")}</h2>
-        {indicators === undefined ? null : <CalculationDate context={indicators.context} />}
-      </div>
-      {indicators === undefined ? (
+  return indicators === undefined ? (
+    <FiguresGrid>
+      <FiguresCard title={t("title")}>
         <p className="text-muted-foreground">{t("unavailable")}</p>
-      ) : (
-        <div className="flex flex-wrap gap-x-8 gap-y-2">
-          <Figures indicators={indicators} />
-          <RiskCoverageSummary coverage={indicators.coverage} />
-        </div>
-      )}
-    </section>
+      </FiguresCard>
+    </FiguresGrid>
+  ) : (
+    <Figures indicators={indicators} />
   );
 }

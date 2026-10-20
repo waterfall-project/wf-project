@@ -6,12 +6,14 @@
  * reference revision, against the provisions of the risks still identified in the revision read
  * and the reestimated cost of the lines merged from the risks occurred, and the coverage variance,
  * signed — each as the server computes it (`getProjectRiskCoverage`), never a difference made here
- * (WF-ARC-0020). Computed: each bears the one mark of a computed value, Σ, named.
+ * (WF-ARC-0020). Computed: each bears the one mark of a computed value, Σ, named. They lie in a card of figures (`FiguresCard`, US-0550).
  */
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import type { CalculationContext } from "@/components/context/indicator";
 import { ComputedTotal } from "@/components/computed-amount";
+import { FiguresCard, FiguresList } from "@/components/figures-card";
 
 /** The coverage of the risks of a project, as the server computes it. */
 export type RiskCoverage = components["schemas"]["RiskCoverage"];
@@ -31,15 +33,22 @@ const AMOUNTS = [
 ] as const satisfies readonly (readonly [keyof RiskCoverageTotals, string])[];
 
 /** Render the four amounts of the coverage of the risks. */
-export function RiskCoverageSummary({ coverage }: { readonly coverage: RiskCoverageTotals }) {
+export function RiskCoverageSummary({
+  coverage,
+  context,
+}: {
+  readonly coverage: RiskCoverageTotals;
+  /** The calculation context of the answer the amounts come from, dated on the card. */
+  readonly context?: CalculationContext;
+}) {
   const t = useTranslations("risks.coverage");
   return (
-    <section aria-label={t("title")}>
-      <dl className="flex flex-wrap gap-x-8 gap-y-2">
+    <FiguresCard title={t("title")} context={context}>
+      <FiguresList>
         {AMOUNTS.map(([field, name]) => (
           <ComputedTotal key={field} name={t(name)} amount={coverage[field]} />
         ))}
-      </dl>
-    </section>
+      </FiguresList>
+    </FiguresCard>
   );
 }

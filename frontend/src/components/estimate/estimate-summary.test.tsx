@@ -22,6 +22,7 @@ const estimator = (example("me_estimator") as { permissions: Permission[] }).per
 function text(markup: string): string {
   return markup
     .replace(/<[^>]*>/g, " ")
+    .replace(/Calculé le|Computed on/g, "")
     .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
@@ -61,7 +62,7 @@ describe("the summary of the estimate", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(
       new RegExp(
-        `^Indicateurs du devis Calculé le .*Total du devis 66 105 223,89 ` +
+        `^Indicateurs du devis Total du devis 66 105 223,89 ` +
           `Provisions identifiées 500 000,00 Écart avec la référence -349 860,00 ` +
           `Écart avec la révision marquée précédente -349 860,00 ` +
           `Par nature de coût Main-d'œuvre 9 131 215,00 \\(13,81 %\\) ` +
@@ -194,11 +195,12 @@ describe("the summary of the estimate", () => {
   });
 
   it("says the indicators are unavailable when the API did not give them, the missing rates still named", () => {
-    const html = text(renderSummary(undefined, example("missing_rates") as MissingRates));
+    const markup = renderSummary(undefined, example("missing_rates") as MissingRates);
+    const html = text(markup);
     expect(html).toMatch(
       /^Taux horaires manquants .* Indicateurs du devis Les indicateurs du devis sont indisponibles\.$/,
     );
-    expect(html).not.toContain("Calculé le");
+    expect(markup).not.toContain("<time");
   });
 
   it("says nothing of the rates when none is missing", () => {
