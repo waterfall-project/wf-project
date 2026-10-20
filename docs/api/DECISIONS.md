@@ -6584,9 +6584,9 @@ aujourd'hui, sans différentiel, garde `unmerged_amendment_exists`.
 `test_a_revision_offers_the_merge_and_not_a_differential_iff_it_bears_one_not_merged`
 (`tools/tests/test_mockcycle.py`, depuis EP-15/US-0490/L1) tient, sur la révision courante et sur
 celle du projet créé aujourd'hui, que la commande est disponible si et seulement si `structures`
-liste un différentiel non fusionné, dans les deux sens (#1196). La variante `cost_curve_amendment`, dont la marche
-du 10 mars s'appelait « avenant 2 », dit désormais « un autre avenant » que celui du témoin
-(`mocktoday.OTHER_AMENDMENT`).
+liste un différentiel non fusionné, dans les deux sens (#1196). La variante
+`cost_curve_amendment`, dont la marche du 10 mars s'appelait « avenant 2 », dit désormais « un
+autre avenant » que celui du témoin (`mocktoday.OTHER_AMENDMENT`).
 
 **Un nœud, à une version, n'a qu'un contenu, sur toutes les lectures d'une révision** (#421 étendu,
 relecture 1). Les nœuds de l'avenant 2 portaient les identifiants de ceux de la structure principale
