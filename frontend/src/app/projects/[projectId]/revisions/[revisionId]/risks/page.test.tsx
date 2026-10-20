@@ -111,6 +111,12 @@ beforeEach(() => {
   };
 });
 
+/** The markup of a region of the page, from its opening to the next region. */
+function regionOf(page: string, name: string): string {
+  const parts = page.split('role="region"');
+  return parts.find((part) => part.startsWith(` aria-label="${name}"`)) ?? "";
+}
+
 describe("the screen of the risks", () => {
   it("titles the tab with the function and the project", async () => {
     const metadata = await generateMetadata({
@@ -192,8 +198,10 @@ describe("the screen of the risks", () => {
       "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
     );
     expect(page).toMatch(/role="region" aria-label="Provisions of the risks retained"/);
-    // The card is a list of terms under its title.
-    expect(page).toMatch(/<h2[^>]*>Provisions of the risks retained<\/h2>.*?<dl/);
+    // The card is a list of terms under its title, within its own region.
+    expect(regionOf(page, "Provisions of the risks retained")).toMatch(
+      /<h2[^>]*>Provisions of the risks retained<\/h2>.*?<dl/,
+    );
   });
 
   it("shows the risk reserve of the reference revision in the coverage alone, never among the totals of the provisions", async () => {
@@ -215,6 +223,8 @@ describe("the screen of the risks", () => {
     const page = await risksAt();
     expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
     expect(page).toMatch(/role="region" aria-label="Risk coverage"/);
+    // Dated like every card, the region reading alone [WF-IHM-0020-A].
+    expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
       "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
     );

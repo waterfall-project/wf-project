@@ -11,6 +11,7 @@
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import type { CalculationContext } from "@/components/context/indicator";
 import { ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresList } from "@/components/figures-card";
 
@@ -32,10 +33,17 @@ const AMOUNTS = [
 ] as const satisfies readonly (readonly [keyof RiskCoverageTotals, string])[];
 
 /** Render the four amounts of the coverage of the risks. */
-export function RiskCoverageSummary({ coverage }: { readonly coverage: RiskCoverageTotals }) {
+export function RiskCoverageSummary({
+  coverage,
+  context,
+}: {
+  readonly coverage: RiskCoverageTotals;
+  /** The calculation context of the answer the amounts come from, dated on the card. */
+  readonly context?: CalculationContext;
+}) {
   const t = useTranslations("risks.coverage");
   return (
-    <FiguresCard title={t("title")}>
+    <FiguresCard title={t("title")} context={context}>
       <FiguresList>
         {AMOUNTS.map(([field, name]) => (
           <ComputedTotal key={field} name={t(name)} amount={coverage[field]} />

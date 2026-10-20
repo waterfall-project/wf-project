@@ -25,7 +25,7 @@ export function FiguresGrid({
   return (
     <div
       className={cn(
-        "grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] items-start gap-4",
+        "grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] items-start gap-2",
         className,
       )}
     >
@@ -41,12 +41,15 @@ export function FiguresCard({
   children,
   className,
   inline = false,
+  spacious = false,
 }: {
   readonly title: string;
   /** The calculation context of the answer, when it has one. */
-  readonly context?: CalculationContext;
+  readonly context?: CalculationContext | undefined;
   /** The title beside the figures rather than above them, for a card of one row. */
   readonly inline?: boolean;
+  /** The roomier card of the screen of the indicators, whose charts and tables need the room. */
+  readonly spacious?: boolean;
   readonly children: ReactNode;
   readonly className?: string;
 }) {
@@ -54,17 +57,26 @@ export function FiguresCard({
     <Card
       role="region"
       aria-label={title}
-      className={cn("gap-2 py-3", inline && "flex-row flex-wrap items-center gap-x-6", className)}
+      className={cn(
+        spacious ? "" : "gap-1 py-2",
+        inline && "flex-row flex-wrap items-center gap-x-6",
+        className,
+      )}
     >
-      <CardHeader className="flex flex-wrap items-baseline gap-x-3 gap-y-0 px-4">
-        <CardTitle className="text-sm">{title}</CardTitle>
+      <CardHeader className={spacious ? "" : "gap-0 px-4"}>
+        <CardTitle className={spacious ? "" : "text-sm"}>{title}</CardTitle>
         {context === undefined ? null : (
           <CardDescription>
             <CalculationDate context={context} />
           </CardDescription>
         )}
       </CardHeader>
-      <CardContent className={cn("space-y-2 px-4 text-sm", inline && "min-w-0 grow")}>
+      <CardContent
+        className={cn(
+          spacious ? "space-y-4" : "space-y-1.5 px-4 text-sm",
+          inline && "min-w-0 grow",
+        )}
+      >
         {children}
       </CardContent>
     </Card>
@@ -85,7 +97,7 @@ export function FiguresList({
   return (
     <dl
       className={cn(
-        "grid grid-cols-[repeat(auto-fill,minmax(min(100%,11rem),1fr))] gap-x-6 gap-y-1",
+        "grid grid-cols-[repeat(auto-fill,minmax(min(100%,11rem),1fr))] gap-x-6 gap-y-0.5",
         className,
       )}
     >
@@ -103,7 +115,7 @@ export function FigureTerm({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 leading-tight">
       <dt className="text-xs text-muted-foreground">{name}</dt>
       <dd className="font-semibold tabular-nums">{children}</dd>
     </div>

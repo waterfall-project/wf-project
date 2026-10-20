@@ -108,3 +108,19 @@ test("names the category and the sub-project a risk designates for its provision
     /Catégorie\s*Provisions pour risques\s*Sous-projet\s*Hors sous-projet/,
   );
 });
+
+test("lays the provisions and the coverage of the risks side by side on a wide window [WF-RIS-0050-A]", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openHydrated(page, RISKS);
+  const provisions = await page
+    .getByRole("region", { name: "Provisions des risques retenus" })
+    .boundingBox();
+  const coverage = await page.getByRole("region", { name: "Couverture des risques" }).boundingBox();
+  expect(provisions).not.toBeNull();
+  expect(coverage).not.toBeNull();
+  // On the one row: the same top, the second one to the right of the first.
+  expect(coverage?.y).toBeCloseTo(provisions?.y ?? Number.NaN, 0);
+  expect(coverage?.x ?? 0).toBeGreaterThan((provisions?.x ?? 0) + (provisions?.width ?? 0) - 1);
+});

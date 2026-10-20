@@ -63,4 +63,25 @@ describe("the summary of the remaining to commit", () => {
     expect(text(renderSummary(tiny, "fr"))).toContain("Provision : 500 000,00 (< 0,01 %)");
     expect(text(renderSummary(indicators))).toContain("Provision: 500,000.00 (0.74%)");
   });
+
+  it("dates the coverage of the risks as every card, each region reading alone [WF-IHM-0020-A]", () => {
+    const markup = renderSummary(example("remaining_indicators") as RemainingIndicators);
+    // The segment of the region, from its opening to the next one.
+    const region = markup
+      .split('role="region"')
+      .find((part) => part.includes('aria-label="Risk coverage"'));
+    expect(region).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
+  });
+
+  it("leaves out a breakdown the API gives empty, as the estimate does, rather than an empty card [WF-RAE-0020-A]", () => {
+    const indicators = example("remaining_indicators") as RemainingIndicators;
+    const empty = text(renderSummary({ ...indicators, by_cost_type: [], by_subproject: [] }));
+    expect(empty).not.toContain("By nature of cost");
+    expect(empty).not.toContain("by sub-project");
+    expect(empty).toContain("Remaining to commit 67,293,028.72");
+    expect(empty).toContain("Risk coverage");
+    const some = text(renderSummary({ ...indicators, by_cost_type: [] }));
+    expect(some).not.toContain("By nature of cost");
+    expect(some).toContain("Poste de commande");
+  });
 });

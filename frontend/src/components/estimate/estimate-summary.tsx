@@ -164,7 +164,7 @@ function Breakdown({
   }
   return (
     <FiguresCard title={name} context={context}>
-      <ul className="space-y-0.5">
+      <ul className="space-y-1 text-xs leading-snug">
         {items.map((item) => {
           const label =
             item.label ??
@@ -222,7 +222,7 @@ export function EstimateSummary({ indicators, missingRates, permissions }: Estim
     <div className="space-y-3">
       <MissingRatesNotice missingRates={missingRates} permissions={permissions} />
       {indicators === undefined ? (
-        <FiguresGrid className="grid-cols-1">
+        <FiguresGrid>
           <FiguresCard title={t("title")}>
             <p className="text-muted-foreground">{t("unavailable")}</p>
           </FiguresCard>

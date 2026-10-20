@@ -193,7 +193,7 @@ export default async function RisksPage({
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <FiguresGrid className="min-w-0 grow basis-[40rem]">
               <ProvisionSummary totals={risks.totals} />
-              <RiskCoverageSummary coverage={coverage} />
+              <RiskCoverageSummary coverage={coverage} context={coverage.context} />
             </FiguresGrid>
             <RiskStateFilter states={states} />
           </div>

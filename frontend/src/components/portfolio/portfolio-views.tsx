@@ -89,7 +89,7 @@ export function PerformanceView({
   ] as const;
   return (
     <>
-      <FiguresGrid className="grid-cols-1">
+      <FiguresGrid>
         <FiguresCard title={t("portfolio.performance.indices")}>
           <FiguresList>
             <PortfolioIndex name={t("indicator.names.costIndex")} index={performance.cost_index} />

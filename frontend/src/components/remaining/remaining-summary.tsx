@@ -62,38 +62,44 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
           )}
         </FiguresList>
       </FiguresCard>
-      <FiguresCard title={t("byCostType")} context={context}>
-        <ul className="space-y-0.5">
-          {indicators.by_cost_type.map((item) => (
-            <li key={item.key} className="tabular-nums">
-              {item.share === undefined
-                ? t("amount", { name: name(item), amount: money(item.amount) })
-                : t("amountShare", {
+      {indicators.by_cost_type.length === 0 ? null : (
+        <FiguresCard title={t("byCostType")} context={context}>
+          <ul className="space-y-1 text-xs leading-snug">
+            {indicators.by_cost_type.map((item) => (
+              <li key={item.key} className="tabular-nums">
+                {item.share === undefined
+                  ? t("amount", { name: name(item), amount: money(item.amount) })
+                  : t("amountShare", {
+                      name: name(item),
+                      amount: money(item.amount),
+                      share: formatShare(item.share, locale, bounds),
+                    })}
+              </li>
+            ))}
+          </ul>
+        </FiguresCard>
+      )}
+      {indicators.by_subproject.length === 0 ? null : (
+        <FiguresCard title={t("bySubproject")} context={context}>
+          <ul className="space-y-1 text-xs leading-snug">
+            {indicators.by_subproject.map((item) => (
+              <li key={item.key} className="flex items-center gap-x-2 leading-snug tabular-nums">
+                <span className="min-w-0 grow">
+                  {t("balance", {
                     name: name(item),
-                    amount: money(item.amount),
-                    share: formatShare(item.share, locale, bounds),
+                    remaining: money(item.remaining),
+                    variance: money(item.variance),
                   })}
-            </li>
-          ))}
-        </ul>
-      </FiguresCard>
-      <FiguresCard title={t("bySubproject")} context={context}>
-        <ul className="space-y-0.5">
-          {indicators.by_subproject.map((item) => (
-            <li key={item.key} className="flex flex-wrap items-center gap-x-2 tabular-nums">
-              <span>
-                {t("balance", {
-                  name: name(item),
-                  remaining: money(item.remaining),
-                  variance: money(item.variance),
-                })}
-              </span>
-              <Signal zone={item.zone} variant="icon" />
-            </li>
-          ))}
-        </ul>
-      </FiguresCard>
-      <RiskCoverageSummary coverage={indicators.coverage} />
+                </span>
+                <span className="shrink-0">
+                  <Signal zone={item.zone} variant="icon" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </FiguresCard>
+      )}
+      <RiskCoverageSummary coverage={indicators.coverage} context={context} />
     </FiguresGrid>
   );
 }
@@ -106,7 +112,7 @@ export function RemainingSummary({
 }) {
   const t = useTranslations("remainingSummary");
   return indicators === undefined ? (
-    <FiguresGrid className="grid-cols-1">
+    <FiguresGrid>
       <FiguresCard title={t("title")}>
         <p className="text-muted-foreground">{t("unavailable")}</p>
       </FiguresCard>

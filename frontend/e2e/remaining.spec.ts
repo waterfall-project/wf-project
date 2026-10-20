@@ -33,9 +33,6 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   test.slow();
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/kanban`);
-  // The four cards of the indicators take 290 points above the grid (`grid-frame.spec.ts`): the
-  // window of this parcours is high enough to hold the grid and its totals under them.
-  await page.setViewportSize({ width: 1280, height: 900 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page).toHaveTitle(
     "Estimation du reste à engager · Modernisation du poste de commande — Waterfall",

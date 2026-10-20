@@ -99,7 +99,7 @@ export function PortfolioValueView({ value }: { readonly value: Schemas["Portfol
     ["delivered", value.delivered],
   ] as const;
   return (
-    <FiguresGrid className="grid-cols-1">
+    <FiguresGrid>
       <FiguresCard title={t("title")}>
         <ValuePeriod scope={value.scope} />
         <FiguresList>

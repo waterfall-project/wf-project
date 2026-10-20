@@ -32,7 +32,7 @@ export function CostSummary({
 }) {
   const t = useTranslations("actualCosts");
   return (
-    <FiguresGrid className="grid-cols-1">
+    <FiguresGrid>
       <FiguresCard title={t("totals.title")} inline>
         <FiguresList>
           {TOTALS.map((total) => (

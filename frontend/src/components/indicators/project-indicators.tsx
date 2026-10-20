@@ -75,7 +75,7 @@ function IndicatorCard({
   readonly children: ReactNode;
 }) {
   return (
-    <FiguresCard title={title} context={context} className="gap-4 py-5">
+    <FiguresCard title={title} context={context} spacious>
       {children}
     </FiguresCard>
   );
