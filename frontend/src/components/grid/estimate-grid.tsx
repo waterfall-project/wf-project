@@ -20,7 +20,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
   applyPaste,
@@ -55,6 +55,7 @@ import {
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
+import { useStructureVersion } from "./structure-version";
 
 /** What the grid of the estimate shows. */
 export interface EstimateGridProps {
@@ -208,8 +209,7 @@ export function EstimateGrid({
   // The version of the structure moves with each write answered: the highest one told — writes
   // of different rows leave together, and an answer may come back after a later one —, or the
   // one read with the page when a new reading is more recent.
-  const [moved, setMoved] = useState(structureVersion);
-  const version = Math.max(structureVersion, moved);
+  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
@@ -219,17 +219,22 @@ export function EstimateGrid({
   // the planning may too. The version the structure moves on to is the next paste's.
   const gestures = useStructureGestures<EstimateNode>(
     editable
-      ? { structure, tasks: tasksEditable, lines: true, categories: reference.categories }
+      ? {
+          structure,
+          tasks: tasksEditable,
+          lines: true,
+          categories: reference.categories,
+          rows: nodes.items,
+          version,
+        }
       : undefined,
     (written) => {
-      setMoved((before) => Math.max(before, written.structure_lock_version));
+      reach(written.structure_lock_version);
     },
   );
   const config = useMemo(() => {
     const told: Moved = {
-      to: (next) => {
-        setMoved((before) => Math.max(before, next));
-      },
+      to: reach,
       // A reading that asks nothing but its fields and its sort is the whole structure.
       whole: Object.keys(filters).length === 0,
     };
@@ -240,7 +245,7 @@ export function EstimateGrid({
         ? structureWrites(structure, version, told, tasksEditable, name, filters)
         : undefined,
     );
-  }, [reference, editable, tasksEditable, structure, version, filters, columns]);
+  }, [reference, editable, tasksEditable, structure, version, reach, filters, columns]);
   return (
     <DenseGrid
       config={config}
