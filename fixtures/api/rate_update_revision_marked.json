@@ -1,0 +1,11 @@
+{
+  "summary": "La mise à jour des taux envoyée aujourd'hui pour la référence 101, marquée le 1er février : une révision marquée garde les taux et les montants qu'elle a calculés, et seule la révision en cours se met à jour — refusée, la condition nommée ; rien n'est écrit (WF-REV-0060, WF-REF-0130, WF-DAT-0020).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "revision_draft"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001183"
+  }
+}

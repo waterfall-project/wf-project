@@ -414,16 +414,27 @@ ImportDifference:
       type: array
       description: >-
         Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet
-        conservé, nommés
-        comme les colonnes de leur grille, que le front rend par son catalogue
+        conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue
         (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une
         liaison changée de type ou de décalage par `predecessors`, la colonne qui la
         présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du
-        fichier par `passthrough.<colonne>`.
+        fichier par `passthrough.<colonne>`. Une tâche ou une ligne déplacée sous un autre parent
+        — une autre récapitulative, une autre tâche porteuse — nomme `parent`, qu'aucune colonne
+        ne présente, comme `NodeChange.parent` : « Une tâche déplacée sous une autre
+        récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194).
       items:
         anyOf:
           - $ref: revisions.yaml#/NodeColumn
           - $ref: '#/ActualCostColumn'
+          - $ref: '#/ImportDifferenceField'
+
+ImportDifferenceField:
+  type: string
+  enum: [parent]
+  description: >-
+    Champ d'un écart `updated` qu'aucune colonne ne présente (`ImportDifference.fields`) : le
+    parent d'une tâche ou d'une ligne déplacée sous une autre récapitulative ou une autre tâche
+    porteuse, comme `NodeChange.parent` (WF-REV-0080, WF-REV-0050 ; #1194).
 
 ActualCostColumn:
   type: string

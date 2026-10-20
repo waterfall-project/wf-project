@@ -18,17 +18,12 @@ type Node = dict[str, Any]
 COUNTERFACTUAL = "Variante contrefactuelle"
 """How the summary of a declared counterfactual variant opens: another structure, by its word."""
 
-ELSEWHERE = {
-    "comparison.json": "the reference 101 compared with the offer 100",
-    "comparison_identical.json": "the offer compared with itself",
-    "nodes_summaries.json": "the variant with four levels of tasks, its core read alone",
-    "startable_tasks_milestone.json": "the sequel of the wiring declared completed today",
-}
+ELSEWHERE = {"comparison.json": "the reference 101 compared with the offer 100"}
 """The readings of nodes exempt from #421, besides the declared counterfactual variants: the
-comparisons of two marked revisions, which name their nodes by the identifiers of the current
-revision's, by the convention of #287 (C12); a reading of a variant whose summary does not open
-with the word; and the sequel of a write, whose nodes not written evolve at their version, as the
-ancestors of a write do."""
+comparison of two marked revisions, which names its nodes by the identifiers of the current
+revision's, by the convention of #287 (C12). The comparison of the offer with itself, the variant
+with four levels and the Kanban of the wiring supposed completed are counterfactual variants
+declared, their summaries opening with the word (#1196)."""
 
 NOT_WRITTEN = ("ancestors", "rescheduled", "reinflated")
 """What a write renders of the nodes it does not write: they evolve without changing version."""

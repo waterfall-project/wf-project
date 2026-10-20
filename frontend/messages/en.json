@@ -2160,6 +2160,7 @@
       "revision_draft": "draft revision",
       "revision_marked": "marked revision",
       "reference_correctable": "reference still correctable",
+      "revision_has_tasks_and_lines": "revision bearing at least one task and one estimate line",
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",
       "hourly_rates_set": "hourly rates set",
@@ -2571,6 +2572,9 @@
         "link": "Link",
         "actual_cost_line": "Actual cost line"
       }
+    },
+    "ImportDifferenceField": {
+      "parent": "Parent"
     },
     "ImportIgnoredKind": {
       "resources": "Resources",

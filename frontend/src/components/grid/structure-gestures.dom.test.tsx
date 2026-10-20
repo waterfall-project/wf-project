@@ -185,7 +185,14 @@ function remainingGrid(editable: boolean, withCategories = true, nodes: NodeList
   );
 }
 
-/** The refusal of a line under a task completed, and of a version no longer the current one. */
+/** The refusal of a line created under a task completed, as the fake back gives it (#1184). */
+const CREATE_COMPLETED_REFUSED = {
+  problem: example("estimate_line_completed_refused") as Problem & { status: 409 },
+};
+/**
+ * The refusal of a deletion under a task completed, which the contract has no example of, and of
+ * a version no longer the current one, whose example waits on #1210.
+ */
 const COMPLETED_REFUSED = {
   problem: {
     code: "STATE_FORBIDS_OPERATION",
@@ -338,7 +345,7 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
 
 describe("the refusal of the first task of a grid with no row", () => {
   it("is told in the alert, naming the task tried, and noted once in the history of the messages", async () => {
-    const client = serve({ [CREATE]: COMPLETED_REFUSED });
+    const client = serve({ [CREATE]: CREATE_COMPLETED_REFUSED });
     render(planningGrid(example("nodes_empty") as NodeList, true));
     await userEvent.click(screen.getByRole("button", { name: "Insérer une tâche" }));
     await create("Études");
@@ -495,7 +502,7 @@ describe("the refusal of a gesture, said to the row in cause", () => {
   it("names the row a line was refused under a task completed, marks its label and has the refusal describe it [WF-DEV-0050-A]", async () => {
     // La création d'une ligne sous une tâche terminée est refusée : the refusal is told above the
     // grid, naming the row — its number and its label —, which is marked and described by it.
-    const client = serve({ [CREATE]: COMPLETED_REFUSED });
+    const client = serve({ [CREATE]: CREATE_COMPLETED_REFUSED });
     render(estimateGrid());
     await choose(COMPLETED, "Insérer une ligne");
     await create("Pièces");

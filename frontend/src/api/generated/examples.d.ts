@@ -299,11 +299,23 @@ export interface Examples {
   "POST /projects/{project_id}/imports/{import_id}/apply": {
     202: "task_import_queued";
   };
+  "POST /projects/{project_id}/revisions": {
+    201: "revision_created";
+  };
   "POST /projects/{project_id}/revisions/{revision_id}/mark": {
     202: "task_mark_queued" | "task_mark_relaunched";
   };
+  "POST /projects/{project_id}/revisions/{revision_id}/rate-update": {
+    200: "rate_update_applied";
+  };
   "POST /projects/{project_id}/revisions/{revision_id}/skeleton": {
     201: "skeleton_generated";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures": {
+    201: "amendment_created";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
+    202: "task_merge_queued";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
     201: "estimate_line_created" | "estimate_line_created_after_subtask" | "node_created" | "node_created_child";
@@ -361,6 +373,9 @@ export interface Examples {
   };
   "PUT /projects/{project_id}/contributors": {
     200: "contributors_set";
+  };
+  "PUT /projects/{project_id}/reference-revision": {
+    200: "reference_designated";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set" | "predecessors_entered";

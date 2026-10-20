@@ -476,9 +476,9 @@ def readings() -> dict[str, JsonObject]:
             mockcore.subtree(mockcore.alone(nested()), INSTALLATION.number, _TASKS),
         ),
         "nodes_summaries.json": _example(
-            f"L'arborescence de tâches de la variante à quatre niveaux du planning du témoin, son "
-            f"cœur lu seul — totaux du cœur —, demandée au niveau 2 (kinds=task, summaries_only, "
-            f"max_level=2) le {day} : les "
+            f"Variante contrefactuelle du planning du témoin, à quatre niveaux comme "
+            f"nodes_nested : son arborescence de tâches, son cœur lu seul — totaux du cœur —, "
+            f"demandée au niveau 2 (kinds=task, summaries_only, max_level=2) le {day} : les "
             f"récapitulatives des deux premiers niveaux — les études, l'installation sur site et "
             f"le lot « Poste de commande » rangé sous elle —, que le front dessine sous le nœud "
             f"du projet ; ni le sous-arbre fusionné par la survenance, récapitulative du "
@@ -575,8 +575,9 @@ def readings() -> dict[str, JsonObject]:
             today,
         ),
         "startable_tasks_milestone.json": _example(
-            f"Le Kanban de toute la structure du témoin le {day}, le câblage des armoires déclaré "
-            f"terminé ce jour-là : {mocktext.kanban(gesture, core)}. La réception usine, jalon "
+            f"Variante contrefactuelle du témoin, le câblage des armoires supposé déclaré terminé "
+            f"le {day}, ce qu'aucune écriture du témoin ne fait : le Kanban de toute la structure "
+            f"ce jour-là, {mocktext.kanban(gesture, core)}. La réception usine, jalon "
             f"dont le seul prédécesseur est terminé, est posée à la main au 30 juin, non démarrée "
             f"tant que personne ne la termine ; les pupitres opérateurs restent démarrés, en "
             f"dépassement de fin ; le câblage est parmi les terminées, à la date du geste "

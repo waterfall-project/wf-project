@@ -157,11 +157,11 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions` | Historique des révisions | WF-REV-0070, WF-REV-0090 |
 | POST | `/projects/{project_id}/revisions` | Ouvrir la révision en cours | WF-DAT-0010, WF-PLA-0170, WF-REV-0010, WF-REV-0060 |
 | GET | `/projects/{project_id}/revisions/{revision_id}` | Une révision et son instantané | WF-REV-0030, WF-REV-0090 |
-| DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-REV-0010 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Marquer la révision | WF-ARC-0090, WF-DAT-0040, WF-REV-0020, WF-SEC-0030 |
 | PUT | `/projects/{project_id}/reference-revision` | Désigner la révision de référence | WF-CYC-0030, WF-REV-0040, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Écart de taux proposé, catégorie par catégorie | WF-REV-0060 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Appliquer la mise à jour des taux | WF-REV-0060 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Appliquer la mise à jour des taux | WF-DAT-0020, WF-REF-0130, WF-REV-0060 |
 | GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Créer un différentiel ou un devis de risque | WF-REV-0100 |
