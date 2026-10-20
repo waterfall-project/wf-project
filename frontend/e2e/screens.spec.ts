@@ -50,10 +50,11 @@ async function start(page: Page, address: string): Promise<void> {
 
 /**
  * Follow a link by a click, and check the screen it leads to names what the link does: within the
- * bound of a screen of grid, which several of them are (`WORKING`).
+ * bound of a screen of grid, which several of them are (`WORKING`) — the screen the link is on too,
+ * a grid whose main part may come after the shell has hydrated.
  */
 async function follow(page: Page, link: Locator, route: string, name: string): Promise<void> {
-  await expect(link).toHaveAttribute("href", at(route));
+  await expect(link).toHaveAttribute("href", at(route), { timeout: WORKING });
   await expect(link).toBeVisible();
   await link.click();
   await expect(page).toHaveURL((url) => url.pathname === path(route), { timeout: WORKING });

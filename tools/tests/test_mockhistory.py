@@ -35,6 +35,7 @@ from wftools.mockwitness import (
     INSTALLED,
     OFFER_OPENED,
     ORDER_RECEIVED,
+    RATES_UPDATED,
     REGISTER,
     TODAY,
     N,
@@ -84,6 +85,7 @@ _SEQUELS = {
     "task_export_queued.json",
     "task_export_succeeded.json",
     "task_merge_outside_work_package.json",
+    "task_merge_queued.json",
     "tasks_running.json",
     "audit_events_import_applied.json",
 }
@@ -92,6 +94,12 @@ _SEQUEL_SPAN = timedelta(minutes=10)
 """The background tasks that follow a write made today, and their instants: the sequel of the
 write, at its own instant, within minutes after today (#287, EP-02/L25); and the journal that
 inscribes the application of an import, at the instant its task succeeds (EP-02/L42d)."""
+
+
+_BEFORE_MARKING = {"rate_update_applied.json": RATES_UPDATED}
+"""The examples of a revision of the witness read before its marking, an earlier instant of the
+chronology, and the instant they read it at: the rates of 2026 accepted from the revision 101 in
+progress (C-362, EP-15/US-0490)."""
 
 
 @pytest.fixture(scope="module")
@@ -165,7 +173,14 @@ def test_the_project_its_revisions_and_its_transitions_say_the_instants_of_the_c
             if each.get("revision_id") in mockhistory.REVISIONS and "status" in each:
                 created, marked = mockhistory.REVISIONS[each["revision_id"]]
                 assert audit["created_at"] == mockhistory.stamp(created.instant), path.name
-                if marked is None:
+                if path.name in _BEFORE_MARKING:
+                    # An earlier instant of the chronology: the revision still in progress.
+                    written = _BEFORE_MARKING[path.name].instant
+                    assert marked is not None, path.name
+                    assert created.instant < written < marked.instant, path.name
+                    assert (each["status"], each["marked_at"]) == ("draft", None), path.name
+                    assert audit["updated_at"] == mockhistory.stamp(written), path.name
+                elif marked is None:
                     assert (each["status"], each["marked_at"]) == ("draft", None), path.name
                 else:
                     assert each["marked_at"] == mockhistory.stamp(marked.instant), path.name

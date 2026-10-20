@@ -100,7 +100,8 @@ function Differences({ differences }: { readonly differences: Report["difference
   const format = useFormatter();
   // A field is named by the catalogue of the columns of its object: a line of actual cost by its
   // own, a task, a line of the estimate or a link by the columns of the structure — `subproject`
-  // is a column of both. A field the object does not have is left unnamed, never guessed.
+  // is a column of both; the parent of a node, which no column holds, by its own key (#1194). A
+  // field the object does not have is left unnamed, never guessed.
   const fieldName = (target: Difference["target"], field: DifferenceField) => {
     if (target === "actual_cost_line") {
       if (field.startsWith(PASSTHROUGH)) {
@@ -110,6 +111,9 @@ function Differences({ differences }: { readonly differences: Report["difference
     }
     if (field === "subproject") {
       return t("enums.NodeColumn.subproject");
+    }
+    if (field === "parent") {
+      return t("enums.ImportDifferenceField.parent");
     }
     return isNodeColumn(field) ? t(`enums.NodeColumn.${field}`) : undefined;
   };

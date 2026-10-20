@@ -250,6 +250,11 @@
         "redo": "Redo is unavailable: the server does not keep the history of the entries yet."
       }
     },
+    "selection": {
+      "handle": "{number} — row handle",
+      "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it: Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it.",
+      "count": "{count, plural, one {# row selected} other {# rows selected}}"
+    },
     "structure": {
       "insertFirst": "Insert a task",
       "insertBelow": "Insert below",
@@ -257,8 +262,14 @@
       "insertLine": "Insert a line",
       "indent": "Indent",
       "outdent": "Outdent",
-      "indented": "“{label}” indented.",
-      "outdented": "“{label}” outdented.",
+      "up": "Move up",
+      "down": "Move down",
+      "moved": {
+        "indented": "{others, plural, =0 {“{label}” indented.} one {“{label}” and the next row indented.} other {“{label}” and the # next rows indented.}}",
+        "outdented": "{others, plural, =0 {“{label}” outdented.} one {“{label}” and the next row outdented.} other {“{label}” and the # next rows outdented.}}",
+        "up": "{others, plural, =0 {“{label}” moved up a rank.} one {“{label}” and the next row moved up a rank.} other {“{label}” and the # next rows moved up a rank.}}",
+        "down": "{others, plural, =0 {“{label}” moved down a rank.} one {“{label}” and the next row moved down a rank.} other {“{label}” and the # next rows moved down a rank.}}"
+      },
       "delete": "Delete",
       "deleteTitle": "Delete “{label}”?",
       "deleteHint": "“{label}” is a summary: its subordinate tasks, their lines and their links are deleted with it.",
@@ -1761,7 +1772,7 @@
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
-    "NODE_NOT_SIBLING": "The node to place it after is not among the siblings of the new place: read the grid again.",
+    "NODE_NOT_SIBLING": "The node to place it after is not among the siblings of the new place: the grid is read again.",
     "MILESTONE_REQUIRED": "Only a milestone can be tracked on the time/time diagram.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
@@ -2149,6 +2160,7 @@
       "revision_draft": "draft revision",
       "revision_marked": "marked revision",
       "reference_correctable": "reference still correctable",
+      "revision_has_tasks_and_lines": "revision bearing at least one task and one estimate line",
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",
       "hourly_rates_set": "hourly rates set",
@@ -2560,6 +2572,9 @@
         "link": "Link",
         "actual_cost_line": "Actual cost line"
       }
+    },
+    "ImportDifferenceField": {
+      "parent": "Parent"
     },
     "ImportIgnoredKind": {
       "resources": "Resources",

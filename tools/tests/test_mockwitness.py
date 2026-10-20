@@ -287,6 +287,8 @@ _STRUCTURE = (
 )
 _KEYS = {
     "node_id": _STRUCTURE,
+    "node_ids": _STRUCTURE,
+    "after_node_id": _STRUCTURE,
     "predecessor_node_id": _STRUCTURE,
     "provision_node_id": _STRUCTURE,
     "parent_id": (*_STRUCTURE, "nœuds d'organisation"),

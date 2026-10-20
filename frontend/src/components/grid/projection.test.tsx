@@ -251,8 +251,9 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
   paste: { preview: unwritten, apply: unwritten, span: unwritten, name: unwritten },
 });
 
-// The position of a node among its siblings, which the gestures of structure place a task after
-// (US-0460/L3), weighs about a hundredth of each answer: 0.655, 0.475 and 0.63 before it.
+// The position of a node among the siblings of its kind, which the gestures of structure read to
+// place a node beside another (US-0460/L3, #1188), weighs about a hundredth of each answer: 0.655,
+// 0.475 and 0.63 before it.
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.67);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.485);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
