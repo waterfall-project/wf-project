@@ -291,10 +291,9 @@
       avaient, en lecture seule (`NodeDifference`) : une tâche ajoutée, retirée ou modifiée —
       par ses dates, sa durée, son état ou son parent —, une ligne par ses montants ou son
       parent, et une récapitulative dont le contenu change, marquée modifiée. Les filtres, la
-      recherche et le tri s'y appliquent comme à la lecture d'un différentiel. Quand `sort_by`
-      réordonne les lignes d'une tâche, une ligne retirée se trie parmi les lignes de sa tâche
-      comme les autres, par les valeurs qu'elle avait dans la révision de base, celles qu'elle
-      rend ; une tâche retirée, comme toute tâche, garde sa place dans l'ordre du plan.
+      recherche et le tri s'y appliquent comme à la lecture d'un différentiel ; la place qu'un
+      tri (`sort_by`) donne à une ligne retirée reste à trancher, pour les deux routes à la fois
+      (#1201).
       `subtree_of` nomme une tâche de l'arbre rendu, une tâche retirée comprise : la fenêtre
       est alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur
       place, des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts

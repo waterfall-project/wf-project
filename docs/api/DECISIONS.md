@@ -6672,10 +6672,10 @@ ligne y serait sans être rendue, et une fenêtre compterait ce qu'elle ne montr
 ses nœuds retirés à leur place : la tâche est de l'arbre rendu, et la grille offre de la déplier
 comme les autres. Ses totaux sont nuls, la révision comparée n'en ayant aucune ligne, et ses écarts
 sont ceux de ses lignes retirées. Écarté : un refus 422, qui rendrait illisible une tâche que la
-comparaison rend. **Le tri** ne réordonne que les lignes sous chaque tâche : une ligne retirée se
-trie parmi celles de sa tâche par les valeurs qu'elle avait, celles qu'elle rend ; une tâche
-retirée garde sa place dans l'ordre du plan. `NodeSortBy`, partagé, dit le tri sans nommer les
-exemples ni les grilles de `listNodes`, que son chemin dit désormais.
+comparaison rend. **Le tri** ne réordonne que les lignes sous chaque tâche ; la place qu'il donne
+à une ligne retirée, dans une comparaison comme dans la lecture d'un différentiel par `listNodes`,
+reste à trancher (#1201, point 4). `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
+les grilles de `listNodes`, que son chemin dit désormais.
 
 **Les exemples sont des fenêtres**, engendrés par `wftools.mockhistory`. `comparison`, le premier,
 est le sous-arbre de l'installation sur site (`subtree_of`), comme `nodes_amendment` sur le
