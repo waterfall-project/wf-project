@@ -106,6 +106,10 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
     // estimate. The front reads the structure, it deduces no phase from the project.
     const inProgress = await estimateFor("me");
     expect(inProgress?.editable).toBe(false);
+    // Handed so, the grid takes no entry and no paste: every cell reads `aria-readonly`.
+    const readOnly = estimateGrid(estimateReference());
+    expect(readOnly.columns.filter((column) => column.entry !== undefined)).toEqual([]);
+    expect(readOnly.paste).toBeUndefined();
     server.answers = { ...server.answers, [STRUCTURES]: "structures_without_tasks" };
     const inPricing = await estimateFor("me");
     expect([inPricing?.editable, inPricing?.tasksEditable]).toEqual([true, true]);
@@ -146,7 +150,8 @@ describe("the reference data the estimate is entered from", () => {
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
     expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
     expect(grid?.reference.roles).toBeDefined();
-    expect(grid?.editable).toBe(true);
+    // The lines, not the label of a task, which is the planning's.
+    expect([grid?.editable, grid?.tasksEditable]).toEqual([true, false]);
   });
 });
 

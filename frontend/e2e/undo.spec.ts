@@ -15,7 +15,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 const TOLD_UNDO =
-  "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.";
+  "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.";
 
 test("places Undo and Redo in the grid, its menu and its keys, unavailable and saying why, and leaves Ctrl+Z to the cell being entered", async ({
   page,

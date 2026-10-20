@@ -24,6 +24,7 @@ import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
   example,
+  type FakeAnswer,
   type FakeAnswers,
   type FakeClient,
   fakeClient,
@@ -175,6 +176,7 @@ const READ_PROJECT = ["GET /projects/{project_id}", "project"] as const satisfie
 
 /** The structures, whose example says which grid is entered: the witness project is in progress. */
 const STRUCTURES_READ = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+type StructuresExample = Extract<FakeAnswer<typeof STRUCTURES_READ>, string>;
 const IN_PRICING = { [STRUCTURES_READ]: "structures_without_tasks" } as const; // entered
 const MARKED = { [STRUCTURES_READ]: "structures_amendments" } as const; // nothing entered
 
@@ -423,11 +425,6 @@ describe("the witness path", () => {
     expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
   });
 
-  it("lets an estimator enter the lines, and not the label of a task, which is the planning's", async () => {
-    const { grid } = await estimateWith({ [STRUCTURES_READ]: "structures_estimator" });
-    expect([grid?.editable, grid?.tasksEditable]).toEqual([true, false]);
-  });
-
   it("shows the grid without naming the roles when the API does not let the caller read them", async () => {
     const { html, grid } = await estimateWith({
       "GET /reference/resource-roles": { problem: { code: "NOT_FOUND", status: 404 } },
@@ -631,9 +628,9 @@ describe("the grid of the planning", () => {
 
   it("places undo and redo in the planning of a revision the caller may plan, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
     /** The planning of the witness revision, its structure read as an example of the contract. */
-    const planningOf = async (structures: string) => {
+    const planningOf = async (structures: StructuresExample) => {
       grids.planning = [];
-      server.answers = { ...server.answers, [STRUCTURES_READ]: structures as "structures" };
+      server.answers = { ...server.answers, [STRUCTURES_READ]: structures };
       const html = renderToStaticMarkup(
         inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })),
       );
@@ -971,8 +968,9 @@ describe("the rows a page hands its grid", () => {
     for (const [index, node] of answer.items.entries()) {
       const row = items[index] ?? {};
       expect(Object.keys(row).sort()).toEqual(kept(node, listed.node));
-      expect(row).not.toHaveProperty("lineage_id");
-      expect(row).not.toHaveProperty("position");
+      for (const left of ["lineage_id", "position"]) {
+        expect(row).not.toHaveProperty(left);
+      }
       const facets = row as { task?: object | null; estimate_line?: object | null };
       expect(Object.keys(facets.task ?? {}).sort()).toEqual(kept(node.task ?? {}, listed.task));
       expect(Object.keys(facets.estimate_line ?? {}).sort()).toEqual(
@@ -982,12 +980,13 @@ describe("the rows a page hands its grid", () => {
   }
 
   it("the estimate asks for and hands its grid the fields it shows of each node, and those alone", async () => {
-    server.answers = { ...server.answers, [STRUCTURES_READ]: "structures_estimator" };
+    // Entered, the estimate shows the sub-project of a line as well: a project in pricing.
+    server.answers = { ...server.answers, ...IN_PRICING };
     renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     expect(nodesFields()).toEqual(nodeFieldNames(ESTIMATE_FIELDS));
     expect(grids.estimate).toHaveLength(1);
     projected(grids.estimate[0]?.nodes.items ?? [], ESTIMATE_FIELDS);
-    expect(grids.estimate[0]?.structure).toEqual(STRUCTURE);
+    expect(grids.estimate[0]?.structure.structure_id).toBe("01926f3a-7c00-7000-8000-000000000207");
   });
 
   it("the planning asks for and hands its grid the fields it shows of each node, and those alone", async () => {

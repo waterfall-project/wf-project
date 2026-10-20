@@ -263,10 +263,10 @@ describe("the screen of the remaining to commit", () => {
     expect(marked).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
   });
 
-  it("is read only on a project that is not in progress, the structure listing the remaining to commit unavailable [WF-RAE-0040-A]", async () => {
-    // Sur un projet qui n'est pas En cours, la grille ne propose ni création ni suppression de
-    // tâche ou de ligne : the structure says it (`project_in_progress` lacks), the front deduces
-    // nothing from the state of the project.
+  it("is read only on a project that is not in progress, the structure listing the remaining to commit unavailable", async () => {
+    // No undo and every cell `aria-readonly`: the structure says it (`project_in_progress` lacks),
+    // the front deduces nothing from the state of the project. The absence of the gestures of
+    // creation and deletion is proven with them (US-0460/L3b).
     server.answers = { ...server.answers, [STRUCTURES]: "structures_without_tasks" };
     const page = await remainingAt();
     expect(page).not.toContain('aria-label="Undo"');
@@ -279,7 +279,7 @@ describe("the screen of the remaining to commit", () => {
     expect(page).toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
   });
 
-  it("offers the filter by a lot or a post, read from the work breakdown whole, as the planning and the estimate do [WF-RAE-0040-A]", async () => {
+  it("offers the filter by a lot or a post, read from the work breakdown whole, as the planning and the estimate do", async () => {
     // Le lot ou le poste porté par une tâche rattachée : the server retains its subtree and its
     // ancestors, the banner says the filter restricts the grid alone.
     const page = await remainingAt({ order_item_id: ITEM });

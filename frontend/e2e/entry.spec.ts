@@ -23,15 +23,6 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
-// The witness project is in progress: its main structure lists its estimate unavailable
-// (`project_before_in_progress`, WF-DEV-0050), and the fake back serves that structure whatever the
-// address, so that it never offers an estimate to enter. The same journeys are proven on the grid
-// itself by `entry.dom.test.tsx`; they come back to this file when the screen reads the structure its address
-// names (US-0500, `structure=`), the own estimate of a risk being listed enterable.
-test.beforeEach(() => {
-  test.fixme(true, "the estimate of the main structure of a project in progress is read only");
-});
-
 // The columns the journeys enter and read, by their heading (`columnsOf`).
 const COLUMNS = {
   label: "Libellé",
@@ -93,7 +84,13 @@ function times(key: string, count: number): string[] {
   return Array.from({ length: count }, () => key);
 }
 
-test("enters a whole line of the estimate without the mouse — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
+// TODO(#1176): the witness project is in progress, so its main structure lists its estimate
+// unavailable (`project_before_in_progress`, WF-DEV-0050), and the fake back serves that structure
+// whatever the address: the grid never offers an estimate to enter, and the journeys on the
+// estimate are `test.fixme`. The same journeys are proven on the grid itself by
+// `entry.dom.test.tsx`; they come back here when the screen reads the structure its address names
+// (`structure=`, US-0500/L2), the own estimate of a risk being listed enterable.
+test.fixme("enters a whole line of the estimate without the mouse — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
   page,
 }) => {
   const { grid, at } = await tabIntoGrid(page);
@@ -128,7 +125,7 @@ test("enters a whole line of the estimate without the mouse — label, category,
   await expect(cellAt(grid, LINE, at.quantity)).toBeFocused();
   await page.keyboard.type("2");
   await page.keyboard.press("Tab");
-  await page.keyboard.type("12,5");
+  await page.keyboard.type("31,5");
   await page.keyboard.press("Enter");
 
   // The row below, at the cell the line was started from, in view.
@@ -157,7 +154,7 @@ test("enters a whole line of the estimate without the mouse — label, category,
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-test("leaves a cell at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async ({
+test.fixme("leaves a cell at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async ({
   page,
 }) => {
   const { grid, at } = await tabIntoGrid(page);
@@ -172,7 +169,7 @@ test("leaves a cell at its value before when its entry under way is abandoned [W
   await expect(hours).toBeFocused();
 });
 
-test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
+test.fixme("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
   const { grid, at } = await tabIntoGrid(page);
@@ -191,7 +188,7 @@ test("traverses the computed cells of a line entered along its row, without ente
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
-test("opens the entry of the effort on a digit typed, and the refusal of the amount, with no field, on the same digit [WF-IHM-0040-A]", async ({
+test.fixme("opens the entry of the effort on a digit typed, and the refusal of the amount, with no field, on the same digit [WF-IHM-0040-A]", async ({
   page,
 }) => {
   const { grid, at } = await tabIntoGrid(page);
@@ -211,4 +208,48 @@ test("opens the entry of the effort on a digit typed, and the refusal of the amo
   await page.keyboard.press("7");
   await expect(page.getByRole("dialog", { name: "Valeur calculée" })).toBeVisible();
   await expect(grid.getByRole("textbox")).toHaveCount(0);
+});
+
+// The remaining to commit of the same revision is entered where the estimate is not: the main
+// structure lists `edit_remaining` available (WF-RAE-0040). Row 10 is a line of labour,
+// « Raccordement des borniers » (`test_the_marks_the_journeys_read`); its figures are re-estimated
+// by `setLineRemaining`, whose first example the fake back serves whatever was written.
+const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
+const REMAINING_LINE = 10;
+
+test("re-estimates the figures of a line of the remaining to commit from the keyboard, the entry abandoned leaving the figure as it was, the entry validated writing it [WF-IHM-0040-A]", async ({
+  page,
+}) => {
+  test.slow();
+  await openHydrated(page, REMAINING);
+  const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
+  // The effort re-estimated now, past the one of the remaining to commit before.
+  const header = grid.getByRole("columnheader", { name: "Charge (h)", exact: true });
+  const position = await header.evaluate((th) =>
+    th instanceof HTMLTableCellElement ? th.cellIndex : -1,
+  );
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+      writes.push(request.url());
+    }
+  });
+
+  // A key typed opens the entry of the effort, with it; abandoned, the effort is as it was.
+  const hours = cellAt(grid, REMAINING_LINE, position);
+  await hours.click();
+  const before = await hours.innerText();
+  await page.keyboard.press("7");
+  await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("7");
+  await page.keyboard.press("Escape");
+  await expect(hours.getByRole("textbox")).toHaveCount(0);
+  await expect(hours).toHaveText(before);
+  expect(writes).toEqual([]);
+
+  // Validated by Tab, the effort is written, the entry closed and no refusal told.
+  await page.keyboard.type("31,5");
+  await page.keyboard.press("Tab");
+  await expect.poll(() => writes.length).toBeGreaterThan(0);
+  await expect(hours.getByRole("textbox")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });

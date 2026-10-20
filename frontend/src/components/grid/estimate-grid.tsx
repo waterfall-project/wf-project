@@ -75,14 +75,14 @@ export interface EstimateGridProps {
   /** The categories and roles a line is entered from: the server names those it bears. */
   readonly reference: EstimateReference;
   /**
-   * Whether the estimate may be entered: the revision is open and lists `edit_estimate` available
-   * to the caller (`availableEdits`). Otherwise the grid is read only, and offers no entry the
+   * Whether the estimate may be entered: the main structure read lists `edit_estimate` available
+   * to the caller (`GridScreen.commands`). Otherwise the grid is read only, and offers no entry the
    * API would refuse.
    */
   readonly editable: boolean;
   /**
    * Whether the label of a task may be entered too: it is the planning's (`updateTaskFacet`), which
-   * the revision lists as `edit_planning`.
+   * the main structure read lists as `edit_planning`.
    */
   readonly tasksEditable: boolean;
   readonly query: GridQuery<NodeSortColumn>;

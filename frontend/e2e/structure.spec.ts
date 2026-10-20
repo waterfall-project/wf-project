@@ -31,13 +31,13 @@ async function focusRow(page: Page, screen: string, grid: string, name: RegExp) 
   return { table, cell };
 }
 
-test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress [WF-DEV-0050-A]", async ({
+test("proposes no entry in the estimate of the main structure of a project in progress [WF-DEV-0050-A]", async ({
   page,
 }) => {
   test.slow();
   // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
-  // ni aucune commande d'écriture : the structure lists the estimate unavailable
-  // (`project_before_in_progress`), and the grid is read only whatever the planning lists.
+  // : the structure lists the estimate unavailable (`project_before_in_progress`), and the grid is
+  // read only whatever the planning lists. The gestures of writing are L3b's.
   const { table, cell } = await focusRow(
     page,
     "estimate",
@@ -47,11 +47,6 @@ test("proposes no entry and no command of writing in the estimate of the main st
   await expect(cell).toHaveAttribute("aria-readonly", "true");
   await expect(table.locator('td[data-column]:not([aria-readonly="true"])')).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Annuler", exact: true })).toHaveCount(0);
-  await page.keyboard.press("Insert");
-  await page.keyboard.press("Control+Delete");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await cell.click({ button: "right" });
-  await expect(page.getByRole("menuitem", { name: /Insérer|Supprimer/ })).toHaveCount(0);
 });
 
 test("filters the remaining to commit by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it", async ({

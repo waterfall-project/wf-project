@@ -58,8 +58,9 @@ export interface ProjectReading {
   /** The revision the screen reads in; none on a function of the project without one. */
   readonly revision: Revision | undefined;
   /**
-   * The commands of modification of the revision the caller may exercise now: a grid reads
-   * its own — `edits.has("edit_planning")` —, never `readOnly`. Empty without a revision.
+   * The commands of modification of the revision the caller may exercise now. A grid does not
+   * read its entry from them but from the main structure it reads (`GridScreen.commands`), never
+   * from `readOnly` either. Empty without a revision.
    */
   readonly edits: ReadonlySet<EditCommand>;
   /**

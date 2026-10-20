@@ -117,7 +117,10 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
   /**
    * Whether the screen cannot do without the work breakdown, as the reading context says — the
    * planning, where the attachment of a task is entered (WF-PLA-0170) —: a refusal of it then
-   * fails the screen, as any read it needs. Never, when none is given.
+   * fails the screen, as any read it needs. Never, when none is given. It is judged on the reading
+   * context, `edits`, not on the structure (`commands`): it is asked while the structure is read,
+   * and only on a refusal, so that it errs on the side of failing a screen the structure would
+   * have read only.
    */
   readonly needsBreakdown?: (reading: ProjectReading) => boolean;
 }
