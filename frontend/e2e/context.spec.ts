@@ -78,6 +78,7 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   // Une grille ouverte sur une structure différentielle nomme cette structure. The fake back serves
   // the first example of `listNodes` whatever the structure — the nodes of the main one —: what
   // the page asks of each structure is proven by `planning/page.test.tsx`.
+  // TODO(#1219): see the nodes of the amendment once the fake back serves them at its address.
   const amendment = "01926f3a-7c00-7000-8000-000000000203";
   const named = (structure: string) =>
     banner(page).getByRole("button", {

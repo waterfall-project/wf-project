@@ -338,6 +338,7 @@ const ENTRY_GRIDS: readonly EntryGrid[] = [
     segment: "estimate",
     // The amendment 2 « reprise des essais » (`structures`), whose estimate is entered; the fake
     // back serves the first example of `listNodes` for it, the nodes of the main structure.
+    // TODO(#1219): review the nodes of the amendment once the fake back serves them at its address.
     structure: "01926f3a-7c00-7000-8000-000000000203",
     name: ({ names }) => names.estimateGrid,
     row: 3,

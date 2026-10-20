@@ -7,8 +7,10 @@
  * one another under the name of their kind, the one read checked. The banner keeps its one row on
  * the narrow windows of the harness, under which the totals of a grid stay in view (US-0550). A
  * choice only changes the address (`structureHref`), the rest of its query kept, from the address
- * last asked (`usePendingAddress`); the page reads the grid anew on the structure chosen, which the
- * menu shows checked meanwhile (défaut n° 21 de `typescript.md`).
+ * last asked (`usePendingAddress`) — which the screen shares between its banner and its grid
+ * (`PendingAddress`), so that a sort asked before the structure arrives keeps it, and the reverse
+ * (défaut n° 20 de `typescript.md`); the page reads the grid anew on the structure chosen, which the
+ * menu shows checked meanwhile (défaut n° 21).
  *
  * Every prop is data, the texts given translated, never a function: the banner, a server component,
  * hands it over (défaut n° 12).

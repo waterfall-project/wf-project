@@ -24,6 +24,7 @@ import { rowAt } from "./scroll";
 // (#1176). The fake back serves the first example of an operation whatever its path: the nodes are
 // those of the first example of `listNodes`, the main structure — it serves `nodes_amendment` for
 // no address —, entered under the commands of the amendment.
+// TODO(#1219): enter the nodes of the amendment once the fake back serves them at its address.
 //
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";

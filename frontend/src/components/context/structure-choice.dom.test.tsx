@@ -126,10 +126,20 @@ describe("the structure the banner names", () => {
     expect(within(risks).getAllByRole("menuitemradio")).toHaveLength(3);
   });
 
-  it("names the main structure to a screen reader alone, which the head of the grid names", () => {
+  it("names the main structure to a screen reader, which the head of the grid names to the eye", () => {
     banner(choices("structures", MAIN));
-    const named = within(region()).getByText("Structure principale");
-    expect(named).toHaveClass("sr-only");
+    // What a screen reader hears: the structure among the facts of the banner, and in the name of
+    // the button that changes it; no kind, the main structure having none to tell.
+    expect(
+      within(region())
+        .getAllByRole("definition")
+        .map((fact) => fact.textContent),
+    ).toContain("Structure principale");
+    expect(
+      within(region()).getByRole("button", {
+        name: `Changer de structure, «${NB}Structure principale${NB}» lue`,
+      }),
+    ).toBeInTheDocument();
     expect(within(region()).queryByText("Avenant")).toBeNull();
   });
 

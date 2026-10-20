@@ -138,8 +138,10 @@ export default async function PlanningPage({
     screen.kind === "main"
       ? findOffer(screen.reading.revision?.available_commands ?? [], "generate_skeleton")
       : undefined;
+  // One address asked for the whole screen: the structure chosen in the banner and a sort or a filter
+  // of the grid compose, whichever comes first (défaut n° 20 de `typescript.md`).
   return (
-    <>
+    <PendingAddress>
       <ContextBanner
         reading={screen.reading}
         structure={screen.structures}
@@ -153,26 +155,24 @@ export default async function PlanningPage({
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
         {editable || skeleton?.is_available === true ? <MockupNotice /> : null}
-        <PendingAddress>
-          {screen.breakdown === undefined ? null : (
-            <BreakdownFilterChoice choices={screen.breakdown} />
-          )}
-          <PlanningGrid
-            key={screen.structure.structure_id}
-            nodes={screen.nodes}
-            structure={screen.structure}
-            structureVersion={screen.structureVersion}
-            filters={screen.filters}
-            query={screen.query}
-            preferences={screen.preferences}
-            undoable={editable}
-            editable={editable}
-            // The attachment is chosen among the same items, where the planning may be entered.
-            breakdown={editable ? screen.breakdown?.items : undefined}
-            skeleton={skeleton}
-          />
-        </PendingAddress>
+        {screen.breakdown === undefined ? null : (
+          <BreakdownFilterChoice choices={screen.breakdown} />
+        )}
+        <PlanningGrid
+          key={screen.structure.structure_id}
+          nodes={screen.nodes}
+          structure={screen.structure}
+          structureVersion={screen.structureVersion}
+          filters={screen.filters}
+          query={screen.query}
+          preferences={screen.preferences}
+          undoable={editable}
+          editable={editable}
+          // The attachment is chosen among the same items, where the planning may be entered.
+          breakdown={editable ? screen.breakdown?.items : undefined}
+          skeleton={skeleton}
+        />
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

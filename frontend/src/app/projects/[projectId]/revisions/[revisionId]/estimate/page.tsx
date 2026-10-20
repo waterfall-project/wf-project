@@ -272,8 +272,10 @@ export default async function EstimatePage({
   // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
   const editable = screen.commands.has("edit_estimate");
   const subprojectsEntered = editable && reference.subprojects !== undefined;
+  // One address asked for the whole screen: the structure chosen in the banner and a sort or a filter
+  // of the grid compose, whichever comes first (défaut n° 20 de `typescript.md`).
   return (
-    <>
+    <PendingAddress>
       <ContextBanner
         reading={screen.reading}
         restricts={RESTRICTS}
@@ -299,24 +301,22 @@ export default async function EstimatePage({
           missingRates={missingRates}
           permissions={session?.permissions ?? []}
         />
-        <PendingAddress>
-          {screen.breakdown === undefined ? null : (
-            <BreakdownFilterChoice choices={screen.breakdown} />
-          )}
-          <EstimateGrid
-            key={screen.structure.structure_id}
-            nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
-            structure={screen.structure}
-            structureVersion={screen.structureVersion}
-            filters={screen.filters}
-            reference={reference}
-            editable={editable}
-            tasksEditable={screen.commands.has("edit_planning")}
-            query={screen.query}
-            preferences={screen.preferences}
-          />
-        </PendingAddress>
+        {screen.breakdown === undefined ? null : (
+          <BreakdownFilterChoice choices={screen.breakdown} />
+        )}
+        <EstimateGrid
+          key={screen.structure.structure_id}
+          nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
+          structure={screen.structure}
+          structureVersion={screen.structureVersion}
+          filters={screen.filters}
+          reference={reference}
+          editable={editable}
+          tasksEditable={screen.commands.has("edit_planning")}
+          query={screen.query}
+          preferences={screen.preferences}
+        />
       </Screen>
-    </>
+    </PendingAddress>
   );
 }
