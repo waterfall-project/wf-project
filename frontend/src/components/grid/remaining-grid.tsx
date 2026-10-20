@@ -57,8 +57,8 @@ export interface RemainingGridProps {
    */
   readonly filters: NodeFilters;
   /**
-   * Whether the remaining to commit may be entered: the revision lists `edit_remaining` available
-   * to the caller. Then the grid places undo and redo too (US-0140); otherwise it is read only.
+   * Whether the remaining to commit may be entered: the main structure read lists `edit_remaining`
+   * available to the caller (`GridScreen.commands`). Then the grid places undo and redo too (US-0140); otherwise it is read only.
    */
   readonly editable: boolean;
   readonly query: GridQuery<NodeSortColumn>;

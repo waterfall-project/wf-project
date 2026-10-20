@@ -4,9 +4,11 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
 
 import EstimatePage from "./page";
 
@@ -94,6 +96,41 @@ beforeEach(() => {
   };
 });
 
+describe("the grid of the estimate, entered as the structure lists it", () => {
+  const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+
+  it("hands the grid read only on the main structure of a project in progress, and entered on a project in pricing [WF-DEV-0050-A]", async () => {
+    // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune
+    // saisie ni aucune commande d'écriture : the structure lists `edit_estimate` unavailable
+    // (`project_before_in_progress`), and the planning available besides, which opens nothing of the
+    // estimate. The front reads the structure, it deduces no phase from the project.
+    const inProgress = await estimateFor("me");
+    expect(inProgress?.editable).toBe(false);
+    // Handed so, the grid takes no entry and no paste: every cell reads `aria-readonly`.
+    const readOnly = estimateGrid(estimateReference());
+    expect(readOnly.columns.filter((column) => column.entry !== undefined)).toEqual([]);
+    expect(readOnly.paste).toBeUndefined();
+    server.answers = { ...server.answers, [STRUCTURES]: "structures_without_tasks" };
+    const inPricing = await estimateFor("me");
+    expect([inPricing?.editable, inPricing?.tasksEditable]).toEqual([true, true]);
+  });
+
+  it("presents neither the duration nor the predecessors of a task, which the planning enters [WF-DEV-0050-A]", () => {
+    // La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs d'une tâche :
+    // the entered grid has no such column.
+    const unwritten = () => Promise.reject(new Error("nothing is written here"));
+    const entered = estimateGrid(estimateReference(), {
+      line: unwritten,
+      task: unwritten,
+      paste: { preview: unwritten, apply: unwritten, span: () => [], name: () => "" },
+    });
+    const keys: string[] = entered.columns.map((column) => column.key);
+    expect(keys).not.toContain("duration");
+    expect(keys).not.toContain("predecessors");
+    expect(keys).toContain("label");
+  });
+});
+
 describe("the reference data the estimate is entered from", () => {
   it("asks the deactivated categories and roles with the permissions of the reference that keep them", async () => {
     const grid = await estimateFor("me");
@@ -105,11 +142,16 @@ describe("the reference data the estimate is entered from", () => {
   it("asks only the active ones of a part of the reference the session may not read, and still enters the estimate on them (#351)", async () => {
     // The estimator reads the cost settings, not the resource settings: the contract would refuse
     // him the deactivated roles (403), and he enters on the active ones.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_estimator",
+    };
     const grid = await estimateFor("me_estimator");
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
     expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
     expect(grid?.reference.roles).toBeDefined();
-    expect(grid?.editable).toBe(true);
+    // The lines, not the label of a task, which is the planning's.
+    expect([grid?.editable, grid?.tasksEditable]).toEqual([true, false]);
   });
 });
 

@@ -103,7 +103,13 @@ function argumentsWith(posted: readonly Request[], field: string): unknown[] | u
   return data === null || data === undefined ? undefined : (JSON.parse(data) as unknown[]);
 }
 
-test("a block of three rows and four columns pasted from a spreadsheet produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async ({
+// TODO(#1176): the witness project is in progress, so its main structure lists its estimate
+// unavailable (`project_before_in_progress`, WF-DEV-0050), and the fake back serves that structure
+// whatever the address: the grid never offers an estimate to enter, and the journeys on the
+// estimate are `test.fixme`. The same journeys are proven on the grid itself by
+// `paste.dom.test.tsx`; they come back here when the screen reads the structure its address names
+// (`structure=`, US-0500/L2), the own estimate of a risk being listed enterable.
+test.fixme("a block of three rows and four columns pasted from a spreadsheet produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async ({
   page,
 }) => {
   const posted = actions(page);
@@ -146,7 +152,7 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
+test.fixme("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
   page,
 }) => {
   const posted = actions(page);
@@ -171,7 +177,9 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(cellAt(grid, FIRST + 2, at.quantity)).toHaveText("2");
 });
 
-test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
+test.fixme("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({
+  page,
+}) => {
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page);
   // Eighteen columns from the label, where a line has seventeen in the contract (#223, #424).

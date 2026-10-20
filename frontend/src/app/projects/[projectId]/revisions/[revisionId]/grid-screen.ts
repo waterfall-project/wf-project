@@ -19,6 +19,7 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 
+import type { components } from "@/api/generated/schema";
 import { type ExpectedRefusal, readOrFail, readOrRefused, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
@@ -55,6 +56,9 @@ import {
 import { requestSession } from "@/session/request";
 
 import type { RevisionParams } from "./page";
+
+/** A command of entry a structure lists (`CostStructure.available_commands`). */
+export type StructureCommand = components["schemas"]["StructureCommand"];
 
 /** The address of a screen of a revision, and the context it names. */
 export interface GridAddress {
@@ -113,7 +117,10 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
   /**
    * Whether the screen cannot do without the work breakdown, as the reading context says — the
    * planning, where the attachment of a task is entered (WF-PLA-0170) —: a refusal of it then
-   * fails the screen, as any read it needs. Never, when none is given.
+   * fails the screen, as any read it needs. Never, when none is given. It is judged on the reading
+   * context, `edits`, not on the structure (`commands`): it is asked while the structure is read,
+   * and only on a refusal, so that it errs on the side of failing a screen the structure would
+   * have read only.
    */
   readonly needsBreakdown?: (reading: ProjectReading) => boolean;
 }
@@ -130,6 +137,13 @@ export interface GridScreen<Row> {
   readonly structure: StructurePath;
   /** The version of the main structure read, which a paste applied carries (#201). */
   readonly structureVersion: number;
+  /**
+   * The commands of entry the main structure lists available to the caller: what the grid offers —
+   * the entry of its cells, the gestures of the structure, the paste —, whatever the phase of the
+   * project, which the front does not deduce (WF-IHM-0090). A grid whose command is not in it is
+   * read only.
+   */
+  readonly commands: ReadonlySet<StructureCommand>;
   readonly nodes: NodeRows<Row>;
   /**
    * The level of the deepest summary of the structure, whatever the reading retains
@@ -212,6 +226,9 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     label: main.label,
     structure,
     structureVersion: main.lock_version,
+    commands: new Set(
+      main.available_commands.filter((offer) => offer.is_available).map(({ command }) => command),
+    ),
     nodes: projectNodes(answer, fields),
     summaryDepth: answer.meta.summary_depth,
     filters,
@@ -238,6 +255,7 @@ async function readBreakdownItems(
   { revision }: GridAddress,
   needed: () => Promise<boolean>,
 ): Promise<readonly BreakdownItem[] | undefined> {
+  // The API is called once: the answer is replayed below, by the thunks the reads take.
   const answer = await serverClient().GET("/projects/{project_id}/work-breakdown", {
     params: { path: { project_id: revision.projectId } },
   });

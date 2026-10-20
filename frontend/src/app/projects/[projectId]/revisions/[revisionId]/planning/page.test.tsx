@@ -114,6 +114,7 @@ describe("the screen of the planning", () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
     };
     const page = await planning();
     const [read] = callsOf(BREAKDOWN);

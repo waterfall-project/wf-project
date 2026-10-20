@@ -1,0 +1,20 @@
+{
+  "summary": "Les structures de la révision ouverte aujourd'hui sur le projet créé à 14 h 05 (revision_without_tasks), lues par un estimateur, le projet n'étant pas En cours et le devis se saisissant : la principale ne liste que `edit_estimate`, disponible — il n'a ni la permission d'écrire le planning ni celle d'écrire le reste à engager (`planning.write`, `remaining.write`), si bien que `edit_planning` et `edit_remaining` ne sont pas présentées (WF-IHM-0090, WF-DEV-0050).",
+  "value": [
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000207",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000103",
+      "kind": "main",
+      "label": "Structure principale",
+      "is_merged": false,
+      "available_commands": [
+        {
+          "command": "edit_estimate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
+      "lock_version": 0
+    }
+  ]
+}
