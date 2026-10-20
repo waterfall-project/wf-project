@@ -575,9 +575,9 @@ grille offre — la saisie, les gestes, le collage — ne se lit pourtant pas l�
 structure principale qu'elle lit (`screen.commands`, de `grid-screen.ts`, d'après
 `available_commands`) : sa propre commande — `edit_planning` pour le planning —, car la phase du
 projet n'est pas celle de la révision (le devis d'un projet En cours est en lecture seule, le
-reste à engager non) et qu'un chiffreur peut saisir le devis sans toucher au planning. `readOnly` — révision marquée, ou
-aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une valeur sous
-enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
+reste à engager non) et qu'un chiffreur peut saisir le devis sans toucher au planning. `readOnly` —
+révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
+valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
 (`enums.NotComputableReason.*`, `indicator.tsx`).
 
@@ -1657,6 +1657,35 @@ recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 
 navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
 annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
 (EP-14/L42p).
+
+### Les grilles : créer et supprimer des tâches et des lignes
+
+Une grille se saisit, et offre ses gestes de structure, selon la commande de la structure qu'elle
+lit (`CostStructure.available_commands`, WF-IHM-0090) : `readGridScreen` rend celles qui sont
+disponibles (`commands`), le planning lit `edit_planning`, le devis `edit_estimate`, le reste à
+engager `edit_remaining`. Le front ne déduit jamais la phase du projet : sur la structure principale
+d'un projet En cours le devis est en lecture seule, le reste à engager l'est avant (WF-DEV-0050,
+WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
+ligne », « Supprimer » — sont dans le menu contextuel des cellules et aux touches Insert,
+Alt+Insert, Ctrl+Insert et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans
+`structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
+sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne sous laquelle il agit
+(libellé ; pour une ligne, catégorie et quantité, que le contrat exige), `createNode` et
+`deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une création désigne sa place par le
+nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un rang qu'une grille filtrée ne
+saurait compter : la ligne active pour « Insérer au-dessous » et pour une ligne sous une ligne ;
+sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous une tâche après sa
+dernière ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183, #1187). La
+suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas,
+et le focus revient alors à la cellule active de la grille. La grille est relue après une
+écriture, la lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version
+que la structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de
+tâche du devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de
+`edit_estimate` : créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que
+saisir le devis n'en crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la
+grille en nommant la ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une
+création sans ligne (la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit
+par `useSaid` et le refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
 
 ### Les grilles arborescentes : plier et déplier
 

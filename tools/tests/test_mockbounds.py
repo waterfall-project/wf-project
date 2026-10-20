@@ -38,10 +38,8 @@ REFUSED = {
         "backup_schedule_retention_out_of_range"
     ),
     ("updateReferenceSettings", "/max_weeks_between_reviews"): "reference_settings_out_of_range",
-    ("createNode", "/position"): "node_create_out_of_range",
     ("createNode", "/estimate_line/payment_delay_days"): "node_create_out_of_range",
     ("updateEstimateLine", "/payment_delay_days"): "estimate_line_payment_delay_out_of_range",
-    ("moveNodes", "/position"): "nodes_move_position_out_of_range",
     ("requestExport", "/depth"): "export_depth_out_of_range",
     ("updateMyPreferences", f"/grids/{ANY}/column_widths/{ANY}"): (
         "preferences_column_width_out_of_range"
@@ -302,21 +300,19 @@ def test_the_refusals_of_the_bounds_form_one_block_after_the_first_example(
 
 
 def test_the_examples_keep_within_the_bounds() -> None:
-    # The weekly schedules within the days of the week, the lines and nodes within theirs.
+    # The weekly schedules within the days of the week, the lines within theirs.
     weekday = published()["setBackupSchedule", "/weekday"]
     for path in sorted(mockwitness.FIXTURES.glob("backup_schedule*.json")):
         value: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))["value"]
         if value.get("weekday") is not None:
             assert weekday["minimum"] <= value["weekday"] <= weekday["maximum"], path.name
     delay = published()["createNode", "/estimate_line/payment_delay_days"]
-    position = published()["moveNodes", "/position"]
     volume = mockwitness.FIXTURES / "volume" / "nodes_thousand.json"
     nodes = json.loads(volume.read_text(encoding="utf-8"))["value"]["items"]
     lines = [node["estimate_line"] for node in nodes if node.get("estimate_line")]
     assert lines
     for line in lines:
         assert (line["payment_delay_days"] or 0) >= delay["minimum"], line["label"]
-    assert min(node["position"] for node in nodes) == position["minimum"]
     # Every example that bears widths of columns — the preferences, the account — keeps them at
     # least as wide as the narrowest admitted.
     width = published()["updateMyPreferences", f"/grids/{ANY}/column_widths/{ANY}"]

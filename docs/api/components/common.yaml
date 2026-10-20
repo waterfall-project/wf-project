@@ -145,7 +145,7 @@ Problem:
         plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux
         revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un
         projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au
-        moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le
+        moins `0`, le délai de paiement d'une ligne, au moins `0`, le
         niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde
         hebdomadaire, au moins `1`, ou la largeur d'une colonne des préférences de grille, au
         moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop
@@ -403,6 +403,10 @@ ErrorCode:
     # Un nœud d'organisation déplacé sous lui-même ou sous l'un de ses descendants : l'arbre
     # aurait une boucle (`/parent_id`, `updateOrgNode`, WF-REF-0070).
     - ORG_NODE_CYCLE
+    # Le nœud après lequel une création ou un déplacement se place, qui n'est pas un frère sous le
+    # parent visé : un nœud d'un autre parent, l'un des nœuds déplacés, ou un nœud que la
+    # structure n'a pas (`/after_node_id`, `createNode`, `moveNodes` ; #1183).
+    - NODE_NOT_SIBLING
     # Un dépôt désigné pour un autre usage que le sien : un import ouvert sur une sauvegarde
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).

@@ -5,24 +5,26 @@
  * of its function (`functions.json`): the banner of its reading context (WF-IHM-0020), which shows
  * the one filter its reads take — the sub-project, by which the nodes are read, said to restrict
  * the grid alone (#459): the indicators take the revision alone (`getRemainingIndicators`), and no
- * date —; the indicators of the remaining to commit (`RemainingSummary`); and the grid on the
- * main structure of the revision, its tasks and their lines, asked and handed the fields it shows
- * alone (`grid-screen.ts`), the lines of the tasks started alone unless the address asks the tasks
- * not started too (`progress`), which a link of its head offers, and filtered by a lot or a post of
- * the work breakdown read whole, above it, as the estimate's (WF-RAE-0040). The grid is entered from
- * the keyboard, and places undo and redo, when the structure lists `edit_remaining` available
- * to the caller (US-0140, WF-RAE-0040): before the project is in progress it lists it unavailable,
- * and the grid is read only. Its head leads
- * to the Kanban of the start of the tasks, a leaf with a screen of its own (FBS-4.5.3), in the
- * same context, and, when the project lists the import of a remaining to commit, to the imports
- * and exports, where it is exercised (#521). Indicators the API does not find are said unavailable, the rest of the screen
- * shown; any other refusal follows the rule of the reads.
+ * date —; the indicators of the remaining to commit (`RemainingSummary`); and the grid on the main
+ * structure of the revision, its tasks and their lines, asked and handed the fields it shows alone
+ * (`grid-screen.ts`), the lines of the tasks started alone unless the address asks the tasks not
+ * started too (`progress`), which a link of its head offers, and filtered by a lot or a post of the
+ * work breakdown read whole, above it, as the estimate's (WF-RAE-0040). The grid is entered from
+ * the keyboard, its tasks and its lines created and deleted, and places undo and redo, when the
+ * structure lists `edit_remaining` available to the caller (US-0140, WF-RAE-0040): before the
+ * project is in progress it lists it unavailable, and the grid is read only. The categories a line
+ * is created from are read then. Its head leads to the Kanban of the start of the tasks, a leaf
+ * with a screen of its own (FBS-4.5.3), in the same context, and, when the project lists the import
+ * of a remaining to commit, to the imports and exports, where it is exercised (#521). Indicators
+ * the API does not find are said unavailable, the rest of the screen shown; any other refusal
+ * follows the rule of the reads.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
@@ -73,6 +75,27 @@ async function readIndicators({ revision }: GridAddress) {
       },
     }),
   );
+}
+
+/** The refusals of the categories a line is created from the screen does without. */
+const CATEGORY_REFUSALS = [{ status: 404 }, { status: 403 }] as const;
+
+/**
+ * The categories of cost a line is created from, the active ones — a line created takes an active
+ * category (WF-REF-0150) —, as the grid reads them; none when the API refuses the list, and the grid
+ * then creates no line.
+ */
+async function readCategories() {
+  const categories = await readEveryPageUnlessRefused(
+    "listCostCategories",
+    CATEGORY_REFUSALS,
+    (page) => serverClient().GET("/reference/cost-categories", { params: { query: { ...page } } }),
+  );
+  return categories?.map((category) => ({
+    id: category.cost_category_id,
+    label: category.label,
+    active: category.is_active,
+  }));
 }
 
 /**
@@ -152,16 +175,19 @@ export default async function RemainingPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "remaining");
   const progress = readProgress(at.address);
-  const [screen, indicators] = await Promise.all([
-    readGridScreen(at, {
-      key: REMAINING_GRID.key,
-      sortable: REMAINING_SORT_COLUMNS,
-      fields: REMAINING_FIELDS,
-      progress: [...progress],
-      byBreakdown: true,
-    }),
-    readIndicators(at),
-  ]);
+  // The categories are read where the grid is entered alone — it is where a line is created —, as
+  // soon as the structure says so, with the indicators still under way.
+  const grid = readGridScreen(at, {
+    key: REMAINING_GRID.key,
+    sortable: REMAINING_SORT_COLUMNS,
+    fields: REMAINING_FIELDS,
+    progress: [...progress],
+    byBreakdown: true,
+  }).then(async (read) => ({
+    screen: read,
+    categories: read.commands.has("edit_remaining") ? await readCategories() : undefined,
+  }));
+  const [{ screen, categories }, indicators] = await Promise.all([grid, readIndicators(at)]);
   const notStarted = progress.includes("not_started");
   const editable = screen.commands.has("edit_remaining");
   return (
@@ -197,6 +223,7 @@ export default async function RemainingPage({
             structure={screen.structure}
             filters={screen.filters}
             editable={editable}
+            categories={categories}
             query={screen.query}
             preferences={screen.preferences}
           />

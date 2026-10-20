@@ -306,7 +306,7 @@ export interface Examples {
     201: "skeleton_generated";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    201: "estimate_line_created" | "node_created" | "node_created_child";
+    201: "estimate_line_created" | "estimate_line_created_after_subtask" | "node_created" | "node_created_child";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move": {
     200: "nodes_indented" | "nodes_moved";

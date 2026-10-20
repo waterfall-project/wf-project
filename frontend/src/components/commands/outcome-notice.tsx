@@ -100,6 +100,11 @@ export interface OutcomeNoticeProps {
    * refusal: the object in conflict otherwise, when the refusal names one.
    */
   readonly subject?: string | undefined;
+  /**
+   * What the refusal is said to, told before its sentence inside the alert — the row of a grid it was
+   * refused at —, so that the alert is read whole.
+   */
+  readonly lead?: string | undefined;
 }
 
 /**
@@ -375,6 +380,7 @@ export function OutcomeNotice({
   onDismissed,
   id,
   subject,
+  lead,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
   const failure = useTranslations("failure");
@@ -389,9 +395,11 @@ export function OutcomeNotice({
     onDismissed?.();
   };
   const dismiss = dismissible ? <Dismiss onClear={dismissed} told={sentenceId} /> : null;
+  const leading = lead === undefined ? null : <p className="font-medium">{lead}</p>;
   if (refusal.kind === "unreachable") {
     return (
       <div role="alert" className={ALERT}>
+        {leading}
         <p id={sentenceId} className={SENTENCE}>
           <WifiOff aria-hidden="true" className={ICON} />
           {told.sentence}
@@ -408,6 +416,7 @@ export function OutcomeNotice({
   return (
     <div className={ALERT}>
       <div role="alert" className="space-y-1">
+        {leading}
         <p id={sentenceId} className={SENTENCE}>
           <CircleAlert aria-hidden="true" className={ICON} />
           {told.sentence}
