@@ -39,6 +39,7 @@ import {
 } from "./remaining";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
+import { useStructureVersion } from "./structure-version";
 import type { LineCategory } from "./structure-rules";
 
 /**
@@ -53,6 +54,8 @@ export interface RemainingGridProps {
   readonly nodes: NodeRows<RemainingNode>;
   /** The structure the rows belong to. */
   readonly structure: StructurePath;
+  /** The version of the structure read with the page, which a move of the gestures carries. */
+  readonly structureVersion: number;
   /**
    * What the reading asked of the nodes besides their fields and their sort, as it was sent — the
    * states of the tasks always —, whose totals the grid reads anew by the same request.
@@ -76,7 +79,11 @@ export interface RemainingGridProps {
  * narrows to some states of the tasks (`progress`): its totals are never those of the structure a
  * write answers, and are read anew by the same request.
  */
-function structureWrites(structure: StructurePath, filters: NodeFilters): RemainingWrites {
+function structureWrites(
+  structure: StructurePath,
+  filters: NodeFilters,
+  reach: (version: number) => void,
+): RemainingWrites {
   return {
     totals: () => readNodeTotals(structure, filters),
     line: async (node, basis) => {
@@ -84,9 +91,11 @@ function structureWrites(structure: StructurePath, filters: NodeFilters): Remain
         reestimated_amount_basis: basis,
         lock_version: node.lock_version,
       });
-      return outcome.kind === "done"
-        ? { kind: "done", data: nodesWritten(outcome.data, REMAINING_FIELDS, false) }
-        : outcome;
+      if (outcome.kind !== "done") {
+        return outcome;
+      }
+      reach(outcome.data.structure_lock_version);
+      return { kind: "done", data: nodesWritten(outcome.data, REMAINING_FIELDS, false) };
     },
   };
 }
@@ -95,6 +104,7 @@ function structureWrites(structure: StructurePath, filters: NodeFilters): Remain
 export function RemainingGrid({
   nodes,
   structure,
+  structureVersion,
   filters,
   editable,
   categories,
@@ -107,12 +117,25 @@ export function RemainingGrid({
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
+  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
   const gestures = useStructureGestures<RemainingNode>(
-    editable ? { structure, tasks: true, lines: true, categories } : undefined,
+    editable
+      ? {
+          structure,
+          tasks: true,
+          lines: true,
+          categories,
+          rows: nodes.items,
+          version,
+        }
+      : undefined,
+    (written) => {
+      reach(written.structure_lock_version);
+    },
   );
   const config = useMemo(
-    () => remainingGrid(editable ? structureWrites(structure, filters) : undefined),
-    [editable, structure, filters],
+    () => remainingGrid(editable ? structureWrites(structure, filters, reach) : undefined),
+    [editable, structure, filters, reach],
   );
   return (
     <DenseGrid

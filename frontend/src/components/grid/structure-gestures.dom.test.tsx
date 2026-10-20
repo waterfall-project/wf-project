@@ -9,7 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  held,
+  type Problem,
+} from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
 import { EstimateGrid } from "./estimate-grid";
@@ -195,6 +202,7 @@ function remainingGrid(editable: boolean, withCategories = true, nodes: NodeList
       <RemainingGrid
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={{ progress: ["started"] }}
         editable={editable}
         categories={withCategories ? categories : undefined}
@@ -222,10 +230,14 @@ beforeEach(() => {
   forgetMessages();
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
-  router.refresh.mockClear();
+  // The implementation a test gave `refresh` (`holdReading`) goes with the test.
+  router.refresh.mockReset();
 });
 
 afterEach(() => {
+  // A reading a test held is let go, so that none outlives it.
+  reading.release?.();
+  delete reading.release;
   vi.restoreAllMocks();
 });
 
@@ -424,6 +436,36 @@ describe("the gestures that delete tasks and lines", () => {
       });
     });
 
+    it("gives the focus back when the removal and the end of the reading come in one commit, as Next commits them", async () => {
+      const view = await deleteHeld();
+      await act(async () => {
+        view.rerender(without());
+        reading.release?.();
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(screen.getByRole("treegrid")).toContainElement(
+          document.activeElement instanceof HTMLElement ? document.activeElement : null,
+        );
+      });
+    });
+
+    it("forgets the cell of a reading that was not seen, so a later removal takes no focus", async () => {
+      // `refresh` returns at once here: the reading is over before it was observed.
+      serve({ [DELETE]: "node_deleted" });
+      const view = render(estimateGrid());
+      await activate(LINE);
+      await userEvent.keyboard("{Control>}{Delete}{/Control}");
+      await screen.findByText("« Raccordement des borniers » supprimée.");
+      const field = filter();
+      await act(async () => {
+        view.rerender(without());
+        await Promise.resolve();
+      });
+      expect(document.activeElement).toBe(field);
+      field.remove();
+    });
+
     it("does not take the focus from a field the user went to during the reading", async () => {
       const view = await deleteHeld();
       const field = filter();
@@ -507,6 +549,39 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     const { messages } = readMessages();
     expect(messages).toHaveLength(1);
     expect(messages[0]).toMatchObject({ tone: "refusal", object: "Pièces" });
+  });
+
+  it("says a node to follow that is no sibling by its reason, at the row it was asked from", async () => {
+    // The envelope says only that the entry is invalid; its field says why (`NODE_NOT_SIBLING`).
+    serve({
+      [CREATE]: { problem: example("node_create_after_not_sibling") as Problem & { status: 422 } },
+    });
+    render(estimateGrid());
+    await choose(TASK, "Insérer au-dessous");
+    await create("Note de calcul des protections");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      `Refusé à la ligne ${String(node(TASK)?.row_number)}, « Câblage des armoires » :`,
+    );
+    expect(alert).toHaveTextContent(
+      "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : relisez la grille.",
+    );
+    // The reading is stale: the grid is read anew, and the refusal stays told.
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes every write of the hook, the deletion too, through the reading of the reason of a field, which leaves a refusal without field as it is", async () => {
+    // `byField` holds for `deleteNode` as for `createNode` and `moveNodes`; the contract cites no
+    // field for a deletion, so its refusal is told by its own code.
+    serve({ [DELETE]: COMPLETED_REFUSED });
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      `Refusé à la ligne ${String(node(LINE)?.row_number)}, « Raccordement des borniers » :`,
+    );
+    expect(alert).toHaveTextContent("Condition non remplie");
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 
   it("marks the row it was asked from, though the active row changed while the write was under way", async () => {

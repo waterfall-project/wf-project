@@ -4,9 +4,10 @@
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
  * `updateEstimateLine`, `setLineRemaining`), a task or a line created and a node deleted
- * (`createNode`, `deleteNode`), a block pasted from a spreadsheet (`previewPaste`, `applyPaste`),
- * the totals of a filtered reading read anew (`listNodes`), the skeleton of the planning generated
- * on an empty main structure (`generatePlanningSkeleton`) —: the grid asks the server of Next,
+ * (`createNode`, `deleteNode`), nodes moved under a task (`moveNodes`), a block pasted from a
+ * spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew
+ * (`listNodes`), the skeleton of the planning generated on an empty main structure
+ * (`generatePlanningSkeleton`) —: the grid asks the server of Next,
  * which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer
  * (`src/api/problem.ts`).
  */
@@ -199,6 +200,27 @@ export async function deleteNode(
     serverClient().DELETE(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}",
       nodePath(structure, nodeId),
+    ),
+  );
+}
+
+/**
+ * Move nodes of the structure of a grid under a parent, after the node the gesture names
+ * (WF-PLA-0080, WF-PLA-0040; #1183): an indentation is a move under the task above, in the last
+ * place, and an outdentation a move after the parent, under the parent of it. The API answers the
+ * nodes as they now are, their old and new ancestors recalculated, the tasks redated, the totals and
+ * the version the structure moved on to — or refuses it, a link a summary would hold to one of its
+ * subordinates (`LINK_FORBIDDEN`), a loop (`LINK_CYCLE`) or a node to follow that is no sibling
+ * (`NODE_NOT_SIBLING`) among its reasons; nothing is written then.
+ */
+export async function moveNodes(
+  structure: StructurePath,
+  move: components["schemas"]["NodeMove"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().POST(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move",
+      { ...nodesPath(structure), body: move },
     ),
   );
 }

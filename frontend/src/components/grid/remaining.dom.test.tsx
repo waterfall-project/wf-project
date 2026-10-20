@@ -79,6 +79,7 @@ function grid(
       <RemainingGrid
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={filters}
         editable={editable}
         query={NO_QUERY}
@@ -167,6 +168,7 @@ describe("the grid of the remaining to commit", () => {
         <RemainingGrid
           nodes={example("nodes_estimate") as NodeList}
           structure={STRUCTURE}
+          structureVersion={1}
           filters={{ progress: ["started"] }}
           editable
           query={{ sort: { column: "progress", order: "desc" }, search: undefined }}

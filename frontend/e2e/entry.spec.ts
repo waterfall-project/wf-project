@@ -40,13 +40,21 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
   return rowAt(grid, row).getByRole("gridcell").nth(column);
 }
 
+/**
+ * How long a check of absence waits, in milliseconds: a bound chosen, not an event — when nothing
+ * should be sent, no request or response is there to wait for. It is longer than the round trip of
+ * a write to the fake back, which a write sent late would have joined.
+ */
+const ABSENCE = 750;
+
 /** Let the round trips under way come back, which a write sent late would have joined. */
 async function settle(page: Page): Promise<void> {
   await page.evaluate(
-    () =>
+    (wait) =>
       new Promise<void>((resolve) => {
-        setTimeout(resolve, 750);
+        setTimeout(resolve, wait);
       }),
+    ABSENCE,
   );
 }
 
@@ -255,7 +263,9 @@ test("re-estimates the figures of a line of the remaining to commit from the key
   });
   const writes: string[] = [];
   page.on("request", (request) => {
-    // A write carries the version of the node it changes; the read of the totals after it does not.
+    // A write is a server action (the header `next-action`) whose body carries the version of the
+    // node it changes (`lock_version`, in the body of `setLineRemaining`); the read of the totals
+    // after it, another action, carries none. This reads the body of the action, and is kept to it.
     const body = request.method() === "POST" ? request.postData() : null;
     if (body?.includes("lock_version") === true && request.headers()["next-action"] !== undefined) {
       writes.push(request.url());
