@@ -2972,7 +2972,7 @@ class RevisionComparison(ContractModel):
     amount_deltas: Annotated[
         list[AmountDelta],
         Field(
-            description="Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de même sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens."
+            description="Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de même sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens. L'écart se compte par ligne retenue, selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y apporte son écart entier, son montant dans la révision comparée moins celui de la révision de base, où qu'elle fût dans celle-ci. Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois."
         ),
     ]
 

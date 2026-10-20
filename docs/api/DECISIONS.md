@@ -6659,6 +6659,24 @@ n'ayant pas de pagination, il n'y a pas de « première fenêtre » : chaque lec
 comme chaque lecture de `listNodes` ses totaux. Écarté : des écarts toujours de toute la structure,
 qui feraient d'`amount_deltas` la seule valeur de la réponse que ses filtres ne restreignent pas.
 
+**L'écart se compte par ligne retenue, selon le parent de la révision comparée.** Le diff rend un
+nœud déplacé une fois, à sa place nouvelle ; la fenêtre le retient par cette place, et ses écarts
+de même : une ligne déplacée dans un sous-arbre y apporte son écart entier — son montant dans la
+révision comparée moins celui de la révision de base —, une ligne déplacée hors de lui n'y compte
+plus rien. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière,
+chaque ligne comptée une fois. Écarté : compter une ligne déplacée dans chaque fenêtre, pour son
+montant de base dans celle qu'elle quitte et son montant comparé dans celle où elle entre — la
+ligne y serait sans être rendue, et une fenêtre compterait ce qu'elle ne montre pas.
+
+**`subtree_of` sur une tâche retirée** rend le sous-arbre qu'elle avait dans la révision de base,
+ses nœuds retirés à leur place : la tâche est de l'arbre rendu, et la grille offre de la déplier
+comme les autres. Ses totaux sont nuls, la révision comparée n'en ayant aucune ligne, et ses écarts
+sont ceux de ses lignes retirées. Écarté : un refus 422, qui rendrait illisible une tâche que la
+comparaison rend. **Le tri** ne réordonne que les lignes sous chaque tâche : une ligne retirée se
+trie parmi celles de sa tâche par les valeurs qu'elle avait, celles qu'elle rend ; une tâche
+retirée garde sa place dans l'ordre du plan. `NodeSortBy`, partagé, dit le tri sans nommer les
+exemples ni les grilles de `listNodes`, que son chemin dit désormais.
+
 **Les exemples sont des fenêtres**, engendrés par `wftools.mockhistory`. `comparison`, le premier,
 est le sous-arbre de l'installation sur site (`subtree_of`), comme `nodes_amendment` sur le
 différentiel : 9 nœuds, et chaque marque — deux ajoutés, la tâche et la ligne retirées, à leur

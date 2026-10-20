@@ -278,6 +278,12 @@ def comparison(
     had (``mockdiff``, C-361); the totals and the meta of the later, as ``listNodes`` gives them,
     the nodes removed not counted; and the deltas of the estimate at the year of reference, of the
     lines the reading retains, those removed with them.
+
+    A line is retained by its parent in the later, where the marked tree renders it, and brings
+    its whole delta, the later's amount less the earlier's, wherever it was: moved out of the
+    subtree it counts nothing there, moved in it counts whole. A removed task reads the subtree it
+    had, its nodes removed at their place: no line of the later, totals of none, the deltas of its
+    removed lines (`amount_deltas`, `compareRevisions`).
     """
     nodes = mockdiff.marked(before, after)
     if subtree_of is None:

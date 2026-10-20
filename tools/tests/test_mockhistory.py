@@ -402,12 +402,20 @@ def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_o
     # the lines it retains, those removed with them, which the deltas of the whole sum beyond.
     window = history["comparison"]
     reference = mockhistory.reference_rows()
-    below = {universe(N.INSTALLATION)}
-    for node in whole["items"]:
-        if node["parent_id"] in below:
-            below.add(node["node_id"])
+    numbers = (
+        N.INSTALLATION,
+        N.MOUNTING,
+        N.WIRING_ON_SITE,
+        N.TESTS_LINE,
+        N.COMMISSIONING,
+        N.COMMISSIONING_LINE,
+        N.REFERENCE_PROVISION_753,
+        N.SITE_TRIALS,
+        N.SITE_TRIALS_LINE,
+    )
+    below = [universe(number) for number in numbers]
+    assert [node["node_id"] for node in window["items"]] == below
     assert window["items"] == [node for node in whole["items"] if node["node_id"] in below]
-    assert len(window["items"]) == 9
     reading = mockcore.subtree(reference, N.INSTALLATION)
     assert (window["totals"], window["meta"]) == (reading["totals"], reading["meta"])
     assert {node["difference"] for node in window["items"]} == {
@@ -419,9 +427,8 @@ def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_o
     referenced = {row.number: row for row in reference}
     lines = [
         number
-        for number in {*offer, *referenced}
-        if universe(number) in below
-        and (offer.get(number) or referenced[number]).kind == "estimate_line"
+        for number in numbers
+        if (offer.get(number) or referenced[number]).kind == "estimate_line"
     ]
 
     def base(rows: dict[int, mockcore.Row], number: int) -> Decimal:

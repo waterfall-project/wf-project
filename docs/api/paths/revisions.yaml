@@ -291,13 +291,20 @@
       avaient, en lecture seule (`NodeDifference`) : une tâche ajoutée, retirée ou modifiée —
       par ses dates, sa durée, son état ou son parent —, une ligne par ses montants ou son
       parent, et une récapitulative dont le contenu change, marquée modifiée. Les filtres, la
-      recherche et le tri s'y appliquent comme à la lecture d'un différentiel, et `subtree_of`
-      nomme une tâche de l'arbre rendu. `totals` est celui de `listNodes` sur la révision
-      comparée : les lignes retenues, sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ;
-      `meta` dit la structure de la révision comparée (`NodeListMeta`). `amount_deltas` vient
-      dans chaque réponse, comme `totals`, et se calcule de même sur les lignes retenues,
-      retirées comprises, quel que soit `kinds` : une lecture sans filtre rend les écarts de
-      toute la structure, celle d'un sous-arbre les siens (`comparison`). La grille de la
+      recherche et le tri s'y appliquent comme à la lecture d'un différentiel. Quand `sort_by`
+      réordonne les lignes d'une tâche, une ligne retirée se trie parmi les lignes de sa tâche
+      comme les autres, par les valeurs qu'elle avait dans la révision de base, celles qu'elle
+      rend ; une tâche retirée, comme toute tâche, garde sa place dans l'ordre du plan.
+      `subtree_of` nomme une tâche de l'arbre rendu, une tâche retirée comprise : la fenêtre
+      est alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur
+      place, des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts
+      de ses lignes retirées. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues,
+      sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ; `meta` dit la structure de
+      la révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme
+      `totals`, et se calcule de même sur les lignes retenues, retirées comprises, quel que
+      soit `kinds` : une lecture sans filtre rend les écarts de toute la structure, celle d'un
+      sous-arbre les siens (`comparison`) ; une ligne déplacée compte dans la fenêtre de son
+      parent dans la révision comparée, pour son écart entier (`amount_deltas`). La grille de la
       comparaison est celle des structures, avec les mêmes marques que la lecture d'un
       différentiel. Une paire identique — la même révision deux fois — rend chaque nœud
       inchangé et aucun écart de montant, jamais un refus.
@@ -520,7 +527,14 @@
       les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien. Une
       grille arborescente ne se trie pas : les tâches gardent l'ordre de l'arbre, et le tri
       n'y est qu'un tri des lignes de devis sous chaque tâche, chaque ligne restant sous la
-      sienne (WF-IHM-0060). Un filtre sur une
+      sienne (WF-IHM-0060, `sort_by`) : trié par montant décroissant, le devis rend sous
+      chaque tâche ses lignes du plus grand montant au plus petit, et ses tâches à leur place
+      (`estimate_sorted`) ; une ligne sans heures vient après les autres dans l'ordre
+      croissant des heures, avant dans le décroissant (`estimate_hours`). Les grilles de devis
+      et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes qu'elles
+      présentent pour les lignes ; la grille de planning, qui ne rend pas les lignes, ne
+      propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou une
+      chronologie. Un filtre sur une
       tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie —
       retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur
       une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le
