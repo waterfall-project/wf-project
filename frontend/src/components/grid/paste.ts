@@ -29,7 +29,8 @@
  * confirmation did not write — the refusals of the preview, and those the server adds judging the
  * accepted rows again — is told with the cell the block was pasted from and the number of rows
  * written, the refusals in a region whose height is bounded, until the next paste or until the user
- * dismisses it (`applied`). A paste abandoned asks nothing more, and an answer that arrives after
+ * dismisses it (`applied`) — a paste that wrote every row tells nothing, the grid showing them,
+ * and both are noted in the history of the messages. A paste abandoned asks nothing more, and an answer that arrives after
  * it is dropped. The grid judges nothing of what is pasted: the server reads the cells, and says why.
  *
  * A grid without `paste` in its configuration — read only — takes no paste: the browser does what
@@ -114,9 +115,9 @@ export interface Pasting {
 }
 
 /**
- * What a paste confirmed did not write, told once it is applied: where the block was pasted from,
- * how many rows the server wrote, the rows it refused, each with its reason, and the block they are
- * rows of.
+ * What a paste confirmed wrote and did not write, once it is applied: where the block was pasted
+ * from, how many rows the server wrote, the rows it refused — none, it wrote every row —, each with
+ * its reason, and the block they are rows of.
  */
 export interface PasteReport {
   readonly target: PasteTarget;
@@ -322,7 +323,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // The column the grid does not show a refused block would reach, named to the user (#200).
   const [hidden, setHidden] = useState<Unshown>();
-  // What the last paste applied did not write, told until the next one.
+  // What the last paste applied wrote and did not write, kept until the next one.
   const [applied, setApplied] = useState<PasteReport>();
   // The paste an answer belongs to: one abandoned, or another started, drops the answer.
   const current = useRef(0);
@@ -432,16 +433,13 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       if (answer.kind === "done") {
         const { written, rejected: refused } = answer.data;
         writes.applied(written);
-        setApplied(
-          refused.length === 0
-            ? undefined
-            : {
-                target: pasting.target,
-                written: written.rows.length,
-                rejected: refused,
-                block: pasting.block,
-              },
-        );
+        // Told on the grid when rows were refused; noted in the history of the messages either way.
+        setApplied({
+          target: pasting.target,
+          written: written.rows.length,
+          rejected: refused,
+          block: pasting.block,
+        });
       }
       current.current += 1;
       setPasting(undefined);
@@ -454,7 +452,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     outcome,
     /** The column the grid does not show a refused block would reach, if one was refused for it. */
     hidden,
-    /** What the last paste applied did not write; none when it wrote every row. */
+    /** What the last paste applied wrote and did not write. */
     applied,
     apply,
     /** Abandon the paste shown, before it is applied: nothing more is asked, nothing written. */

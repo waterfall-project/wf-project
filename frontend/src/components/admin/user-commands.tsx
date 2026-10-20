@@ -41,6 +41,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { rejected } from "@/components/commands/rejection";
+import { type Say, useSaid } from "@/components/notices/said";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { Button } from "@/components/ui/button";
 
@@ -104,7 +105,7 @@ export interface UserWrites {
   /** Ask the confirmation of the anonymisation of an account, from the command pressed. */
   readonly anonymize: (user: User, back: HTMLElement | null) => void;
   /** Say in the region of the table what a command did, or the condition it lacks. */
-  readonly say: (text: string) => void;
+  readonly say: Say;
 }
 
 const WritesContext = createContext<UserWrites | undefined>(undefined);
@@ -168,10 +169,8 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("admin.users");
   const list = useListReport();
   const naming = useAccountNaming();
-  const [said, setSaid] = useState<{ readonly text: string; readonly count: number }>();
-  const say = useCallback((text: string) => {
-    setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-  }, []);
+  // What the last write did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const [answered, setAnswered] = useState<ReadonlyMap<string, User>>(() => new Map());
   // The same, as the last answer left them: an event reads it, which may run before the render.
   const latestAnswers = useRef<ReadonlyMap<string, User>>(answered);
@@ -332,7 +331,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
           linking={linking}
           onCreated={(user) => {
             const name = naming.person(user);
-            say(t(user.invitation_sent ? "created" : "createdUninvited", { name }));
+            say(t(user.invitation_sent ? "created" : "createdUninvited", { name }), {
+              object: name,
+            });
           }}
           onLink={(user) => {
             giveLink(user, naming.person(user), creating.trigger);

@@ -12,6 +12,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
@@ -166,6 +167,21 @@ describe("the deposit of a backup of another installation", () => {
       "Le format du fichier est illisible.",
     );
     expect(within(region).queryByRole("button", { name: "Restaurer cette sauvegarde" })).toBeNull();
+  });
+
+  it("notes the deposit once, at the date its manifest says, about the archive deposited", async () => {
+    forgetMessages();
+    serve(DEPOSITED);
+    const region = deposit();
+    await deposited(region);
+    const date = formatTimestamp(TAKEN_AT, "fr");
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: `Sauvegarde du ${date} déposée : waterfall-2026-06-02.tar.`,
+        object: "waterfall-2026-06-02.tar",
+      }),
+    ]);
   });
 
   it("breaks no rule of accessibility, deposited", async () => {

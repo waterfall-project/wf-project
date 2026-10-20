@@ -17,7 +17,7 @@ import { BackupList } from "@/components/admin/platform-lists";
 import { Restoration } from "@/components/admin/restoration";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
-import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
+import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import type { ListPage } from "@/navigation/pages";
@@ -71,6 +71,7 @@ export function backupList(
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <TaskTracker>
+        <TasksButton />
         <TaskPanel />
         <main>
           <Restoration>

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { findOffer } from "@/components/commands/offer";
 import type { Revision } from "@/components/context/read-only";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
   example,
@@ -147,6 +148,7 @@ function written(client: FakeClient) {
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -331,6 +333,10 @@ describe("the skeleton of the planning", () => {
     );
     expect(told).toHaveAttribute("role", "status");
     expect(told).toHaveFocus();
+    // Noted once in the history of the messages, as the screen says it.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: told.textContent }),
+    ]);
     expect(client.calls.map((call) => call.path)).toEqual([
       `/projects/${EMPTY.project_id}/revisions/${EMPTY.revision_id}/skeleton`,
     ]);

@@ -11,11 +11,12 @@ import type { components } from "@/api/generated/schema";
 import type { Project } from "@/components/context/reading";
 import type { Revision } from "@/components/context/read-only";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
-import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
+import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
+import { tasksRegion } from "@/test/task-panel";
 
 import { ExportForm } from "./export-form";
 import { ImportCommands } from "./import-commands";
@@ -67,6 +68,7 @@ function shell(part: ReactNode, locale: "fr" | "en" = "fr") {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
       <TaskTracker>
+        <TasksButton />
         <TaskPanel />
         <main>{part}</main>
       </TaskTracker>
@@ -101,7 +103,7 @@ function report(entry: Import) {
 
 /** The region of the tasks of the shell. */
 function tasks() {
-  return screen.getByRole("region", { name: "Tâches de fond" });
+  return tasksRegion();
 }
 
 /** Wait until a form no longer waits for the answer of its action. */
@@ -128,7 +130,12 @@ describe("the first step of an import", () => {
   it("offers the import of each kind as the server offers it, an unavailable one with what it lacks", async () => {
     serve({});
     const { container } = open(importCommands("project_completed"));
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+    const main = screen.getByRole("main");
+    expect(
+      within(main)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual([
       "Importer un planning MS Project",
       "Importer un devis",
       "Importer un reste à engager",
@@ -146,7 +153,7 @@ describe("the first step of an import", () => {
     serve({});
     const { container } = open(importCommands("project_pricing_estimator"));
     const estimate = screen.getByRole("button", { name: "Importer un devis" });
-    expect(screen.getAllByRole("button")).toEqual([estimate]);
+    expect(within(screen.getByRole("main")).getAllByRole("button")).toEqual([estimate]);
     expect(estimate).toHaveAttribute("aria-disabled", "true");
     expect(estimate).toHaveAccessibleDescription(
       "Condition non remplie\u00A0: avoir la permission de créer une révision.",
@@ -331,10 +338,10 @@ describe("the report of an import", () => {
     expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
       [`/projects/${PROJECT}/imports/${IMPORT}/apply`, { confirmed: true }],
     ]);
+    expect(screen.getByRole("button", { name: "Appliquer l’import" })).toHaveFocus();
     expect(
       within(tasks()).getByText("Application d’un import « devis-poste-de-commande.xlsx »"),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Appliquer l’import" })).toHaveFocus();
   });
 
   it("applies nothing when the confirmation is cancelled, and tells a refusal of the application", async () => {
@@ -437,7 +444,7 @@ describe("the report of an import", () => {
       throw new Error("the example of the imports holds one applied");
     }
     open(report(applied));
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(within(screen.getByRole("main")).queryByRole("button")).toBeNull();
     expect(screen.getByText("Cet import n’a pas de compte rendu.")).toBeVisible();
   });
 

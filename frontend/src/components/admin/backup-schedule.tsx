@@ -38,6 +38,8 @@ import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { useLocalTimestamp } from "@/components/local-time";
+import { useNoteMessage } from "@/components/notices/message-history";
+import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";
 import {
   type Draft,
@@ -255,13 +257,17 @@ function TestOutcome({ test }: { readonly test: ExternalBackupLocationTest }) {
     folder: test.path == null ? "root" : "path",
     path: test.path ?? "",
   };
-  return (
-    <>
-      {test.failure == null
-        ? t("tested", where)
-        : t("testFailed", { ...where, failure: failures(test.failure) })}
-    </>
-  );
+  const sentence =
+    test.failure == null
+      ? t("tested", where)
+      : t("testFailed", { ...where, failure: failures(test.failure) });
+  // A success no screen shows but this sentence, kept in the history of the messages too.
+  useNoteMessage(test, {
+    tone: test.failure == null ? "success" : "refusal",
+    sentence,
+    object: test.location,
+  });
+  return <>{sentence}</>;
 }
 
 /**
@@ -530,12 +536,6 @@ function ScheduleForm({
   );
 }
 
-/** What the last modification did, and the how-many-th it was. */
-interface Said {
-  readonly text: string;
-  readonly count: number;
-}
-
 /**
  * The schedule of the backups under its title, and, to a session that may modify the backups — the
  * page hands over the locations the installation declares to it alone —, the command that opens its
@@ -559,7 +559,8 @@ export function BackupScheduleSection({
   const openings = useRef(0);
   // Whether a write is under way: the command waits for its answer, which brings the version.
   const [writing, setWriting] = useState(false);
-  const [said, setSaid] = useState<Said>();
+  // What the last modification did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const trigger = useRef<HTMLButtonElement>(null);
   const why = useId();
   const shown =
@@ -607,7 +608,7 @@ export function BackupScheduleSection({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
-            setSaid((before) => ({ text: t("form.saved"), count: (before?.count ?? 0) + 1 }));
+            say(t("form.saved"));
             // A guard of the waiting command (`onWriting`), which serves in no normal use: no other
             // opening can come before the answer.
             setOpened((current) => (current?.opening === opened.opening ? undefined : current));

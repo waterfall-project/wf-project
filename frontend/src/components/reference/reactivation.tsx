@@ -61,6 +61,8 @@ interface Reported {
    * a checkbox of the matrix of the permissions —; none, the active cell of the grid, or the list.
    */
   readonly back?: HTMLElement | null | undefined;
+  /** What the command was about, by its name, which the history of the messages notes. */
+  readonly subject?: string | undefined;
 }
 
 /** A command that changes the state of an object of the reference data. */
@@ -248,6 +250,7 @@ export function Reactivations({
             key={each.key}
             outcome={each.outcome}
             names={each.names}
+            subject={each.subject}
             onClear={() => {
               setReported((before) => before.filter((kept) => kept.key !== each.key));
             }}

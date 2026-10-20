@@ -11,6 +11,7 @@ import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -35,6 +36,7 @@ import {
   type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
 import { readDownloadRefusal } from "./backup-address";
 
@@ -91,6 +93,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -203,7 +206,7 @@ describe("the commands of the backups", () => {
       );
     });
     expect(bodies(client, START)).toEqual([undefined]);
-    const tasks = screen.getByRole("region", { name: "Tâches de fond" });
+    const tasks = tasksRegion();
     expect(within(tasks).getByText("Sauvegarde")).toBeVisible();
     // Failed, the task offers to run its command again: another backup is started.
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
@@ -213,14 +216,40 @@ describe("the commands of the backups", () => {
     });
   });
 
+  it("note nothing of a command unavailable pressed, nothing having been sent", async () => {
+    serve();
+    render(backupList([PENDING], { startable: false }));
+    await userEvent.click(
+      within(row(PENDING)).getByRole("button", {
+        name: `Télécharger la sauvegarde du ${dated(PENDING)}`,
+      }),
+    );
+    expect(announced()).toContain(
+      `Télécharger la sauvegarde du ${dated(PENDING)}\u00a0: indisponible. Condition non remplie\u00a0: sauvegarde vérifiée.`,
+    );
+    expect(readMessages().messages).toEqual([]);
+  });
+
+  it("note a backup started once, as the task the tracker is handed, not as what the list says", async () => {
+    serve();
+    render(backupList());
+    await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
+    await vi.waitFor(() => {
+      expect(announced()).toContain(
+        "Sauvegarde lancée\u00a0: son avancement se suit dans les tâches de fond.",
+      );
+    });
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: "Tâche lancée\u00a0: Sauvegarde." }),
+    ]);
+  });
+
   it("say above the list a backup the server refuses to start, nothing tracked", async () => {
     serve({ [START]: { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } } });
     render(backupList());
     await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
     expect(await screen.findByRole("alert")).toBeVisible();
-    expect(
-      within(screen.getByRole("region", { name: "Tâches de fond" })).queryByText("Sauvegarde"),
-    ).toBeNull();
+    expect(within(tasksRegion()).queryByText("Sauvegarde")).toBeNull();
   });
 
   it("say above the list a backup refused while another runs, naming the condition that lacks (409) [WF-IHM-0090-A]", async () => {

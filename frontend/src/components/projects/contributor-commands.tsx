@@ -55,8 +55,9 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { UnmetConditions } from "@/components/commands/command";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { WritingNote } from "@/components/reference/reference-form";
 import { ActiveState } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
@@ -113,7 +114,7 @@ interface Opened {
 interface Commands {
   readonly editing: ContributorEditing;
   readonly answered: ContributorReading | undefined;
-  readonly said: { readonly text: string; readonly count: number } | undefined;
+  readonly said: Said | undefined;
   /** A refusal answered once the dialog is gone, told under the head of the list. */
   readonly refusal: Outcome<unknown> | undefined;
   readonly opened: Opened | undefined;
@@ -122,7 +123,7 @@ interface Commands {
   readonly answer: (list: ContributorReading) => void;
   /** Told that a write of the list leaves, then that it is answered. */
   readonly write: (writing: boolean) => void;
-  readonly say: (text: string) => void;
+  readonly say: Say;
   readonly refuse: (refusal: Outcome<unknown> | undefined) => void;
   readonly open: (opened: Omit<Opened, "opening">) => void;
   /** Close the dialog; given an opening, only if it is still the one open. */
@@ -174,7 +175,7 @@ export function ContributorCommands({
   readonly children: ReactNode;
 }) {
   const [answered, setAnswered] = useState<ContributorReading>();
-  const [said, setSaid] = useState<Commands["said"]>();
+  const [said, say] = useSaid();
   const [refusal, refuse] = useState<Outcome<unknown>>();
   const [opened, setOpened] = useState<Opened>();
   // How many times the dialog was opened: what tells an opening from the next.
@@ -193,9 +194,7 @@ export function ContributorCommands({
         answer: (list) => {
           setAnswered((before) => (before === undefined ? list : newer(before, list)));
         },
-        say: (text) => {
-          setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-        },
+        say,
         refuse,
         open: (next) => {
           openings.current += 1;
@@ -207,7 +206,7 @@ export function ContributorCommands({
           );
         },
       },
-    [editing, answered, said, refusal, opened, writing],
+    [editing, answered, said, say, refusal, opened, writing],
   );
   return <ContributorContext value={commands}>{children}</ContributorContext>;
 }
@@ -338,6 +337,7 @@ function ContributorEditor({
   const [pending, startTransition] = useTransition();
   const first = useRef<HTMLSelectElement>(null);
   const table = useRef<HTMLTableElement>(null);
+  const noteRefusal = useNoteRefusal();
   const open = useRef(true);
   const id = useId();
   // The first row a refusal by field points at takes the focus, as a field of a form does.
@@ -374,8 +374,14 @@ function ContributorEditor({
       // What is said at a row is not said again under the form; the rest of the refusal is.
       if (placed.size === 0 || !("problem" in answer)) {
         setOutcome(answer);
-      } else if (rest.length > 0) {
-        setOutcome({ ...answer, problem: { ...answer.problem, fields: rest } });
+      } else {
+        const told =
+          rest.length > 0 ? { ...answer, problem: { ...answer.problem, fields: rest } } : undefined;
+        // Said at its rows: noted whole, the notice of the rest noting nothing more.
+        noteRefusal(answer, { parts: [told] });
+        if (told !== undefined) {
+          setOutcome(told);
+        }
       }
     }
   };

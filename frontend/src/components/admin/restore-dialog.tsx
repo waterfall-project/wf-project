@@ -25,7 +25,7 @@ import { type SubmitEvent, useId, useState, useTransition } from "react";
 import { type RestoreSource, startRestore } from "@/api/actions/backups";
 import type { Outcome, Problem } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -87,6 +87,7 @@ export function RestoreDialog({
   const messages = useMessages();
   const router = useRouter();
   const held = useHeldCommand();
+  const noteRefusal = useNoteRefusal();
   const follow = useFollowRestoration();
   const id = useId();
   const [typed, setTyped] = useState("");
@@ -112,6 +113,10 @@ export function RestoreDialog({
         return;
       }
       const refusal = placed(answer);
+      if (refusal.date !== undefined) {
+        // Told at the date, out of the notice: noted whole, the notice of the rest noting nothing more.
+        noteRefusal(answer, { subject: date, parts: [refusal.told] });
+      }
       setDateRefused(refusal.date);
       setOutcome(refusal.told);
       if (refusal.date !== undefined) {
@@ -174,6 +179,7 @@ export function RestoreDialog({
               setOutcome(undefined);
             }}
             onDismissed={onClose}
+            subject={date}
           />
           <DialogFooter>
             <Button type="button" variant="outline" disabled={pending} onClick={onClose}>

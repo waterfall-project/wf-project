@@ -69,10 +69,14 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
   await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
   await expect(confirmation).toHaveCount(0);
-  const tasks = page.getByRole("region", { name: "Tâches de fond" });
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
+  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
   const application = "Application d’un import « devis-poste-de-commande.xlsx »";
   await expect(tasks.getByText(application)).toBeVisible();
   await expect(tasks.getByRole("progressbar", { name: application })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
   await read;
   release();
 

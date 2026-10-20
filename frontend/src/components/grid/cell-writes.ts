@@ -419,7 +419,8 @@ export function useCellWrites<Row, Totals>(
       });
       settle(at);
       // Applied, or a refusal kept quiet: a navigation waits for no refusal the screen does not say.
-      return answer.kind === "done" || stale;
+      // The outcome itself otherwise, for the bar of the shell to tell it once the grid is gone.
+      return stale ? true : answer;
     });
     queues.current.set(key, queued);
     hold(queued);

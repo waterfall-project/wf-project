@@ -13,12 +13,14 @@
  * one lets the download leave, and only if the entry is still there. What the route refuses
  * afterwards — the result expired or not ready between the read and the download (409) — sends the
  * browser back to the screen, where the tracker tells it by the same notice (#416). While the task
- * runs, the entry asks the server where it stands, by a server action, every so often; it stops once
- * the task has ended, once the API refuses to say — the follow-up is then interrupted, and the
+ * runs, the shell asks the server where it stands, by a server action, every so often, whether its
+ * entry shows or not (`TaskPolling`) — the panel that shows the entries comes and goes —; it stops
+ * once the task has ended, once the API refuses to say — the follow-up is then interrupted, and the
  * entry says so —, and when it is dismissed or the shell goes away.
  *
  * The ends are read out apart, in a log (`EndLog`): a progress that moves is not read out at
- * every step, an end is, and the ends add up.
+ * every step, an end is, and the ends add up. Each end is noted in the history of the messages,
+ * with the screen the task was started from.
  */
 "use client";
 
@@ -30,14 +32,16 @@ import {
   type MouseEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useTransition,
 } from "react";
 
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
-import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, SignIn, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
+import { useNoteMessage } from "@/components/notices/message-history";
 import { rejected } from "@/components/commands/rejection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
@@ -64,11 +68,37 @@ const END_SENTENCE: Readonly<Record<EndKind, "succeeded" | "failed" | "interrupt
   interrupted: "interruptedLine",
 };
 
+/** What names a task, in the language of the interface: its kind, and a kind with a subject. */
+export interface TaskNaming {
+  readonly kind: (kind: BackgroundTask["kind"]) => string;
+  readonly named: (kind: string, subject: string) => string;
+}
+
+/** What names a task, in the language of the interface. */
+export function useTaskNaming(): TaskNaming {
+  const kinds = useTranslations("enums.BackgroundTaskRef.kind");
+  const t = useTranslations("tasks");
+  return useMemo(
+    () => ({
+      kind: (kind) => kinds(kind),
+      named: (kind, subject) => t("named", { kind, subject }),
+    }),
+    [kinds, t],
+  );
+}
+
 /** What a task is called: its kind, and what the user named it after when there is one. */
-function useTaskName({ task, subject }: Pick<TrackedTask, "task" | "subject">): string {
-  const t = useTranslations();
-  const kind = t(`enums.BackgroundTaskRef.kind.${task.kind}`);
-  return subject === undefined ? kind : t("tasks.named", { kind, subject });
+export function taskName(
+  naming: TaskNaming,
+  { task, subject }: Pick<TrackedTask, "task" | "subject">,
+): string {
+  const kind = naming.kind(task.kind);
+  return subject === undefined ? kind : naming.named(kind, subject);
+}
+
+/** What a task is called, in the language of the interface. */
+function useTaskName(named: Pick<TrackedTask, "task" | "subject">): string {
+  return taskName(useTaskNaming(), named);
 }
 
 /** The sentence of a motive — of a failure, of a refusal —, from its envelope. */
@@ -78,14 +108,29 @@ function Motive({ problem }: { readonly problem: Problem | null | undefined }) {
   return problem == null ? null : <p>{problemMessage(problem, { locale, messages })}</p>;
 }
 
-/** One end of the log: the sentence of the end, and its motive when it has one. */
+/**
+ * One end of the log: the sentence of the end, and its motive when it has one — noted, once, in the
+ * history of the messages, with the screen the task was started from.
+ */
 function End({ line }: { readonly line: EndLine }) {
   const t = useTranslations("tasks");
+  const locale = useLocale();
+  const messages = useMessages();
   const task = useTaskName(line);
+  const sentence = t(END_SENTENCE[line.end], { task });
+  const { problem } = line;
+  useNoteMessage(line, {
+    tone: line.end === "succeeded" ? "success" : "refusal",
+    sentence,
+    detail: problem === undefined ? undefined : problemMessage(problem, { locale, messages }),
+    object: task,
+    reference: problem?.code === "INTERNAL_ERROR" ? problem.correlation_id : undefined,
+    screen: line.from,
+  });
   return (
     <div>
-      <p>{t(END_SENTENCE[line.end], { task })}</p>
-      <Motive problem={line.problem} />
+      <p>{sentence}</p>
+      <Motive problem={problem} />
     </div>
   );
 }
@@ -136,9 +181,9 @@ function Progress({
 /**
  * The offer to read the screen anew once a task has succeeded: what it changed shows only then.
  * The tracker never reloads by itself — the screen may hold what the user is typing —: the user
- * decides.
+ * decides, and the panel closes on the screen read anew.
  */
-function ReloadScreen() {
+function ReloadScreen({ onShown }: { readonly onShown: () => void }) {
   const t = useTranslations("tasks");
   const router = useRouter();
   return (
@@ -148,6 +193,7 @@ function ReloadScreen() {
       size="sm"
       onClick={() => {
         router.refresh();
+        onShown();
       }}
     >
       <RefreshCw aria-hidden="true" />
@@ -276,10 +322,43 @@ export interface TaskEntryProps {
   readonly onDismiss: (key: string) => void;
   /** Hand the panel the button that dismisses the task, to give it the focus. */
   readonly dismissRef: (key: string, button: HTMLButtonElement | null) => void;
+  /** Close the panel, the screen read anew under it. */
+  readonly onScreenShown: () => void;
 }
 
-/** Show a task the tracker follows, follow it while it runs, and offer to run it again failed. */
-export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryProps) {
+/**
+ * Follow a task while it runs, whether its entry shows or not: the panel that shows the entries
+ * comes and goes, the follow-up stays with the shell — and so does the history of the messages, where
+ * a refusal of the follow-up, or of a relaunch, is noted as it arrives, the panel closed or open:
+ * its entry tells it once the panel shows it, and notes nothing more.
+ */
+export function TaskPolling({
+  entry,
+  dispatch,
+}: {
+  readonly entry: TrackedTask;
+  readonly dispatch: Dispatch<TrackingEvent>;
+}) {
+  usePolling(entry, dispatch);
+  const noteRefusal = useNoteRefusal();
+  const name = useTaskName(entry);
+  const { outcome } = entry;
+  useEffect(() => {
+    if (outcome !== undefined) {
+      noteRefusal(outcome, { subject: name });
+    }
+  }, [outcome, noteRefusal, name]);
+  return null;
+}
+
+/** Show a task the tracker follows, and offer to run it again failed. */
+export function TaskEntry({
+  entry,
+  dispatch,
+  onDismiss,
+  dismissRef,
+  onScreenShown,
+}: TaskEntryProps) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const held = useHeldCommand();
@@ -292,7 +371,6 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
     },
     [key, dismissRef],
   );
-  usePolling(entry, dispatch);
   const name = useTaskName(entry);
   const relaunch = () => {
     if (command === undefined || pending) {
@@ -338,7 +416,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       </div>
       {isPolled(entry) ? <Progress name={name} progress={task.progress} /> : null}
       {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
-      {task.status === "succeeded" ? <ReloadScreen /> : null}
+      {task.status === "succeeded" ? <ReloadScreen onShown={onScreenShown} /> : null}
       {givesFile(task) ? <DownloadResult entry={entry} name={name} dispatch={dispatch} /> : null}
       {entry.resultUnavailable === true ? (
         <p role="alert" className="text-destructive">
@@ -367,6 +445,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
         onClear={() => {
           dispatch({ type: "clear", key });
         }}
+        subject={name}
       />
     </div>
   );

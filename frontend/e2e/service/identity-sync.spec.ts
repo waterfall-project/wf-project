@@ -32,16 +32,17 @@ test.beforeEach(async ({ request }) => {
  * Press a command that hands a task over to the tracker, on a page that may not be hydrated yet:
  * pressed only while the command is not busy and the tracker follows no task, and again until one
  * of them says React answered — a press answered is never repeated, which would ask a second task.
+ * `followed` is the button of the panel once it counts a task.
  */
-async function handOver(command: Locator, entries: Locator): Promise<void> {
+async function handOver(command: Locator, followed: Locator): Promise<void> {
   await expect(async () => {
-    if ((await command.getAttribute("aria-busy")) !== "true" && (await entries.count()) === 0) {
+    if ((await command.getAttribute("aria-busy")) !== "true" && (await followed.count()) === 0) {
       await command.click();
     }
     await expect
       .poll(
         async () =>
-          (await command.getAttribute("aria-busy")) === "true" || (await entries.count()) > 0,
+          (await command.getAttribute("aria-busy")) === "true" || (await followed.count()) > 0,
         { timeout: 1_000 },
       )
       .toBe(true);
@@ -65,6 +66,7 @@ test("the reading of the accounts asked from the screen gives the hand back at o
     const reading = page.getByRole("region", {
       name: "Lecture des comptes du fournisseur d’identité",
     });
+    const followed = page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ });
     const tasks = page.getByRole("region", { name: "Tâches de fond" });
     const entries = tasks.getByRole("listitem");
     // The end of the last reading shown before the press — none yet, or one the platform asked —,
@@ -74,12 +76,13 @@ test("the reading of the accounts asked from the screen gives the hand back at o
       ended.or(reading.getByText("Aucune lecture des comptes n’a encore abouti.")),
     ).toBeVisible();
     const before = (await ended.count()) === 0 ? null : await ended.getAttribute("datetime");
-    await handOver(reading.getByRole("button", { name: "Lire les comptes" }), entries);
+    await handOver(reading.getByRole("button", { name: "Lire les comptes" }), followed);
+    await followed.click();
 
     // Followed by the tracker until the worker has read the accounts, then announced.
     await expect(entries).toHaveCount(1);
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 90_000 });
-    await expect(tasks.getByRole("log")).toContainText(
+    await expect(page.getByRole("log")).toContainText(
       "Tâche terminée : Lecture des comptes du fournisseur d’identité.",
     );
     // A report to read on the screen, not a file to download.

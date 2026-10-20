@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiClient, createApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { BackgroundTask } from "@/api/problem";
+import { MESSAGES_KEY, readMessages } from "@/components/notices/message-history";
 import { STORAGE_KEY } from "@/components/tasks/storage";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
@@ -16,6 +17,8 @@ import { SessionLost } from "@/session/tokens";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { cookieJar } from "@/test/session";
+
+import { tasksRegion } from "@/test/task-panel";
 
 import { Shell } from "./shell";
 
@@ -116,11 +119,12 @@ beforeEach(() => {
 });
 
 describe("signing out from the menu of the account", () => {
-  it("closes the session, forgets the last project and the tasks of the tab, and loads the sign-in page", async () => {
+  it("closes the session, forgets the last project, the tasks and the messages of the tab, and loads the sign-in page", async () => {
     const client = serve({ [SIGN_OUT]: { status: 204 }, "GET /tasks/{task_id}": "task_running" });
     shell();
     await userEvent.click(screen.getByRole("button", { name: "Marquer" }));
     expect(window.sessionStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(window.sessionStorage.getItem(MESSAGES_KEY)).not.toBeNull();
     expect(rememberedContext()).toBe(encodeURIComponent(SCREEN));
 
     await signOut();
@@ -128,9 +132,9 @@ describe("signing out from the menu of the account", () => {
     expect(client.calls.map((call) => call.route)).toContain(SIGN_OUT);
     expect(rememberedContext()).toBeUndefined();
     expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
-    expect(
-      within(screen.getByRole("region", { name: "Tâches de fond" })).queryByRole("list"),
-    ).toBeNull();
+    expect(window.sessionStorage.getItem(MESSAGES_KEY)).toBeNull();
+    expect(readMessages().messages).toEqual([]);
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/login");
   });
 

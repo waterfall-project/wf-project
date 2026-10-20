@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -220,6 +221,39 @@ describe("the form of the risk matrix", () => {
     expect(second).toHaveAccessibleDescription("Les bornes doivent être strictement croissantes.");
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("notes what a write did in the history of the messages, as the screen says it, once [WF-IHM-0080-A]", async () => {
+    forgetMessages();
+    serve({ [UPDATE]: "reference_settings_matrix_updated" });
+    const form = await openRisks();
+    await save(form);
+    await vi.waitFor(() => {
+      expect(said()).toHaveTextContent("Matrice de risques enregistrée.");
+    });
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: "Matrice de risques enregistrée." }),
+    ]);
+  });
+
+  it("notes whole, once, a refusal it says at its fields [WF-IHM-0080-A]", async () => {
+    forgetMessages();
+    serve({
+      [UPDATE]: {
+        problem: example("reference_settings_bounds_refused") as Problem & { status: 422 },
+      },
+    });
+    const form = await openRisks();
+    await save(form);
+    await vi.waitFor(() => {
+      expect(field(form, SEVERITY, "Deuxième borne")).toHaveFocus();
+    });
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        detail: "Les bornes doivent être strictement croissantes.",
+      }),
+    ]);
   });
 
   it("tells under the form the permission the session lacks, which the server names", async () => {
