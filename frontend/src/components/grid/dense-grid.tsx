@@ -27,7 +27,7 @@
  * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`). A screen
  * may give its rows commands, in the bar on the row of the active cell and in the menu of a cell on
  * its row (`RowCommands`): the work breakdown edited in its grid (EP-14/L44c) — on the selection of
- * rows its handles make, where the screen acts on one (`useRowSelection`, US-0460).
+ * rows its handles make, which they drag, where the screen drags rows (`useRowSelection`, US-0460).
  *
  * A grid whose rows name their parents is a tree, which folds and unfolds (WF-PLA-0080,
  * `useGridFold`): a `treegrid`, each row telling its level, its place among its siblings and
@@ -392,7 +392,10 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
   // In a tree, where the row stands, and whether it is unfolded.
   const tree = useTreeRow(shared.config.rowKey(row.original));
   const { selection } = shared.cells;
-  const { className, ...selected } = selectedRow(selection.selected(index));
+  const { className, ...selected } = selectedRow(
+    selection.selected(index),
+    selection.dropAt(index),
+  );
   return (
     <TableRow
       aria-rowindex={index + 2}

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,8 +15,8 @@ import type { NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
 
-// The selection of contiguous rows by their handles, and their moves — by the keys and by the menu
-// of a cell (US-0460/L5) —, through the grid of the planning: rows 1 to 5 of the example
+// The selection of contiguous rows by their handles, and their moves — by the keys, by the menu of
+// a cell and by a drag (US-0460/L5) —, through the grid of the planning: rows 1 to 5 of the example
 // are the five sub-tasks of « Études », ranks 1 to 5, the fourth a milestone.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
@@ -99,6 +99,25 @@ function moved(client: FakeClient): unknown[] {
   return client.calls.filter((call) => call.route === MOVE).map((call) => call.body);
 }
 
+/** What a drag carries, as far as the grid reads and writes it. */
+function dataTransfer() {
+  return { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
+}
+
+/** Fire an event of a drag on an element, carrying what it carries, at a height. */
+function drag(
+  type: "dragStart" | "dragOver" | "drop" | "dragEnd",
+  target: HTMLElement,
+  carried: ReturnType<typeof dataTransfer>,
+  clientY = 0,
+): void {
+  // The event of a drag in the document of the tests carries neither what is dragged nor where.
+  const event = createEvent[type](target);
+  Object.defineProperty(event, "dataTransfer", { value: carried });
+  Object.defineProperty(event, "clientY", { value: clientY });
+  fireEvent(target, event);
+}
+
 beforeEach(() => {
   window.sessionStorage.clear();
   forgetMessages();
@@ -152,6 +171,7 @@ describe("the selection of rows by their handles", () => {
     expect(handle).toHaveAccessibleName("4 — poignée de la ligne");
     expect(handle).toHaveAccessibleDescription(/Alt\+Maj\+↑ et Alt\+Maj\+↓ d’un rang/);
     expect(handle.getAttribute("aria-keyshortcuts")).toContain("Shift+ArrowDown");
+    expect(handle).toHaveAttribute("draggable", "true");
     await expectAccessible(container);
   });
 
@@ -161,6 +181,7 @@ describe("the selection of rows by their handles", () => {
     expect(screen.getByRole("treegrid")).not.toHaveAttribute("aria-multiselectable");
     fireEvent.click(handleAt(DESKS));
     expect(rowAt(DESKS)).not.toHaveAttribute("aria-selected");
+    expect(handleAt(DESKS)).not.toHaveAttribute("draggable");
   });
 
   it("keeps the active cell on its row, selected, when a reading anew moves it", async () => {
@@ -247,5 +268,69 @@ describe("the moves of a selection", () => {
         lock_version: 1,
       },
     ]);
+  });
+});
+
+describe("the drag of rows by their handles", () => {
+  /** Drag the handle of a row over the cell of another, at a height of its row of 28 points. */
+  function dragOver(from: number, over: number, offset: number) {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 100, width: 100, height: 28 }),
+    );
+    const carried = dataTransfer();
+    drag("dragStart", handleAt(from), carried);
+    const target = cellAt(over, "label");
+    drag("dragOver", target, carried, 100 + offset);
+    return { carried, target };
+  }
+
+  it("drops the selection under a row, its middle shaded, and moves it there, last", async () => {
+    const client = serve();
+    render(planningGrid());
+    fireEvent.click(handleAt(DESKS));
+    fireEvent.click(handleAt(REVIEW), { shiftKey: true });
+    const { carried, target } = dragOver(DESKS, DETAIL, 14);
+    expect(carried.effectAllowed).toBe("move");
+    expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "into");
+    drag("drop", target, carried, 114);
+    expect(rowAt(DETAIL)).not.toHaveAttribute("data-drop");
+    expect(
+      await screen.findByText("« Pupitres opérateurs » et la ligne suivante déplacées."),
+    ).toBeVisible();
+    expect(moved(client)).toEqual([
+      { node_ids: [id(DESKS), id(REVIEW)], parent_id: id(DETAIL), lock_version: 1 },
+    ]);
+  });
+
+  it("drops a row not selected alone between two rows, before the lower one, after the sibling above it", async () => {
+    const client = serve();
+    render(planningGrid());
+    // The lower quarter of the milestone: between it and « Dossier de conception ».
+    const { carried, target } = dragOver(DETAIL, MILESTONE, 25);
+    expect(selectedRows()).toEqual([DETAIL]);
+    expect(rowAt(MILESTONE + 1)).toHaveAttribute("data-drop", "before");
+    drag("drop", target, carried, 125);
+    await screen.findByText("« Études de détail » déplacée.");
+    expect(moved(client)).toEqual([
+      {
+        node_ids: [id(DETAIL)],
+        parent_id: id(STUDIES),
+        after_node_id: id(MILESTONE),
+        lock_version: 1,
+      },
+    ]);
+  });
+
+  it("shows no indicator and drops nothing where the place is refused: under a milestone, beside the rows dragged", () => {
+    const client = serve();
+    render(planningGrid());
+    const under = dragOver(DESKS, MILESTONE, 14);
+    expect(rowAt(MILESTONE)).not.toHaveAttribute("data-drop");
+    drag("drop", under.target, under.carried, 114);
+    const beside = dragOver(DESKS, DESKS, 2);
+    expect(rowAt(DESKS)).not.toHaveAttribute("data-drop");
+    drag("drop", beside.target, beside.carried, 102);
+    drag("dragEnd", handleAt(DESKS), beside.carried);
+    expect(moved(client)).toEqual([]);
   });
 });

@@ -43,6 +43,7 @@ import { cn } from "@/components/ui/utils";
 
 import { type CellFolding, FoldMenuItems } from "./fold";
 import { type CellPosition, positionOf } from "./grid-keyboard";
+import type { RowDrag } from "./row-selection";
 
 /** The two commands. */
 export type UndoCommand = "undo" | "redo";
@@ -237,8 +238,8 @@ export interface RowCommands<Row> {
    * its label and has it describe the refusal.
    */
   readonly refused?: { readonly row: Row; readonly described: string } | undefined;
-  /** Whether the commands act on the selection the handles of the grid make; none, it selects nothing. */
-  readonly selects?: boolean | undefined;
+  /** What the screen does of rows dragged by their handles; none, and the grid selects nothing. */
+  readonly drag?: RowDrag<Row> | undefined;
 }
 
 /**

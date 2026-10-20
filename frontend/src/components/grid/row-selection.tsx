@@ -1,25 +1,31 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The selection of rows of a dense grid (US-0460, WF-IHM-0040, WF-IHM-0100): rows contiguous among
- * those the grid shows, from an anchor to an end, found by their identity, so that a reading anew
- * that moves them keeps them selected. The cell of the row number is the handle of its row: a click
- * selects the row alone, Shift and a click extend the selection from the anchor to it; from the
- * keyboard, on the column of the handles, Space selects the row of the active cell, Shift and the up
- * or down arrow extend the selection as the active cell moves, and Escape lifts it. Each row tells
- * whether it is selected (`aria-selected`), the grid that it takes several (`aria-multiselectable`),
- * and a status how many are. The commands of the screen act on the selection the row they start
- * from stands in (Alt+Shift and an arrow, for the structure).
+ * The selection of rows of a dense grid, and the dragging of what is selected (US-0460,
+ * WF-IHM-0040, WF-IHM-0100): rows contiguous among those the grid shows, from an anchor to an end,
+ * found by their identity, so that a reading anew that moves them keeps them selected. The cell of
+ * the row number is the handle of its row: a click selects the row alone, Shift and a click extend
+ * the selection from the anchor to it; from the keyboard, on the column of the handles, Space
+ * selects the row of the active cell, Shift and the up or down arrow extend the selection as the
+ * active cell moves, and Escape lifts it. Each row tells whether it is selected (`aria-selected`),
+ * the grid that it takes several (`aria-multiselectable`), and a status how many are.
  *
- * A grid whose screen selects nothing (`RowCommands.selects`) shows no handle. The active cell, in
- * a row selected, follows its row through a reading anew that moves it, so that the next move starts
- * from the same rows.
+ * The handle drags the selection — or its own row alone, when it is not selected — beside another
+ * row: before it or after it, at its level, by the upper or the lower quarter of the row, or under
+ * it, by its middle; between two rows is before the lower one. The indicator of the drop is a line
+ * between the rows, or the row shaded, and only where the screen accepts the place (`RowDrag`): the
+ * screen says where rows go, and moves them. The keyboard has the same moves without dragging,
+ * the commands of the screen on the selection (Alt+Shift and an arrow, for the structure).
+ *
+ * A grid whose screen drags nothing selects nothing, and shows no handle. The active cell, in a row
+ * selected, follows its row through a reading anew that moves it, so that the next move starts from
+ * the same rows.
  */
 "use client";
 
 import { Check, GripVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, type MouseEvent, useState } from "react";
+import { type DragEvent, type KeyboardEvent, type MouseEvent, useRef, useState } from "react";
 
 import { TableCell } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
@@ -28,10 +34,25 @@ import { cellAttributes, type CellState, cellKeys } from "./cell-attributes";
 import { ROW_NUMBER_KEY } from "./columns";
 import { type CellPosition, type Cursor, HEADER_ROW, positionOf } from "./grid-keyboard";
 
+/** Where rows dropped go, beside a row: before it or after it at its level, or under it, last. */
+export type DropPlace = "before" | "after" | "into";
+
+/** What a screen does of rows dragged: whether they may go beside a row, and their move there. */
+export interface RowDrag<Row> {
+  readonly accepts: (rows: readonly Row[], target: Row, place: DropPlace) => boolean;
+  readonly drop: (rows: readonly Row[], target: Row, place: DropPlace) => void;
+}
+
 /** The selection, by the identity of its rows: the one it started from, and the one it ends on. */
 interface Range {
   readonly anchor: string;
   readonly end: string;
+}
+
+/** Where rows dragged would go: beside the row at an index. */
+interface Drop {
+  readonly index: number;
+  readonly place: DropPlace;
 }
 
 /** The first and the last index of a selection among rows, if both of its ends are among them. */
@@ -80,24 +101,41 @@ function selectionKey(
   return key === "lift" || event.shiftKey ? key : undefined;
 }
 
-/** What the grid of rows `Row` selects. */
+/** Where, beside the row of a cell, a pointer at a height drops: by the quarters of the row. */
+function dropBeside(cell: Element, y: number, index: number, count: number): Drop {
+  const box = cell.getBoundingClientRect();
+  const offset = y - box.top;
+  if (offset < box.height / 4) {
+    return { index, place: "before" };
+  }
+  if (offset <= (box.height * 3) / 4) {
+    return { index, place: "into" };
+  }
+  return index + 1 < count ? { index: index + 1, place: "before" } : { index, place: "after" };
+}
+
+/** What the grid of rows `Row` selects, and drags. */
 export interface RowSelectionOptions<Row> {
   /** The rows the grid shows, in their order. */
   readonly rows: readonly Row[];
   readonly keyOf: (row: Row) => string;
-  /** The commands of the screen, and whether they act on a selection; none, the grid selects nothing. */
-  readonly commands: { readonly selects?: boolean | undefined } | undefined;
+  /** The commands of the screen, and what it does of rows dragged; none, the grid selects nothing. */
+  readonly commands: { readonly drag?: RowDrag<Row> | undefined } | undefined;
   readonly cursor: Cursor;
 }
 
-/** Select rows of a grid. */
+/** Select rows of a grid, and drag them. */
 export function useRowSelection<Row>({ rows, keyOf, commands, cursor }: RowSelectionOptions<Row>) {
+  const drag = commands?.drag;
   const [range, setRange] = useState<Range>();
+  const [drop, setDrop] = useState<Drop>();
+  // The rows dragged, by their identity, while a drag is under way.
+  const dragged = useRef<readonly string[]>(undefined);
   const keyAt = (index: number) => {
     const row = rows[index];
     return row === undefined ? undefined : keyOf(row);
   };
-  const offered = commands?.selects === true;
+  const offered = drag !== undefined;
   const bounds = offered ? boundsOf(range, keyAt, rows.length) : undefined;
   // The rows the active cell was among: a reading anew that moves the row of the active cell,
   // selected, takes the active cell with it.
@@ -142,6 +180,10 @@ export function useRowSelection<Row>({ rows, keyOf, commands, cursor }: RowSelec
         : { anchor: key, end: key },
     );
   };
+  const clear = () => {
+    dragged.current = undefined;
+    setDrop(undefined);
+  };
   /** Extend the selection from the row at an index to the next one up or down, if there is one. */
   const extend = (from: number, step: number) => {
     const anchor = isSelected(from) ? range?.anchor : keyAt(from);
@@ -172,6 +214,22 @@ export function useRowSelection<Row>({ rows, keyOf, commands, cursor }: RowSelec
     extend(at.row, key === "up" ? -1 : 1);
     return key === "up" && at.row === 0;
   };
+  /** The rows the drag under way carries, in the order of the grid. */
+  const carried = (): readonly Row[] =>
+    rows.filter((row) => dragged.current?.includes(keyOf(row)) === true);
+  /** Where a pointer over the grid drops what is dragged, if the screen accepts it there. */
+  const dropOver = (event: DragEvent<HTMLElement>): Drop | undefined => {
+    const cell = event.target instanceof Element ? event.target.closest("td[data-row]") : null;
+    const at = positionOf(cell);
+    if (drag === undefined || dragged.current === undefined || cell === null || at === undefined) {
+      return undefined;
+    }
+    const beside = dropBeside(cell, event.clientY, at.row, rows.length);
+    const target = rows[beside.index];
+    return target !== undefined && drag.accepts(carried(), target, beside.place)
+      ? beside
+      : undefined;
+  };
   const body = {
     onClick: (event: MouseEvent<HTMLElement>) => {
       const index = offered ? handleOf(event.target) : undefined;
@@ -179,11 +237,52 @@ export function useRowSelection<Row>({ rows, keyOf, commands, cursor }: RowSelec
         select(index, event.shiftKey);
       }
     },
+    onDragStart: (event: DragEvent<HTMLElement>) => {
+      const index = offered ? handleOf(event.target) : undefined;
+      if (index === undefined) {
+        return;
+      }
+      if (!isSelected(index)) {
+        select(index, false);
+      }
+      dragged.current = acted(index).map(keyOf);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", dragged.current.join("\n"));
+    },
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      const next = dropOver(event);
+      if (next !== undefined) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }
+      if (next?.index !== drop?.index || next?.place !== drop?.place) {
+        setDrop(next);
+      }
+    },
+    onDragLeave: (event: DragEvent<HTMLElement>) => {
+      const { relatedTarget } = event;
+      if (!(relatedTarget instanceof Node) || !event.currentTarget.contains(relatedTarget)) {
+        setDrop(undefined);
+      }
+    },
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      const at = dropOver(event);
+      const target = at === undefined ? undefined : rows[at.index];
+      if (drag !== undefined && at !== undefined && target !== undefined) {
+        event.preventDefault();
+        drag.drop(carried(), target, at.place);
+      }
+      clear();
+    },
+    onDragEnd: clear,
   };
   return {
     offered,
     /** Whether the row at an index is selected; none where the grid selects nothing. */
     selected: (index: number): boolean | undefined => (offered ? isSelected(index) : undefined),
+    /** Where what is dragged would drop beside the row at an index, if there. */
+    dropAt: (index: number): DropPlace | undefined =>
+      drop?.index === index ? drop.place : undefined,
     acted,
     /** How many rows are selected; none where the grid selects nothing. */
     count: offered ? (bounds === undefined ? 0 : bounds[1] - bounds[0] + 1) : undefined,
@@ -200,11 +299,24 @@ export type RowSelection<Row> = ReturnType<typeof useRowSelection<Row>>;
 /** The keys of a handle, as `aria-keyshortcuts` names them. */
 const HANDLE_KEYS = "Space Shift+ArrowUp Shift+ArrowDown Escape";
 
+/** The classes of a row by what is dropped beside it: a line before or after it, or its shade. */
+const DROP_CLASSES: Readonly<Record<DropPlace, string>> = {
+  before:
+    "[&>td:not(.sticky)]:relative [&>td]:before:pointer-events-none [&>td]:before:absolute [&>td]:before:inset-x-0 [&>td]:before:top-0 [&>td]:before:h-0.5 [&>td]:before:bg-primary",
+  after:
+    "[&>td:not(.sticky)]:relative [&>td]:before:pointer-events-none [&>td]:before:absolute [&>td]:before:inset-x-0 [&>td]:before:bottom-0 [&>td]:before:h-0.5 [&>td]:before:bg-primary",
+  into: "[&>td]:bg-accent [&>td]:font-semibold",
+};
+
 /** The attributes and the classes of a row of a grid that selects. */
-export function selectedRow(selected: boolean | undefined) {
+export function selectedRow(selected: boolean | undefined, drop: DropPlace | undefined) {
   return {
     "aria-selected": selected,
-    className: selected === true ? "[&>td]:bg-accent" : undefined,
+    "data-drop": drop,
+    className: cn(
+      selected === true ? "[&>td]:bg-accent" : null,
+      drop === undefined ? null : DROP_CLASSES[drop],
+    ),
   };
 }
 
@@ -217,7 +329,7 @@ const NO_FOLD = { folds: false, keys: undefined };
 
 /**
  * The handle of a row, in the cell of its number: a cell of the grid like the others, reached by the
- * arrows, which selects its row, is named by the number of its row and described by how it selects
+ * arrows, which drags its row, is named by the number of its row and described by how it selects
  * and moves (`SelectionNotes`); a mark grips it, another where its row is selected.
  */
 export function HandleCell({
@@ -245,12 +357,13 @@ export function HandleCell({
   return (
     <TableCell
       {...cellAttributes(position, state, false, false, keys)}
+      draggable
       aria-label={name(number ?? 0)}
       aria-describedby={hint}
       style={{ left: pinning.left }}
       className={cn(HANDLE_CELL, pinning.className)}
     >
-      <span className="flex cursor-pointer items-center justify-end gap-0.5 select-none">
+      <span className="flex cursor-grab items-center justify-end gap-0.5 select-none">
         <Mark aria-hidden="true" className="size-2.5 shrink-0" />
         {number}
       </span>

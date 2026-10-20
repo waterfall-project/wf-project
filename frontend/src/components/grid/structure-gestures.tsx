@@ -6,20 +6,21 @@
  * line, « Insert a sub-task », « Insert a line », « Indent », « Outdent », « Move up », « Move
  * down », « Delete », from the menu of a cell — on its row, or on the selection it stands in — and
  * from the keys: Insert, Alt+Insert, Ctrl+Insert, Alt+Shift and the arrows, Ctrl+Delete
- * (`structure-rules.ts`); the bar of the grid, kept to one line, offers only the first task of a
- * grid with no row to act on. The same writes from the planning, the estimate and the remaining to
- * commit (`createNode`, `deleteNode`): which grid offers them is the command of the structure it
- * reads, never a phase the front deduces — the screen hands the gestures what the structure lists
- * available (`tasks`, `lines`).
+ * (`structure-rules.ts`); and the rows the handles of the grid drag (`RowDrag`); the bar of the grid,
+ * kept to one line, offers only the first task of a grid with no row to act on. The same writes
+ * from the planning, the estimate and the remaining to commit (`createNode`, `deleteNode`): which
+ * grid offers them is the command of the structure it reads, never a phase the front deduces — the
+ * screen hands the gestures what the structure lists available (`tasks`, `lines`).
  *
  * An indentation moves the tasks under the one that precedes the first, in the last place, an
- * outdentation after their parent, under the parent of that one, as MS Project does; up and down
- * move them by a rank among their siblings (`moveNodes`): a task takes its subordinates with it, and
- * no dialog asks anything. The grid is read anew, the ancestors recalculated and the tasks redated
- * taking the place of the rows read; a refusal — a link a summary would hold to its subordinate, a
- * loop, a node that is no sibling — is told at the row, and the last, which comes from a reading
- * gone stale, reads the grid anew, the focus kept in the grid. A move is offered only where the rows
- * shown hold the neighbour it rests on (`structure-rules.ts`).
+ * outdentation after their parent, under the parent of that one, as MS Project does; up and down move
+ * them by a rank among their siblings; rows dropped go before, after or under the row they are
+ * dropped on (`moveNodes`): a task takes its subordinates with it, and no dialog asks anything. The grid is read anew, the ancestors
+ * recalculated and the tasks redated taking the place of the rows read; a refusal — a link a
+ * summary would hold to its subordinate, a loop, a node that is no sibling — is told at the row,
+ * and the last, which comes from a reading gone stale, reads the grid anew, the focus kept in the
+ * grid. A move is offered only where the rows shown hold the neighbour it rests on
+ * (`structure-rules.ts`).
  *
  * A node is created from a dialog that names it — the label of a task; the label, the category and
  * the quantity of a line, which the contract requires —, and the row it acts on; the task inserted
@@ -74,9 +75,11 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 import type { GridNode, NodesWritten } from "./nodes";
 import { byField } from "./planning-attachment";
+import type { DropPlace } from "./row-selection";
 import { CreateForm, DeleteConfirmation } from "./structure-dialogs";
 import {
   bodyOf,
+  dropOf,
   type Entered,
   GESTURE_KEYS,
   type Gesture,
@@ -104,9 +107,9 @@ const ICONS: Readonly<Record<Gesture, ReactNode>> = {
   delete: <Trash2 aria-hidden="true" />,
 };
 
-/** What a move says it did, by the gesture that asked it. */
+/** What a move says it did, by the gesture that asked it — or rows dropped. */
 const DONE = { indent: "indented", outdent: "outdented", up: "up", down: "down" } as const;
-type Done = (typeof DONE)[Moving];
+type Done = (typeof DONE)[Moving] | "dropped";
 
 /** The cell a tree grid keeps active, the one stop of its tabulation. */
 const ACTIVE_CELL = '[role="treegrid"] [tabindex="0"]';
@@ -489,7 +492,15 @@ export function useStructureGestures<Row extends GridNode>(
       open(gesture, row, rows, event.target instanceof HTMLElement ? event.target : undefined);
       return true;
     },
-    selects: true,
+    drag: {
+      accepts: (rows, target, place: DropPlace) =>
+        !writing && dropOf(rows, target, place, scope) !== undefined,
+      drop: (rows, target, place) => {
+        if (!writing) {
+          move(dropOf(rows, target, place, scope), rows, "dropped", undefined);
+        }
+      },
+    },
     around: (
       <>
         <GestureNotice

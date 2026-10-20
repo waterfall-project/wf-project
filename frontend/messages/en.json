@@ -252,7 +252,7 @@
     },
     "selection": {
       "handle": "{number} — row handle",
-      "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it: Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it.",
+      "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it — Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it —, as dragging the handle with the mouse does.",
       "count": "{count, plural, one {# row selected} other {# rows selected}}"
     },
     "structure": {
@@ -268,7 +268,8 @@
         "indented": "{others, plural, =0 {“{label}” indented.} one {“{label}” and the next row indented.} other {“{label}” and the # next rows indented.}}",
         "outdented": "{others, plural, =0 {“{label}” outdented.} one {“{label}” and the next row outdented.} other {“{label}” and the # next rows outdented.}}",
         "up": "{others, plural, =0 {“{label}” moved up a rank.} one {“{label}” and the next row moved up a rank.} other {“{label}” and the # next rows moved up a rank.}}",
-        "down": "{others, plural, =0 {“{label}” moved down a rank.} one {“{label}” and the next row moved down a rank.} other {“{label}” and the # next rows moved down a rank.}}"
+        "down": "{others, plural, =0 {“{label}” moved down a rank.} one {“{label}” and the next row moved down a rank.} other {“{label}” and the # next rows moved down a rank.}}",
+        "dropped": "{others, plural, =0 {“{label}” moved.} one {“{label}” and the next row moved.} other {“{label}” and the # next rows moved.}}"
       },
       "delete": "Delete",
       "deleteTitle": "Delete “{label}”?",
