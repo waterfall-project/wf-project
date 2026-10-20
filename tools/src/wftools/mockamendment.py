@@ -168,13 +168,11 @@ def nodes_amendment() -> JsonObject:
     ``subtree_of``: the nodes under the installation, it included, marked, the line withdrawn at
     its place; the totals those of the differential, which no longer bears it (`NodeTotals`).
     """
-    nodes = marked()
-    below = {own_id(N.INSTALLATION)}
-    for node in nodes:
-        if node["parent_id"] in below:
-            below.add(cast("str", node["node_id"]))
     answer = mockcore.subtree(rows(), N.INSTALLATION)
-    return {**answer, "items": [node for node in nodes if node["node_id"] in below]}
+    return {
+        **answer,
+        "items": cast("list[JsonValue]", mockdiff.window(marked(), own_id(N.INSTALLATION))),
+    }
 
 
 # --- The report before the merge -----------------------------------------------------------------

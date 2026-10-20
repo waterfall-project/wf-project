@@ -2404,6 +2404,43 @@ class NodeKind(StrEnum):
     estimate_line = "estimate_line"
 
 
+class TaskProgress(StrEnum):
+    not_started = "not_started"
+    started = "started"
+    completed = "completed"
+
+
+class NodeColumn(StrEnum):
+    label = "label"
+    description = "description"
+    scheduling_mode = "scheduling_mode"
+    duration = "duration"
+    start = "start"
+    finish = "finish"
+    progress = "progress"
+    physical_progress = "physical_progress"
+    total_float = "total_float"
+    is_critical = "is_critical"
+    predecessors = "predecessors"
+    work_breakdown = "work_breakdown"
+    cost_category = "cost_category"
+    resource_role = "resource_role"
+    quantity = "quantity"
+    hours = "hours"
+    unit_disbursement = "unit_disbursement"
+    subproject = "subproject"
+    payment_delay_days = "payment_delay_days"
+    consumption_year = "consumption_year"
+    base_amount = "base_amount"
+    budgeted_amount = "budgeted_amount"
+    reestimated_amount = "reestimated_amount"
+    inflated_amount = "inflated_amount"
+    previous_quantity = "previous_quantity"
+    previous_hours = "previous_hours"
+    previous_unit_disbursement = "previous_unit_disbursement"
+    previous_reestimated_amount = "previous_reestimated_amount"
+
+
 class SchedulingMode(StrEnum):
     automatic = "automatic"
     manual = "manual"
@@ -2435,12 +2472,6 @@ class Duration(ContractModel):
 class WorkInstant(ContractModel):
     date: PlanningDate
     hours: Hours
-
-
-class TaskProgress(StrEnum):
-    not_started = "not_started"
-    started = "started"
-    completed = "completed"
 
 
 class NotComputableReason(StrEnum):
@@ -2870,6 +2901,26 @@ class Node(ContractModel):
     ] = None
 
 
+class NodeTotals(ContractModel):
+    task_count: Annotated[int, Field(ge=0)]
+    estimate_line_count: Annotated[int, Field(ge=0)]
+    hours: Hours
+    base_amount: Money
+    budgeted_amount: Money
+    reestimated_amount: Money
+    inflated_amount: Money
+
+
+class NodeListMeta(ContractModel):
+    summary_depth: Annotated[
+        int,
+        Field(
+            description="Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level` compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative. L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit (WF-PLA-0110).",
+            ge=0,
+        ),
+    ]
+
+
 class Dimension(StrEnum):
     cost_type = "cost_type"
     subproject = "subproject"
@@ -2900,16 +2951,28 @@ class AmountDelta(ContractModel):
 class RevisionComparison(ContractModel):
     from_revision_id: Uuid
     to_revision_id: Uuid
-    nodes: Annotated[
+    items: Annotated[
         list[Node],
         Field(
-            description="L'arbre de la révision comparée (`to_revision_id`), en parcours profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` le rend : chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080, C-361)."
+            description="Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend : chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080, C-361)."
+        ),
+    ]
+    totals: Annotated[
+        NodeTotals,
+        Field(
+            description="Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes retenues, sans les nœuds retirés, qui ne sont plus de sa structure."
+        ),
+    ]
+    meta: Annotated[
+        NodeListMeta,
+        Field(
+            description="Ce que la lecture dit de la structure principale de la révision comparée."
         ),
     ]
     amount_deltas: Annotated[
         list[AmountDelta],
         Field(
-            description="Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020)."
+            description="Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de même sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens. L'écart se compte par ligne retenue, selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y apporte son écart entier, son montant dans la révision comparée moins celui de la révision de base, où qu'elle fût dans celle-ci. Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois."
         ),
     ]
 
@@ -2967,37 +3030,6 @@ class StructureCreate(ContractModel):
     kind: StructureKind
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     risk_id: Uuid | None = None
-
-
-class NodeColumn(StrEnum):
-    label = "label"
-    description = "description"
-    scheduling_mode = "scheduling_mode"
-    duration = "duration"
-    start = "start"
-    finish = "finish"
-    progress = "progress"
-    physical_progress = "physical_progress"
-    total_float = "total_float"
-    is_critical = "is_critical"
-    predecessors = "predecessors"
-    work_breakdown = "work_breakdown"
-    cost_category = "cost_category"
-    resource_role = "resource_role"
-    quantity = "quantity"
-    hours = "hours"
-    unit_disbursement = "unit_disbursement"
-    subproject = "subproject"
-    payment_delay_days = "payment_delay_days"
-    consumption_year = "consumption_year"
-    base_amount = "base_amount"
-    budgeted_amount = "budgeted_amount"
-    reestimated_amount = "reestimated_amount"
-    inflated_amount = "inflated_amount"
-    previous_quantity = "previous_quantity"
-    previous_hours = "previous_hours"
-    previous_unit_disbursement = "previous_unit_disbursement"
-    previous_reestimated_amount = "previous_reestimated_amount"
 
 
 class ActualCostColumn1(StrEnum):
@@ -3142,26 +3174,6 @@ class StructureMerge(ContractModel):
         LockVersion,
         Field(
             description="Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`)."
-        ),
-    ]
-
-
-class NodeTotals(ContractModel):
-    task_count: Annotated[int, Field(ge=0)]
-    estimate_line_count: Annotated[int, Field(ge=0)]
-    hours: Hours
-    base_amount: Money
-    budgeted_amount: Money
-    reestimated_amount: Money
-    inflated_amount: Money
-
-
-class NodeListMeta(ContractModel):
-    summary_depth: Annotated[
-        int,
-        Field(
-            description="Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level` compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative. L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit (WF-PLA-0110).",
-            ge=0,
         ),
     ]
 

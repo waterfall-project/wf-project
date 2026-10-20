@@ -9,10 +9,10 @@
  *
  * The server pairs the two revisions by the lineage of their objects (WF-DAT-0030) and marks each
  * node of the compared tree with its `difference` (C-361): the front pairs nothing, sums nothing
- * and orders nothing (WF-ARC-0020). It only splits the nodes of the tree into three parts by the
- * mark the server gave them — added, removed, changed —, keeping the order of the plan within
- * each, and leaves the unchanged ones out — the dense grid of the whole tree comes with
- * US-0500/L4. Each deviation is named by the label the API resolves (#204); one it leaves out is
+ * and orders nothing (WF-ARC-0020). It only splits the nodes the server gives — its `items`, read
+ * as `listNodes` reads a structure (#1193) — into three parts by the mark the server gave them —
+ * added, removed, changed —, keeping the order of the plan within each, and leaves the unchanged
+ * ones out — the dense grid of the whole tree comes with US-0500/L4. Each deviation is named by the label the API resolves (#204); one it leaves out is
  * said missing, never replaced by an identifier.
  */
 import { Calculator, ClipboardList, GitCompareArrows, type LucideIcon } from "lucide-react";
@@ -274,19 +274,19 @@ function ComparisonResult({ comparison }: { readonly comparison: RevisionCompari
       <Nodes
         title={t("added")}
         none={t("noneAdded")}
-        nodes={marked(comparison.nodes, "added")}
+        nodes={marked(comparison.items, "added")}
         withChanges={false}
       />
       <Nodes
         title={t("removed")}
         none={t("noneRemoved")}
-        nodes={marked(comparison.nodes, "removed")}
+        nodes={marked(comparison.items, "removed")}
         withChanges={false}
       />
       <Nodes
         title={t("changed")}
         none={t("noneChanged")}
-        nodes={marked(comparison.nodes, "modified")}
+        nodes={marked(comparison.items, "modified")}
         withChanges
       />
       <Deltas deltas={comparison.amount_deltas} />
