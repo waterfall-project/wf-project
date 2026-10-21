@@ -175,6 +175,7 @@ function SubprojectMenu<Row extends GridNode>({
   change,
 }: ChoiceActions<Row> & { readonly choices: NonNullable<RowChoices<Row>["subproject"]> }) {
   const t = useTranslations("grid.structure");
+  const entry = useTranslations("grid.entry");
   return (
     <ContextMenuSub>
       <Trigger icon="subproject" busy={busy}>
@@ -213,7 +214,9 @@ function SubprojectMenu<Row extends GridNode>({
                 }
               }}
             >
-              {subproject.label}
+              {subproject.code === undefined
+                ? subproject.label
+                : entry("codedChoice", { code: subproject.code, label: subproject.label })}
             </ContextMenuRadioItem>
           ))}
         </ContextMenuRadioGroup>

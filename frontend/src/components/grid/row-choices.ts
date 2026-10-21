@@ -20,6 +20,8 @@ export type TrackingEntry = components["schemas"]["TrackingEntry"];
 export interface ChoiceOption {
   readonly id: string;
   readonly label: string;
+  /** The code that names it before its label, a sub-project's, which alone is unique in a project. */
+  readonly code?: string | undefined;
 }
 
 /** What a write of the menu answered, as the grid reads it, its totals left as they are. */

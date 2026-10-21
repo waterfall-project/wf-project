@@ -5,8 +5,8 @@
  * cell, opened by a right click or, from the keyboard, by Shift+F10 or the Menu key. Radix gives it
  * the roles of a menu and its keyboard — the arrows, Enter, Escape — and gives the focus back to
  * what held it once closed; a submenu, with its checked entries or its choice among values, is the
- * one a command offers several values with. The surface of the popover token, a border and the one shadow of the
- * charter, as the drop-down menu; no animation.
+ * one a command offers several values with. The surface of the popover token, a border and the one
+ * shadow of the charter, as the drop-down menu; no animation.
  */
 "use client";
 

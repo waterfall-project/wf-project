@@ -177,28 +177,37 @@ test("carries a line to a sub-project from the menu of its cell, and takes it ou
   const radios = page.getByRole("menu", { name: "Sous-projet" });
   await expect(radios.getByRole("menuitemradio")).toHaveText([
     "Aucun sous-projet",
-    "Poste de commande",
-    "Essais et mise en service",
+    "SP-CMD — Poste de commande",
+    "SP-ESS — Essais et mise en service",
   ]);
-  await expect(radios.getByRole("menuitemradio", { name: "Poste de commande" })).toHaveAttribute(
-    "aria-checked",
-    "true",
-  );
-  await radios.getByRole("menuitemradio", { name: "Essais et mise en service" }).click();
+  await expect(
+    radios.getByRole("menuitemradio", { name: "SP-CMD — Poste de commande" }),
+  ).toHaveAttribute("aria-checked", "true");
+  await radios.getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }).click();
   const said = page.getByText("Sous-projet de « Mise en service sur site » mis à jour.");
   await expect(said).toBeVisible({ timeout: WORKING });
   await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
 
-  // Taken out of any: the menu offers it, and the screen says the sub-project was updated.
+  // Taken out of any: the menu offers it, the second write is the server action that carries a null
+  // sub-project, and the screen says the sub-project was updated. The line of the example bears a
+  // budget; the figures of the line do not take part in the write, which a line added after the
+  // reference (a nil budget, WF-RAE-0040-A) would send the same, proven by the DOM tests.
   await line.getByRole("gridcell").nth(at.label).click({ button: "right" });
   await page
     .getByRole("menu", { name: "Menu de la cellule" })
     .getByRole("menuitem", { name: "Sous-projet" })
     .click();
+  const removal = page.waitForRequest(
+    (request) =>
+      request.headers()["next-action"] !== undefined &&
+      (request.postData() ?? "").includes('"subproject_id":null'),
+    { timeout: WORKING },
+  );
   await page
     .getByRole("menu", { name: "Sous-projet" })
     .getByRole("menuitemradio", { name: "Aucun sous-projet" })
     .click();
+  expect((await removal).postData()).toContain('"lock_version"');
   await expect(said).toBeVisible({ timeout: WORKING });
   await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   await expect(page.getByRole("alert")).toBeEmpty();

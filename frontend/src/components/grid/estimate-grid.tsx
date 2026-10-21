@@ -219,6 +219,7 @@ export function EstimateGrid({
   // The sub-project of a line is chosen from the menu of its cell, among those of the project, where
   // the estimate may be entered and the project lists its sub-projects.
   const { subprojects } = reference;
+  // A reading that asks nothing but its fields and its sort is the whole structure.
   const whole = Object.keys(filters).length === 0;
   const choices = useMemo<RowChoices<EstimateNode> | undefined>(
     () =>
@@ -226,7 +227,7 @@ export function EstimateGrid({
         ? undefined
         : {
             subproject: {
-              subprojects: subprojects.map(({ id, label }) => ({ id, label })),
+              subprojects: subprojects.map(({ id, label, code }) => ({ id, label, code })),
               current: (node) => node.estimate_line?.subproject_id ?? null,
             },
             written: (written) => nodesWritten(written, ESTIMATE_FIELDS, whole),
@@ -254,8 +255,7 @@ export function EstimateGrid({
   const config = useMemo(() => {
     const told: Moved = {
       to: reach,
-      // A reading that asks nothing but its fields and its sort is the whole structure.
-      whole: Object.keys(filters).length === 0,
+      whole,
     };
     const name = (column: NodeColumn) => columns(column);
     return estimateGrid(
@@ -264,7 +264,7 @@ export function EstimateGrid({
         ? structureWrites(structure, version, told, tasksEditable, name, filters)
         : undefined,
     );
-  }, [reference, editable, tasksEditable, structure, version, reach, filters, columns]);
+  }, [reference, editable, tasksEditable, structure, version, reach, filters, whole, columns]);
   return (
     <DenseGrid
       config={config}
