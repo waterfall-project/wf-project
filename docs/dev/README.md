@@ -848,25 +848,28 @@ choisit parmi les lots et les postes du lotissement lu entier, ou rien, écrit p
 — le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte
 (`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
 déjà l'élément ou celles qui sortiraient du sous-arbre de leur lot (WF-PLA-0170) ; comme tout refus
-de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est décrite
-(`aria-invalid`, `aria-describedby`). Là aussi, la tâche se saisit au clavier, cellule par cellule,
-par `updateTaskFacet` (US-0470, `planning.tsx`) : le libellé, la description — vidée, elle est
-nulle —, le mode (une liste), la durée avec le suffixe de son unité et les dates, chacune là où le
-nœud nomme son champ parmi ceux qu'il accepte (`editable_fields`) et ne le calcule pas
-(`computed_fields`) : les dates d'une tâche automatique, la durée d'une récapitulative sont
-traversées sans entrer en saisie (WF-PLA-0020). La durée se lit dans la langue de l'interface
-(`parseDuration`, `cell-values.ts`) : les suffixes que nomme WF-PLA-0160, les mêmes dans les deux
-langues — « m » un mois, « min » une minute, « j », « sem », et leurs pareils écoulés préfixés d'un
-« e » —, plus ceux que le catalogue écrit dans la langue (`enums.DurationUnit` : « wk », « mo »…),
-sans égard à la casse, un nombre seul en jours ; elle part dans son unité, que le serveur garde. Une
-date se tape dans la forme courte de la langue, ou sous sa forme ISO (`parsePlanningDate`), et garde
-les heures de travail du jour que la tâche portait. La validation de la dernière cellule saisissable
-d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée. Toute
-écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ (`byField`
-de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API hors
-d'atteinte, une version périmée ou une session perdue ne disant rien de ce qui a été saisi (#819.2) ;
-une valeur que la ligne répondue porte déjà n'écrit rien, faute de quoi le corps ne porterait que
-la version (#819.8). Au-dessus de la grille du planning et de celle du devis, un
+de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est
+décrite (`aria-invalid`, `aria-describedby`). Là aussi, la tâche se saisit au clavier, cellule par
+cellule, par `updateTaskFacet` (US-0470, `planning.tsx`) : le libellé, la description — vidée, elle
+est nulle —, le mode (une liste), la durée avec le suffixe de son unité et les dates, chacune là où
+le nœud porte sa tâche, nomme son champ parmi ceux qu'il accepte (`editable_fields`) et ne le
+calcule pas (`computed_fields`) : les dates d'une tâche automatique, la durée d'une récapitulative
+sont traversées sans entrer en saisie (WF-PLA-0020). La durée se lit dans la langue de l'interface
+(`parseDuration`, `cell-values.ts`), sans égard à la casse, un nombre seul en jours : les suffixes
+que nomme WF-PLA-0160 sont lus en toutes langues — « m » un mois, « min » une minute, « h », « j »,
+« sem », et leurs pareils écoulés préfixés d'un « e » —, plus ceux que le catalogue écrit dans la
+langue courante (`enums.DurationUnit`), et aucun autre : en anglais « d », « wk », « mo » sont lus,
+en français ils ne le sont pas. Elle part dans son unité, que le serveur garde. Une date se tape
+dans la forme courte de la langue, ou sous sa forme ISO (`parsePlanningDate`), et garde les heures
+de travail que la tâche portait à son ancienne date, non celles du nouveau jour (#1244) ; une tâche
+sans date à cette place la reçoit à l'heure 0. La validation de la dernière cellule saisissable
+d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée.
+Toute écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ
+(`byField` de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API
+hors d'atteinte, une version périmée ou une session perdue ne disant rien de ce qui a été saisi
+(#819.2) ; une valeur que la ligne répondue porte déjà n'écrit rien, faute de quoi le corps ne
+porterait que la version (#819.8), et lève le refus de sa cellule, avec l'avis qui le dit. Au-dessus
+de la grille du planning et de celle du devis, un
 filtre choisit un lot ou un poste parmi le même lotissement lu entier (`BreakdownFilterChoice`,
 `readGridScreen` avec `byBreakdown`), écrit dans l'adresse sous le nom du contrat —
 `work_package_id` ou `order_item_id`, l'un levant l'autre, un identifiant mal formé ignoré — et
@@ -940,9 +943,10 @@ requête) ne sont lus que là où la structure liste `edit_remaining` disponible
 donnent pas le sous-menu « Sous-projet » ; la colonne et le sous-menu sont ceux du devis, décrits
 avec le menu contextuel des cellules (`choice-menu.tsx`). Son bandeau ne montre que le
 sous-projet, seul paramètre de contexte que ses lectures prennent, et dit qu'il ne restreint que la
-grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Le Kanban du démarrage des tâches, FBS-4.5.3, est une
-feuille de la fonction, `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches
-non démarrées, les démarrées et les terminées avec leur date, telles que les rend
+grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Le
+Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
+`…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
+démarrées et les terminées avec leur date, telles que les rend
 `listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
 signalé à terminer (`predecessors_completed`) ; aucun pourcentage, aucune commande. L'opération lit
 la révision en cours : sur une

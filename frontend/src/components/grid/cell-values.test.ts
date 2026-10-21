@@ -70,7 +70,21 @@ describe("a duration typed with the suffix of its unit", () => {
     expect(parseDuration("3 esem", "fr", fr)).toBe("3 ew");
     expect(parseDuration("4 eh", "fr", fr)).toBe("4 eh");
     expect(parseDuration("30 emin", "fr", fr)).toBe("30 emin");
+    // The suffixes of the English catalogue the requirement does not name are not read in French.
+    expect(parseDuration("2 d", "fr", fr)).toBeUndefined();
+    expect(parseDuration("1 wk", "fr", fr)).toBeUndefined();
+    expect(parseDuration("1 mo", "fr", fr)).toBeUndefined();
   });
+
+  it.each(["fr", "en"] as const)(
+    "reads every unit of the contract by the suffix the catalogue writes for it, in %s",
+    (locale) => {
+      // The catalogue names every unit of the contract, which `make catalogs` holds it to.
+      for (const [unit, written] of Object.entries(CATALOGUES[locale].enums.DurationUnit)) {
+        expect(parseDuration(`3 ${written}`, locale, suffixes(locale))).toBe(`3 ${unit}`);
+      }
+    },
+  );
 
   it("reads a number alone in days, and refuses a negative duration, a suffix unknown or no number", () => {
     const fr = suffixes("fr");

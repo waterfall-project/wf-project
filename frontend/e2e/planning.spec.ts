@@ -130,10 +130,11 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   const leaf = grid.getByRole("row", { name: /^9 .*Câblage/ });
   const cell = (column: number) => leaf.getByRole("gridcell").nth(column);
   // Les dates d'une tâche en mode automatique ne sont pas saisissables: F2 on its start opens no
-  // field, but the refusal that says what its value depends on.
+  // field, and the cell says it is computed, by its accessible name.
   await cell(at.start).click();
   await page.keyboard.press("F2");
   await expect(grid.getByRole("textbox")).toHaveCount(0);
+  await expect(cell(at.start)).toHaveAccessibleName(/Calculé/);
   await page.keyboard.press("Escape");
   await cell(at.label).click();
   await page.keyboard.press("F2");

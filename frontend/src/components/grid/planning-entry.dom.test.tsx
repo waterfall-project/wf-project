@@ -198,6 +198,29 @@ describe("the cells of a task entered in the grid of the planning", () => {
     ]);
   });
 
+  it("keeps the hours the task had at its former date when its start is moved, not those of the new day (#1244)", async () => {
+    // The desks start at hour 4 of their day: moved to another, they still start at hour 4.
+    const hold = held();
+    const client = serve({ [TASK]: "task_dates_entered" }, hold.until);
+    const moved = structuredClone(planning);
+    const desks = rowOf(moved, "Pupitres opérateurs");
+    const task = moved.items[desks]?.task;
+    if (task?.start == null) {
+      throw new Error("the desks have no start");
+    }
+    task.start = { ...task.start, hours: "4" };
+    render(grid(moved));
+    await retype(await entered(desks, "start"), "09/03/2026");
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(1);
+    });
+    expect(written(client)[0]?.body).toEqual({
+      start: { date: "2026-03-09", hours: "4" },
+      lock_version: 1,
+    });
+    hold.release();
+  });
+
   it.each([
     { locale: "fr", month: "1 m", minute: "1 min" },
     { locale: "en", month: "1 mo", minute: "1 min" },

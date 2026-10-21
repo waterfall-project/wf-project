@@ -26,36 +26,31 @@ export type EntryProblem =
   "required" | "tooLong" | "notANumber" | "twoDecimals" | "notADuration" | "notADate";
 
 /**
- * The suffixes of the units of a duration that WF-PLA-0160 names, the same whatever the language
- * of the interface: « m » a month, « min » a minute, « j » a day, « sem » a week, and the same
- * prefixed by « e » for the time elapsed.
+ * The suffix WF-PLA-0160 names for each unit of a duration, the same whatever the language of the
+ * interface: « m » a month, « min » a minute, « j » a day, « sem » a week, and the same prefixed
+ * by « e » for the time elapsed. Every unit of the contract, in its order: one it adds fails the
+ * type check here (défaut n° 4).
  */
-const REQUIRED_SUFFIXES: Readonly<Record<string, DurationUnit>> = {
+const REQUIRED_SUFFIXES = {
   min: "min",
   h: "h",
-  j: "d",
-  sem: "w",
-  m: "mo",
+  d: "j",
+  w: "sem",
+  mo: "m",
   emin: "emin",
   eh: "eh",
-  ej: "ed",
-  esem: "ew",
-  em: "emo",
-};
+  ed: "ej",
+  ew: "esem",
+  emo: "em",
+} as const satisfies Record<DurationUnit, string>;
+
+/** Whether a text is a unit of a duration of the contract. */
+function isUnit(text: string): text is DurationUnit {
+  return Object.hasOwn(REQUIRED_SUFFIXES, text);
+}
 
 /** Every unit of a duration, in the order of the contract. */
-const UNITS: readonly DurationUnit[] = [
-  "min",
-  "h",
-  "d",
-  "w",
-  "mo",
-  "emin",
-  "eh",
-  "ed",
-  "ew",
-  "emo",
-];
+const UNITS: readonly DurationUnit[] = Object.keys(REQUIRED_SUFFIXES).filter(isUnit);
 
 /** The unit a number typed without a suffix is read in: the day, as Microsoft Project reads it. */
 const DEFAULT_UNIT: DurationUnit = "d";
@@ -73,10 +68,9 @@ export function durationOf(
   value: string,
 ): { readonly value: string; readonly unit: DurationUnit } | undefined {
   const [decimal, unit, ...rest] = value.split(" ");
-  const known = UNITS.find((each) => each === unit);
-  return decimal === undefined || known === undefined || rest.length > 0
+  return decimal === undefined || unit === undefined || !isUnit(unit) || rest.length > 0
     ? undefined
-    : { value: decimal, unit: known };
+    : { value: decimal, unit };
 }
 
 /** The value of a duration of the contract, as an entry validates it: `10 d`. */
@@ -91,9 +85,9 @@ export function durationEntered(
 /**
  * A duration typed in a language (WF-PLA-0160): a number of the language, never negative, and the
  * suffix of its unit after it, with or without a space, whatever its case — those the requirement
- * names, which hold in every language, and those the interface writes in its language (`suffix`):
- * « 1 m » is a month and « 1 min » a minute in each, « 1 mo » a month in English too. A number alone
- * is read in days. Anything else is none: `undefined`.
+ * names, which hold in every language, and those the catalogue writes in the language of the entry
+ * (`suffix`), no other: « 1 m » is a month and « 1 min » a minute in each, « 1 mo » a month in
+ * English, but not in French. A number alone is read in days. Anything else is none: `undefined`.
  */
 export function parseDuration(
   text: string,
@@ -103,8 +97,9 @@ export function parseDuration(
   const typed = /^(.*?)\s*(\p{L}*)$/u.exec(text.trim());
   const number = typed?.[1] ?? "";
   const written = (typed?.[2] ?? "").toLocaleLowerCase(locale);
-  const units = new Map<string, DurationUnit>(Object.entries(REQUIRED_SUFFIXES));
+  const units = new Map<string, DurationUnit>();
   for (const unit of UNITS) {
+    units.set(REQUIRED_SUFFIXES[unit], unit);
     units.set(suffix(unit).toLocaleLowerCase(locale), unit);
   }
   const unit = written === "" ? DEFAULT_UNIT : units.get(written);
