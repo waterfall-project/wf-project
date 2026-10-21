@@ -720,7 +720,9 @@ def volumes() -> dict[str, JsonObject]:
         "portfolio_risks.json": _example(
             f"Les risques des projets en cours du portefeuille du §4.6.2 au "
             f"{_day(TODAY.date())} : le total des provisions identifiées, les dix risques "
-            f"les plus lourds avec leur projet, la matrice remplie, la couverture des risques "
+            f"les plus lourds avec leur projet, la matrice remplie — chaque risque identifié "
+            f"compté dans sa case et placé en point à ses valeurs exactes, avec son projet —, "
+            f"la couverture des risques "
             f"agrégée — la somme des réserves de référence des projets face aux provisions "
             f"restantes et au coût des risques survenus —, et les provisions survenues et "
             f"écartées sur l'année (WF-PTF-0090, WF-RIS-0050). Un risque dit si le lecteur "
@@ -797,6 +799,9 @@ def _ordinal(value: int) -> str:
 
 # The envelope of an example and its value are laid out; below them, one line per item.
 _EXPANDED_DEPTH = 2
+# Below them, an object that holds a list longer than this is laid out too, the list one line per
+# item: a point of the matrix of the portfolio changed is one line of the diff (#1053).
+_LONG_LIST = 50
 
 
 def render(example: JsonObject) -> str:
@@ -810,12 +815,16 @@ def _render(value: JsonValue, depth: int) -> str:
     if isinstance(value, list) and value:
         items = ",\n".join(inner + _compact(item) for item in value)
         return f"[\n{items}\n{indent}]"
-    if isinstance(value, dict) and depth < _EXPANDED_DEPTH:
+    if isinstance(value, dict) and (depth < _EXPANDED_DEPTH or _holds_long_list(value)):
         fields = ",\n".join(
             f"{inner}{_compact(key)}: {_render(item, depth + 1)}" for key, item in value.items()
         )
         return f"{{\n{fields}\n{indent}}}"
     return _compact(value)
+
+
+def _holds_long_list(value: JsonObject) -> bool:
+    return any(isinstance(item, list) and len(item) > _LONG_LIST for item in value.values())
 
 
 def _compact(value: JsonValue) -> str:

@@ -651,6 +651,18 @@ def test_an_example_is_written_one_line_per_item() -> None:
     )
 
 
+def test_an_object_below_the_value_that_holds_a_long_list_is_laid_out_too() -> None:
+    # The matrix of the portfolio holds a point per risk: one line each, not one line for all
+    # (#1053); an object of short lists stays on its line.
+    long: list[Any] = list(range(51))
+    short: list[Any] = list(range(50))
+    text = mockdata.render({"value": {"matrix": {"points": long}, "levels": {"items": short}}})
+    lines = text.splitlines()
+    assert '    "matrix": {' in lines
+    assert sum(1 for line in lines if line.strip().rstrip(",").isdigit()) == len(long)
+    assert f'    "levels": {{"items":{json.dumps(short, separators=(",", ":"))}}}' in lines
+
+
 @pytest.mark.usefixtures("computed_once")
 def test_the_written_volumes_and_readings_check_up_to_date(tmp_path: Path) -> None:
     assert mockdata.main([], tmp_path) == 0

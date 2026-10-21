@@ -50,6 +50,7 @@ from wftools.mockstructure import (
     hourly_rate,
     labels,
     money,
+    share,
 )
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
@@ -347,6 +348,25 @@ def matrix_cell(risk: Risk, budget: Decimal) -> JsonObject:
     return {"probability_level": probability, "severity_level": severity, "zone": zone}
 
 
+def matrix_point(risk: Risk, budget: Decimal) -> JsonObject:
+    """Return a risk as the matrix places it, at its exact values (`RiskMatrixPoint`, #1053).
+
+    Its probability, its severity in amount and as a share of the budget given, the share its
+    cell classes, its provision, its state, and the zone of its cell (WF-RIS-0040, WF-REF-0160).
+    """
+    last = risk.last
+    return {
+        "risk_id": universe(risk.number),
+        "label": risk.label,
+        "probability": str(last.probability),
+        "severity_amount": money(last.severity),
+        "severity_ratio": str(share(last.severity / budget)),
+        "provision_amount": money(provision(risk)),
+        "state": last.state,
+        "zone": matrix_cell(risk, budget)["zone"],
+    }
+
+
 def commands(risk: Risk) -> list[JsonValue]:
     """Return the commands of a risk, in the order of `RiskCommand`, for a caller who may all.
 
@@ -470,9 +490,10 @@ def totals(rows: list[mockcore.Row]) -> JsonObject:
 
 
 def matrix(rows: list[mockcore.Row], budget: Decimal) -> JsonObject:
-    """Return the matrix of the risks: its levels, its cells counted, the totals (`RiskMatrix`).
+    """Return the matrix of the risks: its levels, its cells counted, its points, the totals.
 
-    Each risk in the cell its probability and its severity on the budget given place it in.
+    Each risk in the cell its probability and its severity on the budget given place it in, and
+    a point at its exact values, in the order of the register (`RiskMatrix`, #1053).
     """
     settings = fixture("reference_settings")["risk_matrix"]
     cells = [matrix_cell(risk, budget) for risk in REGISTER]
@@ -503,6 +524,7 @@ def matrix(rows: list[mockcore.Row], budget: Decimal) -> JsonObject:
             for p in range(1, len(probabilities) + 2)
             for s in range(1, len(severities) + 2)
         ],
+        "points": [matrix_point(risk, budget) for risk in REGISTER],
         "totals": totals(rows),
     }
 
@@ -878,7 +900,10 @@ def examples() -> dict[str, JsonObject]:
             f"de probabilité bornés à {_percents(probabilities)}, {len(severities) + 1} de "
             f"gravité bornés à {_percents(severities)} du budget de référence "
             f"(`reference_settings`) ; chaque case avec sa zone et le nombre de ses "
-            f"risques — {counted} du registre, {scale} —, et les totaux de provisions "
+            f"risques — {counted} du registre, {scale} —, chacun aussi un point à ses valeurs "
+            f"exactes, sa probabilité, sa gravité en montant et en part du budget, sa provision, "
+            f"son état et la zone de sa case, que le graphique place sans rien calculer et que "
+            f"l'écran filtre par état (#1053) ; et les totaux de provisions "
             "(WF-RIS-0040, WF-REF-0160).",
             read["risk_matrix"],
         ),

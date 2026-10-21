@@ -348,7 +348,8 @@ def test_preferences_at_their_bounds_are_written(
 # A value the contract does not admit, refused by its true cause: a lane under the first, by
 # ``VALUE_OUT_OF_RANGE``, the bound named; a number of lines per page not of the four, by the same
 # code without parameter; a value of another kind — a boolean for a number, an integer for a
-# theme —, by ``VALIDATION_FAILED``.
+# theme, a string or a decimal not of the four for a number of lines (#1236) —, by
+# ``VALIDATION_FAILED``.
 NOT_ADMITTED: list[tuple[dict[str, Any], dict[str, Any]]] = [
     (
         {"timelines": {"t1": {"lanes": {"n1": -1}}}},
@@ -368,6 +369,14 @@ NOT_ADMITTED: list[tuple[dict[str, Any], dict[str, Any]]] = [
     ),
     (
         {"grids": {"users": {"page_size": True}}},
+        {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
+    ),
+    (
+        {"grids": {"users": {"page_size": "30"}}},
+        {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
+    ),
+    (
+        {"grids": {"users": {"page_size": 30.0}}},
         {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
     ),
     ({"theme": 3}, {"pointer": "/theme", "code": "VALIDATION_FAILED"}),

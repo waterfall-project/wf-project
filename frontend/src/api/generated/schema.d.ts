@@ -2231,7 +2231,7 @@ export interface paths {
         };
         /**
          * Matrice de risques du projet
-         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070).
+         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070), et chaque risque compté est un point à ses valeurs exactes (`points`, #1053).
          */
         get: operations["getProjectRiskMatrix"];
         put?: never;
@@ -4923,7 +4923,28 @@ export interface components {
             lower: components["schemas"]["Percent"];
             upper: components["schemas"]["Percent"] | null;
         };
-        /** @description Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des projets retenus pour celle du portefeuille. */
+        /** @description Un risque que la matrice retient, à ses valeurs exactes, pour que le graphique le place sans rien calculer (WF-RIS-0040, WF-ARC-0020, #1053) : sa probabilité en abscisse, sa gravité en part de l'assiette en ordonnée, sa gravité en montant pour la taille de sa bulle. Ses valeurs sont celles du risque lu (`Risk`), et sa zone celle de sa case (`Risk.matrix_cell`). Dans la matrice du portefeuille, il nomme aussi son projet. */
+        RiskMatrixPoint: {
+            risk_id: components["schemas"]["Uuid"];
+            label: string;
+            probability: components["schemas"]["Percent"];
+            /** @description La gravité du risque (`Risk.severity`), ce qu'il coûterait s'il survenait. */
+            severity_amount: components["schemas"]["Money"];
+            /** @description La gravité en part de l'assiette du projet du risque — son budget de référence, ou avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —, à quatre décimales (README, « Une part… ») : la part que les bornes de gravité classent, et qui place le risque dans sa case. */
+            severity_ratio: components["schemas"]["Percent"];
+            /** @description La provision du risque (`Risk.provision_amount`, WF-RIS-0010). */
+            provision_amount: components["schemas"]["Money"];
+            state: components["schemas"]["RiskState"];
+            /** @description La zone de la case du risque, que le serveur classe (WF-IHM-0070). */
+            zone: components["schemas"]["AlertZone"];
+            /** @description Le projet du risque, dans la matrice du portefeuille seulement. */
+            project_id?: components["schemas"]["Uuid"];
+            /** @description Le libellé de ce projet, dans la matrice du portefeuille seulement. */
+            project_label?: string;
+            /** @description Si l'appelant peut ouvrir le projet du risque (WF-ADM-0110), comme `PortfolioRisks.heaviest[].can_open`, dans la matrice du portefeuille seulement ; faux, la bulle nomme le risque et son projet, sans mener au détail (WF-PTF-0030). */
+            can_open?: boolean;
+        };
+        /** @description Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des projets retenus pour celle du portefeuille. Elle les compte par case (`cells`) et les rend un par un (`points`), les mêmes. */
         RiskMatrix: {
             /** @description Les quatre niveaux de probabilité, du plus bas au plus haut, en pourcentage. */
             probability_levels: components["schemas"]["RiskMatrixLevel"][];
@@ -4935,6 +4956,8 @@ export interface components {
                 count: number;
                 zone: components["schemas"]["AlertZone"];
             }[];
+            /** @description Un point par risque que la matrice retient — ceux que comptent ses cases —, avec son état, que l'écran filtre comme il filtre la grille (#1053) ; vide quand aucun risque n'est retenu. */
+            points: components["schemas"]["RiskMatrixPoint"][];
             totals: components["schemas"]["ProvisionTotals"];
         };
         /** @description La couverture des risques d'un projet, à une date et dans une révision (WF-RIS-0050, WF-RAE-0020). */
@@ -5167,8 +5190,15 @@ export interface components {
             scope: components["schemas"]["PortfolioScope"];
             /** @description Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou, sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060). */
             under_load_threshold: components["schemas"]["Percent"];
-            /** @description Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte un mois par mois de cette liste, dans le même ordre. */
+            /** @description La capacité du périmètre, en heures par mois : la somme des capacités des rôles retenus (`roles[].capacity_monthly_hours`) — tous les rôles actifs sans filtre, ceux du nœud d'organisation avec lui (`org_node_id`) —, qu'un rôle sans charge compte aussi (#375). Le graphique du plan agrégé la trace en regard des barres, sans que le front somme les rôles (WF-PTF-0060, WF-ARC-0020, #1051). */
+            capacity_monthly_hours: components["schemas"]["Hours"];
+            /** @description Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte un mois par mois de cette liste, dans le même ordre, et `monthly_totals` aussi. */
             months: string[];
+            /** @description Le total des heures de chaque mois de `months`, dans le même ordre, un mois sans charge compris : la somme des heures des rôles retenus ce mois-là, que le sommet de la barre du mois porte (WF-PTF-0060, #1051). */
+            monthly_totals: {
+                month: string;
+                hours: components["schemas"]["Hours"];
+            }[];
             roles: {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;
@@ -11548,7 +11578,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Charges et capacités par rôle et par mois. */
+            /** @description Charges et capacités par rôle et par mois, la capacité du périmètre et le total de chaque mois. */
             200: {
                 headers: {
                     [name: string]: unknown;

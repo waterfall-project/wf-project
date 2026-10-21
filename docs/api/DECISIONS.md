@@ -7051,6 +7051,65 @@ ses exemples : le back ne sert pas encore `moveNodes`.
 (1300-1599, `wftools.mockids`) la prolonge après les nœuds de l'avenant 2 ; les exemples de ce lot
 l'emploient, de 1300 à 1304.
 
+## Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550)
+
+Partie K7 de la conception d'EP-15 (US-0550/L1), sur les décisions de l'auteur du 2026-10-18
+(#1051, #1053). Le front ne calcule rien de ce qu'il trace (WF-ARC-0020) : ce que les graphiques
+d'US-0550 placent, le serveur le rend.
+
+**Le plan agrégé porte la capacité de son périmètre et le total de chaque mois** (#1051).
+`PortfolioWorkload.capacity_monthly_hours` est la somme des `capacity_monthly_hours` des rôles
+retenus : tous les rôles actifs sans filtre, ceux du nœud d'organisation avec lui (`org_node_id`).
+Un rôle sans charge y compte, comme il figure au plan depuis la décision du 2026-10-08 sur #375 :
+le plan sert à voir la disponibilité. C'est la droite en pointillés du graphique. `monthly_totals`
+donne le total des heures des rôles retenus pour chaque mois de `months`, dans le même ordre, un
+mois sans charge compris : c'est l'étiquette du sommet de chaque barre. Chaque total nomme son mois
+(`month`, `hours`), comme les mois d'un rôle. Le plan d'un projet ne change pas : il reste sans
+capacité tracée ni taux de charge (#375, option b, confirmée sur #1051), et `Workload` garde sa
+forme. Les exemples sont `portfolio_workload` (1 360 640,5 heures par mois, les trois rôles, le
+monteur câbleur sans charge compris) et `portfolio_workload_org_node`, dont le nœud retient les
+trois mêmes rôles, et donc la même capacité et les mêmes totaux. Écartés : la somme des rôles
+faite par le front, qui ne calcule pas ce qu'il présente ; une liste de nombres nus pour les
+totaux, qui ne se lirait qu'en la rapprochant de `months`.
+
+**La matrice rend un point par risque qu'elle compte** (#1053). `RiskMatrix.points`, chacun un
+`RiskMatrixPoint`, porte les mêmes risques que ceux que comptent les cases. Dans la matrice d'un
+projet, ce sont tous les risques de la révision lue, quel que soit leur état : l'écran retient les
+bulles par son filtre d'état, comme la grille (décision 1 de #1053). Dans celle du portefeuille,
+ce sont les risques identifiés des projets en cours. Un point porte `risk_id`, `label`,
+`probability`, `severity_amount` (la gravité, `Risk.severity`), `severity_ratio`,
+`provision_amount`, `state` et `zone`, la zone de sa case. `severity_ratio` est la gravité en part
+de l'assiette du projet, à quatre décimales (README, « Une part… ») : la part que classent les
+bornes de gravité (WF-REF-0160), et donc celle qui met le risque dans sa case. Dans la matrice du
+portefeuille, le point nomme aussi son projet : `project_id`, `project_label`, et `can_open` comme
+`PortfolioRisks.heaviest[]` (WF-PTF-0030) ; ces trois champs sont absents de la matrice d'un
+projet. `cells` reste au contrat, pour la table du décompte sous le graphique (décision 2 de
+#1053). Les exemples sont `risk_matrix`, avec trois points (1,91 % ; moins d'un centième de pour
+cent, donné à son premier chiffre, `0.000003` ; 18,34 %), et le volume `portfolio_risks`, avec un
+point par risque identifié, 429, dont 50 d'un projet que le lecteur ne peut pas ouvrir. Écartés :
+un point sans sa part de gravité, que le front calculerait sur une assiette qu'il ne lit pas ; deux
+schémas, un pour le projet et un pour le portefeuille, alors que `RiskMatrix` est déjà commun aux
+deux.
+
+**Un volume écrit une ligne par élément d'une longue liste, à toute profondeur.** Sous la valeur
+d'un exemple, un objet qui tient une liste de plus de cinquante éléments est déplié
+(`wftools.mockdata.render`). La matrice de `portfolio_risks`, qui tenait sur une ligne, s'écrit
+désormais un point par ligne : un point changé se lit dans le diff. Aucun autre exemple ne change.
+
+**Un nombre de lignes par page envoyé autrement qu'en entier** (#1236, revue de US-0570/L1).
+`page_size` à `30` est refusé par `VALUE_OUT_OF_RANGE`. À `"30"` ou à `30.0`, il est refusé par
+`VALIDATION_FAILED`. À `"25"` ou à `25.0`, il est admis comme 25. Le service ne dit « hors plage »
+que pour un entier envoyé : Pydantic lui rend la valeur telle qu'envoyée, et il ne la reconvertit
+pas pour classer le refus. Le front, lui, n'envoie que l'une des quatre valeurs, en entier.
+`backend/tests/test_users_personal.py` fixe ces deux refus. `waterfall.api.problems` reconnaît une
+énumération d'entiers à la façon dont Pydantic en écrit les valeurs dans `ctx.expected` : nues
+pour des entiers (« 10 or 25 »), entre apostrophes pour des mots (« '10' or '25' »), même faits de
+chiffres. `backend/tests/test_api_problems.py` l'éprouve sur ses propres modèles, une `IntEnum` et
+une `StrEnum` de chiffres, qui ne doivent rien au contrat. Une dérive de cette écriture échoue
+donc là, et un changement du contrat échoue aux tests de ses champs. Écarté pour ce lot : lire le
+type du champ que désigne `loc` dans le modèle, comme le proposait #1236, puisque le test suffit à
+dire la dérive.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
