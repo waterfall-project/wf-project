@@ -11,7 +11,6 @@
  * Neither server nor client: the page reads the work breakdown, the grid writes from it.
  */
 import type { components } from "@/api/generated/schema";
-import type { Outcome } from "@/api/problem";
 
 /** The work breakdown of a project, as `getWorkBreakdown` reads it. */
 export type WorkBreakdownReading = components["schemas"]["WorkBreakdownReading"];
@@ -77,20 +76,4 @@ export function attachmentChange(
   return chosen.kind === "order_item"
     ? { order_item_id: chosen.id, ...(work === null ? {} : { work_package_id: null }) }
     : { work_package_id: chosen.id, ...(order === null ? {} : { order_item_id: null }) };
-}
-
-/**
- * A refusal of the attachment said by the reason of its field: the envelope of a 422 says only that
- * the entry is invalid, its field says why — a post or a lot already borne, the two at once, a
- * structure that bears none, a post out of the subtree of its lot (WF-PLA-0170) —; the parameters of
- * every field are kept, which name the task that bears the item or those the write would move out.
- */
-export function byField<T>(outcome: Outcome<T>): Outcome<T> {
-  if (outcome.kind === "done" || outcome.kind === "unreachable") {
-    return outcome;
-  }
-  const first = outcome.problem.fields?.[0];
-  return outcome.problem.code !== "VALIDATION_FAILED" || first === undefined
-    ? outcome
-    : { ...outcome, problem: { ...outcome.problem, code: first.code } };
 }

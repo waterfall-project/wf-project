@@ -32,10 +32,9 @@ import {
 } from "./fixtures";
 import { estimateReference } from "./reference";
 
-/** What the mocks of `@/api/server`, `next/cache` and `next/navigation` of a test file read. */
+/** What the mocks of `@/api/server` and `next/navigation` of a test file read. */
 export const server: { client: ApiClient | undefined } = { client: undefined };
 export const router = { push: vi.fn(), refresh: vi.fn() };
-export const cache = { refresh: vi.fn() };
 
 export type Timeline = components["schemas"]["Timeline"];
 export type Subproject = components["schemas"]["Subproject"];

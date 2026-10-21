@@ -14,7 +14,10 @@
  * shows what was validated, as pending; a refusal leaves the row as it was, and is told as every
  * screen tells one (`OutcomeNotice`) — a session lost among them, which leads to the sign-in
  * page and back to the screen (WF-SEC-0020) —, the cell it refused named with it, which the grid
- * marks and has it describe (EP-14/L44d).
+ * marks and has it describe (EP-14/L44d). A refusal by field is told by the reason of its field
+ * (`byField`, #817.1), and only a refusal of the value marks the cell: the API out of reach, a
+ * version gone stale or a session lost say nothing of what was entered (#819.2). A value the row
+ * answered already holds writes nothing (#819.8).
  *
  * The cells of a row leave one after the other: each is written from the row the server last
  * answered, so that the second carries the version the first gave it, whatever the pace of the
@@ -181,9 +184,37 @@ export function cellKey(row: string, column: string): string {
 }
 
 /**
+ * A refusal by field said by the reason of its field (#817.1): the envelope of a 422 says only that
+ * the entry is invalid, its field says why — a value the server computes, a field the node does not
+ * accept, a post or a lot already borne (WF-PLA-0170) —; the parameters of every field are kept, which
+ * name the task that bears the item or those the write would move out. Every write of a cell goes
+ * through it, and the gestures of structure too.
+ */
+export function byField<T>(outcome: Outcome<T>): Outcome<T> {
+  if (outcome.kind === "done" || outcome.kind === "unreachable") {
+    return outcome;
+  }
+  const first = outcome.problem.fields?.[0];
+  return outcome.problem.code !== "VALIDATION_FAILED" || first === undefined
+    ? outcome
+    : { ...outcome, problem: { ...outcome.problem, code: first.code } };
+}
+
+/**
+ * Whether an outcome refuses the value written (#819.2): a 422, which judges what was entered — its
+ * field, a date the server computes, a project that would outlast its horizon. The API out of reach,
+ * a version gone stale, a session lost, a state that forbids the write say nothing of the value: the
+ * notice tells them, and the cell is not marked invalid.
+ */
+function refusesValue(answer: Outcome<unknown>): boolean {
+  return answer.kind === "refused" && answer.problem.status === 422;
+}
+
+/**
  * The cell the refusal told is about once a write of a cell answered, by `cellKey`: that cell for a
- * refusal; for a success, the one told before, unless it is this very cell, written since — the
- * notice may stay, the cell is no longer refused; a refusal a paste overtook changes nothing.
+ * refusal of its value; none for another failure, which the notice tells in place of the one before;
+ * for a success, the one told before, unless it is this very cell, written since — the notice may
+ * stay, the cell is no longer refused; a refusal a paste overtook changes nothing.
  */
 function refusedAfter(
   answer: Outcome<unknown>,
@@ -195,7 +226,7 @@ function refusedAfter(
     return before;
   }
   if (answer.kind !== "done") {
-    return cell;
+    return refusesValue(answer) ? cell : undefined;
   }
   return before === cell ? undefined : before;
 }
@@ -391,7 +422,21 @@ export function useCellWrites<Row, Totals>(
       const memory = at.answers;
       const from = shownRow(memory, rowKey, key) ?? row;
       const first = readRow(memory, rowKey, key);
-      const answer = answering(key, await entry.write(from, value).catch(rejected));
+      // A value the row the server last answered already holds — the same entry validated twice
+      // before the first answered, or a cell refused typed anew as the row holds it — writes
+      // nothing: its write would carry the version alone (#819.8). The refusal of this cell, and
+      // the notice that tells it, are lifted: the cell holds a value the server accepted.
+      if ((entry.value(from) ?? null) === value) {
+        underWay.current -= 1;
+        current(at.epoch, (before) => ({
+          ...before,
+          pending: changed(before.pending, cell, undefined),
+          ...(before.refused === cell ? { outcome: undefined, refused: undefined } : {}),
+        }));
+        settle(at);
+        return true;
+      }
+      const answer = answering(key, byField(await entry.write(from, value).catch(rejected)));
       const stale = answer.kind !== "done" && born !== (pasted.current.get(key) ?? 0);
       const data =
         answer.kind === "done" && newer(answer.data, key, first, readRow(memory, rowKey, key))

@@ -127,6 +127,9 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   readonly axis?: (width: number) => ReactNode;
 }
 
+/** The unit of a duration, kept as it was entered (WF-PLA-0160). */
+export type DurationUnit = components["schemas"]["DurationUnit"];
+
 /** A field whose value the server computes, as the contract names it: `task.finish`. */
 export type ComputedValueField = components["schemas"]["ComputedValueField"];
 
@@ -195,15 +198,28 @@ export interface Choice {
 }
 
 /**
- * What a cell takes (WF-IHM-0040): a text, never blank, of `maxLength` characters at most, as the
- * contract bounds it; a number in the format of the language, which travels as the exact decimal
- * of the contract — an amount keeps two decimals at most —; a whole number, of digits alone, as
- * the contract takes an integer — a number of days —; one of the choices of a list. A cell that
- * may be emptied (`nullable`) writes `null` then.
+ * What a cell takes (WF-IHM-0040): a text, of `maxLength` characters at most where the contract
+ * bounds it, blank only where it may be emptied; a number in the format of the language, which
+ * travels as the exact decimal of the contract — an amount keeps two decimals at most —; a whole
+ * number, of digits alone, as the contract takes an integer — a number of days —; one of the choices
+ * of a list; a duration with the suffix of its unit (WF-PLA-0160); a date of planning in the form the
+ * language writes it. A cell that may be emptied (`nullable`) writes `null` then.
  */
 export type EntryKind =
-  | { readonly type: "text"; readonly maxLength: number }
+  | {
+      readonly type: "text";
+      readonly maxLength: number | undefined;
+      readonly nullable?: boolean | undefined;
+    }
   | { readonly type: "decimal" | "money" | "integer"; readonly nullable: boolean }
+  | {
+      readonly type: "duration";
+      /** The suffix of a unit in the language of the interface (`enums.DurationUnit`). */
+      readonly suffix: (unit: DurationUnit) => string;
+      /** A duration written as the cell shows it: its value, formatted, and the suffix of its unit. */
+      readonly written: (value: string, unit: DurationUnit) => string;
+    }
+  | { readonly type: "date" }
   | {
       readonly type: "choice";
       /** The choices, read by the entry alone: a function, never the list (défaut n° 14). */

@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { Outcome } from "@/api/problem";
+import type { Outcome, Problem } from "@/api/problem";
 import type { components } from "@/api/generated/schema";
 import {
   type HourlyRate,
@@ -105,13 +105,14 @@ async function enter<Row, Totals>(
   at: number,
   column: string,
   entry: CellEntry<Row, Totals>,
+  value = "1",
 ) {
   const row = writer.rows[at];
   if (row === undefined) {
     throw new Error(`no row ${at.toString()}`);
   }
   await act(async () => {
-    writer.write({ row, column, entry, value: "1", shown: "1" });
+    writer.write({ row, column, entry, value, shown: value });
     await settled();
   });
 }
@@ -437,5 +438,86 @@ describe("the nodes written while the page is read anew", () => {
       totals: { ...nodes.totals, hours: "15" },
     });
     expect(result.current.totals).toBeUndefined();
+  });
+});
+
+describe("the outcome of a cell written, in any grid", () => {
+  const first = { address: ADDRESS, rows: nodes.items, totals: nodes.totals };
+  const refusedDate = example("task_date_computed_refused") as Problem;
+  const keyOf = (at: number) => nodeKey(nodes.items[at] as EstimateNode);
+
+  it("tells a refusal by field by the reason of its field, and marks the cell (#817.1)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, TASK, "finish", entry);
+    await refuse(0, { kind: "refused", problem: refusedDate, conflictingObjectId: null });
+    expect(result.current.outcome).toMatchObject({
+      problem: { code: "COMPUTED_VALUE", fields: [{ pointer: "/finish" }] },
+    });
+    expect(result.current.refused(keyOf(TASK), "finish")).toBe(true);
+  });
+
+  it.each([
+    {
+      failure: "a version gone stale",
+      outcome: {
+        kind: "stale",
+        problem: { code: "STALE_LOCK_VERSION", status: 412 },
+        conflictingObjectId: null,
+      },
+    },
+    {
+      failure: "a state that forbids the write",
+      outcome: {
+        kind: "conflict",
+        problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+        conflictingObjectId: null,
+      },
+    },
+    { failure: "the API out of reach", outcome: { kind: "unreachable" } },
+  ] as const)(
+    "tells $failure without marking the cell, which says nothing of the value (#819.2)",
+    async ({ outcome }) => {
+      const { result } = writes(NODES, first);
+      const { entry, refuse } = held<EstimateNode, NodeTotals>();
+      await enter(result.current, LABOUR, "hours", entry);
+      await refuse(0, outcome);
+      expect(result.current.outcome).toEqual(outcome);
+      expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(false);
+    },
+  );
+
+  it("writes nothing of a value the row answered already holds, which would carry its version alone (#819.8)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, answer, from } = held<EstimateNode, NodeTotals>();
+    const hours: CellEntry<EstimateNode, NodeTotals> = {
+      ...entry,
+      value: (row) => row.estimate_line?.hours,
+    };
+    // The same value validated twice before the first answered: the second, written from the row
+    // answered, finds it there.
+    await enter(result.current, LABOUR, "hours", hours, "14");
+    await enter(result.current, LABOUR, "hours", hours, "14");
+    await answer(0, (row) => nodeAnswered(row, { hours: "14" }, undefined, 1));
+    expect(from(1)).toBeUndefined();
+    expect(result.current.pending(keyOf(LABOUR), "hours")).toBeUndefined();
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("14");
+  });
+
+  it("lifts the refusal of a cell typed anew as the row holds it, writing nothing (#819.8)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse, from } = held<EstimateNode, NodeTotals>();
+    const hours: CellEntry<EstimateNode, NodeTotals> = {
+      ...entry,
+      value: (row) => row.estimate_line?.hours,
+    };
+    await enter(result.current, LABOUR, "hours", hours, "13");
+    await refuse(0, { kind: "refused", problem: refusedDate, conflictingObjectId: null });
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(true);
+    // « 12,50 » typed for the 12.5 the row holds: the entry validates the decimal the row writes.
+    await enter(result.current, LABOUR, "hours", hours, "12.5");
+    expect(from(1)).toBeUndefined();
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(false);
+    expect(result.current.outcome).toBeUndefined();
   });
 });

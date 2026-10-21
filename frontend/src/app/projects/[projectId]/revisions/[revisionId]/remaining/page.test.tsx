@@ -306,7 +306,7 @@ describe("the screen of the remaining to commit", () => {
     expect(calls).toContain("GET /reference/cost-categories");
   });
 
-  it("hands the grid the sub-projects of the project, with their codes, when the structure lists the remaining to commit available [WF-PRJ-0050-A]", async () => {
+  it("hands the grid the sub-projects of the project, with their codes, when the structure lists the remaining to commit available", async () => {
     await remainingAt();
     expect(handed).toHaveLength(1);
     expect(handed[0]?.subprojects).toEqual([
@@ -319,7 +319,7 @@ describe("the screen of the remaining to commit", () => {
     ]);
   });
 
-  it("hands the grid no sub-project when the structure lists the remaining to commit unavailable, and does not read them for it [WF-PRJ-0050-A]", async () => {
+  it("hands the grid no sub-project when the structure lists the remaining to commit unavailable, the grid read only", async () => {
     server.answers = { ...server.answers, [STRUCTURES]: "structures_without_tasks" };
     await remainingAt();
     expect(handed).toHaveLength(1);
@@ -327,7 +327,7 @@ describe("the screen of the remaining to commit", () => {
     expect(handed[0]?.editable).toBe(false);
   });
 
-  it("hands the grid no sub-project when the API refuses the list, the grid still entered [WF-PRJ-0050-A]", async () => {
+  it("hands the grid no sub-project when the API refuses the list, the grid still entered", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/subprojects": {

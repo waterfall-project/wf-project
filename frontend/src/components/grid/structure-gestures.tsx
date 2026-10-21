@@ -79,7 +79,7 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 import type { GridNode, NodesWritten } from "./nodes";
-import { byField } from "./planning-attachment";
+import { byField } from "./cell-writes";
 import type { RowChange, RowChoices, RowsApplied } from "./row-choices";
 import { ChoiceMenuItems, targetsOf, TimelineForm, writeChange } from "./choice-menu";
 import type { DropPlace } from "./row-selection";

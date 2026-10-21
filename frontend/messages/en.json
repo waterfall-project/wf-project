@@ -223,7 +223,9 @@
       "notANumber": "This is not a number: enter it as {example}.",
       "required": "This cell cannot be left empty.",
       "tooLong": "{max} characters at most.",
-      "twoDecimals": "An amount has two decimals at most: enter it as {example}."
+      "twoDecimals": "An amount has two decimals at most: enter it as {example}.",
+      "notADuration": "This is not a duration: enter a number followed by its unit, as “2 d”, “1 wk”, “1 mo” or “30 min”.",
+      "notADate": "This is not a date: enter it as {example}."
     },
     "resize": "Width of the column {column}",
     "empty": "No row matches the request.",

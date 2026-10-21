@@ -10,7 +10,6 @@ import { RemainingGrid } from "@/components/grid/remaining-grid";
 import { forgetMessages } from "@/components/notices/message-history";
 import { expectAccessible } from "@/test/axe";
 import {
-  cache,
   cellAt,
   COMMAND,
   LABOUR,
@@ -49,11 +48,7 @@ import { estimateReference } from "@/test/reference";
 // example of the answer is about, so that the answer takes the place of the row read.
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
-vi.mock("next/cache", () => ({
-  refresh: () => {
-    cache.refresh();
-  },
-}));
+vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -325,7 +320,7 @@ describe("the submenu « Sous-projet » of a line", () => {
     await screen.findByText(/mis à jour\./);
   });
 
-  it("is reached and chosen from the keyboard alone, the focus coming back to the cell [WF-PRJ-0050-A]", async () => {
+  it("is reached and chosen from the keyboard alone, the focus coming back to the cell", async () => {
     const client = serve({ [LINE]: "estimate_line_subproject_changed" });
     render(estimateGrid());
     const cell = cellAt(REMINDER, "label");
@@ -359,14 +354,14 @@ describe("the submenu « Sous-projet » of a line", () => {
     });
   });
 
-  it("breaks no rule of accessibility in the submenu « Sous-projet » [WF-PRJ-0050-A]", async () => {
+  it("breaks no rule of accessibility in the submenu « Sous-projet »", async () => {
     serve();
     render(estimateGrid());
     const menu = await openSubmenu(REMINDER, "Sous-projet");
     await expectAccessible(menu);
   });
 
-  it("starts with the column « Sous-projet » hidden in the estimate, read only once shown [WF-PRJ-0050-A]", async () => {
+  it("starts with the column « Sous-projet » hidden in the estimate, read only once shown", async () => {
     serve({ "PATCH /me/preferences": "preferences" });
     const view = render(estimateGrid(estimate, true, null));
     expect(screen.queryByRole("columnheader", { name: "Sous-projet" })).toBeNull();

@@ -326,15 +326,16 @@ describe("the grid of the hourly rates", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("says with a rate the server refuses by its field the smallest amount it admits", async () => {
+  it("says with a rate the server refuses by its field the reason of its field and the smallest amount it admits", async () => {
     serve({
       [RATE]: { problem: example("hourly_rate_amount_refused") as Problem & { status: 422 } },
     });
     render(rates());
     cell(MECHANICAL, 2016).focus();
     await userEvent.keyboard("0{Enter}");
+    // The envelope says only that the entry is invalid; its field says why (#817.1).
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      /^Les données saisies ne sont pas valides\. Valeur minimale\s: 0,01\./,
+      /^La valeur sort des limites admises\. Valeur minimale\s: 0,01\./,
     );
     expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
   });
