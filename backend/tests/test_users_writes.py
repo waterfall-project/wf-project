@@ -90,9 +90,14 @@ def client(
 
 
 def accounts(database: Database) -> list[str | None]:
-    """Give the addresses of the accounts, in the order of their creation."""
+    """Give the addresses of the accounts, in alphabetical order.
+
+    Not in the order of their creation: the accounts a test writes by hand share one date, and
+    PostgreSQL gives rows of equal dates in any order — the order of the heap, which the rows
+    other tests deleted leave free to reuse (#1207).
+    """
     with database.transaction() as session:
-        return list(session.scalars(select(UserAccount.email).order_by(UserAccount.created_at)))
+        return list(session.scalars(select(UserAccount.email).order_by(UserAccount.email)))
 
 
 def journal(database: Database) -> list[AuditEntry]:
