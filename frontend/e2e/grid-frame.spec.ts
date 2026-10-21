@@ -160,22 +160,25 @@ test("a grid of a few rows is no taller than its content, in a window that would
  * points, and the header and the bar of the screen leave 519 under them for the cards, the filter,
  * the bar of the grid and the 160 of its floor. So is the actual costs, whose cards are no cause:
  * below 1024 its grid and the journal of imports lie one under the other, and the grid takes the
- * height of the window (`max-h-svh`) from where it starts.
+ * height of the window (`max-h-svh`) from where it starts. The risks keep, between their cards and
+ * their grid, the chart of their matrix over the whole width (US-0550/L4): 356 points with its
+ * caption and its values, so that in a window 768 high the grid ends at 881 at 1366 and at 923 at
+ * 911, and the page scrolls to its totals; the window is 1000 high for them.
  */
 const CARD_SCREENS = [
-  { address: path(`${REVISION}/estimate`), widths: [1366, 911] },
-  { address: path(`${REVISION}/remaining`), widths: [1366] },
-  { address: path(`${REVISION}/actual-costs`), widths: [1366] },
-  { address: path(`${REVISION}/risks`), widths: [1366, 911] },
+  { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768 },
+  { address: path(`${REVISION}/remaining`), widths: [1366], height: 768 },
+  { address: path(`${REVISION}/actual-costs`), widths: [1366], height: 768 },
+  { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 1000 },
 ] as const;
 
-for (const { address, widths } of CARD_SCREENS) {
+for (const { address, widths, height } of CARD_SCREENS) {
   test(`${address}: the cards of figures leave the totals of the grid in the window`, async ({
     page,
   }) => {
     await compile(page.request, address);
     for (const width of widths) {
-      await open(page, address, { width, height: 768 });
+      await open(page, address, { width, height });
       const cards = await page.locator("main [data-slot='card'][role='region']").count();
       expect(cards, `the cards of ${address}`).toBeGreaterThan(0);
       const grid = page.locator("main [role='grid'], main [role='treegrid']").first();

@@ -8,8 +8,8 @@
  * total of each month and the load of each role are the server's (`capacity_monthly_hours`,
  * `monthly_totals`, `roles`): nothing is summed here (WF-ARC-0020). The table of the roles, their
  * capacity, their rate of load and their signals, is drawn under it by the view. The chart is
- * exported as a PNG image that names the perimeter, its horizon, the node and the date of calculation
- * (WF-IHM-0130, `usePortfolioExport`).
+ * exported as a PNG image that names the perimeter, its horizon, the node and the date of
+ * calculation (WF-IHM-0130, `usePortfolioExport`).
  */
 "use client";
 
@@ -31,7 +31,7 @@ import { usePortfolioExport } from "./provenance";
 
 type PortfolioWorkload = components["schemas"]["PortfolioWorkload"];
 
-/** Render the aggregated workload in a stack of bars and the line of the capacity, and its totals. */
+/** Render the aggregated workload: a stack of bars, the line of the capacity, the totals. */
 export function PortfolioWorkloadChart({ workload }: { readonly workload: PortfolioWorkload }) {
   const t = useTranslations("portfolio.workload");
   const locale = useLocale();

@@ -38,6 +38,7 @@ const PALETTE: ChartPalette = {
   axis: "rgb(5, 5, 5)",
   grid: "rgb(6, 6, 6)",
   background: "rgb(7, 7, 7)",
+  zones: { nominal: "nominal", watch: "watch", alert: "alert" },
   font: "sans-serif",
 };
 
@@ -151,7 +152,7 @@ describe("the aggregated workload in a stack of bars", () => {
   });
 
   it("shows the zone the server rendered for a month, a month at 120 % of the capacity signalled as such [WF-PTF-0060-A]", async () => {
-    // The front shows the zone the server rends, it classes nothing: a variant of
+    // The front shows the zone the server renders, it classes nothing: a variant of
     // `portfolio_workload` whose first month of the first role, 0.966, is written as the server
     // would write it at 1.2, in the alert zone.
     const [role, ...others] = WORKLOAD.roles;

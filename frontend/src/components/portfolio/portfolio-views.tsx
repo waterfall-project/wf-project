@@ -19,7 +19,7 @@ import type { components } from "@/api/generated/schema";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
-import { RiskMatrixView } from "@/components/risks/risk-matrix";
+import { PortfolioRiskMatrix } from "@/components/risks/risk-bubble-chart";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
@@ -270,18 +270,16 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
             ))}
           </ListTable>
         </ViewSection>
-        <div className="max-w-3xl">
-          <RiskMatrixView matrix={risks.matrix} />
-        </div>
+        <PortfolioRiskMatrix matrix={risks.matrix} scope={risks.scope} />
       </div>
     </>
   );
 }
 
 /**
- * Render the aggregated workload: its chart — the stack of the load by role, the total of each month
- * and the dashed line of the capacity of the perimeter —, then the table under it: for each role,
- * its capacity and, month by month, its load, its rate and its signal (WF-PTF-0060).
+ * Render the aggregated workload: its chart — the stack of the load by role, the total of each
+ * month and the dashed line of the capacity of the perimeter —, then the table under it: for each
+ * role, its capacity and, month by month, its load, its rate and its signal (WF-PTF-0060).
  */
 export function WorkloadView({ workload }: { readonly workload: Schemas["PortfolioWorkload"] }) {
   const t = useTranslations("portfolio.workload");

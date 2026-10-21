@@ -429,13 +429,25 @@
     },
     "matrix": {
       "title": "Matrice des risques",
+      "description": "Nuage de bulles des risques : la probabilité en abscisse et la gravité, en part du budget de référence, en ordonnée ; chaque risque est une bulle à ses valeurs exactes, aussi grande que sa gravité en montant, sur les seize zones de la matrice.",
+      "axisSeverity": "Gravité (% du budget)",
+      "counts": "Décompte des risques par case de la matrice",
+      "none": "Aucun risque à tracer pour ce filtre.",
+      "file": "matrice-des-risques",
       "probability": "Probabilité",
       "severity": "Gravité, en part du budget de référence",
       "between": "{lower} à moins de {upper}",
-      "from": "{lower} et plus"
+      "from": "{lower} et plus",
+      "tooltip": {
+        "project": "Projet",
+        "probability": "Probabilité",
+        "severity": "Gravité",
+        "provision": "Provision",
+        "state": "État",
+        "zone": "Zone"
+      }
     },
     "detail": {
-      "hint": "Choisissez un risque dans le registre pour lire sa description, ses actions de mitigation et l’historique de ses réexamens.",
       "close": "Fermer le détail du risque",
       "description": "Description",
       "mitigation": "Actions de mitigation",

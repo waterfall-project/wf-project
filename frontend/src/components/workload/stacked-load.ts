@@ -13,7 +13,7 @@
 import type { LineSeriesOption } from "echarts/charts";
 import type { TooltipComponentOption } from "echarts/components";
 
-import { bars, type ChartPalette, planningInstant } from "@/components/chart/chart";
+import { bars, type ChartPalette, escapeHtml, planningInstant } from "@/components/chart/chart";
 import { formatDecimal, formatMonth } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
@@ -70,16 +70,6 @@ export function monthTotals(
 /** The `[instant, hours]` a point of a series holds, as ECharts hands it back; nothing otherwise. */
 function pointOf(value: unknown): readonly unknown[] {
   return Array.isArray(value) ? value : [];
-}
-
-/** A text as HTML: the label of a role is typed by a person, and a tooltip is written as HTML. */
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 /**
