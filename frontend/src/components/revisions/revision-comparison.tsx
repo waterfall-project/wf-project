@@ -213,25 +213,25 @@ function Nodes({
     <Part title={title} empty={nodes.length === 0 ? none : undefined}>
       <ListTable label={title} columns={columns}>
         {nodes.map((node) => (
-            // Keyed by `node_id`, always rendered, and not by `lineage_id`, which `fields` leaves
-            // out when the screen does not name it (#1208): no two nodes of a reading share it.
-            <TableRow key={node.node_id}>
-              <TableCell className={`${CELL} whitespace-normal`}>{labelOf(node)}</TableCell>
+          // Keyed by `node_id`, always rendered, and not by `lineage_id`, which `fields` leaves
+          // out when the screen does not name it (#1208): no two nodes of a reading share it.
+          <TableRow key={node.node_id}>
+            <TableCell className={`${CELL} whitespace-normal`}>{labelOf(node)}</TableCell>
+            <TableCell className={CELL}>
+              <KindOf kind={node.kind} />
+            </TableCell>
+            {withChanges ? (
               <TableCell className={CELL}>
-                <KindOf kind={node.kind} />
+                <span className="flex flex-wrap gap-1">
+                  {node.changes.map((name) => (
+                    <Badge key={name} variant="outline">
+                      {change(name)}
+                    </Badge>
+                  ))}
+                </span>
               </TableCell>
-              {withChanges ? (
-                <TableCell className={CELL}>
-                  <span className="flex flex-wrap gap-1">
-                    {node.changes.map((name) => (
-                      <Badge key={name} variant="outline">
-                        {change(name)}
-                      </Badge>
-                    ))}
-                  </span>
-                </TableCell>
-              ) : null}
-            </TableRow>
+            ) : null}
+          </TableRow>
         ))}
       </ListTable>
     </Part>
@@ -276,8 +276,7 @@ function labelOf(node: ComparisonNode): string | undefined {
 function marked(nodes: readonly ComparisonNode[], difference: NodeDifference): ComparisonNode[] {
   return nodes.filter(
     (node) =>
-      node.difference === difference &&
-      (difference !== "modified" || node.changes.length > 0),
+      node.difference === difference && (difference !== "modified" || node.changes.length > 0),
   );
 }
 
