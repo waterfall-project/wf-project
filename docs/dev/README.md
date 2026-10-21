@@ -873,7 +873,19 @@ langue courante (`enums.DurationUnit`), et aucun autre : en anglais « d », « 
 en français ils ne le sont pas. Elle part dans son unité, que le serveur garde. Une date se tape
 dans la forme courte de la langue, ou sous sa forme ISO (`parsePlanningDate`), et garde les heures
 de travail que la tâche portait à son ancienne date, non celles du nouveau jour (#1244) ; une tâche
-sans date à cette place la reçoit à l'heure 0. La validation de la dernière cellule saisissable
+sans date à cette place la reçoit à l'heure 0. Les prédécesseurs d'une tâche se saisissent comme
+dans MS Project, « 3FD+2 j ; 5DD » (`predecessors-entry.ts`) : le numéro de ligne, le code du type
+de la liaison dans la langue de l'interface — FD, DD, FF, DF en français, FS, SS, FF, SF en anglais,
+rien pour une fin à début —, puis le décalage, positif ou négatif, avec l'unité d'une durée (les
+suffixes de `parseDuration`) ou en pourcentage de la durée du prédécesseur ; la liste entière part
+en place de celle de la tâche, par `setPredecessors`, avec la version du nœud lu. Le numéro se résout
+sur les lignes que la grille a lues (celles d'un prédécesseur qu'une recherche a écarté se retrouvent
+par les liaisons d'une ligne lue) : un numéro qu'elles ne connaissent pas laisse la saisie ouverte,
+qui le dit, sans rien envoyer. Un refus du serveur se dit à la cellule par son code — une boucle de
+liaisons, avec les tâches qu'elle traverse (`cycle`, `problemDetails`), une liaison entre une
+récapitulative et sa subordonnée, un projet qui dépasserait quinze ans —, et les lignes écrites, avec
+les tâches que le serveur redate, prennent la place des lignes lues, le Gantt suivant ; le front ne
+date rien. La validation de la dernière cellule saisissable
 d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée.
 Toute écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ
 (`byField` de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API

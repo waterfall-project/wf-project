@@ -39,6 +39,8 @@ vi.mock("next/navigation", async (original) => ({
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
 const TASK =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
+const PREDECESSORS =
+  "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors";
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
@@ -155,7 +157,7 @@ describe("the cells of a task entered in the grid of the planning", () => {
     // The duration starts from its value and the suffix of its unit, as the cell writes it.
     expect(duration).toHaveValue("10\u00a0j");
     await userEvent.keyboard("{Tab}");
-    expect(cellAt(review, "work_breakdown")).toHaveFocus();
+    expect(cellAt(review, "predecessors")).toHaveFocus();
     // The desks, in manual mode: the server names their dates among the fields they accept.
     const desks = rowOf(planning, "Pupitres opérateurs");
     expect(await enter(desks, "start")).toHaveValue("02/03/2026");
@@ -296,14 +298,20 @@ describe("the cells of a task entered in the grid of the planning", () => {
   });
 
   it("goes on to the next row once the last cell of a row is validated, writing nothing unchanged", async () => {
-    // Libellé, description, mode, durée, rattachement: Tab along the row, the computed dates
-    // traversed; validated, the last places the cursor on the row below, at the cell the row was
-    // started from.
+    // Libellé, description, mode, durée, prédécesseurs, rattachement: Tab along the row, the computed
+    // dates traversed; validated, the last places the cursor on the row below, at the cell the row
+    // was started from.
     const client = serve({});
     render(grid(planning));
     const details = rowOf(planning, "Études de détail");
     await enter(details, "label");
-    for (const column of ["description", "scheduling_mode", "duration", "work_breakdown"]) {
+    for (const column of [
+      "description",
+      "scheduling_mode",
+      "duration",
+      "predecessors",
+      "work_breakdown",
+    ]) {
       await userEvent.keyboard("{Tab}");
       expect(cellAt(details, column)).toHaveFocus();
       await userEvent.keyboard("{Enter}");
@@ -324,5 +332,177 @@ describe("the cells of a task entered in the grid of the planning", () => {
     );
     expect(cellAt(desks, "finish")).toHaveAttribute("aria-invalid", "true");
     expect(cellAt(desks, "finish")).toHaveTextContent("24/04/2026");
+  });
+});
+
+describe("the predecessors of a task entered in the grid of the planning", () => {
+  /** The links the grid sent, with the node each was sent for. */
+  function linksSent(client: FakeClient) {
+    return client.calls
+      .filter((call) => call.route === PREDECESSORS)
+      .map((call) => ({ node: call.path.split("/").at(-2), body: call.body }));
+  }
+
+  it("starts from the links of the task as they are typed, and enters them for a summary too, which computes no link [WF-PLA-0030-A]", async () => {
+    serve({});
+    render(grid(planning));
+    // « Réception des études » follows row 5, plain, and row 4 start to start, a week later.
+    const reception = rowOf(planning, "Réception des études");
+    expect(await entered(reception, "predecessors")).toHaveValue("5; 4DD+1 sem");
+    await userEvent.keyboard("{Escape}");
+    expect(cellAt(rowOf(planning, "Études"), "predecessors")).not.toHaveAttribute("aria-readonly");
+  });
+
+  it("writes the links typed in place of the task's, the four types and a lead among them, and takes the row answered and the successor the server redated in place of those read [WF-PLA-0030-A] [WF-PLA-0020-A]", async () => {
+    // « 19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50% »: the four types, a lag, none, a lead, a share. The
+    // fake back answers by its first example: the mounting 2 d after « Réception usine », and
+    // « Mise en service », which it redates without writing it, moved from 21/12/2026 to
+    // 23/12/2026 — the successor shown as the server dated it, the front dating nothing.
+    const client = serve({ [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested));
+    const mounting = rowOf(nested, "Montage des armoires sur site");
+    const commissioning = rowOf(nested, "Mise en service");
+    expect(cellAt(commissioning, "start")).toHaveTextContent("21/12/2026");
+    await retype(
+      await entered(mounting, "predecessors"),
+      "19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50%",
+    );
+    await vi.waitFor(() => {
+      expect(linksSent(client)).toHaveLength(1);
+    });
+    const id = (label: string) => nested.items[rowOf(nested, label)]?.node_id;
+    expect(linksSent(client)[0]).toEqual({
+      node: nested.items[mounting]?.node_id,
+      body: {
+        predecessors: [
+          {
+            predecessor_node_id: id("Réception usine"),
+            link_type: "finish_to_start",
+            lag: { value: "2", unit: "d" },
+          },
+          {
+            predecessor_node_id: id("Câblage des armoires"),
+            link_type: "start_to_start",
+            lag: { value: "0", unit: "d" },
+          },
+          {
+            predecessor_node_id: id("Relance du fournisseur"),
+            link_type: "finish_to_finish",
+            lag: { value: "-1", unit: "w" },
+          },
+          {
+            predecessor_node_id: id("Transport exceptionnel"),
+            link_type: "start_to_finish",
+            lag: { value: "50", unit: "percent" },
+          },
+        ],
+        lock_version: 1,
+      },
+    });
+    // The row answered, and the successor the server redated, in place of the rows read.
+    expect(await within(cellAt(commissioning, "start")).findByText("23/12/2026")).toBeVisible();
+    expect(cellAt(commissioning, "finish")).toHaveTextContent("05/01/2027");
+    expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^18FD\+2\s*j$/);
+    expect(cellAt(mounting, "start")).toHaveTextContent("03/07/2026");
+  });
+
+  it("types the codes of the language of the interface, « FS » in English [WF-PLA-0030-A]", async () => {
+    const client = serve({ [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested, { locale: "en" }));
+    const mounting = rowOf(nested, "Montage des armoires sur site");
+    await retype(await entered(mounting, "predecessors"), "19FS+2 d; 10SF");
+    await vi.waitFor(() => {
+      expect(linksSent(client)).toHaveLength(1);
+    });
+    expect(linksSent(client)[0]?.body).toMatchObject({
+      predecessors: [
+        { link_type: "finish_to_start", lag: { value: "2", unit: "d" } },
+        { link_type: "start_to_finish", lag: { value: "0", unit: "d" } },
+      ],
+    });
+  });
+
+  it("empties the predecessors of a task by a blank text, and writes nothing for the links it already has", async () => {
+    const client = serve({ [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested));
+    const mounting = rowOf(nested, "Montage des armoires sur site");
+    // The links as they are, validated unchanged: nothing leaves.
+    await entered(mounting, "predecessors");
+    await userEvent.keyboard("{Enter}");
+    expect(linksSent(client)).toEqual([]);
+    await userEvent.clear(await entered(mounting, "predecessors"));
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(linksSent(client)).toHaveLength(1);
+    });
+    expect(linksSent(client)[0]?.body).toEqual({ predecessors: [], lock_version: 1 });
+  });
+
+  it.each([
+    {
+      name: "predecessors_cycle_refused",
+      reason: "Cette liaison créerait une boucle.",
+      named: [/Réception usine/, /Montage des armoires sur site/, /Mise en service/],
+    },
+    {
+      name: "predecessors_forbidden",
+      reason: "Cette liaison n’est pas permise.",
+      named: [],
+    },
+    {
+      name: "predecessors_horizon_exceeded",
+      reason: "La durée du projet dépasserait quinze ans.",
+      named: [],
+    },
+  ])(
+    "says the refusal of the links at their cell, by its reason and the tasks it names: $name [WF-PLA-0030-A]",
+    async ({ name, reason, named }) => {
+      // La création d'une liaison fermant un cycle est refusée, et la raison en est nommée.
+      const problem = example(name) as Problem & { readonly status: 422 };
+      const client = serve({ [PREDECESSORS]: { problem } });
+      render(grid(nested));
+      const mounting = rowOf(nested, "Montage des armoires sur site");
+      await retype(await entered(mounting, "predecessors"), "23FD");
+      await vi.waitFor(() => {
+        expect(linksSent(client)).toHaveLength(1);
+      });
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(reason);
+      for (const task of named) {
+        expect(alert).toHaveTextContent(task);
+      }
+      expect(cellAt(mounting, "predecessors")).toHaveAttribute("aria-invalid", "true");
+      // Nothing is written: the row keeps the links it had.
+      expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^19$/);
+    },
+  );
+
+  it.each([
+    { text: "99", problem: "Aucune ligne de la grille n’a l’un de ces numéros." },
+    { text: "19 quand", problem: /^Ce ne sont pas des prédécesseurs/ },
+    { text: "19FD+2 parsecs", problem: /^Ce ne sont pas des prédécesseurs/ },
+  ])(
+    "keeps the entry open, saying why, for « $text », a row unknown or a text that is no link, and sends nothing [WF-PLA-0030-A]",
+    async ({ text, problem }) => {
+      const client = serve({ [PREDECESSORS]: "predecessor_set" });
+      render(grid(nested));
+      const mounting = rowOf(nested, "Montage des armoires sur site");
+      await retype(await entered(mounting, "predecessors"), text);
+      expect(await screen.findByRole("alert")).toHaveTextContent(problem);
+      expect(screen.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(linksSent(client)).toEqual([]);
+    },
+  );
+
+  it("enters no predecessors in a grid read only", () => {
+    serve({});
+    render(grid(planning, { editable: false }));
+    expect(cellAt(rowOf(planning, "Réception des études"), "predecessors")).toHaveAttribute(
+      "aria-readonly",
+      "true",
+    );
   });
 });

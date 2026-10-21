@@ -23,7 +23,9 @@
  * (US-0470, WF-IHM-0040), by `updateTaskFacet`: its label, its description, its mode, its duration
  * with the suffix of its unit (WF-PLA-0160), the start and the finish of a task in manual mode, and
  * its attachment — each where the node names its field among those it accepts (`editable_fields`),
- * never by its mode nor its nature.
+ * never by its mode nor its nature. Its predecessors are typed as Microsoft Project writes them,
+ * « 3FD+2 j ; 5DD » (`predecessors-entry.ts`), and written whole by `setPredecessors`, where the
+ * structure lists `edit_planning`: the contract names no field for them.
  *
  * The Gantt comes to the right of this grid, row for row (US-0220/L2): its columns keep to the width
  * the mock-up gives the grid beside it — the dates a little wider, for the mark of a computed date
@@ -63,6 +65,15 @@ import {
 } from "./nodes";
 import type { ChoiceOption } from "./row-choices";
 import { attachmentChange, borne, type BreakdownItem } from "./planning-attachment";
+import {
+  parsePredecessors,
+  type PredecessorNames,
+  predecessorsOf,
+  predecessorsText,
+  predecessorsValue,
+  type PredecessorWrite,
+  predecessorsWritten,
+} from "./predecessors-entry";
 import {
   DurationCell,
   FloatCell,
@@ -322,6 +333,21 @@ export interface PlanningWrites {
   /** A duration written as the cell shows it: its value formatted, and its suffix. */
   readonly written: (value: string, unit: DurationUnit) => string;
   readonly attachment?: PlanningAttachment | undefined;
+  /** The predecessors of a task (WF-PLA-0030): what the column names, and how it writes. */
+  readonly predecessors: PlanningPredecessors;
+}
+
+/**
+ * How the grid of the planning writes the predecessors of a task (US-0470/L2): the names of the
+ * types of link and of the units of a lag in the language, the task a row number names among the
+ * rows the grid read, and the write — the links to send in place of the task's, with the rows the
+ * server answers, the tasks it redated among them.
+ */
+export interface PlanningPredecessors extends PredecessorNames {
+  readonly write: (
+    node: PlanningNode,
+    links: readonly PredecessorWrite[],
+  ) => Promise<Outcome<RowsWritten<PlanningNode, NodeTotals>>>;
 }
 
 /**
@@ -373,7 +399,14 @@ function taskColumns(writes: PlanningWrites): Readonly<Record<string, TaskEntere
       kind: { type: "choice", choices: () => modes, nullable: false },
       field: "task.scheduling_mode",
       value: (node) => node.task?.scheduling_mode,
-      change: (_, value) => (isMode(value) ? { scheduling_mode: value } : {}),
+      // A value that is no mode is no change to send: it would leave with the version alone
+      // (#819.8, #1250). The editor only offers the modes; a path that is not the editor may not.
+      change: (_, value) => {
+        if (!isMode(value)) {
+          throw new Error(`${String(value)} is not a scheduling mode`);
+        }
+        return { scheduling_mode: value };
+      },
     },
     // A duration with the suffix of its unit, kept in that unit (WF-PLA-0160).
     duration: {
@@ -382,7 +415,10 @@ function taskColumns(writes: PlanningWrites): Readonly<Record<string, TaskEntere
       value: (node) => durationEntered(node.task?.duration),
       change: (_, value) => {
         const duration = value === null ? undefined : durationOf(value);
-        return duration === undefined ? {} : { duration };
+        if (duration === undefined) {
+          throw new Error(`${String(value)} is not a duration`);
+        }
+        return { duration };
       },
     },
     start: {
@@ -420,13 +456,47 @@ function taskColumn(
         node.editable_fields.includes(spec.field) &&
         column.computed?.in(node) !== true,
       value: spec.value,
-      // A node without its task never gets here, its cells refusing the entry (`in`). Should a path
-      // bypass that, nothing is sent: an empty change would carry the version alone (#819.8), and
-      // the write fails as unexpected, which the grid tells.
-      write: (node, value) =>
-        node.task == null
-          ? Promise.reject(new Error(`the node ${node.node_id} was read without its task`))
-          : writes.task(node, spec.change(node.task, value)),
+      // A node without its task never gets here, its cells refusing the entry (`in`), nor does a
+      // value its column cannot write (`change`). Should a path bypass that, nothing is sent: an
+      // empty change would carry the version alone (#819.8), and the write fails as unexpected,
+      // which the grid tells.
+      write: async (node, value) => {
+        if (node.task == null) {
+          throw new Error(`the node ${node.node_id} was read without its task`);
+        }
+        return writes.task(node, spec.change(node.task, value));
+      },
+    },
+  };
+}
+
+/**
+ * The column of the predecessors, entered through `predecessors`: the links of a task that was read
+ * with its task, typed as « 3FD+2 j ; 5DD » in the language, the whole list sent in place of the
+ * task's (`setPredecessors`). The contract names no editable field for them (`editable_fields`): the
+ * structure lists `edit_planning`, and the server refuses what it must (WF-PLA-0030, WF-PLA-0040).
+ */
+function predecessorsColumn(
+  column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
+  predecessors: PlanningPredecessors,
+): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
+  return {
+    ...column,
+    entry: {
+      kind: {
+        type: "predecessors",
+        parse: (text, locale) => parsePredecessors(text, locale, predecessors),
+        text: (value, locale) => predecessorsText(value, locale, predecessors),
+      },
+      in: (node) => node.task != null,
+      value: (node) => predecessorsValue(node.predecessors),
+      write: async (node, value) => {
+        const links = value === null ? [] : predecessorsOf(value);
+        if (node.task == null || links === undefined) {
+          throw new Error(`the predecessors of the node ${node.node_id} cannot be written`);
+        }
+        return predecessors.write(node, predecessorsWritten(links));
+      },
     },
   };
 }
@@ -498,6 +568,9 @@ export function planningGrid(
       const spec = specs[column.key];
       if (spec !== undefined) {
         return taskColumn(column, spec, writes);
+      }
+      if (column.key === "predecessors") {
+        return predecessorsColumn(column, writes.predecessors);
       }
       return writes.attachment !== undefined && column.key === "work_breakdown"
         ? attachmentColumn(column, writes.attachment, writes)

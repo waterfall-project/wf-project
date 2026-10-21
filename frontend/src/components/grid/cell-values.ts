@@ -17,13 +17,20 @@ import {
 import type { Locale } from "@/i18n/locale";
 
 import type { CellValue, Choice, DurationUnit, EntryKind } from "./columns";
+import type { PredecessorsProblem } from "./predecessors-entry";
 
 /**
  * Why an entry is not validated: a cell that may not be emptied left blank, a text too long, no
  * number of the language, an amount with more than two decimals, no duration with a unit, no date.
  */
 export type EntryProblem =
-  "required" | "tooLong" | "notANumber" | "twoDecimals" | "notADuration" | "notADate";
+  | "required"
+  | "tooLong"
+  | "notANumber"
+  | "twoDecimals"
+  | "notADuration"
+  | "notADate"
+  | PredecessorsProblem;
 
 /**
  * The suffix WF-PLA-0160 names for each unit of a duration, the same whatever the language of the
@@ -129,6 +136,19 @@ export function parsedEntry(kind: EntryKind, text: string, locale: Locale): Pars
     }
     return { value: text };
   }
+  return parsedTyped(kind, text, locale);
+}
+
+/** What an entry of a number, a duration, a date or the links of a task validates, or why not. */
+function parsedTyped(
+  kind: Exclude<EntryKind, { readonly type: "text" | "choice" }>,
+  text: string,
+  locale: Locale,
+): Parsed {
+  if (kind.type === "predecessors") {
+    // A blank text empties the predecessors: no link is a value like any other.
+    return kind.parse(text, locale);
+  }
   if (text.trim() === "") {
     return "nullable" in kind && kind.nullable ? { value: null } : { problem: "required" };
   }
@@ -204,6 +224,8 @@ export function shownEntry(kind: EntryKind, value: string | null, locale: Locale
       return formatPlanningDate(value, locale, "short");
     case "text":
       return value;
+    case "predecessors":
+      return kind.text(value, locale);
   }
 }
 
@@ -251,6 +273,8 @@ export function startingText(
       return writtenDuration(kind, value, locale);
     case "date":
       return formatPlanningDate(value, locale, "short");
+    case "predecessors":
+      return kind.text(value, locale);
     default:
       return value;
   }

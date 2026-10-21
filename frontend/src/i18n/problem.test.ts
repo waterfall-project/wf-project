@@ -457,6 +457,22 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the loop a link would close, its tasks in the order of the links, in the reader's language [WF-PLA-0030-A]", () => {
+    const refused = example("predecessors_cycle_refused") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Cette liaison créerait une boucle. Boucle de liaisons, dans l’ordre : «\u00A0Réception usine\u00A0», " +
+        "«\u00A0Montage des armoires sur site\u00A0» et «\u00A0Mise en service\u00A0».",
+    );
+    expect(say(refused, "en")).toBe(
+      "This link would create a loop. Loop of links, in order: “Réception usine”, " +
+        "“Montage des armoires sur site” and “Mise en service”.",
+    );
+    // A loop without its labels names nothing.
+    expect(say({ code: "LINK_CYCLE", params: { cycle: [{ node_id: "n" }] } }, "en")).toBe(
+      "This link would create a loop.",
+    );
+  });
+
   it("names the format and the version a file was expected in [WF-INTF-0070-A]", () => {
     const problem = example("import_format_unreadable") as ProblemText;
     expect(say(problem, "fr")).toBe(

@@ -225,7 +225,9 @@
       "tooLong": "{max} caractères au plus.",
       "twoDecimals": "Un montant a deux décimales au plus : saisissez-le comme {example}.",
       "notADuration": "Ce n’est pas une durée : saisissez un nombre suivi de son unité, comme « 2 j », « 1 sem », « 1 m » ou « 30 min ».",
-      "notADate": "Ce n’est pas une date : saisissez-la comme {example}."
+      "notADate": "Ce n’est pas une date : saisissez-la comme {example}.",
+      "notPredecessors": "Ce ne sont pas des prédécesseurs : saisissez des numéros de ligne, chacun avec son type de liaison et son décalage s’il y en a, séparés par des points-virgules, comme « 3FD+2 j ; 5DD ».",
+      "unknownRow": "Aucune ligne de la grille n’a l’un de ces numéros."
     },
     "resize": "Largeur de la colonne {column}",
     "empty": "Aucune ligne ne répond à la demande.",
@@ -375,6 +377,7 @@
     "critical": "Chemin critique",
     "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
+    "linkCode": "{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}",
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille."
@@ -1859,6 +1862,7 @@
     "work_package_task": "Tâche du lot : {task}.",
     "order_item_tasks": "{count, plural, one {Tâche du poste en cause} other {Tâches des postes en cause}} : {tasks}.",
     "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
+    "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
     "taskName": "« {label} »"
   },
   "permissions": {

@@ -35,6 +35,7 @@ const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined
 const NODES = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const MOVE = `POST ${NODES}/move` as const;
 const TASK = `PATCH ${NODES}/{node_id}/task` as const;
+const PREDECESSORS = `PUT ${NODES}/{node_id}/predecessors` as const;
 const SKELETON = "POST /projects/{project_id}/revisions/{revision_id}/skeleton";
 // The main structure of the current revision of the witness project, and the amendment 2 prepared
 // beside it, as the examples name them.
@@ -50,6 +51,7 @@ const breakdown = breakdownItems(example("work_breakdown") as WorkBreakdownReadi
 const MOUNTING = nested.items.findIndex(
   (node) => node.task?.label === "Montage des armoires sur site",
 );
+const COMMISSIONING = nested.items.findIndex((node) => node.task?.label === "Mise en service");
 // The nested tasks read anew without « Réception usine », the row just above the mounting: the
 // mounting is one row up.
 const RECEPTION = nested.items.findIndex((node) => node.task?.label === "Réception usine");
@@ -174,6 +176,40 @@ describe("a grid busy with any of its writes", () => {
       expect(table).toHaveAttribute("aria-busy", "false");
     });
     await indent(MOUNTING);
+    await screen.findByText(/indentée\.$/);
+    expect(moves(client)).toMatchObject([{ lock_version: 2 }]);
+  });
+
+  it("holds the gestures while the predecessors entered are under way, and moves with the version they reached once answered (#1224)", async () => {
+    // The links of the mounting under way: the indentation pressed meanwhile would leave with the
+    // version the answer is about to move on, and be refused.
+    const hold = held();
+    const client = serve(
+      { [PREDECESSORS]: "predecessor_set", [MOVE]: "nodes_indented" },
+      { route: PREDECESSORS, until: hold.until },
+    );
+    render(grid());
+    await activate(cellAt(MOUNTING, "predecessors"));
+    await userEvent.keyboard("{F2}");
+    const field = within(screen.getByRole("treegrid")).getByRole("textbox");
+    await userEvent.clear(field);
+    await userEvent.type(field, "19FD+2 j{Enter}");
+    const table = screen.getByRole("treegrid");
+    await vi.waitFor(() => {
+      expect(table).toHaveAttribute("aria-busy", "true");
+    });
+    await indent(MOUNTING);
+    expect(moves(client)).toEqual([]);
+    await act(async () => {
+      hold.release();
+      await hold.until;
+    });
+    await vi.waitFor(() => {
+      expect(table).toHaveAttribute("aria-busy", "false");
+    });
+    // The answer is that of the witness at full size: the mounting in it is the first of its
+    // siblings, so that the gesture is made on the task after it, « Mise en service ».
+    await indent(COMMISSIONING);
     await screen.findByText(/indentée\.$/);
     expect(moves(client)).toMatchObject([{ lock_version: 2 }]);
   });

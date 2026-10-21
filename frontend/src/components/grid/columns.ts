@@ -24,6 +24,7 @@ import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatMoney, formatPercent, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
+import type { PredecessorsProblem } from "./predecessors-entry";
 import type { GridAddress } from "./query";
 
 /**
@@ -203,7 +204,8 @@ export interface Choice {
  * travels as the exact decimal of the contract — an amount keeps two decimals at most —; a whole
  * number, of digits alone, as the contract takes an integer — a number of days —; one of the choices
  * of a list; a duration with the suffix of its unit (WF-PLA-0160); a date of planning in the form the
- * language writes it. A cell that may be emptied (`nullable`) writes `null` then.
+ * language writes it; the links of a task to its predecessors (WF-PLA-0030), a cell always emptied
+ * by a blank text. A cell that may be emptied (`nullable`) writes `null` then.
  */
 export type EntryKind =
   | {
@@ -220,6 +222,19 @@ export type EntryKind =
       readonly written: (value: string, unit: DurationUnit) => string;
     }
   | { readonly type: "date" }
+  | {
+      readonly type: "predecessors";
+      /**
+       * Validate the text typed in the language: the links as the value an entry holds, `null`
+       * for none, or why the text is not one (`predecessors-entry.ts`).
+       */
+      readonly parse: (
+        text: string,
+        locale: Locale,
+      ) => { readonly value: string | null } | { readonly problem: PredecessorsProblem };
+      /** A value validated as it is typed in the language, which the entry starts from. */
+      readonly text: (value: string, locale: Locale) => string;
+    }
   | {
       readonly type: "choice";
       /** The choices, read by the entry alone: a function, never the list (défaut n° 14). */

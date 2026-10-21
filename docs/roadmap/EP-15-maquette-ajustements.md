@@ -645,7 +645,7 @@ suppression ; indentation ; sélection et déplacement.
 
 ## US-0470 — Saisir les tâches et leurs prédécesseurs dans la grille de planning
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0160-A`
 - **opérations** : `updateTaskFacet`, `setPredecessors`, `listNodes`
 - **issue** : #1097
