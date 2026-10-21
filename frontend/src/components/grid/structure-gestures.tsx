@@ -35,11 +35,13 @@
  * A refusal — a task completed, for one — is told above the grid as any outcome, in the alert,
  * naming the row it was asked from, and that row is marked and described by it; that of a task
  * created from the bar, with no row, names the task tried. What was done is said in a status of its
- * own (`useSaid`). A write under way, and the reading anew that follows it, hold the commands,
- * inactive and saying so, and accept no drop: the next move starts from the neighbours that reading
- * shows, never from those before it with a version already moved on. An answer closes only the
- * dialog it was sent from (défaut n° 24), and belongs to the structure it was written in (défaut
- * n° 1). The row a move was asked from — the first of the rows dropped — is told the grid
+ * own (`useSaid`). A write under way — a gesture's, a cell entered, a block pasted (#1224) —, and the
+ * reading anew that follows a gesture, hold the commands, inactive and saying so, and accept no drop:
+ * the next move starts from the neighbours that reading shows, never from those before it with a
+ * version already moved on. An answer closes only the dialog it was sent from (défaut n° 24), and
+ * belongs to the structure it was written in (défaut n° 1): its version, the row it moved and the
+ * reading anew are that structure's, and nothing is read anew once the grid shows another. The row a
+ * move was asked from — the first of the rows dropped — is told the grid
  * (`moved`), whose active cell follows it through the reading; the grid says it is busy as long as
  * the gestures wait (`busy`).
  */
@@ -79,7 +81,7 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 import type { GridNode, NodesWritten } from "./nodes";
-import { byField } from "./planning-attachment";
+import { byField } from "./cell-writes";
 import type { RowChange, RowChoices, RowsApplied } from "./row-choices";
 import { ChoiceMenuItems, targetsOf, TimelineForm, writeChange } from "./choice-menu";
 import type { DropPlace } from "./row-selection";
@@ -99,7 +101,8 @@ import {
   type StructureGestures,
   topsOf,
 } from "./structure-rules";
-import type { RowCommands } from "./undo-commands";
+import type { StructureAccount } from "./structure-version";
+import type { RowCommands, RowMoved } from "./undo-commands";
 
 /** The icon of each gesture. */
 const ICONS: Readonly<Record<Gesture, ReactNode>> = {
@@ -141,6 +144,27 @@ interface Naming<Row extends GridNode> {
 interface Told<Row extends GridNode> {
   readonly structure: string;
   readonly refusal: Refusal<Row>;
+}
+
+/** The row the last move was asked from, the how-many-th, for the structure it was written in. */
+interface Moved<Row extends GridNode> {
+  readonly structure: string;
+  readonly row: Row;
+  readonly count: number;
+}
+
+/**
+ * The row the grid's active cell follows through the reading anew: the one the last move was asked
+ * from, if it was asked in the structure shown; whether that reading is over.
+ */
+function followed<Row extends GridNode>(
+  moved: Moved<Row> | undefined,
+  structure: string,
+  reading: boolean,
+): RowMoved<Row> | undefined {
+  return moved?.structure === structure
+    ? { row: moved.row, count: moved.count, settled: !reading }
+    : undefined;
 }
 
 /**
@@ -277,14 +301,18 @@ function GestureNotice<Row extends GridNode>({
 
 /**
  * The gestures of structure a grid gives its rows, as the structure it reads lists its commands:
- * none for a grid that offers none. `onWritten` is told what each write answered, whose version the
- * grid keeps (`useStructureVersion`) and brings back in `scope.version`, which the next move carries.
+ * none for a grid that offers none. `account` keeps the writes of the structure
+ * (`useStructureVersion`): it is told the version each write answered, which it brings back in
+ * `scope.version` for the next move, and counts the writes under way — the gestures', and those of
+ * the grid itself, a cell entered or a block pasted (`RowCommands.writing`) —, the gestures waiting
+ * for all of them (#1224). What an answer does — the version told, the row followed, the reading
+ * anew — is done for the structure it was sent in, the reading only while the grid still shows it.
  * `choices` gives the menu of the cells the submenus of the timelines of a task and of the sub-project
  * of a line (US-0480): the same writes, the same reading anew, the same refusals told at the row.
  */
 export function useStructureGestures<Row extends GridNode>(
   scope: StructureGestures | undefined,
-  onWritten: (written: NodesWritten) => void,
+  account: StructureAccount,
   choices?: RowChoices<Row>,
 ): RowCommands<Row> | undefined {
   const t = useTranslations("grid.structure");
@@ -296,7 +324,7 @@ export function useStructureGestures<Row extends GridNode>(
   const [opened, setOpened] = useState<Opened<Row>>();
   const [writing, setWriting] = useState(false);
   const [told, setTold] = useState<Told<Row>>();
-  const [moved, setMoved] = useState<{ readonly row: Row; readonly count: number }>();
+  const [moved, setMoved] = useState<Moved<Row>>();
   const [naming, setNaming] = useState<Naming<Row>>();
   const openings = useRef(0);
   // The cell that had the focus when a row was deleted with no dialog: once the grid is read anew
@@ -325,8 +353,9 @@ export function useStructureGestures<Row extends GridNode>(
     return undefined;
   }
   const structure = scope.structure.structure_id;
-  // A gesture waits for the write and for the reading anew that follows it.
-  const busy = writing || reading;
+  // A gesture waits for any write of the structure shown — its own counted with the others' —, and
+  // for the reading anew that follows a gesture's.
+  const busy = account.busy || reading;
   const shown = told?.structure === structure ? told : undefined;
   const names: Readonly<Record<Gesture, string>> = {
     first: t("insertFirst"),
@@ -356,36 +385,46 @@ export function useStructureGestures<Row extends GridNode>(
     setWriting(true);
     // A refusal by field is told by the reason of its field — a node to follow that is no sibling —,
     // the envelope saying only that the entry is invalid.
-    void held(call().then(byField)).then((outcome) => {
+    const sent = call().then(byField);
+    account.writing(sent);
+    void held(sent).then((outcome) => {
       setWriting(false);
       // A dialog is closed by the answer to what it sent, never by one it did not send.
       if (opening === undefined || opening === openings.current) {
         setOpened(undefined);
         setNaming(undefined);
       }
+      // The grid read anew, unless it shows another structure since: the reading would be that
+      // one's, and the cell to give the focus back to went with the structure it was in.
+      const readAnew = () => {
+        if (account.shows(structure)) {
+          lost.current = cell;
+          refresh(() => {
+            router.refresh();
+          });
+        }
+      };
       if (outcome.kind === "done") {
         if (node.reported !== true) {
-          onWritten(outcome.data);
+          account.reach(outcome.data.structure_lock_version);
         }
         setTold(undefined);
         say(node.done, { object: node.label });
         const { moves: bore } = node;
         if (bore !== undefined) {
-          setMoved((before) => ({ row: bore, count: (before?.count ?? 0) + 1 }));
+          setMoved((before) => ({
+            structure,
+            row: bore,
+            count: (before?.count ?? 0) + 1,
+          }));
         }
-        lost.current = cell;
-        refresh(() => {
-          router.refresh();
-        });
+        readAnew();
       } else {
         setTold({ structure, refusal: { outcome, row: row(), subject: node.label } });
         // A node to follow that is no sibling comes from a reading gone stale: read it anew, the
         // focus given back to the grid should the reading remove the cell that had it.
         if (outcome.kind !== "unreachable" && outcome.problem.code === "NODE_NOT_SIBLING") {
-          lost.current = cell;
-          refresh(() => {
-            router.refresh();
-          });
+          readAnew();
         }
       }
     });
@@ -477,7 +516,7 @@ export function useStructureGestures<Row extends GridNode>(
     let refused: Row = first;
     const label = labelOf(first);
     const wrote = (written: NodesWritten) => {
-      onWritten(written);
+      account.reach(written.structure_lock_version);
       applied(choices.written(written));
     };
     const call = async (): Promise<Outcome<NodesWritten>> => {
@@ -615,8 +654,9 @@ export function useStructureGestures<Row extends GridNode>(
         );
       },
     },
-    moved: moved === undefined ? undefined : { ...moved, settled: !reading },
+    moved: followed(moved, structure, reading),
     busy,
+    writing: account.writing,
     around: (
       <>
         <GestureNotice

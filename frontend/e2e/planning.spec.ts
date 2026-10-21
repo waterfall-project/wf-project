@@ -108,6 +108,51 @@ test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 �
   ).toBeVisible();
 });
 
+test("enters the label of a task from the keyboard, traverses the dates its mode computes, and goes on to the next row from its last cell [WF-PLA-0020-A]", async ({
+  page,
+}) => {
+  // Row 9, « Câblage des armoires », in automatic mode: the server names its start and its finish
+  // among the fields it computes. Its label written, Tab goes along the cells it takes — the
+  // description, the mode, the duration —, past its dates, to its attachment, the last; validated,
+  // that one places the cursor on row 10, at the label the row was started from. The fake back
+  // answers `updateTaskFacet` by its first example: the task of row 9 renamed. What each other cell
+  // sends is proven on the examples by `planning-entry.dom.test.tsx`.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, {
+    label: "Libellé",
+    description: "Description",
+    mode: "Mode de planification",
+    duration: "Durée",
+    start: "Début",
+    attachment: "Rattachement",
+  });
+  const leaf = grid.getByRole("row", { name: /^9 .*Câblage/ });
+  const cell = (column: number) => leaf.getByRole("gridcell").nth(column);
+  // Les dates d'une tâche en mode automatique ne sont pas saisissables: F2 on its start opens no
+  // field, but the refusal that says what its value depends on.
+  await cell(at.start).click();
+  await page.keyboard.press("F2");
+  await expect(grid.getByRole("textbox")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await cell(at.label).click();
+  await page.keyboard.press("F2");
+  await grid.getByRole("textbox", { name: "Libellé" }).fill("Câblage et repérage des armoires");
+  const sent = page.waitForRequest((request) => request.method() === "POST");
+  await page.keyboard.press("Tab");
+  await sent;
+  for (const column of [at.description, at.mode, at.duration, at.attachment]) {
+    await expect(cell(column)).toBeFocused();
+    await page.keyboard.press("F2");
+    await page.keyboard.press("Tab");
+  }
+  const next = grid.getByRole("row", { name: /^10 / });
+  await expect(next.getByRole("gridcell").nth(at.label)).toBeFocused();
+  await expect(
+    grid.getByRole("row", { name: /^9 .*Câblage et repérage des armoires/ }),
+  ).toBeVisible();
+});
+
 test("filters the planning by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it [WF-IHM-0020-A]", async ({
   page,
 }) => {

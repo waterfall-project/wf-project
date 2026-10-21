@@ -58,12 +58,20 @@ export interface CellEditorProps {
   readonly onAbandon: (refocus: boolean) => void;
 }
 
-/** The keyboard a value is typed on: digits for a whole number, a number otherwise, any text. */
+/**
+ * The keyboard a value is typed on: digits for a whole number, a number for a decimal or an amount,
+ * any text otherwise — a duration and its unit, a date and its separators.
+ */
 function inputModeOf(kind: EntryKind): "numeric" | "decimal" | undefined {
-  if (kind.type === "text") {
-    return undefined;
+  switch (kind.type) {
+    case "integer":
+      return "numeric";
+    case "decimal":
+    case "money":
+      return "decimal";
+    default:
+      return undefined;
   }
-  return kind.type === "integer" ? "numeric" : "decimal";
 }
 
 /** Render the entry of a cell. */
@@ -212,7 +220,9 @@ export function EntryProblemNotice({
   const amount = formatCell("money", "1234.56", locale);
   const texts: Readonly<Record<EntryProblem, () => string>> = {
     required: () => t("required"),
-    tooLong: () => t("tooLong", { max: kind.type === "text" ? kind.maxLength : 0 }),
+    tooLong: () => t("tooLong", { max: kind.type === "text" ? (kind.maxLength ?? 0) : 0 }),
+    notADuration: () => t("notADuration"),
+    notADate: () => t("notADate", { example: formatCell("date", "2026-12-31", locale) }),
     notANumber: () =>
       t("notANumber", {
         example:

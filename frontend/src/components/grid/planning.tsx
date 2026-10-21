@@ -16,7 +16,14 @@
  * sort, and the address asks none. The total float and the physical progress are always computed
  * (WF-PLA-0100, WF-IND-0060): columns computed whole. The dates, the duration and the progress are
  * computed for some tasks only — automatic, summary —, which `computed_fields` names node by
- * node: those cells are computed, the others entered (WF-IHM-0030).
+ * node: those cells are computed, traversed and never entered, the others entered (WF-IHM-0030,
+ * WF-PLA-0020).
+ *
+ * Where the structure lists `edit_planning`, a task is entered from the keyboard alone, cell by cell
+ * (US-0470, WF-IHM-0040), by `updateTaskFacet`: its label, its description, its mode, its duration
+ * with the suffix of its unit (WF-PLA-0160), the start and the finish of a task in manual mode, and
+ * its attachment — each where the node names its field among those it accepts (`editable_fields`),
+ * never by its mode nor its nature.
  *
  * The Gantt comes to the right of this grid, row for row (US-0220/L2): its columns keep to the width
  * the mock-up gives the grid beside it — the dates a little wider, for the mark of a computed date
@@ -26,11 +33,16 @@ import { Contrast, Zap } from "lucide-react";
 
 import { GanttAxis, GanttCell } from "@/components/gantt/gantt";
 
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 
+import { durationEntered, durationOf } from "./cell-values";
 import {
+  type CellValue,
   type Choice,
   type ComputedCells,
+  type DurationUnit,
+  type EntryKind,
   type GridColumn,
   type GridConfig,
   type RowsWritten,
@@ -50,12 +62,7 @@ import {
   type RowOf,
 } from "./nodes";
 import type { ChoiceOption } from "./row-choices";
-import {
-  type AttachmentChange,
-  attachmentChange,
-  borne,
-  type BreakdownItem,
-} from "./planning-attachment";
+import { attachmentChange, borne, type BreakdownItem } from "./planning-attachment";
 import {
   DurationCell,
   FloatCell,
@@ -248,18 +255,156 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
 /** The columns of the contract the grid of the planning sorts by: none (§3.4, WF-IHM-0060). */
 export const PLANNING_SORT_COLUMNS = sortColumns(PLANNING_GRID);
 
+/** A field of a facet a node may accept, as the contract names it. */
+type EditableField = components["schemas"]["EditableField"];
+
+/** The scheduling mode of a task (WF-PLA-0020). */
+type SchedulingMode = components["schemas"]["SchedulingMode"];
+
+/** The modes of a task, in the order of the contract. */
+const MODES: readonly SchedulingMode[] = ["automatic", "manual"];
+
+/**
+ * The fields of a task an entry writes: the cell entered, nothing else (#178) — and, for the
+ * attachment, the other item set to `null` in the same write (`attachmentChange`).
+ */
+export type TaskChange = Partial<
+  Pick<
+    components["schemas"]["TaskFacetUpdate"],
+    | "label"
+    | "description"
+    | "scheduling_mode"
+    | "duration"
+    | "start"
+    | "finish"
+    | "order_item_id"
+    | "work_package_id"
+  >
+>;
+
 /**
  * How the grid of the planning writes the attachment of a task: the posts and the lots it is chosen
- * among, each named by its kind — a function, never the list (défaut n° 14) —, and the write of the
- * fields it changes, with the row the server answers.
+ * among, each named by its kind — a function, never the list (défaut n° 14).
  */
 export interface PlanningAttachment {
   readonly items: ReadonlyMap<string, BreakdownItem>;
   readonly choices: () => readonly Choice[];
-  readonly write: (
+}
+
+/**
+ * How the grid of the planning writes the cells of a task (US-0470): the fields it changes, with the
+ * row the server answers; the names of the modes and the suffixes of the units of a duration in the
+ * language of the interface; the attachment, where the work breakdown was read.
+ */
+export interface PlanningWrites {
+  readonly task: (
     node: PlanningNode,
-    change: AttachmentChange,
+    change: TaskChange,
   ) => Promise<Outcome<RowsWritten<PlanningNode, NodeTotals>>>;
+  /** The modes a task is set to, each named in the language. */
+  readonly modes: (mode: SchedulingMode) => string;
+  /** The suffix of a unit of a duration in the language (`enums.DurationUnit`). */
+  readonly suffix: (unit: DurationUnit) => string;
+  /** A duration written as the cell shows it: its value formatted, and its suffix. */
+  readonly written: (value: string, unit: DurationUnit) => string;
+  readonly attachment?: PlanningAttachment | undefined;
+}
+
+/**
+ * How a column of a task is entered: what it takes, the field the node must accept for it, the value
+ * an entry starts from, and what a value validated writes, from the row it is written from.
+ */
+interface TaskEntered {
+  readonly kind: EntryKind;
+  readonly field: EditableField;
+  readonly value: (node: PlanningNode) => CellValue;
+  readonly change: (node: PlanningNode, value: string | null) => TaskChange;
+}
+
+/**
+ * The start or the finish of a task, entered as a date: the hours of work elapsed that day are those
+ * the task had (WF-DAT-0100) — none, and a start begins the day, a finish ends at its first hour, as
+ * the contract reads a finish at hour 0 —; the grid shows the date alone.
+ */
+function instant(
+  field: "start" | "finish",
+): (node: PlanningNode, value: string | null) => TaskChange {
+  return (node, value) => ({
+    [field]: value === null ? null : { date: value, hours: node.task?.[field]?.hours ?? "0" },
+  });
+}
+
+/** The columns of a task that take an entry, by the key of their column. */
+function taskColumns(writes: PlanningWrites): Readonly<Record<string, TaskEntered>> {
+  const modes = MODES.map((mode) => ({ id: mode, label: writes.modes(mode), active: true }));
+  return {
+    // The contract takes a label of 1 to 300 characters.
+    label: {
+      kind: { type: "text", maxLength: 300 },
+      field: "task.label",
+      value: (node) => node.task?.label,
+      change: (_, value) => ({ label: value ?? "" }),
+    },
+    // A description the contract does not bound, emptied to none.
+    description: {
+      kind: { type: "text", maxLength: undefined, nullable: true },
+      field: "task.description",
+      value: (node) => node.task?.description,
+      change: (_, value) => ({ description: value }),
+    },
+    scheduling_mode: {
+      kind: { type: "choice", choices: () => modes, nullable: false },
+      field: "task.scheduling_mode",
+      value: (node) => node.task?.scheduling_mode,
+      change: (_, value) => {
+        const mode = MODES.find((each) => each === value);
+        return mode === undefined ? {} : { scheduling_mode: mode };
+      },
+    },
+    // A duration with the suffix of its unit, kept in that unit (WF-PLA-0160).
+    duration: {
+      kind: { type: "duration", suffix: writes.suffix, written: writes.written },
+      field: "task.duration",
+      value: (node) => durationEntered(node.task?.duration),
+      change: (_, value) => {
+        const duration = value === null ? undefined : durationOf(value);
+        return duration === undefined ? {} : { duration };
+      },
+    },
+    start: {
+      kind: { type: "date" },
+      field: "task.start",
+      value: (node) => node.task?.start?.date,
+      change: instant("start"),
+    },
+    finish: {
+      kind: { type: "date" },
+      field: "task.finish",
+      value: (node) => node.task?.finish?.date,
+      change: instant("finish"),
+    },
+  };
+}
+
+/**
+ * A column of a task entered through `writes`, where its node accepts the field — which the node
+ * says, never the grid by its mode or its nature (#219) — and the server does not compute it there:
+ * a computed cell is traversed, and refuses the entry (WF-IHM-0030, WF-PLA-0020).
+ */
+function taskColumn(
+  column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
+  spec: TaskEntered,
+  writes: PlanningWrites,
+): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
+  return {
+    ...column,
+    entry: {
+      kind: spec.kind,
+      in: (node) => node.editable_fields.includes(spec.field) && column.computed?.in(node) !== true,
+      value: spec.value,
+      write: (node, value) => writes.task(node, spec.change(node, value)),
+    },
+  };
 }
 
 /** Whether the node accepts the attachment, which it says (`editable_fields`, #219). */
@@ -274,6 +419,7 @@ function attachable(node: PlanningNode): boolean {
 function attachmentColumn(
   column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
   attachment: PlanningAttachment,
+  writes: PlanningWrites,
 ): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
   return {
     ...column,
@@ -287,7 +433,7 @@ function attachmentColumn(
       },
       value: (node) => borne(node.task),
       write: (node, value) =>
-        attachment.write(
+        writes.task(
           node,
           attachmentChange(node.task, value === null ? undefined : attachment.items.get(value)),
         ),
@@ -305,22 +451,32 @@ function timelinesColumn(
 }
 
 /**
- * The grid of the planning: the attachment of its tasks entered through `attachment` — a revision
- * whose planning may be entered (`edit_planning`), and the work breakdown read whole —; none, and the
- * grid is read only. The timelines of the project name the inscriptions of its tasks.
+ * The grid of the planning: the cells of its tasks entered through `writes` — a structure whose
+ * planning may be entered (`edit_planning`) —, its label, its description, its mode, its duration
+ * with its unit, the dates of a manual task, and the attachment where the work breakdown was read
+ * whole; none, and the grid is read only. The timelines of the project name the inscriptions of its
+ * tasks.
  */
 export function planningGrid(
-  attachment?: PlanningAttachment,
+  writes?: PlanningWrites,
   timelines: readonly ChoiceOption[] = [],
 ): GridConfig<PlanningNode, NodeSortColumn, NodeTotals> {
+  const specs = writes === undefined ? {} : taskColumns(writes);
   return {
     ...PLANNING_GRID,
     columns: PLANNING_GRID.columns.map((column) => {
       if (column.key === "timelines") {
         return timelinesColumn(column, timelines);
       }
-      return attachment !== undefined && column.key === "work_breakdown"
-        ? attachmentColumn(column, attachment)
+      if (writes === undefined) {
+        return column;
+      }
+      const spec = specs[column.key];
+      if (spec !== undefined) {
+        return taskColumn(column, spec, writes);
+      }
+      return writes.attachment !== undefined && column.key === "work_breakdown"
+        ? attachmentColumn(column, writes.attachment, writes)
         : column;
     }),
   };

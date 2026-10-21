@@ -12,9 +12,11 @@
  * those the tree leaves unfolded, so that both fold alike (WF-PLA-0090) —; the folds are kept for
  * the revision the structure belongs to.
  *
- * The attachment of a task is entered in its column, written by `updateTaskFacet`, its refusal said at
- * its cell by the reason of its field, naming the task that bears the item already or those the write
- * would move out of the subtree of its lot (WF-PLA-0170, EP-14/L44d). In the empty grid, the skeleton
+ * Where the planning may be entered, the cells of a task are written by `updateTaskFacet`, each
+ * alone (US-0470): its label, its description, its mode, its duration with its unit, the dates of a
+ * manual task, its attachment; a refusal is said at its cell by the reason of its field — the task
+ * that bears the item already, those the write would move out of the subtree of its lot
+ * (WF-PLA-0170, EP-14/L44d), a date the server computes. In the empty grid, the skeleton
  * is offered as the revision lists it (`generate_skeleton`, WF-PRJ-0030): unavailable, with its
  * condition, once the structure bears a task; generated, its tasks fill the grid as long as the
  * version the structure moved on to is more recent than the one read — a page read anew that reads it
@@ -50,8 +52,9 @@ import {
   type PlanningAttachment,
   planningGrid,
   type PlanningNode,
+  type PlanningWrites,
 } from "./planning";
-import { type BreakdownItem, byField } from "./planning-attachment";
+import type { BreakdownItem } from "./planning-attachment";
 import type { GridQuery } from "./query";
 import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
@@ -83,8 +86,9 @@ export interface PlanningGridProps {
    */
   readonly undoable?: boolean | undefined;
   /**
-   * Whether the structure lists `edit_planning` available: the tasks are created and deleted from
-   * the grid (US-0460). Not, and it offers no gesture of structure.
+   * Whether the structure lists `edit_planning` available: the cells of the tasks are entered
+   * (US-0470), and the tasks created and deleted from the grid (US-0460). Not, and the grid is read
+   * only, offering no gesture of structure.
    */
   readonly editable?: boolean | undefined;
   /**
@@ -176,12 +180,16 @@ export function PlanningGrid({
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
+  const modes = useTranslations("enums.SchedulingMode");
+  const units = useTranslations("enums.DurationUnit");
   // The skeleton generated, for the structure it was generated on: a grid of another structure — a
   // revision left while it was generated — never shows it.
   const [generated, setGenerated] = useState<Generated>();
   const ours = generated?.structure === structure.structure_id ? generated : undefined;
-  // One account of the version the structure moved on to, whichever write moved it.
-  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
+  // One account of the writes of the structure: the version they moved it on to, whichever write
+  // moved it, and those under way, which the gestures wait for.
+  const account = useStructureVersion(structure.structure_id, structureVersion);
+  const { version, reach } = account;
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
   // A reader for each reading: an answer names rows a new reading may have renumbered.
@@ -193,35 +201,43 @@ export function PlanningGrid({
   // but the kinds it renders, which leave the totals as they are.
   const whole = Object.keys(nodeNarrowing(filters)).length === 0;
   const config = useMemo(() => {
-    if (breakdown === undefined) {
+    if (editable !== true) {
       return planningGrid(undefined, timelines);
     }
-    const items = new Map(breakdown.map((item) => [item.id, item]));
-    const choices = breakdown.map((item) => ({
-      id: item.id,
-      label: item.label,
-      code: kinds(item.kind),
-      active: true,
-    }));
-    const attachment: PlanningAttachment = {
-      items,
-      choices: () => choices,
-      write: async (node, change) => {
-        const outcome = byField(
-          await updateTaskFacet(structure, node.node_id, {
-            ...change,
-            lock_version: node.lock_version,
-          }),
-        );
+    const attachment: PlanningAttachment | undefined =
+      breakdown === undefined
+        ? undefined
+        : {
+            items: new Map(breakdown.map((item) => [item.id, item])),
+            choices: () =>
+              breakdown.map((item) => ({
+                id: item.id,
+                label: item.label,
+                code: kinds(item.kind),
+                active: true,
+              })),
+          };
+    const writes: PlanningWrites = {
+      // The field entered and the version of the node read, nothing else (#178); the version the
+      // structure moved on to is told the account.
+      task: async (node, change) => {
+        const outcome = await updateTaskFacet(structure, node.node_id, {
+          ...change,
+          lock_version: node.lock_version,
+        });
         if (outcome.kind !== "done") {
           return outcome;
         }
         reach(outcome.data.structure_lock_version);
         return { kind: "done", data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) };
       },
+      modes: (mode) => modes(mode),
+      suffix: (unit) => units(unit),
+      written: (value, unit) => t("duration", { value, unit: units(unit) }),
+      attachment,
     };
-    return planningGrid(attachment, timelines);
-  }, [breakdown, kinds, structure, whole, reach, timelines]);
+    return planningGrid(writes, timelines);
+  }, [editable, breakdown, kinds, modes, units, t, structure, whole, reach, timelines]);
   const generate = async (): Promise<Outcome<NodesWritten>> => {
     const asked = structure.structure_id;
     const outcome = await generatePlanningSkeleton(structure.project_id, structure.revision_id);
@@ -264,9 +280,7 @@ export function PlanningGrid({
           version,
         }
       : undefined,
-    (written) => {
-      reach(written.structure_lock_version);
-    },
+    account,
     choices,
   );
   const offered = nodes.items.length === 0 || ours !== undefined;

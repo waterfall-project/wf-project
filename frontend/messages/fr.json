@@ -223,7 +223,9 @@
       "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
       "required": "Cette cellule ne peut pas rester vide.",
       "tooLong": "{max} caractères au plus.",
-      "twoDecimals": "Un montant a deux décimales au plus : saisissez-le comme {example}."
+      "twoDecimals": "Un montant a deux décimales au plus : saisissez-le comme {example}.",
+      "notADuration": "Ce n’est pas une durée : saisissez un nombre suivi de son unité, comme « 2 j », « 1 sem », « 1 m » ou « 30 min ».",
+      "notADate": "Ce n’est pas une date : saisissez-la comme {example}."
     },
     "resize": "Largeur de la colonne {column}",
     "empty": "Aucune ligne ne répond à la demande.",

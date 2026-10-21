@@ -11,7 +11,6 @@ import { forgetMessages } from "@/components/notices/message-history";
 import { expectAccessible } from "@/test/axe";
 import {
   AVAILABLE,
-  cache,
   cellAt,
   intl,
   NO_QUERY,
@@ -44,11 +43,7 @@ import { example, held, type Problem } from "@/test/fixtures";
 // prop and never served as an answer (guide, « Tests »), each saying what it changes.
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
-vi.mock("next/cache", () => ({
-  refresh: () => {
-    cache.refresh();
-  },
-}));
+vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -379,7 +374,7 @@ describe("the submenu « Chronologies » of a task", () => {
     await screen.findByText(/mises à jour\./);
   });
 
-  it("is reached and checked from the keyboard alone, the focus coming back to the cell [WF-PLA-0060-A]", async () => {
+  it("is reached and checked from the keyboard alone, the focus coming back to the cell", async () => {
     const client = serve({ [TRACKING]: "node_tracked" });
     render(planningGrid());
     const cell = cellAt(REVIEW, "label");
@@ -416,7 +411,7 @@ describe("the submenu « Chronologies » of a task", () => {
     });
   });
 
-  it("breaks no rule of accessibility, in the submenu nor in the dialog that creates a timeline [WF-PLA-0060-A]", async () => {
+  it("breaks no rule of accessibility, in the submenu nor in the dialog that creates a timeline", async () => {
     serve();
     render(planningGrid(planning, { named: [] }));
     const menu = await openSubmenu(MILESTONE, "Chronologies");
@@ -426,7 +421,7 @@ describe("the submenu « Chronologies » of a task", () => {
     await expectAccessible(dialog);
   });
 
-  it("breaks no rule of accessibility where the creation of a timeline is unavailable, with the condition it lacks [WF-PLA-0060-A]", async () => {
+  it("breaks no rule of accessibility where the creation of a timeline is unavailable, with the condition it lacks", async () => {
     serve();
     const missing: CommandOffer = {
       is_available: false,
@@ -440,7 +435,7 @@ describe("the submenu « Chronologies » of a task", () => {
     await expectAccessible(menu);
   });
 
-  it("starts with the column « Chronologies » hidden, and shows it from the menu of the columns [WF-PLA-0060-A]", () => {
+  it("starts with the column « Chronologies » hidden, and shows it from the menu of the columns", () => {
     serve({ "PATCH /me/preferences": "preferences" });
     const view = render(
       intl(

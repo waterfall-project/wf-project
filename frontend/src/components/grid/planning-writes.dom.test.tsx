@@ -79,7 +79,7 @@ function serve(answers: FakeAnswers, hold?: Promise<unknown>): FakeClient {
   return client;
 }
 
-/** The grid of the planning on an answer, the attachment entered when the work breakdown is given. */
+/** The grid of the planning on an answer, entered; the attachment, when the work breakdown is given. */
 function grid(
   nodes: NodeList,
   {
@@ -105,6 +105,7 @@ function grid(
         query={NO_QUERY}
         preferences={undefined}
         undoable
+        editable
         breakdown={items ?? undefined}
         skeleton={skeleton}
       />
