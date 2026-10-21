@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cookieJar } from "@/test/session";
 
 import { API_PREFIX } from "./client";
 import {
+  API_CONNECTIONS,
   DEFAULT_ADDRESS,
   isMockAuthentication,
   MOCK_TOKEN,
@@ -91,6 +95,21 @@ describe("the connections to the API (#1145)", () => {
   it("refuses any other way of holding them", () => {
     vi.stubEnv("WATERFALL_API_CONNECTIONS", "close");
     expect(() => serverClient()).toThrow('WATERFALL_API_CONNECTIONS must be "kept" or "closed"');
+  });
+
+  it("are never closed by the deployment: no file of deploy/ nor the image of the front names the variable", () => {
+    const repository = join(import.meta.dirname, "../../..");
+    const deploy = join(repository, "deploy");
+    const files = [
+      ...readdirSync(deploy, { recursive: true, encoding: "utf8" }).map((file) =>
+        join(deploy, file),
+      ),
+      join(repository, "frontend/Dockerfile"),
+    ].filter((file) => statSync(file).isFile());
+    expect(files).toContain(join(deploy, "compose/compose.prod.yaml"));
+    expect(files).toContain(join(deploy, "compose/production.env.example"));
+    const naming = files.filter((file) => readFileSync(file, "utf8").includes(API_CONNECTIONS));
+    expect(naming).toEqual([]);
   });
 });
 

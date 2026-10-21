@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { warmedAddresses } from "../../e2e/warm-up";
 
 // The platform of `make dev`, whose servers the end-to-end paths must never play against (#150).
 const COMPOSE = readFileSync(
@@ -155,16 +153,6 @@ describe("the end-to-end harness", () => {
     vi.stubEnv("E2E_SERVICE_STARTED", "2026-10-21T00:00:00.000000000Z");
     vi.stubEnv("WATERFALL_API_ADDRESS", "http://127.0.0.1:4210");
     expect((await harness()).globalSetup).toBeUndefined();
-  });
-
-  it("warms one address for each page of src/app (#1145)", () => {
-    const app = join(import.meta.dirname, "../app");
-    const pages = readdirSync(app, { recursive: true, encoding: "utf8" }).filter((file) =>
-      /(^|\/)page\.tsx$/.test(file),
-    );
-    const addresses = warmedAddresses();
-    expect(new Set(addresses).size).toBe(addresses.length);
-    expect(addresses).toHaveLength(pages.length);
   });
 
   it("plays the paths, then the measure once they all passed", async () => {

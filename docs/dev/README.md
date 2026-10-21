@@ -2072,7 +2072,11 @@ seconde fois, sur une connexion nouvelle, et la coupure s'écrit au journal du s
 Une écriture ne repart jamais : l'API a pu la faire avant de fermer. `WATERFALL_API_CONNECTIONS`
 dit comment le serveur tient ses connexions : `kept`, ou rien, en production comme en développement ;
 `closed`, une connexion par requête, fermée une fois répondue (`Connection: close`), que seul le
-harnais pose (« Un parcours de bout en bout ») ; toute autre valeur est refusée.
+harnais pose (« Un parcours de bout en bout »), et que le serveur, démarré ainsi hors du harnais du
+faux back (`WATERFALL_E2E`), signale une fois au journal ; aucun fichier de `deploy/` ni l'image du
+front ne la nomme, ce que `src/api/server.test.ts` vérifie. Toute autre valeur arrête le serveur à
+son démarrage (`src/startup.ts`), plutôt que de répondre une erreur à chaque requête. La coupure
+écrite au journal n'en dit que la méthode et le chemin, jamais la recherche.
 `src/api/client.test.ts`, `src/api/connections.test.ts` — contre un serveur sur une vraie socket,
 qui coupe la connexion réutilisée — et `src/api/server.test.ts` l'éprouvent. Aucun appel réseau ne s'écrit hors de
 `frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
@@ -2863,15 +2867,23 @@ chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les 
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
-Avant le premier parcours, le harnais demande une fois chaque écran au serveur de développement
+Avant le premier parcours, le harnais demande une fois chaque route au serveur de développement
 (`globalSetup`, `frontend/e2e/warm-up.ts`, #1145) : celui-ci compile une route à sa première
 demande, et sous la charge de quatre workers la compilation dépassait les cinq secondes de
 l'assertion qui attend l'écran qu'un clic atteint. Les écrans sont ceux de `frontend/e2e/routes.ts`,
 que `src/app/screens.test.ts` tient à chaque page de `src/app`, avec les pages qui ne font que
-rediriger : une page ajoutée est préchauffée avec elles. Quatre à la fois, la redirection non
-suivie ; ce qu'un écran répond reste aux parcours, mais une erreur du serveur s'écrit dans la sortie,
-et un serveur injoignable fait échouer le lancement. Le préchauffage écrit sa durée : 39 s, `.next`
-froid, et 23 s ensuite, sur un poste de huit cœurs au repos, pour 38 écrans. Il ne précède ni la
+rediriger : une page ajoutée est préchauffée avec elles. Les route handlers le sont aussi, chacun à
+une adresse qui ne change rien — `/auth/sign-out` sans suivre sa redirection, `/auth/backchannel-logout`
+par un `GET` qu'il refuse, un téléchargement à une adresse qui ne nomme rien —, ou déclarés exempts
+avec leur raison — `/login`, qui commence hors du faux back une connexion, un état gardé dans
+Redis — ;
+`src/app/route-handlers.test.ts` tient ces deux listes à chaque `route.ts` de `src/app`. Quatre à la
+fois, la redirection non suivie ; ce qu'une route répond reste aux parcours, mais une erreur du
+serveur — un statut de 500 ou plus, ou aucune réponse — s'écrit dans la sortie au moment où elle
+survient, et fait échouer le lancement une fois toutes les routes demandées, en nommant chaque adresse
+en cause : un écran qui ne compile pas se voit là, pas dans chaque parcours. Le préchauffage écrit
+sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois passages du 2026-10-21, pour les
+38 écrans d'alors. Il ne précède ni la
 mesure jouée seule (`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques
 écrans de l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans
 session enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un

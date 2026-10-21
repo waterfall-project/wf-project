@@ -112,8 +112,8 @@ function marked(error: unknown): unknown {
  * at the very moment it is reused — the API closes an idle one after a delay of its own, which the
  * platform's cannot be sure to stay under, its timer held up by a loaded loop. Sent again, it opens
  * a new one. A write is never sent again: the API may have done it before closing. The read dropped
- * a second time is the API out of reach, and the first drop is written to the log of the server,
- * never passed over in silence.
+ * a second time is the API out of reach, and the first drop is written to the log of the server —
+ * its method and path, never its query —, never passed over in silence.
  */
 function transport(send: (request: Request) => Promise<Response>, connections: Connections) {
   return async (request: Request): Promise<Response> => {
@@ -128,7 +128,9 @@ function transport(send: (request: Request) => Promise<Response>, connections: C
       if (!read || !isDropped(error)) {
         throw marked(error);
       }
-      console.warn(`The API dropped the connection of ${request.method} ${request.url}`, error);
+      // The path alone: the query may carry what the log of the server has no need of.
+      const { pathname } = new URL(request.url);
+      console.warn(`The API dropped the connection of ${request.method} ${pathname}`, error);
     }
     try {
       return await send(request);

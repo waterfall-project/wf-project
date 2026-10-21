@@ -42,21 +42,32 @@ export function isMockAuthentication(): boolean {
   return true;
 }
 
+/** The variable that says how the connections to the API are held (`Connections`). */
+export const API_CONNECTIONS = "WATERFALL_API_CONNECTIONS";
+
 /**
- * Where the API is, and how its connections are held, as configured: `WATERFALL_API_CONNECTIONS`
- * is `closed` in the end-to-end harness alone (`playwright.config.ts`, `Connections`); unset, the
- * connections are kept alive. Anything else is refused.
+ * How the connections to the API are held, as configured: `closed` in the end-to-end harness alone
+ * (`playwright.config.ts`, `Connections`); unset, empty or `kept`, kept alive. Anything else — a
+ * typing error, `close` — is refused: the server of the front does not start with it
+ * (`src/startup.ts`), rather than answer every request with an error.
  */
-function apiAt(): { readonly address: string; readonly connections: Connections } {
-  const address = process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS;
-  const named = process.env.WATERFALL_API_CONNECTIONS;
+export function apiConnections(): Connections {
+  const named = process.env[API_CONNECTIONS];
   if (named === undefined || named === "" || named === "kept") {
-    return { address, connections: "kept" };
+    return "kept";
   }
   if (named !== "closed") {
-    throw new Error(`WATERFALL_API_CONNECTIONS must be "kept" or "closed", or unset: ${named}`);
+    throw new Error(`${API_CONNECTIONS} must be "kept" or "closed", or unset: ${named}`);
   }
-  return { address, connections: "closed" };
+  return "closed";
+}
+
+/** Where the API is, and how its connections are held, as configured. */
+function apiAt(): { readonly address: string; readonly connections: Connections } {
+  return {
+    address: process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS,
+    connections: apiConnections(),
+  };
 }
 
 /**

@@ -19,7 +19,7 @@
  * environment moves the ports, for two checkouts on one workstation. With `WATERFALL_API_ADDRESS`
  * set, the paths run against the API it names, and no fake back is started.
  *
- * Before the paths, every screen is asked once of the development server, which compiles a route
+ * Before the paths, every route is asked once of the development server, which compiles a route
  * the first time it is asked for (`e2e/warm-up.ts`, #1145); and the front opens a connection of its
  * own for each request to the API, Prism here whatever the API, which closes an idle one.
  *

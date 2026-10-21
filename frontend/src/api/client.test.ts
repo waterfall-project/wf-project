@@ -155,10 +155,33 @@ describe("a connection the API drops before answering (#1145)", () => {
       expect(sent.map((request) => request.method)).toEqual(["GET", "GET"]);
       expect(warn).toHaveBeenCalledOnce();
       expect(warn.mock.calls[0]?.[0]).toBe(
-        `The API dropped the connection of GET http://localhost:4010${API_PREFIX}/health`,
+        `The API dropped the connection of GET ${API_PREFIX}/health`,
       );
     },
   );
+
+  it("sends a HEAD dropped once more, as any read", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { send, sent } = failing(rejection("UND_ERR_SOCKET"));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    // The contract declares no HEAD: the request of a GET, made a HEAD as it leaves.
+    client.use({ onRequest: ({ request }) => new Request(request, { method: "HEAD" }) });
+    const { response } = await client.GET("/health");
+    expect(response.status).toBe(200);
+    expect(sent.map((request) => request.method)).toEqual(["HEAD", "HEAD"]);
+  });
+
+  it("writes the method and the path of a dropped read to the log, never its query", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { send } = failing(rejection("ECONNRESET"));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await client.GET("/tasks", { params: { query: { status: ["queued"] } } });
+    expect(warn).toHaveBeenCalledOnce();
+    // The whole of what is written: no query in it.
+    expect(warn.mock.calls[0]?.[0]).toBe(
+      `The API dropped the connection of GET ${API_PREFIX}/tasks`,
+    );
+  });
 
   it("never sends a write again: the API may have done it before closing", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
