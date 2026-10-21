@@ -190,3 +190,20 @@ def test_the_line_moved_to_a_completed_task_comes_from_a_task_that_is_not(
     assert read[line["parent_id"]]["task"]["progress"] != "completed"
     correlations = {gesture(name)["correlation_id"] for name in REFUSED}
     assert len(correlations) == len(REFUSED)
+
+
+def test_a_deletion_sent_with_a_stale_counter_names_the_counter_the_move_left(
+    read: dict[str, Node],
+) -> None:
+    # #1210: a line of the amendment 2, read at its version, then moved with the selection — a
+    # write the grid of a differential offers, whatever the state of the project (WF-DEV-0050).
+    [line] = [
+        node
+        for node in gesture("nodes_moved")["nodes"]
+        if node["estimate_line"]["label"] == mockamendmentwrites.MOVED_LINES[0]
+    ]
+    stale = gesture("node_delete_stale")
+    assert (stale["code"], stale["status"]) == ("STALE_LOCK_VERSION", 412)
+    assert stale["params"] == {"expected_lock_version": line["lock_version"]}
+    assert read[line["node_id"]]["lock_version"] < line["lock_version"]
+    assert mockamendmentwrites.MOVED_LINES[0] in _summary("node_delete_stale")

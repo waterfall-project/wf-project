@@ -117,6 +117,7 @@ REFUSALS = {
         "nodes_move_completed_refused",
     ],
     "setNodeTracking": ["node_tracking_milestone_refused"],
+    "deleteNode": ["node_delete_stale"],
 }
 REQUESTS = {"moveNodes": ["nodes_move_mixed"]}
 

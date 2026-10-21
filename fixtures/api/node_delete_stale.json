@@ -1,5 +1,5 @@
 {
-  "summary": "La ligne « Raccordement des borniers » supprimée avec le compteur que la grille avait lu, 1, alors que la saisie de ses 14 h (estimate_line_updated) l'a porté à 2 : la suppression est refusée, le compteur courant rendu, et rien n'est supprimé ; la grille propose de relire (WF-IHM-0110, #1210).",
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, la ligne « Matériel » supprimée avec le compteur que la grille avait lu, 1, alors que le déplacement de la sélection (nodes_moved) l'a porté à 2 : la suppression est refusée, le compteur courant rendu, et rien n'est supprimé ; la grille propose de relire (WF-IHM-0110, #1210).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "STALE_LOCK_VERSION",

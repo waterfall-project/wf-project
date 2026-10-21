@@ -18,12 +18,18 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - and a declaration whose provision names a task the main structure does not bear
   (``risk_provision_task_refused``).
 
+The risk declared is a counterfactual: no reading of the witness knows its risk 754, its own
+structure 208 or its line of provision 585 — the register, the structures and the grids read the
+witness as it is, before the declaration (``DECLARED``). The review alone is of the register, on
+751.
+
 They would have carried ``mockhistory`` past the thousand lines (``wftools.sources``).
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -40,6 +46,10 @@ from wftools.mockwitness import DELIVERY_DELAY, REWORK, TODAY, N, Review, Risk
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject
 
+DECLARED_AT = TODAY - timedelta(minutes=20)
+"""When the risk was declared: earlier today, so that its modification follows at today's instant,
+after which nothing has happened (C11, #287)."""
+
 DECLARED = Risk(
     754,
     "Indisponibilité de la grue de levage",
@@ -47,7 +57,7 @@ DECLARED = Risk(
     "confirmée.",
     None,
     208,
-    (Review(TODAY, Decimal("0.2"), Decimal("0.00")),),
+    (Review(DECLARED_AT, Decimal("0.2"), Decimal("0.00")),),
     provision_line=585,
 )
 """The risk declared today, at 20 %: its own structure 208 opened empty, and its line of provision
@@ -56,8 +66,10 @@ universe and no subproject (WF-RIS-0010)."""
 
 DESIGNATED = N.MOUNTING
 MITIGATION = "Réservation d'une seconde grue auprès d'un autre loueur."
-"""What the modification of the risk declared enters: the task its provision goes to, the mounting
-of the cabinets on site, which the crane serves, and its actions of mitigation."""
+MODIFIED_AT = TODAY
+"""What the modification of the risk declared enters, and when: the task its provision goes to,
+the mounting of the cabinets on site, which the crane serves, and its actions of mitigation, at
+today's instant, after its declaration."""
 
 OCCURRENCE_TASK = universe(949)
 REFUSED_CORRELATION = universe(1193)
@@ -87,7 +99,9 @@ def risk_updated() -> JsonObject:
     the provision unchanged (WF-RIS-0010).
     """
     changed = replace(DECLARED, mitigation_notes=MITIGATION)
-    return {**risk_item(changed, _budget(), DESIGNATED), "lock_version": 2}
+    item = risk_item(changed, _budget(), DESIGNATED)
+    audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
+    return {**item, "audit": audit, "lock_version": 2}
 
 
 def risk_reviewed() -> JsonObject:
@@ -160,14 +174,17 @@ def examples() -> dict[str, JsonObject]:
             f"(provision_task) ; elle porte la catégorie « "
             f"{created['provision_cost_category_label']} », la seule de type provision pour "
             f"risques, et aucun sous-projet. À sa première version (201), toutes ses commandes "
-            f"disponibles (WF-RIS-0010, WF-RIS-0030, #786).",
+            f"disponibles (WF-RIS-0010, WF-RIS-0030, #786). C'est un contrefactuel : aucune "
+            f"lecture du témoin ne connaît ce risque {DECLARED.number}, sa structure propre "
+            f"{DECLARED.own_structure} ni sa ligne de provision {DECLARED.provision_line}.",
             created,
         ),
         "risk_updated.json": mocktext.example(
             f"« {DECLARED.label} », déclaré aujourd'hui (risk_created), modifié : ses actions de "
             f"mitigation saisies, et sa ligne de provision déplacée sur la tâche que le formulaire "
             f"désigne, « {_task_label(updated)} » (provision_task_id), le total du devis "
-            f"inchangé ; une version de plus (WF-RIS-0010, #786).",
+            f"inchangé ; une version de plus, modifié après sa déclaration (audit.updated_at ; "
+            f"WF-RIS-0010, #786).",
             updated,
         ),
         "risk_reviewed.json": mocktext.example(

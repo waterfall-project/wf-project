@@ -14,7 +14,8 @@ in the differential (``mockamendment.own_id``) and marked against the main struc
 written by hand.
 
 Their refusals on the same differential: the body of a move that mixes a line and a task, the
-line created under a task completed, and the line moved to it (WF-DEV-0050, WF-RAE-0030, #1184).
+line created under a task completed, and the line moved to it (WF-DEV-0050, WF-RAE-0030, #1184);
+and a line the move carried one version further, deleted at the counter read before it (#1210).
 """
 
 from __future__ import annotations
@@ -151,6 +152,35 @@ def nodes_moved() -> JsonObject:
     return amendment_write(roots, numbers)
 
 
+STALE_CORRELATION = universe(1194)
+
+
+def node_delete_stale() -> JsonObject:
+    """Return what deleteNode answers to the first line moved deleted at a counter gone stale.
+
+    Sent with the counter the grid of the amendment 2 read, while the move of the selection since
+    (``nodes_moved``) carried the line one version further: the refusal names the counter that
+    write left (#1210).
+    """
+    line = _moved_first()
+    return {
+        "code": "STALE_LOCK_VERSION",
+        "status": 412,
+        "params": {"expected_lock_version": line["lock_version"]},
+        "correlation_id": STALE_CORRELATION,
+    }
+
+
+def _moved_first() -> Node:
+    """Return the first line of the selection, as the move leaves it."""
+    [line] = [
+        node
+        for node in cast("list[Node]", nodes_moved()["nodes"])
+        if node["estimate_line"]["label"] == MOVED_LINES[0]
+    ]
+    return line
+
+
 # --- The body of a mixed move and the refusals -------------------------------------------------
 
 MIXED_UNDER, MIXED_AFTER = N.CONTROL_STATION, N.WIRING
@@ -249,6 +279,8 @@ def examples() -> dict[str, JsonObject]:
     supplies = cast("Node", new_line["estimate_line"])
     lines, tasks = mixed_places()
     (mixed_line, _), (mixed_task, _) = MIXED
+    read = {cast("str", node["node_id"]): node for node in cast("list[Node]", reading()["items"])}
+    stale_line = _moved_first()
     return {
         "estimate_line_created.json": mocktext.example(
             f"{open_}, la ligne « {TEST_SUPPLIES.label} » créée sous la "
@@ -282,6 +314,14 @@ def examples() -> dict[str, JsonObject]:
             f"{tasks_said(moved, 'ancestors')}, dont les montants suivent, et "
             f"{totals_said(moved)}, inchangés (WF-PLA-0040, #1214).",
             moved,
+        ),
+        "node_delete_stale.json": mocktext.example(
+            f"{on}, la ligne « {MOVED_LINES[0]} » supprimée avec le compteur que la grille avait "
+            f"lu, {read[stale_line['node_id']]['lock_version']}, alors que le déplacement de la "
+            f"sélection (nodes_moved) l'a porté à {stale_line['lock_version']} : la suppression "
+            f"est refusée, le compteur courant rendu, et rien n'est supprimé ; la grille propose "
+            f"de relire (WF-IHM-0110, #1210).",
+            node_delete_stale(),
         ),
         "nodes_move_mixed.json": mocktext.example(
             f"{on}, une sélection qui mêle une ligne et une tâche, « {rows[mixed_line].label} » "

@@ -16,15 +16,12 @@ from wftools.mockhistory import stamp
 from wftools.mockids import universe
 from wftools.mockwitness import DELIVERY_DELAY, REGISTER, TODAY, N
 
-type Node = dict[str, Any]
-
 CITED = {
     ("risks.yaml", "createRisk", "201"): "risk_created",
     ("risks.yaml", "updateRisk", "200"): "risk_updated",
     ("risks.yaml", "reviewRisk", "201"): "risk_reviewed",
     ("risks.yaml", "declareRiskOccurrence", "202"): "task_occurrence_queued",
     ("risks.yaml", "createRisk", "422"): "risk_provision_task_refused",
-    ("revisions.yaml", "deleteNode", "412"): "node_delete_stale",
 }
 
 
@@ -52,9 +49,7 @@ def _response(paths: str, operation: str, status: str) -> str:
 def test_each_entry_of_a_risk_is_an_example_the_contract_cites_under_its_answer() -> None:
     for (paths, operation, status), name in CITED.items():
         assert f"fixtures/api/{name}.json" in _response(paths, operation, status), name
-    assert {f"{name}.json" for name in CITED.values()} - {"node_delete_stale.json"} == set(
-        mockriskwrites.examples()
-    )
+    assert {f"{name}.json" for name in CITED.values()} == set(mockriskwrites.examples())
 
 
 def test_the_task_of_a_provision_is_the_parent_of_its_line_while_the_risk_is_identified() -> None:
@@ -75,8 +70,7 @@ def test_the_task_of_a_provision_is_the_parent_of_its_line_while_the_risk_is_ide
 
 def test_a_risk_declared_without_a_task_bears_its_provision_on_the_first_root_task() -> None:
     created = example("risk_created")["value"]
-    first = next(row for row in mockcore.current() if row.parent is None)
-    assert created["provision_task"] == {"node_id": universe(first.number), "label": first.label}
+    assert created["provision_task"] == {"node_id": universe(N.STUDIES), "label": "Études"}
     assert (created["lock_version"], created["state"]) == (1, "identified")
     # Its own structure opened empty with it: nothing to price yet, no provision.
     assert (created["severity"], created["provision_amount"]) == ("0.00", "0.00")
@@ -84,7 +78,9 @@ def test_a_risk_declared_without_a_task_bears_its_provision_on_the_first_root_ta
     assert created["structure_id"] not in structures
     main = {cast("str", row.node["node_id"]) for row in mockcore.current()}
     assert created["provision_node_id"] not in main
-    assert created["audit"]["created_at"] == created["audit"]["updated_at"] == stamp(TODAY)
+    declared = stamp(mockriskwrites.DECLARED_AT)
+    assert created["audit"]["created_at"] == created["audit"]["updated_at"] == declared
+    assert created["last_review_on"] == TODAY.date().isoformat()
     assert all(entry["is_available"] for entry in created["available_commands"])
 
 
@@ -95,6 +91,9 @@ def test_a_risk_modified_moves_its_line_to_the_task_designated_and_keeps_its_pro
     assert updated["mitigation_notes"] == mockriskwrites.MITIGATION
     kept = ("risk_id", "provision_node_id", "provision_amount", "severity", "structure_id")
     assert [updated[key] for key in kept] == [created[key] for key in kept]
+    assert updated["audit"]["created_at"] == created["audit"]["created_at"]
+    assert updated["audit"]["updated_at"] > updated["audit"]["created_at"]
+    assert updated["audit"]["updated_at"] == stamp(TODAY)
 
 
 def test_a_risk_confirmed_without_change_is_reviewed_today_and_one_version_further() -> None:
@@ -128,13 +127,3 @@ def test_a_provision_designated_on_a_task_of_another_structure_is_refused_on_its
     assert mockriskwrites.REFUSED_TASK not in {row.number for row in mockcore.current()}
     label = {row.number: row.label for row in mockamendment.rows()}[mockriskwrites.REFUSED_TASK]
     assert label in example("risk_provision_task_refused")["summary"]
-
-
-def test_a_deletion_sent_with_a_stale_counter_names_the_counter_a_write_left() -> None:
-    # #1210: the labour of the wiring, read at its version, then entered at 14 hours.
-    [line] = example("estimate_line_updated")["value"]["nodes"]
-    stale = example("node_delete_stale")["value"]
-    assert (stale["code"], stale["status"]) == ("STALE_LOCK_VERSION", 412)
-    assert stale["params"] == {"expected_lock_version": line["lock_version"]}
-    read = {row.number: row for row in mockcore.current()}
-    assert cast("Node", read[N.LABOUR].node)["lock_version"] < line["lock_version"]

@@ -6921,8 +6921,9 @@ Le 412 que l'opération déclarait était inatteignable : la requête ne portait
 reçoit `lock_version`, paramètre de requête exigé, le compteur lu du nœud désigné, comme toute
 modification ; les subordonnées qu'une récapitulative emporte ne se jugent pas. Elle déclare donc
 aussi 422, pour un paramètre de requête hors de son schéma. Son 412 a son exemple engendré,
-`node_delete_stale` : le « Raccordement des borniers » supprimé avec le compteur lu, 1, que la
-saisie de ses 14 heures (`estimate_line_updated`) a porté à 2 (corrélation 1194). Le front envoie
+`node_delete_stale` : sur l'avenant 2, la ligne « Matériel » supprimée avec le compteur lu, 1, que
+le déplacement de la sélection (`nodes_moved`) a porté à 2 (corrélation 1194) — une écriture que la
+grille d'un différentiel propose quel que soit l'état du projet. Le front envoie
 le compteur de la ligne (`src/api/actions/nodes.ts`), et `structure-gestures.dom.test.tsx` lit cet
 exemple au lieu du refus qu'il écrivait. `test_every_writing_that_declares_a_412_sends_a_counter`
 (`backend/tests/test_contract_declarations.py`) tient le sens inverse de
@@ -6950,8 +6951,9 @@ périodique. `wftools.mockamendmentwrites` les engendre, avec `nodes_move_mixed`
 - `row-selection.dom.test.tsx` lit le compteur que rend `nodes_moved` au lieu de l'écrire.
 
 **Le tri d'un nœud retiré passe par celui du faux back** (#1216). Le test de #1205
-(`tools/tests/test_mockdiff.py`) trie les lignes du différentiel par `LineSort.ordered`, la ligne
-retirée lue sur ses valeurs de base, au lieu de refaire le tri à la main.
+(`tools/tests/test_mockdiff.py`) lit le différentiel marqué comme `listNodes` le lit, trié par le
+montant décroissant par `mockcore.subtree(…, sort=…)`, la ligne retirée lue sur ses valeurs de base
+et dernière de ses sœurs, au lieu de refaire le tri à la main.
 
 ## Collage et annulation
 

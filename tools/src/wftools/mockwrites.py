@@ -366,25 +366,6 @@ def node_deleted() -> JsonObject:
     return core_write(amended(CORE, line=removed(BLOCKS)), [], [BLOCKS])
 
 
-STALE_CORRELATION = universe(1194)
-
-
-def node_delete_stale() -> JsonObject:
-    """Return what deleteNode answers to the labour of the wiring deleted at a counter gone stale.
-
-    Sent with the counter the grid read, while the 14 hours entered since
-    (``estimate_line_updated``) carried the line one version further: the refusal names the
-    counter that write left (#1210).
-    """
-    [line] = cast("list[Node]", estimate_line_updated()["nodes"])
-    return {
-        "code": "STALE_LOCK_VERSION",
-        "status": 412,
-        "params": {"expected_lock_version": line["lock_version"]},
-        "correlation_id": STALE_CORRELATION,
-    }
-
-
 def predecessor_set() -> JsonObject:
     """Return what setPredecessors answers when the mounting waits two days after the acceptance.
 
@@ -814,14 +795,6 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{totals_said(deleted)}, et le compteur de la structure, passé à 2 (WF-DEV-0050, "
             f"WF-IHM-0110).",
             deleted,
-        ),
-        "node_delete_stale.json": mocktext.example(
-            f"La ligne « {before[LABOUR].label} » supprimée avec le compteur que la grille avait "
-            f"lu, {cast('Node', before[LABOUR].node)['lock_version']}, alors que la saisie de ses "
-            f"{LABOUR_HOURS} h (estimate_line_updated) l'a porté à {line['lock_version']} : la "
-            f"suppression est refusée, le compteur courant rendu, et rien n'est supprimé ; la "
-            f"grille propose de relire (WF-IHM-0110, #1210).",
-            node_delete_stale(),
         ),
         "predecessor_set.json": mocktext.example(
             f"Les prédécesseurs du montage des armoires sur site, non démarré, saisis à nouveau : "

@@ -77,8 +77,18 @@ class Contract:
         """Name the statuses an operation declares."""
         return {str(status) for status in cast("dict[Any, Any]", operation["responses"])}
 
-    def carries_lock_version(self, operation: dict[str, Any], base: Path) -> bool:
-        """Tell an operation whose body, read as JSON, carries ``lock_version``."""
+    def carries_lock_version(
+        self, operation: dict[str, Any], parameters: list[dict[str, Any]], base: Path
+    ) -> bool:
+        """Tell an operation that carries ``lock_version``: in its query, or in its body as JSON.
+
+        A deletion sends the counter of its node in its query (#1210), as a writing with a body
+        sends it in its body.
+        """
+        if any(
+            each.get("in") == "query" and each.get("name") == "lock_version" for each in parameters
+        ):
+            return True
         body = operation.get("requestBody")
         if body is None:
             return False
@@ -117,11 +127,11 @@ def without_422(contract: Contract) -> list[str]:
 
 
 def without_412(contract: Contract) -> list[str]:
-    """Name the operations whose body carries ``lock_version`` that do not declare 412."""
+    """Name the operations that carry ``lock_version`` and do not declare 412."""
     return [
         name
-        for name, operation, _, base in contract.operations()
-        if contract.carries_lock_version(operation, base)
+        for name, operation, parameters, base in contract.operations()
+        if contract.carries_lock_version(operation, parameters, base)
         and "412" not in contract.statuses(operation)
     ]
 
@@ -182,12 +192,17 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
         "    delete:\n"
         "      operationId: deleteOthers\n"
         "      parameters: [{ name: lock_version, in: query, schema: { type: integer } }]\n"
-        "      responses: { '204': {}, '412': {}, '422': {} }\n",
+        "      responses: { '204': {}, '412': {}, '422': {} }\n"
+        "  /stale:\n"
+        "    delete:\n"
+        "      operationId: deleteStale\n"
+        "      parameters: [{ name: lock_version, in: query, schema: { type: integer } }]\n"
+        "      responses: { '204': {}, '422': {} }\n",
         encoding="utf-8",
     )
     contract = Contract(tmp_path / "openapi.yaml")
     assert (without_422(contract), without_412(contract), without_counter(contract)) == (
         ["listThings"],
-        ["changeThings"],
+        ["changeThings", "deleteStale"],
         ["deleteThings"],
     )

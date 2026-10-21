@@ -2708,7 +2708,7 @@ class ComparedEstimateLineFacet(ContractModel):
     budgeted_amount: Annotated[
         Money | None,
         Field(
-            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
+            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
         ),
     ] = None
     reestimated_amount: Annotated[
@@ -3341,7 +3341,7 @@ class EstimateLineFacet(ContractModel):
     budgeted_amount: Annotated[
         Money,
         Field(
-            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
+            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
         ),
     ]
     reestimated_amount: Annotated[
