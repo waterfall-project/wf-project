@@ -7,7 +7,9 @@ the Vérif of a requirement: none cites one (WF-QUA-0010, « un test qui ne couv
 exigence »).
 """
 
+import dataclasses
 import json
+from collections.abc import Iterator
 from decimal import Decimal
 from typing import Any, cast
 
@@ -19,6 +21,9 @@ from wftools.mockids import universe
 type Node = dict[str, Any]
 
 WITNESS = universe(1)
+
+PROJECT_FIELDS = {"project_id", "project_label", "can_open"}
+"""The fields of a point that name its project, in the matrix of the portfolio only."""
 
 
 @pytest.fixture(scope="module")
@@ -112,3 +117,52 @@ def test_each_risk_the_matrix_of_the_portfolio_counts_is_a_point_with_its_projec
 def test_the_volume_of_the_portfolio_holds_the_points_it_counts() -> None:
     matrix = mockwitness.fixture("volume/portfolio_risks")["matrix"]
     assert len(matrix["points"]) == sum(cell["count"] for cell in matrix["cells"]) == 429
+
+
+def test_a_share_just_under_a_bound_is_rounded_onto_it_its_cell_that_of_the_exact_share() -> None:
+    # 9.9999 % of the budget, a ten-thousandth of a percent under the bound of 10 %, is given
+    # 0.1000, on the bound; its cell is that of the exact share, the third level of severity,
+    # not the fourth the rounded share would give: at a probability of 40 %, a watch, not an
+    # alert.
+    budget = Decimal("1000000.00")
+    review = mockwitness.Review(mockwitness.REWORK.last.at, Decimal("0.4"), Decimal("99999.00"))
+    risk = dataclasses.replace(mockwitness.REWORK, reviews=(review,))
+    bounds = mockwitness.fixture("reference_settings")["risk_matrix"]["severity_bounds"]
+    point = mockhistory.matrix_point(risk, budget)
+    assert point["severity_ratio"] == "0.1000"
+    assert mockhistory.level(Decimal("0.1000"), bounds) == 4
+    cell = mockhistory.matrix_cell(risk, budget)
+    assert (cell["probability_level"], cell["severity_level"]) == (3, 3)
+    assert point["zone"] == cell["zone"] == "watch"
+
+
+def _matrices(value: object, path: str) -> Iterator[tuple[str, Node]]:
+    """Yield each matrix of the risks under a value, with where it lies in the example."""
+    if isinstance(value, dict):
+        node = cast("Node", value)
+        if {"probability_levels", "severity_levels", "cells", "points"} <= node.keys():
+            yield path, node
+        for key, item in node.items():
+            yield from _matrices(item, f"{path}/{key}")
+    elif isinstance(value, list):
+        for index, item in enumerate(cast("list[object]", value)):
+            yield from _matrices(item, f"{path}/{index}")
+
+
+def test_the_points_name_their_project_by_three_fields_in_the_portfolio_and_none_in_a_project() -> (
+    None
+):
+    # Over every example: a project's matrix is the whole answer of its reading, whose points name
+    # no project; the portfolio's is the matrix of its risks, whose points name theirs by the
+    # three fields together.
+    found: set[str] = set()
+    for file in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        value = json.loads(file.read_text(encoding="utf-8")).get("value")
+        for path, matrix in _matrices(value, file.stem):
+            portfolio = path == f"{file.stem}/matrix"
+            assert portfolio or path == file.stem, path
+            found.add("portfolio" if portfolio else "project")
+            expected: set[str] = PROJECT_FIELDS if portfolio else set()
+            for point in matrix["points"]:
+                assert PROJECT_FIELDS & point.keys() == expected, path
+    assert found == {"portfolio", "project"}

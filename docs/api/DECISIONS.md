@@ -7079,11 +7079,13 @@ bulles par son filtre d'état, comme la grille (décision 1 de #1053). Dans cell
 ce sont les risques identifiés des projets en cours. Un point porte `risk_id`, `label`,
 `probability`, `severity_amount` (la gravité, `Risk.severity`), `severity_ratio`,
 `provision_amount`, `state` et `zone`, la zone de sa case. `severity_ratio` est la gravité en part
-de l'assiette du projet, à quatre décimales (README, « Une part… ») : la part que classent les
-bornes de gravité (WF-REF-0160), et donc celle qui met le risque dans sa case. Dans la matrice du
-portefeuille, le point nomme aussi son projet : `project_id`, `project_label`, et `can_open` comme
-`PortfolioRisks.heaviest[]` (WF-PTF-0030) ; ces trois champs sont absents de la matrice d'un
-projet. `cells` reste au contrat, pour la table du décompte sous le graphique (décision 2 de
+de l'assiette du projet, arrondie à quatre décimales (README, « Une part… »). La case et la zone
+du point sont celles de la part exacte, que classent les bornes de gravité (WF-REF-0160) avant
+l'arrondi : une bulle à moins d'un demi-centième de pour cent d'une borne peut être tracée sur la
+ligne de cette borne, sa zone restant celle de sa case. Dans la matrice du portefeuille, le point
+nomme aussi son projet : `project_id`, `project_label`, et `can_open` comme
+`PortfolioRisks.heaviest[]` (WF-PTF-0030). Ces trois champs vont ensemble : présents tous les trois
+dans la matrice du portefeuille, absents tous les trois dans celle d'un projet. `cells` reste au contrat, pour la table du décompte sous le graphique (décision 2 de
 #1053). Les exemples sont `risk_matrix`, avec trois points (1,91 % ; moins d'un centième de pour
 cent, donné à son premier chiffre, `0.000003` ; 18,34 %), et le volume `portfolio_risks`, avec un
 point par risque identifié, 429, dont 50 d'un projet que le lecteur ne peut pas ouvrir. Écartés :

@@ -351,8 +351,9 @@ def matrix_cell(risk: Risk, budget: Decimal) -> JsonObject:
 def matrix_point(risk: Risk, budget: Decimal) -> JsonObject:
     """Return a risk as the matrix places it, at its exact values (`RiskMatrixPoint`, #1053).
 
-    Its probability, its severity in amount and as a share of the budget given, the share its
-    cell classes, its provision, its state, and the zone of its cell (WF-RIS-0040, WF-REF-0160).
+    Its probability, its severity in amount and as a share of the budget given, rounded, its
+    provision, its state, and the zone of its cell, which classes the exact share (WF-RIS-0040,
+    WF-REF-0160).
     """
     last = risk.last
     return {

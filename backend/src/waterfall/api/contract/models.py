@@ -4415,7 +4415,7 @@ class RiskMatrixPoint(ContractModel):
     severity_ratio: Annotated[
         Percent,
         Field(
-            description="La gravité en part de l'assiette du projet du risque — son budget de référence, ou avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —, à quatre décimales (README, « Une part… ») : la part que les bornes de gravité classent, et qui place le risque dans sa case."
+            description="La gravité en part de l'assiette du projet du risque — son budget de référence, ou avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —, arrondie à quatre décimales (README, « Une part… »). La case du risque et sa zone sont celles de la part exacte, que les bornes de gravité classent avant l'arrondi : une bulle à moins d'un demi-centième de pour cent d'une borne peut être tracée sur la ligne de cette borne, dans la case que dit `zone`."
         ),
     ]
     provision_amount: Annotated[

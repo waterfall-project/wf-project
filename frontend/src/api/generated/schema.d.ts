@@ -4923,14 +4923,14 @@ export interface components {
             lower: components["schemas"]["Percent"];
             upper: components["schemas"]["Percent"] | null;
         };
-        /** @description Un risque que la matrice retient, à ses valeurs exactes, pour que le graphique le place sans rien calculer (WF-RIS-0040, WF-ARC-0020, #1053) : sa probabilité en abscisse, sa gravité en part de l'assiette en ordonnée, sa gravité en montant pour la taille de sa bulle. Ses valeurs sont celles du risque lu (`Risk`), et sa zone celle de sa case (`Risk.matrix_cell`). Dans la matrice du portefeuille, il nomme aussi son projet. */
+        /** @description Un risque que la matrice retient, à ses valeurs exactes, pour que le graphique le place sans rien calculer (WF-RIS-0040, WF-ARC-0020, #1053) : sa probabilité en abscisse, sa gravité en part de l'assiette en ordonnée, sa gravité en montant pour la taille de sa bulle. Ses valeurs sont celles du risque lu (`Risk`), et sa zone celle de sa case (`Risk.matrix_cell`). Dans la matrice du portefeuille, il nomme aussi son projet : `project_id`, `project_label` et `can_open` vont ensemble, présents tous les trois dans la matrice du portefeuille, absents tous les trois dans celle d'un projet. */
         RiskMatrixPoint: {
             risk_id: components["schemas"]["Uuid"];
             label: string;
             probability: components["schemas"]["Percent"];
             /** @description La gravité du risque (`Risk.severity`), ce qu'il coûterait s'il survenait. */
             severity_amount: components["schemas"]["Money"];
-            /** @description La gravité en part de l'assiette du projet du risque — son budget de référence, ou avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —, à quatre décimales (README, « Une part… ») : la part que les bornes de gravité classent, et qui place le risque dans sa case. */
+            /** @description La gravité en part de l'assiette du projet du risque — son budget de référence, ou avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —, arrondie à quatre décimales (README, « Une part… »). La case du risque et sa zone sont celles de la part exacte, que les bornes de gravité classent avant l'arrondi : une bulle à moins d'un demi-centième de pour cent d'une borne peut être tracée sur la ligne de cette borne, dans la case que dit `zone`. */
             severity_ratio: components["schemas"]["Percent"];
             /** @description La provision du risque (`Risk.provision_amount`, WF-RIS-0010). */
             provision_amount: components["schemas"]["Money"];
