@@ -17,6 +17,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import HomePage, { generateMetadata } from "./page";
 
@@ -106,7 +107,7 @@ function listQuery(): Record<string, string> {
   const call = server.clients
     .flatMap((client) => client.calls)
     .find((each) => each.route === "GET /projects");
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {
@@ -152,6 +153,7 @@ describe("the home, the list of projects", () => {
       sort_order: "desc",
       search: "poste",
       offset: "50",
+      limit: "25",
     });
     expect(listQuery()).toEqual({
       is_contributor: "true",
@@ -160,10 +162,12 @@ describe("the home, the list of projects", () => {
       sort_order: "desc",
       search: "poste",
       offset: "50",
+      limit: "25",
     });
     expect(grids.props.at(-1)?.query).toEqual({
       sort: { column: "updated_at", order: "desc" },
       search: "poste",
+      size: 25,
     });
   });
 
@@ -433,5 +437,18 @@ describe("the empty states of the home", () => {
   it("never says there is no project when the API cannot be reached: it is announced", async () => {
     server.unreachable = true;
     await expect(home()).rejects.toBeInstanceOf(Unreachable);
+  });
+});
+
+describe("the home, the size of the pages of the list of projects", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await home(search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /projects");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
   });
 });

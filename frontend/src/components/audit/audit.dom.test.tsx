@@ -51,7 +51,7 @@ function permissionsOf(name: string): readonly components["schemas"]["Permission
   return (example(name) as components["schemas"]["UserSelf"]).permissions;
 }
 const second = example("audit_events_page") as Journal;
-const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined };
+const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined, size: undefined };
 const facets = example("audit_facets") as components["schemas"]["AuditFacets"];
 const AUTHORS: AuditFilterBarProps["users"] = facets.actors.map((actor) => ({
   id: actor.user_id,
@@ -178,7 +178,11 @@ describe("the grid of the journal", () => {
       async (shown, _asked, search, address) => {
         page.search = search;
         const order = shown === "ascending" ? "asc" : "desc";
-        render(journal({ query: { sort: { ...NEWEST_FIRST, order }, search: undefined } }));
+        render(
+          journal({
+            query: { sort: { ...NEWEST_FIRST, order }, search: undefined, size: undefined },
+          }),
+        );
         const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
         expect(header).toHaveAttribute("aria-sort", shown);
         await userEvent.click(within(header).getByRole("button"));
@@ -214,7 +218,11 @@ describe("the grid of the journal", () => {
       "asks the server for a column the other way, its sort %s [WF-IHM-0060-A]",
       async (order, shown, asked) => {
         page.search = `sort_by=actor&sort_order=${order}`;
-        render(journal({ query: { sort: { column: "actor", order }, search: undefined } }));
+        render(
+          journal({
+            query: { sort: { column: "actor", order }, search: undefined, size: undefined },
+          }),
+        );
         const header = within(grid()).getByRole("columnheader", { name: "Auteur" });
         expect(header).toHaveAttribute("aria-sort", shown);
         await userEvent.click(within(header).getByRole("button"));
@@ -224,7 +232,11 @@ describe("the grid of the journal", () => {
 
     it("asks the most recent first for the dates from another sort, as the server gives them unasked [WF-IHM-0060-A]", async () => {
       page.search = "sort_by=actor&sort_order=desc";
-      render(journal({ query: { sort: { column: "actor", order: "desc" }, search: undefined } }));
+      render(
+        journal({
+          query: { sort: { column: "actor", order: "desc" }, search: undefined, size: undefined },
+        }),
+      );
       const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
       await userEvent.click(within(header).getByRole("button"));
       expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");

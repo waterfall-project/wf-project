@@ -103,7 +103,7 @@ function projectsGrid(list: ProjectList = LIST) {
     <ProjectsGrid
       projects={list.items}
       page={list.meta}
-      query={{ sort: undefined, search: undefined }}
+      query={{ sort: undefined, search: undefined, size: undefined }}
       preferences={undefined}
     />,
   );

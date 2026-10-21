@@ -158,7 +158,13 @@ function readQueries(
   const state = (name: string) => stateOf(search, name, permissions, "cost_settings.read");
   return {
     inactive: inactiveQuery(asksInactive(search), permissions, "cost_settings.read"),
-    rates: readGridQuery(search, RATE_SORTS, grids?.[RATE_GRID_KEY]?.sort),
+    rates: readGridQuery(
+      search,
+      RATE_SORTS,
+      grids?.[RATE_GRID_KEY]?.sort,
+      CONTRACT_ADDRESS,
+      grids?.[RATE_GRID_KEY]?.page_size,
+    ),
     rateOffset: offsetOf(search.get(CONTRACT_ADDRESS.offset)),
     rateFilters: readRateFilters(search, state(RATE_STATE)),
     types: readGridQuery(
@@ -166,6 +172,7 @@ function readQueries(
       COST_TYPE_SORTS,
       grids?.[COST_TYPE_GRID_KEY]?.sort,
       COST_TYPE_ADDRESS,
+      grids?.[COST_TYPE_GRID_KEY]?.page_size,
     ),
     typeOffset: offsetOf(search.get(COST_TYPE_ADDRESS.offset)),
     kinds: readValues(search, COST_TYPE_KINDS, COST_TYPE_KIND_VALUES),
@@ -175,6 +182,7 @@ function readQueries(
       COST_CATEGORY_SORTS,
       grids?.[COST_CATEGORY_GRID_KEY]?.sort,
       COST_CATEGORY_ADDRESS,
+      grids?.[COST_CATEGORY_GRID_KEY]?.page_size,
     ),
     categoryOffset: offsetOf(search.get(COST_CATEGORY_ADDRESS.offset)),
     nature: identifierOf(search, CATEGORY_COST_TYPE),

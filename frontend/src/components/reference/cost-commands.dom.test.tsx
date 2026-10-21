@@ -49,7 +49,7 @@ const CATEGORIES = "POST /reference/cost-categories";
 const CATEGORY = "PATCH /reference/cost-categories/{cost_category_id}";
 const CATEGORY_ACTIVATION = "PUT /reference/cost-categories/{cost_category_id}/activation";
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 const types = example("cost_types") as { items: CostType[]; meta: ListPage };
 const categories = example("volume/cost_categories_page") as {
   items: CostCategory[];

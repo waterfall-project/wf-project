@@ -18,7 +18,7 @@ import { serverClient } from "@/api/server";
 import { readPage } from "@/components/costs/address";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { OFFSET, readGridQuery } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, OFFSET, readGridQuery } from "@/components/grid/query";
 import {
   type Perimeter,
   perimeterQuery,
@@ -67,7 +67,7 @@ export default async function PortfolioProjectsPage({
     (session) => session?.display_preferences?.grids?.[PROJECT_GRID.key] ?? undefined,
   );
   const query = await settings.then((kept) =>
-    readGridQuery(search, PROJECT_SORT_COLUMNS, kept?.sort),
+    readGridQuery(search, PROJECT_SORT_COLUMNS, kept?.sort, CONTRACT_ADDRESS, kept?.page_size),
   );
   const [projects, value, nodes, preferences] = await Promise.all([
     readView("getPortfolioProjects", () =>

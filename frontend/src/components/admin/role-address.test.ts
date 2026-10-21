@@ -12,7 +12,7 @@ describe("what the list of the access roles asks the server", () => {
   it("asks the search, the sort, the kind and the bounds of the holders under the names of the contract", () => {
     expect(
       rolesQuery({
-        query: { sort: { column: "holder_count", order: "desc" }, search: "chef" },
+        query: { sort: { column: "holder_count", order: "desc" }, search: "chef", size: undefined },
         predefined: false,
         holders: { min: "1", max: "3" },
         audit: NO_AUDIT,
@@ -30,7 +30,7 @@ describe("what the list of the access roles asks the server", () => {
   it("asks the bounds of the holders as the counts of the contract, nought included", () => {
     expect(
       rolesQuery({
-        query: { sort: undefined, search: undefined },
+        query: { sort: undefined, search: undefined, size: undefined },
         predefined: undefined,
         holders: { min: undefined, max: "0" },
         audit: NO_AUDIT,

@@ -40,7 +40,7 @@ const TYPE = "PATCH /reference/cost-types/{cost_type_id}";
 const CATEGORIES = "POST /reference/cost-categories";
 const CATEGORY = "PATCH /reference/cost-categories/{cost_category_id}";
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 const types = example("cost_types") as { items: CostType[]; meta: ListPage };
 const volumes = (example("volume/cost_categories") as { items: CostCategory[] }).items;
 /** The first categories of the volumes: the subcontracting first, under the disbursements. */

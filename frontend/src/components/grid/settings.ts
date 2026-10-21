@@ -25,6 +25,7 @@ import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
 
 import { MAX_WIDTH, MIN_WIDTH } from "./columns";
+import { pageSizeOf } from "./query";
 
 /** The settings of a grid, as the account keeps them. */
 export type GridPreferences = components["schemas"]["GridPreferences"];
@@ -79,6 +80,11 @@ export function initialSettings(
   };
 }
 
+/** The number of rows per page the account keeps for a grid; none, the default of the contract. */
+export function keptPageSize(preferences: GridPreferences | undefined): number | undefined {
+  return preferences?.page_size;
+}
+
 /** The sort the account keeps for a grid, as the contract gives it: none is `null`. */
 export type KeptGridSort = GridPreferences["sort"];
 
@@ -86,13 +92,15 @@ export type KeptGridSort = GridPreferences["sort"];
  * The preferences to record for a grid: its settings, the sort to keep — the one a header just
  * asked, or the one the account kept, as it came —, the filters to keep — those the page last
  * showed (`kept-filters.ts`), or, for a grid whose screen keeps none, those the account kept, as
- * they came —, and what the account kept of it besides, as it came: the grid is replaced whole.
+ * they came —, the size of its pages, the one chosen last, and what the account kept of it besides, as
+ * it came: the grid is replaced whole.
  */
 export function recordedPreferences(
   preferences: GridPreferences | undefined,
   settings: GridSettings,
   sort: KeptGridSort,
   filters?: Readonly<Record<string, string>>,
+  size?: number,
 ): GridPreferences {
   const recorded: GridPreferences = {
     ...preferences,
@@ -103,7 +111,9 @@ export function recordedPreferences(
       Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width)]),
     ),
   };
-  const sorted = sort === undefined ? recorded : { ...recorded, sort };
+  const sized = pageSizeOf(size);
+  const paged = sized === undefined ? recorded : { ...recorded, page_size: sized };
+  const sorted = sort === undefined ? paged : { ...paged, sort };
   return filters === undefined ? sorted : { ...sorted, filters };
 }
 

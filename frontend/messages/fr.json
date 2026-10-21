@@ -86,6 +86,10 @@
     "provision": "Ligne de provision"
   },
   "grid": {
+    "pageSize": {
+      "label": "Lignes par page",
+      "named": "Lignes par page de « {list} »"
+    },
     "names": {
       "estimate": "Grille de devis",
       "planning": "Grille de planning",

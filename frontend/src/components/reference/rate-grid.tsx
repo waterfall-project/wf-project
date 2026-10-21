@@ -45,7 +45,7 @@ import type { GridColumn, GridConfig, RowsWritten } from "@/components/grid/colu
 import { DenseGrid } from "@/components/grid/dense-grid";
 import { boundNames } from "@/components/grid/filters";
 import { ListPages } from "@/components/grid/list-pages";
-import { CONTRACT_ADDRESS, type GridQuery, OFFSET } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, LIMIT, OFFSET } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -185,6 +185,7 @@ function rateGrid(
     key: RATE_GRID_KEY,
     name: "hourlyRates",
     searched: true,
+    paged: true,
     rowKey: (row) => row.cost_category_id,
     columns: [
       {
@@ -382,7 +383,7 @@ export function RateGrid({ grid, currency, editable, query, preferences }: RateG
         preferences={preferences}
       />
       <ListPages
-        list={{ page: OFFSET, reads: RATE_READS }}
+        list={{ page: OFFSET, size: LIMIT, reads: RATE_READS }}
         title={names("hourlyRates")}
         page={grid.meta}
         shown={grid.rows.length}

@@ -28,7 +28,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const REMAINING =
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining";
 const NODES = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
@@ -171,7 +171,11 @@ describe("the grid of the remaining to commit", () => {
           structureVersion={1}
           filters={{ progress: ["started"] }}
           editable
-          query={{ sort: { column: "progress", order: "desc" }, search: undefined }}
+          query={{
+            sort: { column: "progress", order: "desc" },
+            search: undefined,
+            size: undefined,
+          }}
           preferences={undefined}
         />
       </NextIntlClientProvider>,

@@ -40,7 +40,7 @@ const CALENDARS = "POST /reference/calendars";
 const CALENDAR = "PATCH /reference/calendars/{calendar_id}";
 const DEFAULT = "PUT /reference/calendars/{calendar_id}/default";
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 const NO_BOUNDS = { min: undefined, max: undefined };
 const calendars = example("calendars_with_inactive") as { items: Calendar[]; meta: ListPage };
 const roles = (example("resource_roles") as { items: ResourceRole[] }).items;

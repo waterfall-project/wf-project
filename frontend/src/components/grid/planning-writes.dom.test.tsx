@@ -40,7 +40,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const TASK =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
 const SKELETON = "POST /projects/{project_id}/revisions/{revision_id}/skeleton";

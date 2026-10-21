@@ -55,7 +55,7 @@ import { AuditGrid } from "@/components/audit/audit-grid";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { refusedPeriod } from "@/components/grid/period";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -256,7 +256,13 @@ export default async function AuditLogPage({
   ]);
   const { permissions, preferences } = consultation(session);
   // The address is the truth; then the sort the account keeps; then the server's: newest first.
-  const query = readGridQuery(search, AUDIT_SORTS, preferences?.sort ?? NEWEST_FIRST);
+  const query = readGridQuery(
+    search,
+    AUDIT_SORTS,
+    preferences?.sort ?? NEWEST_FIRST,
+    CONTRACT_ADDRESS,
+    preferences?.page_size,
+  );
   const filters = readAuditFilters(search);
   const [read, facets, openable] = await Promise.all([
     readJournal(filters, query, offsetOf(search.get(OFFSET_PARAMETER))),

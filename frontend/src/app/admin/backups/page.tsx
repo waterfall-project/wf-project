@@ -43,7 +43,7 @@ import { BackupList, type BackupsRead } from "@/components/admin/platform-lists"
 import { Restoration } from "@/components/admin/restoration";
 import { platformOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/grid/query";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
@@ -101,7 +101,13 @@ export default async function BackupsPage({
   ]);
   const preferences = session?.display_preferences?.grids?.[BACKUP_GRID_KEY] ?? undefined;
   // The address is the truth; then the sort the account keeps; then the server's: newest first.
-  const query = readGridQuery(search, BACKUP_SORTS, preferences?.sort ?? NEWEST_FIRST);
+  const query = readGridQuery(
+    search,
+    BACKUP_SORTS,
+    preferences?.sort ?? NEWEST_FIRST,
+    CONTRACT_ADDRESS,
+    preferences?.page_size,
+  );
   const filters = readBackupFilters(search);
   const permissions = session?.permissions;
   const startable = platformOffer(permissions, "backups") !== undefined;

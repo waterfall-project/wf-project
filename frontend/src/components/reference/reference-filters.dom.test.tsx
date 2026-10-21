@@ -194,7 +194,7 @@ describe("the filters of a list of the reference data", () => {
         <ResourceRoleList
           rows={roles.items}
           page={roles.meta}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
           readsInactive
           editable={false}

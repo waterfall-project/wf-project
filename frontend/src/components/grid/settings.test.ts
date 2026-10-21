@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_WIDTH, MIN_WIDTH } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
-import { initialSettings, recordedPreferences } from "./settings";
+import { initialSettings, keptPageSize, recordedPreferences } from "./settings";
 
 describe("the settings a grid starts from", () => {
   it("are the columns the grid hides, and no width, without preferences", () => {
@@ -68,6 +68,19 @@ describe("the preferences a grid records", () => {
       column_widths: { label: 413 },
       sort: { column: "budgeted_amount", order: "desc" },
     });
+  });
+
+  it("record the size of the pages chosen last, over the one that came, and keep the one that came otherwise [WF-IHM-0060-A]", () => {
+    const sized = { ...kept, page_size: 25 as const };
+    expect(recordedPreferences(sized, settings, undefined, undefined, 100).page_size).toBe(100);
+    expect(recordedPreferences(sized, settings, undefined).page_size).toBe(25);
+    expect(recordedPreferences(kept, settings, undefined, undefined, 10).page_size).toBe(10);
+    // A size no server takes is not recorded: the API would refuse the whole grid.
+    expect(recordedPreferences(kept, settings, undefined, undefined, 7)).not.toHaveProperty(
+      "page_size",
+    );
+    expect(keptPageSize(sized)).toBe(25);
+    expect(keptPageSize(undefined)).toBeUndefined();
   });
 
   it("keep no sort once it is lifted, back to the order of the plan", () => {

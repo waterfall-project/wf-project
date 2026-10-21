@@ -355,6 +355,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    */
   readonly searched: boolean;
   /**
+   * Whether the server pages its rows - a flat table with "Lignes par page" (WF-IHM-0060) -, so
+   * that the size of its pages the address names is recorded with its settings; by default it does
+   * not: a table the server answers whole, or a tree, has no such size to keep.
+   */
+  readonly paged?: boolean;
+  /**
    * The names under which the grid writes its sort and its search in the address: those of the
    * contract when none — a grid alone on its screen —, or its own among several (`prefixedAddress`).
    */

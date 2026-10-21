@@ -86,6 +86,10 @@
     "provision": "Provision line"
   },
   "grid": {
+    "pageSize": {
+      "label": "Rows per page",
+      "named": "Rows per page of “{list}”"
+    },
     "names": {
       "estimate": "Estimate grid",
       "planning": "Planning grid",

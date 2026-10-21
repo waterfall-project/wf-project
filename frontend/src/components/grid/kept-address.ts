@@ -28,6 +28,8 @@ export interface KeptReading {
   readonly filters: readonly string[];
   /** The sort, which the settings keep apart (`GridPreferences.sort`). */
   readonly sort: readonly string[];
+  /** The size of its pages, which the address carries and the settings keep apart (`page_size`). */
+  readonly size: readonly string[];
 }
 
 /** The parameters a grid reads, under the names of its address, its filters besides its search. */
@@ -36,6 +38,7 @@ export function keptReading(address: GridAddress, filters: readonly string[]): K
     search: address.search,
     filters: [address.search, ...filters],
     sort: [address.sortBy, address.sortOrder],
+    size: [address.limit],
   };
 }
 
@@ -58,9 +61,9 @@ export function sameFilters(one: KeptFilters, other: KeptFilters): boolean {
   return names.length === Object.keys(other).length && names.every((n) => one[n] === other[n]);
 }
 
-/** Whether an address says nothing of a grid: neither its sort, nor its search, nor its filters. */
+/** Whether an address says nothing of a grid: neither its sort, nor its page size, nor its search, nor its filters. */
 function silent(reading: KeptReading, has: (name: string) => boolean): boolean {
-  return [...reading.filters, ...reading.sort].every((name) => !has(name));
+  return [...reading.filters, ...reading.sort, ...reading.size].every((name) => !has(name));
 }
 
 /**

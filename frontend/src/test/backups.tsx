@@ -79,7 +79,7 @@ export function backupList(
               <BackupList
                 read={{ kind: "read", items: rows, page: options.page ?? backups.meta }}
                 filters={readBackupFilters(new URLSearchParams(options.search ?? ""))}
-                query={{ sort: NEWEST_FIRST, search: undefined }}
+                query={{ sort: NEWEST_FIRST, search: undefined, size: undefined }}
                 preferences={undefined}
                 startable={options.startable ?? true}
                 refused={options.refused}

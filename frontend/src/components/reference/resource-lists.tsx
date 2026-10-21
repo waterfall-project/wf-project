@@ -417,7 +417,7 @@ export function ResourceRoleList({
           }
           pages={
             <ListPages
-              list={{ page: offset, reads: ROLE_READS }}
+              list={{ page: offset, size: RESOURCE_ROLE_ADDRESS.limit, reads: ROLE_READS }}
               title={title}
               page={page}
               shown={rows.length}
@@ -544,7 +544,11 @@ export function CalendarList({
           }
           pages={
             <ListPages
-              list={{ page: CALENDAR_ADDRESS.offset, reads: CALENDAR_READS }}
+              list={{
+                page: CALENDAR_ADDRESS.offset,
+                size: CALENDAR_ADDRESS.limit,
+                reads: CALENDAR_READS,
+              }}
               title={title}
               page={page}
               shown={rows.length}

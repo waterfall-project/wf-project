@@ -26,7 +26,11 @@ describe("what the journal reads of its address", () => {
       object: ID,
       correlation: "req-1",
     };
-    const sorted = { sort: { column: "actor", order: "asc" }, search: "couts" } as const;
+    const sorted = {
+      sort: { column: "actor", order: "asc" },
+      search: "couts",
+      size: undefined,
+    } as const;
     const asked = Object.keys(auditQuery(every, sorted, undefined));
     expect(asked).toHaveLength(12);
     expect(AUDIT_LIST.reads).toEqual(expect.arrayContaining(asked));

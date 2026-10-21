@@ -58,7 +58,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const PREFERENCES = "PATCH /me/preferences";
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
@@ -302,7 +302,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
         { scroll: false },
       );
     });
-    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined, size: undefined });
     expect(heading()).toHaveAttribute("aria-sort", "ascending");
     expect(grid().querySelectorAll("[aria-sort]")).toHaveLength(1);
 
@@ -313,7 +313,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
         { scroll: false },
       );
     });
-    ask({ sort: { column: "inflated_amount", order: "desc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "desc" }, search: undefined, size: undefined });
     expect(heading()).toHaveAttribute("aria-sort", "descending");
 
     await userEvent.click(within(heading()).getByRole("button"));
@@ -335,7 +335,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(recorded(client)).toEqual([]);
     // Shown, it is recorded at once, without the pause of a width.
-    ask({ sort: { column: "quantity", order: "asc" }, search: undefined });
+    ask({ sort: { column: "quantity", order: "asc" }, search: undefined, size: undefined });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
         {
@@ -349,9 +349,9 @@ describe("the sort, the search and the totals, asked of the server", () => {
         },
       ]);
     });
-    ask({ sort: { column: "quantity", order: "desc" }, search: undefined });
+    ask({ sort: { column: "quantity", order: "desc" }, search: undefined, size: undefined });
     await userEvent.click(within(heading()).getByRole("button"));
-    ask({ sort: undefined, search: undefined });
+    ask({ sort: undefined, search: undefined, size: undefined });
     await waitFor(() => {
       expect(recorded(client).at(-1)).toEqual({
         grids: { estimate: { hidden_columns: [], column_widths: {}, sort: null } },
@@ -374,7 +374,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
       ["/projects/p/revisions/r?sort_by=inflated_amount&sort_order=asc", { scroll: false }],
     ]);
     expect(recorded(client)).toEqual([]);
-    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined, size: undefined });
     await waitFor(() => {
       expect(recorded(client)).toHaveLength(1);
     });
@@ -396,7 +396,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     // The pause of a width goes by: the page is not shown yet, and nothing is written.
     await new Promise((resolve) => setTimeout(resolve, WRITE_DELAY + 100));
     expect(recorded(client)).toEqual([]);
-    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined, size: undefined });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
         {
@@ -438,7 +438,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
   it("lifts the sort by the address, whether or not the preference could be written", async () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
     const { ask } = renderGrid(witness, {
-      query: { sort: { column: "label", order: "desc" }, search: undefined },
+      query: { sort: { column: "label", order: "desc" }, search: undefined, size: undefined },
     });
     await userEvent.click(
       within(screen.getByRole("columnheader", { name: /Libellé/ })).getByRole("button"),
@@ -446,7 +446,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r?sort_by=", {
       scroll: false,
     });
-    ask({ sort: undefined, search: undefined });
+    ask({ sort: undefined, search: undefined, size: undefined });
     // The refusal is told; the address carries the lifting all the same.
     expect(await screen.findByRole("alert")).toHaveTextContent("Se connecter");
   });
@@ -483,7 +483,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
   it("renders the rows in the order the server gave, and the totals it computed for the request, never a sum of its own", () => {
     // An answer the server sorted otherwise than the plan: the grid keeps its order.
     const answer: NodeList = { ...witness, items: [...witness.items].reverse() };
-    renderGrid(answer, { query: { sort: { column: "label", order: "desc" }, search: undefined } });
+    renderGrid(answer, { query: { ...NO_QUERY, sort: { column: "label", order: "desc" } } });
     expect(labels()).toEqual([
       "Dossier de conception",
       "Réception des études",
@@ -512,7 +512,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
       { scroll: false },
     );
     page.search = "sort_by=label&sort_order=asc&search=revue";
-    ask({ sort: undefined, search: "revue" });
+    ask({ sort: undefined, search: "revue", size: undefined });
     expect(screen.getByRole("searchbox", { name: "Rechercher un libellé" })).toHaveValue("revue");
 
     await userEvent.clear(screen.getByRole("searchbox", { name: "Rechercher un libellé" }));
@@ -573,7 +573,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
       await sortByBudget();
       // Back in the history: the screen shows another address, which the next search starts from.
       page.search = "search=revue";
-      ask({ sort: undefined, search: "revue" });
+      ask({ sort: undefined, search: "revue", size: undefined });
       await userEvent.clear(screen.getByRole("searchbox", { name: "Rechercher un libellé" }));
       await searchCabling();
       expect(lastAsked()).toEqual({ search: "câblage" });
@@ -637,7 +637,7 @@ describe("the columns and their widths, a display preference of the account", ()
     const client = serve();
     renderGrid(witness, {
       preferences: { sort: { column: "inflated_amount", order: "desc" } },
-      query: { sort: { column: "label", order: "asc" }, search: undefined },
+      query: { sort: { column: "label", order: "asc" }, search: undefined, size: undefined },
     });
     const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
     handle.focus();

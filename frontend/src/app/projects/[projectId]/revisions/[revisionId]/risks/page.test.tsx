@@ -191,6 +191,7 @@ describe("the screen of the risks", () => {
     expect(grids.risks[0]?.query).toEqual({
       sort: { column: "provision_amount", order: "desc" },
       search: "armoires",
+      size: 50,
     });
   });
 

@@ -15,6 +15,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import ActualCostsPage, { generateMetadata } from "./page";
 
@@ -89,7 +90,7 @@ function queryOf(route: string): Record<string, string> {
   const calls = server.clients.flatMap((client) => client.calls);
   const [call, ...more] = calls.filter((each) => each.route === route);
   expect(more).toEqual([]);
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {
@@ -363,5 +364,18 @@ describe("the screen of the actual costs", () => {
       "Excluded from the tracked scope: Câbles d'un autre projet, à réimputer",
     );
     expect(after).toContain("Reinstate in the tracked scope");
+  });
+});
+
+describe("the actual costs, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await costsAt(search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === COSTS);
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
   });
 });

@@ -49,7 +49,7 @@ import { platformOffer } from "@/components/commands/offer";
 import { readValues } from "@/components/grid/filters";
 import { restoredAddress } from "@/components/grid/kept-address";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { readGridQuery } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, readGridQuery } from "@/components/grid/query";
 import { identifierOf } from "@/components/reference/address";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -116,7 +116,13 @@ export default async function UsersPage({
   if (restored !== undefined) {
     redirect(restored);
   }
-  const query = readGridQuery(search, USER_SORTS, preferences?.sort);
+  const query = readGridQuery(
+    search,
+    USER_SORTS,
+    preferences?.sort,
+    CONTRACT_ADDRESS,
+    preferences?.page_size,
+  );
   const origins = readValues(search, ORIGINS, USER_ORIGINS);
   const orgNode = identifierOf(search, ORG_NODE);
   const active = readAccountState(search);

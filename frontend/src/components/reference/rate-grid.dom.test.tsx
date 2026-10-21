@@ -66,7 +66,7 @@ function rates(
   locale: Locale = "fr",
   editable = true,
   rows: HourlyRateGrid = fewRows,
-  query: GridQuery<RateSort> = { sort: undefined, search: undefined },
+  query: GridQuery<RateSort> = { sort: undefined, search: undefined, size: undefined },
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -571,6 +571,7 @@ describe("the grid of the hourly rates", () => {
         rates("fr", true, fewRows, {
           sort: sort && { column: sort, order: "asc" },
           search: "Automatisme",
+          size: undefined,
         }),
       );
       await userEvent.click(sortButton(heading));
@@ -597,6 +598,7 @@ describe("the grid of the hourly rates", () => {
     render(
       rates("fr", true, sorted, {
         sort: { column: "rate.2026", order: "desc" },
+        size: undefined,
         search: undefined,
       }),
     );

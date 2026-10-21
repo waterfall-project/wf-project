@@ -16,6 +16,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import CostCurvePage, { generateMetadata as costCurveTitle } from "./cost-curve/page";
 import CostStructurePage, { generateMetadata as costStructureTitle } from "./cost-structure/page";
@@ -91,7 +92,7 @@ function queryOf(route: string): Record<string, string> {
   const calls = server.clients.flatMap((client) => client.calls);
   const [call, ...more] = calls.filter((each) => each.route === route);
   expect(more).toEqual([]);
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {
@@ -442,5 +443,18 @@ describe("a period of the portfolio the server refuses", () => {
       "The start of the period may not follow its default end, the date of calculation, 3 Jun 2026.",
     );
     expect(text(markup)).toContain("The view is not read: the server refuses the period asked.");
+  });
+});
+
+describe("the portfolio, the size of the pages of the list of projects", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await render(ProjectsPage, search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /portfolio/projects");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
   });
 });

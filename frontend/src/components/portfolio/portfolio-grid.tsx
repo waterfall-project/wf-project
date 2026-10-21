@@ -31,6 +31,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
   key: "portfolio_projects",
   name: "portfolioProjects",
   searched: true,
+  paged: true,
   rowKey: (project) => project.project_id,
   columns: [
     {

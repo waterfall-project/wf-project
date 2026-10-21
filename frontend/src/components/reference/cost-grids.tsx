@@ -78,6 +78,7 @@ export function costTypeGrid(editable = false): GridConfig<CostType, CostTypeSor
     name: "costTypes",
     address: COST_TYPE_ADDRESS,
     searched: true,
+    paged: true,
     rowKey: (type) => type.cost_type_id,
     columns: [
       {
@@ -133,6 +134,7 @@ export function costCategoryGrid(
     name: "costCategories",
     address: COST_CATEGORY_ADDRESS,
     searched: true,
+    paged: true,
     rowKey: (category) => category.cost_category_id,
     columns: [
       {

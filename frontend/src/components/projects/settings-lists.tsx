@@ -64,7 +64,7 @@ interface Shown<Sort extends string> {
 
 /** A grid the address asks nothing of, its settings read from none. */
 export const UNASKED: Shown<never> = {
-  query: { sort: undefined, search: undefined },
+  query: { sort: undefined, search: undefined, size: undefined },
   preferences: undefined,
 };
 

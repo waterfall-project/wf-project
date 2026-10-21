@@ -1319,7 +1319,7 @@ exigence WF-IHM nouvelle (décision de l'auteur au cadrage, 2026-10-18, réponse
 
 ## US-0570 — Le référentiel et les grilles paginées
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : `listCalendars`, `getDurationUnits`, `setDurationUnits`, `getMe`,
   `updateMyPreferences`, `listUsers`, `listAccessRoles`, `listBackups`, `listAuditEvents`,

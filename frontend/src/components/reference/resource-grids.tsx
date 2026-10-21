@@ -178,6 +178,7 @@ export function resourceRoleGrid(
     name: "resourceRoles",
     address: RESOURCE_ROLE_ADDRESS,
     searched: true,
+    paged: true,
     rowKey: (role) => role.resource_role_id,
     columns: [
       {
@@ -267,6 +268,7 @@ export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSor
     name: "calendars",
     address: CALENDAR_ADDRESS,
     searched: true,
+    paged: true,
     rowKey: (calendar) => calendar.calendar_id,
     columns: [
       {

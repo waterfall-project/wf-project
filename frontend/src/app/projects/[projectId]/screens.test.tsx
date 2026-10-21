@@ -15,6 +15,7 @@ import {
 } from "@/components/projects/settings-lists";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import LifecyclePage, { generateMetadata as lifecycleMetadata } from "./lifecycle/page";
 import ProjectPage from "./page";
@@ -87,7 +88,7 @@ function queriesOf(route: string): Record<string, string>[] {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 /** The table a page names, its inner markup. */
@@ -309,7 +310,10 @@ describe("the settings of a project", () => {
           <WorkBreakdownList
             breakdown={searched}
             project={PROJECT}
-            shown={{ query: { sort: undefined, search: "Montage" }, preferences: undefined }}
+            shown={{
+              query: { sort: undefined, search: "Montage", size: undefined },
+              preferences: undefined,
+            }}
           />,
         ),
       ),
@@ -327,7 +331,10 @@ describe("the settings of a project", () => {
       <WorkBreakdownList
         breakdown={{ ...filtered, work_packages: [] }}
         project={PROJECT}
-        shown={{ query: { sort: undefined, search: "zzz" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "zzz", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(none, "Work breakdown")).toContain("No row matches the request.");
@@ -474,7 +481,10 @@ describe("the settings of a project", () => {
     const searched = html(
       <SubprojectList
         subprojects={[]}
-        shown={{ query: { sort: undefined, search: "XX" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "XX", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(searched, "Subprojects")).toContain("No row matches the request.");
@@ -487,7 +497,10 @@ describe("the settings of a project", () => {
     const named = html(
       <ContributorList
         contributors={[]}
-        shown={{ query: { sort: undefined, search: "Zoé" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "Zoé", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(named, "Contributors")).toContain("No row matches the request.");
