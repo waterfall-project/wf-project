@@ -888,9 +888,9 @@ que nomme WF-PLA-0160 sont lus en toutes langues — « m » un mois, « min » 
 « sem », et leurs pareils écoulés préfixés d'un « e » —, plus ceux que le catalogue écrit dans la
 langue courante (`enums.DurationUnit`), et aucun autre : en anglais « d », « wk », « mo » sont lus,
 en français ils ne le sont pas. Elle part dans son unité, que le serveur garde. Une date se tape
-dans la forme courte de la langue, ou sous sa forme ISO (`parsePlanningDate`), et garde les heures
-de travail que la tâche portait à son ancienne date, non celles du nouveau jour (#1244) ; une tâche
-sans date à cette place la reçoit à l'heure 0. Les prédécesseurs d'une tâche se saisissent comme
+dans la forme courte de la langue, ou sous sa forme ISO (`parsePlanningDate`), et part seule, sans
+heures : le front ne connaît pas le calendrier, le serveur complète les heures — le début au début
+du jour ouvré, la fin au bout de ses heures —, et la cellule montre ce qu'il rend (#1244). Les prédécesseurs d'une tâche se saisissent comme
 dans MS Project, « 3FD+2 j ; 5DD » (`predecessors-entry.ts`) : le numéro de ligne, le code du type
 de la liaison dans la langue de l'interface — FD, DD, FF, DF en français, FS, SS, FF, SF en anglais,
 rien pour une fin à début —, puis le décalage, positif ou négatif, avec l'unité d'une durée (les

@@ -165,7 +165,7 @@ describe("the cells of a task entered in the grid of the planning", () => {
 
   it("sets a task manual, then enters its dates, each write carrying the version the last answered [WF-PLA-0020-A]", async () => {
     // En mode manuel, l'utilisateur saisit ses dates: once the mode answered, the dates the server
-    // computed are entered, the hours of the day kept.
+    // computed are entered, each sent as a date alone.
     const client = serve({
       [TASK]: ["task_mode_changed", "task_dates_entered", "task_dates_entered"],
     });
@@ -195,35 +195,37 @@ describe("the cells of a task entered in the grid of the planning", () => {
     });
     expect(written(client)).toEqual([
       { node, body: { scheduling_mode: "manual", lock_version: 1 } },
-      { node, body: { start: { date: "2027-01-04", hours: "0" }, lock_version: 2 } },
-      { node, body: { finish: { date: "2027-01-16", hours: "8" }, lock_version: 3 } },
+      { node, body: { start: { date: "2027-01-04" }, lock_version: 2 } },
+      { node, body: { finish: { date: "2027-01-16" }, lock_version: 3 } },
     ]);
   });
 
-  it("keeps the hours the task had at its former date when its start is moved, not those of the new day (#1244)", async () => {
-    // A choice of the front, which no Vérif states — that of WF-DAT-0100-A says nothing of the hours
-    // a date entered carries —, held here until #1244 settles whether the server completes them: the
-    // contract asks for them, and the front knows no calendar. The desks start at hour 4 of their
-    // day: moved to another, they still start at hour 4.
+  it("sends a date entered alone, with no hours, and shows what the server answered (#1244)", async () => {
+    // The front knows no calendar: the date goes without hours, the body of task_dates_sent, and the
+    // server completes them — task_dates_entered, whose finish the cell then shows.
     const hold = held();
     const client = serve({ [TASK]: "task_dates_entered" }, hold.until);
-    const moved = structuredClone(planning);
-    const desks = rowOf(moved, "Pupitres opérateurs");
-    const task = moved.items[desks]?.task;
-    if (task?.start == null) {
-      throw new Error("the desks have no start");
+    const manual = structuredClone(nested);
+    const commissioning = rowOf(manual, "Mise en service");
+    const task = manual.items[commissioning]?.task;
+    if (task == null) {
+      throw new Error("the commissioning has no task");
     }
-    task.start = { ...task.start, hours: "4" };
-    render(grid(moved));
-    await retype(await entered(desks, "start"), "09/03/2026");
+    task.scheduling_mode = "manual";
+    const item = manual.items[commissioning];
+    if (item === undefined) {
+      throw new Error("the commissioning has no row");
+    }
+    item.computed_fields = [];
+    item.editable_fields = [...item.editable_fields, "task.start", "task.finish"];
+    render(grid(manual));
+    await retype(await entered(commissioning, "start"), "04/01/2027");
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(1);
     });
-    expect(written(client)[0]?.body).toEqual({
-      start: { date: "2026-03-09", hours: "4" },
-      lock_version: 1,
-    });
+    expect(written(client)[0]?.body).toEqual({ start: { date: "2027-01-04" }, lock_version: 1 });
     hold.release();
+    expect(await within(cellAt(commissioning, "finish")).findByText("15/01/2027")).toBeVisible();
   });
 
   it.each([

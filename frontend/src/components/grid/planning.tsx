@@ -365,15 +365,15 @@ interface TaskEntered {
 type PlanningTask = NonNullable<PlanningNode["task"]>;
 
 /**
- * The start or the finish of a task, entered as a date: it keeps the hours of work the task had at
- * its former date, not those of the new day (WF-DAT-0100, #1244) — a task with no date there yet
- * has none, and the date starts at hour 0, its first —; the grid shows the date alone.
+ * The start or the finish of a task, entered as a date: the date alone goes, with no hours — the
+ * front knows no calendar, and the server completes them (WF-DAT-0100, #1244); the grid shows the
+ * date alone, and the cell shows what the server answered.
  */
 function instant(
   field: "start" | "finish",
 ): (task: PlanningTask, value: string | null) => TaskChange {
-  return (task, value) => ({
-    [field]: value === null ? null : { date: value, hours: task[field]?.hours ?? "0" },
+  return (_task, value) => ({
+    [field]: value === null ? null : { date: value },
   });
 }
 
