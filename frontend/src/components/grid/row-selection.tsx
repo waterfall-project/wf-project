@@ -1,30 +1,43 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The selection of rows of a dense grid (US-0460, WF-IHM-0040, WF-IHM-0100): rows contiguous among
- * those the grid shows, from an anchor to an end, found by their identity, so that a reading anew
- * that moves them keeps them selected. The cell of the row number is the handle of its row: a click
- * selects the row alone, Shift and a click extend the selection from the anchor to it; from the
- * keyboard, on the column of the handles, Space selects the row of the active cell, Shift and the up
- * or down arrow extend the selection as the active cell moves, and Escape lifts it. Each row tells
- * whether it is selected (`aria-selected`), the grid that it takes several (`aria-multiselectable`),
- * and a status how many are. The commands of the screen act on the selection the row they start
- * from stands in (Alt+Shift and an arrow, for the structure).
+ * The selection of rows of a dense grid, and the dragging of what is selected (US-0460,
+ * WF-IHM-0040, WF-IHM-0100): rows contiguous among those the grid shows, from an anchor to an end,
+ * found by their identity, so that a reading anew that moves them keeps them selected. The cell of
+ * the row number is the handle of its row: a click selects the row alone, Shift and a click extend
+ * the selection from the anchor to it; from the keyboard, on the column of the handles, Space
+ * selects the row of the active cell, Shift and the up or down arrow extend the selection as the
+ * active cell moves, and Escape lifts it. Each row tells whether it is selected (`aria-selected`),
+ * the grid that it takes several (`aria-multiselectable`), and a status how many are. The commands
+ * of the screen act on the selection the row they start from stands in (Alt+Shift and an arrow, for
+ * the structure).
  *
- * A grid whose screen selects nothing (`RowCommands.selects`) shows no handle. The active cell, in
- * a row selected, follows its row through a reading anew that moves it, so that the next move starts
- * from the same rows; so does it the row a command moved (`RowCommands.moved`), selected or not,
- * once the reading that command asked comes, the focus given back to it unless it went out of the
- * grid — but only for a user who stayed where its answer left them: one gone on with the arrows, or
- * into a field, is left there. A reading anew that no longer shows an end of the selection — a filter, a folding — lifts it,
- * rather than leave it to come back of itself. The rows counted are those shown: the subordinates
- * folded under a summary selected go with it uncounted.
+ * The handle drags the selection — or its own row alone, when it is not selected — beside another
+ * row: before it or after it, at its level, by the upper or the lower quarter of the row, or under
+ * it, by its middle; between two rows is before the lower one. The indicator of the drop is a line
+ * between the rows, or the row shaded, and only where the screen accepts the place (`RowDrag`): the
+ * screen says where rows go, and moves them — never while it says it is busy (`RowCommands.busy`,
+ * which `drag` demands), the grid then dropping nothing. A drop is taken only of what the handles
+ * drag, by its type (`DRAGGED_ROWS`).
+ *
+ * A grid whose screen drags nothing (`RowCommands.drag`) selects nothing, and shows no handle. The
+ * active cell, in a row selected, follows its row through a reading anew that moves it, so that the
+ * next move starts from the same rows; so does it the row a command moved (`RowCommands.moved`),
+ * selected or not, once the reading that command asked comes, the focus given back to it unless it
+ * went out of the grid — but only for a user who stayed where its answer left them: one gone on
+ * with the arrows, or into a field, is left there. A focus on the body of the page counts as
+ * nowhere, not as gone: a click out of the grid, on what takes no focus, leaves the move followed.
+ * A reading anew that no longer shows an end of the selection — a filter, the folding of a row
+ * that bears it — lifts it, rather than leave it to come back of itself; folding rows under the
+ * selection, its ends shown, keeps it. The rows counted are those shown: the subordinates folded
+ * under a summary selected go with it uncounted.
  */
 "use client";
 
 import { Check, GripVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
   type RefObject,
@@ -39,12 +52,33 @@ import { cn } from "@/components/ui/utils";
 import { cellAttributes, type CellState, cellKeys } from "./cell-attributes";
 import { ROW_NUMBER_KEY } from "./columns";
 import { type CellPosition, type Cursor, HEADER_ROW, positionOf } from "./grid-keyboard";
-import type { RowMoved } from "./undo-commands";
+import type { RowDragging, RowMoved } from "./undo-commands";
+
+/**
+ * The type of what the handles drag, the identities of its rows: of its own, so that a drop from
+ * elsewhere — a text, a file — moves nothing.
+ */
+const DRAGGED_ROWS = "application/x-waterfall-rows";
+
+/** Where rows dropped go, beside a row: before it or after it at its level, or under it, last. */
+export type DropPlace = "before" | "after" | "into";
+
+/** What a screen does of rows dragged: whether they may go beside a row, and their move there. */
+export interface RowDrag<Row> {
+  readonly accepts: (rows: readonly Row[], target: Row, place: DropPlace) => boolean;
+  readonly drop: (rows: readonly Row[], target: Row, place: DropPlace) => void;
+}
 
 /** The selection, by the identity of its rows: the one it started from, and the one it ends on. */
 interface Range {
   readonly anchor: string;
   readonly end: string;
+}
+
+/** Where rows dragged would go: beside the row at an index. */
+interface Drop {
+  readonly index: number;
+  readonly place: DropPlace;
 }
 
 /** The first and the last index of a selection among rows, if both of its ends are among them. */
@@ -93,15 +127,40 @@ function selectionKey(
   return key === "lift" || event.shiftKey ? key : undefined;
 }
 
-/** What the grid of rows `Row` selects. */
+/** Where, beside the row of a cell, a pointer at a height drops: by the quarters of the row. */
+function dropBeside(cell: Element, y: number, index: number, count: number): Drop {
+  const box = cell.getBoundingClientRect();
+  const offset = y - box.top;
+  if (offset < box.height / 4) {
+    return { index, place: "before" };
+  }
+  if (offset <= (box.height * 3) / 4) {
+    return { index, place: "into" };
+  }
+  return index + 1 < count ? { index: index + 1, place: "before" } : { index, place: "after" };
+}
+
+/**
+ * What the screen does of rows dropped, where it says it is not busy: none before the reading anew
+ * of a move, which would go from the neighbours before it.
+ */
+function droppingOf<Row>(commands: RowDragging<Row> | undefined): RowDrag<Row> | undefined {
+  return commands?.drag === undefined || commands.busy ? undefined : commands.drag;
+}
+
+/** The commands of a screen the selection reads: the drag, whether busy, the row last moved. */
+type SelectionCommands<Row> = RowDragging<Row> & { readonly moved?: RowMoved<Row> | undefined };
+
+/** What the grid of rows `Row` selects, and drags. */
 export interface RowSelectionOptions<Row> {
   /** The rows the grid shows, in their order. */
   readonly rows: readonly Row[];
   readonly keyOf: (row: Row) => string;
-  /** The commands of the screen, and whether they act on a selection; none, the grid selects nothing. */
-  readonly commands:
-    | { readonly selects?: boolean | undefined; readonly moved?: RowMoved<Row> | undefined }
-    | undefined;
+  /**
+   * The commands of the screen: what it does of rows dragged — none, and the grid selects nothing
+   * —, whether it is busy, and the row its last command moved.
+   */
+  readonly commands: SelectionCommands<Row> | undefined;
   readonly cursor: Cursor;
   /** Focus a cell, brought into view once it is rendered. */
   readonly focusAt: (at: CellPosition) => void;
@@ -192,6 +251,9 @@ function useFollowing<Row>(
 /**
  * Whether the user stayed where a move left them since its answer: the active cell is the one the
  * answer found, and the focus is on it, or nowhere — not gone to another cell, nor into a field.
+ * Nowhere is no element, or the body of the page, where a click on what takes no focus leaves it.
+ * It reads the focus of the document during the render that takes the reading anew: the focus is
+ * no state of React, and that render is the one moment the reading is compared with the answer.
  */
 function stayed(
   at: CellPosition,
@@ -262,7 +324,7 @@ function useTakenFocus(
   };
 }
 
-/** Select rows of a grid. */
+/** Select rows of a grid, and drag them. */
 export function useRowSelection<Row>({
   rows,
   keyOf,
@@ -271,12 +333,16 @@ export function useRowSelection<Row>({
   focusAt,
   scroller,
 }: RowSelectionOptions<Row>) {
+  const dropping = droppingOf(commands);
   const [range, setRange] = useState<Range>();
+  const [drop, setDrop] = useState<Drop>();
+  // The rows dragged, by their identity, while a drag is under way.
+  const dragged = useRef<readonly string[]>(undefined);
   const keyAt = (index: number) => {
     const row = rows[index];
     return row === undefined ? undefined : keyOf(row);
   };
-  const offered = commands?.selects === true;
+  const offered = commands?.drag !== undefined;
   const bounds = offered ? boundsOf(range, keyAt, rows.length) : undefined;
   const following = useFollowing(commands?.moved, cursor.active);
   const take = useTakenFocus(focusAt, scroller);
@@ -324,6 +390,10 @@ export function useRowSelection<Row>({
         : { anchor: key, end: key },
     );
   };
+  const clear = () => {
+    dragged.current = undefined;
+    setDrop(undefined);
+  };
   /** Extend the selection from the row at an index to the next one up or down, if there is one. */
   const extend = (from: number, step: number) => {
     const anchor = isSelected(from) ? range?.anchor : keyAt(from);
@@ -354,6 +424,28 @@ export function useRowSelection<Row>({
     extend(at.row, key === "up" ? -1 : 1);
     return key === "up" && at.row === 0;
   };
+  /** The rows the drag under way carries, in the order of the grid. */
+  const carried = (): readonly Row[] =>
+    rows.filter((row) => dragged.current?.includes(keyOf(row)) === true);
+  /** Where a pointer over the grid drops what is dragged, if the screen accepts it there. */
+  const dropOver = (event: DragEvent<HTMLElement>): Drop | undefined => {
+    const cell = event.target instanceof Element ? event.target.closest("td[data-row]") : null;
+    const at = positionOf(cell);
+    if (
+      dropping === undefined ||
+      dragged.current === undefined ||
+      !event.dataTransfer.types.includes(DRAGGED_ROWS) ||
+      cell === null ||
+      at === undefined
+    ) {
+      return undefined;
+    }
+    const beside = dropBeside(cell, event.clientY, at.row, rows.length);
+    const target = rows[beside.index];
+    return target !== undefined && dropping.accepts(carried(), target, beside.place)
+      ? beside
+      : undefined;
+  };
   const body = {
     onClick: (event: MouseEvent<HTMLElement>) => {
       const index = offered ? handleOf(event.target) : undefined;
@@ -361,11 +453,52 @@ export function useRowSelection<Row>({
         select(index, event.shiftKey);
       }
     },
+    onDragStart: (event: DragEvent<HTMLElement>) => {
+      const index = offered ? handleOf(event.target) : undefined;
+      if (index === undefined) {
+        return;
+      }
+      if (!isSelected(index)) {
+        select(index, false);
+      }
+      dragged.current = acted(index).map(keyOf);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(DRAGGED_ROWS, dragged.current.join("\n"));
+    },
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      const next = dropOver(event);
+      if (next !== undefined) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }
+      if (next?.index !== drop?.index || next?.place !== drop?.place) {
+        setDrop(next);
+      }
+    },
+    onDragLeave: (event: DragEvent<HTMLElement>) => {
+      const { relatedTarget } = event;
+      if (!(relatedTarget instanceof Node) || !event.currentTarget.contains(relatedTarget)) {
+        setDrop(undefined);
+      }
+    },
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      const at = dropOver(event);
+      const target = at === undefined ? undefined : rows[at.index];
+      if (dropping !== undefined && at !== undefined && target !== undefined) {
+        event.preventDefault();
+        dropping.drop(carried(), target, at.place);
+      }
+      clear();
+    },
+    onDragEnd: clear,
   };
   return {
     offered,
     /** Whether the row at an index is selected; none where the grid selects nothing. */
     selected: (index: number): boolean | undefined => (offered ? isSelected(index) : undefined),
+    /** Where what is dragged would drop beside the row at an index, if there. */
+    dropAt: (index: number): DropPlace | undefined =>
+      drop?.index === index ? drop.place : undefined,
     acted,
     /** How many rows are selected; none where the grid selects nothing. */
     count: offered ? (bounds === undefined ? 0 : bounds[1] - bounds[0] + 1) : undefined,
@@ -382,14 +515,28 @@ export type RowSelection<Row> = ReturnType<typeof useRowSelection<Row>>;
 /** The keys of a handle, as `aria-keyshortcuts` names them. */
 const HANDLE_KEYS = "Space Shift+ArrowUp Shift+ArrowDown Escape";
 
+/** The classes of a row by what is dropped beside it: a line before or after it, or its shade. */
+const DROP_CLASSES: Readonly<Record<DropPlace, string>> = {
+  before:
+    "[&>td:not(.sticky)]:relative [&>td]:before:pointer-events-none [&>td]:before:absolute [&>td]:before:inset-x-0 [&>td]:before:top-0 [&>td]:before:h-0.5 [&>td]:before:bg-primary",
+  after:
+    "[&>td:not(.sticky)]:relative [&>td]:before:pointer-events-none [&>td]:before:absolute [&>td]:before:inset-x-0 [&>td]:before:bottom-0 [&>td]:before:h-0.5 [&>td]:before:bg-primary",
+  into: "[&>td]:bg-accent [&>td]:font-semibold",
+};
+
 /**
  * The attributes and the classes of a row of a grid that selects: its cells tinted, but the computed
- * ones — which open a dialog —, which keep the shade that tells them computed (WF-IHM-0030).
+ * ones — which open a dialog —, which keep the shade that tells them computed (WF-IHM-0030); and
+ * what is dropped beside it, if anything (`data-drop`).
  */
-export function selectedRow(selected: boolean | undefined) {
+export function selectedRow(selected: boolean | undefined, drop: DropPlace | undefined) {
   return {
     "aria-selected": selected,
-    className: selected === true ? "[&>td:not([aria-haspopup=dialog])]:bg-accent" : undefined,
+    "data-drop": drop,
+    className: cn(
+      selected === true ? "[&>td:not([aria-haspopup=dialog])]:bg-accent" : null,
+      drop === undefined ? null : DROP_CLASSES[drop],
+    ),
   };
 }
 
@@ -402,8 +549,8 @@ const NO_FOLD = { folds: false, keys: undefined };
 
 /**
  * The handle of a row, in the cell of its number: a cell of the grid like the others, reached by the
- * arrows, which selects its row, is named by the number of its row and described by how it selects
- * and moves (`SelectionNotes`); a mark grips it, another where its row is selected.
+ * arrows, which selects and drags its row, is named by the number of its row and described by how
+ * it selects and moves (`SelectionNotes`); a mark grips it, another where its row is selected.
  */
 export function HandleCell({
   position,
@@ -430,12 +577,13 @@ export function HandleCell({
   return (
     <TableCell
       {...cellAttributes(position, state, false, false, keys)}
+      draggable
       aria-label={name(number ?? 0)}
       aria-describedby={hint}
       style={{ left: pinning.left }}
       className={cn(HANDLE_CELL, pinning.className)}
     >
-      <span className="flex cursor-pointer items-center justify-end gap-0.5 select-none">
+      <span className="flex cursor-grab items-center justify-end gap-0.5 select-none">
         <Mark aria-hidden="true" className="size-2.5 shrink-0" />
         {number}
       </span>

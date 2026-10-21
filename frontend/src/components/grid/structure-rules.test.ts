@@ -9,6 +9,7 @@ import {
   bodyOf,
   gestureOfKey,
   gesturesOn,
+  dropOf,
   moveOf,
   type StructureGestures,
   topsOf,
@@ -322,5 +323,51 @@ describe("the nodes that bear a selection", () => {
     const selection = estimate.items.slice(estimate.items.indexOf(LEAF));
     expect(topsOf(selection, estimate.items)).toEqual([LEAF, RISK, MILESTONE]);
     expect(topsOf([TRANSPORT, row("Affrètement")], estimate.items)).toEqual([TRANSPORT]);
+  });
+});
+
+describe("the body of the move of rows dropped", () => {
+  const affretement = row("Affrètement");
+  it("puts rows dropped under a task last under it, the nodes that bear them only", () => {
+    expect(dropOf([TRANSPORT, affretement], LEAF, "into", offered())).toEqual({
+      node_ids: [TRANSPORT.node_id],
+      parent_id: LEAF.node_id,
+      lock_version: 4,
+    });
+    // A line goes under a task that bears lines: no summary, no milestone.
+    expect(dropOf([affretement], LEAF, "into", offered())).toMatchObject({
+      parent_id: LEAF.node_id,
+    });
+    expect(dropOf([affretement], RISK, "into", offered())).toBeUndefined();
+    expect(dropOf([TRANSPORT], MILESTONE, "into", offered())).toBeUndefined();
+  });
+
+  it("puts rows dropped before a row after the sibling above it, or first, at its level", () => {
+    expect(dropOf([TRANSPORT], RISK, "before", offered())).toEqual({
+      node_ids: [TRANSPORT.node_id],
+      parent_id: SUMMARY.node_id,
+      after_node_id: LEAF.node_id,
+      lock_version: 4,
+    });
+    expect(dropOf([TRANSPORT], LEAF, "before", offered())).toMatchObject({
+      parent_id: SUMMARY.node_id,
+      after_node_id: null,
+    });
+    expect(dropOf([LEAF], MILESTONE, "after", offered())).toMatchObject({
+      parent_id: SUMMARY.node_id,
+      after_node_id: MILESTONE.node_id,
+    });
+  });
+
+  it("drops nowhere the place would rest on a row left out, on the rows dropped or under them, or by another kind", () => {
+    const withoutLeaf = estimate.items.filter((each) => each.node_id !== LEAF.node_id);
+    expect(dropOf([TRANSPORT], RISK, "before", offered({ rows: withoutLeaf }))).toBeUndefined();
+    // Where they stand already, under themselves, or a task before a line.
+    expect(dropOf([RISK], MILESTONE, "before", offered())).toBeUndefined();
+    expect(dropOf([RISK], TRANSPORT, "into", offered())).toBeUndefined();
+    expect(dropOf([RISK], RISK, "before", offered())).toBeUndefined();
+    expect(dropOf([TRANSPORT], LINE, "before", offered())).toBeUndefined();
+    expect(dropOf([TRANSPORT, LINE], LEAF, "into", offered())).toBeUndefined();
+    expect(dropOf([TRANSPORT], LEAF, "into", offered({ tasks: false }))).toBeUndefined();
   });
 });
