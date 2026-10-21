@@ -4,7 +4,8 @@
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
  * `updateEstimateLine`, `setLineRemaining`), a task or a line created and a node deleted
- * (`createNode`, `deleteNode`), nodes moved under a task (`moveNodes`), a block pasted from a
+ * (`createNode`, `deleteNode`), nodes moved under a task (`moveNodes`), the timelines a task is
+ * inscribed to (`setNodeTracking`), a block pasted from a
  * spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew
  * (`listNodes`), the skeleton of the planning generated on an empty main structure
  * (`generatePlanningSkeleton`) —: the grid asks the server of Next,
@@ -120,6 +121,26 @@ export async function setLineRemaining(
     serverClient().PUT(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining",
       { ...nodePath(structure, nodeId), body: remaining },
+    ),
+  );
+}
+
+/**
+ * Replace the inscriptions of the task of a node — the timelines it is inscribed to, and the
+ * time/time tracking of a milestone — by those sent, with the version of the node read (WF-PLA-0060):
+ * the API answers the node as it now is, with its ancestors and the totals of the structure — or
+ * refuses it, a tracking of a task that is no milestone among its reasons (`MILESTONE_REQUIRED`);
+ * nothing is written then.
+ */
+export async function setNodeTracking(
+  structure: StructurePath,
+  nodeId: string,
+  tracking: operations["setNodeTracking"]["requestBody"]["content"]["application/json"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().PUT(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking",
+      { ...nodePath(structure, nodeId), body: tracking },
     ),
   );
 }

@@ -40,10 +40,14 @@ export interface GridSettings {
 /** How long the grid waits after a change before recording it, in milliseconds. */
 export const WRITE_DELAY = 500;
 
-/** What of a column the settings read: its key, and whether it can be hidden. */
+/**
+ * What of a column the settings read: its key, whether it can be hidden, and whether it starts
+ * hidden.
+ */
 interface SettledColumn {
   readonly key: string;
   readonly pinned?: boolean;
+  readonly hidden?: boolean;
 }
 
 /** A width within the bounds of the grid. */
@@ -54,7 +58,9 @@ function bounded(width: number): number {
 /**
  * The settings a grid starts with, from the preferences the session read: the columns it has
  * and may hide, the widths of the columns it has. A key of another version of the grid is left
- * aside, and a width out of bounds is brought within them.
+ * aside, and a width out of bounds is brought within them. An account that has kept no list of
+ * hidden columns starts from the columns the grid hides (`GridColumn.hidden`); one that has kept
+ * a list, empty or not, shows what it does not name: the grid records the list whole.
  */
 export function initialSettings(
   preferences: GridPreferences | undefined,
@@ -62,7 +68,10 @@ export function initialSettings(
 ): GridSettings {
   const hideable = new Set(columns.filter((column) => column.pinned !== true).map((c) => c.key));
   const known = new Set(columns.map((column) => column.key));
-  const hidden = (preferences?.hidden_columns ?? []).filter((key) => hideable.has(key));
+  const kept =
+    preferences?.hidden_columns ??
+    columns.filter((column) => column.hidden === true).map((column) => column.key);
+  const hidden = kept.filter((key) => hideable.has(key));
   const widths = Object.entries(preferences?.column_widths ?? {}).filter(([key]) => known.has(key));
   return {
     visibility: Object.fromEntries(hidden.map((key) => [key, false])),

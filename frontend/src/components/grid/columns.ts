@@ -81,6 +81,11 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    */
   readonly pinned?: boolean;
   /**
+   * Whether it starts hidden, for an account that has kept no choice of columns: it is shown by the
+   * menu of the columns (US-0480). A pinned column is never hidden.
+   */
+  readonly hidden?: true;
+  /**
    * The column of the contract it shows, as the server names it: the one it sorts by, where the
    * grid sorts (`GridConfig.sorts`) and the column too (`sorts`), and the one a block pasted on its
    * cell lands on. None for a column the contract does not name — a drawing, a mark —, which

@@ -21,13 +21,17 @@
  * screen cannot do without the work breakdown; in the empty grid of the main structure, the skeleton
  * is offered as the revision lists `generate_skeleton` (WF-PRJ-0030) — never on a differential nor on
  * the own estimate of a risk, which the skeleton, generated on the main structure, would not fill.
- * Once, under its header, the screen then says that the fake back keeps none of what they write
+ * The timelines of the project (`listTimelines`) name the inscriptions of its tasks, in a column
+ * hidden until shown, and are the boxes of the submenu « Chronologies » of the menu of their cells
+ * (US-0480). Once, under its header, the screen then says that the fake back keeps none of what they write
  * (`MockupNotice`, EP-14/L44d).
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { readUnlessRefused } from "@/api/problem";
+import { serverClient } from "@/api/server";
 import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
@@ -41,6 +45,7 @@ import {
   PLANNING_SORT_COLUMNS,
 } from "@/components/grid/planning";
 import { PlanningGrid } from "@/components/grid/planning-grid";
+import type { ChoiceOption } from "@/components/grid/row-choices";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -113,6 +118,20 @@ function PlanningHeader({
   );
 }
 
+/**
+ * The timelines of the project, by their identifier and their label, which name the inscriptions of
+ * the tasks and are offered by the menu of their cells (US-0480); none when the API does not find
+ * the timelines of the project, the grid then naming none and offering no submenu.
+ */
+async function readTimelines(projectId: string): Promise<readonly ChoiceOption[] | undefined> {
+  const timelines = await readUnlessRefused("listTimelines", [{ status: 404 }], () =>
+    serverClient().GET("/projects/{project_id}/timelines", {
+      params: { path: { project_id: projectId } },
+    }),
+  );
+  return timelines?.map((timeline) => ({ id: timeline.timeline_id, label: timeline.label }));
+}
+
 /** Render the grid of the planning on the structure of a revision the address names. */
 export default async function PlanningPage({
   params,
@@ -123,16 +142,19 @@ export default async function PlanningPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "planning");
-  const screen = await readGridScreen(at, {
-    key: PLANNING_GRID.key,
-    sortable: PLANNING_SORT_COLUMNS,
-    kinds: PLANNING_KINDS,
-    fields: PLANNING_FIELDS,
-    byBreakdown: true,
-    // The attachment of a task is chosen among the lots and the posts where it is entered.
-    needsBreakdown: (reading) => reading.edits.has("edit_planning"),
-    chooses: true,
-  });
+  const [screen, timelines] = await Promise.all([
+    readGridScreen(at, {
+      key: PLANNING_GRID.key,
+      sortable: PLANNING_SORT_COLUMNS,
+      kinds: PLANNING_KINDS,
+      fields: PLANNING_FIELDS,
+      byBreakdown: true,
+      // The attachment of a task is chosen among the lots and the posts where it is entered.
+      needsBreakdown: (reading) => reading.edits.has("edit_planning"),
+      chooses: true,
+    }),
+    readTimelines(revision.projectId),
+  ]);
   const editable = screen.commands.has("edit_planning");
   const skeleton =
     screen.kind === "main"
@@ -171,6 +193,11 @@ export default async function PlanningPage({
           // The attachment is chosen among the same items, where the planning may be entered.
           breakdown={editable ? screen.breakdown?.items : undefined}
           skeleton={skeleton}
+          timelines={timelines}
+          timelineCreation={findOffer(
+            screen.reading.project.available_commands,
+            "manage_timelines",
+          )}
         />
       </Screen>
     </PendingAddress>

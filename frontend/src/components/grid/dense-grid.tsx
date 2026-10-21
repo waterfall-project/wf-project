@@ -703,7 +703,14 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     focusAt: keyboard.focusAt,
     scroller,
   });
-  const screenCommands = onRows(commands, (index) => model[index]?.original, selection.acted);
+  const screenCommands = onRows(
+    commands,
+    (index) => model[index]?.original,
+    selection.acted,
+    (written) => {
+      writes.applied({ ...written, totals: undefined });
+    },
+  );
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
     draft: keyboard.draft,

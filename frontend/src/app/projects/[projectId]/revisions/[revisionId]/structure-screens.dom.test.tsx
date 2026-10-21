@@ -158,6 +158,7 @@ beforeEach(() => {
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /projects/{project_id}/timelines": "timelines",
     "PATCH /me/preferences": "preferences",
   };
   // Laid out as a browser would: a window of rows in view.
