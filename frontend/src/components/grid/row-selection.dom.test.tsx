@@ -699,7 +699,7 @@ describe("the drag of rows by their handles", () => {
     await screen.findByText("« Dossier de conception » déplacée.");
     expect(moved(client)).toEqual([
       { node_ids: [id(DESKS)], parent_id: id(STUDIES), after_node_id: id(REVIEW), lock_version: 1 },
-      { node_ids: [id(FILE)], parent_id: id(DETAIL), lock_version: 2 },
+      { node_ids: [id(FILE)], parent_id: id(DETAIL), lock_version: MOVED_VERSION },
     ]);
   });
 
