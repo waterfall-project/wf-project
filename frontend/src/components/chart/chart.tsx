@@ -50,9 +50,9 @@ import {
 import { type ComposeOption, init, use as register } from "echarts/core";
 import { LabelLayout } from "echarts/features";
 import { CanvasRenderer, SVGRenderer } from "echarts/renderers";
-import { ImageDown } from "lucide-react";
+import { ChevronDown, ChevronUp, ImageDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useLayoutEffect, useRef } from "react";
+import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import { type AlertZone, ZoneProbes } from "@/components/signal/signal";
 import { Button } from "@/components/ui/button";
@@ -545,6 +545,11 @@ export interface ChartProps {
    * of a scatter.
    */
   readonly onPoint?: (id: string) => void;
+  /**
+   * Whether the drawing starts folded, so that a screen short of room keeps what follows the
+   * chart in its window: a command shows it, and folds it again. The values stay under it.
+   */
+  readonly folded?: boolean;
 }
 
 /** Render a chart: a figure, its caption, its drawing named by a sentence, its values. */
@@ -556,11 +561,14 @@ export function Chart({
   children,
   exported,
   onPoint,
+  folded = false,
 }: ChartProps) {
   const t = useTranslations("chart");
   const drawing = useRef<HTMLDivElement>(null);
   const probes = useRef<HTMLSpanElement>(null);
   const caption = useId();
+  const drawingId = useId();
+  const [shown, setShown] = useState(!folded);
   // The latest handler of a click, which the event reads: the chart is not drawn anew for it.
   const clicked = useRef(onPoint);
   useLayoutEffect(() => {
@@ -608,7 +616,7 @@ export function Chart({
       scheme.removeEventListener("change", draw);
       chart.dispose();
     };
-  }, [option, description]);
+  }, [option, description, shown]);
 
   const exportImage = () => {
     const tokens = probes.current;
@@ -627,18 +635,45 @@ export function Chart({
         <span id={caption} className="font-medium">
           {title}
         </span>
-        {exported === undefined ? null : (
-          <Button type="button" variant="outline" size="sm" onClick={exportImage}>
-            <ImageDown aria-hidden="true" />
-            {t("exportPng")}
-          </Button>
-        )}
+        <span className="flex flex-wrap gap-2">
+          {folded ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-expanded={shown}
+              aria-controls={drawingId}
+              onClick={() => {
+                setShown((was) => !was);
+              }}
+            >
+              {shown ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+              {shown ? t("fold") : t("unfold")}
+            </Button>
+          ) : null}
+          {exported === undefined ? null : (
+            <Button type="button" variant="outline" size="sm" onClick={exportImage}>
+              <ImageDown aria-hidden="true" />
+              {t("exportPng")}
+            </Button>
+          )}
+        </span>
       </figcaption>
       {note}
       <span ref={probes} hidden>
         <Probes />
       </span>
-      <div ref={drawing} role="img" aria-label={description} className="h-72 w-full" />
+      {shown ? (
+        <div
+          ref={drawing}
+          id={drawingId}
+          role="img"
+          aria-label={description}
+          className="h-72 w-full"
+        />
+      ) : (
+        <div id={drawingId} />
+      )}
       <details className="text-sm">
         <summary className="cursor-pointer text-muted-foreground">{t("values")}</summary>
         <div {...values} className={cn("mt-2 overflow-x-auto", values.className)}>

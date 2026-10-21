@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ScatterSeriesOption } from "echarts/charts";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -188,12 +188,21 @@ describe("the risk matrix as a bubble chart", () => {
     ][];
     const looks = areas.map(([area]) => [area.name, area.label.show]);
     // The left side and the lower side of each zone, in the stroke of the zone: a side shared by
-    // two zones is the side of one of them only, never two strokes one over the other.
+    // two zones is the side of one of them only, never two strokes one over the other; the zones
+    // of the last column and of the last row add their outer side, the right one or the upper one
+    // — the corner has both —: 32 sides and 8 more, a frame all around the matrix.
     const edges = zones?.markLine?.data as unknown as [
-      { name: string; lineStyle: { type: string } },
-      unknown,
+      { name: string; coord: [number, number]; lineStyle: { type: string } },
+      { coord: [number, number] },
     ][];
-    expect(edges).toHaveLength(32);
+    expect(edges).toHaveLength(40);
+    const along = (index: 0 | 1) =>
+      edges.filter(([from, to]) => from.coord[index] === to.coord[index]);
+    // The right sides, at the end of the probability axis: one for each of the four levels.
+    expect(along(0).filter(([from]) => from.coord[0] === 1)).toHaveLength(4);
+    // The upper sides, at the end of the severity axis, one for each of the four levels.
+    const top = Math.max(...edges.map(([from]) => from.coord[1]));
+    expect(along(1).filter(([from]) => from.coord[1] === top)).toHaveLength(4);
     expect(new Set(edges.map(([edge]) => [edge.name, edge.lineStyle.type].join(" ")))).toEqual(
       new Set(["Nominal solid", "Watch dashed", "Alert dotted"]),
     );
@@ -331,8 +340,27 @@ describe("the risk matrix as a bubble chart", () => {
     });
   });
 
+  it("starts folded, makes no instance of the chart until a command unfolds it, and folds it again (#1252)", () => {
+    instances.made = 0;
+    project();
+    const drawing = /^Bubble chart of the risks: the probability across/;
+    expect(screen.queryByRole("img", { name: drawing })).not.toBeInTheDocument();
+    expect(instances.made).toBe(0);
+    const unfold = screen.getByRole("button", { name: "Show the chart" });
+    expect(unfold).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(unfold);
+    expect(screen.getByRole("img", { name: drawing })).toBeInTheDocument();
+    expect(instances.made).toBe(1);
+    const fold = screen.getByRole("button", { name: "Fold the chart" });
+    expect(fold).toHaveAttribute("aria-expanded", "true");
+    expect(fold).toHaveAttribute("aria-controls", screen.getByRole("img", { name: drawing }).id);
+    fireEvent.click(fold);
+    expect(screen.queryByRole("img", { name: drawing })).not.toBeInTheDocument();
+  });
+
   it("describes its drawing in a sentence and breaks no rule of accessibility [WF-IHM-0100-A]", async () => {
     const { container } = project();
+    fireEvent.click(screen.getByRole("button", { name: "Show the chart" }));
     expect(
       screen.getByRole("img", { name: /^Bubble chart of the risks: the probability across/ }),
     ).toBeInTheDocument();
@@ -395,14 +423,18 @@ describe("the risk matrix of the portfolio", () => {
 
   it("makes one instance of the chart, a render with the same props making no other", () => {
     instances.made = 0;
-    const view = (
+    const view = () => (
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
         <PortfolioRiskMatrix matrix={RISKS.matrix} scope={RISKS.scope} />
       </NextIntlClientProvider>
     );
-    const { rerender } = render(view);
+    const { rerender } = render(view());
     expect(instances.made).toBe(1);
-    rerender(view);
+    const renders = charts.props.length;
+    // A new element, so that React renders the chart again: the states handed down are the same
+    // array, the option is the same function, and no other instance is made.
+    rerender(view());
+    expect(charts.props.length).toBeGreaterThan(renders);
     expect(instances.made).toBe(1);
   });
 

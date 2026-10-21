@@ -41,8 +41,8 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   ]) {
     await expect(grid.getByRole("columnheader", { name })).toBeVisible();
   }
-  // The grid holds in the window once the page is scrolled to it, under the chart of the matrix:
-  // its totals, the general total the server gives, are in view.
+  // The grid holds in the window, under the matrix folded: its totals, the general total the
+  // server gives, are in view.
   await scrollPageToGrid(grid);
   const total = grid.getByRole("row").last();
   await expect(total).toHaveText(/^Total général\s*1\s100\s060,00$/);
@@ -93,7 +93,20 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   // The matrix, a bubble chart over the whole width between the cards and the grid; the count of
   // each cell stays in a table under it, each named by its signal, never by its colour alone.
   const figure = page.getByRole("figure", { name: "Matrice des risques" });
-  await expect(figure.getByRole("img", { name: /^Nuage de bulles des risques/ })).toBeVisible();
+  // The matrix starts folded, so that the grid keeps its totals in a window 768 high (#1252); a
+  // command unfolds it, and folds it again.
+  const drawing = figure.getByRole("img", { name: /^Nuage de bulles des risques/ });
+  await expect(drawing).toHaveCount(0);
+  const unfold = figure.getByRole("button", { name: "Afficher le graphique" });
+  await expect(unfold).toHaveAttribute("aria-expanded", "false");
+  await unfold.click();
+  await expect(drawing).toBeVisible();
+  await expect(figure.getByRole("button", { name: "Replier le graphique" })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await figure.getByRole("button", { name: "Replier le graphique" }).click();
+  await expect(drawing).toHaveCount(0);
   const frame = await boxOf(figure);
   const cards = await boxOf(page.getByRole("region", { name: "Couverture des risques" }));
   const register = await boxOf(grid);
@@ -155,9 +168,9 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
 }) => {
   await page.setViewportSize({ width: 1366, height: 900 });
   await openHydrated(page, RISKS);
-  const drawing = page
-    .getByRole("figure", { name: "Matrice des risques" })
-    .getByRole("img", { name: /^Nuage de bulles des risques/ });
+  const figure = page.getByRole("figure", { name: "Matrice des risques" });
+  await figure.getByRole("button", { name: "Afficher le graphique" }).click();
+  const drawing = figure.getByRole("img", { name: /^Nuage de bulles des risques/ });
   await expect(drawing.locator("svg")).toBeVisible();
   // The zones are named in their areas, not told by their colour alone: the twelve zones that have
   // room for a line — the four thinner bands of the lowest severity are not named — are, each one,
