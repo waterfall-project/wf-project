@@ -728,6 +728,9 @@
     "asOf": "Date de calcul : {date}",
     "breakdown": "{kind, select, work_package {Lot} other {Poste}} : {label}",
     "computedOn": "Révision du calcul",
+    "structure": "Structure",
+    "chooseStructure": "Changer de structure, « {structure} » lue",
+    "mergedStructure": "{label} (fusionnée)",
     "unnamedRevision": "sans nom",
     "removeFilter": "Lever le filtre « {filter} »",
     "restricts": {

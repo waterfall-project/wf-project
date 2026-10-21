@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { StructureChoiceProps } from "@/components/context/structure-choice";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -25,6 +26,14 @@ vi.mock("@/api/server", () => ({
     const client = fakeClient(server.answers);
     server.clients.push(client);
     return client;
+  },
+}));
+// The choice of the structure is a menu the server renders closed: what it is offered is read here.
+const choices = vi.hoisted((): { offered: StructureChoiceProps[] } => ({ offered: [] }));
+vi.mock("@/components/context/structure-choice", () => ({
+  StructureChoice: (props: StructureChoiceProps) => {
+    choices.offered.push(props);
+    return null;
   },
 }));
 vi.mock("next/navigation", async (original) => ({
@@ -72,6 +81,7 @@ function callsOf(route: string) {
 }
 
 beforeEach(() => {
+  choices.offered = [];
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -221,4 +231,105 @@ describe("a lot or a post of the address that is no identifier", () => {
     expect(read?.query.get("order_item_id")).toBeNull();
     expect(page).not.toContain("Active filters");
   });
+});
+
+describe("the structure the planning reads", () => {
+  // The structures of the current revision (`structures`): the main one, the amendment 2, a
+  // differential not merged, and the own estimate of the risk of the rewiring.
+  const MAIN = "01926f3a-7c00-7000-8000-000000000201";
+  const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
+  const RISK = "01926f3a-7c00-7000-8000-000000000204";
+  /** What the banner offered to choose: each run of a kind, by its name and its structures. */
+  function offered() {
+    const choice = choices.offered.at(-1);
+    return {
+      chosen: choice?.chosen,
+      label: choice?.label,
+      groups: choice?.groups.map(({ name, options }) => ({
+        name,
+        options: options.map(({ structure_id, text }) => [structure_id, text]),
+      })),
+    };
+  }
+
+  it("reads the main structure when the address names none, and offers every structure of the revision in the banner", async () => {
+    await planning();
+    const [read] = callsOf(NODES);
+    expect(read?.path).toContain(`/structures/${MAIN}/nodes`);
+    expect(offered()).toEqual({
+      chosen: MAIN,
+      label: "Change the structure, “Structure principale” read",
+      groups: [
+        { name: undefined, options: [[MAIN, "Structure principale"]] },
+        { name: "Amendment", options: [[AMENDMENT, "Avenant 2 — reprise des essais"]] },
+        {
+          name: "Risk estimate",
+          options: [
+            [RISK, "Risque de reprise du câblage"],
+            ["01926f3a-7c00-7000-8000-000000000205", "Retard de livraison des armoires (merged)"],
+            ["01926f3a-7c00-7000-8000-000000000206", "Indisponibilité de l'automaticien"],
+          ],
+        },
+      ],
+    });
+  });
+
+  it("reads the differential the address names, which the banner and the head of the grid name [WF-IHM-0020-A]", async () => {
+    // Une grille ouverte sur une structure différentielle nomme cette structure.
+    const page = await planning({ structure: AMENDMENT });
+    const [read] = callsOf(NODES);
+    expect(read?.path).toContain(`/structures/${AMENDMENT}/nodes`);
+    const banner =
+      /<section aria-label="Reading context"(?:(?!<\/section>).)*<\/section>/.exec(page)?.[0] ?? "";
+    expect(banner).toContain("<dd>Avenant 2 — reprise des essais</dd>");
+    expect(banner).toMatch(/<dd><span[^>]*>Amendment<\/span><\/dd>/);
+    expect(offered().chosen).toBe(AMENDMENT);
+    expect(page).toContain("Avenant 2 — reprise des essais ·");
+  });
+
+  it("lists every differential of the revision, two coexisting in it [WF-REV-0100-A]", async () => {
+    // Deux structures différentielles coexistent dans une même révision : the reference revision
+    // (`structures_amendments`) bears the amendment 1, merged, and the amendment 2, not merged, and
+    // the choice of the structure lists both, each to be read.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+    };
+    await planning();
+    expect(offered().groups).toContainEqual({
+      name: "Amendment",
+      options: [
+        ["01926f3a-7c00-7000-8000-000000000212", "Avenant 1 — extension du poste (merged)"],
+        ["01926f3a-7c00-7000-8000-000000000213", "Avenant 2 — reprise des essais"],
+      ],
+    });
+  });
+
+  it("is not found on a structure the revision does not list", async () => {
+    // The amendment 2 of the reference revision, not of the current one.
+    await expect(
+      planning({ structure: "01926f3a-7c00-7000-8000-000000000213" }),
+    ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    expect(callsOf(NODES)).toEqual([]);
+  });
+
+  it.each([
+    { kind: "a differential", structure: AMENDMENT },
+    { kind: "the own estimate of a risk", structure: RISK },
+  ])(
+    "never offers the skeleton in the empty grid of $kind, where it does on the main structure",
+    async ({ structure }) => {
+      // A revision that lists the skeleton available (`revision_without_tasks`), read on the
+      // structures of the current revision, each empty: the skeleton fills the main one alone.
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}/revisions/{revision_id}": "revision_without_tasks",
+        [NODES]: "nodes_empty",
+      };
+      expect(await planning()).toMatch(SKELETON);
+      server.clients = [];
+      expect(await planning({ structure })).not.toMatch(SKELETON);
+    },
+  );
 });

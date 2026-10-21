@@ -3,8 +3,9 @@
 /**
  * What a grid of the structure of a revision reads before it shows — the planning, the
  * estimate, the remaining to commit —, the same for each (EP-02, « Grille dense »): the reading
- * context of the address (WF-IHM-0020), the main structure of the revision, and its nodes as the
- * address asks them — the sort, the search, the filtered sub-project, the progress of the tasks
+ * context of the address (WF-IHM-0020), the structure of the revision it reads — the one the address
+ * names (`structure`) on the planning and the estimate, the main one by default and on every other
+ * grid (US-0500) —, its version and its commands, and its nodes as the address asks them — the sort, the search, the filtered sub-project, the progress of the tasks
  * the screen narrows to, what a view that is no grid has the server select (`narrowed`), the lot
  * or the post a grid that filters by them retains (`byBreakdown`), all named as the contract
  * names them —, the sort the account keeps for the grid when the address asks none. A grid asks
@@ -13,7 +14,7 @@
  * whole besides, which offers them (`getWorkBreakdown`): the screen does without it, and offers
  * no filter, when the API refuses it — unless the screen needs it otherwise
  * (`needsBreakdown`). A project or a revision the API does not find is not found, as at the
- * other screens of a project.
+ * other screens of a project; so is a structure the address names that the revision does not list.
  */
 import "server-only";
 
@@ -23,6 +24,12 @@ import type { components } from "@/api/generated/schema";
 import { type ExpectedRefusal, readOrFail, readOrRefused, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import {
+  listedStructure,
+  STRUCTURE_PARAMETER,
+  type StructureChoices,
+  type StructureKind,
+} from "@/components/context/structure";
 import {
   type BreakdownChoices,
   type BreakdownFilter,
@@ -123,6 +130,13 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
    * have read only.
    */
   readonly needsBreakdown?: (reading: ProjectReading) => boolean;
+  /**
+   * Whether the grid reads the structure its address names (`structure`) — the planning and the
+   * estimate, on a differential or the own estimate of a risk as on the main structure (US-0500) —;
+   * the main structure alone when none is given — the remaining to commit, which only the main one
+   * bears (WF-RAE-0040).
+   */
+  readonly chooses?: boolean;
 }
 
 /**
@@ -131,14 +145,24 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
  */
 export interface GridScreen<Row> {
   readonly reading: ProjectReading;
-  /** The label of the main structure. */
+  /** The label of the structure read. */
   readonly label: string;
-  /** The main structure, which a computed cell names to ask what its value depends on. */
+  /** What the structure read is: the main one, a differential, the own estimate of a risk. */
+  readonly kind: StructureKind;
+  /**
+   * The structure read, which a computed cell names to ask what its value depends on, and which the
+   * grid is mounted for: the grid of another structure starts anew (#819.3).
+   */
   readonly structure: StructurePath;
-  /** The version of the main structure read, which a paste applied carries (#201). */
+  /** The version of the structure read, which every write of the grid goes on from (#201, #819.7). */
   readonly structureVersion: number;
   /**
-   * The commands of entry the main structure lists available to the caller: what the grid offers —
+   * The structure read and those of the revision, which the banner names and offers; none for a
+   * grid that reads the main structure alone (`GridReading.chooses`).
+   */
+  readonly structures: StructureChoices | undefined;
+  /**
+   * The commands of entry the structure read lists available to the caller: what the grid offers —
    * the entry of its cells, the gestures of the structure, the paste —, whatever the phase of the
    * project, which the front does not deduce (WF-IHM-0090). A grid whose command is not in it is
    * read only.
@@ -170,24 +194,48 @@ export interface GridScreen<Row> {
   readonly breakdownFilter: BreakdownFilter | undefined;
 }
 
+/** A structure of a revision, as `listCostStructures` lists it. */
+type CostStructure = components["schemas"]["CostStructure"];
+
 /**
- * The main structure of a revision, and its nodes as the address asks them: sorted, searched,
- * restricted to the filtered sub-project and to the lot or the post `breakdown` names, of the
- * kinds the grid renders, the fields it reads alone — asked of the server (`fields`), and
- * projected (`projectNodes`), the server being free to render more than asked, as the fake back
- * does. A read the API refuses,
- * or cannot answer, is thrown for the pages of the shell to say (`readOrFail`): a grid left
- * empty would say the revision has nothing. So is a revision without a main structure, which
- * the contract rules out: an answer of the API that breaks it is unexpected, not an empty grid.
- * The structures are read at once; what is asked of the nodes waits for the session, whose
+ * The structure of the revision a grid reads, among those it lists: the one the address names, for
+ * a grid that reads it (`chooses`), the main one when it names none — and for any other grid. A
+ * structure the address names that the revision does not list is not found. A revision without a
+ * main structure, which the contract rules out, is an unexpected answer, not an empty grid.
+ */
+function readStructure(
+  structures: readonly CostStructure[],
+  { address }: GridAddress,
+  chooses: boolean,
+): CostStructure {
+  const main = structures.find((structure) => structure.kind === "main");
+  if (main === undefined) {
+    throw new UnexpectedAnswer("listCostStructures", 200);
+  }
+  const named = chooses ? address.get(STRUCTURE_PARAMETER) : null;
+  if (named === null || named === "") {
+    return main;
+  }
+  return structures.find((structure) => structure.structure_id === named) ?? notFound();
+}
+
+/**
+ * The structure of a revision a grid reads (`readStructure`), and its nodes as the address asks
+ * them: sorted, searched, restricted to the filtered sub-project and to the lot or the post
+ * `breakdown` names, of the kinds the grid renders, the fields it reads alone — asked of the server
+ * (`fields`), and projected (`projectNodes`), the server being free to render more than asked, as
+ * the fake back does. A read the API refuses, or cannot answer, is thrown for the pages of the
+ * shell to say (`readOrFail`): a grid left empty would say the revision has nothing. The
+ * structures are read at once; what is asked of the nodes waits for the session, whose
  * preferences may sort them.
  */
-async function mainStructure<N extends NodeField, T extends TaskField, L extends LineField>(
-  { revision, context }: GridAddress,
-  { kinds, fields, progress, narrowed }: GridReading<N, T, L>,
+async function readStructureNodes<N extends NodeField, T extends TaskField, L extends LineField>(
+  at: GridAddress,
+  { kinds, fields, progress, narrowed, chooses = false }: GridReading<N, T, L>,
   breakdown: BreakdownFilter | undefined,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
+  const { revision, context } = at;
   const client = serverClient();
   const path = { project_id: revision.projectId, revision_id: revision.revisionId };
   const structures = await readOrFail("listCostStructures", () =>
@@ -195,13 +243,10 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
       params: { path },
     }),
   );
-  const main = structures.find((structure) => structure.kind === "main");
-  if (main === undefined) {
-    throw new UnexpectedAnswer("listCostStructures", 200);
-  }
+  const read = readStructure(structures, at, chooses);
   const { sort, search } = await asked;
   const subproject = context.parameters.get("subproject_id");
-  const structure = { ...path, structure_id: main.structure_id };
+  const structure = { ...path, structure_id: read.structure_id };
   const filters: NodeFilters = {
     ...(kinds === undefined ? {} : { kinds: [...kinds] }),
     ...(search === undefined ? {} : { search }),
@@ -223,11 +268,15 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     }),
   );
   return {
-    label: main.label,
+    label: read.label,
+    kind: read.kind,
     structure,
-    structureVersion: main.lock_version,
+    structureVersion: read.lock_version,
+    structures: chooses
+      ? { read: listedStructure(read), listed: structures.map(listedStructure) }
+      : undefined,
     commands: new Set(
-      main.available_commands.filter((offer) => offer.is_available).map(({ command }) => command),
+      read.available_commands.filter((offer) => offer.is_available).map(({ command }) => command),
     ),
     nodes: projectNodes(answer, fields),
     summaryDepth: answer.meta.summary_depth,
@@ -291,7 +340,7 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
   const needed = () =>
     context.then((read) => read !== "not_found" && grid.needsBreakdown?.(read) === true);
   const [structure, reading, preferences, query, items] = await Promise.all([
-    mainStructure(at, grid, breakdownFilter, asked),
+    readStructureNodes(at, grid, breakdownFilter, asked),
     context,
     settings,
     asked,

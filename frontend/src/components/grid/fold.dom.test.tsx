@@ -72,6 +72,7 @@ function planning(
       <PlanningGrid
         nodes={nodes}
         structure={{ ...STRUCTURE, revision_id: revision }}
+        structureVersion={1}
         filters={filters}
         query={query}
         preferences={undefined}
