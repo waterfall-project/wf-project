@@ -71,7 +71,13 @@ test("inscribes a task to a timeline from the menu of its cell, sees it in the c
   );
 
   // Taken out: the same menu unchecks it, and the screen says the timelines were updated again.
+  // The write is a server action, the one of the second click: the whole list, empty once the task is
+  // taken out.
+  const removal = page.waitForRequest(
+    (request) => request.method() === "POST" && request.headers()["next-action"] !== undefined,
+  );
   await again.getByRole("menuitemcheckbox", { name: "Revue client" }).click();
+  expect((await removal).postData()).toContain('"entries":[]');
   await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
   await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   await expect(page.getByRole("alert")).toBeEmpty();

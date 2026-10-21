@@ -19,6 +19,7 @@ import { type SubmitEvent, useId, useRef, useState } from "react";
 
 import { setNodeTracking, updateEstimateLine } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
+import { useUnmet } from "@/components/commands/command";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,7 @@ import {
   appliesTo,
   entriesAfter,
   isInscribed,
+  isSettled,
   milestoneOf,
   portable,
   type RowChange,
@@ -93,6 +95,7 @@ function TimelinesMenu<Row extends GridNode>({
   create,
 }: ChoiceActions<Row> & { readonly choices: NonNullable<RowChoices<Row>["tracking"]> }) {
   const t = useTranslations("grid.structure");
+  const unmet = useUnmet();
   const entries = choices.entries(row);
   const milestone = milestoneOf(row);
   return (
@@ -107,6 +110,13 @@ function TimelinesMenu<Row extends GridNode>({
             checked={isInscribed(entries, { kind: "timeline", id: timeline.id, on: true })}
             aria-disabled={busy ? true : undefined}
             className={UNAVAILABLE}
+            onSelect={(event) => {
+              // Checked while a write is under way, it does nothing — `choose` ignores the call —,
+              // and the menu stays open.
+              if (busy) {
+                event.preventDefault();
+              }
+            }}
             onCheckedChange={(on) => {
               change({ kind: "timeline", id: timeline.id, on });
             }}
@@ -119,6 +129,11 @@ function TimelinesMenu<Row extends GridNode>({
             checked={isInscribed(entries, { kind: "milestone", on: true })}
             aria-disabled={busy ? true : undefined}
             className={UNAVAILABLE}
+            onSelect={(event) => {
+              if (busy) {
+                event.preventDefault();
+              }
+            }}
             onCheckedChange={(on) => {
               change({ kind: "milestone", on });
             }}
@@ -126,12 +141,12 @@ function TimelinesMenu<Row extends GridNode>({
             {t("milestoneTracking")}
           </ContextMenuCheckboxItem>
         ) : null}
-        {choices.timelines.length === 0 ? (
+        {choices.timelines.length === 0 && choices.creation !== undefined ? (
           <ContextMenuItem
-            aria-disabled={busy ? true : undefined}
+            aria-disabled={busy || !choices.creation.is_available ? true : undefined}
             className={UNAVAILABLE}
             onSelect={(event) => {
-              if (busy) {
+              if (busy || !choices.creation?.is_available) {
                 event.preventDefault();
                 return;
               }
@@ -139,7 +154,12 @@ function TimelinesMenu<Row extends GridNode>({
             }}
           >
             <Plus aria-hidden="true" />
-            {t("createTimeline")}
+            <span className="grid">
+              {t("createTimeline")}
+              {choices.creation.is_available ? null : (
+                <span className="text-xs text-muted-foreground">{unmet(choices.creation)}</span>
+              )}
+            </span>
           </ContextMenuItem>
         ) : null}
       </ContextMenuSubContent>
@@ -171,6 +191,12 @@ function SubprojectMenu<Row extends GridNode>({
             value={NONE}
             aria-disabled={busy ? true : undefined}
             className={UNAVAILABLE}
+            onSelect={(event) => {
+              // Chosen while a write is under way, it does nothing, and the menu stays open.
+              if (busy) {
+                event.preventDefault();
+              }
+            }}
           >
             {t("noSubproject")}
           </ContextMenuRadioItem>
@@ -180,6 +206,12 @@ function SubprojectMenu<Row extends GridNode>({
               value={subproject.id}
               aria-disabled={busy ? true : undefined}
               className={UNAVAILABLE}
+              onSelect={(event) => {
+                // Chosen while a write is under way, it does nothing, and the menu stays open.
+                if (busy) {
+                  event.preventDefault();
+                }
+              }}
             >
               {subproject.label}
             </ContextMenuRadioItem>
@@ -204,7 +236,13 @@ export function ChoiceMenuItems<Row extends GridNode>({
   readonly separated: boolean;
 }) {
   const { row } = actions;
-  const timelines = choices.tracking !== undefined && trackable(row) ? choices.tracking : undefined;
+  const tracking = choices.tracking !== undefined && trackable(row) ? choices.tracking : undefined;
+  // A project with no timeline, whose creation it does not list, has nothing to put in the submenu.
+  const timelines =
+    tracking !== undefined &&
+    (tracking.timelines.length > 0 || tracking.creation !== undefined || milestoneOf(row))
+      ? tracking
+      : undefined;
   const subproject =
     choices.subproject !== undefined && portable(row) ? choices.subproject : undefined;
   if (timelines === undefined && subproject === undefined) {
@@ -219,12 +257,16 @@ export function ChoiceMenuItems<Row extends GridNode>({
   );
 }
 
-/** The rows a change acts on: those of the selection, or the row alone, that it applies to. */
+/**
+ * The rows a change acts on: those of the selection, or the row alone, that it applies to and that
+ * are not already in the state it aims at — a write that changes nothing is not sent.
+ */
 export function targetsOf<Row extends GridNode>(
   change: RowChange,
   rows: readonly Row[],
+  choices: RowChoices<Row>,
 ): readonly Row[] {
-  return rows.filter((row) => appliesTo(change, row));
+  return rows.filter((row) => appliesTo(change, row) && !isSettled(change, row, choices));
 }
 
 /** What writing a change on the rows told: the outcome, and the row it was refused at. */
@@ -236,7 +278,7 @@ export interface ChangeWritten<Row> {
 /**
  * Write a change on each row in turn, one write per row with the version of that row (`lock_version`),
  * each answer told as it comes. The writes stop at the first refusal, which is told for its row: those
- * made stay made, and the rows after it are left as they were.
+ * made stay made, and the rows after it are not written.
  */
 export async function writeChange<Row extends GridNode>(
   structure: StructurePath,

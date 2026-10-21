@@ -343,7 +343,13 @@ export function useStructureGestures<Row extends GridNode>(
   const send = (
     call: () => Promise<Outcome<NodesWritten>>,
     row: () => Row | undefined,
-    node: { readonly label: string; readonly done: string; readonly moves?: Row },
+    node: {
+      readonly label: string;
+      readonly done: string;
+      readonly moves?: Row;
+      /** The answers were told to `onWritten` one by one, as they came. */
+      readonly reported?: true;
+    },
     opening: number | undefined,
     cell?: HTMLElement,
   ) => {
@@ -358,7 +364,9 @@ export function useStructureGestures<Row extends GridNode>(
         setNaming(undefined);
       }
       if (outcome.kind === "done") {
-        onWritten(outcome.data);
+        if (node.reported !== true) {
+          onWritten(outcome.data);
+        }
         setTold(undefined);
         say(node.done, { object: node.label });
         const { moves: bore } = node;
@@ -462,7 +470,7 @@ export function useStructureGestures<Row extends GridNode>(
     applied: (written: RowsApplied<Row>) => void,
     timeline?: { readonly label: string; readonly opening: number },
   ) => {
-    const [first, ...others] = targetsOf(change, acted);
+    const [first, ...others] = choices === undefined ? [] : targetsOf(change, acted, choices);
     if (choices === undefined || first === undefined || busy) {
       return;
     }
@@ -500,6 +508,7 @@ export function useStructureGestures<Row extends GridNode>(
           label,
           others: others.length,
         }),
+        reported: true,
       },
       timeline?.opening,
     );

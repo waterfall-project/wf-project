@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import type { StructureChoiceProps } from "@/components/context/structure-choice";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -36,6 +37,18 @@ vi.mock("@/components/context/structure-choice", () => ({
     return null;
   },
 }));
+// The grid is rendered as it is; its props are read here, to see what the page gives it.
+const grid = vi.hoisted((): { given: PlanningGridProps[] } => ({ given: [] }));
+vi.mock("@/components/grid/planning-grid", async (original) => {
+  const planned = await original<typeof import("@/components/grid/planning-grid")>();
+  return {
+    ...planned,
+    PlanningGrid: (props: PlanningGridProps) => {
+      grid.given.push(props);
+      return planned.PlanningGrid(props);
+    },
+  };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
@@ -82,6 +95,7 @@ function callsOf(route: string) {
 
 beforeEach(() => {
   choices.offered = [];
+  grid.given = [];
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -129,6 +143,20 @@ describe("the screen of the planning", () => {
     expect(read?.path).toBe(`/projects/${PROJECT}/timelines`);
     expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);
     expect(page).not.toMatch(/<th(?:(?!<\/th>).)*>Timelines</);
+  });
+
+  it("gives the grid what the project lists of the creation of a timeline, as the server says it [WF-IHM-0090-A]", async () => {
+    await planning();
+    expect(grid.given.at(-1)?.timelineCreation).toMatchObject({
+      command: "manage_timelines",
+      is_available: true,
+      missing_conditions: [],
+    });
+    grid.given = [];
+    server.clients = [];
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
+    await planning();
+    expect(grid.given.at(-1)?.timelineCreation).toBeUndefined();
   });
 
   it("opens without timelines when the API does not find their list, the rest of the screen shown", async () => {

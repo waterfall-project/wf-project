@@ -1798,14 +1798,16 @@ provision, ni celle d'une tâche démarrée dont le sous-projet a reçu des coû
 fait tant que le projet n'est pas En cours, dans le reste à engager ensuite, selon ce que la ligne
 nomme. Un sous-menu s'applique à la sélection, ou à la ligne seule : un appel par ligne qui nomme le
 champ, avec la version de cette ligne — `setNodeTracking` avec la liste complète de ses inscriptions,
-`updateEstimateLine` avec `subproject_id` —, dans l'ordre de la grille et jusqu'au premier refus, dit
-pour sa ligne comme celui d'un geste : les lignes écrites avant lui le restent. Chaque réponse prend
-la place de la ligne lue (`applied` de `RowCommands.menu`), puis la grille est relue comme après un
+`updateEstimateLine` avec `subproject_id` —, dans l'ordre de la grille — sans écriture pour une
+ligne déjà dans l'état visé — et jusqu'au premier refus, dit pour sa ligne comme celui d'un geste :
+les lignes écrites avant lui le restent, celles d'après ne sont pas écrites. Chaque réponse prend la
+place de la ligne lue (`applied` de `RowCommands.menu`), puis la grille est relue comme après un
 geste. Un projet sans chronologie propose « Créer une chronologie… » (`createTimeline`), nommée dans
-un dialogue, à laquelle les tâches sont inscrites. Les colonnes « Chronologies » du planning et
-« Sous-projet » du devis et du reste à engager sont en lecture et masquées (`GridColumn.hidden`) tant
-que le compte n'a gardé aucune liste de colonnes masquées (`initialSettings`) ; il les montre par le
-choix des colonnes.
+un dialogue, à laquelle les tâches sont inscrites, selon l'offre `manage_timelines` du projet :
+absente, l'entrée n'est pas présentée ; indisponible, elle l'est grisée avec sa condition. Les
+colonnes « Chronologies » du planning et « Sous-projet » du devis et du reste à engager sont en
+lecture et masquées (`GridColumn.hidden`) tant que le compte n'a gardé aucune liste de colonnes
+masquées (`initialSettings`) ; il les montre par le choix des colonnes.
 
 ### Les grilles arborescentes : plier et déplier
 

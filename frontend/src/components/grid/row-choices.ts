@@ -8,6 +8,7 @@
  * write each of them is sent. Pure, neither server nor client.
  */
 import type { components } from "@/api/generated/schema";
+import type { CommandOffer } from "@/components/commands/offer";
 
 import type { RowsWritten } from "./columns";
 import type { GridNode, NodesWritten } from "./nodes";
@@ -30,6 +31,11 @@ export interface TrackingChoices<Row extends GridNode> {
   readonly project: string;
   /** The timelines of the project. */
   readonly timelines: readonly ChoiceOption[];
+  /**
+   * What the project lists of `manage_timelines`, which creates a timeline: none, and the creation is
+   * not offered; unavailable, and it is offered greyed out with what it lacks.
+   */
+  readonly creation: CommandOffer | undefined;
   /** The inscriptions a row bears, as the grid reads them. */
   readonly entries: (row: Row) => readonly TrackingEntry[];
 }
@@ -117,4 +123,19 @@ export function entriesAfter(
 /** Whether the rows an inscription is made on already bear it, for the row the menu opened on. */
 export function isInscribed(entries: readonly TrackingEntry[], change: RowChange): boolean {
   return entries.some((entry) => inscribed(entry, change));
+}
+
+/**
+ * Whether a row is already in the state a change aims at: inscribed or not as asked, or bearing the
+ * sub-project chosen. A write that changes nothing is not sent.
+ */
+export function isSettled<Row extends GridNode>(
+  change: RowChange,
+  row: Row,
+  choices: RowChoices<Row>,
+): boolean {
+  if (change.kind === "subproject") {
+    return (choices.subproject?.current(row) ?? null) === change.id;
+  }
+  return isInscribed(choices.tracking?.entries(row) ?? [], change) === change.on;
 }
