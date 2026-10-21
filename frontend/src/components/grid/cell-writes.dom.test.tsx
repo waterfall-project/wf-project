@@ -91,10 +91,14 @@ function held<Row, Totals>() {
   return { entry, answer, refuse, from };
 }
 
-/** The cells written of a grid, on a first reading of its address. */
-function writes<Row, Totals>(rules: CellRules<Row, Totals>, first: CellReading<Row, Totals>) {
+/** The cells written of a grid, on a first reading of its address, each write told `writing`. */
+function writes<Row, Totals>(
+  rules: CellRules<Row, Totals>,
+  first: CellReading<Row, Totals>,
+  writing?: (write: Promise<unknown>) => void,
+) {
   return renderHook(
-    (reading: CellReading<Row, Totals>) => useCellWrites<Row, Totals>(reading, rules),
+    (reading: CellReading<Row, Totals>) => useCellWrites<Row, Totals>(reading, rules, writing),
     { initialProps: first },
   );
 }
@@ -502,5 +506,25 @@ describe("the outcome of a cell written, in any grid", () => {
     expect(from(1)).toBeUndefined();
     expect(result.current.pending(keyOf(LABOUR), "hours")).toBeUndefined();
     expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("14");
+  });
+
+  it("tells the screen each write, under way until it answered (#1224)", async () => {
+    const told: Promise<unknown>[] = [];
+    const { result } = writes(NODES, first, (write) => {
+      told.push(write);
+    });
+    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, LABOUR, "hours", entry);
+    let over = false;
+    void told[0]?.then(() => {
+      over = true;
+    });
+    await act(async () => {
+      await settled();
+    });
+    expect(told).toHaveLength(1);
+    expect(over).toBe(false);
+    await answer(0, (row) => nodeAnswered(row, { hours: "1" }, undefined, 1));
+    expect(over).toBe(true);
   });
 });

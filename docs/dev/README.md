@@ -1762,9 +1762,12 @@ un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni s
 « Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent (`parent_id`,
 `node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine. Alt+Maj et
 une flèche, là où le déplacement n'est pas offert, sont pris sans effet : la cellule active ne bouge
-pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours, puis la relecture qui la
-suit, retiennent les gestes, la grille se disant occupée (`aria-busy`) : le suivant part des
-voisines que la relecture a rendues, jamais de celles d'avant avec une version déjà avancée.
+pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours — un geste, une cellule
+saisie, un collage appliqué, toute écriture de la grille (décision de l'auteur du 2026-10-21, #1224) —,
+puis la relecture qui suit un geste, retiennent les gestes, la grille se disant occupée
+(`aria-busy`) : le suivant part des voisines que la relecture a rendues, jamais de celles d'avant
+avec une version déjà avancée. La grille dit ses propres écritures aux commandes de son écran
+(`RowCommands.writing`), qui les comptent avec les leurs (`useStructureVersion`).
 
 La poignée glisse la sélection — ou sa seule ligne, qui n'en est pas — à côté d'une autre ligne :
 avant elle ou après elle, à son niveau, par le quart haut ou bas de la ligne, ou sous elle, en
@@ -1791,7 +1794,11 @@ seul dépôt suffit.
 qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :
 la plus haute entre celle de la page et celles que les écritures ont rendues
 (`NodesWritten.structure_lock_version`), cellule saisie, création, déplacement, suppression ou
-collage, car le contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Un
+collage, car le contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Ce
+suivi tient la version et les écritures en cours par structure : ce qu'une réponse applique — la
+version qu'elle a atteinte, la ligne que la cellule active suit, la relecture — l'est pour la
+structure où elle a été envoyée, et rien n'est relu pour elle une fois que la grille en montre une
+autre (défaut n° 1). Un
 refus par champ se dit par la raison du champ (`byField`), pour toute écriture du hook — création,
 déplacement et `deleteNode`, dont le contrat ne cite aucun champ, son refus se disant alors par son
 code —, comme celui d'une cellule ; `NODE_NOT_SIBLING`, qui vient d'une lecture périmée, relit en

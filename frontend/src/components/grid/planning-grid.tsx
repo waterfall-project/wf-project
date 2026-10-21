@@ -186,8 +186,10 @@ export function PlanningGrid({
   // revision left while it was generated — never shows it.
   const [generated, setGenerated] = useState<Generated>();
   const ours = generated?.structure === structure.structure_id ? generated : undefined;
-  // One account of the version the structure moved on to, whichever write moved it.
-  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
+  // One account of the writes of the structure: the version they moved it on to, whichever write
+  // moved it, and those under way, which the gestures wait for.
+  const account = useStructureVersion(structure.structure_id, structureVersion);
+  const { version, reach } = account;
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
   // A reader for each reading: an answer names rows a new reading may have renumbered.
@@ -278,9 +280,7 @@ export function PlanningGrid({
           version,
         }
       : undefined,
-    (written) => {
-      reach(written.structure_lock_version);
-    },
+    account,
     choices,
   );
   const offered = nodes.items.length === 0 || ours !== undefined;
