@@ -909,7 +909,11 @@
       par 422 `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche. Le rattachement à un lot ou à un poste du lotissement se pose,
       se change et se retire ici, sur une tâche récapitulative, feuille ou jalon, aux règles
       de `TaskFacetUpdate` (WF-PLA-0170). Seul le compteur lu est exigé : seul ce qui est
-      envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
+      envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`). Le
+      début et la fin se saisissent par leur seule date : le serveur en complète les heures sur
+      le calendrier applicable de la tâche (WF-PLA-0010), le début au début de son jour, la fin
+      au bout des heures que le calendrier accorde ce jour-là ; un jour sans heure travaillée est
+      gardé, le début et la fin à `0` (`WorkInstantWrite`, #1244).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -920,6 +924,8 @@
       content:
         application/json:
           schema: { $ref: ../components/schemas/revisions.yaml#/TaskFacetUpdate }
+          examples:
+            dates_entered: { $ref: ../../../fixtures/api/task_dates_sent.json }
     responses:
       '200':
         description: >-
@@ -956,13 +962,18 @@
           nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`). Ou, sans
           `fields`, une saisie qui porterait la durée du projet au-delà de quinze ans :
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé
-          (WF-PLA-0150).
+          (WF-PLA-0150). Ou des heures envoyées avec une date hors de `0` aux heures que le
+          calendrier de la tâche accorde ce jour-là : `fields` sur `/start/hours` ou
+          `/finish/hours` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum`
+          aux heures du jour, la seule borne franchie, `0` un jour sans heure travaillée
+          (`WorkInstantWrite`, WF-PLA-0010, WF-DAT-0100, #1244).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
+              hours_beyond_day: { $ref: ../../../fixtures/api/task_hours_beyond_day.json }
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
               attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_work_package.json }
               attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }

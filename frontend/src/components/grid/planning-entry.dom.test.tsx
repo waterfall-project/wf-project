@@ -39,6 +39,8 @@ vi.mock("next/navigation", async (original) => ({
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const TASK =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
+const PREDECESSORS =
+  "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors";
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
@@ -155,7 +157,7 @@ describe("the cells of a task entered in the grid of the planning", () => {
     // The duration starts from its value and the suffix of its unit, as the cell writes it.
     expect(duration).toHaveValue("10\u00a0j");
     await userEvent.keyboard("{Tab}");
-    expect(cellAt(review, "work_breakdown")).toHaveFocus();
+    expect(cellAt(review, "predecessors")).toHaveFocus();
     // The desks, in manual mode: the server names their dates among the fields they accept.
     const desks = rowOf(planning, "Pupitres opérateurs");
     expect(await enter(desks, "start")).toHaveValue("02/03/2026");
@@ -163,7 +165,7 @@ describe("the cells of a task entered in the grid of the planning", () => {
 
   it("sets a task manual, then enters its dates, each write carrying the version the last answered [WF-PLA-0020-A]", async () => {
     // En mode manuel, l'utilisateur saisit ses dates: once the mode answered, the dates the server
-    // computed are entered, the hours of the day kept.
+    // computed are entered, each sent as a date alone.
     const client = serve({
       [TASK]: ["task_mode_changed", "task_dates_entered", "task_dates_entered"],
     });
@@ -193,35 +195,37 @@ describe("the cells of a task entered in the grid of the planning", () => {
     });
     expect(written(client)).toEqual([
       { node, body: { scheduling_mode: "manual", lock_version: 1 } },
-      { node, body: { start: { date: "2027-01-04", hours: "0" }, lock_version: 2 } },
-      { node, body: { finish: { date: "2027-01-16", hours: "8" }, lock_version: 3 } },
+      { node, body: { start: { date: "2027-01-04" }, lock_version: 2 } },
+      { node, body: { finish: { date: "2027-01-16" }, lock_version: 3 } },
     ]);
   });
 
-  it("keeps the hours the task had at its former date when its start is moved, not those of the new day (#1244)", async () => {
-    // A choice of the front, which no Vérif states — that of WF-DAT-0100-A says nothing of the hours
-    // a date entered carries —, held here until #1244 settles whether the server completes them: the
-    // contract asks for them, and the front knows no calendar. The desks start at hour 4 of their
-    // day: moved to another, they still start at hour 4.
+  it("sends a date entered alone, with no hours, and shows what the server answered (#1244)", async () => {
+    // The front knows no calendar: the date goes without hours, the body of task_dates_sent, and the
+    // server completes them — task_dates_entered, whose finish the cell then shows.
     const hold = held();
     const client = serve({ [TASK]: "task_dates_entered" }, hold.until);
-    const moved = structuredClone(planning);
-    const desks = rowOf(moved, "Pupitres opérateurs");
-    const task = moved.items[desks]?.task;
-    if (task?.start == null) {
-      throw new Error("the desks have no start");
+    const manual = structuredClone(nested);
+    const commissioning = rowOf(manual, "Mise en service");
+    const task = manual.items[commissioning]?.task;
+    if (task == null) {
+      throw new Error("the commissioning has no task");
     }
-    task.start = { ...task.start, hours: "4" };
-    render(grid(moved));
-    await retype(await entered(desks, "start"), "09/03/2026");
+    task.scheduling_mode = "manual";
+    const item = manual.items[commissioning];
+    if (item === undefined) {
+      throw new Error("the commissioning has no row");
+    }
+    item.computed_fields = [];
+    item.editable_fields = [...item.editable_fields, "task.start", "task.finish"];
+    render(grid(manual));
+    await retype(await entered(commissioning, "start"), "04/01/2027");
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(1);
     });
-    expect(written(client)[0]?.body).toEqual({
-      start: { date: "2026-03-09", hours: "4" },
-      lock_version: 1,
-    });
+    expect(written(client)[0]?.body).toEqual({ start: { date: "2027-01-04" }, lock_version: 1 });
     hold.release();
+    expect(await within(cellAt(commissioning, "finish")).findByText("15/01/2027")).toBeVisible();
   });
 
   it.each([
@@ -296,14 +300,20 @@ describe("the cells of a task entered in the grid of the planning", () => {
   });
 
   it("goes on to the next row once the last cell of a row is validated, writing nothing unchanged", async () => {
-    // Libellé, description, mode, durée, rattachement: Tab along the row, the computed dates
-    // traversed; validated, the last places the cursor on the row below, at the cell the row was
-    // started from.
+    // Libellé, description, mode, durée, prédécesseurs, rattachement: Tab along the row, the computed
+    // dates traversed; validated, the last places the cursor on the row below, at the cell the row
+    // was started from.
     const client = serve({});
     render(grid(planning));
     const details = rowOf(planning, "Études de détail");
     await enter(details, "label");
-    for (const column of ["description", "scheduling_mode", "duration", "work_breakdown"]) {
+    for (const column of [
+      "description",
+      "scheduling_mode",
+      "duration",
+      "predecessors",
+      "work_breakdown",
+    ]) {
       await userEvent.keyboard("{Tab}");
       expect(cellAt(details, column)).toHaveFocus();
       await userEvent.keyboard("{Enter}");
@@ -324,5 +334,206 @@ describe("the cells of a task entered in the grid of the planning", () => {
     );
     expect(cellAt(desks, "finish")).toHaveAttribute("aria-invalid", "true");
     expect(cellAt(desks, "finish")).toHaveTextContent("24/04/2026");
+  });
+});
+
+describe("the predecessors of a task entered in the grid of the planning", () => {
+  /** The links the grid sent, with the node each was sent for. */
+  function linksSent(client: FakeClient) {
+    return client.calls
+      .filter((call) => call.route === PREDECESSORS)
+      .map((call) => ({ node: call.path.split("/").at(-2), body: call.body }));
+  }
+
+  it("starts from the links of the task as they are typed, and enters them for a summary too, which computes no link [WF-PLA-0030-A]", async () => {
+    serve({});
+    render(grid(planning));
+    // « Réception des études » follows row 5, plain, and row 4 start to start, a week later.
+    const reception = rowOf(planning, "Réception des études");
+    expect(await entered(reception, "predecessors")).toHaveValue("5; 4DD+1 sem");
+    await userEvent.keyboard("{Escape}");
+    expect(cellAt(rowOf(planning, "Études"), "predecessors")).not.toHaveAttribute("aria-readonly");
+  });
+
+  it.each<Locale>(["fr", "en"])(
+    "shows a lag of 50 % as the entry proposes it, in %s [WF-PLA-0030-A]",
+    async (locale) => {
+      serve({});
+      const row = rowOf(planning, "Réception des études");
+      const shared: NodeList = {
+        ...planning,
+        items: planning.items.map((node, index) =>
+          index === row
+            ? {
+                ...node,
+                predecessors: (node.predecessors ?? []).slice(0, 1).map((link) => ({
+                  ...link,
+                  link_type: "start_to_start" as const,
+                  lag: { value: "50", unit: "percent" as const },
+                })),
+              }
+            : node,
+        ),
+      };
+      render(grid(shared, { locale }));
+      // The cell keeps its number and its unit together by a no-break space; the entry types a plain one.
+      const read = cellAt(row, "predecessors").textContent.replace(/\s/gu, " ");
+      expect(read).toMatch(/\+50 %$/u);
+      const field = await entered(row, "predecessors");
+      expect((field as HTMLInputElement).value).toBe(read);
+    },
+  );
+
+  it("writes the links typed in place of the task's, the four types and a lead among them, and takes the row answered and the successor the server redated in place of those read [WF-PLA-0030-A] [WF-PLA-0020-A]", async () => {
+    // « 19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50% »: the four types, a lag, none, a lead, a share. The
+    // fake back answers by its first example: the mounting 2 d after « Réception usine », and
+    // « Mise en service », which it redates without writing it, moved from 21/12/2026 to
+    // 23/12/2026 — the successor shown as the server dated it, the front dating nothing.
+    const client = serve({ [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested));
+    const mounting = rowOf(nested, "Montage des armoires sur site");
+    const commissioning = rowOf(nested, "Mise en service");
+    expect(cellAt(commissioning, "start")).toHaveTextContent("21/12/2026");
+    await retype(
+      await entered(mounting, "predecessors"),
+      "19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50%",
+    );
+    await vi.waitFor(() => {
+      expect(linksSent(client)).toHaveLength(1);
+    });
+    const id = (label: string) => nested.items[rowOf(nested, label)]?.node_id;
+    expect(linksSent(client)[0]).toEqual({
+      node: nested.items[mounting]?.node_id,
+      body: {
+        predecessors: [
+          {
+            predecessor_node_id: id("Réception usine"),
+            link_type: "finish_to_start",
+            lag: { value: "2", unit: "d" },
+          },
+          {
+            predecessor_node_id: id("Câblage des armoires"),
+            link_type: "start_to_start",
+            lag: { value: "0", unit: "d" },
+          },
+          {
+            predecessor_node_id: id("Relance du fournisseur"),
+            link_type: "finish_to_finish",
+            lag: { value: "-1", unit: "w" },
+          },
+          {
+            predecessor_node_id: id("Transport exceptionnel"),
+            link_type: "start_to_finish",
+            lag: { value: "50", unit: "percent" },
+          },
+        ],
+        lock_version: 1,
+      },
+    });
+    // The row answered, and the successor the server redated, in place of the rows read.
+    expect(await within(cellAt(commissioning, "start")).findByText("23/12/2026")).toBeVisible();
+    expect(cellAt(commissioning, "finish")).toHaveTextContent("05/01/2027");
+    expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^18FD\+2\s*j$/);
+    expect(cellAt(mounting, "start")).toHaveTextContent("03/07/2026");
+  });
+
+  it("types the codes of the language of the interface, « FS » in English [WF-PLA-0030-A]", async () => {
+    const client = serve({ [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested, { locale: "en" }));
+    const mounting = rowOf(nested, "Montage des armoires sur site");
+    await retype(await entered(mounting, "predecessors"), "19FS+2 d; 10SF");
+    await vi.waitFor(() => {
+      expect(linksSent(client)).toHaveLength(1);
+    });
+    expect(linksSent(client)[0]?.body).toMatchObject({
+      predecessors: [
+        { link_type: "finish_to_start", lag: { value: "2", unit: "d" } },
+        { link_type: "start_to_finish", lag: { value: "0", unit: "d" } },
+      ],
+    });
+  });
+
+  it("empties the predecessors of a task by a blank text, and writes nothing for the links it already has [WF-PLA-0030-A]", async () => {
+    const client = serve({ [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested));
+    const mounting = rowOf(nested, "Montage des armoires sur site");
+    // The links as they are, validated unchanged: nothing leaves.
+    await entered(mounting, "predecessors");
+    await userEvent.keyboard("{Enter}");
+    expect(linksSent(client)).toEqual([]);
+    await userEvent.clear(await entered(mounting, "predecessors"));
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(linksSent(client)).toHaveLength(1);
+    });
+    expect(linksSent(client)[0]?.body).toEqual({ predecessors: [], lock_version: 1 });
+  });
+
+  it.each([
+    {
+      name: "predecessors_cycle_refused",
+      reason: "Cette liaison créerait une boucle.",
+      named: [/Réception usine/, /Montage des armoires sur site/, /Mise en service/],
+    },
+    {
+      name: "predecessors_forbidden",
+      reason: "Cette liaison n’est pas permise.",
+      named: [],
+    },
+    {
+      name: "predecessors_horizon_exceeded",
+      reason: "La durée du projet dépasserait quinze ans.",
+      named: [],
+    },
+  ])(
+    "says the refusal of the links at their cell, by its reason and the tasks it names: $name [WF-PLA-0030-A]",
+    async ({ name, reason, named }) => {
+      // La création d'une liaison fermant un cycle est refusée, et la raison en est nommée.
+      const problem = example(name) as Problem & { readonly status: 422 };
+      const client = serve({ [PREDECESSORS]: { problem } });
+      render(grid(nested));
+      const mounting = rowOf(nested, "Montage des armoires sur site");
+      await retype(await entered(mounting, "predecessors"), "23FD");
+      await vi.waitFor(() => {
+        expect(linksSent(client)).toHaveLength(1);
+      });
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(reason);
+      for (const task of named) {
+        expect(alert).toHaveTextContent(task);
+      }
+      expect(cellAt(mounting, "predecessors")).toHaveAttribute("aria-invalid", "true");
+      // Nothing is written: the row keeps the links it had.
+      expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^19$/);
+    },
+  );
+
+  it.each([
+    { text: "99", problem: "Aucune ligne de la grille n’a l’un de ces numéros." },
+    { text: "19 quand", problem: /^Ce ne sont pas des prédécesseurs/ },
+    { text: "19FD+2 parsecs", problem: /^Ce ne sont pas des prédécesseurs/ },
+  ])(
+    "keeps the entry open, saying why, for « $text », a row unknown or a text that is no link, and sends nothing [WF-PLA-0030-A]",
+    async ({ text, problem }) => {
+      const client = serve({ [PREDECESSORS]: "predecessor_set" });
+      render(grid(nested));
+      const mounting = rowOf(nested, "Montage des armoires sur site");
+      await retype(await entered(mounting, "predecessors"), text);
+      expect(await screen.findByRole("alert")).toHaveTextContent(problem);
+      expect(screen.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(linksSent(client)).toEqual([]);
+    },
+  );
+
+  it("enters no predecessors in a grid read only [WF-PLA-0030-A]", () => {
+    serve({});
+    render(grid(planning, { editable: false }));
+    expect(cellAt(rowOf(planning, "Réception des études"), "predecessors")).toHaveAttribute(
+      "aria-readonly",
+      "true",
+    );
   });
 });

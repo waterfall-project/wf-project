@@ -14,7 +14,9 @@
  *
  * Where the planning may be entered, the cells of a task are written by `updateTaskFacet`, each
  * alone (US-0470): its label, its description, its mode, its duration with its unit, the dates of a
- * manual task, its attachment; a refusal is said at its cell by the reason of its field — the task
+ * manual task, its attachment — and its predecessors, the whole list at once, by `setPredecessors`,
+ * the tasks it redates taking their place with it —; a refusal is said at its cell by the reason of
+ * its field — a loop of links, naming its tasks, the task
  * that bears the item already, those the write would move out of the subtree of its lot
  * (WF-PLA-0170, EP-14/L44d), a date the server computes. In the empty grid, the skeleton
  * is offered as the revision lists it (`generate_skeleton`, WF-PRJ-0030): unavailable, with its
@@ -25,9 +27,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { generatePlanningSkeleton, updateTaskFacet } from "@/api/actions/nodes";
+import { generatePlanningSkeleton, setPredecessors, updateTaskFacet } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
@@ -163,6 +165,38 @@ function SkeletonOffer({
   );
 }
 
+/**
+ * The task a row number names (WF-PLA-0030), among the rows the grid read: the row of that number —
+ * a task — or, for a task a search left out, the predecessor of a row read that has that number, whose
+ * number the API gives in the numbering of the whole structure. None for a number no row read names.
+ */
+function taskOfRow(rows: readonly PlanningNode[], number: number): string | undefined {
+  const own = rows.find((node) => node.row_number === number && node.task != null);
+  if (own !== undefined) {
+    return own.node_id;
+  }
+  for (const node of rows) {
+    const found = node.predecessors?.find((link) => link.predecessor_row_number === number);
+    if (found !== undefined) {
+      return found.predecessor_node_id;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The task a row number names among the rows the grid reads (`taskOfRow`): one function for the life
+ * of the grid, reading the rows of the reading committed last — the entry asks it in an event
+ * handler, never while rendering — so that a reading anew does not build the configuration anew.
+ */
+function useTaskOfRow(rows: readonly PlanningNode[]): (number: number) => string | undefined {
+  const read = useRef(rows);
+  useLayoutEffect(() => {
+    read.current = rows;
+  }, [rows]);
+  return useCallback((number) => taskOfRow(read.current, number), []);
+}
+
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
 export function PlanningGrid({
   nodes,
@@ -182,6 +216,7 @@ export function PlanningGrid({
   const kinds = useTranslations("enums.WorkBreakdownKind");
   const modes = useTranslations("enums.SchedulingMode");
   const units = useTranslations("enums.DurationUnit");
+  const lagUnits = useTranslations("enums.LagUnit");
   // The skeleton generated, for the structure it was generated on: a grid of another structure — a
   // revision left while it was generated — never shows it.
   const [generated, setGenerated] = useState<Generated>();
@@ -192,6 +227,7 @@ export function PlanningGrid({
   const { version, reach } = account;
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
+  const taskOf = useTaskOfRow(shown.items);
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, shown.items),
@@ -217,19 +253,37 @@ export function PlanningGrid({
                 active: true,
               })),
           };
+    // What a write of a node answers, as the grid reads it; the version the structure moved on to is
+    // told the account.
+    const answered = (outcome: Outcome<NodesWritten>) => {
+      if (outcome.kind !== "done") {
+        return outcome;
+      }
+      reach(outcome.data.structure_lock_version);
+      return { kind: "done" as const, data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) };
+    };
     const writes: PlanningWrites = {
-      // The field entered and the version of the node read, nothing else (#178); the version the
-      // structure moved on to is told the account.
-      task: async (node, change) => {
-        const outcome = await updateTaskFacet(structure, node.node_id, {
-          ...change,
-          lock_version: node.lock_version,
-        });
-        if (outcome.kind !== "done") {
-          return outcome;
-        }
-        reach(outcome.data.structure_lock_version);
-        return { kind: "done", data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) };
+      // The field entered and the version of the node read, nothing else (#178).
+      task: async (node, change) =>
+        answered(
+          await updateTaskFacet(structure, node.node_id, {
+            ...change,
+            lock_version: node.lock_version,
+          }),
+        ),
+      // The links of the task in place of its own, with the version of the node read: the rows the
+      // server answers, the tasks the links redate with them, take the place of the rows read.
+      predecessors: {
+        code: (link) => t("linkCode", { link }),
+        suffix: (unit) => lagUnits(unit),
+        resolve: taskOf,
+        write: async (node, predecessors) =>
+          answered(
+            await setPredecessors(structure, node.node_id, {
+              predecessors: [...predecessors],
+              lock_version: node.lock_version,
+            }),
+          ),
       },
       modes: (mode) => modes(mode),
       suffix: (unit) => units(unit),
@@ -237,7 +291,20 @@ export function PlanningGrid({
       attachment,
     };
     return planningGrid(writes, timelines);
-  }, [editable, breakdown, kinds, modes, units, t, structure, whole, reach, timelines]);
+  }, [
+    editable,
+    breakdown,
+    kinds,
+    modes,
+    units,
+    lagUnits,
+    t,
+    structure,
+    whole,
+    reach,
+    timelines,
+    taskOf,
+  ]);
   // The skeleton moves the structure on as any write of the grid does: counted in the account, the
   // gestures wait for it (#1224). The command calls it in its transition, which would hold the count
   // back until the answer: the write is sent, and counted, once out of it.

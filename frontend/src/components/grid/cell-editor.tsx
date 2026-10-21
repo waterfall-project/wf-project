@@ -223,6 +223,8 @@ export function EntryProblemNotice({
     tooLong: () => t("tooLong", { max: kind.type === "text" ? (kind.maxLength ?? 0) : 0 }),
     notADuration: () => t("notADuration"),
     notADate: () => t("notADate", { example: formatCell("date", "2026-12-31", locale) }),
+    notPredecessors: () => t("notPredecessors"),
+    unknownRow: () => t("unknownRow"),
     notANumber: () =>
       t("notANumber", {
         example:

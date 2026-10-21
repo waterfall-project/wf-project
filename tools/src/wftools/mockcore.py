@@ -174,16 +174,19 @@ def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
     for task in linked:
         if task.children:
             continue
-        if task.manual is not None:
-            # A milestone in manual mode is an instant, like any other (WF-PLA-0050).
-            first, last = task.manual
-            finish = Instant(last, HOURS_PER_DAY)
-            start = finish if task.is_milestone else Instant(first)
-            dated[task.number] = Dated(task, default, start, finish)
-            continue
         calendar = applicable(
             [roles[line.role] for line in task.lines if line.role is not None], default
         )
+        if task.manual is not None:
+            # The dates entered are days: the server completes their hours, the start at the
+            # start of its day, the finish at the end of that day's hours on the applicable
+            # calendar, none on a day without (#1244). A milestone in manual mode is an
+            # instant, like any other (WF-PLA-0050).
+            first, last = task.manual
+            finish = Instant(last, calendar.hours_on(last))
+            start = finish if task.is_milestone else Instant(first)
+            dated[task.number] = Dated(task, calendar, start, finish)
+            continue
         predecessors = [
             Predecessor(
                 dated[link.predecessor].start,

@@ -229,7 +229,9 @@
       "tooLong": "{max} characters at most.",
       "twoDecimals": "An amount has two decimals at most: enter it as {example}.",
       "notADuration": "This is not a duration: enter a number followed by its unit, as “2 d”, “1 wk”, “1 mo” or “30 min”.",
-      "notADate": "This is not a date: enter it as {example}."
+      "notADate": "This is not a date: enter it as {example}.",
+      "notPredecessors": "These are not predecessors: enter row numbers, each with its link type and its lag if any, separated by semicolons, as “3FS+2 d ; 5SS”.",
+      "unknownRow": "No row of the grid has one of these numbers."
     },
     "resize": "Width of the column {column}",
     "empty": "No row matches the request.",
@@ -377,8 +379,9 @@
     "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
     "duration": "{value} {unit}",
     "critical": "Critical path",
-    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
+    "predecessor": "{row}{code}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
+    "linkCode": "{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}",
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid."
@@ -1876,6 +1879,7 @@
     "work_package_task": "Task of the work package: {task}.",
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
+    "cycle": "Loop of links, in order: {tasks}.",
     "taskName": "“{label}”"
   },
   "permissions": {

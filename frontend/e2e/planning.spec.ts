@@ -125,6 +125,7 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
     mode: "Mode de planification",
     duration: "Durée",
     start: "Début",
+    predecessors: "Prédécesseurs",
     attachment: "Rattachement",
   });
   const leaf = grid.getByRole("row", { name: /^9 .*Câblage/ });
@@ -142,7 +143,7 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   const sent = page.waitForRequest((request) => request.method() === "POST");
   await page.keyboard.press("Tab");
   await sent;
-  for (const column of [at.description, at.mode, at.duration, at.attachment]) {
+  for (const column of [at.description, at.mode, at.duration, at.predecessors, at.attachment]) {
     await expect(cell(column)).toBeFocused();
     await page.keyboard.press("F2");
     await page.keyboard.press("Tab");
@@ -152,6 +153,64 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   await expect(
     grid.getByRole("row", { name: /^9 .*Câblage et repérage des armoires/ }),
   ).toBeVisible();
+});
+
+test("enters a duration with its unit, then the predecessors « 18FD+2 j » of the mounting, and the successor the server redated takes its place in the grid [WF-PLA-0030-A] [WF-PLA-0020-A]", async ({
+  page,
+}) => {
+  // The fake back keeps nothing and answers each write by its first example (`updateTaskFacet`: the
+  // task of row 9 renamed; `setPredecessors`: the mounting of row 20, which follows the factory
+  // acceptance of row 18 two days later, written on 3 July 2026, and « Mise en service » of row 23,
+  // which it redates without writing it, to 23 December 2026 – 5 January 2027): what each sends is
+  // proven on the examples by `planning-entry.dom.test.tsx`; here the journey is the keyboard's,
+  // and the grid shows what the server answered in place of what was read, the front dating nothing.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, {
+    duration: "Durée",
+    start: "Début",
+    finish: "Fin",
+    predecessors: "Prédécesseurs",
+  });
+  const cableRow = grid.getByRole("row", { name: /^9 .*Câblage/ });
+  const duration = cableRow.getByRole("gridcell").nth(at.duration);
+  await duration.click();
+  await page.keyboard.press("F2");
+  await grid.getByRole("textbox", { name: "Durée" }).fill("3 sem");
+  const durationSent = page.waitForRequest((request) => request.method() === "POST");
+  await page.keyboard.press("Enter");
+  await durationSent;
+  // The duration is a task's own: its cell is entered, and the answer takes its place.
+  await expect(cableRow.getByRole("gridcell").nth(at.duration)).not.toHaveAttribute("aria-invalid");
+
+  const mounting = grid.getByRole("row", { name: /^20 .*Montage des armoires sur site/ });
+  const commissioning = grid.getByRole("row", { name: /^23 .*Mise en service/ });
+  await expect(mounting.getByRole("gridcell").nth(at.predecessors)).toHaveText("18");
+  await expect(commissioning.getByRole("gridcell").nth(at.start)).toContainText("21/12/2026");
+  const links = mounting.getByRole("gridcell").nth(at.predecessors);
+  await links.click();
+  await page.keyboard.press("F2");
+  const field = grid.getByRole("textbox", { name: "Prédécesseurs" });
+  await expect(field).toHaveValue("18");
+  await field.fill("18FD+2 j");
+  const linksSent = page.waitForRequest((request) => request.method() === "POST");
+  await page.keyboard.press("Enter");
+  await linksSent;
+  await expect(mounting.getByRole("gridcell").nth(at.predecessors)).toHaveText(/^18FD\+2\s*j$/);
+  await expect(mounting.getByRole("gridcell").nth(at.start)).toContainText("03/07/2026");
+  await expect(commissioning.getByRole("gridcell").nth(at.start)).toContainText("23/12/2026");
+  await expect(commissioning.getByRole("gridcell").nth(at.finish)).toContainText("05/01/2027");
+
+  // A number no row of the grid has is refused at the cell, which stays open, saying so.
+  await mounting.getByRole("gridcell").nth(at.predecessors).click();
+  await page.keyboard.press("F2");
+  await grid.getByRole("textbox", { name: "Prédécesseurs" }).fill("99999");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Aucune ligne de la grille n’a l’un de ces numéros.")).toBeVisible();
+  await expect(grid.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
 });
 
 test("filters the planning by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it [WF-IHM-0020-A]", async ({

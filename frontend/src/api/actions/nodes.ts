@@ -3,7 +3,8 @@
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
- * `updateEstimateLine`, `setLineRemaining`), a task or a line created and a node deleted
+ * `updateEstimateLine`, `setLineRemaining`), the predecessors of a task (`setPredecessors`), a
+ * task or a line created and a node deleted
  * (`createNode`, `deleteNode`), nodes moved under a task (`moveNodes`), the timelines a task is
  * inscribed to (`setNodeTracking`), a block pasted from a
  * spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew
@@ -121,6 +122,27 @@ export async function setLineRemaining(
     serverClient().PUT(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining",
       { ...nodePath(structure, nodeId), body: remaining },
+    ),
+  );
+}
+
+/**
+ * Replace the predecessors of the task of a node by those sent, each with the type of its link and its
+ * lag in its unit, with the version of the node read (WF-PLA-0030, WF-PLA-0160): the API answers the
+ * node as it now is, its ancestors, the tasks the links redate and the totals of the structure — or
+ * refuses the links, a loop (`LINK_CYCLE`, its tasks named), a summary linked to one of its
+ * subordinates (`LINK_FORBIDDEN`) or a project past its horizon among its reasons; nothing is written
+ * then.
+ */
+export async function setPredecessors(
+  structure: StructurePath,
+  nodeId: string,
+  predecessors: components["schemas"]["PredecessorsReplace"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().PUT(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors",
+      { ...nodePath(structure, nodeId), body: predecessors },
     ),
   );
 }

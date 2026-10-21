@@ -285,6 +285,12 @@ const DETAILS: readonly Reader[] = [
       ? undefined
       : ["order_item_tasks", { tasks: conjunction(named, locale), count: named.length }];
   },
+  // The tasks of the loop that links entered would close, each by its label, in the order of the
+  // links (`LINK_CYCLE`, WF-PLA-0030): the reason is named to the one who entered them.
+  ({ cycle }, _label, locale, say) => {
+    const named = itemsOf(cycle, isLabelled).map(({ label }) => say("taskName", { label }));
+    return named.length === 0 ? undefined : ["cycle", { tasks: conjunction(named, locale) }];
+  },
   // The sub-project a line of a started task does not leave, because it received actual costs, by
   // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
   ({ subproject }) =>

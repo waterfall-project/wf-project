@@ -104,7 +104,11 @@ REFUSALS = {
         "node_create_horizon_exceeded",
         "node_create_after_not_sibling",
     ],
-    "updateTaskFacet": ["task_date_computed_refused", "task_horizon_exceeded"],
+    "updateTaskFacet": [
+        "task_date_computed_refused",
+        "task_horizon_exceeded",
+        "task_hours_beyond_day",
+    ],
     "setPredecessors": [
         "predecessors_cycle_refused",
         "predecessors_forbidden",
@@ -119,7 +123,7 @@ REFUSALS = {
     "setNodeTracking": ["node_tracking_milestone_refused"],
     "deleteNode": ["node_delete_stale"],
 }
-REQUESTS = {"moveNodes": ["nodes_move_mixed"]}
+REQUESTS = {"moveNodes": ["nodes_move_mixed"], "updateTaskFacet": ["task_dates_sent"]}
 
 
 def _operation(name: str) -> str:
@@ -318,6 +322,73 @@ def test_dates_entered_on_a_manual_task_follow_the_mode_changed(read: dict[str, 
     assert read[universe(N.COMMISSIONING_LINE)]["estimate_line"]["consumption_year"] == 2026
     [mounting] = dated["rescheduled"]
     assert Decimal(mounting["total_float"]["value"]) > 0
+
+
+def manual_on(first: date, last: date, role: str | None = None) -> mockcore.Dated:
+    """Return the commissioning, in manual mode, dated at two days entered without hours.
+
+    Its labour line is given to another role when one is said, and the task its calendar.
+    """
+    roots = mockwrites.amended(CORE, mockwrites.on_task(N.COMMISSIONING, manual=(first, last)))
+    if role is not None:
+        roots = mockwrites.amended(roots, line=mockwrites.on_line(N.COMMISSIONING_LINE, role=role))
+    return mockcore.schedule(roots)[N.COMMISSIONING]
+
+
+def test_dates_sent_without_their_hours_are_completed_on_the_calendar_of_the_task() -> None:
+    # #1244 (WF-PLA-0020, WF-DAT-0100): the front sends the days alone, with the counter the
+    # mode changed left; the answer carries the hours the server completed, the start at the
+    # start of its day, the finish at the end of that day's hours on the applicable calendar.
+    sent = gesture("task_dates_sent")
+    first, last = mockgestures.ENTERED_DATES
+    assert sent["start"] == {"date": first.isoformat()}
+    assert sent["finish"] == {"date": last.isoformat()}
+    [manual] = gesture("task_mode_changed")["nodes"]
+    assert sent["lock_version"] == manual["lock_version"]
+    hours = manual_on(first, last).calendar.hours_on(last)
+    assert hours > 0
+    [task] = gesture("task_dates_entered")["nodes"]
+    assert task["task"]["start"] == {"date": first.isoformat(), "hours": "0"}
+    assert task["task"]["finish"] == {"date": last.isoformat(), "hours": str(hours)}
+
+
+def test_the_hours_completed_are_those_of_the_calendar_of_the_role_of_the_task() -> None:
+    # #1244 (WF-PLA-0010, WF-PLA-0020): the commissioning given to the cable fitter, on the week
+    # of four days of ten hours, ends a Thursday entered at ten hours, not at the eight of the
+    # default calendar; it starts the Monday at no hour.
+    monday, thursday = date(2027, 1, 11), date(2027, 1, 14)
+    placed = manual_on(monday, thursday, mockwitness.CABLE_FITTER)
+    calendar = mockwitness.role_calendars()[mockwitness.CABLE_FITTER]
+    assert placed.calendar == calendar
+    assert calendar != mockwitness.default_calendar()
+    assert calendar.hours_on(thursday) != mockwitness.default_calendar().hours_on(thursday)
+    assert (placed.start.day, placed.start.hours) == (monday, 0)
+    assert (placed.finish.day, placed.finish.hours) == (thursday, calendar.hours_on(thursday))
+
+
+def test_hours_sent_past_those_of_their_day_are_refused_on_their_field() -> None:
+    # #1244 (WF-PLA-0010, WF-DAT-0100): hours sent are taken as they are, never bounded; past
+    # those the calendar of the task grants that day, they are refused, the bound crossed named,
+    # none on a Saturday.
+    day, hours = mockgestures.HOURS_BEYOND_DAY
+    first, _ = mockgestures.ENTERED_DATES
+    granted = manual_on(first, day).calendar.hours_on(day)
+    assert hours > granted == 0
+    refused = gesture("task_hours_beyond_day")
+    assert refused["code"] == "VALIDATION_FAILED"
+    assert refused["fields"] == [
+        {"pointer": "/finish/hours", "code": "VALUE_OUT_OF_RANGE", "params": {"maximum": "0"}}
+    ]
+
+
+def test_a_manual_date_on_a_day_without_hours_is_kept_at_no_hour() -> None:
+    # #1244: a day the calendar grants no hour is kept as entered, never moved (WF-PLA-0020),
+    # its start and its finish at no hour.
+    saturday, sunday = date(2027, 1, 16), date(2027, 1, 17)
+    placed = manual_on(saturday, sunday)
+    assert placed.calendar.hours_on(saturday) == placed.calendar.hours_on(sunday) == 0
+    assert (placed.start.day, placed.start.hours) == (saturday, 0)
+    assert (placed.finish.day, placed.finish.hours) == (sunday, 0)
 
 
 def test_a_duration_entered_in_weeks_is_kept_in_its_unit(read: dict[str, Node]) -> None:

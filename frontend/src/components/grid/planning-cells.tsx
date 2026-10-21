@@ -195,7 +195,7 @@ export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
   const name = (predecessor: Predecessor) =>
     t("predecessor", {
       row: predecessor.predecessor_row_number.toString(),
-      link: shownLink(predecessor),
+      code: t("linkCode", { link: shownLink(predecessor) }),
       direction: direction(predecessor.lag),
       lag: formatDecimal(predecessor.lag.value, locale),
       unit: units(predecessor.lag.unit),
