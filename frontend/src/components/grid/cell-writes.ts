@@ -425,13 +425,15 @@ export function useCellWrites<Row, Totals>(
       const from = shownRow(memory, rowKey, key) ?? row;
       const first = readRow(memory, rowKey, key);
       // A value the row the server last answered already holds — the same entry validated twice
-      // before the first answered — writes nothing: its write would carry the version alone
-      // (#819.8).
+      // before the first answered, or a cell refused typed anew as the row holds it — writes
+      // nothing: its write would carry the version alone (#819.8). The refusal of this cell, and
+      // the notice that tells it, are lifted: the cell holds a value the server accepted.
       if ((entry.value(from) ?? null) === value) {
         underWay.current -= 1;
         current(at.epoch, (before) => ({
           ...before,
           pending: changed(before.pending, cell, undefined),
+          ...(before.refused === cell ? { outcome: undefined, refused: undefined } : {}),
         }));
         settle(at);
         return true;

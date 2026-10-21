@@ -428,7 +428,8 @@
       (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue
       (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du
       budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à
-      l'affichage (WF-IHM-0070).
+      l'affichage (WF-IHM-0070), et chaque risque compté est un point à ses valeurs exactes
+      (`points`, #1053).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision

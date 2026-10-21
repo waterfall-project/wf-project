@@ -1,9 +1,10 @@
 {
-  "summary": "Le plan de charge agrégé du portefeuille au 3 juin 2026, sur six mois, au seuil de sous-charge de 50 % : les projets en cours sur leur reste à engager — le projet témoin aux heures de son propre plan de charge — et, ajoutées par la requête au périmètre par défaut, les offres en chiffrage sur leur devis pondéré par leur probabilité de gain ; l'ingénieur électricien, 3 800 personnes, en alerte en juillet 2026 et août 2026 ; le technicien de mise en service, 2 800 personnes, en sous-charge en novembre 2026 ; le monteur câbleur, 1 250 personnes, sans charge — aucun projet ne l'emploie —, sa capacité seule, en sous-charge. La capacité d'un rôle est ses heures mensuelles, tout son effectif compris, seules comparées à la charge — l'effectif n'est qu'une information (WF-REF-0100) — ; chaque mois porte sa zone, que le serveur classe (WF-PTF-0060, WF-IHM-0070).",
+  "summary": "Le plan de charge agrégé du portefeuille au 3 juin 2026, sur six mois, au seuil de sous-charge de 50 % : les projets en cours sur leur reste à engager — le projet témoin aux heures de son propre plan de charge — et, ajoutées par la requête au périmètre par défaut, les offres en chiffrage sur leur devis pondéré par leur probabilité de gain ; l'ingénieur électricien, 3 800 personnes, en alerte en juillet 2026 et août 2026 ; le technicien de mise en service, 2 800 personnes, en sous-charge en novembre 2026 ; le monteur câbleur, 1 250 personnes, sans charge — aucun projet ne l'emploie —, sa capacité seule, en sous-charge. La capacité d'un rôle est ses heures mensuelles, tout son effectif compris, seules comparées à la charge — l'effectif n'est qu'une information (WF-REF-0100) — ; chaque mois porte sa zone, que le serveur classe (WF-PTF-0060, WF-IHM-0070). La capacité du périmètre, 1 360 640,50 heures par mois, est la somme de celles des rôles retenus, le monteur câbleur sans charge compris, et chaque mois porte le total de ses heures, de 687 320,59 à 1 135 130,19 : la droite et le sommet des barres du graphique, que le front ne somme pas (#375, #1051).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "scope": {"states":["in_progress","pricing"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":300},
     "under_load_threshold": "0.5",
+    "capacity_monthly_hours": "1360640.5",
     "months": [
       "2026-06",
       "2026-07",
@@ -11,6 +12,14 @@
       "2026-09",
       "2026-10",
       "2026-11"
+    ],
+    "monthly_totals": [
+      {"month":"2026-06","hours":"985866.36"},
+      {"month":"2026-07","hours":"1135130.19"},
+      {"month":"2026-08","hours":"1024059.05"},
+      {"month":"2026-09","hours":"851531.84"},
+      {"month":"2026-10","hours":"773532.15"},
+      {"month":"2026-11","hours":"687320.59"}
     ],
     "roles": [
       {"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","label":"Ingénieur électricien","capacity_monthly_hours":"658654","months":[{"month":"2026-06","hours":"636241.09","load_ratio":{"is_computable":true,"value":"0.966","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"733321.89","load_ratio":{"is_computable":true,"value":"1.1134","reason":null},"zone":"alert"},{"month":"2026-08","hours":"665805.56","load_ratio":{"is_computable":true,"value":"1.0109","reason":null},"zone":"alert"},{"month":"2026-09","hours":"557283.28","load_ratio":{"is_computable":true,"value":"0.8461","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"506462.93","load_ratio":{"is_computable":true,"value":"0.7689","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"449603.49","load_ratio":{"is_computable":true,"value":"0.6826","reason":null},"zone":"nominal"}]},

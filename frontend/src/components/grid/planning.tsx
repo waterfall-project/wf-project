@@ -261,8 +261,22 @@ type EditableField = components["schemas"]["EditableField"];
 /** The scheduling mode of a task (WF-PLA-0020). */
 type SchedulingMode = components["schemas"]["SchedulingMode"];
 
+/**
+ * The modes of a task, in the order of the contract: every one, one it adds failing the type check
+ * here (défaut n° 4).
+ */
+const SCHEDULING_MODES = {
+  automatic: true,
+  manual: true,
+} as const satisfies Record<SchedulingMode, true>;
+
+/** Whether a value chosen is a mode of a task. */
+function isMode(value: string | null): value is SchedulingMode {
+  return value !== null && Object.hasOwn(SCHEDULING_MODES, value);
+}
+
 /** The modes of a task, in the order of the contract. */
-const MODES: readonly SchedulingMode[] = ["automatic", "manual"];
+const MODES: readonly SchedulingMode[] = Object.keys(SCHEDULING_MODES).filter(isMode);
 
 /**
  * The fields of a task an entry writes: the cell entered, nothing else (#178) — and, for the
@@ -318,19 +332,22 @@ interface TaskEntered {
   readonly kind: EntryKind;
   readonly field: EditableField;
   readonly value: (node: PlanningNode) => CellValue;
-  readonly change: (node: PlanningNode, value: string | null) => TaskChange;
+  readonly change: (task: PlanningTask, value: string | null) => TaskChange;
 }
 
+/** The task of a node of the planning, which a cell of a task is entered from. */
+type PlanningTask = NonNullable<PlanningNode["task"]>;
+
 /**
- * The start or the finish of a task, entered as a date: the hours of work elapsed that day are those
- * the task had (WF-DAT-0100) — none, and a start begins the day, a finish ends at its first hour, as
- * the contract reads a finish at hour 0 —; the grid shows the date alone.
+ * The start or the finish of a task, entered as a date: it keeps the hours of work the task had at
+ * its former date, not those of the new day (WF-DAT-0100, #1244) — a task with no date there yet
+ * has none, and the date starts at hour 0, its first —; the grid shows the date alone.
  */
 function instant(
   field: "start" | "finish",
-): (node: PlanningNode, value: string | null) => TaskChange {
-  return (node, value) => ({
-    [field]: value === null ? null : { date: value, hours: node.task?.[field]?.hours ?? "0" },
+): (task: PlanningTask, value: string | null) => TaskChange {
+  return (task, value) => ({
+    [field]: value === null ? null : { date: value, hours: task[field]?.hours ?? "0" },
   });
 }
 
@@ -356,10 +373,7 @@ function taskColumns(writes: PlanningWrites): Readonly<Record<string, TaskEntere
       kind: { type: "choice", choices: () => modes, nullable: false },
       field: "task.scheduling_mode",
       value: (node) => node.task?.scheduling_mode,
-      change: (_, value) => {
-        const mode = MODES.find((each) => each === value);
-        return mode === undefined ? {} : { scheduling_mode: mode };
-      },
+      change: (_, value) => (isMode(value) ? { scheduling_mode: value } : {}),
     },
     // A duration with the suffix of its unit, kept in that unit (WF-PLA-0160).
     duration: {
@@ -389,7 +403,8 @@ function taskColumns(writes: PlanningWrites): Readonly<Record<string, TaskEntere
 /**
  * A column of a task entered through `writes`, where its node accepts the field — which the node
  * says, never the grid by its mode or its nature (#219) — and the server does not compute it there:
- * a computed cell is traversed, and refuses the entry (WF-IHM-0030, WF-PLA-0020).
+ * a computed cell is traversed, and refuses the entry (WF-IHM-0030, WF-PLA-0020). A node read
+ * without its task refuses it too: no change is made up for a task the grid did not read.
  */
 function taskColumn(
   column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
@@ -400,9 +415,14 @@ function taskColumn(
     ...column,
     entry: {
       kind: spec.kind,
-      in: (node) => node.editable_fields.includes(spec.field) && column.computed?.in(node) !== true,
+      in: (node) =>
+        node.task != null &&
+        node.editable_fields.includes(spec.field) &&
+        column.computed?.in(node) !== true,
       value: spec.value,
-      write: (node, value) => writes.task(node, spec.change(node, value)),
+      // A node without its task never gets here, its cells refusing the entry (`in`).
+      write: (node, value) =>
+        writes.task(node, node.task == null ? {} : spec.change(node.task, value)),
     },
   };
 }

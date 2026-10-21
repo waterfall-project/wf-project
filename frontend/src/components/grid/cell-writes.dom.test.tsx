@@ -527,4 +527,21 @@ describe("the outcome of a cell written, in any grid", () => {
     await answer(0, (row) => nodeAnswered(row, { hours: "1" }, undefined, 1));
     expect(over).toBe(true);
   });
+
+  it("lifts the refusal of a cell typed anew as the row holds it, writing nothing (#819.8)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse, from } = held<EstimateNode, NodeTotals>();
+    const hours: CellEntry<EstimateNode, NodeTotals> = {
+      ...entry,
+      value: (row) => row.estimate_line?.hours,
+    };
+    await enter(result.current, LABOUR, "hours", hours, "13");
+    await refuse(0, { kind: "refused", problem: refusedDate, conflictingObjectId: null });
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(true);
+    // « 12,50 » typed for the 12.5 the row holds: the entry validates the decimal the row writes.
+    await enter(result.current, LABOUR, "hours", hours, "12.5");
+    expect(from(1)).toBeUndefined();
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(false);
+    expect(result.current.outcome).toBeUndefined();
+  });
 });

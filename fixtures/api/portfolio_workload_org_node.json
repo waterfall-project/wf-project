@@ -1,9 +1,10 @@
 {
-  "summary": "Le même plan de charge agrégé, restreint à la direction technique : les trois rôles relèvent de ses descendants, le bureau d'études électricité et l'atelier de câblage, et restent retenus, avec les mêmes charges ; l'en-tête de la vue nomme le nœud (WF-PTF-0010, WF-PTF-0060, WF-REF-0070).",
+  "summary": "Le même plan de charge agrégé, restreint à la direction technique : les trois rôles relèvent de ses descendants, le bureau d'études électricité et l'atelier de câblage, et restent retenus, avec les mêmes charges ; l'en-tête de la vue nomme le nœud (WF-PTF-0010, WF-PTF-0060, WF-REF-0070) ; la capacité du périmètre, la somme de celles des rôles du nœud, et le total de chaque mois sont donc ceux du plan entier (#1051).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "scope": {"states":["in_progress","pricing"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":"01926f3a-7c00-7000-8000-000000000470","org_node_label":"Direction technique","project_count":300},
     "under_load_threshold": "0.5",
+    "capacity_monthly_hours": "1360640.5",
     "months": [
       "2026-06",
       "2026-07",
@@ -11,6 +12,14 @@
       "2026-09",
       "2026-10",
       "2026-11"
+    ],
+    "monthly_totals": [
+      {"month":"2026-06","hours":"985866.36"},
+      {"month":"2026-07","hours":"1135130.19"},
+      {"month":"2026-08","hours":"1024059.05"},
+      {"month":"2026-09","hours":"851531.84"},
+      {"month":"2026-10","hours":"773532.15"},
+      {"month":"2026-11","hours":"687320.59"}
     ],
     "roles": [
       {"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","label":"Ingénieur électricien","capacity_monthly_hours":"658654","months":[{"month":"2026-06","hours":"636241.09","load_ratio":{"is_computable":true,"value":"0.966","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"733321.89","load_ratio":{"is_computable":true,"value":"1.1134","reason":null},"zone":"alert"},{"month":"2026-08","hours":"665805.56","load_ratio":{"is_computable":true,"value":"1.0109","reason":null},"zone":"alert"},{"month":"2026-09","hours":"557283.28","load_ratio":{"is_computable":true,"value":"0.8461","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"506462.93","load_ratio":{"is_computable":true,"value":"0.7689","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"449603.49","load_ratio":{"is_computable":true,"value":"0.6826","reason":null},"zone":"nominal"}]},

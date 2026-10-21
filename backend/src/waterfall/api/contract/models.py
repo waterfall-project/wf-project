@@ -4402,6 +4402,46 @@ class RiskMatrixLevel(ContractModel):
     upper: Percent | None
 
 
+class RiskMatrixPoint(ContractModel):
+    risk_id: Uuid
+    label: str
+    probability: Percent
+    severity_amount: Annotated[
+        Money,
+        Field(
+            description="La gravité du risque (`Risk.severity`), ce qu'il coûterait s'il survenait."
+        ),
+    ]
+    severity_ratio: Annotated[
+        Percent,
+        Field(
+            description="La gravité en part de l'assiette du projet du risque — son budget de référence, ou avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —, arrondie à quatre décimales (README, « Une part… »). La case du risque et sa zone sont celles de la part exacte, que les bornes de gravité classent avant l'arrondi : une bulle à moins d'un demi-centième de pour cent d'une borne peut être tracée sur la ligne de cette borne, dans la case que dit `zone`."
+        ),
+    ]
+    provision_amount: Annotated[
+        Money, Field(description="La provision du risque (`Risk.provision_amount`, WF-RIS-0010).")
+    ]
+    state: RiskState
+    zone: Annotated[
+        AlertZone,
+        Field(description="La zone de la case du risque, que le serveur classe (WF-IHM-0070)."),
+    ]
+    project_id: Annotated[
+        Uuid | None,
+        Field(description="Le projet du risque, dans la matrice du portefeuille seulement."),
+    ] = None
+    project_label: Annotated[
+        str | None,
+        Field(description="Le libellé de ce projet, dans la matrice du portefeuille seulement."),
+    ] = None
+    can_open: Annotated[
+        bool | None,
+        Field(
+            description="Si l'appelant peut ouvrir le projet du risque (WF-ADM-0110), comme `PortfolioRisks.heaviest[].can_open`, dans la matrice du portefeuille seulement ; faux, la bulle nomme le risque et son projet, sans mener au détail (WF-PTF-0030)."
+        ),
+    ] = None
+
+
 class Cell(ContractModel):
     probability_level: Annotated[int, Field(ge=1, le=4)]
     severity_level: Annotated[int, Field(ge=1, le=4)]
@@ -4427,6 +4467,12 @@ class RiskMatrix(ContractModel):
         ),
     ]
     cells: list[Cell]
+    points: Annotated[
+        list[RiskMatrixPoint],
+        Field(
+            description="Un point par risque que la matrice retient — ceux que comptent ses cases —, avec son état, que l'écran filtre comme il filtre la grille (#1053) ; vide quand aucun risque n'est retenu."
+        ),
+    ]
     totals: ProvisionTotals
 
 
@@ -4852,6 +4898,11 @@ class Month1(RootModel[str]):
     root: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
 
 
+class MonthlyTotal(ContractModel):
+    month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
+    hours: Hours
+
+
 class Month2(ContractModel):
     month: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
     hours: Hours
@@ -4882,10 +4933,22 @@ class PortfolioWorkload(ContractModel):
             description="Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou, sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060)."
         ),
     ]
+    capacity_monthly_hours: Annotated[
+        Hours,
+        Field(
+            description="La capacité du périmètre, en heures par mois : la somme des capacités des rôles retenus (`roles[].capacity_monthly_hours`) — tous les rôles actifs sans filtre, ceux du nœud d'organisation avec lui (`org_node_id`) —, qu'un rôle sans charge compte aussi (#375). Le graphique du plan agrégé la trace en regard des barres, sans que le front somme les rôles (WF-PTF-0060, WF-ARC-0020, #1051)."
+        ),
+    ]
     months: Annotated[
         list[Month1],
         Field(
-            description="Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte un mois par mois de cette liste, dans le même ordre."
+            description="Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte un mois par mois de cette liste, dans le même ordre, et `monthly_totals` aussi."
+        ),
+    ]
+    monthly_totals: Annotated[
+        list[MonthlyTotal],
+        Field(
+            description="Le total des heures de chaque mois de `months`, dans le même ordre, un mois sans charge compris : la somme des heures des rôles retenus ce mois-là, que le sommet de la barre du mois porte (WF-PTF-0060, #1051)."
         ),
     ]
     roles: list[Role1]

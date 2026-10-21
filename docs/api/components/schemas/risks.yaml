@@ -348,14 +348,70 @@ RiskMatrixLevel:
     upper:
       anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
 
+RiskMatrixPoint:
+  type: object
+  required:
+    - risk_id
+    - label
+    - probability
+    - severity_amount
+    - severity_ratio
+    - provision_amount
+    - state
+    - zone
+  description: >-
+    Un risque que la matrice retient, à ses valeurs exactes, pour que le graphique le place
+    sans rien calculer (WF-RIS-0040, WF-ARC-0020, #1053) : sa probabilité en abscisse, sa
+    gravité en part de l'assiette en ordonnée, sa gravité en montant pour la taille de sa
+    bulle. Ses valeurs sont celles du risque lu (`Risk`), et sa zone celle de sa case
+    (`Risk.matrix_cell`). Dans la matrice du portefeuille, il nomme aussi son projet :
+    `project_id`, `project_label` et `can_open` vont ensemble, présents tous les trois dans
+    la matrice du portefeuille, absents tous les trois dans celle d'un projet.
+  properties:
+    risk_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    probability: { $ref: ../common.yaml#/Percent }
+    severity_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: La gravité du risque (`Risk.severity`), ce qu'il coûterait s'il survenait.
+    severity_ratio:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: >-
+        La gravité en part de l'assiette du projet du risque — son budget de référence, ou
+        avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —,
+        arrondie à quatre décimales (README, « Une part… »). La case du risque et sa zone
+        sont celles de la part exacte, que les bornes de gravité classent avant l'arrondi :
+        une bulle à moins d'un demi-centième de pour cent d'une borne peut être tracée sur la
+        ligne de cette borne, dans la case que dit `zone`.
+    provision_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: La provision du risque (`Risk.provision_amount`, WF-RIS-0010).
+    state: { $ref: '#/RiskState' }
+    zone:
+      allOf: [{ $ref: reference.yaml#/AlertZone }]
+      description: La zone de la case du risque, que le serveur classe (WF-IHM-0070).
+    project_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: Le projet du risque, dans la matrice du portefeuille seulement.
+    project_label:
+      type: string
+      description: Le libellé de ce projet, dans la matrice du portefeuille seulement.
+    can_open:
+      type: boolean
+      description: >-
+        Si l'appelant peut ouvrir le projet du risque (WF-ADM-0110), comme
+        `PortfolioRisks.heaviest[].can_open`, dans la matrice du portefeuille seulement ;
+        faux, la bulle nomme le risque et son projet, sans mener au détail (WF-PTF-0030).
+
 RiskMatrix:
   type: object
-  required: [probability_levels, severity_levels, cells, totals]
+  required: [probability_levels, severity_levels, cells, points, totals]
   description: >-
     Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes
     se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans
     la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des
-    projets retenus pour celle du portefeuille.
+    projets retenus pour celle du portefeuille. Elle les compte par case (`cells`) et les
+    rend un par un (`points`), les mêmes.
   properties:
     probability_levels:
       type: array
@@ -381,6 +437,13 @@ RiskMatrix:
           severity_level: { type: integer, minimum: 1, maximum: 4 }
           count: { type: integer, minimum: 0 }
           zone: { $ref: reference.yaml#/AlertZone }
+    points:
+      type: array
+      description: >-
+        Un point par risque que la matrice retient — ceux que comptent ses cases —, avec son
+        état, que l'écran filtre comme il filtre la grille (#1053) ; vide quand aucun risque
+        n'est retenu.
+      items: { $ref: '#/RiskMatrixPoint' }
     totals: { $ref: '#/ProvisionTotals' }
 
 ProvisionTotals:
