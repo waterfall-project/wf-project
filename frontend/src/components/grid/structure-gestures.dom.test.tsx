@@ -190,10 +190,7 @@ function remainingGrid(editable: boolean, withCategories = true, nodes: NodeList
 const CREATE_COMPLETED_REFUSED = {
   problem: example("estimate_line_completed_refused") as Problem & { status: 409 },
 };
-/**
- * The refusal of a deletion under a task completed, which the contract has no example of, and of
- * a version no longer the current one, whose example waits on #1210.
- */
+/** The refusal of a deletion under a task completed, which the contract has no example of. */
 const COMPLETED_REFUSED = {
   problem: {
     code: "STATE_FORBIDS_OPERATION",
@@ -201,9 +198,10 @@ const COMPLETED_REFUSED = {
     params: { missing_condition: "task_not_completed" },
   },
 } as const;
+/** The refusal of a deletion sent with a counter no longer the current one, as the fake back gives it (#1210). */
 const STALE_REFUSED = {
-  problem: { code: "STALE_LOCK_VERSION", status: 412, params: { expected_lock_version: 3 } },
-} as const;
+  problem: example("node_delete_stale") as Problem & { status: 412 },
+};
 
 beforeEach(() => {
   window.sessionStorage.clear();
@@ -362,14 +360,23 @@ describe("the refusal of the first task of a grid with no row", () => {
 });
 
 describe("the gestures that delete tasks and lines", () => {
-  it("deletes a line at once, and reads the grid anew", async () => {
+  // The estimate, each node read at a counter of its own — the example has them all at 1 —, so
+  // that the counter a deletion sends names the node it was read from (WF-IHM-0110, #1210).
+  const counted: NodeList = {
+    ...estimate,
+    items: estimate.items.map((item, index) => ({ ...item, lock_version: 10 + index })),
+  };
+  const counterOf = (row: number) => counted.items[row]?.lock_version.toString();
+
+  it("deletes a line at once, sent with the counter of the line, and reads the grid anew", async () => {
     const client = serve({ [DELETE]: "node_deleted" });
-    render(estimateGrid());
+    render(estimateGrid(true, true, counted));
     await choose(LINE, "Supprimer");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(client.calls.map((call) => [call.route, call.path.split("/").at(-1)])).toEqual([
       [DELETE, node(LINE)?.node_id],
     ]);
+    expect(client.calls[0]?.query.get("lock_version")).toBe(counterOf(LINE));
     expect(await screen.findByText("« Raccordement des borniers » supprimée.")).toBeVisible();
     expect(router.refresh).toHaveBeenCalledTimes(1);
     expect(readMessages().messages).toMatchObject([
@@ -496,6 +503,24 @@ describe("the gestures that delete tasks and lines", () => {
     );
     expect(client.calls.map((call) => call.route)).toEqual([DELETE]);
     expect(await screen.findByText("« Poste de commande » supprimée.")).toBeVisible();
+  });
+
+  it("sends the counter of the summary named, not that of one of its subordinates", async () => {
+    const client = serve({ [DELETE]: "node_summary_deleted" });
+    render(estimateGrid(true, true, counted));
+    await choose(SUMMARY, "Supprimer");
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
+    );
+    expect(client.calls.map((call) => [call.route, call.path.split("/").at(-1)])).toEqual([
+      [DELETE, node(SUMMARY)?.node_id],
+    ]);
+    const subordinates = counted.items
+      .filter((item) => item.parent_id === node(SUMMARY)?.node_id)
+      .map((item) => item.lock_version.toString());
+    expect(subordinates).not.toEqual([]);
+    expect(subordinates).not.toContain(counterOf(SUMMARY));
+    expect(client.calls[0]?.query.get("lock_version")).toBe(counterOf(SUMMARY));
   });
 });
 

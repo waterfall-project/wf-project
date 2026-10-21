@@ -69,7 +69,11 @@
       n'en existe qu'une, et appartient au sous-projet qu'il désigne, facultativement
       (WF-RIS-0010 ; EP-14/L42p, #579, C-299) : le formulaire lit les catégories actives
       (`listCostCategories`, `cost_type_kind`) et les sous-projets du projet (`listSubprojects`)
-      pour en proposer le choix.
+      pour en proposer le choix. Elle est portée par la tâche de la structure principale qu'il
+      désigne, facultativement, et à défaut par la première tâche de premier niveau
+      (`provision_task_id`, WF-RIS-0010, #786) : le formulaire lit les tâches de la structure
+      principale (`listNodes`). La réponse nomme la structure propre créée (`structure_id`), la
+      ligne de provision (`provision_node_id`) et sa tâche (`provision_task`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -83,6 +87,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+            examples:
+              created: { $ref: ../../../fixtures/api/risk_created.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -120,12 +126,16 @@
           `INACTIVE_REFERENCE_OBJECT` — une catégorie désactivée, ce qu'est toute catégorie
           d'une nature désactivée (WF-REF-0010, C-291) —, ou d'une nature d'un autre type,
           `PROVISION_CATEGORY_REQUIRED` ; `/provision_subproject_id` que le projet n'a pas,
-          `UNKNOWN_SUBPROJECT` (WF-RIS-0010). Rien n'est écrit.
+          `UNKNOWN_SUBPROJECT` ; `/provision_task_id` qui n'est pas une tâche de la structure
+          principale de la révision en cours, `UNKNOWN_TASK` (WF-RIS-0010, #786). Rien n'est
+          écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               provision_refused: { $ref: ../../../fixtures/api/risk_provision_refused.json }
+              provision_task_refused:
+                $ref: ../../../fixtures/api/risk_provision_task_refused.json
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}:
@@ -166,9 +176,10 @@
       (409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists` ; décision
       de l'auteur, #732) ; refusée sur un risque survenu, par 409
       `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la
-      commande `update` du risque le disait déjà indisponible. La catégorie et le sous-projet de
-      la provision se changent tant que le risque est identifié (WF-RIS-0010), ce que la commande
-      `update_provision` dit d'avance ; omis, ils restent ceux du risque.
+      commande `update` du risque le disait déjà indisponible. La catégorie, le sous-projet et la
+      tâche de la provision se changent tant que le risque est identifié (WF-RIS-0010), ce que la
+      commande `update_provision` dit d'avance ; omis, ils restent ceux du risque. Une autre tâche
+      déplace la ligne de provision sur elle, le total du devis inchangé (WF-RIS-0010, #786).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -183,6 +194,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+            examples:
+              updated: { $ref: ../../../fixtures/api/risk_updated.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -191,9 +204,9 @@
         description: >-
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un
           risque survenu, que la commande `update` dit indisponible ; sinon à `risk_identified`
-          pour une autre catégorie ou un autre sous-projet de provision envoyés pour un risque
-          écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Rien n'est
-          écrit.
+          pour une autre catégorie, un autre sous-projet ou une tâche de provision envoyés pour un
+          risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Rien
+          n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -309,6 +322,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+            examples:
+              reviewed: { $ref: ../../../fixtures/api/risk_reviewed.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -364,6 +379,8 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_occurrence_queued.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

@@ -2045,10 +2045,12 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   chaque tâche par `wftools.mocksort`) ; les réponses des
   écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
   de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un
-  nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`), et les refus
+  nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur
+  l'avenant 2 dans `wftools.mockamendmentwrites`), et les refus
   d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
   (`wftools.mockexchanges`) ; son
-  histoire, ses révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
+  histoire, ses révisions comparées et ses risques (`wftools.mockhistory`), et les réponses des
+  saisies d'un risque (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
   les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`) ;

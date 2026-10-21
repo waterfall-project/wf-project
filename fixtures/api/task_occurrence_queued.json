@@ -1,0 +1,14 @@
+{
+  "summary": "La survenance de « Retard de livraison des armoires », confirmée le 20 février 2026 à 16 h : la fusion de son devis propre dans la structure principale de la révision en cours est confiée au worker, la tâche de fond en file, pas encore commencée (risk_occurred_detail ; WF-RIS-0060, WF-ARC-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000949",
+    "kind": "risk_occurrence",
+    "status": "queued",
+    "progress": 0,
+    "submitted_at": "2026-02-20T16:00:00Z",
+    "finished_at": null,
+    "problem": null,
+    "result_url": null
+  }
+}

@@ -5,9 +5,11 @@
 The service refuses a query parameter out of its schema by 422 ``VALIDATION_FAILED``, on any
 operation that has one, and a stale ``lock_version`` by 412 ``STALE_LOCK_VERSION``, on any
 writing that carries one (``waterfall.api.problems``). An operation that does not declare them
-gives an answer the contract does not hold, which ``ContractClient`` would refuse. The rules of
-``redocly.yaml`` cannot read a parameter's place or a body's properties through their
-references: the contract is read here, its references followed.
+gives an answer the contract does not hold, which ``ContractClient`` would refuse. And the other
+way round, a 412 is declared only by a writing that sends a counter, in its body or among its
+parameters, that may go stale: one that sends none declares a refusal it can never give (#1210).
+The rules of ``redocly.yaml`` cannot read a parameter's place or a body's properties through
+their references: the contract is read here, its references followed.
 """
 
 from pathlib import Path
@@ -75,8 +77,18 @@ class Contract:
         """Name the statuses an operation declares."""
         return {str(status) for status in cast("dict[Any, Any]", operation["responses"])}
 
-    def carries_lock_version(self, operation: dict[str, Any], base: Path) -> bool:
-        """Tell an operation whose body, read as JSON, carries ``lock_version``."""
+    def carries_lock_version(
+        self, operation: dict[str, Any], parameters: list[dict[str, Any]], base: Path
+    ) -> bool:
+        """Tell an operation that carries ``lock_version``: in its query, or in its body as JSON.
+
+        A deletion sends the counter of its node in its query (#1210), as a writing with a body
+        sends it in its body.
+        """
+        if any(
+            each.get("in") == "query" and each.get("name") == "lock_version" for each in parameters
+        ):
+            return True
         body = operation.get("requestBody")
         if body is None:
             return False
@@ -84,6 +96,24 @@ class Contract:
         content = cast("dict[str, Any]", body.get("content") or {})
         schema = cast("dict[str, Any]", content.get("application/json") or {}).get("schema")
         return schema is not None and "lock_version" in self.properties(schema, base)
+
+    def sends_counter(
+        self, operation: dict[str, Any], parameters: list[dict[str, Any]], base: Path
+    ) -> bool:
+        """Tell an operation that sends a counter: ``lock_version``, or ``…_lock_version``.
+
+        In its body, read as JSON, or among its parameters: a merge sends the counters of its two
+        structures, a deletion the counter of its node in its query (#1210).
+        """
+        names = {str(each.get("name")) for each in parameters}
+        body = operation.get("requestBody")
+        if body is not None:
+            body, found = self.follow(body, base)
+            content = cast("dict[str, Any]", body.get("content") or {})
+            schema = cast("dict[str, Any]", content.get("application/json") or {}).get("schema")
+            if schema is not None:
+                names |= self.properties(schema, found)
+        return any(name == "lock_version" or name.endswith("_lock_version") for name in names)
 
 
 def without_422(contract: Contract) -> list[str]:
@@ -97,12 +127,22 @@ def without_422(contract: Contract) -> list[str]:
 
 
 def without_412(contract: Contract) -> list[str]:
-    """Name the operations whose body carries ``lock_version`` that do not declare 412."""
+    """Name the operations that carry ``lock_version`` and do not declare 412."""
     return [
         name
-        for name, operation, _, base in contract.operations()
-        if contract.carries_lock_version(operation, base)
+        for name, operation, parameters, base in contract.operations()
+        if contract.carries_lock_version(operation, parameters, base)
         and "412" not in contract.statuses(operation)
+    ]
+
+
+def without_counter(contract: Contract) -> list[str]:
+    """Name the operations that declare 412 and send no counter that could go stale."""
+    return [
+        name
+        for name, operation, parameters, base in contract.operations()
+        if "412" in contract.statuses(operation)
+        and not contract.sends_counter(operation, parameters, base)
     ]
 
 
@@ -112,6 +152,11 @@ def test_every_operation_with_a_query_parameter_declares_its_422() -> None:
 
 def test_every_writing_that_carries_a_lock_version_declares_its_412() -> None:
     assert without_412(Contract(CONTRACT)) == []
+
+
+def test_every_writing_that_declares_a_412_sends_a_counter() -> None:
+    # #1210: a 412 nothing sent can make stale is a refusal the service never gives.
+    assert without_counter(Contract(CONTRACT)) == []
 
 
 def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
@@ -136,12 +181,28 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
         "      requestBody:\n"
         "        content: { application/json: { schema: { $ref: 'schemas.yaml#/Change' } } }\n"
         "      responses: { '200': {}, '400': {}, '422': {} }\n"
+        "    delete:\n"
+        "      operationId: deleteThings\n"
+        "      responses: { '204': {}, '412': {} }\n"
         "  /others:\n"
         "    get:\n"
         "      operationId: listOthers\n"
         "      parameters: [{ $ref: 'parameters.yaml#/Limit' }]\n"
-        "      responses: { '200': {}, '422': {} }\n",
+        "      responses: { '200': {}, '422': {} }\n"
+        "    delete:\n"
+        "      operationId: deleteOthers\n"
+        "      parameters: [{ name: lock_version, in: query, schema: { type: integer } }]\n"
+        "      responses: { '204': {}, '412': {}, '422': {} }\n"
+        "  /stale:\n"
+        "    delete:\n"
+        "      operationId: deleteStale\n"
+        "      parameters: [{ name: lock_version, in: query, schema: { type: integer } }]\n"
+        "      responses: { '204': {}, '422': {} }\n",
         encoding="utf-8",
     )
     contract = Contract(tmp_path / "openapi.yaml")
-    assert (without_422(contract), without_412(contract)) == (["listThings"], ["changeThings"])
+    assert (without_422(contract), without_412(contract), without_counter(contract)) == (
+        ["listThings"],
+        ["changeThings", "deleteStale"],
+        ["deleteThings"],
+    )

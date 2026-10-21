@@ -1,0 +1,10 @@
+{
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, les « Borniers » du « Câblage des armoires » déplacés sous les « Études de détail », terminées : aucune ligne ne se déplace vers une tâche terminée, qui se rouvre d'abord depuis le Kanban. Le déplacement est refusé, la condition nommée ; rien ne bouge (WF-DEV-0050, WF-RAE-0030, #1214).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"task_not_completed"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001195"
+  }
+}

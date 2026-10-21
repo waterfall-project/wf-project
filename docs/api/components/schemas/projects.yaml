@@ -227,8 +227,9 @@ CommandCondition:
     manque, dans l'ordre où la commande les liste (EP-14/L42k).
     `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche
     terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
-    et à la création d'une ligne sous une tâche terminée, qui se rouvre d'abord depuis le Kanban :
-    `createNode` la nomme dans son 409 (WF-DEV-0050, WF-RAE-0030 ; #1184).
+    et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
+    elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans
+    leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214).
     `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun
     différentiel de la révision n'est à fusionner, et la révision la nomme
     (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en

@@ -209,18 +209,20 @@ export async function createNode(
 
 /**
  * Delete a node of the structure of a grid (WF-PLA-0070): a task with its lines and its links, a
- * summary with its subordinates too. The API answers the ancestors recalculated, the totals and the
- * version the structure moved on to — or refuses it, a task already started or bearing an actual
- * cost among its reasons.
+ * summary with its subordinates too, sent with the counter of the node the grid read
+ * (WF-IHM-0110, #1210). The API answers the ancestors recalculated, the totals and the version the
+ * structure moved on to — or refuses it, a task already started or bearing an actual cost, or a
+ * node written since it was read, among its reasons.
  */
 export async function deleteNode(
   structure: StructurePath,
   nodeId: string,
+  lockVersion: number,
 ): Promise<Outcome<NodesWritten>> {
   return decode(() =>
     serverClient().DELETE(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}",
-      nodePath(structure, nodeId),
+      { params: { ...nodePath(structure, nodeId).params, query: { lock_version: lockVersion } } },
     ),
   );
 }

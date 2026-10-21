@@ -22,6 +22,7 @@ Risk:
     - provision_cost_category_is_active
     - provision_subproject_id
     - provision_subproject_label
+    - provision_task
     - computed_fields
     - available_commands
     - audit
@@ -94,6 +95,15 @@ Risk:
       description: >-
         Le libellé de ce sous-projet, résolu à la lecture ; nul pour une provision hors
         sous-projet.
+    provision_task:
+      anyOf: [{ $ref: '#/ProvisionTask' }, { type: 'null' }]
+      description: >-
+        La tâche de la structure principale de la révision lue qui porte la ligne de provision
+        (`provision_node_id`), par son nœud et son libellé, résolu à la lecture : celle que le
+        risque a désignée à sa déclaration ou depuis, tant qu'il était identifié, et à défaut la
+        première tâche de premier niveau (WF-RIS-0010, #786). Le formulaire la présente et la
+        propose de nouveau sans relire la structure (WF-ARC-0020). Nulle quand le risque n'est pas
+        identifié : il ne porte alors aucune ligne de provision.
     matrix_cell: { $ref: '#/RiskMatrixCell' }
     last_review_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
@@ -122,6 +132,16 @@ Risk:
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+ProvisionTask:
+  type: object
+  required: [node_id, label]
+  description: >-
+    La tâche de la structure principale qui porte la ligne de provision d'un risque
+    (WF-RIS-0010), par son nœud et son libellé, comme un refus nomme une tâche.
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+
 RiskCommand:
   type: string
   enum:
@@ -132,13 +152,13 @@ RiskCommand:
     - delete
   description: >-
     Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), et parmi ses
-    attributs changer la catégorie ou le sous-projet de sa provision (`updateRisk`,
-    `provision_cost_category_id`, `provision_subproject_id`), le réexaminer — l'écarter ou le
-    réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer survenu
+    attributs changer la catégorie, le sous-projet ou la tâche de sa provision (`updateRisk`,
+    `provision_cost_category_id`, `provision_subproject_id`, `provision_task_id`), le réexaminer —
+    l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer survenu
     (`declareRiskOccurrence`), le supprimer (`deleteRisk`). `update_provision`, toujours listée
-    avec `update`, dit d'avance que la catégorie et le sous-projet de la provision ne changent que
-    tant que le risque est identifié, `risk_identified` manquante sinon (WF-RIS-0010 ;
-    EP-14/L42p), comme `update_win_probability` le dit de la probabilité de gain d'un projet ;
+    avec `update`, dit d'avance que la catégorie, le sous-projet et la tâche de la provision ne
+    changent que tant que le risque est identifié, `risk_identified` manquante sinon (WF-RIS-0010 ;
+    EP-14/L42p, #786), comme `update_win_probability` le dit de la probabilité de gain d'un projet ;
     elle ne nomme que `risk_identified`, pour un risque survenu comme pour un risque écarté.
     Les saisies relèvent de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles,
     `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la
@@ -186,7 +206,8 @@ RiskWrite:
     le champ peut être omis. Sans aucune, la déclaration est refusée par 409, de même,
     `params.missing_condition` à `active_provision_category`. La commande `declare_risk` dit
     d'avance l'une et l'autre condition (EP-14/L42s). Le sous-projet de la provision est
-    facultatif.
+    facultatif, comme la tâche qui la porte : sans désignation, la première tâche de premier
+    niveau de la structure principale (WF-RIS-0010, #786).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -218,13 +239,25 @@ RiskWrite:
         reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé
         pour un risque qui n'est pas identifié, est refusé comme la catégorie, par
         `risk_identified`.
+    provision_task_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        La tâche de la structure principale de la révision en cours qui porte la ligne de
+        provision, facultative : « à défaut de désignation, elle est portée par la première tâche
+        de premier niveau de la structure » (WF-RIS-0010, #786). Une récapitulative la porte comme
+        une feuille ; la ligne n'entre pas dans l'état de sa tâche (WF-PLA-0040). Un nœud qui
+        n'est pas une tâche de cette structure — une ligne, une tâche d'une autre structure, un
+        identifiant inconnu — est refusé par 422, `UNKNOWN_TASK`. À la modification, omise, elle
+        reste celle du risque ; `null` la rend à la première tâche de premier niveau ; une autre
+        déplace la ligne sur elle, le total du devis inchangé. Changée pour un risque qui n'est pas
+        identifié, elle est refusée comme la catégorie, par `risk_identified` (`update_provision`).
 
 RiskUpdate:
   description: >-
     Modification d'un risque : porte le compteur lu,
-    qu'une création n'a pas. La catégorie et le sous-projet de la provision, omis, restent ceux
-    du risque ; changés, ils ne le sont que tant que le risque est identifié (WF-RIS-0010,
-    `update_provision`).
+    qu'une création n'a pas. La catégorie, le sous-projet et la tâche de la provision, omis,
+    restent ceux du risque ; changés, ils ne le sont que tant que le risque est identifié
+    (WF-RIS-0010, `update_provision`).
   allOf:
     - $ref: '#/RiskWrite'
     - type: object
