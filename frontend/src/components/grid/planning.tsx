@@ -49,6 +49,7 @@ import {
   type NodeTotals,
   type RowOf,
 } from "./nodes";
+import type { ChoiceOption } from "./row-choices";
 import {
   type AttachmentChange,
   attachmentChange,
@@ -62,6 +63,7 @@ import {
   PredecessorsCell,
   ProgressCell,
   SchedulingModeCell,
+  TrackingCell,
 } from "./planning-cells";
 
 /** What the grid of the planning asks the server to render: the tasks, not the lines. */
@@ -87,6 +89,7 @@ export const PLANNING_FIELDS = {
     "order_item_id",
     "work_package_id",
     "work_breakdown_label",
+    "tracking",
   ],
   line: [],
 } as const satisfies AnyNodeFields;
@@ -217,6 +220,18 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       contract: "work_breakdown",
       value: (node) => node.task?.work_breakdown_label,
     },
+    // The timelines the task is inscribed to (WF-PLA-0060), by their names; hidden until the account
+    // shows it, and read only: they are chosen in the menu of the cell (`row-choices.tsx`).
+    {
+      key: "timelines",
+      label: "timelines",
+      format: "text",
+      width: 160,
+      hidden: true,
+      // Never shown: the cell renders the names of the timelines (`planningGrid`).
+      value: () => undefined,
+      render: (node) => <TrackingCell node={node} names={new Map()} />,
+    },
     {
       key: "gantt",
       label: "gantt",
@@ -280,20 +295,33 @@ function attachmentColumn(
   };
 }
 
+/** The column of the timelines, naming each of the project by its label. */
+function timelinesColumn(
+  column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
+  timelines: readonly ChoiceOption[],
+): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
+  const names = new Map(timelines.map((timeline) => [timeline.id, timeline.label]));
+  return { ...column, render: (node) => <TrackingCell node={node} names={names} /> };
+}
+
 /**
  * The grid of the planning: the attachment of its tasks entered through `attachment` — a revision
  * whose planning may be entered (`edit_planning`), and the work breakdown read whole —; none, and the
- * grid is read only.
+ * grid is read only. The timelines of the project name the inscriptions of its tasks.
  */
 export function planningGrid(
   attachment?: PlanningAttachment,
+  timelines: readonly ChoiceOption[] = [],
 ): GridConfig<PlanningNode, NodeSortColumn, NodeTotals> {
-  return attachment === undefined
-    ? PLANNING_GRID
-    : {
-        ...PLANNING_GRID,
-        columns: PLANNING_GRID.columns.map((column) =>
-          column.key === "work_breakdown" ? attachmentColumn(column, attachment) : column,
-        ),
-      };
+  return {
+    ...PLANNING_GRID,
+    columns: PLANNING_GRID.columns.map((column) => {
+      if (column.key === "timelines") {
+        return timelinesColumn(column, timelines);
+      }
+      return attachment !== undefined && column.key === "work_breakdown"
+        ? attachmentColumn(column, attachment)
+        : column;
+    }),
+  };
 }

@@ -76,11 +76,13 @@ function readAnew(
   return { ...planning, items: [planning.items[STUDIES], ...children] } as NodeList;
 }
 
-/** Read the grid anew, as Next commits the reading held: the rows and its end in one commit. */
-async function reread(view: ReturnType<typeof render>, nodes: NodeList) {
+/**
+ * Read the grid anew, as Next commits the reading held: the rows and the end of the transition in
+ * one commit (`releaseReading`).
+ */
+async function reread(nodes: NodeList) {
   await act(async () => {
-    view.rerender(planningGrid(nodes));
-    releaseReading();
+    releaseReading(planningGrid(nodes));
     await Promise.resolve();
   });
 }
@@ -284,9 +286,7 @@ describe("the selection of rows by their handles", () => {
     expect(screen.queryByText(/sélectionnée/)).toBeNull();
   });
 
-  it("lifts the selection the folding of a row that bears it takes out, and keeps it when its ends stay shown [WF-IHM-0100-A]", async () => {
-    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : the folding takes
-    // out no row the keys would go on from, selected unseen.
+  it("lifts the selection the folding of a row that bears it takes out, and keeps it when its ends stay shown", async () => {
     serve();
     render(planningGrid());
     // « Études » selected and folded: its ends stay shown, its subordinates go with it uncounted.
@@ -340,14 +340,13 @@ describe("the moves of a selection", () => {
     // and are still the rows selected.
     holdReading(router.refresh);
     serve();
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     fireEvent.click(handleAt(DESKS));
     fireEvent.click(handleAt(REVIEW), { shiftKey: true });
     await focus(cellAt(REVIEW, "label"));
     await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
     await screen.findByText("« Pupitres opérateurs » et la ligne suivante indentées.");
     await reread(
-      view,
       readAnew([DETAIL, DESKS, REVIEW, MILESTONE, FILE], { [DESKS]: DETAIL, [REVIEW]: DETAIL }),
     );
     expect(rowAt(DESKS)).toHaveAttribute("aria-level", "3");
@@ -359,7 +358,7 @@ describe("the moves of a selection", () => {
   it("moves the selection down after the sibling below it, from the menu of a cell, and up by the sibling above it going after it", async () => {
     holdReading(router.refresh);
     const client = serve();
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     fireEvent.click(handleAt(DESKS));
     fireEvent.click(handleAt(REVIEW), { shiftKey: true });
     fireEvent.contextMenu(cellAt(DESKS, "label"), { clientX: 300, clientY: 200 });
@@ -378,7 +377,7 @@ describe("the moves of a selection", () => {
     await screen.findByText("« Pupitres opérateurs » et la ligne suivante descendues d’un rang.");
     // Read anew, the selection is below « Réception des études », at the fourth and the fifth rows,
     // and the active cell with it: the keys go on from there, with no click.
-    await reread(view, readAnew([DETAIL, MILESTONE, DESKS, REVIEW, FILE]));
+    await reread(readAnew([DETAIL, MILESTONE, DESKS, REVIEW, FILE]));
     expect(selectedRows()).toEqual([3, 4]);
     await userEvent.keyboard(UP);
     expect(moved(client)).toEqual([
@@ -421,7 +420,7 @@ describe("the moves through the reading anew they ask", () => {
     // neighbours of before with the version already moved on, and leave A B D C.
     holdReading(router.refresh);
     const client = serve();
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     await focus(cellAt(REVIEW, "label"));
     await userEvent.keyboard(UP);
     await screen.findByText("« Revue de conception » montée d’un rang.");
@@ -430,7 +429,7 @@ describe("the moves through the reading anew they ask", () => {
     // The key is taken, and the active cell stays where it was; the grid says it is busy.
     expect(cellAt(REVIEW, "label")).toHaveFocus();
     expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "true");
-    await reread(view, readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
+    await reread(readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
     expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "false");
     await userEvent.keyboard(DOWN);
     expect(moved(client)).toEqual([
@@ -468,12 +467,12 @@ describe("the moves through the reading anew they ask", () => {
     // keeps the focus once read anew, and moves on from the keys alone.
     holdReading(router.refresh);
     const client = serve();
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     await focus(cellAt(MILESTONE, "label"));
     await userEvent.keyboard(UP);
     await screen.findByText("« Réception des études » montée d’un rang.");
     // « Réception des études » is now the fourth row, where « Revue de conception » was.
-    await reread(view, readAnew([DETAIL, DESKS, MILESTONE, REVIEW, FILE]));
+    await reread(readAnew([DETAIL, DESKS, MILESTONE, REVIEW, FILE]));
     expect(cellAt(REVIEW, "label")).toHaveAttribute("tabindex", "0");
     expect(cellAt(REVIEW, "label")).toHaveTextContent("Réception des études");
     expect(cellAt(REVIEW, "label")).toHaveFocus();
@@ -500,13 +499,13 @@ describe("the moves through the reading anew they ask", () => {
     // the reading does not take them back to the row moved.
     holdReading(router.refresh);
     serve();
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     await focus(cellAt(REVIEW, "label"));
     await userEvent.keyboard(UP);
     await screen.findByText("« Revue de conception » montée d’un rang.");
     await keyDuringReading("{ArrowDown}");
     expect(cellAt(MILESTONE, "label")).toHaveFocus();
-    await reread(view, readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
+    await reread(readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
     expect(cellAt(MILESTONE, "label")).toHaveAttribute("tabindex", "0");
     expect(cellAt(MILESTONE, "label")).toHaveFocus();
     expect(cellAt(DESKS, "label")).toHaveAttribute("tabindex", "-1");
@@ -569,7 +568,7 @@ describe("the moves through the reading anew they ask", () => {
     const hold = held();
     holdReading(router.refresh);
     const client = serve(hold.until);
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     fireEvent.click(handleAt(DESKS));
     fireEvent.click(handleAt(REVIEW), { shiftKey: true });
     await focus(cellAt(REVIEW, "label"));
@@ -590,7 +589,7 @@ describe("the moves through the reading anew they ask", () => {
     ]);
     // The selection is the one made since, through the reading anew too.
     expect(selectedRows()).toEqual([FILE]);
-    await reread(view, readAnew([DESKS, REVIEW, DETAIL, MILESTONE, FILE]));
+    await reread(readAnew([DESKS, REVIEW, DETAIL, MILESTONE, FILE]));
     expect(selectedRows()).toEqual([FILE]);
   });
 });
@@ -678,7 +677,7 @@ describe("the drag of rows by their handles", () => {
   it("drops nothing while the grid is busy, then drops from the rows the reading anew shows", async () => {
     holdReading(router.refresh);
     const client = serve();
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     await focus(cellAt(REVIEW, "label"));
     await userEvent.keyboard(UP);
     await screen.findByText("« Revue de conception » montée d’un rang.");
@@ -692,7 +691,7 @@ describe("the drag of rows by their handles", () => {
       await Promise.resolve();
     });
     expect(moved(client)).toHaveLength(1);
-    await reread(view, readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
+    await reread(readAnew([DETAIL, REVIEW, DESKS, MILESTONE, FILE]));
     const { carried, target } = dragOver(FILE, DETAIL, 14);
     expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "into");
     drag("drop", target, carried, 114);
@@ -708,7 +707,7 @@ describe("the drag of rows by their handles", () => {
     // before « Études de détail » are moved on from the keys, with no click.
     holdReading(router.refresh);
     serve();
-    const view = render(planningGrid(), { wrapper: Reading });
+    render(planningGrid(), { wrapper: Reading });
     fireEvent.click(handleAt(DESKS));
     fireEvent.click(handleAt(REVIEW), { shiftKey: true });
     await focus(handleAt(DESKS));
@@ -716,52 +715,86 @@ describe("the drag of rows by their handles", () => {
     expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "before");
     drag("drop", target, carried, 102);
     await screen.findByText("« Pupitres opérateurs » et la ligne suivante déplacées.");
-    await reread(view, readAnew([DESKS, REVIEW, DETAIL, MILESTONE, FILE]));
+    await reread(readAnew([DESKS, REVIEW, DETAIL, MILESTONE, FILE]));
     expect(handleAt(DETAIL)).toHaveAttribute("tabindex", "0");
     expect(cellAt(DETAIL, "label")).toHaveTextContent("Pupitres opérateurs");
     expect(handleAt(DETAIL)).toHaveFocus();
     expect(selectedRows()).toEqual([DETAIL, DESKS]);
   });
 
-  it("gives the focus back to the active cell when the reading anew hides the row dropped, under a summary folded [WF-IHM-0100-A]", async () => {
-    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : « Dossier de
-    // conception » dropped under « Études de détail » folded is no longer shown, and the focus does
-    // not fall to the page.
+  it.each([
+    "in the commit that ends the reading, as Next commits it",
+    "before the end of the reading",
+  ])(
+    "gives the focus back to the active cell when the reading anew hides the row dropped, under a summary folded, the rows read anew %s [WF-IHM-0100-A]",
+    async (order) => {
+      // Chaque écran se parcourt entièrement au clavier et le focus reste visible : « Dossier de
+      // conception » dropped under « Études de détail » folded is no longer shown, and the focus
+      // does not fall to the page.
+      holdReading(router.refresh);
+      serve();
+      const view = render(
+        planningGrid(readAnew([DETAIL, DESKS, REVIEW, MILESTONE, FILE], { [DESKS]: DETAIL })),
+        { wrapper: Reading },
+      );
+      await toggleFold(DETAIL);
+      expect(rowAt(DETAIL)).toHaveAttribute("aria-expanded", "false");
+      // Folded, « Dossier de conception » is the fifth row shown.
+      const file = 4;
+      expect(cellAt(file, "label")).toHaveTextContent("Dossier de conception");
+      await focus(handleAt(file));
+      const { carried, target } = dragOver(file, DETAIL, 14);
+      expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "into");
+      drag("drop", target, carried, 114);
+      await screen.findByText("« Dossier de conception » déplacée.");
+      const read = readAnew([DETAIL, DESKS, FILE, REVIEW, MILESTONE], {
+        [DESKS]: DETAIL,
+        [FILE]: DETAIL,
+      });
+      if (order.startsWith("in")) {
+        // The cell that had the focus is removed by the very commit that ends the reading.
+        await reread(read);
+      } else {
+        // The cell is removed while the reading is under way, whichever commit ends it.
+        await act(async () => {
+          view.rerender(planningGrid(read));
+          await Promise.resolve();
+        });
+        await act(async () => {
+          releaseReading();
+          await Promise.resolve();
+        });
+      }
+      expect(screen.queryByText("Dossier de conception")).toBeNull();
+      const active = screen.getByRole("treegrid").querySelector('td[tabindex="0"]');
+      expect(active).not.toBeNull();
+      expect(active).toHaveFocus();
+      expect(document.body).not.toHaveFocus();
+    },
+  );
+
+  it("gives the focus back to a cell of the grid alone: a drop made with the focus on an element outside it, which the reading removes, leaves the focus to the page", async () => {
     holdReading(router.refresh);
     serve();
-    const view = render(
-      planningGrid(readAnew([DETAIL, DESKS, REVIEW, MILESTONE, FILE], { [DESKS]: DETAIL })),
-      { wrapper: Reading },
+    const page = (nodes: NodeList, outside: boolean) => (
+      <>
+        {outside ? <button type="button">Hors de la grille</button> : null}
+        {planningGrid(nodes)}
+      </>
     );
-    await toggleFold(DETAIL);
-    expect(rowAt(DETAIL)).toHaveAttribute("aria-expanded", "false");
-    // Folded, « Dossier de conception » is the fifth row shown.
-    const file = 4;
-    expect(cellAt(file, "label")).toHaveTextContent("Dossier de conception");
-    await focus(handleAt(file));
-    const { carried, target } = dragOver(file, DETAIL, 14);
-    expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "into");
+    render(page(planning, true), { wrapper: Reading });
+    screen.getByRole("button", { name: "Hors de la grille" }).focus();
+    const { carried, target } = dragOver(FILE, DETAIL, 14);
     drag("drop", target, carried, 114);
     await screen.findByText("« Dossier de conception » déplacée.");
-    // The rows read anew, then the end of the reading: the cell that had the focus is removed while
-    // the reading is under way, whichever commit ends it.
     await act(async () => {
-      view.rerender(
-        planningGrid(
-          readAnew([DETAIL, DESKS, FILE, REVIEW, MILESTONE], { [DESKS]: DETAIL, [FILE]: DETAIL }),
-        ),
+      releaseReading(
+        page(readAnew([DETAIL, DESKS, REVIEW, MILESTONE, FILE], { [FILE]: DETAIL }), false),
       );
       await Promise.resolve();
     });
-    await act(async () => {
-      releaseReading();
-      await Promise.resolve();
-    });
-    expect(screen.queryByText("Dossier de conception")).toBeNull();
-    const active = screen.getByRole("treegrid").querySelector('td[tabindex="0"]');
-    expect(active).not.toBeNull();
-    expect(active).toHaveFocus();
-    expect(document.body).not.toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Hors de la grille" })).toBeNull();
+    expect(screen.getByRole("treegrid").contains(document.activeElement)).toBe(false);
   });
 
   it("drops nothing but what the handles drag, by its type: a text dragged in moves no row", () => {
@@ -779,10 +812,10 @@ describe("the drag of rows by their handles", () => {
     expect(moved(client)).toEqual([]);
   });
 
-  it("drops no row before the first sub-task of a task that bears lines, which the planning does not show [WF-PLA-0080-A]", async () => {
-    // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : the
-    // place before « Études de détail », second under « Études » after a line the planning does not
-    // read, would rest on that line; before « Pupitres opérateurs », on « Études de détail » shown.
+  it("drops no row before the first sub-task of a task that bears lines, which the planning does not show", async () => {
+    // The place before « Études de détail », second under « Études » after a line the planning does
+    // not read, would rest on that line; before « Pupitres opérateurs », on « Études de détail »
+    // shown.
     const client = serve();
     const afterLine = {
       ...planning,

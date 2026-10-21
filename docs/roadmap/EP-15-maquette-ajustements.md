@@ -717,7 +717,7 @@ FF, DF en français — sont ceux de l'énumération du contrat, traduits par le
 
 ## US-0480 — Inscrire une tâche à une chronologie, porter une ligne à un sous-projet
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0060-A`, `WF-PRJ-0050-A`
 - **opérations** : `setNodeTracking`, `listTimelines`, `createTimeline`, `updateEstimateLine`,
   `listSubprojects`, `listNodes`

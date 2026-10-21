@@ -202,3 +202,28 @@ export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
     });
   return (node.predecessors ?? []).map(name).join(t("predecessorSeparator"));
 }
+
+/**
+ * Render the inscriptions of a task (WF-PLA-0060): the timelines it is inscribed to, each by its
+ * name, and « Suivi temps/temps » for a milestone inscribed to it. A timeline the project no longer
+ * lists, or the list of which the API refused, is left out: only a name is shown.
+ */
+export function TrackingCell({
+  node,
+  names,
+}: {
+  readonly node: PlanningNode;
+  /** The names of the timelines of the project, by identifier. */
+  readonly names: ReadonlyMap<string, string>;
+}) {
+  const t = useTranslations("planningGrid");
+  const structure = useTranslations("grid.structure");
+  return (node.task?.tracking ?? [])
+    .map((entry) =>
+      entry.kind === "milestone_tracking"
+        ? structure("milestoneTracking")
+        : names.get(entry.timeline_id ?? ""),
+    )
+    .filter((name) => name !== undefined)
+    .join(t("trackingSeparator"));
+}
