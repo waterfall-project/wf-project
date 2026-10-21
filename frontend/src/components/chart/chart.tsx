@@ -35,6 +35,8 @@ import {
   type MarkLineComponentOption,
   TitleComponent,
   type TitleComponentOption,
+  TooltipComponent,
+  type TooltipComponentOption,
 } from "echarts/components";
 import { type ComposeOption, init, use as register } from "echarts/core";
 import { LabelLayout } from "echarts/features";
@@ -60,12 +62,13 @@ register([
   LegendComponent,
   MarkLineComponent,
   TitleComponent,
+  TooltipComponent,
   AriaComponent,
   SVGRenderer,
   CanvasRenderer,
 ]);
 
-/** What a chart of the application may draw: lines and bars on a grid, a legend, marked lines. */
+/** What a chart of the application may draw: lines and bars on a grid, a legend, marked lines, a tooltip. */
 export type ChartOption = ComposeOption<
   | LineSeriesOption
   | BarSeriesOption
@@ -73,6 +76,7 @@ export type ChartOption = ComposeOption<
   | LegendComponentOption
   | MarkLineComponentOption
   | TitleComponentOption
+  | TooltipComponentOption
   | AriaComponentOption
 >;
 

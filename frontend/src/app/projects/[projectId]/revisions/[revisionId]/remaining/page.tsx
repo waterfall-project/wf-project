@@ -46,6 +46,7 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
+import { onBasis } from "@/components/workload/workload-basis";
 import { functionHref, leafOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../../../../title";
@@ -131,9 +132,16 @@ const KANBAN = leafOf("FBS-4.5.3");
 /** The icon of the Kanban, which its own screen shows too. */
 const KanbanIcon = LEAF_ICONS["FBS-4.5.3"];
 
+/** The workload of the project (FBS-4.4.4): the remaining to commit is what it is computed on here. */
+const WORKLOAD = leafOf("FBS-4.4.4");
+
+/** The icon of the workload, which its own screen shows too. */
+const WorkloadIcon = LEAF_ICONS["FBS-4.4.4"];
+
 /**
  * The title of the grid, and what it holds: the structure, its tasks and lines retained; the link
- * that shows the tasks not started too, or the tasks started alone; the link to the Kanban; and,
+ * that shows the tasks not started too, or the tasks started alone; the links to the Kanban and to
+ * the workload, opened on the remaining of the revision under way (#1069); and,
  * when the project lists the import of a remaining to commit, the link to the imports and exports.
  */
 function RemainingHeader({
@@ -142,6 +150,7 @@ function RemainingHeader({
   notStarted,
   progress,
   kanban,
+  workload,
   exchanges,
 }: {
   readonly label: string;
@@ -149,6 +158,7 @@ function RemainingHeader({
   readonly notStarted: boolean;
   readonly progress: string;
   readonly kanban: string | undefined;
+  readonly workload: string | undefined;
   readonly exchanges: ReactNode;
 }) {
   const t = useTranslations();
@@ -172,6 +182,12 @@ function RemainingHeader({
             <Link href={kanban} className={action}>
               <KanbanIcon aria-hidden="true" />
               {t(KANBAN.label)}
+            </Link>
+          )}
+          {workload === undefined ? null : (
+            <Link href={workload} className={action}>
+              <WorkloadIcon aria-hidden="true" />
+              {t(WORKLOAD.label)}
             </Link>
           )}
           {exchanges}
@@ -233,6 +249,7 @@ export default async function RemainingPage({
           notStarted={notStarted}
           progress={progressHref(at.pathname, searchQuery(search), !notStarted)}
           kanban={functionHref(KANBAN, at.context)}
+          workload={onBasis(functionHref(WORKLOAD, at.context), "current_remaining")}
           exchanges={
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }

@@ -637,7 +637,16 @@
       "none": "No load on the perimeter and horizon chosen.",
       "role": "Role",
       "capacity": "Monthly capacity",
-      "hours": "{hours} h"
+      "hours": "{hours} h",
+      "chartTitle": "Stacked load by role and by month",
+      "description": "Stacked bars of the load of the perimeter by month, divided by resource role, in hours, the total of each month at the top, with the capacity of the perimeter dashed; the capacity, the load and the zone of each role are in the table below.",
+      "exportTitle": "Aggregated workload",
+      "file": "aggregated-workload",
+      "capacityLine": "Capacity: {hours} h per month",
+      "capacityNote": "Capacity of the perimeter: {hours} h per month.",
+      "values": "Total load of each month",
+      "month": "Month",
+      "total": "Total (h)"
     },
     "pilotHealth": {
       "none": "No signal: the control of the projects of the perimeter is kept up.",
@@ -893,7 +902,8 @@
   "workload": {
     "title": "Project workload",
     "chartTitle": "Load by role and by month",
-    "description": "Bars of the load of each resource role by month, in hours; the monthly capacity of each role is in the table of the values, against its load.",
+    "description": "Stacked bars of the load of each resource role by month, in hours; the monthly capacity of each role is in the table of the values, against its load.",
+    "hoursUnit": "{hours} h",
     "basis": "Basis",
     "markedRevision": "Marked revision",
     "unnamedRevision": "Unnamed marked revision",

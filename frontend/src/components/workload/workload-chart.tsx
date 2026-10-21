@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The workload of a project (FBS-4.4.4, WF-DEV-0070), as the API computes it on the basis it
- * names: for each role of resource, in the order of the API, its load by month in bars, told apart
- * without their colour too (`bars`), the legend naming them; and, in the table of the values, the
+ * names: a stack of bars, one a month divided by role of resource, in the order of the API, the
+ * roles told apart without their colour too (`stackedRoles`), the legend naming them, the tooltip of
+ * a month listing them with their hours. The plan of a project carries no total of its months: the
+ * contract gives none, and nothing is summed here, so no total labels the top of a bar. And, in the table of the values, the
  * monthly capacity of each role in regard of its load, a role without load included. The plan of a
  * project presents no ratio of its load to the capacity, which is that of the whole installation:
  * the capacity is not drawn either, a line that would crush the bars (decision of the author on
@@ -26,7 +28,6 @@ import { useCallback } from "react";
 
 import type { components } from "@/api/generated/schema";
 import {
-  bars,
   Chart,
   type ChartOption,
   type ChartPalette,
@@ -38,6 +39,8 @@ import {
 import { CalculationDate } from "@/components/context/indicator";
 import { Signal } from "@/components/signal/signal";
 import { formatDecimal, formatLocale, formatMonth } from "@/i18n/format";
+
+import { monthTooltip, stackedRoles } from "./stacked-load";
 
 /** The workload of a project, as the API computes it. */
 export type WorkloadPlan = components["schemas"]["WorkloadPlan"];
@@ -135,14 +138,11 @@ export function WorkloadChart({ workload, provenance }: WorkloadChartProps) {
           axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
           splitLine: { lineStyle: { color: palette.grid } },
         },
-        series: roles.map((role, rank) => ({
-          ...bars(palette, rank),
-          name: role.label,
-          data: role.months.map((month) => [planningInstant(month.month), month.hours]),
-        })),
+        tooltip: monthTooltip(locale, (hours) => t("workload.hoursUnit", { hours })),
+        series: stackedRoles(palette, roles),
       };
     },
-    [roles, locale],
+    [roles, locale, t],
   );
 
   return (

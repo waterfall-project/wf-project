@@ -51,6 +51,7 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
+import { estimateBasis, onBasis } from "@/components/workload/workload-basis";
 import { functionHref, leafOf } from "@/navigation/functions";
 import { type Permission, requestSession } from "@/session/request";
 
@@ -291,7 +292,10 @@ export default async function EstimatePage({
         <EstimateHeader
           label={screen.label}
           totals={screen.nodes.totals}
-          workload={functionHref(WORKLOAD, at.context)}
+          workload={onBasis(
+            functionHref(WORKLOAD, at.context),
+            estimateBasis(screen.reading.project),
+          )}
           exchanges={
             <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
           }

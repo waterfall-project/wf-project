@@ -267,6 +267,14 @@ describe("the screen of the remaining to commit", () => {
     expect(text(page)).toContain("Kanban — task start");
   });
 
+  it("leads to the workload of the project on the remaining of the revision under way, in the same context [WF-DEV-0070-A]", async () => {
+    const page = await remainingAt({ subproject_id: SUBPROJECT });
+    expect(page).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/workload?subproject_id=${SUBPROJECT}&amp;basis=current_remaining"`,
+    );
+    expect(text(page)).toContain("Workload");
+  });
+
   it("places undo and redo in the remaining to commit of a revision in progress, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
     // Aucune commande n'annule un marquage : the grid of a marked revision enters nothing.
     const open = await remainingAt();

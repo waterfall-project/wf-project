@@ -13,6 +13,7 @@ import { withinBox } from "./scroll";
 const PROJECTS = "/portfolio/projects";
 const PERFORMANCE = "/portfolio/performance";
 const COST_CURVE = "/portfolio/cost-curve";
+const WORKLOAD = "/portfolio/workload";
 // The columns of the cost index and of the schedule index in the grid of the projects.
 const COST_INDEX = 8;
 const SCHEDULE_INDEX = 9;
@@ -154,4 +155,31 @@ test("exports the S-curve of the portfolio as a PNG image named after the date o
     ]);
   }).toPass({ timeout: WORKING });
   expect(download?.suggestedFilename()).toBe("couts-cumules-portefeuille-2026-06-03.png");
+});
+
+test("draws the aggregated workload in stacked bars with the dashed capacity of the perimeter, the table of the roles under it, and exports it as a PNG image [WF-PTF-0060-A] [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  await page.goto(WORKLOAD);
+  const figure = page.getByRole("figure", { name: "Charge empilée par rôle et par mois" });
+  await expect(figure.getByRole("img", { name: /^Barres empilées de la charge/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  // The capacity of the perimeter, as the server sums it, said under the title of the chart.
+  await expect(figure.getByText(/^Capacité du périmètre : /)).toBeVisible();
+  // The filter by node of organisation, in the head of the view; the table of the roles after the
+  // chart, in the order of the page.
+  await expect(page.getByLabel("Nœud d’organisation")).toBeVisible();
+  const table = page.getByRole("table", { name: "Charge par rôle et par mois" });
+  const chartTop = (await figure.boundingBox())?.y ?? 0;
+  expect((await table.boundingBox())?.y ?? 0).toBeGreaterThan(chartTop);
+  const command = figure.getByRole("button", { name: "Exporter en PNG" });
+  let download: Download | undefined;
+  await expect(async () => {
+    [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 1_000 }),
+      command.click(),
+    ]);
+  }).toPass({ timeout: WORKING });
+  expect(download?.suggestedFilename()).toBe("plan-de-charge-agrege-portefeuille-2026-06-03.png");
 });
