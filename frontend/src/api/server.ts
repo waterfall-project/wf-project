@@ -19,7 +19,7 @@ import "server-only";
 
 import { requestBearer } from "@/session/tokens";
 
-import { type ApiClient, createApiClient } from "./client";
+import { type ApiClient, type Connections, createApiClient } from "./client";
 
 /** The address used when none is configured: the fake back of `make mock`. */
 export const DEFAULT_ADDRESS = "http://localhost:4010";
@@ -42,9 +42,21 @@ export function isMockAuthentication(): boolean {
   return true;
 }
 
-/** The address of the API, as configured. */
-function apiAddress(): string {
-  return process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS;
+/**
+ * Where the API is, and how its connections are held, as configured: `WATERFALL_API_CONNECTIONS`
+ * is `closed` in the end-to-end harness alone (`playwright.config.ts`, `Connections`); unset, the
+ * connections are kept alive. Anything else is refused.
+ */
+function apiAt(): { readonly address: string; readonly connections: Connections } {
+  const address = process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS;
+  const named = process.env.WATERFALL_API_CONNECTIONS;
+  if (named === undefined || named === "" || named === "kept") {
+    return { address, connections: "kept" };
+  }
+  if (named !== "closed") {
+    throw new Error(`WATERFALL_API_CONNECTIONS must be "kept" or "closed", or unset: ${named}`);
+  }
+  return { address, connections: "closed" };
 }
 
 /**
@@ -53,7 +65,7 @@ function apiAddress(): string {
  */
 export function serverClient(): ApiClient {
   return createApiClient({
-    address: apiAddress(),
+    ...apiAt(),
     bearer: isMockAuthentication() ? () => MOCK_TOKEN : requestBearer,
   });
 }
@@ -64,7 +76,7 @@ export function serverClient(): ApiClient {
  * token that closes the sessions of the account (#689). Kept nowhere.
  */
 export function tokenClient(token: string): ApiClient {
-  return createApiClient({ address: apiAddress(), bearer: () => token });
+  return createApiClient({ ...apiAt(), bearer: () => token });
 }
 
 /**
@@ -72,5 +84,5 @@ export function tokenClient(token: string): ApiClient {
  * says the maintenance of a restoration (`getLiveness`), asked while the sessions are closed (#604).
  */
 export function publicClient(): ApiClient {
-  return createApiClient({ address: apiAddress() });
+  return createApiClient(apiAt());
 }

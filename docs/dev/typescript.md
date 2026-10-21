@@ -274,8 +274,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
     d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`), et celles
     qu'atteint une redirection ou Keycloak, qui ne répondent pas une page sans session
-    (`compileAnswered`). Aucun outil
-    ne le tient : la revue le cherche.
+    (`compileAnswered`). Sous la charge de quatre workers, la compilation mangeait encore les
+    cinq secondes d'une route qu'aucun parcours ne compilait d'abord (#1145) : `make e2e`
+    préchauffe désormais chaque écran avant le premier parcours (`e2e/warm-up.ts`), et l'on
+    n'allonge pas une attente pour une route froide. Aucun outil ne tient `compile` : la revue
+    le cherche.
 18. **Contexte de la coquille changé pendant qu'une page attend d'être révélée.** La coquille
     est au-dessus de chaque page, dont `loading.tsx` fait une frontière `Suspense`. Le serveur
     envoie la page avec le document, mais React en retient la révélation un instant (`<!--$~-->`) ;

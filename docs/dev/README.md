@@ -2058,7 +2058,23 @@ toutes (`explode: false`, que `make lint-openapi` exige de chaque paramètre de 
 le contrat cite par opération et par statut (`wftools.exampleroutes`), qui type les réponses du
 faux client des tests. Une opération qui
 manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
-fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
+fichier engendré se versionne avec elle.
+
+Le client garde ses connexions ouvertes, et la suivante réutilise celle qu'une réponse a libérée.
+L'API ferme une connexion inactive après un délai à elle — cinq secondes pour Prism comme pour
+uvicorn —, et undici, le `fetch` du serveur de Next, ne réutilise la sienne qu'en deçà d'une marge
+sous ce délai ; mais son minuteur est celui de la boucle du serveur, qu'une charge retient plus
+longtemps que la marge : la requête part alors sur une connexion que l'API vient de fermer, et
+`fetch` la rejette (`UND_ERR_SOCKET`, `other side closed`, ou `ECONNRESET`), sans qu'aucun délai
+plus court n'y change rien, retenu de même. Une lecture (`GET`, `HEAD`) ainsi coupée part une
+seconde fois, sur une connexion nouvelle, et la coupure s'écrit au journal du serveur
+(`console.warn`) ; coupée encore, c'est l'API hors d'atteinte (`Unreachable`), jamais un silence.
+Une écriture ne repart jamais : l'API a pu la faire avant de fermer. `WATERFALL_API_CONNECTIONS`
+dit comment le serveur tient ses connexions : `kept`, ou rien, en production comme en développement ;
+`closed`, une connexion par requête, fermée une fois répondue (`Connection: close`), que seul le
+harnais pose (« Un parcours de bout en bout ») ; toute autre valeur est refusée.
+`src/api/client.test.ts`, `src/api/connections.test.ts` — contre un serveur sur une vraie socket,
+qui coupe la connexion réutilisée — et `src/api/server.test.ts` l'éprouvent. Aucun appel réseau ne s'écrit hors de
 `frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
 n'importe de `src/api/` que ses actions serveur (`src/api/actions/`) et des types.
 
@@ -2846,6 +2862,27 @@ chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les 
 (`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
+
+Avant le premier parcours, le harnais demande une fois chaque écran au serveur de développement
+(`globalSetup`, `frontend/e2e/warm-up.ts`, #1145) : celui-ci compile une route à sa première
+demande, et sous la charge de quatre workers la compilation dépassait les cinq secondes de
+l'assertion qui attend l'écran qu'un clic atteint. Les écrans sont ceux de `frontend/e2e/routes.ts`,
+que `src/app/screens.test.ts` tient à chaque page de `src/app`, avec les pages qui ne font que
+rediriger : une page ajoutée est préchauffée avec elles. Quatre à la fois, la redirection non
+suivie ; ce qu'un écran répond reste aux parcours, mais une erreur du serveur s'écrit dans la sortie,
+et un serveur injoignable fait échouer le lancement. Le préchauffage écrit sa durée : 39 s, `.next`
+froid, et 23 s ensuite, sur un poste de huit cœurs au repos, pour 38 écrans. Il ne précède ni la
+mesure jouée seule (`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques
+écrans de l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans
+session enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un
+projet que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui
+compile lui-même ce qu'il atteint.
+
+Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
+(`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
+back ou mandataire du contrat, qui ferme une connexion inactive depuis cinq secondes, et le serveur de
+développement chargé envoyait une requête sur une connexion que Prism venait de fermer
+(`UND_ERR_SOCKET: other side closed`, puis `Unreachable` dans `readOrFail`, #1145).
 
 `make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
 (`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la

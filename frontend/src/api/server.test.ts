@@ -5,7 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cookieJar } from "@/test/session";
 
 import { API_PREFIX } from "./client";
-import { DEFAULT_ADDRESS, isMockAuthentication, MOCK_TOKEN, serverClient } from "./server";
+import {
+  DEFAULT_ADDRESS,
+  isMockAuthentication,
+  MOCK_TOKEN,
+  publicClient,
+  serverClient,
+  tokenClient,
+} from "./server";
 
 // A request without a session: no cookie, so no token — the session itself is tried by
 // src/session/tokens.test.ts, against Redis.
@@ -25,6 +32,7 @@ function stubFetch(authorizations: (string | null)[] = []): string[] {
 beforeEach(() => {
   vi.stubEnv("WATERFALL_AUTH", undefined);
   vi.stubEnv("WATERFALL_E2E", undefined);
+  vi.stubEnv("WATERFALL_API_CONNECTIONS", undefined);
 });
 
 afterEach(() => {
@@ -52,6 +60,37 @@ describe("serverClient", () => {
       `http://mock:4010${API_PREFIX}/health`,
       `https://api.example${API_PREFIX}/health`,
     ]);
+  });
+});
+
+describe("the connections to the API (#1145)", () => {
+  /** The `Connection` header each client of the server sends, as the environment configures it. */
+  async function connectionHeaders(): Promise<(string | null)[]> {
+    const headers: (string | null)[] = [];
+    vi.stubGlobal("fetch", (request: Request) => {
+      headers.push(request.headers.get("Connection"));
+      return Promise.resolve(Response.json({ status: "ok" }));
+    });
+    await serverClient().GET("/health");
+    await tokenClient("t0k").GET("/health");
+    await publicClient().GET("/health");
+    return headers;
+  }
+
+  it("are kept alive unless the environment says otherwise", async () => {
+    expect(await connectionHeaders()).toEqual([null, null, null]);
+    vi.stubEnv("WATERFALL_API_CONNECTIONS", "kept");
+    expect(await connectionHeaders()).toEqual([null, null, null]);
+  });
+
+  it("are each closed once answered when the harness says so, by every client", async () => {
+    vi.stubEnv("WATERFALL_API_CONNECTIONS", "closed");
+    expect(await connectionHeaders()).toEqual(["close", "close", "close"]);
+  });
+
+  it("refuses any other way of holding them", () => {
+    vi.stubEnv("WATERFALL_API_CONNECTIONS", "close");
+    expect(() => serverClient()).toThrow('WATERFALL_API_CONNECTIONS must be "kept" or "closed"');
   });
 });
 

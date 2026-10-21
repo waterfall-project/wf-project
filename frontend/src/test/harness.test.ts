@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { warmedAddresses } from "../../e2e/warm-up";
 
 // The platform of `make dev`, whose servers the end-to-end paths must never play against (#150).
 const COMPOSE = readFileSync(
@@ -118,7 +120,10 @@ describe("the end-to-end harness", () => {
     );
     expect(servers).toHaveLength(2);
     for (const server of servers) {
-      expect(server.env).toEqual({ WATERFALL_API_ADDRESS: "http://api.example:8080" });
+      expect(server.env).toEqual({
+        WATERFALL_API_ADDRESS: "http://api.example:8080",
+        WATERFALL_API_CONNECTIONS: "closed",
+      });
     }
   });
 
@@ -129,6 +134,37 @@ describe("the end-to-end harness", () => {
     for (const front of fronts) {
       expect(front.env).toMatchObject({ WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" });
     }
+  });
+
+  it("has the front open a connection of its own for each request to the API, which Prism closes when idle (#1145)", async () => {
+    const fronts = serversOf(await harness()).filter((server) => server.env !== undefined);
+    expect(fronts.map((front) => front.env?.WATERFALL_API_CONNECTIONS)).toEqual([
+      "closed",
+      "closed",
+    ]);
+  });
+
+  it("warms every screen before the paths, and only before them (#1145)", async () => {
+    expect((await harness()).globalSetup).toBe("./e2e/warm-up.ts");
+    vi.stubEnv("E2E_PART", "paths");
+    expect((await harness()).globalSetup).toBe("./e2e/warm-up.ts");
+    vi.stubEnv("E2E_PART", "measure");
+    expect((await harness()).globalSetup).toBeUndefined();
+    vi.stubEnv("E2E_PART", "service");
+    // Read by the configuration from the log of the proxy, which the run of the service has.
+    vi.stubEnv("E2E_SERVICE_STARTED", "2026-10-21T00:00:00.000000000Z");
+    vi.stubEnv("WATERFALL_API_ADDRESS", "http://127.0.0.1:4210");
+    expect((await harness()).globalSetup).toBeUndefined();
+  });
+
+  it("warms one address for each page of src/app (#1145)", () => {
+    const app = join(import.meta.dirname, "../app");
+    const pages = readdirSync(app, { recursive: true, encoding: "utf8" }).filter((file) =>
+      /(^|\/)page\.tsx$/.test(file),
+    );
+    const addresses = warmedAddresses();
+    expect(new Set(addresses).size).toBe(addresses.length);
+    expect(addresses).toHaveLength(pages.length);
   });
 
   it("plays the paths, then the measure once they all passed", async () => {
