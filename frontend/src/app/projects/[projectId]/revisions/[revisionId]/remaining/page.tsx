@@ -13,11 +13,11 @@
  * the keyboard, its tasks and its lines created and deleted, and places undo and redo, when the
  * structure lists `edit_remaining` available to the caller (US-0140, WF-RAE-0040): before the
  * project is in progress it lists it unavailable, and the grid is read only. The categories a line
- * is created from are read then. Its head leads to the Kanban of the start of the tasks, a leaf
- * with a screen of its own (FBS-4.5.3), in the same context, and, when the project lists the import
- * of a remaining to commit, to the imports and exports, where it is exercised (#521). Indicators
- * the API does not find are said unavailable, the rest of the screen shown; any other refusal
- * follows the rule of the reads.
+ * is created from, and the sub-projects its lines are carried to (US-0480), are read then. Its head
+ * leads to the Kanban of the start of the tasks, a leaf with a screen of its own (FBS-4.5.3), in the
+ * same context, and, when the project lists the import of a remaining to commit, to the imports and
+ * exports, where it is exercised (#521). Indicators the API does not find are said unavailable, the
+ * rest of the screen shown; any other refusal follows the rule of the reads.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -28,6 +28,7 @@ import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
+import { askSubprojects } from "@/components/context/reading";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
 import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
@@ -77,8 +78,8 @@ async function readIndicators({ revision }: GridAddress) {
   );
 }
 
-/** The refusals of the categories a line is created from the screen does without. */
-const CATEGORY_REFUSALS = [{ status: 404 }, { status: 403 }] as const;
+/** The refusals of the optional reads (categories, sub-projects) the screen does without. */
+const OPTIONAL_READ_REFUSALS = [{ status: 404 }, { status: 403 }] as const;
 
 /**
  * The categories of cost a line is created from, the active ones — a line created takes an active
@@ -88,13 +89,29 @@ const CATEGORY_REFUSALS = [{ status: 404 }, { status: 403 }] as const;
 async function readCategories() {
   const categories = await readEveryPageUnlessRefused(
     "listCostCategories",
-    CATEGORY_REFUSALS,
+    OPTIONAL_READ_REFUSALS,
     (page) => serverClient().GET("/reference/cost-categories", { params: { query: { ...page } } }),
   );
   return categories?.map((category) => ({
     id: category.cost_category_id,
     label: category.label,
     active: category.is_active,
+  }));
+}
+
+/**
+ * The sub-projects of the project, which the menu of the cells of a line offers it (US-0480); none
+ * when the API refuses the list, and the grid then offers no submenu.
+ */
+async function readSubprojects(projectId: string) {
+  // The one answer the banner reads too, once per request.
+  const subprojects = await readUnlessRefused("listSubprojects", OPTIONAL_READ_REFUSALS, () =>
+    askSubprojects(projectId),
+  );
+  return subprojects?.map((subproject) => ({
+    id: subproject.subproject_id,
+    label: subproject.label,
+    code: subproject.code,
   }));
 }
 
@@ -183,11 +200,18 @@ export default async function RemainingPage({
     fields: REMAINING_FIELDS,
     progress: [...progress],
     byBreakdown: true,
-  }).then(async (read) => ({
-    screen: read,
-    categories: read.commands.has("edit_remaining") ? await readCategories() : undefined,
-  }));
-  const [{ screen, categories }, indicators] = await Promise.all([grid, readIndicators(at)]);
+  }).then(async (read) => {
+    const entered = read.commands.has("edit_remaining");
+    const [categories, subprojects] = await Promise.all([
+      entered ? readCategories() : undefined,
+      entered ? readSubprojects(revision.projectId) : undefined,
+    ]);
+    return { screen: read, categories, subprojects };
+  });
+  const [{ screen, categories, subprojects }, indicators] = await Promise.all([
+    grid,
+    readIndicators(at),
+  ]);
   const notStarted = progress.includes("not_started");
   const editable = screen.commands.has("edit_remaining");
   return (
@@ -225,6 +249,7 @@ export default async function RemainingPage({
             filters={screen.filters}
             editable={editable}
             categories={categories}
+            subprojects={subprojects}
             query={screen.query}
             preferences={screen.preferences}
           />

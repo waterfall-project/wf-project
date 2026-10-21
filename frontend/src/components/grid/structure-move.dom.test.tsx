@@ -472,4 +472,21 @@ describe("the refusal of a move, said to the row in cause", () => {
       expect(readMessages().messages).toMatchObject([{ tone: "refusal" }]);
     },
   );
+
+  it("names the row and the condition when a line is moved to a task completed: the move is refused, nothing moves [WF-DEV-0050-A]", async () => {
+    // Le déplacement d'une ligne vers une tâche terminée est refusé.
+    const client = serve({
+      [MOVE]: { problem: example("nodes_move_completed_refused") as Problem & { status: 409 } },
+    });
+    render(estimateGrid());
+    await choose(RISK, "Indenter");
+    expect(moved(client)).toHaveLength(1);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      `Refusé à la ligne ${String(estimate.items[RISK]?.row_number)}, « Risque survenu — Retard de livraison des armoires » :`,
+    );
+    expect(alert).toHaveTextContent("tâche non terminée");
+    expect(labelAt(RISK)).toBeInvalid();
+    expect(readMessages().messages).toMatchObject([{ tone: "refusal" }]);
+  });
 });

@@ -67,6 +67,8 @@ export const REMAINING_FIELDS = {
     "previous_unit_disbursement",
     "previous_reestimated_amount",
     "remaining_entry",
+    "subproject_id",
+    "subproject_label",
   ],
 } as const satisfies AnyNodeFields;
 
@@ -204,6 +206,18 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
       computed: computedWhereNamed("estimate_line.unit_disbursement"),
       contract: "unit_disbursement",
       value: (node) => node.estimate_line?.unit_disbursement,
+    },
+    // The sub-project of a line, by the label the server resolves; hidden until the account shows
+    // it, and read only: it is chosen in the menu of the cell (US-0480).
+    {
+      key: "subproject",
+      label: "subproject",
+      format: "text",
+      width: 160,
+      hidden: true,
+      computed: computedWhereNamed("estimate_line.subproject_id"),
+      contract: "subproject",
+      value: (node) => node.estimate_line?.subproject_label ?? null,
     },
     {
       key: "reestimated_amount",

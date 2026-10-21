@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { nodeFieldNames } from "@/components/grid/nodes";
 import { REMAINING_FIELDS } from "@/components/grid/remaining";
+import type { RemainingGridProps } from "@/components/grid/remaining-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -35,9 +36,23 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => SCREEN,
   useSearchParams: () => new URLSearchParams(),
 }));
+// The grid is rendered as it is, and what the page hands it is kept: the static markup of a closed menu
+// does not say whether the sub-projects were given.
+vi.mock("@/components/grid/remaining-grid", async (original) => {
+  const actual = await original<typeof import("@/components/grid/remaining-grid")>();
+  return {
+    ...actual,
+    RemainingGrid: (props: RemainingGridProps) => {
+      handed.push(props);
+      return actual.RemainingGrid(props);
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
+
+const handed = vi.hoisted((): RemainingGridProps[] => []);
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -108,6 +123,7 @@ function section(page: string, name: string): string {
 }
 
 beforeEach(() => {
+  handed.length = 0;
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -288,6 +304,40 @@ describe("the screen of the remaining to commit", () => {
     expect(page).toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
     const calls = server.clients.flatMap((client) => client.calls.map((call) => call.route));
     expect(calls).toContain("GET /reference/cost-categories");
+  });
+
+  it("hands the grid the sub-projects of the project, with their codes, when the structure lists the remaining to commit available [WF-PRJ-0050-A]", async () => {
+    await remainingAt();
+    expect(handed).toHaveLength(1);
+    expect(handed[0]?.subprojects).toEqual([
+      { id: SUBPROJECT, label: "Poste de commande", code: "SP-CMD" },
+      {
+        id: "01926f3a-7c00-7000-8000-000000000802",
+        label: "Essais et mise en service",
+        code: "SP-ESS",
+      },
+    ]);
+  });
+
+  it("hands the grid no sub-project when the structure lists the remaining to commit unavailable, and does not read them for it [WF-PRJ-0050-A]", async () => {
+    server.answers = { ...server.answers, [STRUCTURES]: "structures_without_tasks" };
+    await remainingAt();
+    expect(handed).toHaveLength(1);
+    expect(handed[0]?.subprojects).toBeUndefined();
+    expect(handed[0]?.editable).toBe(false);
+  });
+
+  it("hands the grid no sub-project when the API refuses the list, the grid still entered [WF-PRJ-0050-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/subprojects": {
+        problem: { code: "NOT_FOUND", status: 404 },
+      },
+    };
+    await remainingAt();
+    expect(handed).toHaveLength(1);
+    expect(handed[0]?.subprojects).toBeUndefined();
+    expect(handed[0]?.editable).toBe(true);
   });
 
   it("offers the filter by a lot or a post, read from the work breakdown whole, as the planning and the estimate do", async () => {
