@@ -217,10 +217,17 @@ test("selects tasks of the planning by their handles, indents the group from the
   // détail »: under it.
   const target = await labelOf(table, /^2 .*Études de détail/);
   await handle(4).dragTo(target, { targetPosition: { x: 20, y: 14 } });
-  await expect(
-    page.getByText("« Pupitres opérateurs » et la ligne suivante déplacées."),
-  ).toBeVisible({ timeout: WORKING });
+  await saidAndRead(page, table, "« Pupitres opérateurs » et la ligne suivante déplacées.");
   await expect(table.getByRole("row", { selected: true })).toHaveCount(2);
+  // Read anew, the row dropped stands at the level the reading gives it — the fake back reads the
+  // same rows —, and the active cell, with the focus, is on the handle of the first of the rows
+  // dropped.
+  await expect(table.getByRole("row", { name: /^4 .*Pupitres opérateurs/ })).toHaveAttribute(
+    "aria-level",
+    "2",
+  );
+  await expect(handle(4)).toHaveAttribute("tabindex", "0");
+  await expect(handle(4)).toBeFocused();
 });
 
 test("adds a task from the remaining to commit of a project in progress, below a row, the creation said and the grid read anew [WF-RAE-0040-A]", async ({

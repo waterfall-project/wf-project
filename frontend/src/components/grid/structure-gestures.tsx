@@ -505,13 +505,15 @@ export function useStructureGestures<Row extends GridNode>(
       open(gesture, row, rows, event.target instanceof HTMLElement ? event.target : undefined);
       return true;
     },
+    // The grid drops nothing while the gestures wait (`busy`). The cell that has the focus — the
+    // handle the drag started from — is given back its focus, should the reading anew no longer
+    // show the rows dropped, under a summary folded for one.
     drag: {
-      accepts: (rows, target, place: DropPlace) =>
-        !busy && dropOf(rows, target, place, scope) !== undefined,
+      accepts: (rows, target, place: DropPlace) => dropOf(rows, target, place, scope) !== undefined,
       drop: (rows, target, place) => {
-        if (!busy) {
-          move(dropOf(rows, target, place, scope), undefined, rows, "dropped", undefined);
-        }
+        const { activeElement } = document;
+        const cell = activeElement instanceof HTMLElement ? activeElement : undefined;
+        move(dropOf(rows, target, place, scope), undefined, rows, "dropped", cell);
       },
     },
     moved: moved === undefined ? undefined : { ...moved, settled: !reading },

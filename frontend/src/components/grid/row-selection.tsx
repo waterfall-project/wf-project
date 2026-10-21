@@ -16,7 +16,9 @@
  * row: before it or after it, at its level, by the upper or the lower quarter of the row, or under
  * it, by its middle; between two rows is before the lower one. The indicator of the drop is a line
  * between the rows, or the row shaded, and only where the screen accepts the place (`RowDrag`): the
- * screen says where rows go, and moves them — never while it is busy (`RowCommands.busy`).
+ * screen says where rows go, and moves them — never while it says it is busy (`RowCommands.busy`,
+ * which `drag` demands), the grid then dropping nothing. A drop is taken only of what the handles
+ * drag, by its type (`DRAGGED_ROWS`).
  *
  * A grid whose screen drags nothing (`RowCommands.drag`) selects nothing, and shows no handle. The
  * active cell, in a row selected, follows its row through a reading anew that moves it, so that the
@@ -50,7 +52,13 @@ import { cn } from "@/components/ui/utils";
 import { cellAttributes, type CellState, cellKeys } from "./cell-attributes";
 import { ROW_NUMBER_KEY } from "./columns";
 import { type CellPosition, type Cursor, HEADER_ROW, positionOf } from "./grid-keyboard";
-import type { RowMoved } from "./undo-commands";
+import type { RowDragging, RowMoved } from "./undo-commands";
+
+/**
+ * The type of what the handles drag, the identities of its rows: of its own, so that a drop from
+ * elsewhere — a text, a file — moves nothing.
+ */
+const DRAGGED_ROWS = "application/x-waterfall-rows";
 
 /** Where rows dropped go, beside a row: before it or after it at its level, or under it, last. */
 export type DropPlace = "before" | "after" | "into";
@@ -132,6 +140,17 @@ function dropBeside(cell: Element, y: number, index: number, count: number): Dro
   return index + 1 < count ? { index: index + 1, place: "before" } : { index, place: "after" };
 }
 
+/**
+ * What the screen does of rows dropped, where it says it is not busy: none before the reading anew
+ * of a move, which would go from the neighbours before it.
+ */
+function droppingOf<Row>(commands: RowDragging<Row> | undefined): RowDrag<Row> | undefined {
+  return commands?.drag === undefined || commands.busy ? undefined : commands.drag;
+}
+
+/** The commands of a screen the selection reads: the drag, whether busy, the row last moved. */
+type SelectionCommands<Row> = RowDragging<Row> & { readonly moved?: RowMoved<Row> | undefined };
+
 /** What the grid of rows `Row` selects, and drags. */
 export interface RowSelectionOptions<Row> {
   /** The rows the grid shows, in their order. */
@@ -139,11 +158,9 @@ export interface RowSelectionOptions<Row> {
   readonly keyOf: (row: Row) => string;
   /**
    * The commands of the screen: what it does of rows dragged — none, and the grid selects nothing
-   * —, and the row its last command moved.
+   * —, whether it is busy, and the row its last command moved.
    */
-  readonly commands:
-    | { readonly drag?: RowDrag<Row> | undefined; readonly moved?: RowMoved<Row> | undefined }
-    | undefined;
+  readonly commands: SelectionCommands<Row> | undefined;
   readonly cursor: Cursor;
   /** Focus a cell, brought into view once it is rendered. */
   readonly focusAt: (at: CellPosition) => void;
@@ -316,7 +333,7 @@ export function useRowSelection<Row>({
   focusAt,
   scroller,
 }: RowSelectionOptions<Row>) {
-  const drag = commands?.drag;
+  const dropping = droppingOf(commands);
   const [range, setRange] = useState<Range>();
   const [drop, setDrop] = useState<Drop>();
   // The rows dragged, by their identity, while a drag is under way.
@@ -325,7 +342,7 @@ export function useRowSelection<Row>({
     const row = rows[index];
     return row === undefined ? undefined : keyOf(row);
   };
-  const offered = drag !== undefined;
+  const offered = commands?.drag !== undefined;
   const bounds = offered ? boundsOf(range, keyAt, rows.length) : undefined;
   const following = useFollowing(commands?.moved, cursor.active);
   const take = useTakenFocus(focusAt, scroller);
@@ -414,12 +431,18 @@ export function useRowSelection<Row>({
   const dropOver = (event: DragEvent<HTMLElement>): Drop | undefined => {
     const cell = event.target instanceof Element ? event.target.closest("td[data-row]") : null;
     const at = positionOf(cell);
-    if (drag === undefined || dragged.current === undefined || cell === null || at === undefined) {
+    if (
+      dropping === undefined ||
+      dragged.current === undefined ||
+      !event.dataTransfer.types.includes(DRAGGED_ROWS) ||
+      cell === null ||
+      at === undefined
+    ) {
       return undefined;
     }
     const beside = dropBeside(cell, event.clientY, at.row, rows.length);
     const target = rows[beside.index];
-    return target !== undefined && drag.accepts(carried(), target, beside.place)
+    return target !== undefined && dropping.accepts(carried(), target, beside.place)
       ? beside
       : undefined;
   };
@@ -440,7 +463,7 @@ export function useRowSelection<Row>({
       }
       dragged.current = acted(index).map(keyOf);
       event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", dragged.current.join("\n"));
+      event.dataTransfer.setData(DRAGGED_ROWS, dragged.current.join("\n"));
     },
     onDragOver: (event: DragEvent<HTMLElement>) => {
       const next = dropOver(event);
@@ -461,9 +484,9 @@ export function useRowSelection<Row>({
     onDrop: (event: DragEvent<HTMLElement>) => {
       const at = dropOver(event);
       const target = at === undefined ? undefined : rows[at.index];
-      if (drag !== undefined && at !== undefined && target !== undefined) {
+      if (dropping !== undefined && at !== undefined && target !== undefined) {
         event.preventDefault();
-        drag.drop(carried(), target, at.place);
+        dropping.drop(carried(), target, at.place);
       }
       clear();
     },

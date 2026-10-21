@@ -218,7 +218,10 @@ interface MenuOpened {
  * row of the active cell, none on the header or in an empty grid; in the menu of a cell, on its row;
  * each also given the rows it acts on, the selection the row stands in or the row alone.
  */
-export interface RowCommands<Row> {
+export type RowCommands<Row> = RowCommandsOf<Row> & RowDragging<Row>;
+
+/** The commands of a screen on the rows of a grid, but for dragging them (`RowDragging`). */
+interface RowCommandsOf<Row> {
   readonly bar: (row: Row | undefined) => ReactNode;
   readonly menu: (
     row: Row | undefined,
@@ -239,18 +242,22 @@ export interface RowCommands<Row> {
    */
   readonly refused?: { readonly row: Row; readonly described: string } | undefined;
   /**
-   * What the screen does of rows dragged by their handles, the commands acting on the selection the
-   * handles make; none, and the grid selects nothing.
-   */
-  readonly drag?: RowDrag<Row> | undefined;
-  /**
    * The row the last command moved, the how-many-th, and whether the reading anew it asked is over:
    * the active cell follows that row through the reading, and the focus with it.
    */
   readonly moved?: RowMoved<Row> | undefined;
-  /** Whether a command waits for its write or for the reading anew that follows: the grid is busy. */
-  readonly busy?: boolean | undefined;
 }
+
+/**
+ * What the screen does of rows dragged by their handles, the commands acting on the selection the
+ * handles make — none, and the grid selects nothing —, and whether a command waits for its write or
+ * for the reading anew that follows, which makes the grid busy. A screen that drags says whether it
+ * is busy: the grid drops nothing until it is not, a move from the neighbours before the reading
+ * going with a version already moved on.
+ */
+export type RowDragging<Row> =
+  | { readonly drag: RowDrag<Row>; readonly busy: boolean }
+  | { readonly drag?: undefined; readonly busy?: boolean | undefined };
 
 /** The row a command moved, as `RowCommands.moved` tells it. */
 export interface RowMoved<Row> {

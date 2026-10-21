@@ -3,7 +3,7 @@
 import { act, createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { forgetMessages } from "@/components/notices/message-history";
@@ -12,9 +12,11 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 
-import type { NodeList, NodeSortColumn } from "./nodes";
+import type { GridNode, NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
+import type { RowDrag } from "./row-selection";
+import type { RowCommands } from "./undo-commands";
 
 // The selection of contiguous rows by their handles, and their moves — by the keys, by the menu of
 // a cell (US-0460/L5) and by a drag (US-0460/L5b) —, through the grid of the planning: rows 1 to 5
@@ -141,9 +143,16 @@ function moved(client: FakeClient): unknown[] {
   return client.calls.filter((call) => call.route === MOVE).map((call) => call.body);
 }
 
-/** What a drag carries, as far as the grid reads and writes it. */
-function dataTransfer() {
-  return { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
+/** What a drag carries, as far as the grid reads and writes it: the types of what it was given. */
+function dataTransfer(types: string[] = []) {
+  return {
+    types,
+    setData: vi.fn((type: string) => {
+      types.push(type);
+    }),
+    effectAllowed: "",
+    dropEffect: "",
+  };
 }
 
 /** Fire an event of a drag on an element, carrying what it carries, at a height. */
@@ -272,7 +281,9 @@ describe("the selection of rows by their handles", () => {
     expect(screen.queryByText(/sélectionnée/)).toBeNull();
   });
 
-  it("lifts the selection the folding of a row that bears it takes out, and keeps it when its ends stay shown", async () => {
+  it("lifts the selection the folding of a row that bears it takes out, and keeps it when its ends stay shown [WF-IHM-0100-A]", async () => {
+    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : the folding takes
+    // out no row the keys would go on from, selected unseen.
     serve();
     render(planningGrid());
     // « Études » selected and folded: its ends stay shown, its subordinates go with it uncounted.
@@ -493,8 +504,9 @@ describe("the moves through the reading anew they ask", () => {
     expect(cellAt(DESKS, "label")).toHaveAttribute("tabindex", "-1");
   });
 
-  it("leaves AltGr, Shift and an arrow to the grid, which moves the active cell and nothing else", async () => {
-    // AltGr is Ctrl and Alt together, which the document of the tests says held as a browser does.
+  it("leaves AltGr, Shift and an arrow to the grid, which moves the active cell and nothing else [WF-IHM-0100-A]", async () => {
+    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : AltGr and an arrow
+    // go on through the grid, as the arrows do. AltGr is Ctrl and Alt together, which the document of the tests says held as a browser does.
     const client = serve();
     render(planningGrid());
     await focus(cellAt(DESKS, "label"));
@@ -503,7 +515,9 @@ describe("the moves through the reading anew they ask", () => {
     expect(moved(client)).toEqual([]);
   });
 
-  it("gives the focus back to the row moved only within the grid: a field that took it as the reading came keeps it", async () => {
+  it("gives the focus back to the row moved only within the grid: a field that took it as the reading came keeps it [WF-IHM-0100-A]", async () => {
+    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : the focus gone out
+    // of the grid is not taken back from where the user went.
     holdReading(router.refresh);
     serve();
     const field = (shown: boolean) => (shown ? <input aria-label="Champ" autoFocus /> : null);
@@ -679,5 +693,115 @@ describe("the drag of rows by their handles", () => {
       { node_ids: [id(DESKS)], parent_id: id(STUDIES), after_node_id: id(REVIEW), lock_version: 1 },
       { node_ids: [id(FILE)], parent_id: id(DETAIL), lock_version: 2 },
     ]);
+  });
+
+  it("gives the active cell and the focus to the first of the rows dropped, once read anew [WF-IHM-0100-A]", async () => {
+    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : the rows dropped
+    // before « Études de détail » are moved on from the keys, with no click.
+    holdReading(router.refresh);
+    serve();
+    const view = render(planningGrid(), { wrapper: Reading });
+    fireEvent.click(handleAt(DESKS));
+    fireEvent.click(handleAt(REVIEW), { shiftKey: true });
+    await focus(handleAt(DESKS));
+    const { carried, target } = dragOver(DESKS, DETAIL, 2);
+    expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "before");
+    drag("drop", target, carried, 102);
+    await screen.findByText("« Pupitres opérateurs » et la ligne suivante déplacées.");
+    await reread(view, readAnew([DESKS, REVIEW, DETAIL, MILESTONE, FILE]));
+    expect(handleAt(DETAIL)).toHaveAttribute("tabindex", "0");
+    expect(cellAt(DETAIL, "label")).toHaveTextContent("Pupitres opérateurs");
+    expect(handleAt(DETAIL)).toHaveFocus();
+    expect(selectedRows()).toEqual([DETAIL, DESKS]);
+  });
+
+  it("gives the focus back to the active cell when the reading anew hides the row dropped, under a summary folded [WF-IHM-0100-A]", async () => {
+    // Chaque écran se parcourt entièrement au clavier et le focus reste visible : « Dossier de
+    // conception » dropped under « Études de détail » folded is no longer shown, and the focus does
+    // not fall to the page.
+    holdReading(router.refresh);
+    serve();
+    const view = render(
+      planningGrid(readAnew([DETAIL, DESKS, REVIEW, MILESTONE, FILE], { [DESKS]: DETAIL })),
+      { wrapper: Reading },
+    );
+    await toggleFold(DETAIL);
+    expect(rowAt(DETAIL)).toHaveAttribute("aria-expanded", "false");
+    // Folded, « Dossier de conception » is the fifth row shown.
+    const file = 4;
+    expect(cellAt(file, "label")).toHaveTextContent("Dossier de conception");
+    await focus(handleAt(file));
+    const { carried, target } = dragOver(file, DETAIL, 14);
+    expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "into");
+    drag("drop", target, carried, 114);
+    await screen.findByText("« Dossier de conception » déplacée.");
+    // The rows read anew, then the end of the reading: the cell that had the focus is removed while
+    // the reading is under way, whichever commit ends it.
+    await act(async () => {
+      view.rerender(
+        planningGrid(
+          readAnew([DETAIL, DESKS, FILE, REVIEW, MILESTONE], { [DESKS]: DETAIL, [FILE]: DETAIL }),
+        ),
+      );
+      await Promise.resolve();
+    });
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(screen.queryByText("Dossier de conception")).toBeNull();
+    const active = screen.getByRole("treegrid").querySelector('td[tabindex="0"]');
+    expect(active).not.toBeNull();
+    expect(active).toHaveFocus();
+    expect(document.body).not.toHaveFocus();
+  });
+
+  it("drops nothing but what the handles drag, by its type: a text dragged in moves no row", () => {
+    const client = serve();
+    render(planningGrid());
+    const { carried, target } = dragOver(DESKS, DETAIL, 14);
+    expect(carried.types).toEqual(["application/x-waterfall-rows"]);
+    expect(rowAt(DETAIL)).toHaveAttribute("data-drop", "into");
+    // A text carries its own type only.
+    const text = dataTransfer(["text/plain"]);
+    drag("dragOver", target, text, 114);
+    expect(rowAt(DETAIL)).not.toHaveAttribute("data-drop");
+    drag("drop", target, text, 114);
+    drag("dragEnd", handleAt(DESKS), carried);
+    expect(moved(client)).toEqual([]);
+  });
+
+  it("drops no row before the first sub-task of a task that bears lines, which the planning does not show [WF-PLA-0080-A]", async () => {
+    // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : the
+    // place before « Études de détail », second under « Études » after a line the planning does not
+    // read, would rest on that line; before « Pupitres opérateurs », on « Études de détail » shown.
+    const client = serve();
+    const afterLine = {
+      ...planning,
+      items: planning.items.map((node, index) =>
+        index === STUDIES ? node : { ...node, position: node.position + 1 },
+      ),
+    };
+    render(planningGrid(afterLine));
+    const first = dragOver(FILE, DETAIL, 2);
+    expect(rowAt(DETAIL)).not.toHaveAttribute("data-drop");
+    drag("drop", first.target, first.carried, 102);
+    drag("dragEnd", handleAt(FILE), first.carried);
+    expect(moved(client)).toEqual([]);
+    const second = dragOver(FILE, DESKS, 2);
+    expect(rowAt(DESKS)).toHaveAttribute("data-drop", "before");
+    drag("drop", second.target, second.carried, 102);
+    await screen.findByText("« Dossier de conception » déplacée.");
+    expect(moved(client)).toEqual([
+      { node_ids: [id(FILE)], parent_id: id(STUDIES), after_node_id: id(DETAIL), lock_version: 1 },
+    ]);
+  });
+
+  it("demands busy of a screen that drags, so that the grid drops nothing before the reading anew", () => {
+    const drags: RowDrag<GridNode> = { accepts: () => true, drop: () => undefined };
+    const shown = { bar: () => null, menu: () => null };
+    expectTypeOf({ ...shown, drag: drags, busy: false }).toExtend<RowCommands<GridNode>>();
+    expectTypeOf({ ...shown, drag: drags }).not.toExtend<RowCommands<GridNode>>();
+    expectTypeOf(shown).toExtend<RowCommands<GridNode>>();
   });
 });
