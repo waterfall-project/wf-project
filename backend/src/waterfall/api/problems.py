@@ -7,6 +7,7 @@ the exceptions nobody expected all end in ``Problem`` (WF-ARC-0110): a code and 
 parameters, never a sentence, and the correlation identifier that finds the error in the logs.
 """
 
+import re
 from collections.abc import Mapping
 from http import HTTPStatus
 from typing import Any, cast
@@ -40,6 +41,8 @@ _NUMBER_FAULTS = {
 _INCLUSIVE_BOUNDS = {"greater_than_equal": "minimum", "less_than_equal": "maximum"}
 _UNREADABLE_BODY = {"missing", "model_attributes_type", "dict_type"}
 _UUID_FAULTS = {"uuid_parsing", "uuid_type"}
+# The values an enumeration of integers admits, as Pydantic says them: "10, 25, 50 or 100".
+_INTEGERS = re.compile(r"-?\d+(?:(?:, | or )-?\d+)*")
 
 
 def problem_response(
@@ -98,13 +101,19 @@ def _is_empty(value: object) -> bool:
     return isinstance(value, str | list | tuple | dict) and not value
 
 
-def _is_integer_not_admitted(kind: str, value: object) -> bool:
+def _is_integer_not_admitted(fault: Mapping[str, Any]) -> bool:
     """Tell an integer that is none of the values an enumeration of integers admits.
 
     It is out of the range the contract admits, which has no bound to name: the number of lines
-    per page of a grid, one of four (``GridPreferences.page_size``, C-351, #1045).
+    per page of a grid, one of four (``GridPreferences.page_size``, C-351, #1045). Only an
+    enumeration whose every value is an integer says so — Pydantic names them in
+    ``ctx.expected`` —: an integer sent to an enumeration of words (``theme``) is a value of
+    another kind, not a value out of range.
     """
-    return kind == "enum" and isinstance(value, int) and not isinstance(value, bool)
+    value = fault.get("input")
+    if fault["type"] != "enum" or not isinstance(value, int) or isinstance(value, bool):
+        return False
+    return _INTEGERS.fullmatch(str(fault.get("ctx", {}).get("expected", ""))) is not None
 
 
 def _field_of(fault: Mapping[str, Any]) -> FieldError:
@@ -131,7 +140,7 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
     elif kind in _INCLUSIVE_BOUNDS:
         code = ErrorCode.VALUE_OUT_OF_RANGE
         params[_INCLUSIVE_BOUNDS[kind]] = next(iter(fault["ctx"].values()))
-    elif _is_integer_not_admitted(kind, fault.get("input")):
+    elif _is_integer_not_admitted(fault):
         code = ErrorCode.VALUE_OUT_OF_RANGE
     elif kind in _NUMBER_FAULTS:
         code = ErrorCode.NUMBER_INVALID

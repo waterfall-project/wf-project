@@ -472,6 +472,10 @@ ErrorCode:
     # Un seuil d'indice qui n'est pas strictement compris entre 0 et 1 (`IndexThreshold`,
     # WF-REF-0170) ; le pointeur désigne le seuil, sans paramètre.
     - THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE
+    # Une constante de conversion des unités de durée nulle (`DurationUnitsWrite`,
+    # `setDurationUnits`, WF-PLA-0160) : elle est strictement positive ; le pointeur désigne la
+    # constante, sans paramètre.
+    - DURATION_UNIT_NOT_POSITIVE
     # Motifs par champ du rattachement d'une tâche à un lot ou à un poste du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0170) ; le premier aussi d'un identifiant que la saisie du
     # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`

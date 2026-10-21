@@ -85,6 +85,7 @@ class ErrorCode(StrEnum):
     BOUNDS_NOT_ORDERED = "BOUNDS_NOT_ORDERED"
     THRESHOLD_NOT_BELOW_WATCH = "THRESHOLD_NOT_BELOW_WATCH"
     THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE = "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE"
+    DURATION_UNIT_NOT_POSITIVE = "DURATION_UNIT_NOT_POSITIVE"
     UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
     WORK_BREAKDOWN_ITEMS_EXCLUSIVE = "WORK_BREAKDOWN_ITEMS_EXCLUSIVE"
     WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED = "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED"
@@ -4306,7 +4307,7 @@ class Risk(ContractModel):
     provision_task: Annotated[
         ProvisionTask | None,
         Field(
-            description="La tâche de la structure principale de la révision lue qui porte la ligne de provision (`provision_node_id`), par son nœud et son libellé, résolu à la lecture : celle que le risque a désignée à sa déclaration ou depuis, tant qu'il était identifié, et à défaut la première tâche de premier niveau (WF-RIS-0010, #786). Le formulaire la présente et la propose de nouveau sans relire la structure (WF-ARC-0020). Nulle quand le risque n'est pas identifié : il ne porte alors aucune ligne de provision."
+            description="La tâche de la structure principale de la révision lue qui porte la ligne de provision (`provision_node_id`), par son nœud et son libellé, résolu à la lecture : celle que le risque a désignée à sa déclaration ou depuis, tant qu'il était identifié, et à défaut la première tâche de premier niveau (WF-RIS-0010, #786). Un risque écarté qui redevient identifié retrouve la tâche qu'il désignait si elle est encore une tâche de la structure principale, et sinon la première tâche de premier niveau (`reviewRisk`, #1227). Le formulaire la présente et la propose de nouveau sans relire la structure (WF-ARC-0020). Nulle quand le risque n'est pas identifié : il ne porte alors aucune ligne de provision."
         ),
     ]
     matrix_cell: RiskMatrixCell | None = None

@@ -6983,9 +6983,14 @@ Partie K8 de la conception d'EP-15 (US-0570/L1), sur les décisions de l'auteur 
 sans changer celui des autres tables (WF-IHM-0060). Une autre valeur est refusée par 422
 `VALIDATION_FAILED`, `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`, sans paramètre : ce
 ne sont pas des bornes mais quatre valeurs, que le schéma énumère et que `minimum` ni `maximum` ne
-diraient. Le service, dont les modèles sont engendrés du contrat, dit ainsi tout entier qui n'est
-pas l'une des valeurs d'une énumération d'entiers (`waterfall.api.problems`), un nul étant refusé
-comme les autres réglages d'une grille. Exemples `preferences_page_size` et
+diraient. Le service, dont les modèles sont engendrés du contrat, dit ainsi un entier — ni un
+booléen, ni une chaîne — envoyé à une énumération dont toutes les valeurs sont des entiers, et
+qu'elle n'admet pas (`waterfall.api.problems`, d'après les valeurs attendues que Pydantic nomme) ;
+toute autre valeur refusée par une énumération l'est par `VALIDATION_FAILED`, ainsi un entier
+envoyé au thème, une énumération de mots (`{"theme": 3}`) : ce n'est pas une valeur hors de sa
+plage, mais une valeur d'une autre nature. Une chaîne qui se lit comme l'une des quatre (`"25"`)
+est admise par conversion, comme tout entier d'un corps. Un nul est refusé comme les autres
+réglages d'une grille. Exemples `preferences_page_size` et
 `preferences_page_size_out_of_range` (corrélation 1300) ; `me_grid_settings` lit 25 lignes sur la
 table des comptes. Écarté : un nombre libre borné entre 10 et 100, que l'écran n'offrirait pas.
 
@@ -7015,10 +7020,31 @@ US-0570/L3.
 `duration_units_updated` — 7 heures par jour et 35 par semaine, réglées aujourd'hui, à la
 version 2 : « 2 j » vaut quatorze heures dans les révisions en cours, recalculées, seize dans une
 révision marquée —, refuse une constante nulle par `duration_units_zero` (422, `/hours_per_day`
-par `VALUE_OUT_OF_RANGE`, sans paramètre, la borne excluant zéro ; corrélation 1302) et une version
-périmée par `duration_units_stale` (412, la version 2 rendue ; corrélation 1303). Sa description dit
-le recalcul des plannings en cours et les heures gardées d'une révision marquée (WF-PLA-0160,
-WF-REF-0130).
+par `DURATION_UNIT_NOT_POSITIVE`, sans paramètre ; corrélation 1302) et une version périmée par
+`duration_units_stale` (412, la version 2 rendue ; corrélation 1303). Sa description dit le recalcul
+des plannings en cours et les heures gardées d'une révision marquée (WF-PLA-0160, WF-REF-0130).
+Une constante est strictement positive : l'intervalle ]0, ∞[ est ouvert et n'a pas de plus petite
+valeur admise que `params.minimum` pourrait nommer — la raison pour laquelle EP-14/L42h et L42m
+ont écarté `VALUE_OUT_OF_RANGE` pour les seuils d'indice, et pour laquelle `waterfall.api.problems`
+dit une borne exclusive par `VALIDATION_FAILED`. Elle est donc refusée par un motif par champ
+nouveau au catalogue, `DURATION_UNIT_NOT_POSITIVE`, sur le modèle de
+`THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, que le front dit en clair (« La constante doit être
+strictement positive ») ; une constante qui n'est pas un décimal sans signe garde
+`VALIDATION_FAILED` au même pointeur. `tools/tests/test_mockbounds.py` tient que seul un nombre
+de lignes par page hors des quatre est refusé par `VALUE_OUT_OF_RANGE` sans paramètre. Écartés :
+`VALUE_OUT_OF_RANGE` sans paramètre, qui donnerait une borne exclue pour une borne franchie ;
+`VALUE_OUT_OF_RANGE` nommant `minimum` à `0`, que le front dirait admis ; `VALIDATION_FAILED` seul
+au pointeur, qui ne distinguerait pas zéro d'une valeur mal écrite.
+
+**Le service suit le contrat engendré** (revue 1 de US-0570/L1). La conception d'EP-15 ne prévoit
+ni table, ni migration, ni module du noyau pour K8, et le lot n'en ajoute pas ; mais ses modèles
+étant engendrés du contrat, le back qui sert déjà les préférences change avec lui, sans quoi il le
+contredirait : `waterfall.core.users.personal.merged` fusionne `timelines` chronologie par
+chronologie, comme `grids` grille par grille ; `waterfall.api.me` refuse un `timelines` ou un
+`page_size` nul, comme les autres réglages qui ne le sont jamais ; `waterfall.api.problems` dit un
+entier hors d'une énumération d'entiers par `VALUE_OUT_OF_RANGE`, comme ci-dessus. Le refus du
+déplacement d'une ligne de provision (`PROVISION_LINE_MOVED_BY_RISK`) n'est que dans le contrat et
+ses exemples : le back ne sert pas encore `moveNodes`.
 
 **Les corrélations écrites à la main ouvrent une nouvelle plage** (#1228). La famille
 « corrélations, suite » (1010-1199) étant presque épuisée, « corrélations, seconde suite »

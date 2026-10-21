@@ -375,3 +375,27 @@ def test_the_examples_keep_the_lines_per_page_and_the_lanes_of_the_timelines_adm
                 lanes.append(path.name)
     assert {"me_grid_settings.json", "preferences_page_size.json"} <= set(sizes)
     assert {"me_grid_settings.json", "preferences_timeline_lanes.json"} <= set(lanes)
+
+
+def test_a_value_out_of_range_without_its_bound_is_only_a_number_of_lines_per_page() -> None:
+    # `VALUE_OUT_OF_RANGE` names the bound crossed, an admitted value; only an integer that is none
+    # of the four numbers of lines per page has none to name (#1045). A bound that excludes its
+    # value — zero for a constant of duration — has a motif of its own (EP-14/L42h, L42m).
+    unnamed: set[str] = set()
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        for entry in _walk(json.loads(path.read_text(encoding="utf-8"))["value"]):
+            out = "pointer" in entry and entry.get("code") == "VALUE_OUT_OF_RANGE"
+            if out and not entry.get("params"):
+                unnamed.add(path.stem)
+    assert unnamed == {"preferences_page_size_out_of_range"}
+
+
+def test_a_constant_of_duration_at_zero_is_refused_by_its_own_motif() -> None:
+    # Strictly positive (WF-PLA-0160): the interval is open, and has no least value to name.
+    refused = fixture("duration_units_zero")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    [crossed] = refused["fields"]
+    assert crossed == {"pointer": "/hours_per_day", "code": "DURATION_UNIT_NOT_POSITIVE"}
+    said = refusals(operations()["setDurationUnits"][1])
+    assert "par `DURATION_UNIT_NOT_POSITIVE`" in said
+    assert "duration_units_zero" in said

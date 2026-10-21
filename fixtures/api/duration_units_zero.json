@@ -6,7 +6,7 @@
     "fields": [
       {
         "pointer": "/hours_per_day",
-        "code": "VALUE_OUT_OF_RANGE"
+        "code": "DURATION_UNIT_NOT_POSITIVE"
       }
     ],
     "correlation_id": "01926f3a-7c00-7000-8000-000000001302"

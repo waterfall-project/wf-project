@@ -783,10 +783,11 @@
       '422':
         description: >-
           Une constante nulle : `VALIDATION_FAILED`, `fields` la désignant, `/hours_per_day`,
-          `/hours_per_week` ou `/days_per_month`, par `VALUE_OUT_OF_RANGE`, sans paramètre — la
-          borne, strictement positive, exclut zéro, que `minimum` ne saurait dire. Une
-          constante qui n'est pas un décimal sans signe, par `VALIDATION_FAILED` au même
-          pointeur (WF-PLA-0160). Rien n'est écrit.
+          `/hours_per_week` ou `/days_per_month`, par `DURATION_UNIT_NOT_POSITIVE`, sans
+          paramètre — la borne, strictement positive, exclut zéro : elle n'a pas de plus petite
+          valeur admise que `VALUE_OUT_OF_RANGE` pourrait nommer. Une constante qui n'est pas un
+          décimal sans signe, par `VALIDATION_FAILED` au même pointeur (WF-PLA-0160). Rien
+          n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

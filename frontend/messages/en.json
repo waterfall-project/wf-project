@@ -1796,6 +1796,7 @@
     "BOUNDS_NOT_ORDERED": "The bounds must be strictly increasing.",
     "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "The threshold must lie between 0 and 1, both excluded.",
+    "DURATION_UNIT_NOT_POSITIVE": "The constant must be strictly positive.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This item is not part of the work breakdown read: unknown, of another kind, or deleted.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears a work package or an order item, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This work package or order item is already borne by another task.",

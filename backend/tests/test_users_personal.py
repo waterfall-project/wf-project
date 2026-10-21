@@ -345,9 +345,11 @@ def test_preferences_at_their_bounds_are_written(
     assert preferences_of(database, user_id) == {**sent, "timelines": timelines}
 
 
-# A value out of what the contract admits, which it refuses by ``VALUE_OUT_OF_RANGE``: a lane
-# under the first, the bound named; a number of lines per page not of the four, without parameter.
-OUT_OF_RANGE: list[tuple[dict[str, Any], dict[str, Any]]] = [
+# A value the contract does not admit, refused by its true cause: a lane under the first, by
+# ``VALUE_OUT_OF_RANGE``, the bound named; a number of lines per page not of the four, by the same
+# code without parameter; a value of another kind — a boolean for a number, an integer for a
+# theme —, by ``VALIDATION_FAILED``.
+NOT_ADMITTED: list[tuple[dict[str, Any], dict[str, Any]]] = [
     (
         {"timelines": {"t1": {"lanes": {"n1": -1}}}},
         {
@@ -368,12 +370,12 @@ OUT_OF_RANGE: list[tuple[dict[str, Any], dict[str, Any]]] = [
         {"grids": {"users": {"page_size": True}}},
         {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
     ),
+    ({"theme": 3}, {"pointer": "/theme", "code": "VALIDATION_FAILED"}),
 ]
 
 
-@pytest.mark.requirement("WF-IHM-0060-A")
-@pytest.mark.parametrize(("sent", "fault"), OUT_OF_RANGE)
-def test_a_lane_or_a_number_of_lines_per_page_not_admitted_is_refused_and_nothing_is_written(
+@pytest.mark.parametrize(("sent", "fault"), NOT_ADMITTED)
+def test_a_value_not_admitted_is_refused_by_its_true_cause_and_nothing_is_written(
     api: ContractClient,
     database: Database,
     realm: TestRealm,
@@ -385,6 +387,18 @@ def test_a_lane_or_a_number_of_lines_per_page_not_admitted_is_refused_and_nothin
     response = api.patch(PREFERENCES, headers=headers, json=sent)
     assert refusal(response) == (422, "VALIDATION_FAILED", [fault])
     assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+def test_a_number_of_lines_per_page_sent_as_a_string_is_written_as_the_integer(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # ``"25"`` reads as 25, one of the four, as any integer of a body reads from its text.
+    user_id, headers = person(database, realm)
+    sent = {"grids": {"users": {"page_size": "25"}}}
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    assert response.status_code == 200, response.text
+    assert response.json() == {"grids": {"users": {"page_size": 25}}}
+    assert preferences_of(database, user_id) == {"grids": {"users": {"page_size": 25}}}
 
 
 # A key that holds ``/`` or ``~``, and where its fault is pointed at.
