@@ -35,8 +35,6 @@ const STRUCTURE = {
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
-// The sub-project « Essais et mise en service » of the witness project.
-const TESTS = "01926f3a-7c00-7000-8000-000000000802";
 // A role of the reference data, deactivated.
 const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
 // The rows of the estimate, by their index: its line of labour, its disbursement, its provision.
@@ -67,7 +65,7 @@ function grid(nodes: NodeList) {
         tasksEditable
         query={NO_QUERY}
         filters={{}}
-        preferences={undefined}
+        preferences={{ hidden_columns: [] }}
       />
     </NextIntlClientProvider>
   );
@@ -99,7 +97,7 @@ afterEach(() => {
 });
 
 describe("the sub-project, the payment delay and the deactivated object of a line (#349)", () => {
-  it("presents the sub-project and the payment delay of a line as the server gives them, and enters them where the node accepts them", async () => {
+  it("presents the sub-project and the payment delay of a line as the server gives them, and enters the delay where the node accepts it, the sub-project being chosen from the menu of the cell", async () => {
     const client = serve();
     const read = structuredClone(estimate);
     const disbursement = read.items[DISBURSEMENT]?.estimate_line;
@@ -127,27 +125,14 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
     );
     await userEvent.clear(field);
     await userEvent.keyboard("045{Enter}");
-    // The sub-project, from the list of the project; « Aucun » for a line out of any. The line of
-    // labour of a started task keeps the sub-project that received actual costs: its node does not
-    // accept it (#1066).
+    // The sub-project is read only in its column, whichever the line: it is chosen from the menu of
+    // the cell (US-0480).
     expect(cell(LABOUR, "subproject")).toHaveAttribute("aria-readonly", "true");
-    cell(REMINDER, "subproject").focus();
-    await userEvent.keyboard("{Enter}");
-    const list = screen.getByRole("combobox", { name: "Sous-projet" });
-    expect(
-      within(list)
-        .getAllByRole("option")
-        .map((option) => option.textContent),
-    ).toEqual(["Aucun", "SP-CMD — Poste de commande", "SP-ESS — Essais et mise en service"]);
-    await userEvent.selectOptions(list, TESTS);
-    await userEvent.keyboard("{Enter}");
+    expect(cell(REMINDER, "subproject")).toHaveAttribute("aria-readonly", "true");
     await vi.waitFor(() => {
-      expect(written(client)).toHaveLength(2);
+      expect(written(client)).toHaveLength(1);
     });
-    expect(written(client)).toEqual([
-      { payment_delay_days: 45, lock_version: 1 },
-      { subproject_id: TESTS, lock_version: 1 },
-    ]);
+    expect(written(client)).toEqual([{ payment_delay_days: 45, lock_version: 1 }]);
   });
 
   it("marks the lines that bear a deactivated role, as the server says it, and keeps them readable [WF-REF-0010-A]", async () => {

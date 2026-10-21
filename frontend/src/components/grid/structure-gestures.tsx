@@ -279,8 +279,8 @@ function GestureNotice<Row extends GridNode>({
  * The gestures of structure a grid gives its rows, as the structure it reads lists its commands:
  * none for a grid that offers none. `onWritten` is told what each write answered, whose version the
  * grid keeps (`useStructureVersion`) and brings back in `scope.version`, which the next move carries.
- * `choices` gives the menu of the cells the submenu of the timelines of a task (US-0480): the same
- * writes, the same reading anew, the same refusals told at the row.
+ * `choices` gives the menu of the cells the submenus of the timelines of a task and of the sub-project
+ * of a line (US-0480): the same writes, the same reading anew, the same refusals told at the row.
  */
 export function useStructureGestures<Row extends GridNode>(
   scope: StructureGestures | undefined,
@@ -451,7 +451,7 @@ export function useStructureGestures<Row extends GridNode>(
     );
   };
   /**
-   * Write a change of the submenu on the rows it applies to, one write per row with its version,
+   * Write a change of the submenus on the rows it applies to, one write per row with its version,
    * each answer taking the place of the row read, and the grid read anew: told by the first of the
    * rows, and how many others. A refusal is told for the row it was made at; the rows before it stay
    * written. With `timeline`, the timeline is created first, named, and the rows are inscribed to it.
@@ -496,7 +496,10 @@ export function useStructureGestures<Row extends GridNode>(
       () => refused,
       {
         label,
-        done: t("tracked", { label, others: others.length }),
+        done: t(change.kind === "subproject" ? "subprojectSet" : "tracked", {
+          label,
+          others: others.length,
+        }),
       },
       timeline?.opening,
     );

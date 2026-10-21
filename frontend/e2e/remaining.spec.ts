@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, test } from "@playwright/test";
 
+import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition, withinBox } from "./scroll";
@@ -139,4 +140,66 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   for (const role of ["textbox", "spinbutton", "slider", "button", "combobox"] as const) {
     await expect(main.getByRole(role)).toHaveCount(0);
   }
+});
+
+test("carries a line to a sub-project from the menu of its cell, and takes it out of any, the column being shown [WF-PRJ-0050-A] [WF-RAE-0040-A]", async ({
+  page,
+}) => {
+  // Le passage à un autre sous-projet d'une ligne d'une tâche non démarrée aboutit. The fake back
+  // keeps nothing, and serves the first example of `updateEstimateLine` whatever was sent, the entry
+  // of a figure of another line: what the grid sends, and the line answered shown in the column,
+  // are proven by `choice-menu.dom.test.tsx`; the journey proves the column, the menu and the
+  // sentence the screen says, in a browser. Row 24 of the example is a line of a task not started,
+  // « Mise en service sur site », which names its sub-project among the fields it accepts.
+  test.slow();
+  await openHydrated(page, `${IN_REVISION}/remaining`);
+  const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
+  // The column of the sub-project starts hidden, and is shown from the menu of the columns.
+  await expect(grid.getByRole("columnheader", { name: "Sous-projet" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Colonnes" }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Sous-projet" }).click();
+  await page.keyboard.press("Escape");
+  const at = await columnsOf(grid, { label: "Libellé", subproject: "Sous-projet" });
+
+  const line = await scrollToPosition(grid, 24);
+  await expect(line).toHaveAccessibleName(/^24 .*Mise en service sur site/);
+  const cell = line.getByRole("gridcell").nth(at.subproject);
+  await expect(cell).toHaveText("Poste de commande");
+  await expect(cell).toHaveAttribute("aria-readonly", "true");
+
+  // The radio buttons: none for the sub-project, and every sub-project of the project, the line's
+  // checked.
+  await line.getByRole("gridcell").nth(at.label).click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Sous-projet" })
+    .click();
+  const radios = page.getByRole("menu", { name: "Sous-projet" });
+  await expect(radios.getByRole("menuitemradio")).toHaveText([
+    "Aucun sous-projet",
+    "Poste de commande",
+    "Essais et mise en service",
+  ]);
+  await expect(radios.getByRole("menuitemradio", { name: "Poste de commande" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await radios.getByRole("menuitemradio", { name: "Essais et mise en service" }).click();
+  const said = page.getByText("Sous-projet de « Mise en service sur site » mis à jour.");
+  await expect(said).toBeVisible({ timeout: WORKING });
+  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+
+  // Taken out of any: the menu offers it, and the screen says the sub-project was updated.
+  await line.getByRole("gridcell").nth(at.label).click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Sous-projet" })
+    .click();
+  await page
+    .getByRole("menu", { name: "Sous-projet" })
+    .getByRole("menuitemradio", { name: "Aucun sous-projet" })
+    .click();
+  await expect(said).toBeVisible({ timeout: WORKING });
+  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+  await expect(page.getByRole("alert")).toBeEmpty();
 });
