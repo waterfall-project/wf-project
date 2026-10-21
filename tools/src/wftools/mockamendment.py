@@ -168,19 +168,19 @@ def nodes_amendment() -> JsonObject:
     ``subtree_of``: the nodes under the installation, it included, marked, the line withdrawn at
     its place; the totals those of the differential, which no longer bears it (`NodeTotals`).
     """
-    nodes = marked()
-    below = {own_id(N.INSTALLATION)}
-    for node in nodes:
-        if node["parent_id"] in below:
-            below.add(cast("str", node["node_id"]))
     answer = mockcore.subtree(rows(), N.INSTALLATION)
-    return {**answer, "items": [node for node in nodes if node["node_id"] in below]}
+    return {
+        **answer,
+        "items": cast("list[JsonValue]", mockdiff.window(marked(), own_id(N.INSTALLATION))),
+    }
 
 
 # --- The report before the merge -----------------------------------------------------------------
 
-DESIGNATED = {N.COMMISSIONING: ["duration"], N.COMMISSIONING_LINE: ["hours"]}
-"""The nodes the amendment changes, and the columns of what it changes of them (`NodeColumn`)."""
+DESIGNATED = {N.COMMISSIONING: ["duration", "parent"], N.COMMISSIONING_LINE: ["hours"]}
+"""The nodes the amendment changes, and what it changes of them: the columns (`NodeColumn`), and
+the parent of the commissioning, moved under the trials on site, which no column presents
+(`ImportDifference.fields`, #1194)."""
 
 RELINKED = (N.COMMISSIONING, N.MOUNTING, N.TESTS_RESUMED)
 """The task whose predecessor the amendment changes, its predecessor before, and after."""
@@ -226,9 +226,9 @@ def structure_merge_report() -> JsonObject:
     """Return what getStructureMergeReport answers of the amendment 2 (WF-REV-0050).
 
     The tasks and the lines added, the link of the commissioning moved from the mounting to the
-    rework, the duration of the commissioning and the hours of its line changed, the line
-    withdrawn; no started task withdrawn, none completed; nothing refusing it. The counters of
-    the two structures read, as `structures` lists them.
+    rework, the commissioning moved under the trials on site and its duration changed, the hours
+    of its line changed, the line withdrawn; no started task withdrawn, none completed; nothing
+    refusing it. The counters of the two structures read, as `structures` lists them.
     """
     nodes = marked()
     by_id = {cast("str", node["node_id"]): node for node in nodes}
@@ -313,14 +313,15 @@ def examples() -> dict[str, JsonObject]:
         "structure_merge_report.json": mocktext.example(
             f"Le compte rendu préalable de la fusion de l'avenant 2 du témoin, « {LABEL} », "
             f"différentiel non fusionné de la révision courante (nodes_amendment) : "
-            f"{_said(whole, mockdiff.ADDED)}, qu'il ajoute ; la « {relinked} » liée à la "
-            f"« {after} » au lieu du « {before} », sa durée et la charge de sa ligne modifiées ; "
+            f"{_said(whole, mockdiff.ADDED)}, qu'il ajoute ; la « {relinked} » déplacée sous "
+            f"les « {_label(whole, N.SITE_TESTS)} », liée à la « {after} » au lieu du "
+            f"« {before} », sa durée et la charge de sa ligne modifiées ; "
             f"{_said(whole, mockdiff.REMOVED)}, retirée ; aucune tâche démarrée retirée, aucune "
             f"terminée, aucun motif de "
             f"refus : la confirmation est offerte, qui renverra les compteurs lus — celui de la "
             f"structure principale, {report['main_structure_lock_version']}, et celui du "
             f"différentiel, {report['amendment_lock_version']}, comme `structures` les dit "
-            f"(WF-REV-0050, WF-IHM-0110, #791).",
+            f"(WF-REV-0050, WF-IHM-0110, #791, #1194).",
             report,
         ),
     }

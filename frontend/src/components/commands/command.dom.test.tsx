@@ -201,9 +201,15 @@ describe("a command of a revision", () => {
 
   it("is offered for modification on a draft, and not on a marked revision [WF-IHM-0020-A]", () => {
     const draft = french(revisionCommands("revision"));
-    expect(screen.getByRole("button", { name: "Créer une structure" })).not.toHaveAttribute(
-      "aria-disabled",
-    );
+    // The draft carries amendment 2, not merged: another one opens all the same, several
+    // coexisting (WF-REV-0100, #1211).
+    for (const name of [
+      "Créer une structure",
+      "Fusionner une structure",
+      "Abandonner la révision",
+    ]) {
+      expect(screen.getByRole("button", { name })).not.toHaveAttribute("aria-disabled");
+    }
     draft.unmount();
 
     french(revisionCommands("revision_marked"));

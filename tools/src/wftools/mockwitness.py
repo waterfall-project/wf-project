@@ -86,6 +86,14 @@ RISKS_IDENTIFIED = Event(
     "Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101",
     time(10, 0),
 )
+RATES_UPDATED = Event(
+    date(2026, 1, 12),
+    "Mise à jour des taux de 2026 acceptée depuis la révision 101 en cours",
+    time(10, 15),
+)
+"""The revision 101, created by an entry of a risk, took the rates of the offer projected to 2026;
+the update, still proposed from the revision in progress, was accepted a quarter of an hour after
+(WF-REV-0060, C-362; ``rate_update_applied``)."""
 ORDER_RECEIVED = Event(
     date(2026, 1, 15),
     "Commande reçue ; l'offre 100 désignée référence, passage En cours",
@@ -138,6 +146,7 @@ CHRONOLOGY = tuple(
             OFFER_OPENED,
             OFFER_MARKED,
             RISKS_IDENTIFIED,
+            RATES_UPDATED,
             ORDER_RECEIVED,
             AMENDMENT_MERGED,
             RISK_751_REVIEWED,

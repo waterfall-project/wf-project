@@ -3,7 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -19,9 +19,14 @@ test("leads from the estimate to the workload, drawn in bars, the capacity in it
   await compile(page.request, SCREEN);
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
-  await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16`);
-  // The five seconds of an assertion, which the screen overran once under load: measures in #500.
-  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible();
+  // Within the bound of a screen of grid (`WORKING`), as the paths of the screens follow a link:
+  // the click leaves the estimate, whose thousand tasks the browser takes down before it shows the
+  // workload — over five seconds under load on the runners of the chain, the server answering in a
+  // fraction of a second (#500).
+  await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16`, { timeout: WORKING });
+  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible({
+    timeout: WORKING,
+  });
   const region = page.getByRole("region", { name: "Plan de charge du projet" });
   const figure = region.getByRole("figure", { name: "Charge par rôle et par mois" });
   await expect(

@@ -390,7 +390,10 @@ function within(row: GridNode, nodes: readonly GridNode[], rows: readonly GridNo
   return false;
 }
 
-/** Whether a task bears rows of a kind dropped under it: tasks unless a milestone, lines unless a summary too. */
+/**
+ * Whether a task bears rows of a kind dropped under it: tasks unless it is a milestone, lines unless
+ * it is a summary too.
+ */
 function bears(target: GridNode, kind: GridNode["kind"]): boolean {
   return (
     target.kind === "task" &&

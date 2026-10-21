@@ -4,7 +4,9 @@
  * The estimate of a revision (WF-DEV-0050, WF-DEV-0060, US-0220), at the route of its function
  * (`functions.json`): the banner of its reading context (WF-IHM-0020); the hourly rates its
  * calculation lacks and its indicators (`EstimateSummary`), read for the sub-project the address
- * filters; and the grid on the main structure of the revision, its tasks and their lines, asked
+ * filters; and the grid on the structure the address names — the main one by default, a
+ * differential, the own estimate of a risk (US-0500), which the banner names and offers to change,
+ * mounted anew for each (#819.3) —, its tasks and their lines, asked
  * and handed the fields it shows alone (`grid-screen.ts`), filtered by a lot or a post of the work
  * breakdown read whole, which the banner says restricts the grid alone: the indicators are those of
  * the whole project, or of its sub-project. The rows come in the order of the answer, with the
@@ -12,9 +14,10 @@
  * reads anew (`grid-screen.ts`). The
  * indicators and the rates are read alongside the grid, and so are the categories and the roles a
  * line is chosen from (US-0120) — the server names those a line bears (#305). The grid is entered from the keyboard, and takes
- * a block pasted from a spreadsheet, its tasks and its lines created and deleted, when the main
- * structure lists `edit_estimate` available to the caller (WF-IHM-0040, WF-IHM-0050): on a project in
- * progress it lists it unavailable, and the grid is read only (WF-DEV-0050). Its head leads to the workload of the project, a leaf of the estimate
+ * a block pasted from a spreadsheet, its tasks and its lines created and deleted, when the structure
+ * read lists `edit_estimate` available to the caller (WF-IHM-0040, WF-IHM-0050): on a project in
+ * progress the main one lists it unavailable, and its grid is read only, where a differential and
+ * the own estimate of a risk list it available (WF-DEV-0050). Its head leads to the workload of the project, a leaf of the estimate
  * with a screen of its own (FBS-4.4.4), in the same context, and, when the project lists the import
  * of an estimate, to the imports and exports, where it is exercised (#521). A refused read of the rates
  * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
@@ -259,6 +262,7 @@ export default async function EstimatePage({
       sortable: ESTIMATE_SORT_COLUMNS,
       fields: ESTIMATE_FIELDS,
       byBreakdown: true,
+      chooses: true,
     }),
     readEstimateFigures(at),
     readReference(revision.projectId),
@@ -268,11 +272,14 @@ export default async function EstimatePage({
   // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
   const editable = screen.commands.has("edit_estimate");
   const subprojectsEntered = editable && reference.subprojects !== undefined;
+  // One address asked for the whole screen: the structure chosen in the banner and a sort or a filter
+  // of the grid compose, whichever comes first (défaut n° 20 de `typescript.md`).
   return (
-    <>
+    <PendingAddress>
       <ContextBanner
         reading={screen.reading}
         restricts={RESTRICTS}
+        structure={screen.structures}
         breakdown={breakdownChip(
           screen.breakdownFilter,
           screen.breakdown?.items,
@@ -294,23 +301,22 @@ export default async function EstimatePage({
           missingRates={missingRates}
           permissions={session?.permissions ?? []}
         />
-        <PendingAddress>
-          {screen.breakdown === undefined ? null : (
-            <BreakdownFilterChoice choices={screen.breakdown} />
-          )}
-          <EstimateGrid
-            nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
-            structure={screen.structure}
-            structureVersion={screen.structureVersion}
-            filters={screen.filters}
-            reference={reference}
-            editable={editable}
-            tasksEditable={screen.commands.has("edit_planning")}
-            query={screen.query}
-            preferences={screen.preferences}
-          />
-        </PendingAddress>
+        {screen.breakdown === undefined ? null : (
+          <BreakdownFilterChoice choices={screen.breakdown} />
+        )}
+        <EstimateGrid
+          key={screen.structure.structure_id}
+          nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
+          structure={screen.structure}
+          structureVersion={screen.structureVersion}
+          filters={screen.filters}
+          reference={reference}
+          editable={editable}
+          tasksEditable={screen.commands.has("edit_planning")}
+          query={screen.query}
+          preferences={screen.preferences}
+        />
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

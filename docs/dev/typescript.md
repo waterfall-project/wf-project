@@ -430,5 +430,12 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     version de la réponse — et dans `contributor-commands.dom.test.tsx`, chacun par un `it.each` sur
     un succès, un refus et une action rejetée, qui affirme ce que l'écran dit de la réponse — le
     succès dans la région de la liste, le refus et l'API hors d'atteinte en alerte, l'action rejetée
-    n'ayant rien demandé —, puis la commande levée et le dialogue rouvert. Aucun outil ne le tient :
-    la revue le cherche.
+    n'ayant rien demandé —, puis la commande levée et le dialogue rouvert. Le même défaut guette
+    les commandes d'une grille sur ses lignes (`RowCommands`, `undo-commands.tsx`) : un écran qui
+    déplace des lignes sélectionnées — par ses gestes, ou en posant `drag` — pose aussi `busy`,
+    vrai tant qu'une écriture ou la relecture qui la suit est en route, et ses gestes comme son
+    `drag.accepts` le lisent : sans lui, le déplacement suivant partirait des voisines d'avant la
+    relecture, avec une version déjà avancée. `busy` est optionnel dans le type pour les écrans qui
+    n'écrivent pas l'arbre ; le poser est la règle de tout écran qui l'écrit. La preuve :
+    `row-selection.dom.test.tsx`, « holds the next move until the reading anew is over » et
+    « drops nothing while the grid is busy ». Aucun outil ne le tient : la revue le cherche.

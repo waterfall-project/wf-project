@@ -245,35 +245,38 @@ describe("the comparison of two revisions", () => {
     const call = callTo("GET /projects/{project_id}/revisions/comparison");
     expect(call?.path).toBe(`${REVISIONS}/comparison`);
     expect(call?.query.toString()).toBe(`from_revision_id=${OFFER}&to_revision_id=${REFERENCE}`);
+    // The window `comparison` reads, the sub-tree of « Installation sur site » (`subtree_of`), as
+    // its description counts it: of its 9 nodes, 2 added, 2 removed, 2 lines changed by their own
+    // values and 3 tasks changed by their content alone — each part in the order of the API.
     expect(table(page, "Ajouts")).toBe(
-      "Libellé Nature Provision — risque de reprise du câblage Ligne de devis " +
-        "Provision — retard de livraison des armoires Ligne de devis " +
-        "Réception usine Tâche Assistance aux essais de câblage Ligne de devis " +
+      "Libellé Nature Assistance aux essais de câblage Ligne de devis " +
         "Provision — indisponibilité de l'automaticien Ligne de devis",
     );
     expect(table(page, "Retraits")).toBe(
       "Libellé Nature Essais préliminaires sur site Tâche Location du banc d'essais Ligne de devis",
     );
-    // The four nodes of the core first, in the order of the API; then every line of labour drawn
-    // around it, re-estimated at the rates of 2026 (EP-14/L45a): one row per node the API marks
-    // modified for what changes of it, none left out by the front.
-    const changed = table(page, "Modifications");
-    const core =
-      "Libellé Nature Ce qui change Dossier de conception Tâche Dates Durée " +
-      "Raccordement des borniers Ligne de devis Montant budgété Montant réestimé " +
-      "Câblage sur site Ligne de devis Montant réestimé " +
-      "Mise en service sur site Ligne de devis Montant réestimé ";
-    expect(changed.slice(0, core.length)).toBe(core);
-    expect(rows(page, "Modifications")).toBe(2770);
-    // A summary task the API marks modified for its content alone, with no change of its own,
-    // has no row: its content says it.
-    const summary = COMPARISON.nodes.find((node) => node.task?.label === "Installation sur site");
-    expect(summary?.task?.is_summary).toBe(true);
-    expect(summary?.difference).toBe("modified");
-    expect(summary?.changes).toEqual([]);
+    // The two lines of labour the amendment does not name, re-estimated at the rates of 2026
+    // (EP-14/L45a): one row per node the API marks modified for what changes of it.
+    expect(table(page, "Modifications")).toBe(
+      "Libellé Nature Ce qui change Câblage sur site Ligne de devis Montant réestimé " +
+        "Mise en service sur site Ligne de devis Montant réestimé",
+    );
+    expect(rows(page, "Modifications")).toBe(2);
+    // A task the API marks modified for its content alone, with no change of its own, has no row:
+    // its content says it — the summary task at the root of the window, and the two beneath it.
+    const contentOnly = COMPARISON.items.filter(
+      (node) => node.difference === "modified" && (node.changes ?? []).length === 0,
+    );
+    expect(contentOnly.map((node) => node.task?.label)).toEqual([
+      "Installation sur site",
+      "Montage des armoires sur site",
+      "Mise en service",
+    ]);
+    expect(contentOnly[0]?.task?.is_summary).toBe(true);
     const named = labels(page, "Modifications");
-    expect(named).toHaveLength(2770);
-    expect(named).not.toContain("Installation sur site");
+    for (const node of contentOnly) {
+      expect(named).not.toContain(node.task?.label);
+    }
     // The deviations as the API gives them, in its order, each named by the label it resolves
     // (#204), or as the catalogue names one without a label: no total the front would add up, no
     // identifier shown.
@@ -285,7 +288,8 @@ describe("the comparison of two revisions", () => {
         } ${formatMoney(delta.delta, "fr")}`,
     );
     expect(table(page, "Écarts de montants")).toBe(text(`Axe Poste Écart ${deltas.join(" ")}`));
-    expect(deltas).toHaveLength(6);
+    // Three natures of cost and two sub-projects, as the description of `comparison` lists them.
+    expect(deltas).toHaveLength(5);
     for (const { key } of COMPARISON.amount_deltas) {
       expect(page).not.toContain(key);
     }
@@ -396,7 +400,14 @@ describe("the parts of the revision the screen reads in", () => {
 describe("the commands of the revision the screen reads in", () => {
   it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    for (const name of ["Créer une structure", "Marquer la révision"]) {
+    // The draft carries amendment 2, not merged: another one opens all the same, several
+    // coexisting (WF-REV-0100, #1211).
+    for (const name of [
+      "Créer une structure",
+      "Fusionner une structure",
+      "Marquer la révision",
+      "Abandonner la révision",
+    ]) {
       expect(offered(page, name)).toBe("available");
     }
   });

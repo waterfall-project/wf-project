@@ -136,6 +136,15 @@ def test_the_report_before_the_merge_says_what_the_differential_marks(whole: lis
     assert labels("removed") == marked("removed")
     modified = {node["lineage_id"] for node in whole if node["difference"] == "modified"}
     assert {each["lineage_id"] for each in differences if each["change"] == "updated"} <= modified
+    # A node the differential moves names its parent among the fields it changes, as its reading
+    # does among its changes (#1194): the commissioning, under the trials on site.
+    moved = {node["lineage_id"] for node in whole if "parent" in node["changes"]}
+    named = {
+        each["lineage_id"]
+        for each in differences
+        if each["change"] == "updated" and "parent" in each["fields"]
+    }
+    assert named == moved == {_by_id(whole)[own_id(N.COMMISSIONING)]["lineage_id"]}
     links = [
         (each["change"], each["predecessor_label"])
         for each in differences

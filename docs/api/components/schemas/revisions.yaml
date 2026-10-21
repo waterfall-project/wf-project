@@ -454,11 +454,11 @@ Node:
       readOnly: true
       description: >-
         Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses
-        sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement
-        désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`,
-        `NodeMove.after_node_id` ; #1183). Sur la lecture d'un différentiel et sur une
-        comparaison, les nœuds retirés rendus y comptent, à la place qu'ils avaient
-        (`NodeDifference`).
+        sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une
+        création ou un déplacement désigne sa place par le nœud après lequel se placer
+        (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un
+        différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place
+        qu'ils avaient (`NodeDifference`).
     row_number:
       type: integer
       minimum: 1
@@ -1341,11 +1341,11 @@ NodeCreate:
     après la dernière ligne, une tâche après la dernière sous-tâche. Un `after_node_id` d'un
     autre genre que le nœud créé se replie sur la frontière entre lignes et sous-tâches : une
     ligne envoyée après une sous-tâche se place après la dernière ligne, une tâche envoyée après
-    une ligne en tête des sous-tâches (#1187). Un `after_node_id` qui n'est pas un frère sous le parent visé — un nœud d'un autre parent, ou
-    qui n'est pas de la structure — est refusé par 422 `VALIDATION_FAILED`, `fields[].pointer` à
-    `/after_node_id`, motif `NODE_NOT_SIBLING`, rien n'étant écrit : la grille désigne la place
-    par le nœud qu'elle lit, jamais par un rang qu'une lecture filtrée ne lui permet pas de
-    compter (#1183).
+    une ligne en tête des sous-tâches (#1187). Un `after_node_id` qui n'est pas un frère sous le
+    parent visé — un nœud d'un autre parent, ou qui n'est pas de la structure — est refusé par
+    422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif `NODE_NOT_SIBLING`,
+    rien n'étant écrit : la grille désigne la place par le nœud qu'elle lit, jamais par un rang
+    qu'une lecture filtrée ne lui permet pas de compter (#1183).
   properties:
     kind: { $ref: '#/NodeKind' }
     parent_id:
@@ -1510,22 +1510,27 @@ NodeMove:
     contient — est refusé (WF-PLA-0170) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le
     nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
     `fields[].params.work_package_task` et `order_item_tasks` nommant la tâche du lot et celles
-    des postes, chacune par son nœud et son libellé (`node_id`, `label`) : la grille, filtrée, peut
-    ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s). Les nœuds déplacés prennent place
-    sous `parent_id`, dans l'ordre de `node_ids`, après le frère que nomme `after_node_id`, selon
-    la règle de `NodeCreate` : les lignes d'une tâche précèdent toujours ses sous-tâches ; nul,
-    une ligne se place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne
-    après la dernière ligne, une tâche après la dernière sous-tâche ; un `after_node_id` d'un
-    autre genre se replie sur la frontière entre lignes et sous-tâches, une ligne après une
-    sous-tâche se plaçant après la dernière ligne, une tâche après une ligne en tête des
-    sous-tâches. Une sélection qui mêle lignes et tâches applique cette règle à chaque nœud,
-    dans l'ordre de `node_ids` : le premier nœud de chaque genre prend la place que la règle lui
-    donne après `after_node_id`, et chacun des suivants se place après le précédent de son genre
-    — les lignes déplacées restent ensemble parmi les lignes, les tâches parmi les sous-tâches
-    (#1187). Un `after_node_id` qui
-    n'est pas un frère sous le parent visé — un nœud d'un autre parent, l'un des nœuds déplacés,
-    ou un nœud qui n'est pas de la structure — est refusé par 422 `VALIDATION_FAILED`,
-    `fields[].pointer` à `/after_node_id`, motif `NODE_NOT_SIBLING`, rien ne bougeant (#1183).
+    des postes, chacune par son nœud et son libellé (`node_id`, `label`) : la grille, filtrée,
+    peut ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s). Une sélection se juge sur la
+    structure que le déplacement laisserait, tous ses nœuds déplacés : un refus qui nomme un
+    nœud nomme le premier en cause dans l'ordre du plan de la structure lue, et `LINK_CYCLE` la
+    boucle que ferme le déplacement de celui-ci (#1169) : l'ordre du refus est celui du plan,
+    l'ordre de `node_ids` ne règle que le placement. Les nœuds déplacés prennent place sous
+    `parent_id`, dans l'ordre de `node_ids`, après le frère que nomme `after_node_id`, selon la
+    règle de `NodeCreate` : les lignes d'une tâche précèdent toujours ses sous-tâches ; nul, une
+    ligne se place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne
+    après la dernière ligne, une tâche après la dernière sous-tâche, hors nœuds déplacés — un
+    nœud déplacé ne compte pas parmi les frères qu'il suivrait — ; un `after_node_id` d'un autre
+    genre se replie sur la frontière entre lignes et sous-tâches, une ligne après une sous-tâche
+    se plaçant après la dernière ligne, une tâche après une ligne en tête des sous-tâches. Une
+    sélection qui mêle lignes et tâches applique cette règle à chaque nœud, dans l'ordre de
+    `node_ids` : le premier nœud de chaque genre prend la place que la règle lui donne après
+    `after_node_id`, et chacun des suivants se place après le précédent de son genre — les
+    lignes déplacées restent ensemble parmi les lignes, les tâches parmi les sous-tâches (#1187 ;
+    `nodes_move_mixed`). Un `after_node_id` qui n'est pas un frère sous le parent visé — un nœud
+    d'un autre parent, l'un des nœuds déplacés, ou un nœud qui n'est pas de la structure — est
+    refusé par 422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif
+    `NODE_NOT_SIBLING`, rien ne bougeant (#1183).
   properties:
     node_ids:
       type: array
@@ -1759,29 +1764,50 @@ PasteApply:
 
 RevisionComparison:
   type: object
-  required: [from_revision_id, to_revision_id, nodes, amount_deltas]
+  required: [from_revision_id, to_revision_id, items, totals, meta, amount_deltas]
   description: >-
     Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée
     (WF-REV-0080, WF-DAT-0030) : l'arbre de la structure principale de la révision comparée, avec
-    les marques d'un différentiel, et les écarts de montants.
+    les marques d'un différentiel, et les écarts de montants. Elle a la forme de la réponse de
+    `listNodes` — `items`, `totals`, `meta` —, et se lit comme elle, entière ou par la fenêtre
+    que ses filtres retiennent (#1193).
   properties:
     from_revision_id: { $ref: ../common.yaml#/Uuid }
     to_revision_id: { $ref: ../common.yaml#/Uuid }
-    nodes:
+    items:
       type: array
       description: >-
-        L'arbre de la révision comparée (`to_revision_id`), en parcours profondeur d'abord dans
-        l'ordre du plan, sans pagination, comme `listNodes` le rend : chaque nœud avec son écart
-        à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les
-        nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une
-        paire identique rend chaque nœud inchangé (WF-REV-0080, C-361).
+        Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours
+        profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend :
+        chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs
+        que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de
+        base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080,
+        C-361).
       items: { $ref: '#/Node' }
+    totals:
+      allOf: [{ $ref: '#/NodeTotals' }]
+      description: >-
+        Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes
+        retenues, sans les nœuds retirés, qui ne sont plus de sa structure.
+    meta:
+      allOf: [{ $ref: '#/NodeListMeta' }]
+      description: Ce que la lecture dit de la structure principale de la révision comparée.
     amount_deltas:
       type: array
       description: >-
         Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun
         nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne
-        joint rien (WF-ARC-0020).
+        joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de
+        même sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` :
+        sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens. L'écart se
+        compte par ligne retenue, selon son parent dans la révision comparée
+        (`to_revision_id`) : chaque ligne retenue y apporte son écart entier, son montant dans
+        la révision comparée moins celui de la révision de base, où qu'elle fût dans celle-ci.
+        Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne
+        déplacée dedans y compte son écart entier, et non son seul montant dans la révision
+        comparée ; une ligne
+        retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints
+        s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois.
       items:
         type: object
         required: [dimension, key, label, delta]

@@ -225,6 +225,24 @@ CommandCondition:
     une tâche : « Elle n'est plus proposée dès que la structure principale comporte une tâche »
     (Vérif de WF-PRJ-0030) ; `generatePlanningSkeleton` nomme dans son 409 la première qui
     manque, dans l'ordre où la commande les liste (EP-14/L42k).
+    `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche
+    terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
+    et à la création d'une ligne sous une tâche terminée, qui se rouvre d'abord depuis le Kanban :
+    `createNode` la nomme dans son 409 (WF-DEV-0050, WF-RAE-0030 ; #1184).
+    `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun
+    différentiel de la révision n'est à fusionner, et la révision la nomme
+    (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en
+    dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211). Deux tiennent
+    à la désignation de la référence (`designate_reference`), après `revision_marked`, qui
+    manque à une révision en cours :
+    `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte
+    aucune tâche ou aucune ligne de devis — « La désignation comme référence d'une révision qui
+    ne porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition
+    manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige
+    plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
+    dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
+    première qui manque, dans cet ordre — `reference_correctable` par son code propre,
+    `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490).
   enum:
     - is_contributor
     - is_project_manager
@@ -239,6 +257,7 @@ CommandCondition:
     - revision_draft
     - revision_marked
     - reference_correctable
+    - revision_has_tasks_and_lines
     - unmerged_amendment_exists
     - task_not_completed
     - hourly_rates_set

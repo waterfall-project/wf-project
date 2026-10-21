@@ -79,6 +79,7 @@
         "is_available": false,
         "missing_conditions": [
           "revision_marked",
+          "reference_correctable",
           "no_background_task_running"
         ]
       },

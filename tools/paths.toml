@@ -323,6 +323,8 @@ paths = [
     "fixtures/api/nodes_move_cycle_refused.json",
     "fixtures/api/node_create_after_not_sibling.json",
     "fixtures/api/nodes_move_after_not_sibling.json",
+    "fixtures/api/nodes_move_mixed.json",
+    "fixtures/api/estimate_line_completed_refused.json",
     "fixtures/api/node_create_horizon_exceeded.json",
     "fixtures/api/node_tracked.json",
     "fixtures/api/node_tracking_milestone_refused.json",

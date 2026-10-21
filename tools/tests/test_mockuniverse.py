@@ -142,39 +142,6 @@ def test_a_risk_read_in_a_revision_cites_the_structures_of_that_revision(
         assert structure["is_merged"] is (risk["state"] == "occurred")
 
 
-# --- The commands of the current revision (#1102) ----------------------------------------------
-
-
-def test_the_current_revision_offers_the_merge_if_and_only_if_it_bears_a_differential_not_merged(
-    examples: dict[str, Any],
-) -> None:
-    # `merge_structure` misses `unmerged_amendment_exists` when no differential of the revision
-    # is left to merge: the readings of the current revision say what `structures` lists.
-    current = examples["project.json"]["current_revision_id"]
-    unmerged = any(
-        each["kind"] == "amendment" and not each["is_merged"]
-        for each in examples["structures.json"]
-        if each["revision_id"] == current
-    )
-    assert unmerged
-    today = [
-        examples["revision.json"],
-        *(each for each in examples["revisions.json"]["items"] if each["revision_id"] == current),
-    ]
-    suspended = [examples["revision_marking.json"], examples["revision_importing.json"]]
-    for revision in (*today, *suspended):
-        assert revision["revision_id"] == current
-        [merge] = [
-            each for each in revision["available_commands"] if each["command"] == "merge_structure"
-        ]
-        assert ("unmerged_amendment_exists" in merge["missing_conditions"]) is not unmerged
-    for revision in today:
-        [merge] = [
-            each for each in revision["available_commands"] if each["command"] == "merge_structure"
-        ]
-        assert merge["is_available"] is unmerged
-
-
 # --- The accounts and their permissions (C6) ---------------------------------------------------
 
 

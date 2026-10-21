@@ -57,7 +57,6 @@ from wftools.mockwitness import (
     DISMISSED,
     EQUIPMENT,
     FACTORY_ACCEPTANCE,
-    GENERATED,
     IDENTIFIED,
     LABOUR,
     OCCURRED,
@@ -266,18 +265,45 @@ def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonV
 
 
 def comparison(
-    before: list[mockcore.Row], after: list[mockcore.Row], from_id: str, to_id: str
+    before: list[mockcore.Row],
+    after: list[mockcore.Row],
+    from_id: str,
+    to_id: str,
+    subtree_of: int | None = None,
 ) -> JsonObject:
     """Return the comparison of two revisions, matched by lineage (WF-REV-0080, WF-DAT-0030).
 
-    The tree of the later, its nodes marked against the earlier, those it no longer bears at the
-    place they had (``mockdiff``, C-361); and the deltas of the estimate at the year of reference.
+    Read as ``listNodes`` reads a structure (#1193), whole or by the subtree of a task: the tree
+    of the later, its nodes marked against the earlier, those it no longer bears at the place they
+    had (``mockdiff``, C-361); the totals and the meta of the later, as ``listNodes`` gives them,
+    the nodes removed not counted; and the deltas of the estimate at the year of reference, of the
+    lines the reading retains, those removed with them.
+
+    A line is retained by its parent in the later, where the marked tree renders it, and brings
+    its whole delta, the later's amount less the earlier's, wherever it was: moved out of the
+    subtree it counts nothing there, moved in it counts whole. A removed task reads the subtree it
+    had, its nodes removed at their place: no line of the later, totals of none, the deltas of its
+    removed lines (`amount_deltas`, `compareRevisions`).
     """
+    nodes = mockdiff.marked(before, after)
+    if subtree_of is None:
+        answer = mockcore.whole(after)
+    else:
+        answer = mockcore.subtree(after, subtree_of)
+        ids = {row.number: cast("str", row.node["node_id"]) for row in [*before, *after]}
+        nodes = mockdiff.window(nodes, ids[subtree_of])
+    kept = {cast("str", node["node_id"]) for node in nodes}
+
+    def retained(rows: list[mockcore.Row]) -> list[mockcore.Row]:
+        return [row for row in rows if row.node["node_id"] in kept]
+
     return {
         "from_revision_id": from_id,
         "to_revision_id": to_id,
-        "nodes": cast("list[JsonValue]", mockdiff.marked(before, after)),
-        "amount_deltas": _deltas(before, after),
+        "items": cast("list[JsonValue]", nodes),
+        "totals": answer["totals"],
+        "meta": answer["meta"],
+        "amount_deltas": _deltas(retained(before), retained(after)),
     }
 
 
@@ -647,6 +673,62 @@ def _marks(
     )
 
 
+def _quoted(nodes: list[JsonObject]) -> str:
+    """Name some nodes by their labels, as French lists them: « A », « B » et « C »."""
+    return _named([f"« {_label(node)} »" for node in nodes])
+
+
+def _deltas_text(deltas: list[JsonObject], dimension: str) -> str:
+    """Say the deltas of one dimension, each by the label of its key, in the order rendered."""
+    return _named(
+        [
+            f"{_amount(Decimal(cast('str', entry['delta'])))} pour "
+            + (
+                "ce qui ne relève d'aucun sous-projet"
+                if entry["label"] is None
+                else f"« {entry['label']} »"
+            )
+            for entry in deltas
+            if entry["dimension"] == dimension
+        ]
+    )
+
+
+def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
+    """Return the first example of compareRevisions: a window of the comparison, a subtree.
+
+    The installation on site, read by ``subtree_of`` as ``listNodes`` reads the differential
+    (``nodes_amendment``, #1193): it bears every mark — nodes added, removed, changed by their
+    values and by their content alone —, at the size of the readings of ``listNodes``.
+    """
+    compared = comparison(offer_rows(), rows, OFFER, REFERENCE, N.INSTALLATION)
+    nodes = cast("list[JsonObject]", compared["items"])
+    deltas = cast("list[JsonObject]", compared["amount_deltas"])
+    added, removed, changed, content = _marks(nodes)
+    rerated = (
+        ", lignes de main-d'œuvre que l'avenant ne désigne pas, qui gardent le budget de l'offre "
+        "et sont réestimées au taux de 2026 de leur catégorie"
+        if all(entry["changes"] == ["reestimated_amount"] for entry in changed)
+        else ""
+    )
+    return mocktext.example(
+        f"De l'offre v1.0, marquée le {_day(OFFER_MARKED.on)}, à la révision de référence, "
+        f"marquée le {_day(AMENDMENT_MERGED.on)} par la fusion de l'avenant 1, rapprochées par "
+        f"lignée et lues sur le sous-arbre « {_label(nodes[0])} » (subtree_of), comme `listNodes` "
+        f"lit une structure : {mocktext.count(len(nodes))} nœuds dans l'ordre du plan, chacun "
+        f"marqué — {len(added)} ajoutés, {_quoted(added)} ; {len(removed)} retirés et rendus à "
+        f"leur place, en lecture seule, {_quoted(removed)} ; {len(changed)} modifiés par leurs "
+        f"propres valeurs, {_quoted(changed)}{rerated} ; et {len(content)} tâches modifiées par "
+        f"leur seul contenu, {_quoted(content)} (C-361). Les totaux sont ceux du sous-arbre dans "
+        f"la référence, sans les nœuds retirés ; les écarts du devis à l'année de référence, ceux "
+        f"de ses lignes, retirées comprises, par nature — {_deltas_text(deltas, 'cost_type')} — "
+        f"et par sous-projet — {_deltas_text(deltas, 'subproject')} : l'offre n'en portait aucun, "
+        f"les sous-projets ayant été déclarés après la commande, et ses lignes passent de "
+        f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050, #1193).",
+        compared,
+    )
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the history of the witness, by file name."""
     today, rows = mockcore.current(), reference_rows()
@@ -657,37 +739,8 @@ def examples() -> dict[str, JsonObject]:
     items = cast("list[JsonObject]", register["items"])
     covered = read["risk_coverage"]
     merged = " et ".join(_amount(row.amounts.reestimated) for row in merged_lines(today))
-    compared = comparison(offer_rows(), rows, OFFER, REFERENCE)
     core = mockcore.core(offer(CORE), OFFER_MARKED.on, offer_rates())
     identical = mocktext.count(len(core))
-    nodes = cast("list[JsonObject]", compared["nodes"])
-    added, removed, changed, content = _marks(nodes)
-    deltas = {
-        cast("str", entry["key"]): cast("str", entry["delta"])
-        for entry in cast("list[JsonObject]", compared["amount_deltas"])
-    }
-    provisions = sum(1 for row in rows if is_provision(row))
-    numbers = {mockcore.lineage(row.number): row.number for row in rows}
-    rerated_lineages = [
-        cast("str", entry["lineage_id"])
-        for entry in changed
-        if entry["changes"] == ["reestimated_amount"]
-    ]
-    kept = [
-        f"« {_label(entry)} »"
-        for entry in changed
-        if entry["changes"] == ["reestimated_amount"]
-        and numbers[cast("str", entry["lineage_id"])] < GENERATED
-    ]
-    drawn = sum(1 for lineage in rerated_lineages if numbers[lineage] >= GENERATED)
-    rerated = (
-        f"les {mocktext.count(len(rerated_lineages))} lignes de main-d'œuvre que l'avenant ne "
-        f"désigne pas — dans le cœur, {mocktext.listed(kept)} ; et les "
-        f"{mocktext.count(drawn)} des tâches tirées autour de lui — gardent le budget de l'offre "
-        f"et sont réestimées au taux de 2026 de leur catégorie"
-        if kept and drawn
-        else "aucune ligne n'est réestimée sans être désignée"
-    )
     reserve_text = (
         f"la réserve pour risques de la référence, {_amount(reserve(rows))} — les provisions "
         f"qu'elle portait au {_day(AMENDMENT_MERGED.on)} : "
@@ -721,35 +774,14 @@ def examples() -> dict[str, JsonObject]:
         )
     )
     return {
-        "comparison.json": mocktext.example(
-            f"De l'offre v1.0, marquée le {_day(OFFER_MARKED.on)}, à la révision de référence, "
-            f"marquée le {_day(AMENDMENT_MERGED.on)} par la fusion de l'avenant 1, rapprochées "
-            f"par lignée sur toute la structure du témoin : {provisions} lignes de provision "
-            f"ajoutées par l'identification des risques le {_day(RISKS_IDENTIFIED.on)}, à la "
-            f"provision de chacun ce jour-là — 751 à {_amount(reference_provision(rework))} —, "
-            f"et, par l'avenant, la réception usine et l'assistance aux essais de câblage "
-            f"ajoutées, « {_label(removed[0])} » retirés avec leur ligne, la durée du dossier de "
-            f"conception et la charge du raccordement des borniers modifiées ; {rerated} "
-            f"(WF-REV-0030, WF-REV-0050, WF-REV-0060). Les écarts du "
-            f"devis à l'année de référence, par nature — {_amount(Decimal(deltas[LABOR]))} de "
-            f"main-d'œuvre, {_amount(Decimal(deltas[NON_LABOR]))} de débours, "
-            f"{_amount(Decimal(deltas[PROVISION]))} de provisions — et par sous-projet, chaque "
-            f"poste nommé par son libellé : l'offre n'en portait aucun, les sous-projets ayant "
-            f"été déclarés après la commande, et les lignes du poste de commande passent de "
-            f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050). "
-            f"L'arbre de la révision de référence, {mocktext.count(len(nodes))} nœuds dans "
-            f"l'ordre du plan, chacun marqué : {len(added)} ajoutés, {len(removed)} retirés et "
-            f"rendus à leur place, en lecture seule, {mocktext.count(len(changed))} modifiés par "
-            f"leurs propres valeurs et {mocktext.count(len(content))} tâches par leur seul "
-            f"contenu, les autres inchangés (C-361).",
-            compared,
-        ),
+        "comparison.json": comparison_example(rows),
         "comparison_identical.json": mocktext.example(
             "Variante contrefactuelle : l'offre v1.0 comparée à elle-même, son cœur lu seul, "
             "comme si la structure ne portait que lui — les études, le lot « Poste de commande » "
-            "et l'installation sur site. Identique par construction, la comparaison rend chaque "
-            f"nœud de l'arbre, {identical}, inchangé, et aucun écart de montant ; jamais un "
-            "refus (WF-REV-0080, C-361).",
+            "et l'installation sur site —, lue entière, sans filtre, comme `listNodes` lit une "
+            "structure. Identique par construction, la comparaison rend chaque nœud de l'arbre, "
+            f"{identical}, inchangé, les totaux de l'offre et aucun écart de montant ; jamais un "
+            "refus (WF-REV-0080, C-361, #1193).",
             comparison(core, core, OFFER, OFFER),
         ),
         "risks.json": mocktext.example(

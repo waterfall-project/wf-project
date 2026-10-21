@@ -238,8 +238,25 @@ export interface RowCommands<Row> {
    * its label and has it describe the refusal.
    */
   readonly refused?: { readonly row: Row; readonly described: string } | undefined;
-  /** What the screen does of rows dragged by their handles; none, and the grid selects nothing. */
+  /**
+   * What the screen does of rows dragged by their handles, the commands acting on the selection the
+   * handles make; none, and the grid selects nothing.
+   */
   readonly drag?: RowDrag<Row> | undefined;
+  /**
+   * The row the last command moved, the how-many-th, and whether the reading anew it asked is over:
+   * the active cell follows that row through the reading, and the focus with it.
+   */
+  readonly moved?: RowMoved<Row> | undefined;
+  /** Whether a command waits for its write or for the reading anew that follows: the grid is busy. */
+  readonly busy?: boolean | undefined;
+}
+
+/** The row a command moved, as `RowCommands.moved` tells it. */
+export interface RowMoved<Row> {
+  readonly row: Row;
+  readonly count: number;
+  readonly settled: boolean;
 }
 
 /**
@@ -255,11 +272,14 @@ export function onRows<Row>(
   readonly bar: (index: number) => ReactNode;
   readonly menu: MenuCommands | undefined;
   readonly keys: (index: number, event: KeyboardEvent<HTMLElement>) => boolean;
+  /** Whether a command waits, which makes the grid busy. */
+  readonly busy: boolean;
 } {
   if (commands === undefined) {
-    return { bar: () => null, menu: undefined, keys: () => false };
+    return { bar: () => null, menu: undefined, keys: () => false, busy: false };
   }
   return {
+    busy: commands.busy === true,
     bar: (index) => commands.bar(rowAt(index)),
     menu: ({ at, ...opened }) =>
       commands.menu(at === undefined ? undefined : rowAt(at.row), {

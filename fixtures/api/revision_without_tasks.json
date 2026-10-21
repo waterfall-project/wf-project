@@ -1,5 +1,5 @@
 {
-  "summary": "La révision ouverte aujourd'hui à 14 h 05 sur le projet créé à la même heure, « Rénovation du poste de livraison », sa structure principale encore sans tâche (structures_without_tasks, nodes_empty) : la génération du squelette de planning y est proposée, disponible (WF-PRJ-0030), et la déclaration d'un risque indisponible faute de tâche, at_least_one_task manquante (WF-RIS-0010) ; ses autres commandes sont celles de la révision courante du témoin.",
+  "summary": "La révision ouverte aujourd'hui à 14 h 05 sur le projet créé à la même heure, « Rénovation du poste de livraison », sa structure principale encore sans tâche (structures_without_tasks, nodes_empty) : la génération du squelette de planning y est proposée, disponible (WF-PRJ-0030), la déclaration d'un risque indisponible faute de tâche, at_least_one_task manquante (WF-RIS-0010), et sa désignation comme référence, qui attend son marquage, faute de tâche et de ligne aussi, revision_has_tasks_and_lines manquante (WF-CYC-0030) ; sans avenant à fusionner, l'ouverture d'un différentiel y est disponible, et non la fusion (#1195) ; ses autres commandes sont celles de la révision courante du témoin.",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000103",
     "project_id": "01926f3a-7c00-7000-8000-000000000003",
@@ -63,7 +63,8 @@
         "command": "designate_reference",
         "is_available": false,
         "missing_conditions": [
-          "revision_marked"
+          "revision_marked",
+          "revision_has_tasks_and_lines"
         ]
       },
       {
