@@ -56,7 +56,7 @@ export function accounts(
         <UserList
           users={shown}
           page={users.meta}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={kept}
           origins={[]}
           nodes={[]}

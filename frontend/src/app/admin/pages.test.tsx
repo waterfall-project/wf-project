@@ -819,3 +819,16 @@ describe("the state of the system", () => {
 });
 
 /** The sort the server gives the backups unasked, which the page asks when the address says nothing. */
+
+describe("the accounts, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await UsersPage(searched(search));
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /users");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+});

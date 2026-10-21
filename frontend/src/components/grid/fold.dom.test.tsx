@@ -31,7 +31,7 @@ vi.mock("next/navigation", async (original) => ({
 
 type Node = components["schemas"]["Node"];
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
@@ -391,7 +391,7 @@ describe("the tree of the grid of the planning", () => {
     };
     rerender(
       planning(searched, {
-        query: { sort: undefined, search: "Relance" },
+        query: { sort: undefined, search: "Relance", size: undefined },
         filters: { kinds: ["task"], search: "Relance" },
       }),
     );

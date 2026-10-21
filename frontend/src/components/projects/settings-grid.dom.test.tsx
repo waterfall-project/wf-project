@@ -135,7 +135,7 @@ describe("the grids of the settings of a project", () => {
       const sorted = `subproject_sort_by=${column}&subproject_sort_order`;
       expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&${sorted}=asc`);
       page.search = `contributor_kinds=contributor&${sorted}=asc`;
-      const query = { sort: { column, order: "asc" }, search: undefined } as const;
+      const query = { sort: { column, order: "asc" }, search: undefined, size: undefined } as const;
       rerender(
         settings(
           <SubprojectList subprojects={subprojects} shown={{ query, preferences: undefined }} />,
@@ -164,7 +164,7 @@ describe("the grids of the settings of a project", () => {
       const sorted = `contributor_sort_by=${column}&contributor_sort_order`;
       expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&${sorted}=asc`);
       page.search = `subproject_search=SP&${sorted}=asc`;
-      const query = { sort: { column, order: "asc" }, search: undefined } as const;
+      const query = { sort: { column, order: "asc" }, search: undefined, size: undefined } as const;
       rerender(
         settings(
           <ContributorList contributors={contributors} shown={{ query, preferences: undefined }} />,

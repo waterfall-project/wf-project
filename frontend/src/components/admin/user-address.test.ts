@@ -22,7 +22,7 @@ const EVERY_AUDIT = readAuditFilters(
 describe("what the list of the accounts reads of its address", () => {
   it("holds every parameter the list asks of the server, but its page: a filter under way reads another list", () => {
     const query = usersQuery({
-      query: { sort: { column: "email", order: "asc" }, search: "martin" },
+      query: { sort: { column: "email", order: "asc" }, search: "martin", size: undefined },
       origins: USER_ORIGINS.slice(0, 1),
       orgNode: "01926f3a-7c00-7000-8000-000000000471",
       accessRoles: ["01926f3a-7c00-7000-8000-000000000702"],

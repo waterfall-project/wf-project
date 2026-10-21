@@ -45,7 +45,7 @@ function table(shown: readonly Schemas["AccessRole"][] = roles): ReactNode {
   return (
     <AccessRoleList
       roles={shown}
-      query={{ sort: undefined, search: undefined }}
+      query={{ sort: undefined, search: undefined, size: undefined }}
       preferences={undefined}
       filters={{
         predefined: undefined,

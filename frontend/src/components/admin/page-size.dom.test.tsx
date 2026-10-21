@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -46,7 +46,7 @@ function accounts(limit: number, kept?: GridPreferences, total = 120): ReactNode
         <UserList
           users={users.items}
           page={{ limit, offset: 0, total }}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={kept}
           origins={[]}
           nodes={[]}
@@ -80,7 +80,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  router.push.mockClear();
+  router.push.mockReset();
 });
 
 describe("the number of rows per page of a flat table", () => {
@@ -114,6 +114,30 @@ describe("the number of rows per page of a flat table", () => {
       "href",
       "/admin/users?origins=local&limit=10&offset=7",
     );
+  });
+
+  it("shows the size chosen while the server reads the list anew, and the size it answered once it has [WF-IHM-0060-A]", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    const { rerender } = render(accounts(50));
+    const choice = screen.getByRole("combobox", { name: "Lignes par page" });
+    await userEvent.selectOptions(choice, "100");
+    expect(router.push).toHaveBeenCalledTimes(1);
+    // The address has not changed yet: the choice shows, never the size before it.
+    expect(choice).toHaveValue("100");
+    page.search = "limit=100";
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(accounts(100));
+    expect(choice).toHaveValue("100");
   });
 
   it("is offered to a list that holds more rows than the smallest page, and to none other [WF-IHM-0060-A]", () => {

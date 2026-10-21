@@ -53,7 +53,7 @@ function listGrid() {
     <ProjectListGrid
       projects={LIST.items.map(listedProject)}
       page={LIST.meta}
-      query={{ sort: undefined, search: undefined }}
+      query={{ sort: undefined, search: undefined, size: undefined }}
       preferences={undefined}
     />,
   );
@@ -149,7 +149,7 @@ describe("the grid of the list of projects", () => {
         <ProjectListGrid
           projects={[]}
           page={{ limit: 50, offset: 100, total: 60 }}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
         />,
       ),
@@ -211,7 +211,7 @@ describe("the filter of the list by state", () => {
           <ProjectListGrid
             projects={[]}
             page={{ limit: 50, offset: 100, total: 160 }}
-            query={{ sort: undefined, search: undefined }}
+            query={{ sort: undefined, search: undefined, size: undefined }}
             preferences={undefined}
           />
         </>,

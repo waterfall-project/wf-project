@@ -55,7 +55,7 @@ function accounts(filters: AuditFilters = audit(), kept?: GridPreferences): Reac
         <UserList
           users={users.items}
           page={users.meta}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={kept}
           origins={[]}
           nodes={[]}
@@ -79,7 +79,7 @@ function accessRoles(shown: readonly AccessRole[], filters: AuditFilters = audit
       <PendingAddress kept={ROLE_KEPT}>
         <AccessRoleList
           roles={shown}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
           filters={{
             predefined: undefined,

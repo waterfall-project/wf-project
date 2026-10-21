@@ -95,7 +95,7 @@ describe("what the list of the projects of the portfolio reads of its address", 
       perimeter,
       zones: ["alert"],
       offset: 50,
-      query: { sort: { column: "cost_index", order: "asc" }, search: "poste" },
+      query: { sort: { column: "cost_index", order: "asc" }, search: "poste", size: undefined },
     });
     const asked = Object.keys(query).filter((name) => name !== PROJECTS_LIST.page);
     expect(asked).toHaveLength(9);

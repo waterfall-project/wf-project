@@ -489,3 +489,16 @@ describe("an anonymised author in the journal", () => {
     expect(page).not.toMatch(/Alix|Moreau/);
   });
 });
+
+describe("the audit log, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await journal(search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === EVENTS);
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+});

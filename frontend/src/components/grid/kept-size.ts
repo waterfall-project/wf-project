@@ -17,8 +17,8 @@ import { CONTRACT_ADDRESS, DEFAULT_PAGE_SIZE, type GridAddress, pageSizeOf } fro
 /**
  * Record the size of the pages a grid shows when it differs from the one kept (`kept`, fifty when
  * the account keeps none): `record` receives the size to keep. An address that names no size, or
- * one the contract would refuse, records nothing; nor does a grid that is a tree (`offered` false),
- * which has no pages and offers no such choice.
+ * one the contract would refuse, records nothing; nor does a grid the server does not page
+ * (`offered` false: a tree, a table answered whole), which offers no such choice.
  */
 export function useKeptPageSize(
   address: GridAddress | undefined,

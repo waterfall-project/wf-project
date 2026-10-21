@@ -310,7 +310,10 @@ describe("the settings of a project", () => {
           <WorkBreakdownList
             breakdown={searched}
             project={PROJECT}
-            shown={{ query: { sort: undefined, search: "Montage" }, preferences: undefined }}
+            shown={{
+              query: { sort: undefined, search: "Montage", size: undefined },
+              preferences: undefined,
+            }}
           />,
         ),
       ),
@@ -328,7 +331,10 @@ describe("the settings of a project", () => {
       <WorkBreakdownList
         breakdown={{ ...filtered, work_packages: [] }}
         project={PROJECT}
-        shown={{ query: { sort: undefined, search: "zzz" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "zzz", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(none, "Work breakdown")).toContain("No row matches the request.");
@@ -475,7 +481,10 @@ describe("the settings of a project", () => {
     const searched = html(
       <SubprojectList
         subprojects={[]}
-        shown={{ query: { sort: undefined, search: "XX" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "XX", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(searched, "Subprojects")).toContain("No row matches the request.");
@@ -488,7 +497,10 @@ describe("the settings of a project", () => {
     const named = html(
       <ContributorList
         contributors={[]}
-        shown={{ query: { sort: undefined, search: "Zoé" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "Zoé", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(named, "Contributors")).toContain("No row matches the request.");

@@ -45,7 +45,7 @@ interface CostList {
   readonly meta: ListPage & { readonly passthrough_columns: string[] };
 }
 
-const NO_QUERY: GridQuery<CostSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<CostSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The spaces of the French formats: between thousands.
 const NARROW = " ";
 const COMMAND = "01926f3a-7c00-7000-8000-000000000801";
@@ -227,7 +227,9 @@ describe("the grid of the actual costs", () => {
     await sortBy("Fournisseur", "sort_by=passthrough.Fournisseur&sort_order=asc");
     // Sorted ascending by a column kept, the address asks it descending.
     const ascending = { column: "passthrough.Élément d'OTP", order: "asc" } as const;
-    rerender(costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined }));
+    rerender(
+      costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined, size: undefined }),
+    );
     await sortBy("Élément d'OTP", "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=desc");
   });
 

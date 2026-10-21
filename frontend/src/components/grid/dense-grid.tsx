@@ -601,7 +601,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     },
     [kept, preferences, recordShown, shown],
   );
-  useKeptPageSize(config.address, keptSize, recordSize, config.tree === undefined);
+  useKeptPageSize(config.address, keptSize, recordSize, config.paged === true);
   const scroller = useRef<HTMLDivElement>(null);
   const frameWidth = useFrameWidth(scroller);
   const rowHeight = ROW_REM * useRootFontSize();

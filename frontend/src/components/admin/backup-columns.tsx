@@ -98,6 +98,7 @@ export function backupGrid(listed: ListedCommands): GridConfig<Backup, BackupSor
     key: BACKUP_GRID_KEY,
     name: "backups",
     searched: false,
+    paged: true,
     lifts: false,
     rowKey: (backup) => backup.backup_id,
     columns: [

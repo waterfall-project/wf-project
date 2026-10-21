@@ -86,7 +86,7 @@ describe("a write of the estimate that moves rows in time", () => {
           reference={estimateReference()}
           editable
           tasksEditable
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           filters={{}}
           preferences={undefined}
         />

@@ -215,6 +215,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
     name: "users",
     address: CONTRACT_ADDRESS,
     searched: true,
+    paged: true,
     rowKey: (user) => user.user_id,
     filters: USER_FILTERS,
     // An account answered prevails over the same account read while it is newer, by its counter.

@@ -33,7 +33,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
@@ -355,7 +355,7 @@ describe("what no command undoes", () => {
             totals: list.totals,
             kept: list.meta.passthrough_columns,
           }}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
         />,
       ),

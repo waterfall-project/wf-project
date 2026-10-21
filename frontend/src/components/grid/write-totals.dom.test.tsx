@@ -28,7 +28,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const LINE =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line";
 // The main structure of the current revision of the witness project, as the examples name it.
@@ -171,7 +171,7 @@ describe("what a write answers besides the row written", () => {
   it("reads anew the totals of a reading a search narrowed, by its own request, once its writes answered, never taking those of the structure [WF-ARC-0020-A]", async () => {
     // The reading anew answers other totals than the reading: the example of another subtree.
     const client = serve({ [NODES_ROUTE]: "nodes" });
-    const search = { sort: undefined, search: "borniers" };
+    const search = { sort: undefined, search: "borniers", size: undefined };
     render(grid(estimate, search, { search: "borniers" }));
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
@@ -201,7 +201,7 @@ describe("what a write answers besides the row written", () => {
       { hold: (route, index) => (route === NODES_ROUTE && index === 0 ? held : undefined) },
     );
     server.client = client;
-    const search = { sort: undefined, search: "borniers" };
+    const search = { sort: undefined, search: "borniers", size: undefined };
     render(grid(estimate, search, { search: "borniers" }));
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
@@ -226,7 +226,7 @@ describe("what a write answers besides the row written", () => {
   it("tells a reading anew of the totals the server refuses, the totals of the reading left as they were", async () => {
     const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
     serve({ [NODES_ROUTE]: lost });
-    const search = { sort: undefined, search: "borniers" };
+    const search = { sort: undefined, search: "borniers", size: undefined };
     render(grid(estimate, search, { search: "borniers" }));
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");

@@ -174,7 +174,7 @@ describe("the size of the pages of a flat table", () => {
   it("is asked of the server by every reading, under the name of the contract [WF-IHM-0060-A]", () => {
     const query = readGridQuery(new URLSearchParams("limit=25"), ESTIMATE_SORT_COLUMNS);
     expect(asked(query, 50)).toEqual({ limit: 25, offset: 50 });
-    expect(asked({ sort: undefined, search: undefined })).toEqual({});
+    expect(asked({ sort: undefined, search: undefined, size: undefined })).toEqual({});
   });
 
   it("is read by the list of its pages, which a sort, a search or a size changed reads otherwise", () => {

@@ -97,7 +97,9 @@ function PageLink({
 
 /**
  * Render the links to the pages before and after the one shown, of `shown` rows, named by the texts
- * of the list or after its title; nothing when the list holds one page.
+ * of the list or after its title, and « Lignes par page » beside them as soon as the list holds more
+ * rows than the smallest page (`total > 10`), even when it holds a single page; nothing when the
+ * list holds neither a page to turn to nor that choice.
  */
 export function ListPages({
   list,

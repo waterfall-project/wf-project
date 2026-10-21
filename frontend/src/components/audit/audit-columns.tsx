@@ -155,6 +155,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
     key: AUDIT_GRID_KEY,
     name: "auditLog",
     searched: true,
+    paged: true,
     lifts: false,
     rowKey: (event) => event.audit_event_id,
     columns: [

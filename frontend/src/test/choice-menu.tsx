@@ -40,7 +40,11 @@ export type Timeline = components["schemas"]["Timeline"];
 export type Subproject = components["schemas"]["Subproject"];
 export type NodesWritten = components["schemas"]["NodesWritten"];
 
-export const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+export const NO_QUERY: GridQuery<NodeSortColumn> = {
+  sort: undefined,
+  search: undefined,
+  size: undefined,
+};
 export const NODES =
   "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 export const TRACKING = `PUT ${NODES}/{node_id}/tracking` as const;

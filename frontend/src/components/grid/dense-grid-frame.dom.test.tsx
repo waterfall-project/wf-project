@@ -47,7 +47,7 @@ function renderGrid(rows: number, preferences?: GridPreferences) {
         nodes={{ ...witness, items: witness.items.slice(0, rows) }}
         structure={STRUCTURE}
         structureVersion={1}
-        query={{ sort: undefined, search: undefined }}
+        query={{ sort: undefined, search: undefined, size: undefined }}
         preferences={preferences}
       />
     </NextIntlClientProvider>,

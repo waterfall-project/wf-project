@@ -445,3 +445,16 @@ describe("the backups", () => {
     expect(links(page)).toEqual(["/admin/backups"]);
   });
 });
+
+describe("the backups, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await BackupsPage(searched(search));
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /backups");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+});

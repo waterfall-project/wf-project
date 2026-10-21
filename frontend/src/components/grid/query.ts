@@ -49,9 +49,9 @@ export interface GridQuery<Sort extends string> {
   readonly search: string | undefined;
   /**
    * The rows of a page: the address asks it, else the account keeps it, else fifty; a query built by
-   * hand (a tree, a test) says none.
+   * hand (a tree) says none, explicitly.
    */
-  readonly size?: PageSize | undefined;
+  readonly size: PageSize | undefined;
 }
 
 /** The parameters of the address a grid writes, as the contract names them. */

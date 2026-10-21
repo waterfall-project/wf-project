@@ -39,7 +39,7 @@ vi.mock("./dense-grid", async (original) => {
   return { ...actual, DenseGrid: vi.fn(actual.DenseGrid) };
 });
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",

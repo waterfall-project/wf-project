@@ -98,7 +98,7 @@ const LABOUR = "01926f3a-7c00-7000-8000-000000000461";
 /** A list read whole as a list of choices is: every page, by the largest the contract takes. */
 const WHOLE = { limit: "500", offset: "0" };
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 
 /** The roles of the witness, as the server pages them. */
 const ROLE_PAGE = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
@@ -551,4 +551,25 @@ describe("the settings of the risks and of the indicators", () => {
       "Délai maximal entre deux révisions marquées d’un projet en cours : 8 semaines.",
     );
   });
+});
+
+describe("the settings of the costs, the size of the pages", () => {
+  it.each([
+    ["the rates", RATES, "limit"],
+    ["the natures", "GET /reference/cost-types", "type_limit"],
+    ["the categories", "GET /reference/cost-categories", "category_limit"],
+  ])(
+    "sends the limit of the reading of %s: 50 unasked, the page size asked [WF-IHM-0060-A]",
+    async (_name, route, name) => {
+      for (const [search, limit] of [
+        [{}, "50"],
+        [{ [name]: "25" }, "25"],
+      ] as const) {
+        server.clients = [];
+        await costsAt(search);
+        const [call] = callsTo(route);
+        expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+      }
+    },
+  );
 });

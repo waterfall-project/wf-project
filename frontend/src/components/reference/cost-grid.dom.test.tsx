@@ -40,7 +40,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(page.search),
 }));
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 const types = example("cost_types") as { items: CostType[]; meta: ListPage };
 // The second page of fifty categories of the two hundred of the volumes.
 const categories = example("volume/cost_categories_page") as {
@@ -104,7 +104,7 @@ describe("the grid of the natures of cost", () => {
       expect(lastAddress()).toBe(ascending);
       // The page answers the sort asked: a second click asks the other way.
       page.search = ascending.split("?")[1] ?? "";
-      rerender(typeGrid({ sort: { column, order: "asc" }, search: undefined }));
+      rerender(typeGrid({ sort: { column, order: "asc" }, search: undefined, size: undefined }));
       await userEvent.click(header());
       expect(lastAddress()).toBe(
         `/reference/costs?category_offset=50&type_sort_by=${column}&type_sort_order=desc`,
@@ -163,7 +163,9 @@ describe("the grid of the categories of cost", () => {
       expect(lastAddress()).toBe(ascending);
       // The page answers the sort asked, from its first page: a second click asks the other way.
       page.search = ascending.split("?")[1] ?? "";
-      rerender(categoryGrid({ sort: { column, order: "asc" }, search: undefined }));
+      rerender(
+        categoryGrid({ sort: { column, order: "asc" }, search: undefined, size: undefined }),
+      );
       await userEvent.click(header());
       expect(lastAddress()).toBe(
         `/reference/costs?category_sort_by=${column}&category_sort_order=desc`,

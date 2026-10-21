@@ -10,7 +10,7 @@ describe("what the list of the home reads of its address", () => {
       filtered: true,
       states: ["pricing"],
       period: { from: "2026-02-28T23:00:00.000Z", to: "2026-03-16T23:00:00.000Z" },
-      query: { sort: { column: "code", order: "desc" }, search: "poste" },
+      query: { sort: { column: "code", order: "desc" }, search: "poste", size: undefined },
       offset: 50,
     });
     const asked = Object.keys(query).filter((name) => name !== HOME_LIST.page);
@@ -23,7 +23,7 @@ describe("what the list of the home reads of its address", () => {
       filtered: false,
       states: [],
       period: { from: undefined, to: undefined },
-      query: { sort: undefined, search: undefined },
+      query: { sort: undefined, search: undefined, size: undefined },
       offset: undefined,
     });
     expect(query).toEqual({

@@ -87,7 +87,7 @@ const BUREAU = "01926f3a-7c00-7000-8000-000000000471";
 const ELECTRICAL = "01926f3a-7c00-7000-8000-000000000402";
 const STANDARD = "01926f3a-7c00-7000-8000-000000000481";
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 
 /** No bound on either side of a column. */
 const NO_BOUNDS = { min: undefined, max: undefined };
@@ -519,7 +519,7 @@ describe("the settings of the resources", () => {
   });
 
   it("keep the grid of a list a search or a filter narrows to nothing, the search shown to be changed, and say empty a list nothing narrows", () => {
-    const query = { sort: undefined, search: "Personne" };
+    const query = { sort: undefined, search: "Personne", size: undefined };
     const none = { ...ROLE_PAGE.meta, total: 0 };
     const filters = {
       code: undefined,
@@ -634,4 +634,26 @@ describe("the settings of the resources", () => {
       { include_inactive: "true", ...WHOLE },
     ]);
   });
+});
+
+describe("the settings of the resources, the size of the pages", () => {
+  it.each([
+    ["the resource roles", "GET /reference/resource-roles", "role_limit"],
+    ["the calendars", "GET /reference/calendars", "calendar_limit"],
+  ])(
+    "sends the limit of the reading of %s: 50 unasked, the page size asked [WF-IHM-0060-A]",
+    async (_name, route, name) => {
+      for (const [search, limit] of [
+        [{}, "50"],
+        [{ [name]: "25" }, "25"],
+      ] as const) {
+        server.clients = [];
+        await resourcesAt(search);
+        const [call] = server.clients
+          .flatMap((client) => client.calls)
+          .filter((each) => each.route === route);
+        expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+      }
+    },
+  );
 });
