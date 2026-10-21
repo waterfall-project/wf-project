@@ -307,8 +307,6 @@ export interface GridPasteOptions<Row extends RowData, Sort extends string, Tota
   readonly answered?: readonly Row[] | undefined;
   /** Whether the reading is narrowed by a search or a filter, which may leave rows of the plan out. */
   readonly narrowed?: boolean | undefined;
-  /** Tell the screen a paste applied is under way, whose gestures wait for it (#1224). */
-  readonly writing?: ((write: Promise<unknown>) => void) | undefined;
 }
 
 /** Paste a block into a grid: read it, show its plan, apply it once confirmed, or abandon it. */
@@ -320,7 +318,6 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   scroller,
   answered,
   narrowed,
-  writing,
 }: GridPasteOptions<Row, Sort, Totals>) {
   const [pasting, setPasting] = useState<Pasting>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
@@ -432,9 +429,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       return;
     }
     setPasting({ ...pasting, applying: true });
-    const applying = paste.apply(plan);
-    writing?.(applying);
-    void held(applying).then((answer) => {
+    void held(paste.apply(plan)).then((answer) => {
       if (answer.kind === "done") {
         const { written, rejected: refused } = answer.data;
         writes.applied(written);

@@ -210,8 +210,7 @@ export function EstimateGrid({
   // The version of the structure moves with each write answered: the highest one told — writes
   // of different rows leave together, and an answer may come back after a later one —, or the
   // one read with the page when a new reading is more recent.
-  const account = useStructureVersion(structure.structure_id, structureVersion);
-  const { version, reach } = account;
+  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
@@ -248,7 +247,9 @@ export function EstimateGrid({
           version,
         }
       : undefined,
-    account,
+    (written) => {
+      reach(written.structure_lock_version);
+    },
     choices,
   );
   const config = useMemo(() => {

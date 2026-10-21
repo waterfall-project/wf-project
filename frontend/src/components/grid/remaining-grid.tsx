@@ -125,8 +125,7 @@ export function RemainingGrid({
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
-  const account = useStructureVersion(structure.structure_id, structureVersion);
-  const { version, reach } = account;
+  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
   // The reading always narrows to some states of the tasks: the totals of the structure a write
   // answers are never its own.
   const choices = useMemo<RowChoices<RemainingNode> | undefined>(
@@ -153,7 +152,9 @@ export function RemainingGrid({
           version,
         }
       : undefined,
-    account,
+    (written) => {
+      reach(written.structure_lock_version);
+    },
     choices,
   );
   const config = useMemo(

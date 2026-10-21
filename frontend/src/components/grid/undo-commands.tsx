@@ -251,12 +251,6 @@ interface RowCommandsOf<Row> {
    * the active cell follows that row through the reading, and the focus with it.
    */
   readonly moved?: RowMoved<Row> | undefined;
-  /**
-   * Count a write of the grid itself — a cell entered, a block pasted — among those the commands wait
-   * for: the grid is busy, and offers no gesture, until it answered (#1224). None, and the commands
-   * wait for their own writes alone.
-   */
-  readonly writing?: ((write: Promise<unknown>) => void) | undefined;
 }
 
 /**
@@ -309,17 +303,6 @@ export function onRows<Row>(
       }),
     keys: (index, event) => commands.keys?.(rowAt(index), event, acted(index)) ?? false,
   };
-}
-
-/**
- * How a grid tells the commands of its screen of its own writes — a cell entered, a block pasted —,
- * which they wait for (`RowCommands.writing`); none when the screen gives no command, or they wait
- * for nothing of the grid's.
- */
-export function writingOf<Row>(
-  commands: RowCommands<Row> | undefined,
-): ((write: Promise<unknown>) => void) | undefined {
-  return commands?.writing;
 }
 
 /**
