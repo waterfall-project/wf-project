@@ -1781,6 +1781,7 @@
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "PROVISION_CATEGORY_REQUIRED": "The provision of a risk takes a category of the kind provision for risks.",
+    "PROVISION_LINE_MOVED_BY_RISK": "A line of provision is moved from the form of its risk, which designates its task.",
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
     "PATH_INVALID": "Invalid path: it must be relative, without “..”.",

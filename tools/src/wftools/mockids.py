@@ -95,6 +95,7 @@ IDENTIFIERS = (
     Family("chronologies", 1000, 1009),
     Family("corrélations, suite", 1010, 1199),
     Family("nœuds de l'avenant 2, celui du nœud 5nn de la principale en 12nn", 1200, 1299),
+    Family("corrélations, seconde suite", 1300, 1599),
     Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
     Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
     Family("imports de coûts réels", 0xC10, 0xCFF, hexadecimal=True),
@@ -118,7 +119,8 @@ attach it outside the subtree of the task of its lot speaks of it
 (`task_attach_outside_work_package`), and the work breakdown names it, with its one deliverable
 713 (`work_breakdown`, WF-PRJ-0020, C-350). The lot 714 and its post 715 make the work breakdown
 of a project whose order was not entered (`work_breakdown_default`). The correlations
-written by hand go on past the chronologies, their first range being full (EP-02/L42d). The nodes
+written by hand go on past the chronologies, their first range being full (EP-02/L42d), then past
+the nodes of the amendment 2, the second being full in its turn (#1228). The nodes
 of the amendment 2 have identifiers of their own, apart from those of the main structure whose
 lineages they share, so that one identifier at one version names one content (#421, US-0500/L1)."""
 

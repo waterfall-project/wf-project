@@ -331,7 +331,12 @@ _KEYS = {
     "backup_id": ("sauvegardes",),
     "task_id": ("tâches de fond",),
     "paste_id": ("collages",),
-    "correlation_id": ("corrélations", "corrélations, suite", "corrélations engendrées"),
+    "correlation_id": (
+        "corrélations",
+        "corrélations, suite",
+        "corrélations, seconde suite",
+        "corrélations engendrées",
+    ),
     "conflicting_object_id": (
         "nœuds d'organisation",
         "rôles de ressources",

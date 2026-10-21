@@ -15,8 +15,10 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
   (``risk_reviewed``, WF-RIS-0010);
 - the occurrence of the delay of the cabinets, on 20 February, put in the queue
   (``task_occurrence_queued``, WF-RIS-0060, WF-ARC-0090);
-- and a declaration whose provision names a task the main structure does not bear
-  (``risk_provision_task_refused``).
+- a declaration whose provision names a task the main structure does not bear
+  (``risk_provision_task_refused``);
+- and the line of provision of the rework of the wiring moved in the grid, which its form alone
+  moves (``nodes_move_provision_refused``, WF-RIS-0010, #1227).
 
 The risk declared is a counterfactual: no reading of the witness knows its risk 754, its own
 structure 208 or its line of provision 585 — the register, the structures and the grids read the
@@ -41,7 +43,7 @@ from wftools.mockhistory import (
     stamp,
 )
 from wftools.mockids import universe
-from wftools.mockwitness import DELIVERY_DELAY, REWORK, TODAY, N, Review, Risk
+from wftools.mockwitness import DELIVERY_DELAY, REGISTER, REWORK, TODAY, N, Review, Risk
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject
@@ -151,6 +153,43 @@ def risk_provision_task_refused() -> JsonObject:
     }
 
 
+MOVED_PROVISION_CORRELATION = universe(1304)
+PROVISION_MOVED_UNDER = DESIGNATED
+"""The task the line of provision of the rework of the wiring is sent under, in the grid: the
+mounting of the cabinets on site, which its risk does not designate."""
+
+
+def nodes_move_provision_refused() -> JsonObject:
+    """Return what moveNodes answers to the line of provision of the rework moved in the grid.
+
+    A line of provision is borne by the task its risk designates, which its form changes alone
+    (``provision_task_id``): moved among other lines, it is refused on its place in ``node_ids``,
+    and the refusal names the risk, which the grid does not read (WF-RIS-0010, #1227).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    line = rows[cast("int", REWORK.provision_line)]
+    if not cast("JsonObject", line.node["estimate_line"])["is_computed"]:
+        message = f"the line {line.number} is no line of provision"
+        raise ValueError(message)
+    if line.parent == PROVISION_MOVED_UNDER or [
+        risk for risk in REGISTER if risk.provision_line == line.number
+    ] != [REWORK]:
+        message = f"the line {line.number} is not moved away from the task of its one risk"
+        raise ValueError(message)
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/node_ids/0",
+                "code": "PROVISION_LINE_MOVED_BY_RISK",
+                "params": {"risk": {"risk_id": universe(REWORK.number), "label": REWORK.label}},
+            }
+        ],
+        "correlation_id": MOVED_PROVISION_CORRELATION,
+    }
+
+
 # --- The examples ------------------------------------------------------------------------------
 
 
@@ -162,10 +201,15 @@ def examples() -> dict[str, JsonObject]:
     """Return the named examples of the entries of a risk, by file name."""
     created, updated, reviewed = risk_created(), risk_updated(), risk_reviewed()
     rows = {row.number: row for row in mockamendment.rows()}
+    main = {row.number: row for row in mockcore.current()}
+    provision = main[cast("int", REWORK.provision_line)]
     percent = mocktext.amount(DECLARED.last.probability * 100, 0)
     return {
         "risk_created.json": mocktext.example(
-            f"« {DECLARED.label} », déclaré aujourd'hui à {percent} % : la déclaration ouvre sa "
+            f"Variante contrefactuelle : « {DECLARED.label} », déclaré aujourd'hui à {percent} %, "
+            f"un risque qu'aucune lecture du témoin ne connaît, ni sa structure propre "
+            f"{DECLARED.own_structure} ni sa ligne de provision {DECLARED.provision_line}. "
+            f"La déclaration ouvre sa "
             f"structure propre (structure_id), vide — sa gravité et sa provision sont nulles "
             f"jusqu'à ce que son devis propre soit chiffré dans la grille de devis, ni l'une ni "
             f"l'autre saisies — et sa ligne de provision dans la structure principale de la "
@@ -174,9 +218,7 @@ def examples() -> dict[str, JsonObject]:
             f"(provision_task) ; elle porte la catégorie « "
             f"{created['provision_cost_category_label']} », la seule de type provision pour "
             f"risques, et aucun sous-projet. À sa première version (201), toutes ses commandes "
-            f"disponibles (WF-RIS-0010, WF-RIS-0030, #786). C'est un contrefactuel : aucune "
-            f"lecture du témoin ne connaît ce risque {DECLARED.number}, sa structure propre "
-            f"{DECLARED.own_structure} ni sa ligne de provision {DECLARED.provision_line}.",
+            f"disponibles (WF-RIS-0010, WF-RIS-0030, #786).",
             created,
         ),
         "risk_updated.json": mocktext.example(
@@ -210,5 +252,14 @@ def examples() -> dict[str, JsonObject]:
             f"porte pas : refusé sur ce champ, la tâche inconnue de la structure principale ; "
             f"rien n'est écrit (WF-RIS-0010, #786).",
             risk_provision_task_refused(),
+        ),
+        "nodes_move_provision_refused.json": mocktext.example(
+            f"La ligne de provision de « {REWORK.label} », « {provision.label} », portée par le "
+            f"« {main[cast('int', provision.parent)].label} », déplacée dans la grille sous le "
+            f"« {main[PROVISION_MOVED_UNDER].label} » : le déplacement est refusé sur elle, sa "
+            f"tâche étant celle que son risque désigne, qui se change par le formulaire du "
+            f"risque ; le refus nomme le risque, que la grille ne lit pas. Rien ne bouge "
+            f"(WF-RIS-0010, #1227).",
+            nodes_move_provision_refused(),
         ),
     }

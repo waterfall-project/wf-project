@@ -355,6 +355,7 @@ paths = [
     "fixtures/api/risk_reviewed.json",
     "fixtures/api/task_occurrence_queued.json",
     "fixtures/api/risk_provision_task_refused.json",
+    "fixtures/api/nodes_move_provision_refused.json",
     "fixtures/api/estimate_indicators.json",
     "fixtures/api/estimate_indicators_breakdown.json",
     "fixtures/api/estimate_indicators_missing_rates.json",

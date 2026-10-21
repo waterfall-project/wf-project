@@ -1781,6 +1781,7 @@
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "PROVISION_CATEGORY_REQUIRED": "La provision d’un risque porte une catégorie de type provision pour risques.",
+    "PROVISION_LINE_MOVED_BY_RISK": "Une ligne de provision se déplace depuis le formulaire de son risque, qui désigne sa tâche.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
     "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",

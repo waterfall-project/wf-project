@@ -98,6 +98,15 @@ def _is_empty(value: object) -> bool:
     return isinstance(value, str | list | tuple | dict) and not value
 
 
+def _is_integer_not_admitted(kind: str, value: object) -> bool:
+    """Tell an integer that is none of the values an enumeration of integers admits.
+
+    It is out of the range the contract admits, which has no bound to name: the number of lines
+    per page of a grid, one of four (``GridPreferences.page_size``, C-351, #1045).
+    """
+    return kind == "enum" and isinstance(value, int) and not isinstance(value, bool)
+
+
 def _field_of(fault: Mapping[str, Any]) -> FieldError:
     """Say a fault of Pydantic as the refusal of one field."""
     kind: str = fault["type"]
@@ -122,6 +131,8 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
     elif kind in _INCLUSIVE_BOUNDS:
         code = ErrorCode.VALUE_OUT_OF_RANGE
         params[_INCLUSIVE_BOUNDS[kind]] = next(iter(fault["ctx"].values()))
+    elif _is_integer_not_admitted(kind, fault.get("input")):
+        code = ErrorCode.VALUE_OUT_OF_RANGE
     elif kind in _NUMBER_FAULTS:
         code = ErrorCode.NUMBER_INVALID
     elif kind.startswith("date") or kind == "timezone_aware":

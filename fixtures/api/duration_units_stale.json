@@ -1,0 +1,11 @@
+{
+  "summary": "Les constantes envoyées avec la version lue avant leur réglage d'aujourd'hui (duration_units_updated), qui les a portées à la version 2 : refusées, la version courante rendue ; rien n'est écrit, le formulaire propose de relire (WF-IHM-0110).",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {
+      "expected_lock_version": 2
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001303"
+  }
+}

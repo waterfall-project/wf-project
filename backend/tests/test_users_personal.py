@@ -35,6 +35,8 @@ JPEG = b"\xff\xd8\xff\xe0" + b"\x01" * 24
 # The settings of the table of the accounts, as its grid keeps them (WF-IHM-0060).
 USERS_GRID = {"hidden_columns": ["origin"], "column_widths": {"email": 240}, "sort": None}
 ROLES_GRID = {"column_widths": {"label": 180}, "filters": {"is_predefined": "true"}}
+# The layout of a timeline: the lane of each task placed, by its node (EP-15/US-0530).
+STEERING = {"lanes": {"n1": 0, "n2": 1}}
 
 
 def person(database: Database, realm: TestRealm, *roles: UUID, **columns: object) -> Any:
@@ -170,6 +172,44 @@ def test_the_preferences_merge_what_a_change_carries_into_what_they_were() -> No
     assert merged(current, {"grids": {"users": None}}) == {"language": "fr", "grids": {}}
     assert merged({}, {"grids": {"roles": ROLES_GRID}}) == {"grids": {"roles": ROLES_GRID}}
     assert merged(current, {}) == current
+    # So in ``timelines``, by timeline: a layout sent replaces it whole, a null forgets it.
+    laid = {"grids": {"users": USERS_GRID}, "timelines": {"t1": STEERING, "t2": STEERING}}
+    assert merged(laid, {"timelines": {"t1": None, "t3": {"lanes": {}}}}) == {
+        "grids": {"users": USERS_GRID},
+        "timelines": {"t2": STEERING, "t3": {"lanes": {}}},
+    }
+
+
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_lines_per_page_of_a_table_are_found_again_without_changing_those_of_another(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # « Le nombre de lignes par page choisi pour une table est retrouvé à sa réouverture, sans
+    # changer celui des autres tables » : one of 10, 25, 50 and 100, by grid (C-351, #1045).
+    roles = {**ROLES_GRID, "page_size": 100}
+    _, headers = person(database, realm, display_preferences={"grids": {"roles": roles}})
+    users = {**USERS_GRID, "page_size": 25}
+    response = api.patch(PREFERENCES, headers=headers, json={"grids": {"users": users}})
+    assert response.status_code == 200, response.text
+    assert api.get(ME, headers=headers).json()["display_preferences"]["grids"] == {
+        "roles": roles,
+        "users": users,
+    }
+
+
+@pytest.mark.requirement("WF-ADM-0040-A")
+def test_the_layout_of_a_timeline_is_kept_by_timeline_and_forgotten_when_sent_null(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # The lane of each task placed, a preference of display of the person alone (EP-15/US-0530).
+    user_id, headers = person(database, realm, display_preferences={"timelines": {"t1": STEERING}})
+    customer = {"lanes": {"n3": 0}}
+    response = api.patch(PREFERENCES, headers=headers, json={"timelines": {"t2": customer}})
+    assert response.status_code == 200, response.text
+    assert response.json() == {"timelines": {"t1": STEERING, "t2": customer}}
+    forgotten = api.patch(PREFERENCES, headers=headers, json={"timelines": {"t1": None}})
+    assert forgotten.json() == {"timelines": {"t2": customer}}
+    assert preferences_of(database, user_id) == forgotten.json()
 
 
 @pytest.mark.parametrize(
@@ -180,6 +220,10 @@ def test_the_preferences_merge_what_a_change_carries_into_what_they_were() -> No
         ({"grids": None}, "/grids"),
         ({"grids": {"users": {"hidden_columns": None}}}, "/grids/users/hidden_columns"),
         ({"grids": {"a/b": {"filters": None}}}, "/grids/a~1b/filters"),
+        ({"grids": {"users": {"page_size": None}}}, "/grids/users/page_size"),
+        ({"timelines": None}, "/timelines"),
+        ({"timelines": {"t1": {"lanes": None}}}, "/timelines/t1/lanes"),
+        ({"timelines": {"t1": {}}}, "/timelines/t1/lanes"),
         (
             {"grids": {"users": {"column_widths": {"email": 19}}}},
             "/grids/users/column_widths/email",
@@ -228,6 +272,13 @@ BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
         {"grids": {"users": {"filters": {"is_predefined": True}}}},
         ("/grids/users/filters/is_predefined", "VALIDATION_FAILED"),
     ),
+    ({"timelines": {f"t{rank}": None for rank in range(101)}}, ("/timelines", "VALUE_TOO_LONG")),
+    (
+        {"timelines": {"t1": {"lanes": {f"n{rank}": 0 for rank in range(65)}}}},
+        ("/timelines/t1/lanes", "VALUE_TOO_LONG"),
+    ),
+    ({"timelines": {LONG: None}}, ("/timelines", "VALUE_TOO_LONG")),
+    ({"timelines": {"t1": {"lanes": {LONG: 0}}}}, ("/timelines/t1/lanes", "VALUE_TOO_LONG")),
 ]
 
 
@@ -285,6 +336,55 @@ def test_preferences_at_their_bounds_are_written(
     response = api.patch(PREFERENCES, headers=headers, json=sent)
     assert response.status_code == 200, response.text
     assert preferences_of(database, user_id) == sent
+    timelines: dict[str, Any] = {
+        name: {"lanes": {f"{rank:064d}": rank for rank in range(64)}},
+        **{f"t{rank}": {"lanes": {}} for rank in range(99)},
+    }
+    response = api.patch(PREFERENCES, headers=headers, json={"timelines": timelines})
+    assert response.status_code == 200, response.text
+    assert preferences_of(database, user_id) == {**sent, "timelines": timelines}
+
+
+# A value out of what the contract admits, which it refuses by ``VALUE_OUT_OF_RANGE``: a lane
+# under the first, the bound named; a number of lines per page not of the four, without parameter.
+OUT_OF_RANGE: list[tuple[dict[str, Any], dict[str, Any]]] = [
+    (
+        {"timelines": {"t1": {"lanes": {"n1": -1}}}},
+        {
+            "pointer": "/timelines/t1/lanes/n1",
+            "code": "VALUE_OUT_OF_RANGE",
+            "params": {"minimum": 0},
+        },
+    ),
+    (
+        {"grids": {"users": {"page_size": 30}}},
+        {"pointer": "/grids/users/page_size", "code": "VALUE_OUT_OF_RANGE"},
+    ),
+    (
+        {"grids": {"users": {"page_size": 0}}},
+        {"pointer": "/grids/users/page_size", "code": "VALUE_OUT_OF_RANGE"},
+    ),
+    (
+        {"grids": {"users": {"page_size": True}}},
+        {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
+    ),
+]
+
+
+@pytest.mark.requirement("WF-IHM-0060-A")
+@pytest.mark.parametrize(("sent", "fault"), OUT_OF_RANGE)
+def test_a_lane_or_a_number_of_lines_per_page_not_admitted_is_refused_and_nothing_is_written(
+    api: ContractClient,
+    database: Database,
+    realm: TestRealm,
+    sent: dict[str, Any],
+    fault: dict[str, Any],
+) -> None:
+    # 10, 25, 50 or 100 lines per page (C-351, #1045); a lane is a rank from 0 (EP-15/US-0530).
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    assert refusal(response) == (422, "VALIDATION_FAILED", [fault])
+    assert preferences_of(database, user_id) == {"theme": "dark"}
 
 
 # A key that holds ``/`` or ``~``, and where its fault is pointed at.

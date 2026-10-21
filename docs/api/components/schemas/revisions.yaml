@@ -1532,7 +1532,10 @@ NodeMove:
     `nodes_move_mixed`). Un `after_node_id` qui n'est pas un frère sous le parent visé — un nœud
     d'un autre parent, l'un des nœuds déplacés, ou un nœud qui n'est pas de la structure — est
     refusé par 422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif
-    `NODE_NOT_SIBLING`, rien ne bougeant (#1183).
+    `NODE_NOT_SIBLING`, rien ne bougeant (#1183). Une ligne de provision parmi `node_ids` est
+    refusée par 422 `VALIDATION_FAILED`, `fields[].pointer` sur elle, motif
+    `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant son risque : sa tâche se
+    désigne par le formulaire du risque (WF-RIS-0010 ; #1227).
   properties:
     node_ids:
       type: array

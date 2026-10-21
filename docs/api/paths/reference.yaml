@@ -751,8 +751,9 @@
     description: >-
       Les trois constantes de l'installation, communes à tous les projets, sous la
       permission des paramètres de ressources, comme les calendriers (WF-PLA-0160,
-      WF-ADM-0100). Une révision marquée garde les heures qu'elle a calculées
-      (WF-REF-0130).
+      WF-ADM-0100). Une durée se conserve avec l'unité de sa saisie : après le changement
+      d'une constante, les plannings des révisions en cours sont recalculés, et une révision
+      marquée garde les heures qu'elle a calculées (WF-PLA-0160, WF-REF-0130, C-360).
     requestBody:
       required: true
       content:
@@ -760,15 +761,37 @@
           schema: { $ref: ../components/schemas/reference.yaml#/DurationUnitsWrite }
     responses:
       '200':
-        description: Constantes enregistrées.
+        description: Constantes enregistrées, à leur version suivante.
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/DurationUnits }
+            examples:
+              updated: { $ref: ../../../fixtures/api/duration_units_updated.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '412':
+        description: >-
+          Les constantes ont été modifiées depuis leur lecture : `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` leur version courante ; rien n'est écrit, le
+          formulaire propose de relire (WF-IHM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/duration_units_stale.json }
+      '422':
+        description: >-
+          Une constante nulle : `VALIDATION_FAILED`, `fields` la désignant, `/hours_per_day`,
+          `/hours_per_week` ou `/days_per_month`, par `VALUE_OUT_OF_RANGE`, sans paramètre — la
+          borne, strictement positive, exclut zéro, que `minimum` ne saurait dire. Une
+          constante qui n'est pas un décimal sans signe, par `VALIDATION_FAILED` au même
+          pointeur (WF-PLA-0160). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              zero: { $ref: ../../../fixtures/api/duration_units_zero.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars:
@@ -779,10 +802,11 @@
     description: >-
       Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120). Une table plate,
       triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche
-      (`search`) porte sur le libellé du calendrier, l'état se filtre, les heures de chaque jour
-      se bornent (`<jour>_min`, `<jour>_max`, inclusives), et `meta.total` compte les
-      calendriers retenus. Le calendrier par défaut ne se filtre pas, un seul l'étant, que le
-      tri par `is_default` met en tête. Chaque calendrier porte ses commandes, disponibles ou
+      (`search`) porte sur le libellé du calendrier, l'état se filtre, et `meta.total` compte
+      les calendriers retenus. Les heures de chaque jour se trient mais ne se filtrent pas :
+      l'exception que WF-IHM-0130 fait à la règle commune (C-352, #1047). Le calendrier par
+      défaut ne se filtre pas, un seul l'étant, que le tri par `is_default` met en tête.
+      Chaque calendrier porte ses commandes, disponibles ou
       non (`available_commands`, WF-IHM-0090) : celle qui change son état, la désactivation du
       calendrier par défaut indisponible, et, sauf pour le calendrier par défaut, sa
       désignation, indisponible pour un calendrier désactivé (WF-REF-0120).
@@ -792,90 +816,6 @@
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
       - $ref: ../components/parameters.yaml#/IsActive
-      - name: monday_min
-        in: query
-        description: >-
-          Borne inférieure, incluse, des heures du lundi : restreint aux lignes qui en ont au moins autant
-          (WF-IHM-0130).
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: monday_max
-        in: query
-        description: >-
-          Borne supérieure, incluse, des heures du lundi : restreint aux lignes qui n'en ont pas plus
-          (WF-IHM-0130). Inférieure à `monday_min`, elle est refusée par 422.
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: tuesday_min
-        in: query
-        description: >-
-          Borne inférieure, incluse, des heures du mardi : restreint aux lignes qui en ont au moins autant
-          (WF-IHM-0130).
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: tuesday_max
-        in: query
-        description: >-
-          Borne supérieure, incluse, des heures du mardi : restreint aux lignes qui n'en ont pas plus
-          (WF-IHM-0130). Inférieure à `tuesday_min`, elle est refusée par 422.
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: wednesday_min
-        in: query
-        description: >-
-          Borne inférieure, incluse, des heures du mercredi : restreint aux lignes qui en ont au moins autant
-          (WF-IHM-0130).
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: wednesday_max
-        in: query
-        description: >-
-          Borne supérieure, incluse, des heures du mercredi : restreint aux lignes qui n'en ont pas plus
-          (WF-IHM-0130). Inférieure à `wednesday_min`, elle est refusée par 422.
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: thursday_min
-        in: query
-        description: >-
-          Borne inférieure, incluse, des heures du jeudi : restreint aux lignes qui en ont au moins autant
-          (WF-IHM-0130).
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: thursday_max
-        in: query
-        description: >-
-          Borne supérieure, incluse, des heures du jeudi : restreint aux lignes qui n'en ont pas plus
-          (WF-IHM-0130). Inférieure à `thursday_min`, elle est refusée par 422.
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: friday_min
-        in: query
-        description: >-
-          Borne inférieure, incluse, des heures du vendredi : restreint aux lignes qui en ont au moins autant
-          (WF-IHM-0130).
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: friday_max
-        in: query
-        description: >-
-          Borne supérieure, incluse, des heures du vendredi : restreint aux lignes qui n'en ont pas plus
-          (WF-IHM-0130). Inférieure à `friday_min`, elle est refusée par 422.
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: saturday_min
-        in: query
-        description: >-
-          Borne inférieure, incluse, des heures du samedi : restreint aux lignes qui en ont au moins autant
-          (WF-IHM-0130).
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: saturday_max
-        in: query
-        description: >-
-          Borne supérieure, incluse, des heures du samedi : restreint aux lignes qui n'en ont pas plus
-          (WF-IHM-0130). Inférieure à `saturday_min`, elle est refusée par 422.
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: sunday_min
-        in: query
-        description: >-
-          Borne inférieure, incluse, des heures du dimanche : restreint aux lignes qui en ont au moins autant
-          (WF-IHM-0130).
-        schema: { $ref: ../components/common.yaml#/Hours }
-      - name: sunday_max
-        in: query
-        description: >-
-          Borne supérieure, incluse, des heures du dimanche : restreint aux lignes qui n'en ont pas plus
-          (WF-IHM-0130). Inférieure à `sunday_min`, elle est refusée par 422.
-        schema: { $ref: ../components/common.yaml#/Hours }
       - name: sort_by
         in: query
         description: >-
@@ -918,18 +858,7 @@
               reader: { $ref: ../../../fixtures/api/calendars_reader.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422':
-        description: >-
-          Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`,
-          `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure
-          inférieure à sa borne inférieure (`monday` à `sunday`) : `fields[]` désignant la borne supérieure,
-          `/query/<colonne>_max`, par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne
-          inférieure donnée.
-        content:
-          application/problem+json:
-            schema: { $ref: ../components/common.yaml#/Problem }
-            examples:
-              bounds_inverted: { $ref: ../../../fixtures/api/calendars_bounds_inverted.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCalendar
