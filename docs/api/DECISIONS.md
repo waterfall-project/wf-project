@@ -6889,10 +6889,22 @@ l'autre.
   présente sans relire la structure. `risks`, `risk` et `risk_occurred_detail` la nomment : le
   « Câblage des armoires » pour 751, rien pour 752, survenu, ni pour 753, écarté.
 
-Écarté : un `provision_task_id` exigé, que la spécification dit facultatif. Deux points restent
-hors de cette partie : ce que `moveNodes` fait d'une ligne de provision ; et la tâche où le retour
-d'un risque écarté à l'état identifié recrée sa ligne, que la spécification ne dit pas (#1227, à
-trancher).
+Écarté : un `provision_task_id` exigé, que la spécification dit facultatif. Deux points restaient
+hors de cette partie, tranchés par l'auteur le 2026-10-21 (#1227) et portés par US-0570/L1 :
+- **`moveNodes` refuse une ligne de provision.** La ligne se déplace par le formulaire de son
+  risque, seul chemin : une ligne de provision parmi `node_ids` est refusée par 422
+  `VALIDATION_FAILED`, `fields` sur elle (`/node_ids/<n>`), motif nouveau
+  `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant le risque par `risk_id` et
+  `label`, que la grille ne lit pas et vers le formulaire duquel le front renvoie. Une tâche qui
+  porte une ligne de provision se déplace avec elle : la tâche de la ligne ne change pas. Exemple
+  engendré par `wftools.mockriskwrites`, `nodes_move_provision_refused` : la ligne de 751 envoyée
+  du « Câblage des armoires » sous le « Montage des armoires sur site » (corrélation 1304).
+  Écarté : accepter le déplacement comme un changement de `provision_task_id`, un second chemin
+  vers la même écriture.
+- **Le risque écarté qui redevient identifié** : sa ligne de provision est portée par la tâche
+  qu'il désignait si elle est encore une tâche de la structure principale, et sinon par la
+  première tâche de premier niveau ; `provision_task` reste nul tant qu'il est écarté. La
+  description de `reviewRisk` le dit ; le texte de WF-RIS-0010 est intégré par l'auteur (#1227).
 
 **Les saisies du risque ont leurs exemples** (#763). Elles sont engendrées, depuis les risques de
 `mockwitness` et la lecture du registre (`mockhistory.risk_item`), par `wftools.mockriskwrites` :
@@ -6911,6 +6923,9 @@ trancher).
 - `risk_provision_task_refused` (422) : une provision désignée sur la « Reprise des essais de
   câblage », que seul l'avenant 2 porte (corrélation 1193).
 
+Le résumé de `risk_created` s'ouvre par « Variante contrefactuelle », comme le veut la convention
+de #1196 (#1228).
+
 Écarté : la déclaration de 751 le 12 janvier, que le registre aurait donnée. Le témoin la dit
 identifiée avec une gravité de 1 000 000, quand une structure propre vide, à la création, n'en
 porterait aucune ; et la révision 101 de ce jour-là n'est pas celle dont les exemples nomment les
@@ -6925,7 +6940,9 @@ aussi 422, pour un paramètre de requête hors de son schéma. Son 412 a son exe
 le déplacement de la sélection (`nodes_moved`) a porté à 2 (corrélation 1194) — une écriture que la
 grille d'un différentiel propose quel que soit l'état du projet. Le front envoie
 le compteur de la ligne (`src/api/actions/nodes.ts`), et `structure-gestures.dom.test.tsx` lit cet
-exemple au lieu du refus qu'il écrivait. `test_every_writing_that_declares_a_412_sends_a_counter`
+exemple au lieu du refus qu'il écrivait : il le rejoue sur une grille de devis de la structure
+principale, et n'en consomme que le corps — le code, le statut et le compteur rendu —, son résumé
+décrivant le différentiel de l'avenant (#1228). `test_every_writing_that_declares_a_412_sends_a_counter`
 (`backend/tests/test_contract_declarations.py`) tient le sens inverse de
 `test_every_writing_that_carries_a_lock_version_declares_its_412` : une écriture qui déclare un
 412 envoie un compteur, `lock_version` ou `…_lock_version`, dans son corps ou ses paramètres. Écarté :
@@ -6954,6 +6971,85 @@ périodique. `wftools.mockamendmentwrites` les engendre, avec `nodes_move_mixed`
 (`tools/tests/test_mockdiff.py`) lit le différentiel marqué comme `listNodes` le lit, trié par le
 montant décroissant par `mockcore.subtree(…, sort=…)`, la ligne retirée lue sur ses valeurs de base
 et dernière de ses sœurs, au lieu de refaire le tri à la main.
+
+## Le nombre de lignes par page, la disposition d'une chronologie, les calendriers sans bornes d'heures, les unités de durée (EP-15/US-0530, US-0570)
+
+Partie K8 de la conception d'EP-15 (US-0570/L1), sur les décisions de l'auteur du 2026-10-18
+(#1045, #1068, #1047, #1049).
+
+**Le nombre de lignes par page est une préférence de la grille** (C-351, #1045).
+`GridPreferences.page_size`, un entier parmi 10, 25, 50 et 100, absent pour 50, le défaut de
+`limit` : la table plate l'envoie en `limit` à chaque lecture, et le retrouve à sa réouverture
+sans changer celui des autres tables (WF-IHM-0060). Une autre valeur est refusée par 422
+`VALIDATION_FAILED`, `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`, sans paramètre : ce
+ne sont pas des bornes mais quatre valeurs, que le schéma énumère et que `minimum` ni `maximum` ne
+diraient. Le service, dont les modèles sont engendrés du contrat, dit ainsi un entier — ni un
+booléen, ni une chaîne — envoyé à une énumération dont toutes les valeurs sont des entiers, et
+qu'elle n'admet pas (`waterfall.api.problems`, d'après les valeurs attendues que Pydantic nomme) ;
+toute autre valeur refusée par une énumération l'est par `VALIDATION_FAILED`, ainsi un entier
+envoyé au thème, une énumération de mots (`{"theme": 3}`) : ce n'est pas une valeur hors de sa
+plage, mais une valeur d'une autre nature. Une chaîne qui se lit comme l'une des quatre (`"25"`)
+est admise par conversion, comme tout entier d'un corps. Un nul est refusé comme les autres
+réglages d'une grille. Exemples `preferences_page_size` et
+`preferences_page_size_out_of_range` (corrélation 1300) ; `me_grid_settings` lit 25 lignes sur la
+table des comptes. Écarté : un nombre libre borné entre 10 et 100, que l'écran n'offrirait pas.
+
+**La disposition d'une chronologie est une préférence d'affichage, par chronologie** (#1068,
+WF-PLA-0140, WF-ADM-0040). `DisplayPreferences.timelines`, une table par `timeline_id` de
+`TimelinePreferences` — `lanes`, exigé, le couloir de chaque tâche placée par son `node_id`, un rang
+à partir de 0 —, bornée comme `grids` (#874) : cent chronologies, 64 tâches placées par chronologie,
+des noms de 64 caractères au plus, `VALUE_TOO_LONG` au-delà. Une modification ne remplace que les
+chronologies qu'elle nomme, chacune entière, et une chronologie à `null` retrouve sa disposition
+automatique ; une tâche absente prend le couloir automatique, une tâche qui n'est plus inscrite
+s'ignore. Un couloir négatif est refusé par `VALUE_OUT_OF_RANGE`,
+`/timelines/<chronologie>/lanes/<tâche>`, `params.minimum` à `0`, comme toute borne d'une écriture
+(`tools/tests/test_mockbounds.py`). Exemples `preferences_timeline_lanes` et
+`preferences_lane_out_of_range` (corrélation 1301), sur le « Comité de pilotage » du témoin ;
+`me_grid_settings` porte la même disposition. Le refus d'un couloir où un rectangle en
+chevaucherait un autre se tranche au lot d'écran (US-0530/L3).
+
+**La table des calendriers ne se filtre pas sur les heures de ses jours** (C-352, #1047). Les
+quatorze paramètres `monday_min` à `sunday_max` de `listCalendars` sont retirés, avec l'exemple
+`calendars_bounds_inverted` : WF-IHM-0130 fait de ces heures une exception à la règle commune.
+Elles se trient toujours ; la recherche et le filtre d'état restent. La convention des bornes
+(#545, ci-dessus) vaut pour les autres colonnes de nombres. Le front cesse d'envoyer
+ces bornes (`src/app/reference/resources/page.tsx`) ; la barre qui les saisit est retirée par
+US-0570/L3.
+
+**Les unités de durée ont leurs exemples** (C-360, #1049). `setDurationUnits` répond
+`duration_units_updated` — 7 heures par jour et 35 par semaine, réglées aujourd'hui, à la
+version 2 : « 2 j » vaut quatorze heures dans les révisions en cours, recalculées, seize dans une
+révision marquée —, refuse une constante nulle par `duration_units_zero` (422, `/hours_per_day`
+par `DURATION_UNIT_NOT_POSITIVE`, sans paramètre ; corrélation 1302) et une version périmée par
+`duration_units_stale` (412, la version 2 rendue ; corrélation 1303). Sa description dit le recalcul
+des plannings en cours et les heures gardées d'une révision marquée (WF-PLA-0160, WF-REF-0130).
+Une constante est strictement positive : l'intervalle ]0, ∞[ est ouvert et n'a pas de plus petite
+valeur admise que `params.minimum` pourrait nommer — la raison pour laquelle EP-14/L42h et L42m
+ont écarté `VALUE_OUT_OF_RANGE` pour les seuils d'indice, et pour laquelle `waterfall.api.problems`
+dit une borne exclusive par `VALIDATION_FAILED`. Elle est donc refusée par un motif par champ
+nouveau au catalogue, `DURATION_UNIT_NOT_POSITIVE`, sur le modèle de
+`THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, que le front dit en clair (« La constante doit être
+strictement positive ») ; une constante qui n'est pas un décimal sans signe garde
+`VALIDATION_FAILED` au même pointeur. `tools/tests/test_mockbounds.py` tient que seul un nombre
+de lignes par page hors des quatre est refusé par `VALUE_OUT_OF_RANGE` sans paramètre. Écartés :
+`VALUE_OUT_OF_RANGE` sans paramètre, qui donnerait une borne exclue pour une borne franchie ;
+`VALUE_OUT_OF_RANGE` nommant `minimum` à `0`, que le front dirait admis ; `VALIDATION_FAILED` seul
+au pointeur, qui ne distinguerait pas zéro d'une valeur mal écrite.
+
+**Le service suit le contrat engendré** (revue 1 de US-0570/L1). La conception d'EP-15 ne prévoit
+ni table, ni migration, ni module du noyau pour K8, et le lot n'en ajoute pas ; mais ses modèles
+étant engendrés du contrat, le back qui sert déjà les préférences change avec lui, sans quoi il le
+contredirait : `waterfall.core.users.personal.merged` fusionne `timelines` chronologie par
+chronologie, comme `grids` grille par grille ; `waterfall.api.me` refuse un `timelines` ou un
+`page_size` nul, comme les autres réglages qui ne le sont jamais ; `waterfall.api.problems` dit un
+entier hors d'une énumération d'entiers par `VALUE_OUT_OF_RANGE`, comme ci-dessus. Le refus du
+déplacement d'une ligne de provision (`PROVISION_LINE_MOVED_BY_RISK`) n'est que dans le contrat et
+ses exemples : le back ne sert pas encore `moveNodes`.
+
+**Les corrélations écrites à la main ouvrent une nouvelle plage** (#1228). La famille
+« corrélations, suite » (1010-1199) étant presque épuisée, « corrélations, seconde suite »
+(1300-1599, `wftools.mockids`) la prolonge après les nœuds de l'avenant 2 ; les exemples de ce lot
+l'emploient, de 1300 à 1304.
 
 ## Collage et annulation
 

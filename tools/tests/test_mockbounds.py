@@ -19,6 +19,7 @@ from typing import Any, cast
 import pytest
 
 from wftools import REPOSITORY, mockwitness
+from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
 API = REPOSITORY / "docs" / "api"
@@ -44,6 +45,7 @@ REFUSED = {
     ("updateMyPreferences", f"/grids/{ANY}/column_widths/{ANY}"): (
         "preferences_column_width_out_of_range"
     ),
+    ("updateMyPreferences", f"/timelines/{ANY}/lanes/{ANY}"): "preferences_lane_out_of_range",
     ("openChunkedUpload", "/size_bytes"): "chunked_upload_size_out_of_range",
 }
 """Each bound of a body, by its operation and its pointer, and the example of its refusal."""
@@ -324,3 +326,76 @@ def test_the_examples_keep_within_the_bounds() -> None:
             checked.extend(path.name for _ in widths)
     assert checked
     assert "me_grid_settings.json" in checked
+
+
+PAGE_SIZES = (10, 25, 50, 100)
+"""The numbers of lines per page a flat table offers (WF-IHM-0060, C-351, #1045)."""
+
+
+def test_a_number_of_lines_per_page_is_one_of_four_and_any_other_is_refused() -> None:
+    # Not a bound but four values: the schema says them, the refusal names no parameter (#1045).
+    schema = schema_text(API / "components" / "schemas" / "access.yaml", "GridPreferences")
+    assert f"enum: [{', '.join(str(each) for each in PAGE_SIZES)}]" in schema
+    refused = fixture("preferences_page_size_out_of_range")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    [crossed] = refused["fields"]
+    assert designates(f"/grids/{ANY}/page_size", crossed["pointer"])
+    assert crossed == {"pointer": crossed["pointer"], "code": "VALUE_OUT_OF_RANGE"}
+    said = refusals(operations()["updateMyPreferences"][1])
+    assert told(f"/grids/{ANY}/page_size", said)
+    assert "preferences_page_size_out_of_range" in said
+
+
+def test_the_examples_keep_the_lines_per_page_and_the_lanes_of_the_timelines_admitted() -> None:
+    # Every example that bears a number of lines per page bears one of the four; every lane of a
+    # timeline is a rank from 0, of a task inscribed to that timeline of the witness.
+    lane = published()["updateMyPreferences", f"/timelines/{ANY}/lanes/{ANY}"]
+    inscribed = {
+        timeline: {
+            universe(number)
+            for number, timelines in mockwitness.INSCRIBED.items()
+            if timeline in timelines
+        }
+        for timeline, _ in mockwitness.TIMELINES
+    }
+    sizes: list[str] = []
+    lanes: list[str] = []
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        for entry in _walk(json.loads(path.read_text(encoding="utf-8"))["value"]):
+            if "page_size" in entry:
+                assert entry["page_size"] in PAGE_SIZES, path.name
+                sizes.append(path.name)
+            if not isinstance(entry.get("timelines"), dict):
+                # A list of timelines, or of the inscriptions of a task: no layout.
+                continue
+            for timeline, layout in cast("dict[str, Any]", entry["timelines"]).items():
+                placed = cast("dict[str, int]", layout["lanes"])
+                assert set(placed) <= inscribed[timeline], path.name
+                assert all(rank >= lane["minimum"] for rank in placed.values()), path.name
+                lanes.append(path.name)
+    assert {"me_grid_settings.json", "preferences_page_size.json"} <= set(sizes)
+    assert {"me_grid_settings.json", "preferences_timeline_lanes.json"} <= set(lanes)
+
+
+def test_a_value_out_of_range_without_its_bound_is_only_a_number_of_lines_per_page() -> None:
+    # `VALUE_OUT_OF_RANGE` names the bound crossed, an admitted value; only an integer that is none
+    # of the four numbers of lines per page has none to name (#1045). A bound that excludes its
+    # value — zero for a constant of duration — has a motif of its own (EP-14/L42h, L42m).
+    unnamed: set[str] = set()
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        for entry in _walk(json.loads(path.read_text(encoding="utf-8"))["value"]):
+            out = "pointer" in entry and entry.get("code") == "VALUE_OUT_OF_RANGE"
+            if out and not entry.get("params"):
+                unnamed.add(path.stem)
+    assert unnamed == {"preferences_page_size_out_of_range"}
+
+
+def test_a_constant_of_duration_at_zero_is_refused_by_its_own_motif() -> None:
+    # Strictly positive (WF-PLA-0160): the interval is open, and has no least value to name.
+    refused = fixture("duration_units_zero")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    [crossed] = refused["fields"]
+    assert crossed == {"pointer": "/hours_per_day", "code": "DURATION_UNIT_NOT_POSITIVE"}
+    said = refusals(operations()["setDurationUnits"][1])
+    assert "par `DURATION_UNIT_NOT_POSITIVE`" in said
+    assert "duration_units_zero" in said

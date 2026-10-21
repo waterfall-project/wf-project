@@ -228,7 +228,7 @@ export interface Examples {
     200: "backup_released" | "backup_retained";
   };
   "PATCH /me/preferences": {
-    200: "preferences" | "preferences_dark";
+    200: "preferences" | "preferences_dark" | "preferences_page_size" | "preferences_timeline_lanes";
   };
   "PATCH /projects/{project_id}": {
     200: "project_updated";
@@ -415,6 +415,9 @@ export interface Examples {
   };
   "PUT /reference/cost-types/{cost_type_id}/activation": {
     200: "cost_type_deactivated";
+  };
+  "PUT /reference/duration-units": {
+    200: "duration_units_updated";
   };
   "PUT /reference/org-nodes/{org_node_id}/activation": {
     200: "org_node_deactivated" | "org_node_reactivated";

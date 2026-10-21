@@ -1,0 +1,16 @@
+{
+  "summary": "Les préférences enregistrées après le choix de 25 lignes par page sur la table des comptes : seule cette grille change, les autres gardent leur nombre de lignes (WF-IHM-0060, C-351).",
+  "value": {
+    "language": "default",
+    "theme": "default",
+    "highlight_tasks_added_after_reference": false,
+    "grids": {
+      "users": {
+        "hidden_columns": [],
+        "column_widths": {},
+        "filters": {},
+        "page_size": 25
+      }
+    }
+  }
+}

@@ -263,10 +263,14 @@ DisplayPreferences:
     réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne
     change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme,
     chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut.
+    La disposition de chaque chronologie l'est de même dans `timelines`, par chronologie
+    (WF-PLA-0140, EP-15/US-0530) : une modification ne remplace que les chronologies qu'elle
+    nomme, chacune entière, et une chronologie à `null` retrouve sa disposition automatique.
     Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
-    (#874) — cent grilles au plus, des noms de grille, de colonne et de filtre de 64
-    caractères au plus ; par grille, 64 colonnes masquées ou élargies et 20 filtres au plus,
-    la valeur d'un filtre de 500 caractères au plus. Une préférence qui passe une borne est
+    (#874) — cent grilles et cent chronologies au plus, des noms de grille, de colonne, de
+    filtre, de chronologie et de tâche de 64 caractères au plus ; par grille, 64 colonnes
+    masquées ou élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au
+    plus ; par chronologie, 64 tâches placées au plus. Une préférence qui passe une borne est
     refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
     défaut ; un nom trop long, au pointeur de l'objet qui le porte.
   properties:
@@ -293,10 +297,46 @@ DisplayPreferences:
       propertyNames: { maxLength: 64 }
       additionalProperties:
         anyOf: [{ $ref: '#/GridPreferences' }, { type: 'null' }]
+    timelines:
+      type: object
+      description: >-
+        La disposition de chaque chronologie que l'utilisateur a arrangée, par son
+        `timeline_id` : une préférence d'affichage, propre à chacun (WF-ADM-0040, WF-PLA-0140).
+      maxProperties: 100
+      propertyNames: { maxLength: 64 }
+      additionalProperties:
+        anyOf: [{ $ref: '#/TimelinePreferences' }, { type: 'null' }]
+
+TimelinePreferences:
+  type: object
+  required: [lanes]
+  description: >-
+    La disposition d'une chronologie en frise (EP-15/US-0530) : le couloir de chaque tâche que
+    l'utilisateur a placée. Une tâche qui n'y figure pas — inscrite depuis, ou jamais déplacée —
+    prend le couloir que la disposition automatique lui donne ; une tâche qui n'est plus inscrite
+    est ignorée.
+  properties:
+    lanes:
+      type: object
+      maxProperties: 64
+      propertyNames: { maxLength: 64 }
+      description: >-
+        Le couloir de chaque tâche placée, par son `node_id` : un rang à partir de 0, le couloir
+        du haut. Un rang négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur
+        `/timelines/<chronologie>/lanes/<tâche>`, `fields[].params.minimum` à `0`.
+      additionalProperties: { type: integer, minimum: 0 }
 
 GridPreferences:
   type: object
   properties:
+    page_size:
+      type: integer
+      enum: [10, 25, 50, 100]
+      description: >-
+        Le nombre de lignes par page d'une table plate, choisi parmi 10, 25, 50 et 100 ;
+        absent, 50, le défaut de `limit` (WF-IHM-0060, C-351). Une grille arborescente ne
+        l'offre pas. Une autre valeur est refusée par 422, `VALUE_OUT_OF_RANGE` sur
+        `/grids/<grille>/page_size`, sans paramètre : les valeurs admises sont celles-ci.
     hidden_columns:
       type: array
       maxItems: 64

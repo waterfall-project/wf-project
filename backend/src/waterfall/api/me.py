@@ -38,8 +38,8 @@ DIRECTORY = "directory"
 FOLLOWED = "default"
 # The fields of the preferences, and of the settings of a grid, that the contract never lets null.
 GRIDS = "grids"
-NEVER_NULL = (LANGUAGE, "theme", "highlight_tasks_added_after_reference", GRIDS)
-NEVER_NULL_IN_A_GRID = ("hidden_columns", "column_widths", "filters")
+NEVER_NULL = (LANGUAGE, "theme", "highlight_tasks_added_after_reference", GRIDS, "timelines")
+NEVER_NULL_IN_A_GRID = ("hidden_columns", "column_widths", "filters", "page_size")
 
 
 def user_self(
@@ -78,7 +78,8 @@ def null_fields(sent: DisplayPreferences | GridPreferences, names: Sequence[str]
 def preference_change(body: DisplayPreferences) -> dict[str, Any]:
     """Read a change of the preferences: what it carries, each field sent null refused (422).
 
-    A grid sent null is no fault: it finds its settings by default again.
+    A grid sent null is no fault: it finds its settings by default again; nor is a timeline sent
+    null, which finds its layout by default.
     """
     faults = [
         FieldError(json_pointer(name), VALIDATION_FAILED) for name in null_fields(body, NEVER_NULL)

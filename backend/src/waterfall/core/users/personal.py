@@ -19,8 +19,9 @@ from sqlalchemy.orm import Session
 from waterfall.core.users.accounts import lock_account
 from waterfall.core.users.tables import UserAccount
 
-# The settings of each grid, by the name of the grid (WF-IHM-0060).
-GRIDS = "grids"
+# The settings of each grid, by the name of the grid (WF-IHM-0060), and the layout of each
+# timeline, by its identifier (WF-PLA-0140): tables whose entries a change replaces one by one.
+TABLES = ("grids", "timelines")
 PNG = "image/png"
 JPEG = "image/jpeg"
 # The first bytes of each kind of image an avatar may be: its signature, whatever it is said to be.
@@ -31,17 +32,18 @@ def merged(current: Mapping[str, Any], sent: Mapping[str, Any]) -> dict[str, Any
     """Give the preferences once a change applies: only what it carries changes.
 
     In ``grids``, only the grids it names, each replaced whole; a grid sent ``None`` is forgotten,
-    and finds its settings by default again.
+    and finds its settings by default again. So in ``timelines``, by timeline (EP-15/US-0530).
     """
-    preferences = {**current, **{name: value for name, value in sent.items() if name != GRIDS}}
-    if GRIDS in sent:
-        grids: dict[str, Any] = dict(current.get(GRIDS) or {})
-        for name, grid in sent[GRIDS].items():
-            if grid is None:
-                grids.pop(name, None)
-            else:
-                grids[name] = grid
-        preferences[GRIDS] = grids
+    preferences = {**current, **{name: value for name, value in sent.items() if name not in TABLES}}
+    for table in TABLES:
+        if table in sent:
+            entries: dict[str, Any] = dict(current.get(table) or {})
+            for name, entry in sent[table].items():
+                if entry is None:
+                    entries.pop(name, None)
+                else:
+                    entries[name] = entry
+            preferences[table] = entries
     return preferences
 
 

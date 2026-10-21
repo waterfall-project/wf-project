@@ -1,0 +1,17 @@
+{
+  "summary": "Les préférences enregistrées après la disposition de la chronologie « Comité de pilotage » : la « Réception des études » et la « Réception usine » placées dans le deuxième couloir, les autres tâches inscrites gardant la disposition automatique (WF-PLA-0140, WF-ADM-0040).",
+  "value": {
+    "language": "default",
+    "theme": "default",
+    "highlight_tasks_added_after_reference": false,
+    "grids": {},
+    "timelines": {
+      "01926f3a-7c00-7000-8000-000000001000": {
+        "lanes": {
+          "01926f3a-7c00-7000-8000-000000000525": 1,
+          "01926f3a-7c00-7000-8000-000000000556": 1
+        }
+      }
+    }
+  }
+}

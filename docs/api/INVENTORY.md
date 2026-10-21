@@ -32,7 +32,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 |---|---|---|---|
 | GET | `/me` | Mon compte et mes préférences | WF-ADM-0040, WF-ADM-0050, WF-ADM-0060, WF-ADM-0110, WF-ADM-0180, WF-ARC-0030, WF-IHM-0090, WF-SEC-0020 |
 | DELETE | `/me/sessions` | Me déconnecter | WF-ARC-0030, WF-SEC-0020 |
-| PATCH | `/me/preferences` | Modifier mes préférences d'affichage | WF-ADM-0040, WF-INTF-0160 |
+| PATCH | `/me/preferences` | Modifier mes préférences d'affichage | WF-ADM-0040, WF-IHM-0060, WF-INTF-0160, WF-PLA-0140 |
 | PUT | `/me/avatar` | Déposer ou remplacer mon avatar | WF-ADM-0080, WF-EXP-0020 |
 | DELETE | `/me/avatar` | Retirer mon avatar | WF-ADM-0080 |
 

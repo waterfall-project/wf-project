@@ -1,0 +1,12 @@
+{
+  "summary": "La ligne de provision de « Risque de reprise du câblage », « Provision — risque de reprise du câblage », portée par le « Câblage des armoires », déplacée dans la grille sous le « Montage des armoires sur site » : le déplacement est refusé sur elle, sa tâche étant celle que son risque désigne, qui se change par le formulaire du risque ; le refus nomme le risque, que la grille ne lit pas. Rien ne bouge (WF-RIS-0010, #1227).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/node_ids/0","code":"PROVISION_LINE_MOVED_BY_RISK","params":{"risk":{"risk_id":"01926f3a-7c00-7000-8000-000000000751","label":"Risque de reprise du câblage"}}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001304"
+  }
+}

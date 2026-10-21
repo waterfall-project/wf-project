@@ -1,0 +1,9 @@
+{
+  "summary": "Les constantes réglées aujourd'hui depuis les paramètres de ressources, 7 heures par jour et 35 par semaine, 20 jours par mois gardés, à leur version suivante : « 2 j » vaut désormais quatorze heures dans les plannings des révisions en cours, recalculés, et seize dans une révision marquée, qui garde les heures qu'elle a calculées (WF-PLA-0160, WF-REF-0130, C-360).",
+  "value": {
+    "hours_per_day": "7",
+    "hours_per_week": "35",
+    "days_per_month": "20",
+    "lock_version": 2
+  }
+}

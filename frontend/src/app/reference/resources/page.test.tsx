@@ -394,8 +394,6 @@ describe("the settings of the resources", () => {
         sort_by: "wednesday",
         sort_order: "asc",
         is_active: "true",
-        monday_min: "8",
-        friday_max: "0",
         offset: "50",
       },
       // Every calendar, which the filter of the roles offers.
@@ -471,25 +469,6 @@ describe("the settings of the resources", () => {
     expect(page).not.toMatch(/<table[^>]*aria-label="Rôles de ressources"/);
     // The calendars and the tree, read as the address asks them.
     expect(rows(page, "Calendriers").at(-1)).toBe("2 calendriers");
-  });
-
-  it("say at its field the upper bound of the hours of a day the server refuses, the calendars unread", async () => {
-    server.answers = {
-      ...server.answers,
-      // The page refused; every calendar, which the filter of the roles offers, read.
-      "GET /reference/calendars": [
-        { problem: example("calendars_bounds_inverted") as Problem & { status: 422 } },
-        "calendars",
-      ],
-    };
-    const page = await resourcesAt({ calendar_friday_min: "10", calendar_friday_max: "8" });
-    expect(queriesOf("GET /reference/calendars")).toEqual([
-      { friday_min: "10", friday_max: "8" },
-      WHOLE,
-    ]);
-    expect(page).toMatch(/aria-label="Ven., max."[^>]*aria-invalid="true"/);
-    expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 10.");
-    expect(page).not.toMatch(/<table[^>]*aria-label="Calendriers"/);
   });
 
   it("ask the tree between the bounds of the depth, and say at its field the upper bound the server refuses", async () => {

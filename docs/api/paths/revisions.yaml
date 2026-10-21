@@ -1326,7 +1326,13 @@
           #1183). Ou, sans `fields`, un déplacement qui, en
           changeant le calendrier d'une tâche, porterait la durée du projet au-delà de quinze ans :
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit
-          la ligne déplacée (WF-PLA-0150). Ou, sans `fields`, un déplacement ou une mise en
+          la ligne déplacée (WF-PLA-0150). Ou une ligne de provision parmi les nœuds déplacés :
+          sa tâche est celle que son risque désigne, et elle se déplace par le formulaire du
+          risque (`updateRisk`, `provision_task_id`) — `fields` sur la ligne, `/node_ids/<n>`,
+          motif `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant le risque par
+          son identifiant et son libellé (`risk_id`, `label`), que la grille ne lit pas
+          (WF-RIS-0010 ; #1227) ; une tâche qui porte une ligne de provision se déplace, elle,
+          avec sa ligne. Ou, sans `fields`, un déplacement ou une mise en
           retrait qui relierait la récapitulative qui reçoit le nœud, ou l'un de ses ancêtres, au
           nœud ou à l'une de ses subordonnées : `LINK_FORBIDDEN`, sans paramètre (WF-PLA-0030,
           WF-PLA-0040) ; ou qui fermerait une boucle de liaisons à travers elle : `LINK_CYCLE`,
@@ -1340,6 +1346,7 @@
               outside_work_package: { $ref: ../../../fixtures/api/nodes_move_outside_work_package.json }
               indent_forbidden: { $ref: ../../../fixtures/api/nodes_indent_forbidden.json }
               cycle_refused: { $ref: ../../../fixtures/api/nodes_move_cycle_refused.json }
+              provision_refused: { $ref: ../../../fixtures/api/nodes_move_provision_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
