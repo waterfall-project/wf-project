@@ -3,9 +3,12 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { openHydrated, WORKING } from "./hydration";
 
 // The fake back serves the first example of each operation: the project in progress, its
-// current revision — a draft, without a version name —, and its two sub-projects. A marked
+// current revision — a draft, without a version name —, its structures — the main one, the
+// amendment 2, a differential not merged, and the own estimates of three risks —, and its two
+// sub-projects. A marked
 // revision is shown by the tests of the banner, from the example the contract names.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -67,4 +70,39 @@ test("an active filter is visible without opening the panel of filters [WF-IHM-0
   await expect(chips).toHaveText([
     "Sous-projet : SP-CMD — Poste de commande, hors suivi des jalons",
   ]);
+});
+
+test("a grid opened on a differential structure names it, chosen in the banner, and the main structure again [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  // Une grille ouverte sur une structure différentielle nomme cette structure. The fake back serves
+  // the first example of `listNodes` whatever the structure — the nodes of the main one —: what
+  // the page asks of each structure is proven by `planning/page.test.tsx`.
+  // TODO(#1219): see the nodes of the amendment once the fake back serves them at its address.
+  const amendment = "01926f3a-7c00-7000-8000-000000000203";
+  const named = (structure: string) =>
+    banner(page).getByRole("button", {
+      name: `Changer de structure, «\u00a0${structure}\u00a0» lue`,
+    });
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await named("Structure principale").click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("group", { name: "Avenant" }).getByRole("menuitemradio")).toHaveText([
+    "Avenant 2 — reprise des essais",
+  ]);
+  await menu.getByRole("menuitemradio", { name: "Avenant 2 — reprise des essais" }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/planning?structure=${amendment}`, {
+    timeout: WORKING,
+  });
+  const facts = banner(page).getByRole("definition");
+  await expect(facts.filter({ hasText: /^Avenant 2 — reprise des essais$/ })).toBeVisible();
+  await expect(facts.filter({ hasText: /^Avenant$/ })).toBeVisible();
+  // The head of the grid names it too.
+  await expect(page.getByRole("main")).toContainText("Avenant 2 — reprise des essais ·");
+
+  // The main structure is read by default: chosen, the address no longer names one.
+  await named("Avenant 2 — reprise des essais").click();
+  await menu.getByRole("menuitemradio", { name: "Structure principale" }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
+  await expect(facts.filter({ hasText: /^Avenant$/ })).toHaveCount(0);
 });

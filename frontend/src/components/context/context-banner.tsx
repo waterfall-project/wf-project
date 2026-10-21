@@ -11,7 +11,11 @@
  * its chip: the chip says what it restricts — the grid and not the indicators (#459), every figure
  * of the indicators but the tracking of the milestones, which a sub-project does not have
  * (WF-IND-0020). A grid filtered by a lot or a post of the work breakdown gives its filter, which a
- * chip shows after those of the context, lifted by the address of the screen without it. An icon
+ * chip shows after those of the context, lifted by the address of the screen without it. A grid
+ * that reads the structure its address names — the planning, the estimate (US-0500) — gives it, and
+ * the banner names it, its kind besides when it is not the main one — a differential, the own
+ * estimate of a risk —, and offers the other structures of the revision to read instead
+ * (`StructureChoice`); a filter of the context lifted leaves the grid on it. An icon
  * before each
  * fact, whose name the list of definitions gives to a screen reader; the states in badges, in
  * words.
@@ -20,7 +24,7 @@
  * following a link, not by a state of the browser. It hands the project on to the shell, which
  * names it in its side bar and its breadcrumb (`ShowProject`).
  */
-import { Calculator, Filter, Folder, GitBranch, Lock, X } from "lucide-react";
+import { Calculator, Filter, Folder, GitBranch, Layers, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -33,6 +37,13 @@ import { UNASSIGNED, withoutFilter } from "@/navigation/context";
 
 import type { Revision } from "./read-only";
 import type { ContextFilter, ProjectReading, Subproject } from "./reading";
+import {
+  keepingStructure,
+  type ListedStructure,
+  runsOfKind,
+  type StructureChoices,
+} from "./structure";
+import { StructureChoice } from "./structure-choice";
 
 /**
  * A revision a calculation was made on (`CalculationContext.revision_id`), as the screen read it:
@@ -65,6 +76,11 @@ export interface ContextBannerProps {
    * grid, not of the context, which the links between functions do not carry on.
    */
   readonly breakdown?: BreakdownChip | undefined;
+  /**
+   * The structure the grid of the screen reads, and those of its revision it may read instead; none
+   * for a screen that reads the main structure alone, which the banner then does not name.
+   */
+  readonly structure?: StructureChoices | undefined;
 }
 
 /** The part of a screen a filter restricts alone, by the key of its text in the catalogue. */
@@ -119,6 +135,7 @@ function useChips(
   reading: ProjectReading,
   restricts: Restrictions,
   breakdown: BreakdownChip | undefined,
+  structure: StructureChoices | undefined,
 ): Chip[] {
   const t = useTranslations();
   const locale = useLocale();
@@ -137,7 +154,10 @@ function useChips(
     ...reading.filters.map((filter) => ({
       name: filter.name,
       text: restricted(filter.name, named(filter)),
-      lift: withoutFilter(reading.pathname, reading.context, filter.name),
+      lift: keepingStructure(
+        withoutFilter(reading.pathname, reading.context, filter.name),
+        structure,
+      ),
     })),
     ...(breakdown === undefined
       ? []
@@ -179,6 +199,54 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
   );
 }
 
+/**
+ * The structure read, and the others of the revision offered when it has some — each named by its
+ * label and whether it is merged, under the name of its kind but for the main one. A grid opened on a
+ * differential, or on the own estimate of a risk, names it and its kind in a badge (WF-IHM-0020); the
+ * main structure, which the head of the grid names too, is named to a screen reader alone, so that
+ * the banner keeps its one row on a narrow window, the totals of the grid in view under it — and not
+ * at all when the revision has no other, nothing being offered.
+ */
+function StructureFacts({ structure }: { readonly structure: StructureChoices }) {
+  const t = useTranslations();
+  const { read, listed } = structure;
+  if (read.kind === "main" && listed.length < 2) {
+    return null;
+  }
+  const option = ({ structure_id, label, kind, is_merged }: ListedStructure) => ({
+    structure_id,
+    kind,
+    text: is_merged ? t("contextBanner.mergedStructure", { label }) : label,
+  });
+  const groups = runsOfKind(listed).map(({ kind, structures }) => ({
+    name: kind === "main" ? undefined : t(`enums.StructureKind.${kind}`),
+    options: structures.map(option),
+  }));
+  return (
+    <div className={FACT}>
+      <dt>
+        <Layers aria-hidden="true" className={ICON} />
+        <span className="sr-only">{t("contextBanner.structure")}</span>
+      </dt>
+      <dd className={read.kind === "main" ? "sr-only" : undefined}>{read.label}</dd>
+      {read.kind === "main" ? null : (
+        <dd>
+          <Badge variant="outline">{t(`enums.StructureKind.${read.kind}`)}</Badge>
+        </dd>
+      )}
+      {listed.length > 1 ? (
+        <dd>
+          <StructureChoice
+            label={t("contextBanner.chooseStructure", { structure: read.label })}
+            groups={groups}
+            chosen={read.structure_id}
+          />
+        </dd>
+      ) : null}
+    </div>
+  );
+}
+
 /** The revision the figures are computed on, when it is not the one shown. */
 function ComputedOnFacts({ computedOn }: { readonly computedOn: ComputedRevision }) {
   const t = useTranslations("contextBanner");
@@ -204,9 +272,10 @@ export function ContextBanner({
   computedOn,
   restricts = {},
   breakdown,
+  structure,
 }: ContextBannerProps) {
   const t = useTranslations();
-  const chips = useChips(reading, restricts, breakdown);
+  const chips = useChips(reading, restricts, breakdown, structure);
   const { project, revision, readOnly } = reading;
   return (
     <section
@@ -230,6 +299,7 @@ export function ContextBanner({
           <dd className="font-medium">{project.label}</dd>
         </div>
         {revision === undefined ? null : <RevisionFacts revision={revision} />}
+        {structure === undefined ? null : <StructureFacts structure={structure} />}
         {computedOn === undefined || computedOn.revisionId === revision?.revision_id ? null : (
           <ComputedOnFacts computedOn={computedOn} />
         )}

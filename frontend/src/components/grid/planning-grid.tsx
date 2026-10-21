@@ -63,8 +63,11 @@ export interface PlanningGridProps {
   readonly nodes: NodeRows<PlanningNode>;
   /** The structure the rows belong to. */
   readonly structure: StructurePath;
-  /** The version of the structure read with the page, which the skeleton generated moves on. */
-  readonly structureVersion?: number | undefined;
+  /**
+   * The version of the structure read with the page, which the writes of the grid go on from and
+   * the skeleton generated moves on: always given, never guessed (#819.7).
+   */
+  readonly structureVersion: number;
   /**
    * What the reading asked of the nodes besides their fields and their sort, as it was sent — the
    * search, a sub-project —: the rows above those it retains unfold.
@@ -148,7 +151,7 @@ function SkeletonOffer({
 export function PlanningGrid({
   nodes,
   structure,
-  structureVersion = 0,
+  structureVersion,
   filters,
   query,
   preferences,

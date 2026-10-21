@@ -87,6 +87,7 @@ function planningOf(nodes: NodeList) {
       <PlanningGrid
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={{}}
         query={NO_QUERY}
         preferences={undefined}
@@ -115,6 +116,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
         <PlanningGrid
           nodes={nodes ?? planning}
           structure={STRUCTURE}
+          structureVersion={1}
           filters={{}}
           query={NO_QUERY}
           preferences={undefined}

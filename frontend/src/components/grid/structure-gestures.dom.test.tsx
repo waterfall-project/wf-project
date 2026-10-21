@@ -157,6 +157,7 @@ function planningGrid(nodes: NodeList, editable: boolean) {
       <PlanningGrid
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={{ kinds: ["task"] }}
         query={NO_QUERY}
         preferences={undefined}
