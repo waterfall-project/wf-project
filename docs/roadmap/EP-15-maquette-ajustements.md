@@ -544,7 +544,7 @@ lot ou un poste est porté par une tâche de la révision en cours.
 
 ## US-0460 — Construire la structure depuis les trois grilles
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0080-A`, `WF-DEV-0050-A`, `WF-RAE-0040-A`
 - **opérations** : `createNode`, `moveNodes`, `deleteNode`, `listNodes`, `getRevision`,
   `getProject`
@@ -717,7 +717,7 @@ FF, DF en français — sont ceux de l'énumération du contrat, traduits par le
 
 ## US-0480 — Inscrire une tâche à une chronologie, porter une ligne à un sous-projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0060-A`, `WF-PRJ-0050-A`
 - **opérations** : `setNodeTracking`, `listTimelines`, `createTimeline`, `updateEstimateLine`,
   `listSubprojects`, `listNodes`

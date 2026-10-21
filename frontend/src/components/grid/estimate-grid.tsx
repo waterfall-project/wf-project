@@ -53,6 +53,7 @@ import {
   type StructurePath,
 } from "./nodes";
 import type { GridQuery } from "./query";
+import type { RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
 import { useStructureVersion } from "./structure-version";
@@ -215,6 +216,23 @@ export function EstimateGrid({
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
+  // The sub-project of a line is chosen from the menu of its cell, among those of the project, where
+  // the estimate may be entered and the project lists its sub-projects.
+  const { subprojects } = reference;
+  const whole = Object.keys(filters).length === 0;
+  const choices = useMemo<RowChoices<EstimateNode> | undefined>(
+    () =>
+      !editable || subprojects === undefined
+        ? undefined
+        : {
+            subproject: {
+              subprojects: subprojects.map(({ id, label }) => ({ id, label })),
+              current: (node) => node.estimate_line?.subproject_id ?? null,
+            },
+            written: (written) => nodesWritten(written, ESTIMATE_FIELDS, whole),
+          },
+    [editable, subprojects, whole],
+  );
   // The tasks and the lines are created and deleted where the estimate may be entered; the tasks where
   // the planning may too. The version the structure moves on to is the next paste's.
   const gestures = useStructureGestures<EstimateNode>(
@@ -231,6 +249,7 @@ export function EstimateGrid({
     (written) => {
       reach(written.structure_lock_version);
     },
+    choices,
   );
   const config = useMemo(() => {
     const told: Moved = {

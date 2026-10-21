@@ -43,6 +43,7 @@ import { cn } from "@/components/ui/utils";
 
 import { type CellFolding, FoldMenuItems } from "./fold";
 import { type CellPosition, positionOf } from "./grid-keyboard";
+import type { RowsApplied } from "./row-choices";
 import type { RowDrag } from "./row-selection";
 
 /** The two commands. */
@@ -225,7 +226,11 @@ interface RowCommandsOf<Row> {
   readonly bar: (row: Row | undefined) => ReactNode;
   readonly menu: (
     row: Row | undefined,
-    opened: Omit<MenuOpened, "at"> & { readonly rows: readonly Row[] },
+    opened: Omit<MenuOpened, "at"> & {
+      readonly rows: readonly Row[];
+      /** Show the rows a write answered in place of the rows read, as a cell written does. */
+      readonly applied: (written: RowsApplied<Row>) => void;
+    },
   ) => ReactNode;
   /**
    * The keys of the commands, on the row of the active cell: whether the key pressed is one of them,
@@ -269,12 +274,14 @@ export interface RowMoved<Row> {
 /**
  * The commands of a screen on the rows of a grid, each found by its index among those shown — in the
  * bar, that of the active cell; in the menu, that of the cell it opened on —, with the rows it acts
- * on from there (`acted`); nothing when the screen gives none.
+ * on from there (`acted`), and how the rows a write answered take the place of those read
+ * (`applied`); nothing when the screen gives none.
  */
 export function onRows<Row>(
   commands: RowCommands<Row> | undefined,
   rowAt: (index: number) => Row | undefined,
   acted: (index: number) => readonly Row[],
+  applied: (written: RowsApplied<Row>) => void,
 ): {
   readonly bar: (index: number) => ReactNode;
   readonly menu: MenuCommands | undefined;
@@ -292,6 +299,7 @@ export function onRows<Row>(
       commands.menu(at === undefined ? undefined : rowAt(at.row), {
         ...opened,
         rows: at === undefined ? [] : acted(at.row),
+        applied,
       }),
     keys: (index, event) => commands.keys?.(rowAt(index), event, acted(index)) ?? false,
   };

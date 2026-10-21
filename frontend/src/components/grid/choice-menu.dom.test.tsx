@@ -1,0 +1,689 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
+import { forgetMessages } from "@/components/notices/message-history";
+import { CATALOGUES } from "@/i18n/catalogues";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
+
+import { EstimateGrid } from "./estimate-grid";
+import type { NodeList, NodeSortColumn } from "./nodes";
+import { PlanningGrid } from "./planning-grid";
+import type { GridQuery } from "./query";
+import { RemainingGrid } from "./remaining-grid";
+import type { ChoiceOption } from "./row-choices";
+import type { GridPreferences } from "./settings";
+
+// The submenus « Chronologies » and « Sous-projet » of the menu of a cell (US-0480), through the
+// grids that offer them: the planning, the estimate and the remaining to commit. The fake back keeps
+// nothing: what a write sends is read from its calls, what it answers from the row it replaces.
+// Some tests render a variant of a row of `nodes_planning` or `nodes_estimate`, passed to the grid as
+// a prop and never served as an answer (guide, « Tests »), each saying what
+// it changes: the version of a row, so that its own is sent; the `editable_fields` of a row, so that
+// it does not name the field; the sub-project a line bears; and the identifier of the line the
+// example of the answer is about, so that the answer takes the place of the row read.
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const cache = vi.hoisted(() => ({ refresh: vi.fn() }));
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/cache", () => cache);
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => router,
+  usePathname: () => "/projects/p/revisions/r/planning",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+type Timeline = components["schemas"]["Timeline"];
+type Subproject = components["schemas"]["Subproject"];
+type NodesWritten = components["schemas"]["NodesWritten"];
+
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NODES = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
+const TRACKING = `PUT ${NODES}/{node_id}/tracking` as const;
+const LINE = `PATCH ${NODES}/{node_id}/estimate-line` as const;
+const TIMELINES = "POST /projects/{project_id}/timelines" as const;
+const STRUCTURE = {
+  project_id: "01926f3a-7c00-7000-8000-000000000001",
+  revision_id: "01926f3a-7c00-7000-8000-000000000102",
+  structure_id: "01926f3a-7c00-7000-8000-000000000201",
+};
+const STEERING = "01926f3a-7c00-7000-8000-000000001000";
+const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
+const COMMAND = "01926f3a-7c00-7000-8000-000000000801";
+const TESTS = "01926f3a-7c00-7000-8000-000000000802";
+const SHOWN = { hidden_columns: [] };
+
+const planning = example("nodes_planning") as NodeList;
+const estimate = example("nodes_estimate") as NodeList;
+const timelines: readonly ChoiceOption[] = (example("timelines") as Timeline[]).map((each) => ({
+  id: each.timeline_id,
+  label: each.label,
+}));
+const subprojects = (example("subprojects") as Subproject[]).map((each) => ({
+  id: each.subproject_id,
+  label: each.label,
+}));
+
+/** The index of a row of an answer, by its label (#400). */
+function indexOf(nodes: NodeList, label: string): number {
+  return nodes.items.findIndex((each) => (each.task?.label ?? each.estimate_line?.label) === label);
+}
+const [STUDIES, DETAIL, , REVIEW, MILESTONE] = [0, 1, 2, 3, 4];
+const LABOUR = indexOf(estimate, "Raccordement des borniers");
+const PROVISION = indexOf(estimate, "Provision — risque de reprise du câblage");
+const REMINDER = indexOf(estimate, "Frais de relance");
+const FREIGHT = indexOf(estimate, "Affrètement");
+
+/** Serve the fake back, and give it back to read its calls. */
+function serve(answers: FakeAnswers = {}): FakeClient {
+  const client = fakeClient(answers);
+  server.client = client;
+  return client;
+}
+
+const intl = (children: React.ReactNode) => (
+  <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+    {children}
+  </NextIntlClientProvider>
+);
+
+/** The grid of the planning, entered, its timelines given or refused. */
+function planningGrid(
+  nodes: NodeList = planning,
+  {
+    named = timelines,
+    editable = true,
+  }: { named?: readonly ChoiceOption[] | null; editable?: boolean } = {},
+) {
+  return intl(
+    <PlanningGrid
+      nodes={nodes}
+      structure={STRUCTURE}
+      structureVersion={1}
+      filters={{ kinds: ["task"] }}
+      query={NO_QUERY}
+      preferences={SHOWN}
+      undoable={editable}
+      editable={editable}
+      timelines={named ?? undefined}
+    />,
+  );
+}
+
+/** The grid of the estimate, entered or not. */
+function estimateGrid(
+  nodes: NodeList = estimate,
+  editable = true,
+  preferences: GridPreferences | null = SHOWN,
+) {
+  return intl(
+    <EstimateGrid
+      nodes={nodes}
+      structure={STRUCTURE}
+      structureVersion={1}
+      reference={estimateReference()}
+      editable={editable}
+      tasksEditable={editable}
+      query={NO_QUERY}
+      filters={{}}
+      preferences={preferences ?? undefined}
+    />,
+  );
+}
+
+/** The grid of the remaining to commit, its sub-projects given or not. */
+function remainingGrid(offered: readonly ChoiceOption[] | null = subprojects) {
+  return intl(
+    <RemainingGrid
+      nodes={estimate}
+      structure={STRUCTURE}
+      structureVersion={1}
+      filters={{ progress: ["started"] }}
+      editable
+      subprojects={offered ?? undefined}
+      query={NO_QUERY}
+      preferences={SHOWN}
+    />,
+  );
+}
+
+/** A cell of the row at an index, by its column. */
+function cellAt(row: number, column: string): HTMLElement {
+  const found = screen
+    .getByRole("treegrid")
+    .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
+  if (found === null) {
+    throw new Error(`no cell ${column} in the row ${row.toString()}`);
+  }
+  return found;
+}
+
+/** Open the menu of the cell of a row's label, by a right click. */
+async function openMenu(row: number): Promise<HTMLElement> {
+  fireEvent.contextMenu(cellAt(row, "label"), { clientX: 300, clientY: 200 });
+  return screen.findByRole("menu", { name: "Menu de la cellule" });
+}
+
+/** Open a submenu of the menu of a row. */
+async function openSubmenu(row: number, name: string): Promise<HTMLElement> {
+  const menu = await openMenu(row);
+  await userEvent.click(within(menu).getByRole("menuitem", { name }));
+  return screen.findByRole("menu", { name });
+}
+
+/** Select the rows from one to another by their handles. */
+async function select(from: number, to: number) {
+  fireEvent.click(cellAt(from, "row_number"));
+  fireEvent.click(cellAt(to, "row_number"), { shiftKey: true });
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
+/** The bodies sent on a route, in order. */
+function sent(client: FakeClient, route: string): unknown[] {
+  return client.calls.filter((call) => call.route === route).map((call) => call.body);
+}
+
+beforeEach(() => {
+  window.sessionStorage.clear();
+  forgetMessages();
+  router.refresh.mockReset();
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("the submenu « Chronologies » of a task", () => {
+  it("lists the timelines of the project as boxes, checked where the task is inscribed, and the time/time tracking of a milestone [WF-PLA-0060-A]", async () => {
+    // Une tâche peut être inscrite à une chronologie, ou en être retirée. Un jalon peut de la même
+    // façon être inscrit au suivi temps/temps.
+    serve();
+    render(planningGrid());
+    const task = await openSubmenu(STUDIES, "Chronologies");
+    const boxes = within(task).getAllByRole("menuitemcheckbox");
+    expect(boxes.map((box) => box.textContent)).toEqual(["Comité de pilotage", "Revue client"]);
+    expect(boxes.map((box) => box.getAttribute("aria-checked"))).toEqual(["true", "false"]);
+    await userEvent.keyboard("{Escape}{Escape}");
+    const milestone = await openSubmenu(MILESTONE, "Chronologies");
+    const marks = within(milestone).getAllByRole("menuitemcheckbox");
+    expect(marks.map((box) => box.textContent)).toEqual([
+      "Comité de pilotage",
+      "Revue client",
+      "Suivi temps/temps",
+    ]);
+    expect(marks.map((box) => box.getAttribute("aria-checked"))).toEqual(["true", "true", "true"]);
+  });
+
+  it("checks a timeline: sends the whole list of the inscriptions of the task with its version, and the row answered takes the place of the row read [WF-PLA-0060-A]", async () => {
+    // Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu'elle est retirée.
+    const client = serve({ [TRACKING]: "node_tracked" });
+    render(planningGrid());
+    expect(cellAt(REVIEW, "timelines")).toHaveTextContent(/^$/);
+    const menu = await openSubmenu(REVIEW, "Chronologies");
+    await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "Revue client" }));
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    expect(sent(client, TRACKING)).toEqual([
+      { entries: [{ kind: "timeline", timeline_id: CUSTOMER }], lock_version: 1 },
+    ]);
+    expect(client.calls.find((call) => call.route === TRACKING)?.path).toContain(
+      `/nodes/${planning.items[REVIEW]?.node_id ?? ""}/tracking`,
+    );
+    // The row answered shows the timeline it is now inscribed to, and the grid is read anew.
+    await waitFor(() => {
+      expect(cellAt(REVIEW, "timelines")).toHaveTextContent("Revue client");
+    });
+    expect(
+      await screen.findByText("Chronologies de « Revue de conception » mises à jour."),
+    ).toBeInTheDocument();
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("unchecks a timeline: sends the inscriptions the task keeps, and none when it keeps none [WF-PLA-0060-A]", async () => {
+    // Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu'elle est retirée.
+    const client = serve({ [TRACKING]: "node_tracked" });
+    render(planningGrid());
+    const menu = await openSubmenu(STUDIES, "Chronologies");
+    await userEvent.click(
+      within(menu).getByRole("menuitemcheckbox", { name: "Comité de pilotage" }),
+    );
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    expect(sent(client, TRACKING)).toEqual([{ entries: [], lock_version: 1 }]);
+  });
+
+  it("keeps the other inscriptions of a milestone when the time/time tracking is unchecked [WF-PLA-0060-A]", async () => {
+    // Le diagramme temps/temps ne suit que les jalons inscrits.
+    const client = serve({ [TRACKING]: "node_tracked" });
+    render(planningGrid());
+    const menu = await openSubmenu(MILESTONE, "Chronologies");
+    await userEvent.click(
+      within(menu).getByRole("menuitemcheckbox", { name: "Suivi temps/temps" }),
+    );
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    expect(sent(client, TRACKING)).toEqual([
+      {
+        entries: [
+          { kind: "timeline", timeline_id: STEERING },
+          { kind: "timeline", timeline_id: CUSTOMER },
+        ],
+        lock_version: 1,
+      },
+    ]);
+  });
+
+  it("offers the time/time tracking to a milestone alone, and the whole submenu to a task that names the inscriptions alone [WF-PLA-0060-A]", async () => {
+    serve();
+    const read = structuredClone(planning);
+    const stripped = read.items[DETAIL];
+    if (stripped !== undefined) {
+      stripped.editable_fields = stripped.editable_fields.filter(
+        (name) => name !== "task.tracking",
+      );
+    }
+    render(planningGrid(read));
+    const task = await openSubmenu(REVIEW, "Chronologies");
+    expect(
+      within(task)
+        .getAllByRole("menuitemcheckbox")
+        .map((box) => box.textContent),
+    ).toEqual(["Comité de pilotage", "Revue client"]);
+    await userEvent.keyboard("{Escape}{Escape}");
+    const menu = await openMenu(DETAIL);
+    expect(within(menu).queryByRole("menuitem", { name: "Chronologies" })).toBeNull();
+  });
+
+  it("offers no submenu in a grid read only, nor when the list of the timelines was refused [WF-IHM-0090-A]", async () => {
+    serve();
+    const view = render(planningGrid(planning, { editable: false }));
+    fireEvent.contextMenu(cellAt(REVIEW, "label"), { clientX: 300, clientY: 200 });
+    expect(screen.queryByRole("menuitem", { name: "Chronologies" })).toBeNull();
+    view.unmount();
+    render(planningGrid(planning, { named: null }));
+    const menu = await openMenu(REVIEW);
+    expect(within(menu).queryByRole("menuitem", { name: "Chronologies" })).toBeNull();
+  });
+
+  it("tells the refusal of the time/time tracking at the row, and writes nothing more [WF-PLA-0060-A]", async () => {
+    const client = serve({
+      [TRACKING]: {
+        problem: example("node_tracking_milestone_refused") as Problem & { status: 422 },
+      },
+    });
+    render(planningGrid());
+    const menu = await openSubmenu(MILESTONE, "Chronologies");
+    await userEvent.click(
+      within(menu).getByRole("menuitemcheckbox", { name: "Suivi temps/temps" }),
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Refusé à la ligne 6,");
+    expect(alert).toHaveTextContent("Seul un jalon s’inscrit au suivi temps/temps.");
+    expect(sent(client, TRACKING)).toHaveLength(1);
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("applies to each task of the selection, one write per task with its own version, the tasks that do not name the inscriptions left aside [WF-PLA-0060-A]", async () => {
+    const read = structuredClone(planning);
+    const [studies, detail, desks] = [read.items[STUDIES], read.items[DETAIL], read.items[2]];
+    if (studies === undefined || detail === undefined || desks === undefined) {
+      throw new Error("the example holds no such rows");
+    }
+    detail.lock_version = 4;
+    desks.lock_version = 7;
+    desks.editable_fields = desks.editable_fields.filter((name) => name !== "task.tracking");
+    const client = serve({ [TRACKING]: "node_tracked" });
+    render(planningGrid(read));
+    await select(DETAIL, 2);
+    const menu = await openSubmenu(DETAIL, "Chronologies");
+    await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "Revue client" }));
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    expect(sent(client, TRACKING)).toEqual([
+      { entries: [{ kind: "timeline", timeline_id: CUSTOMER }], lock_version: 4 },
+    ]);
+    expect(await screen.findByText(/mises à jour\./)).toBeInTheDocument();
+  });
+
+  it("applies to every task of the selection that names the inscriptions, each with its version [WF-PLA-0060-A]", async () => {
+    const read = structuredClone(planning);
+    const [detail, desks] = [read.items[DETAIL], read.items[2]];
+    if (detail === undefined || desks === undefined) {
+      throw new Error("the example holds no such rows");
+    }
+    detail.lock_version = 4;
+    desks.lock_version = 7;
+    const client = serve({ [TRACKING]: "node_tracked" });
+    render(planningGrid(read));
+    await select(DETAIL, 2);
+    const menu = await openSubmenu(DETAIL, "Chronologies");
+    await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "Revue client" }));
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(2);
+    });
+    expect(sent(client, TRACKING)).toEqual([
+      { entries: [{ kind: "timeline", timeline_id: CUSTOMER }], lock_version: 4 },
+      { entries: [{ kind: "timeline", timeline_id: CUSTOMER }], lock_version: 7 },
+    ]);
+    expect(
+      await screen.findByText(
+        "Chronologies de « Études de détail » et d’une autre tâche mises à jour.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("offers to create a timeline in a project that has none, and inscribes the task to it [WF-PLA-0060-A]", async () => {
+    const client = serve({
+      [TIMELINES]: { example: "timeline_created", status: 201 },
+      [TRACKING]: "node_tracked",
+    });
+    render(planningGrid(planning, { named: [] }));
+    const menu = await openSubmenu(REVIEW, "Chronologies");
+    expect(within(menu).queryAllByRole("menuitemcheckbox")).toHaveLength(0);
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Créer une chronologie…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Créer une chronologie" });
+    // A label left blank creates nothing.
+    await userEvent.click(within(dialog).getByRole("button", { name: "Créer" }));
+    expect(within(dialog).getByRole("textbox", { name: "Libellé" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(sent(client, TIMELINES)).toHaveLength(0);
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Libellé" }), {
+      target: { value: "Réunion de chantier" },
+    });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Créer" }));
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    expect(sent(client, TIMELINES)).toEqual([{ label: "Réunion de chantier" }]);
+    expect(sent(client, TRACKING)).toEqual([
+      {
+        entries: [{ kind: "timeline", timeline_id: "01926f3a-7c00-7000-8000-000000001002" }],
+        lock_version: 1,
+      },
+    ]);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
+  it("starts with the column « Chronologies » hidden, and shows it from the menu of the columns [WF-PLA-0060-A]", () => {
+    serve({ "PATCH /me/preferences": "preferences" });
+    const view = render(
+      intl(
+        <PlanningGrid
+          nodes={planning}
+          structure={STRUCTURE}
+          structureVersion={1}
+          filters={{ kinds: ["task"] }}
+          query={NO_QUERY}
+          preferences={undefined}
+          timelines={timelines}
+        />,
+      ),
+    );
+    expect(screen.queryByRole("columnheader", { name: "Chronologies" })).toBeNull();
+    view.unmount();
+    render(planningGrid());
+    expect(screen.getByRole("columnheader", { name: "Chronologies" })).toBeInTheDocument();
+    // The names of the timelines, and the time/time tracking, in a column that reads only.
+    expect(cellAt(MILESTONE, "timelines")).toHaveTextContent(
+      "Comité de pilotage, Revue client, Suivi temps/temps",
+    );
+    expect(cellAt(MILESTONE, "timelines")).toHaveAttribute("aria-readonly", "true");
+  });
+});
+
+describe("the submenu « Sous-projet » of a line", () => {
+  it("lists the sub-projects as radio buttons, « Aucun sous-projet » first, the one of the line checked [WF-PRJ-0050-A]", async () => {
+    serve();
+    const read = structuredClone(estimate);
+    const line = read.items[FREIGHT]?.estimate_line;
+    if (line === undefined || line === null) {
+      throw new Error("the example holds no such line");
+    }
+    line.subproject_id = COMMAND;
+    render(estimateGrid(read));
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    const radios = within(menu).getAllByRole("menuitemradio");
+    expect(radios.map((radio) => radio.textContent)).toEqual([
+      "Aucun sous-projet",
+      "Poste de commande",
+      "Essais et mise en service",
+    ]);
+    expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    await userEvent.keyboard("{Escape}{Escape}");
+    const other = await openSubmenu(FREIGHT, "Sous-projet");
+    expect(
+      within(other)
+        .getAllByRole("menuitemradio")
+        .map((radio) => radio.getAttribute("aria-checked")),
+    ).toEqual(["false", "true", "false"]);
+  });
+
+  it("carries a line to a sub-project, and takes it out of any: one write of the line with its version [WF-PRJ-0050-A]", async () => {
+    // Le passage à un autre sous-projet d'une ligne d'une tâche non démarrée aboutit.
+    const client = serve({ [LINE]: "estimate_line_subproject_changed" });
+    render(estimateGrid());
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await userEvent.click(
+      within(menu).getByRole("menuitemradio", { name: "Essais et mise en service" }),
+    );
+    await waitFor(() => {
+      expect(sent(client, LINE)).toHaveLength(1);
+    });
+    expect(sent(client, LINE)).toEqual([{ subproject_id: TESTS, lock_version: 1 }]);
+    expect(
+      await screen.findByText("Sous-projet de « Frais de relance » mis à jour."),
+    ).toBeInTheDocument();
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes a line out of its sub-project by « Aucun sous-projet » [WF-PRJ-0050-A]", async () => {
+    const client = serve({ [LINE]: "estimate_line_subproject_changed" });
+    const read = structuredClone(estimate);
+    const line = read.items[REMINDER]?.estimate_line;
+    if (line === undefined || line === null) {
+      throw new Error("the example holds no such line");
+    }
+    line.subproject_id = COMMAND;
+    render(estimateGrid(read));
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await userEvent.click(within(menu).getByRole("menuitemradio", { name: "Aucun sous-projet" }));
+    await waitFor(() => {
+      expect(sent(client, LINE)).toHaveLength(1);
+    });
+    expect(sent(client, LINE)).toEqual([{ subproject_id: null, lock_version: 1 }]);
+  });
+
+  it("offers no submenu on a line that does not name its sub-project among the fields it accepts: a line of a task started whose sub-project has actual costs, a provision [WF-PRJ-0050-A]", async () => {
+    // Celui de la ligne de provision d'un risque identifié passe par le risque.
+    serve();
+    render(estimateGrid());
+    for (const row of [LABOUR, PROVISION]) {
+      const menu = await openMenu(row);
+      expect(within(menu).queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
+      await userEvent.keyboard("{Escape}");
+    }
+  });
+
+  it("offers no submenu in an estimate read only, nor when the sub-projects of the project were refused [WF-IHM-0090-A]", async () => {
+    serve();
+    const view = render(estimateGrid(estimate, false));
+    fireEvent.contextMenu(cellAt(REMINDER, "label"), { clientX: 300, clientY: 200 });
+    expect(screen.queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
+    view.unmount();
+    render(
+      intl(
+        <EstimateGrid
+          nodes={estimate}
+          structure={STRUCTURE}
+          structureVersion={1}
+          reference={{ ...estimateReference(), subprojects: undefined }}
+          editable
+          tasksEditable
+          query={NO_QUERY}
+          filters={{}}
+          preferences={SHOWN}
+        />,
+      ),
+    );
+    const menu = await openMenu(REMINDER);
+    expect(within(menu).queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
+  });
+
+  it("tells the refusal of a sub-project that has actual costs at the row, naming the sub-project [WF-PRJ-0050-A]", async () => {
+    // Le passage à un autre sous-projet d'une ligne d'une tâche démarrée, dont le sous-projet a reçu
+    // des coûts réels, est refusé et nomme ce sous-projet.
+    const client = serve({
+      [LINE]: {
+        problem: example("estimate_line_subproject_has_actual_costs") as Problem & { status: 422 },
+      },
+    });
+    render(estimateGrid());
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await userEvent.click(
+      within(menu).getByRole("menuitemradio", { name: "Essais et mise en service" }),
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Refusé à la ligne 15,");
+    expect(alert).toHaveTextContent("Cette ligne ne peut pas quitter ce sous-projet");
+    expect(alert).toHaveTextContent("Poste de commande");
+    expect(sent(client, LINE)).toHaveLength(1);
+  });
+
+  it("applies to each line of the selection that names its sub-project, one write per line with its version, the task between them left aside [WF-PRJ-0050-A]", async () => {
+    const read = structuredClone(estimate);
+    const [first, last] = [read.items[REMINDER], read.items[FREIGHT]];
+    if (first === undefined || last === undefined) {
+      throw new Error("the example holds no such rows");
+    }
+    first.lock_version = 3;
+    last.lock_version = 9;
+    const client = serve({ [LINE]: "estimate_line_subproject_changed" });
+    render(estimateGrid(read));
+    await select(REMINDER, FREIGHT);
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await userEvent.click(within(menu).getByRole("menuitemradio", { name: "Poste de commande" }));
+    await waitFor(() => {
+      expect(sent(client, LINE)).toHaveLength(2);
+    });
+    expect(sent(client, LINE)).toEqual([
+      { subproject_id: COMMAND, lock_version: 3 },
+      { subproject_id: COMMAND, lock_version: 9 },
+    ]);
+  });
+
+  it("stops at the first refusal of the selection, told for its line, the lines after it left as they were [WF-PRJ-0050-A]", async () => {
+    const refusal = {
+      problem: example("estimate_line_subproject_has_actual_costs") as Problem & { status: 422 },
+    };
+    const client = serve({ [LINE]: [refusal, "estimate_line_subproject_changed"] });
+    render(estimateGrid());
+    await select(REMINDER, FREIGHT);
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await userEvent.click(within(menu).getByRole("menuitemradio", { name: "Poste de commande" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Refusé à la ligne 15,");
+    expect(sent(client, LINE)).toHaveLength(1);
+  });
+
+  it("starts with the column « Sous-projet » hidden in the estimate, read only once shown [WF-PRJ-0050-A]", async () => {
+    serve({ "PATCH /me/preferences": "preferences" });
+    const view = render(estimateGrid(estimate, true, null));
+    expect(screen.queryByRole("columnheader", { name: "Sous-projet" })).toBeNull();
+    view.unmount();
+    render(estimateGrid());
+    expect(screen.getByRole("columnheader", { name: "Sous-projet" })).toBeInTheDocument();
+    expect(cellAt(REMINDER, "subproject")).toHaveAttribute("aria-readonly", "true");
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
+});
+
+describe("the submenu « Sous-projet » of a line of the remaining to commit", () => {
+  it("carries a line to a sub-project from the remaining to commit, once the project is in progress [WF-PRJ-0050-A] [WF-RAE-0040-A]", async () => {
+    // Une ligne ajoutée après la référence peut y être portée à un sous-projet.
+    const client = serve({ [LINE]: "estimate_line_subproject_changed" });
+    render(remainingGrid());
+    expect(screen.getByRole("columnheader", { name: "Sous-projet" })).toBeInTheDocument();
+    expect(cellAt(REMINDER, "subproject")).toHaveAttribute("aria-readonly", "true");
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await userEvent.click(within(menu).getByRole("menuitemradio", { name: "Poste de commande" }));
+    await waitFor(() => {
+      expect(sent(client, LINE)).toHaveLength(1);
+    });
+    expect(sent(client, LINE)).toEqual([{ subproject_id: COMMAND, lock_version: 1 }]);
+  });
+
+  it("shows the line answered in place of the line read, in the column of the sub-project [WF-PRJ-0050-A] [WF-RAE-0040-A]", async () => {
+    // The line the example of the answer is about, « Mise en service sur site », carried from
+    // « Poste de commande » to « Essais et mise en service ».
+    const answered = (example("estimate_line_subproject_changed") as NodesWritten).nodes[0];
+    const read = structuredClone(estimate);
+    const line = read.items[REMINDER];
+    if (answered === undefined || !line?.estimate_line) {
+      throw new Error("the example holds no such line");
+    }
+    line.node_id = answered.node_id;
+    line.estimate_line.subproject_id = COMMAND;
+    line.estimate_line.subproject_label = "Poste de commande";
+    serve({ [LINE]: "estimate_line_subproject_changed" });
+    render(
+      intl(
+        <RemainingGrid
+          nodes={read}
+          structure={STRUCTURE}
+          structureVersion={1}
+          filters={{ progress: ["started"] }}
+          editable
+          subprojects={subprojects}
+          query={NO_QUERY}
+          preferences={SHOWN}
+        />,
+      ),
+    );
+    expect(cellAt(REMINDER, "subproject")).toHaveTextContent("Poste de commande");
+    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await userEvent.click(
+      within(menu).getByRole("menuitemradio", { name: "Essais et mise en service" }),
+    );
+    await waitFor(() => {
+      expect(cellAt(REMINDER, "subproject")).toHaveTextContent("Essais et mise en service");
+    });
+  });
+
+  it("offers no submenu without the sub-projects of the project [WF-PRJ-0050-A]", async () => {
+    serve();
+    render(remainingGrid(null));
+    const menu = await openMenu(REMINDER);
+    expect(within(menu).queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
+  });
+});

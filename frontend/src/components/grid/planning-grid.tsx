@@ -53,6 +53,7 @@ import {
 } from "./planning";
 import { type BreakdownItem, byField } from "./planning-attachment";
 import type { GridQuery } from "./query";
+import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
 import { useStructureVersion } from "./structure-version";
@@ -93,6 +94,12 @@ export interface PlanningGridProps {
   readonly breakdown?: readonly BreakdownItem[] | undefined;
   /** What the revision offers of the skeleton (`generate_skeleton`); none, it does not list it. */
   readonly skeleton?: CommandOffer | undefined;
+  /**
+   * The timelines of the project: they name the inscriptions of the tasks (the column « Chronologies »)
+   * and are the boxes of the submenu of the cells (US-0480). None when the API refused the list, and
+   * the grid then names no timeline and offers no submenu.
+   */
+  readonly timelines?: readonly ChoiceOption[] | undefined;
 }
 
 /** The skeleton generated on a structure: its tasks as the grid reads them, and its version. */
@@ -159,6 +166,7 @@ export function PlanningGrid({
   editable,
   breakdown,
   skeleton,
+  timelines,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
@@ -180,7 +188,7 @@ export function PlanningGrid({
   const whole = Object.keys(nodeNarrowing(filters)).length === 0;
   const config = useMemo(() => {
     if (breakdown === undefined) {
-      return planningGrid();
+      return planningGrid(undefined, timelines);
     }
     const items = new Map(breakdown.map((item) => [item.id, item]));
     const choices = breakdown.map((item) => ({
@@ -206,8 +214,8 @@ export function PlanningGrid({
         return { kind: "done", data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) };
       },
     };
-    return planningGrid(attachment);
-  }, [breakdown, kinds, structure, whole, reach]);
+    return planningGrid(attachment, timelines);
+  }, [breakdown, kinds, structure, whole, reach, timelines]);
   const generate = async (): Promise<Outcome<NodesWritten>> => {
     const asked = structure.structure_id;
     const outcome = await generatePlanningSkeleton(structure.project_id, structure.revision_id);
@@ -222,6 +230,22 @@ export function PlanningGrid({
     }
     return outcome;
   };
+  // The timelines a task is inscribed to are chosen where the planning may be entered, among those the
+  // project lists.
+  const choices = useMemo<RowChoices<PlanningNode> | undefined>(
+    () =>
+      timelines === undefined
+        ? undefined
+        : {
+            tracking: {
+              project: structure.project_id,
+              timelines,
+              entries: (node) => node.task?.tracking ?? [],
+            },
+            written: (written) => nodesWritten(written, PLANNING_FIELDS, whole),
+          },
+    [timelines, structure.project_id, whole],
+  );
   const gestures = useStructureGestures<PlanningNode>(
     editable === true
       ? {
@@ -236,6 +260,7 @@ export function PlanningGrid({
     (written) => {
       reach(written.structure_lock_version);
     },
+    choices,
   );
   const offered = nodes.items.length === 0 || ours !== undefined;
   return (

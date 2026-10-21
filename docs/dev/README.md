@@ -1699,16 +1699,15 @@ d'un projet En cours le devis est en lecture seule, le reste à engager l'est av
 WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
 ligne », « Indenter », « Désindenter », « Monter », « Descendre », « Supprimer » — sont dans le menu
 contextuel des cellules et aux touches Insert, Alt+Insert, Ctrl+Insert, Alt+Maj+→, Alt+Maj+←,
-Alt+Maj+↑, Alt+Maj+↓ et Ctrl+Suppr
-(`structure-gestures.tsx`, règles pures dans `structure-rules.ts`) ; la barre, tenue sur une ligne,
-n'offre que la première tâche d'une grille sans ligne. Une création passe par un dialogue qui la
-nomme, et nomme la ligne sous laquelle il agit (libellé ; pour une ligne, catégorie et quantité, que
-le contrat exige), `createNode` et `deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une
-création désigne sa place par le nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un
-rang qu'une grille filtrée ne saurait compter : la ligne active pour « Insérer au-dessous » et pour
-une ligne sous une ligne ; sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous
-une tâche après sa dernière ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183,
-#1187).
+Alt+Maj+↑, Alt+Maj+↓ et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans
+`structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
+sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne sous laquelle il agit
+(libellé ; pour une ligne, catégorie et quantité, que le contrat exige), `createNode` et
+`deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une création désigne sa place par le
+nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un rang qu'une grille filtrée ne
+saurait compter : la ligne active pour « Insérer au-dessous » et pour une ligne sous une ligne ;
+sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous une tâche après sa dernière
+ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183, #1187).
 
 La cellule du numéro de chaque ligne en est la poignée (`row-selection.tsx`), dans une grille dont
 l'écran déplace des lignes (`RowCommands.drag`) : nommée par le numéro de sa ligne, décrite
@@ -1753,7 +1752,8 @@ dernière place de son genre, par son milieu ; entre deux lignes, c'est avant ce
 bas de la dernière ligne de la grille, après elle. La cellule active suit la première des lignes
 glissées (`RowCommands.moved`) ; quand la relecture ne la montre pas — glissée sous une
 récapitulative pliée, ou hors d'un filtre —, la cellule active reste à son indice et le focus lui
-revient, comme après une suppression, au lieu de tomber sur la page. Une ligne se glisse sous une
+revient, comme après une suppression, au lieu de tomber sur la page ; ce focus n'est rendu qu'à une
+cellule de la grille, jamais à un élément hors d'elle. Une ligne se glisse sous une
 tâche qui porte des lignes, une tâche sous une tâche qui n'est pas un jalon. Avant une ligne, la
 place est celle qui suit la sœur de rang moins un, rendue, ou la tête (`after_node_id` nul) au
 rang 1 : le planning, qui ne lit aucune ligne, n'offre donc pas de dépôt avant la première
@@ -1767,23 +1767,45 @@ Le glisser a son équivalent au clavier, Alt+Maj et les flèches sur la sélecti
 éloignée, ou une sélection qui n'est pas faite de frères, y demandent plusieurs gestes, là où un
 seul dépôt suffit.
 
-`moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure qu'il porte
-est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) : la plus
-haute entre celle de la page et celles que les écritures ont rendues (`NodesWritten.structure_lock_version`), cellule saisie, création, déplacement, suppression ou collage, car le
-contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Un refus par champ se
-dit par la raison du champ (`byField`), pour toute écriture du hook — création, déplacement et
-`deleteNode`, dont le contrat ne cite aucun champ, son refus se disant alors par son code —, comme
-celui d'une cellule ; `NODE_NOT_SIBLING`, qui vient d'une lecture périmée,
-relit en outre la grille, le focus rendu à la grille si la relecture retire la cellule qui l'avait. La suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas,
-et le focus revient alors à la cellule active de la grille. La grille est relue après une
-écriture, la lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version
-que la structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de
-tâche du devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de
-`edit_estimate` : créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que
-saisir le devis n'en crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la
-grille en nommant la ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une
-création sans ligne (la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit
-par `useSaid` et le refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
+`moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure
+qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :
+la plus haute entre celle de la page et celles que les écritures ont rendues
+(`NodesWritten.structure_lock_version`), cellule saisie, création, déplacement, suppression ou
+collage, car le contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Un
+refus par champ se dit par la raison du champ (`byField`), pour toute écriture du hook — création,
+déplacement et `deleteNode`, dont le contrat ne cite aucun champ, son refus se disant alors par son
+code —, comme celui d'une cellule ; `NODE_NOT_SIBLING`, qui vient d'une lecture périmée, relit en
+outre la grille, le focus rendu à la grille si la relecture retire la cellule qui l'avait. La
+suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et
+le focus revient alors à la cellule active de la grille. La grille est relue après une écriture, la
+lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version que la
+structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de tâche du
+devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de `edit_estimate` :
+créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que saisir le devis n'en
+crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la grille en nommant la
+ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une création sans ligne
+(la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit par `useSaid` et le
+refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
+
+Le menu contextuel des cellules offre deux sous-menus de plus (`choice-menu.tsx`, règles pures dans
+`row-choices.ts`, US-0480). « Chronologies » : une case par chronologie du projet (`listTimelines`),
+cochée quand la tâche y est inscrite, et « Suivi temps/temps » pour un jalon ; la tâche l'offre quand
+elle nomme `task.tracking` dans ses `editable_fields`. « Sous-projet » : des boutons radio,
+« Aucun sous-projet » et chaque sous-projet du projet (`listSubprojects`), celui de la ligne coché ;
+la ligne l'offre quand elle nomme `estimate_line.subproject_id`, ce que ne fait ni une ligne de
+provision, ni celle d'une tâche démarrée dont le sous-projet a reçu des coûts réels
+(`SUBPROJECT_HAS_ACTUAL_COSTS`) : le front ne déduit aucune de ces gardes. Dans le devis, le choix se
+fait tant que le projet n'est pas En cours, dans le reste à engager ensuite, selon ce que la ligne
+nomme. Un sous-menu s'applique à la sélection, ou à la ligne seule : un appel par ligne qui nomme le
+champ, avec la version de cette ligne — `setNodeTracking` avec la liste complète de ses inscriptions,
+`updateEstimateLine` avec `subproject_id` —, dans l'ordre de la grille et jusqu'au premier refus, dit
+pour sa ligne comme celui d'un geste : les lignes écrites avant lui le restent. Chaque réponse prend
+la place de la ligne lue (`applied` de `RowCommands.menu`), puis la grille est relue comme après un
+geste. Un projet sans chronologie propose « Créer une chronologie… » (`createTimeline`), nommée dans
+un dialogue, à laquelle les tâches sont inscrites. Les colonnes « Chronologies » du planning et
+« Sous-projet » du devis et du reste à engager sont en lecture et masquées (`GridColumn.hidden`) tant
+que le compte n'a gardé aucune liste de colonnes masquées (`initialSettings`) ; il les montre par le
+choix des colonnes.
 
 ### Les grilles arborescentes : plier et déplier
 

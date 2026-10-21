@@ -68,6 +68,7 @@ import {
 } from "react";
 
 import { createNode, deleteNode, moveNodes } from "@/api/actions/nodes";
+import { createTimeline } from "@/api/actions/projects";
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
@@ -79,6 +80,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 import type { GridNode, NodesWritten } from "./nodes";
 import { byField } from "./planning-attachment";
+import type { RowChange, RowChoices, RowsApplied } from "./row-choices";
+import { ChoiceMenuItems, targetsOf, TimelineForm, writeChange } from "./choice-menu";
 import type { DropPlace } from "./row-selection";
 import { CreateForm, DeleteConfirmation } from "./structure-dialogs";
 import {
@@ -122,6 +125,14 @@ const ACTIVE_CELL = '[role="treegrid"] [tabindex="0"]';
 interface Opened<Row extends GridNode> {
   readonly gesture: Gesture;
   readonly row: Row | undefined;
+  readonly trigger: HTMLElement | undefined;
+  readonly opening: number;
+}
+
+/** The timeline being named, and the rows it is inscribed to once it exists. */
+interface Naming<Row extends GridNode> {
+  readonly rows: readonly Row[];
+  readonly applied: (written: RowsApplied<Row>) => void;
   readonly trigger: HTMLElement | undefined;
   readonly opening: number;
 }
@@ -268,10 +279,13 @@ function GestureNotice<Row extends GridNode>({
  * The gestures of structure a grid gives its rows, as the structure it reads lists its commands:
  * none for a grid that offers none. `onWritten` is told what each write answered, whose version the
  * grid keeps (`useStructureVersion`) and brings back in `scope.version`, which the next move carries.
+ * `choices` gives the menu of the cells the submenus of the timelines of a task and of the sub-project
+ * of a line (US-0480): the same writes, the same reading anew, the same refusals told at the row.
  */
 export function useStructureGestures<Row extends GridNode>(
   scope: StructureGestures | undefined,
   onWritten: (written: NodesWritten) => void,
+  choices?: RowChoices<Row>,
 ): RowCommands<Row> | undefined {
   const t = useTranslations("grid.structure");
   const router = useRouter();
@@ -283,13 +297,13 @@ export function useStructureGestures<Row extends GridNode>(
   const [writing, setWriting] = useState(false);
   const [told, setTold] = useState<Told<Row>>();
   const [moved, setMoved] = useState<{ readonly row: Row; readonly count: number }>();
+  const [naming, setNaming] = useState<Naming<Row>>();
   const openings = useRef(0);
   // The cell that had the focus when a row was deleted with no dialog: once the grid is read anew
   // without it, the focus goes back to the active cell, not to the page. It is forgotten as soon as
   // that reading is over, whether the cell was removed or not, and the focus is only given back
   // when it is on the page, never taken from a field the user went to.
   const lost = useRef<HTMLElement>(undefined);
-  const readingBegun = useRef(false);
   useEffect(() => {
     const cell = lost.current;
     if (cell === undefined) {
@@ -297,18 +311,14 @@ export function useStructureGestures<Row extends GridNode>(
     }
     if (!cell.isConnected) {
       lost.current = undefined;
-      readingBegun.current = false;
       if (document.activeElement === null || document.activeElement === document.body) {
         refocus(undefined);
       }
-    } else if (reading) {
-      readingBegun.current = true;
-    } else {
+    } else if (!reading) {
       // The reading that follows a write shows as pending from the first render after it: a render
-      // that finds it neither pending nor begun is one the transition was not seen in, and the cell
-      // is forgotten, not kept for a removal that has nothing to do with the write.
+      // that finds it not pending is one the transition was not seen in, and the cell is
+      // forgotten, not kept for a removal that has nothing to do with the write.
       lost.current = undefined;
-      readingBegun.current = false;
     }
   });
   if (scope === undefined) {
@@ -332,7 +342,7 @@ export function useStructureGestures<Row extends GridNode>(
   /** Send a write, and take its answer: the grid read anew when done, the refusal told otherwise. */
   const send = (
     call: () => Promise<Outcome<NodesWritten>>,
-    row: Row | undefined,
+    row: () => Row | undefined,
     node: { readonly label: string; readonly done: string; readonly moves?: Row },
     opening: number | undefined,
     cell?: HTMLElement,
@@ -345,6 +355,7 @@ export function useStructureGestures<Row extends GridNode>(
       // A dialog is closed by the answer to what it sent, never by one it did not send.
       if (opening === undefined || opening === openings.current) {
         setOpened(undefined);
+        setNaming(undefined);
       }
       if (outcome.kind === "done") {
         onWritten(outcome.data);
@@ -355,17 +366,15 @@ export function useStructureGestures<Row extends GridNode>(
           setMoved((before) => ({ row: bore, count: (before?.count ?? 0) + 1 }));
         }
         lost.current = cell;
-        readingBegun.current = false;
         refresh(() => {
           router.refresh();
         });
       } else {
-        setTold({ structure, refusal: { outcome, row, subject: node.label } });
+        setTold({ structure, refusal: { outcome, row: row(), subject: node.label } });
         // A node to follow that is no sibling comes from a reading gone stale: read it anew, the
         // focus given back to the grid should the reading remove the cell that had it.
         if (outcome.kind !== "unreachable" && outcome.problem.code === "NODE_NOT_SIBLING") {
           lost.current = cell;
-          readingBegun.current = false;
           refresh(() => {
             router.refresh();
           });
@@ -377,7 +386,7 @@ export function useStructureGestures<Row extends GridNode>(
     const label = labelOf(row);
     send(
       () => deleteNode(scope.structure, row.node_id),
-      row,
+      () => row,
       { label, done: t("deleted", { label }) },
       opening,
       cell,
@@ -402,7 +411,7 @@ export function useStructureGestures<Row extends GridNode>(
     const label = labelOf(first);
     send(
       () => moveNodes(scope.structure, body),
-      first,
+      () => first,
       { label, done: t(`moved.${done}`, { label, others: tops.length - 1 }), moves: from ?? first },
       undefined,
       cell,
@@ -436,9 +445,63 @@ export function useStructureGestures<Row extends GridNode>(
   const create = (current: Opened<Row>, entered: Entered) => {
     send(
       () => createNode(scope.structure, bodyOf(current.gesture, current.row, entered)),
-      current.row,
+      () => current.row,
       { label: entered.label, done: t("created", { label: entered.label }) },
       current.opening,
+    );
+  };
+  /**
+   * Write a change of the submenus on the rows it applies to, one write per row with its version,
+   * each answer taking the place of the row read, and the grid read anew: told by the first of the
+   * rows, and how many others. A refusal is told for the row it was made at; the rows before it stay
+   * written. With `timeline`, the timeline is created first, named, and the rows are inscribed to it.
+   */
+  const choose = (
+    change: RowChange,
+    acted: readonly Row[],
+    applied: (written: RowsApplied<Row>) => void,
+    timeline?: { readonly label: string; readonly opening: number },
+  ) => {
+    const [first, ...others] = targetsOf(change, acted);
+    if (choices === undefined || first === undefined || busy) {
+      return;
+    }
+    let refused: Row = first;
+    const label = labelOf(first);
+    const wrote = (written: NodesWritten) => {
+      onWritten(written);
+      applied(choices.written(written));
+    };
+    const call = async (): Promise<Outcome<NodesWritten>> => {
+      let made = change;
+      if (timeline !== undefined) {
+        const created = await createTimeline(choices.tracking?.project ?? "", timeline.label);
+        if (created.kind !== "done") {
+          return created;
+        }
+        made = { kind: "timeline", id: created.data.timeline_id, on: true };
+      }
+      const { outcome, at } = await writeChange(
+        scope.structure,
+        choices,
+        made,
+        [first, ...others],
+        wrote,
+      );
+      refused = at ?? first;
+      return outcome;
+    };
+    send(
+      call,
+      () => refused,
+      {
+        label,
+        done: t(change.kind === "subproject" ? "subprojectSet" : "tracked", {
+          label,
+          others: others.length,
+        }),
+      },
+      timeline?.opening,
     );
   };
   // A dialog asks only a creation and the deletion of a summary, which carries others away: a leaf
@@ -467,31 +530,53 @@ export function useStructureGestures<Row extends GridNode>(
           {ICONS.first}
         </Button>
       ),
-    menu: (row, { cell, took, rows }) =>
-      gesturesOn(row, scope, rows).map((gesture) => (
-        <ContextMenuItem
-          key={gesture}
-          aria-disabled={busy ? true : undefined}
-          aria-keyshortcuts={GESTURE_KEYS[gesture]}
-          className={UNAVAILABLE}
-          onSelect={(event) => {
-            // Pressed while a write or its reading is under way, it does nothing, and the menu stays
-            // open.
-            if (busy) {
-              event.preventDefault();
-              return;
-            }
-            // A dialog takes the focus; a deletion with nothing to confirm leaves it to the cell.
-            if (confirms(gesture, row)) {
-              took();
-            }
-            open(gesture, row, rows, cell);
-          }}
-        >
-          {ICONS[gesture]}
-          {names[gesture]}
-        </ContextMenuItem>
-      )),
+    menu: (row, { cell, took, rows, applied }) => {
+      const gestures = gesturesOn(row, scope, rows);
+      return (
+        <>
+          {gestures.map((gesture) => (
+            <ContextMenuItem
+              key={gesture}
+              aria-disabled={busy ? true : undefined}
+              aria-keyshortcuts={GESTURE_KEYS[gesture]}
+              className={UNAVAILABLE}
+              onSelect={(event) => {
+                // Pressed while a write or its reading is under way, it does nothing, and the menu
+                // stays open.
+                if (busy) {
+                  event.preventDefault();
+                  return;
+                }
+                // A dialog takes the focus; a deletion with nothing to confirm leaves it to the cell.
+                if (confirms(gesture, row)) {
+                  took();
+                }
+                open(gesture, row, rows, cell);
+              }}
+            >
+              {ICONS[gesture]}
+              {names[gesture]}
+            </ContextMenuItem>
+          ))}
+          {row === undefined || choices === undefined ? null : (
+            <ChoiceMenuItems
+              choices={choices}
+              row={row}
+              busy={busy}
+              separated={gestures.length > 0}
+              change={(change) => {
+                choose(change, rows, applied);
+              }}
+              create={() => {
+                took();
+                openings.current += 1;
+                setNaming({ rows, applied, trigger: cell, opening: openings.current });
+              }}
+            />
+          )}
+        </>
+      );
+    },
     keys: (row, event, rows) => {
       const gesture = gestureOfKey(row, event);
       if (gesture === undefined || opened !== undefined || entering(event.target)) {
@@ -511,9 +596,14 @@ export function useStructureGestures<Row extends GridNode>(
     drag: {
       accepts: (rows, target, place: DropPlace) => dropOf(rows, target, place, scope) !== undefined,
       drop: (rows, target, place) => {
-        const { activeElement } = document;
-        const cell = activeElement instanceof HTMLElement ? activeElement : undefined;
-        move(dropOf(rows, target, place, scope), undefined, rows, "dropped", cell);
+        const cell = document.activeElement?.closest("td[data-row]");
+        move(
+          dropOf(rows, target, place, scope),
+          undefined,
+          rows,
+          "dropped",
+          cell instanceof HTMLElement ? cell : undefined,
+        );
       },
     },
     moved: moved === undefined ? undefined : { ...moved, settled: !reading },
@@ -528,6 +618,38 @@ export function useStructureGestures<Row extends GridNode>(
             setTold(undefined);
           }}
         />
+        {naming === undefined ? null : (
+          <Dialog
+            key={naming.opening}
+            open
+            onOpenChange={(next) => {
+              if (!next && !writing) {
+                setNaming(undefined);
+              }
+            }}
+          >
+            <DialogContent
+              aria-busy={writing}
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                refocus(naming.trigger);
+              }}
+            >
+              <TimelineForm
+                pending={writing}
+                onCreate={(label) => {
+                  choose({ kind: "timeline", id: "", on: true }, naming.rows, naming.applied, {
+                    label,
+                    opening: naming.opening,
+                  });
+                }}
+                onCancel={() => {
+                  setNaming(undefined);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
         {opened === undefined ? null : (
           <GestureDialog
             opened={opened}

@@ -308,7 +308,10 @@ describe("the grid of the planning", () => {
     renderPlanning();
     const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
     const headers = within(grid).getAllByRole("columnheader");
-    expect(headers.length).toBe(PLANNING_GRID.columns.length + 1);
+    // The column of the timelines starts hidden, and the handle of the rows is the one more.
+    expect(headers.length).toBe(
+      PLANNING_GRID.columns.filter((column) => column.hidden !== true).length + 1,
+    );
     for (const header of headers) {
       expect(within(header).queryByRole("button")).toBeNull();
       expect(header).not.toHaveAttribute("aria-sort");
@@ -325,13 +328,16 @@ describe("the grid of the planning", () => {
   it("shows in each column but the Gantt the column of the contract of the same name, whose value it reads", () => {
     // The name a paste on its cell is sent under, though the grid sorts none.
     expect(PLANNING_GRID.columns.map((column) => column.contract)).toEqual([
-      ...PLANNING_GRID.columns.map((column) => column.key).filter((key) => key !== "gantt"),
+      ...PLANNING_GRID.columns
+        .map((column) => column.key)
+        .filter((key) => !["timelines", "gantt"].includes(key)),
+      undefined,
       undefined,
     ]);
-    // The predecessors and the Gantt, which their cells render, read no value.
+    // The predecessors, the timelines and the Gantt, which their cells render, read no value.
     const milestone = planning.items[4];
     const columns = PLANNING_GRID.columns.filter(
-      (column) => !["predecessors", "gantt"].includes(column.key),
+      (column) => !["predecessors", "timelines", "gantt"].includes(column.key),
     );
     expect(milestone === undefined ? [] : columns.map((c) => c.value(milestone))).toEqual([
       "Réception des études",

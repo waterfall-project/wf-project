@@ -91,6 +91,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
     [NODES]: "nodes_planning",
     [BREAKDOWN]: "work_breakdown",
+    "GET /projects/{project_id}/timelines": "timelines",
   };
 });
 
@@ -118,6 +119,25 @@ describe("the screen of the planning", () => {
     const [read] = callsOf(BREAKDOWN);
     expect(read?.path).toBe(`/projects/${PROJECT}/work-breakdown`);
     expect(read?.query.toString()).toBe("");
+  });
+
+  it("reads the timelines of the project, which name the inscriptions of the tasks in a column hidden until it is shown [WF-PLA-0060-A]", async () => {
+    // Une tâche inscrite apparaît dans la chronologie : the column and the submenu of the cells are
+    // proven on the grid (`choice-menu.dom.test.tsx`).
+    const page = await planning();
+    const [read] = callsOf("GET /projects/{project_id}/timelines");
+    expect(read?.path).toBe(`/projects/${PROJECT}/timelines`);
+    expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);
+    expect(page).not.toMatch(/<th(?:(?!<\/th>).)*>Timelines</);
+  });
+
+  it("opens without timelines when the API does not find their list, the rest of the screen shown", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/timelines": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = await planning();
+    expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);
   });
 
   it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and says nothing of the fake back", async () => {

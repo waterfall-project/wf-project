@@ -4,11 +4,13 @@
  * The context menu of shadcn/ui, copied into the repository, the parts a grid uses: the menu of a
  * cell, opened by a right click or, from the keyboard, by Shift+F10 or the Menu key. Radix gives it
  * the roles of a menu and its keyboard — the arrows, Enter, Escape — and gives the focus back to
- * what held it once closed. The surface of the popover token, a border and the one shadow of the
+ * what held it once closed; a submenu, with its checked entries or its choice among values, is the
+ * one a command offers several values with. The surface of the popover token, a border and the one shadow of the
  * charter, as the drop-down menu; no animation.
  */
 "use client";
 
+import { Check, ChevronRight } from "lucide-react";
 import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 
@@ -84,5 +86,95 @@ export function ContextMenuSeparator({
       className={cn("-mx-1 my-1 h-px bg-border", className)}
       {...props}
     />
+  );
+}
+
+/** A submenu: its entry in the menu, and what it opens. */
+export function ContextMenuSub(props: ComponentProps<typeof ContextMenuPrimitive.Sub>) {
+  return <ContextMenuPrimitive.Sub {...props} />;
+}
+
+/** The entry of a menu that opens a submenu, marked by a chevron. */
+export function ContextMenuSubTrigger({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof ContextMenuPrimitive.SubTrigger>) {
+  return (
+    <ContextMenuPrimitive.SubTrigger
+      data-slot="context-menu-sub-trigger"
+      className={cn(ENTRY, "data-[state=open]:bg-accent", className)}
+      {...props}
+    >
+      {children}
+      <ChevronRight aria-hidden="true" className="ml-auto" />
+    </ContextMenuPrimitive.SubTrigger>
+  );
+}
+
+/** The entries of a submenu, beside the entry that opened it. */
+export function ContextMenuSubContent({
+  className,
+  ...props
+}: ComponentProps<typeof ContextMenuPrimitive.SubContent>) {
+  return (
+    <ContextMenuPrimitive.Portal>
+      <ContextMenuPrimitive.SubContent
+        data-slot="context-menu-sub-content"
+        className={cn(SURFACE, className)}
+        {...props}
+      />
+    </ContextMenuPrimitive.Portal>
+  );
+}
+
+/** An entry that is on or off, a mark in front when on. */
+export function ContextMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof ContextMenuPrimitive.CheckboxItem>) {
+  return (
+    <ContextMenuPrimitive.CheckboxItem
+      data-slot="context-menu-checkbox-item"
+      className={cn(ENTRY, "pl-8", className)}
+      {...props}
+    >
+      <span className="pointer-events-none absolute left-2 flex size-4 items-center justify-center">
+        <ContextMenuPrimitive.ItemIndicator>
+          <Check aria-hidden="true" className="size-4 text-foreground" />
+        </ContextMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </ContextMenuPrimitive.CheckboxItem>
+  );
+}
+
+/** A choice among values, one of which is checked. */
+export function ContextMenuRadioGroup(
+  props: ComponentProps<typeof ContextMenuPrimitive.RadioGroup>,
+) {
+  return <ContextMenuPrimitive.RadioGroup data-slot="context-menu-radio-group" {...props} />;
+}
+
+/** One value of a choice, checked or not: a mark in front of the one checked. */
+export function ContextMenuRadioItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof ContextMenuPrimitive.RadioItem>) {
+  return (
+    <ContextMenuPrimitive.RadioItem
+      data-slot="context-menu-radio-item"
+      className={cn(ENTRY, "pl-8", className)}
+      {...props}
+    >
+      <span className="pointer-events-none absolute left-2 flex size-4 items-center justify-center">
+        <ContextMenuPrimitive.ItemIndicator>
+          <Check aria-hidden="true" className="size-4 text-foreground" />
+        </ContextMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </ContextMenuPrimitive.RadioItem>
   );
 }
