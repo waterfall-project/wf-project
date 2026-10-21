@@ -7,6 +7,7 @@
  * them is sent. Pure, neither server nor client.
  */
 import type { components } from "@/api/generated/schema";
+import type { CommandOffer } from "@/components/commands/offer";
 
 import type { RowsWritten } from "./columns";
 import type { GridNode, NodesWritten } from "./nodes";
@@ -29,6 +30,11 @@ export interface TrackingChoices<Row extends GridNode> {
   readonly project: string;
   /** The timelines of the project. */
   readonly timelines: readonly ChoiceOption[];
+  /**
+   * What the project lists of `manage_timelines`, which creates a timeline: none, and the creation is
+   * not offered; unavailable, and it is offered greyed out with what it lacks.
+   */
+  readonly creation: CommandOffer | undefined;
   /** The inscriptions a row bears, as the grid reads them. */
   readonly entries: (row: Row) => readonly TrackingEntry[];
 }

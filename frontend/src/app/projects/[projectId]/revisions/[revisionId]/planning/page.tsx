@@ -194,6 +194,10 @@ export default async function PlanningPage({
           breakdown={editable ? screen.breakdown?.items : undefined}
           skeleton={skeleton}
           timelines={timelines}
+          timelineCreation={findOffer(
+            screen.reading.project.available_commands,
+            "manage_timelines",
+          )}
         />
       </Screen>
     </PendingAddress>

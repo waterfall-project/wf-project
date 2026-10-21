@@ -1793,11 +1793,13 @@ cochée quand la tâche y est inscrite, et « Suivi temps/temps » pour un jalon
 elle nomme `task.tracking` dans ses `editable_fields`, le front ne déduisant pas cette garde. Le
 sous-menu s'applique à la sélection, ou à la ligne seule : un appel par tâche qui nomme le champ,
 avec la version de cette tâche — `setNodeTracking` avec la liste complète de ses inscriptions —,
-dans l'ordre de la grille et jusqu'au premier refus, dit pour sa ligne comme celui d'un geste : les
-lignes écrites avant lui le restent. Chaque réponse prend la place de la ligne lue (`applied` de
+dans l'ordre de la grille — sans écriture pour une ligne déjà dans l'état visé — et jusqu'au premier
+refus, dit pour sa ligne comme celui d'un geste : les lignes écrites avant lui le restent, celles
+d'après ne sont pas écrites. Chaque réponse prend la place de la ligne lue (`applied` de
 `RowCommands.menu`), puis la grille est relue comme après un geste. Un projet sans chronologie
 propose « Créer une chronologie… » (`createTimeline`), nommée dans un dialogue, à laquelle les
-tâches sont inscrites. La colonne « Chronologies » du planning est en lecture et masquée
+tâches sont inscrites, selon l'offre `manage_timelines` du projet : absente, l'entrée n'est pas
+présentée ; indisponible, elle l'est grisée avec sa condition. La colonne « Chronologies » du planning est en lecture et masquée
 (`GridColumn.hidden`) tant que le compte n'a gardé aucune liste de colonnes masquées
 (`initialSettings`) ; il la montre par le choix des colonnes.
 

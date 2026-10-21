@@ -100,6 +100,11 @@ export interface PlanningGridProps {
    * the grid then names no timeline and offers no submenu.
    */
   readonly timelines?: readonly ChoiceOption[] | undefined;
+  /**
+   * What the project lists of `manage_timelines`, which creates a timeline from the submenu of the
+   * cells; none, and the submenu does not offer it.
+   */
+  readonly timelineCreation?: CommandOffer | undefined;
 }
 
 /** The skeleton generated on a structure: its tasks as the grid reads them, and its version. */
@@ -167,6 +172,7 @@ export function PlanningGrid({
   breakdown,
   skeleton,
   timelines,
+  timelineCreation,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
@@ -240,11 +246,12 @@ export function PlanningGrid({
             tracking: {
               project: structure.project_id,
               timelines,
+              creation: timelineCreation,
               entries: (node) => node.task?.tracking ?? [],
             },
             written: (written) => nodesWritten(written, PLANNING_FIELDS, whole),
           },
-    [timelines, structure.project_id, whole],
+    [timelines, timelineCreation, structure.project_id, whole],
   );
   const gestures = useStructureGestures<PlanningNode>(
     editable === true

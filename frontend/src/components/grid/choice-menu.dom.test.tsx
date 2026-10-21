@@ -7,13 +7,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import type { CommandOffer } from "@/components/commands/offer";
 import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { expectAccessible } from "@/test/axe";
 import {
   example,
   type FakeAnswers,
   type FakeClient,
+  type FakeTiming,
   fakeClient,
+  held,
   type Problem,
 } from "@/test/fixtures";
 
@@ -62,10 +66,13 @@ const timelines: readonly ChoiceOption[] = (example("timelines") as Timeline[]).
   label: each.label,
 }));
 
+/** What the project lists of `manage_timelines` when the caller may create a timeline. */
+const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
+
 const [STUDIES, DETAIL, , REVIEW, MILESTONE] = [0, 1, 2, 3, 4];
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers = {}): FakeClient {
-  const client = fakeClient(answers);
+function serve(answers: FakeAnswers = {}, timing?: FakeTiming): FakeClient {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
@@ -82,7 +89,12 @@ function planningGrid(
   {
     named = timelines,
     editable = true,
-  }: { named?: readonly ChoiceOption[] | null; editable?: boolean } = {},
+    creation = AVAILABLE,
+  }: {
+    named?: readonly ChoiceOption[] | null;
+    editable?: boolean;
+    creation?: CommandOffer | null;
+  } = {},
 ) {
   return intl(
     <PlanningGrid
@@ -95,6 +107,7 @@ function planningGrid(
       undoable={editable}
       editable={editable}
       timelines={named ?? undefined}
+      timelineCreation={creation ?? undefined}
     />,
   );
 }
@@ -112,7 +125,10 @@ function cellAt(row: number, column: string): HTMLElement {
 
 /** Open the menu of the cell of a row's label, by a right click. */
 async function openMenu(row: number): Promise<HTMLElement> {
-  fireEvent.contextMenu(cellAt(row, "label"), { clientX: 300, clientY: 200 });
+  await act(async () => {
+    fireEvent.contextMenu(cellAt(row, "label"), { clientX: 300, clientY: 200 });
+    await Promise.resolve();
+  });
   return screen.findByRole("menu", { name: "Menu de la cellule" });
 }
 
@@ -366,6 +382,152 @@ describe("the submenu « Chronologies » of a task", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
+  });
+
+  it.each([
+    ["lists it", AVAILABLE, true, false],
+    ["does not list it", null, false, false],
+    [
+      "lists it unavailable",
+      { is_available: false, missing_conditions: ["is_project_manager"] } satisfies CommandOffer,
+      true,
+      true,
+    ],
+  ] as const)(
+    "offers the creation of a timeline as the project %s [WF-IHM-0090-A]",
+    async (_, creation, shown, greyed) => {
+      const client = serve({ [TIMELINES]: { example: "timeline_created", status: 201 } });
+      render(planningGrid(planning, { named: [], creation }));
+      const menu = await openSubmenu(MILESTONE, "Chronologies");
+      const entry = within(menu).queryByRole("menuitem", { name: /Créer une chronologie…/ });
+      expect(entry !== null).toBe(shown);
+      if (entry === null) {
+        return;
+      }
+      if (!greyed) {
+        expect(entry).not.toHaveAttribute("aria-disabled");
+        return;
+      }
+      // Unavailable, it is greyed out with what it lacks, and opens nothing.
+      expect(entry).toHaveAttribute("aria-disabled", "true");
+      expect(entry).toHaveTextContent("Condition non remplie : être chef de projet.");
+      await userEvent.click(entry);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(sent(client, TIMELINES)).toHaveLength(0);
+    },
+  );
+
+  it("stops at the first refusal of a selection: the rows before it stay written, the ones after it are not written [WF-PLA-0060-A]", async () => {
+    const client = serve({
+      [TRACKING]: [
+        "node_tracked",
+        { problem: example("node_tracking_milestone_refused") as Problem & { status: 422 } },
+        "node_tracked",
+      ],
+    });
+    // The milestone is read inscribed to nothing, so that the write reaches it.
+    const read = structuredClone(planning);
+    const milestone = read.items[MILESTONE]?.task;
+    if (milestone === undefined || milestone === null) {
+      throw new Error("the example holds no such row");
+    }
+    milestone.tracking = [];
+    render(planningGrid(read));
+    await select(REVIEW, 5);
+    const menu = await openSubmenu(REVIEW, "Chronologies");
+    await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "Revue client" }));
+    const alert = await screen.findByRole("alert");
+    const second = planning.items[MILESTONE]?.row_number ?? 0;
+    expect(alert).toHaveTextContent(`Refusé à la ligne ${second.toString()},`);
+    expect(sent(client, TRACKING)).toHaveLength(2);
+    // The first row answered stands in its column; the third was never written.
+    expect(cellAt(REVIEW, "timelines")).toHaveTextContent("Revue client");
+    expect(cellAt(5, "timelines")).toHaveTextContent(/^$/);
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing for a row already in the state a selection aims at [WF-PLA-0060-A]", async () => {
+    // The milestone is inscribed to « Revue client » already, the review is not.
+    const client = serve({ [TRACKING]: "node_tracked" });
+    render(planningGrid());
+    await select(REVIEW, MILESTONE);
+    const menu = await openSubmenu(REVIEW, "Chronologies");
+    await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "Revue client" }));
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    expect(client.calls.find((call) => call.route === TRACKING)?.path).toContain(
+      planning.items[REVIEW]?.node_id ?? "",
+    );
+    expect(await screen.findByText(/mises à jour\./)).toBeInTheDocument();
+    expect(sent(client, TRACKING)).toHaveLength(1);
+  });
+
+  it("keeps the menu open and sends nothing when a box is checked while a write is under way [WF-PLA-0060-A]", async () => {
+    // The write is held: the grid is busy until it is let go.
+    const hold = held();
+    const client = serve({ [TRACKING]: "node_tracked" }, hold.timing);
+    render(planningGrid());
+    const first = await openSubmenu(REVIEW, "Chronologies");
+    await userEvent.click(within(first).getByRole("menuitemcheckbox", { name: "Revue client" }));
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    const again = await openSubmenu(REVIEW, "Chronologies");
+    await userEvent.click(
+      within(again).getByRole("menuitemcheckbox", { name: "Comité de pilotage" }),
+    );
+    expect(screen.getByRole("menu", { name: "Chronologies" })).toBeInTheDocument();
+    expect(sent(client, TRACKING)).toHaveLength(1);
+    hold.release();
+    await screen.findByText(/mises à jour\./);
+  });
+
+  it("is reached and checked from the keyboard alone, the focus coming back to the cell [WF-PLA-0060-A]", async () => {
+    const client = serve({ [TRACKING]: "node_tracked" });
+    render(planningGrid());
+    const cell = cellAt(REVIEW, "label");
+    await userEvent.click(cell);
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    const menu = await screen.findByRole("menu", { name: "Menu de la cellule" });
+    for (let step = 0; step < 20; step += 1) {
+      if (document.activeElement?.textContent === "Chronologies") {
+        break;
+      }
+      await userEvent.keyboard("{ArrowDown}");
+    }
+    expect(document.activeElement).toHaveTextContent("Chronologies");
+    expect(menu).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.keyboard("{ArrowRight}");
+    await screen.findByRole("menu", { name: "Chronologies" });
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toHaveTextContent("Revue client");
+    await userEvent.keyboard(" ");
+    await waitFor(() => {
+      expect(sent(client, TRACKING)).toHaveLength(1);
+    });
+    expect(sent(client, TRACKING)).toEqual([
+      { entries: [{ kind: "timeline", timeline_id: CUSTOMER }], lock_version: 1 },
+    ]);
+    await screen.findByText(/mises à jour\./);
+    // Whatever the menu left open is closed by Escape, and the focus is back in the grid.
+    await userEvent.keyboard("{Escape}{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+    await waitFor(() => {
+      expect(cell).toHaveFocus();
+    });
+  });
+
+  it("breaks no rule of accessibility, in the submenu nor in the dialog that creates a timeline [WF-IHM-0010-A]", async () => {
+    serve();
+    render(planningGrid(planning, { named: [] }));
+    const menu = await openSubmenu(MILESTONE, "Chronologies");
+    await expectAccessible(menu);
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Créer une chronologie…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Créer une chronologie" });
+    await expectAccessible(dialog);
   });
 
   it("starts with the column « Chronologies » hidden, and shows it from the menu of the columns [WF-PLA-0060-A]", () => {
