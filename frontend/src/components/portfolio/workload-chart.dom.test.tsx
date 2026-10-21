@@ -88,7 +88,7 @@ describe("the aggregated workload in a stack of bars", () => {
     ]);
     // The total of a month is the server's, drawn as the label of an invisible line, never a sum.
     const total = series[3] as LineSeriesOption;
-    expect(total).toMatchObject({ type: "line", name: "Total (h)", silent: true });
+    expect(total).toMatchObject({ type: "line", name: "Total", silent: true });
     expect(total.data?.slice(0, 2)).toEqual([
       ["2026-06-01T00:00:00Z", "985866.36"],
       ["2026-07-01T00:00:00Z", "1135130.19"],
@@ -116,6 +116,15 @@ describe("the aggregated workload in a stack of bars", () => {
     expect(screen.getByText("Capacity of the perimeter: 1,360,640.5 h per month.")).toBeVisible();
   });
 
+  it("extends the axis to the capacity, which ECharts would cut off, and to the tallest bar when it is higher [WF-PTF-0060-A]", () => {
+    aggregated();
+    const { option } = drawn();
+    const { max } = option?.yAxis as { max: (range: { max: number }) => number };
+    // The tallest total of the example, 1,135,130.19 h, is under the capacity, 1,360,640.5 h.
+    expect(max({ max: 1_135_130.19 })).toBe(Number(WORKLOAD.capacity_monthly_hours));
+    expect(max({ max: 2_000_000 })).toBe(2_000_000);
+  });
+
   it("lists the roles and their hours in the tooltip of a month, the label of a role escaped", () => {
     aggregated();
     const { option } = drawn();
@@ -129,21 +138,22 @@ describe("the aggregated workload in a stack of bars", () => {
       tooltip.formatter([
         row("Ingénieur <b>électricien</b>", "733321.89", "<i></i>"),
         row("Monteur câbleur", "0", "<u></u>"),
-        row("Total (h)", "1135130.19", ""),
+        row("Total", "1135130.19", ""),
       ]),
     ).toBe(
       [
         "<b>July 2026</b>",
         "<i></i>Ingénieur &lt;b&gt;électricien&lt;/b&gt; <b>733,321.89 h</b>",
         "<u></u>Monteur câbleur <b>0 h</b>",
-        "Total (h) <b>1,135,130.19 h</b>",
+        "Total <b>1,135,130.19 h</b>",
       ].join("<br/>"),
     );
   });
 
-  it("puts the table of the roles under the chart: capacity, rate of load, and a month at 120 % of the capacity signalled [WF-PTF-0060-A]", async () => {
-    // A variant of `portfolio_workload`: the load of the first month of the first role, 0.966,
-    // changed to 1.2, the zone the server classes it in being the alert.
+  it("shows the zone the server rendered for a month, a month at 120 % of the capacity signalled as such [WF-PTF-0060-A]", async () => {
+    // The front shows the zone the server rends, it classes nothing: a variant of
+    // `portfolio_workload` whose first month of the first role, 0.966, is written as the server
+    // would write it at 1.2, in the alert zone.
     const [role, ...others] = WORKLOAD.roles;
     const [month, ...rest] = role?.months ?? [];
     if (role === undefined || month === undefined) {
@@ -190,7 +200,7 @@ describe("the export of the aggregated workload", () => {
     expect(exported).toEqual({
       title: "Aggregated workload",
       subtitle:
-        "In progress and Pricing · 300 projects · calculated on 3 Jun 2026 · Labour of Direction technique and of its descendants",
+        "In progress and Pricing · 300 projects · calculated on 3 Jun 2026 · Horizon: June 2026 to November 2026 · Labour of Direction technique and of its descendants",
       fileName: "aggregated-workload-portfolio-2026-06-03.png",
     });
     expect(screen.getByRole("button", { name: "Export as PNG" })).toBeVisible();

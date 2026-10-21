@@ -167,6 +167,15 @@ test("draws the aggregated workload in stacked bars with the dashed capacity of 
   });
   // The capacity of the perimeter, as the server sums it, said under the title of the chart.
   await expect(figure.getByText(/^Capacité du périmètre : /)).toBeVisible();
+  // The line of the capacity, dashed, is drawn inside the plot — the axis reaches it — and says
+  // itself in its label.
+  const drawing = figure.getByRole("img", { name: /^Barres empilées de la charge/ });
+  await expect(drawing.locator("text", { hasText: /^Capacité : .* h par mois$/ })).toBeVisible();
+  const dashed = drawing.locator("path[stroke-dasharray]").first();
+  await expect(dashed).toBeAttached();
+  const frame = await drawing.boundingBox();
+  const line = await dashed.boundingBox();
+  expect(line?.y ?? 0).toBeGreaterThanOrEqual(frame?.y ?? 1);
   // The filter by node of organisation, in the head of the view; the table of the roles after the
   // chart, in the order of the page.
   await expect(page.getByLabel("Nœud d’organisation")).toBeVisible();

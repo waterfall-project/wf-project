@@ -646,7 +646,8 @@
       "capacityNote": "Capacity of the perimeter: {hours} h per month.",
       "values": "Total load of each month",
       "month": "Month",
-      "total": "Total (h)"
+      "total": "Total (h)",
+      "totalSeries": "Total"
     },
     "pilotHealth": {
       "none": "No signal: the control of the projects of the perimeter is kept up.",
@@ -782,6 +783,7 @@
     "exportSubtitle": "Revision: {revision} · Computed on {date}",
     "exportSubtitleWith": "Revision: {revision} · {detail} · Computed on {date}",
     "fileName": "{file}-{code}.png",
+    "exportPortfolioHorizon": "{scope} · Horizon: {from} to {to}",
     "exportPortfolioSubtitleWith": "{scope} · {node}",
     "portfolioFileName": "{file}-portfolio-{asOf}.png"
   },

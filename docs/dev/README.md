@@ -613,8 +613,10 @@ mois, le contrat n'en rendant pas, celui du portefeuille porte le total de chaqu
 serveur rend (`monthly_totals`, `monthTotals`) au sommet de sa barre et, en pointillés, la capacité
 du périmètre (`capacity_monthly_hours`), la table des rôles, de leur taux et de leurs signaux étant
 sous le graphique ; les liens vers le plan de charge ouvrent une base (`basis`,
-`workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis
-`reference_budget` d'un projet en cours ou terminé qui a une référence, `current_remaining` sinon ; une
+`workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis `reference_budget`
+d'un projet en cours ou terminé qui a une référence, `current_remaining` sinon ; le lien du reste à
+engager vers ce plan est une icône seule (`aria-label`, `title`), le titre de l'écran et les totaux
+de sa grille ne tenant dans la fenêtre de 1280 points qu'à ce prix (`remaining.spec.ts`) ; une
 courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; une série de barres
 (`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ;
 `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire des instants

@@ -3,13 +3,14 @@
 /**
  * The workload of a project (FBS-4.4.4, WF-DEV-0070), as the API computes it on the basis it
  * names: a stack of bars, one a month divided by role of resource, in the order of the API, the
- * roles told apart without their colour too (`stackedRoles`), the legend naming them, the tooltip of
- * a month listing them with their hours. The plan of a project carries no total of its months: the
- * contract gives none, and nothing is summed here, so no total labels the top of a bar. And, in the table of the values, the
- * monthly capacity of each role in regard of its load, a role without load included. The plan of a
- * project presents no ratio of its load to the capacity, which is that of the whole installation:
- * the capacity is not drawn either, a line that would crush the bars (decision of the author on
- * #375, option b) — the ratio stays the aggregated workload's (WF-PTF-0060).
+ * roles told apart without their colour too (`stackedRoles`), the legend naming them, the tooltip
+ * of a month listing them with their hours. The plan of a project carries no total of its months:
+ * the contract gives none, and nothing is summed here, so no total labels the top of a bar. And,
+ * in the table of the values, the monthly capacity of each role in regard of its load, a role
+ * without load included. The plan of a project presents no ratio of its load to the capacity,
+ * which is that of the whole installation: the capacity is not drawn either, a line that would
+ * crush the bars (decision of the author on #375, option b) — the ratio stays the aggregated
+ * workload's (WF-PTF-0060).
  *
  * A month is placed at its first day at midnight in UTC on an axis written in UTC
  * (`planningInstant`); the hours are the strings of the API, which ECharts reads a position from;
@@ -99,7 +100,7 @@ function WorkloadValues({ workload }: { readonly workload: WorkloadPlan }) {
   );
 }
 
-/** Render the workload of a project in bars, and its values, the capacity of each role among them. */
+/** Render the workload of a project in bars, and its values, with the capacity of each role. */
 export function WorkloadChart({ workload, provenance }: WorkloadChartProps) {
   const t = useTranslations();
   const locale = useLocale();

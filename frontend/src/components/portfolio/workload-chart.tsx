@@ -8,7 +8,7 @@
  * total of each month and the load of each role are the server's (`capacity_monthly_hours`,
  * `monthly_totals`, `roles`): nothing is summed here (WF-ARC-0020). The table of the roles, their
  * capacity, their rate of load and their signals, is drawn under it by the view. The chart is
- * exported as a PNG image that names the perimeter, the node and the date of calculation
+ * exported as a PNG image that names the perimeter, its horizon, the node and the date of calculation
  * (WF-IHM-0130, `usePortfolioExport`).
  */
 "use client";
@@ -38,6 +38,7 @@ export function PortfolioWorkloadChart({ workload }: { readonly workload: Portfo
   const { roles, monthly_totals: totals, capacity_monthly_hours: capacity, scope } = workload;
   const capacityLine = t("capacityLine", { hours: formatDecimal(capacity, locale) });
   const total = t("total");
+  const totalSeries = t("totalSeries");
 
   const option = useCallback(
     (palette: ChartPalette): ChartOption => {
@@ -60,8 +61,10 @@ export function PortfolioWorkloadChart({ workload }: { readonly workload: Portfo
         ),
         yAxis: {
           type: "value",
-          // A load is never negative: its axis starts at zero.
+          // A load is never negative: its axis starts at zero. It reaches the capacity too, which
+          // ECharts does not do for a marked line: it would be cut when no month gets there.
           min: 0,
+          max: ({ max }: { readonly max: number }) => Math.max(max, Number(capacity)),
           axisLine: { show: true, lineStyle: { color: palette.axis } },
           axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
           splitLine: { lineStyle: { color: palette.grid } },
@@ -69,7 +72,7 @@ export function PortfolioWorkloadChart({ workload }: { readonly workload: Portfo
         tooltip: monthTooltip(locale, (hours) => t("hours", { hours })),
         series: [
           ...stackedRoles(palette, roles),
-          monthTotals(palette, total, totals, locale),
+          monthTotals(palette, totalSeries, totals, locale),
           {
             // The capacity is a series of its own, without a point and out of the legend: only its
             // marked line is drawn, dashed, across the bars.
@@ -94,10 +97,10 @@ export function PortfolioWorkloadChart({ workload }: { readonly workload: Portfo
         ],
       };
     },
-    [roles, totals, capacity, capacityLine, total, locale, t],
+    [roles, totals, capacity, capacityLine, totalSeries, locale, t],
   );
 
-  const exported = usePortfolioExport(scope, t("exportTitle"), t("file"));
+  const exported = usePortfolioExport(scope, t("exportTitle"), t("file"), workload.months);
   return (
     <Chart
       title={t("chartTitle")}

@@ -147,7 +147,16 @@ test("leads from the remaining to commit to the workload of the project, on the 
 }) => {
   test.slow();
   await compile(page.request, `${IN_REVISION}/workload`);
+  // The link is an icon alone for the room of the head on a window of 1280 points: the title of
+  // the screen and the totals of the grid are in view all the same.
+  await page.setViewportSize({ width: 1280, height: 720 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
+  await expect(page.getByRole("heading", { level: 1 })).toBeInViewport({ ratio: 1 });
+  await expect(
+    page
+      .getByRole("treegrid", { name: "Grille de reste à engager" })
+      .getByRole("gridcell", { name: /^Total — / }),
+  ).toBeInViewport({ ratio: 1 });
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
   await expect(page).toHaveURL(
     `${IN_REVISION}/workload?subproject_id=${SUBPROJECT}&basis=current_remaining`,

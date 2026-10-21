@@ -646,7 +646,8 @@
       "capacityNote": "Capacité du périmètre : {hours} h par mois.",
       "values": "Charge totale de chaque mois",
       "month": "Mois",
-      "total": "Total (h)"
+      "total": "Total (h)",
+      "totalSeries": "Total"
     },
     "pilotHealth": {
       "none": "Aucun signal : le pilotage des projets du périmètre est tenu.",
@@ -782,6 +783,7 @@
     "exportSubtitle": "Révision : {revision} · Calculé le {date}",
     "exportSubtitleWith": "Révision : {revision} · {detail} · Calculé le {date}",
     "fileName": "{file}-{code}.png",
+    "exportPortfolioHorizon": "{scope} · Horizon : de {from} à {to}",
     "exportPortfolioSubtitleWith": "{scope} · {node}",
     "portfolioFileName": "{file}-portefeuille-{asOf}.png"
   },
