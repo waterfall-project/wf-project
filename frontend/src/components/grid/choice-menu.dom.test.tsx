@@ -1,43 +1,54 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import type { ApiClient } from "@/api/client";
-import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
+import { PlanningGrid } from "@/components/grid/planning-grid";
 import { forgetMessages } from "@/components/notices/message-history";
-import { CATALOGUES } from "@/i18n/catalogues";
+
 import { expectAccessible } from "@/test/axe";
 import {
-  example,
-  type FakeAnswers,
-  type FakeClient,
-  type FakeTiming,
-  fakeClient,
-  held,
-  type Problem,
-} from "@/test/fixtures";
+  AVAILABLE,
+  cache,
+  cellAt,
+  intl,
+  NO_QUERY,
+  STRUCTURE,
+  CUSTOMER,
+  DETAIL,
+  MILESTONE,
+  openMenu,
+  openSubmenu,
+  planning,
+  planningGrid,
+  REVIEW,
+  router,
+  select,
+  sent,
+  serve,
+  server,
+  STEERING,
+  STUDIES,
+  TIMELINES,
+  TRACKING,
+  timelines,
+  prepareMenuTests,
+} from "@/test/choice-menu";
+import { example, held, type Problem } from "@/test/fixtures";
 
-import type { NodeList, NodeSortColumn } from "./nodes";
-import { PlanningGrid } from "./planning-grid";
-import type { GridQuery } from "./query";
-import type { ChoiceOption } from "./row-choices";
-
-// The submenu « Chronologies » of the menu of a cell (US-0480), through the grid that offers it: the
-// planning. The fake back keeps nothing: what a write sends is read from its calls, what it answers
-// from the row it replaces. Some tests render a variant of a row of `nodes_planning`, passed to the
-// grid as a prop and never served as an answer (guide, « Tests »), each saying what it changes: the
-// version of a row, so that its own is sent; the `editable_fields` of a row, so that it does not
-// name the field.
-const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
-const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
-const cache = vi.hoisted(() => ({ refresh: vi.fn() }));
+// The submenu « Chronologies » of the menu of a cell (US-0480), through the grid of the planning.
+// The fake back keeps nothing: what a write sends is read from its calls, what it answers from the
+// row it replaces. Some tests render a variant of a row of `nodes_planning`, passed to the grid as a
+// prop and never served as an answer (guide, « Tests »), each saying what it changes.
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
-vi.mock("next/cache", () => cache);
+vi.mock("next/cache", () => ({
+  refresh: () => {
+    cache.refresh();
+  },
+}));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -45,125 +56,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-type Timeline = components["schemas"]["Timeline"];
-
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
-const NODES = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
-const TRACKING = `PUT ${NODES}/{node_id}/tracking` as const;
-const TIMELINES = "POST /projects/{project_id}/timelines" as const;
-const STRUCTURE = {
-  project_id: "01926f3a-7c00-7000-8000-000000000001",
-  revision_id: "01926f3a-7c00-7000-8000-000000000102",
-  structure_id: "01926f3a-7c00-7000-8000-000000000201",
-};
-const STEERING = "01926f3a-7c00-7000-8000-000000001000";
-const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
-const SHOWN = { hidden_columns: [] };
-
-const planning = example("nodes_planning") as NodeList;
-const timelines: readonly ChoiceOption[] = (example("timelines") as Timeline[]).map((each) => ({
-  id: each.timeline_id,
-  label: each.label,
-}));
-
-/** What the project lists of `manage_timelines` when the caller may create a timeline. */
-const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
-
-const [STUDIES, DETAIL, , REVIEW, MILESTONE] = [0, 1, 2, 3, 4];
-/** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers = {}, timing?: FakeTiming): FakeClient {
-  const client = fakeClient(answers, timing);
-  server.client = client;
-  return client;
-}
-
-const intl = (children: React.ReactNode) => (
-  <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-    {children}
-  </NextIntlClientProvider>
-);
-
-/** The grid of the planning, entered, its timelines given or refused. */
-function planningGrid(
-  nodes: NodeList = planning,
-  {
-    named = timelines,
-    editable = true,
-    creation = AVAILABLE,
-  }: {
-    named?: readonly ChoiceOption[] | null;
-    editable?: boolean;
-    creation?: CommandOffer | null;
-  } = {},
-) {
-  return intl(
-    <PlanningGrid
-      nodes={nodes}
-      structure={STRUCTURE}
-      structureVersion={1}
-      filters={{ kinds: ["task"] }}
-      query={NO_QUERY}
-      preferences={SHOWN}
-      undoable={editable}
-      editable={editable}
-      timelines={named ?? undefined}
-      timelineCreation={creation ?? undefined}
-    />,
-  );
-}
-
-/** A cell of the row at an index, by its column. */
-function cellAt(row: number, column: string): HTMLElement {
-  const found = screen
-    .getByRole("treegrid")
-    .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
-  if (found === null) {
-    throw new Error(`no cell ${column} in the row ${row.toString()}`);
-  }
-  return found;
-}
-
-/** Open the menu of the cell of a row's label, by a right click. */
-async function openMenu(row: number): Promise<HTMLElement> {
-  await act(async () => {
-    fireEvent.contextMenu(cellAt(row, "label"), { clientX: 300, clientY: 200 });
-    await Promise.resolve();
-  });
-  return screen.findByRole("menu", { name: "Menu de la cellule" });
-}
-
-/** Open a submenu of the menu of a row. */
-async function openSubmenu(row: number, name: string): Promise<HTMLElement> {
-  const menu = await openMenu(row);
-  await userEvent.click(within(menu).getByRole("menuitem", { name }));
-  return screen.findByRole("menu", { name });
-}
-
-/** Select the rows from one to another by their handles. */
-async function select(from: number, to: number) {
-  fireEvent.click(cellAt(from, "row_number"));
-  fireEvent.click(cellAt(to, "row_number"), { shiftKey: true });
-  await act(async () => {
-    await Promise.resolve();
-  });
-}
-
-/** The bodies sent on a route, in order. */
-function sent(client: FakeClient, route: string): unknown[] {
-  return client.calls.filter((call) => call.route === route).map((call) => call.body);
-}
-
-beforeEach(() => {
-  window.sessionStorage.clear();
-  forgetMessages();
-  router.refresh.mockReset();
-  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
-  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+prepareMenuTests(forgetMessages);
 
 describe("the submenu « Chronologies » of a task", () => {
   it("lists the timelines of the project as boxes, checked where the task is inscribed, and the time/time tracking of a milestone [WF-PLA-0060-A]", async () => {
@@ -269,7 +162,7 @@ describe("the submenu « Chronologies » of a task", () => {
     expect(within(menu).queryByRole("menuitem", { name: "Chronologies" })).toBeNull();
   });
 
-  it("offers no submenu in a grid read only, nor when the list of the timelines was refused [WF-IHM-0090-A]", async () => {
+  it("offers no submenu in a grid read only, nor when the list of the timelines was refused [WF-PLA-0060-A]", async () => {
     serve();
     const view = render(planningGrid(planning, { editable: false }));
     fireEvent.contextMenu(cellAt(REVIEW, "label"), { clientX: 300, clientY: 200 });
@@ -442,6 +335,9 @@ describe("the submenu « Chronologies » of a task", () => {
     expect(sent(client, TRACKING)).toHaveLength(2);
     // The first row answered stands in its column; the third was never written.
     expect(cellAt(REVIEW, "timelines")).toHaveTextContent("Revue client");
+    // The row at the index 5 names the inscriptions, so that it was left unwritten by the refusal, not
+    // by the rule that sets a row aside.
+    expect(planning.items[5]?.editable_fields).toContain("task.tracking");
     expect(cellAt(5, "timelines")).toHaveTextContent(/^$/);
     expect(router.refresh).not.toHaveBeenCalled();
   });
@@ -520,7 +416,7 @@ describe("the submenu « Chronologies » of a task", () => {
     });
   });
 
-  it("breaks no rule of accessibility, in the submenu nor in the dialog that creates a timeline [WF-IHM-0010-A]", async () => {
+  it("breaks no rule of accessibility, in the submenu nor in the dialog that creates a timeline [WF-PLA-0060-A]", async () => {
     serve();
     render(planningGrid(planning, { named: [] }));
     const menu = await openSubmenu(MILESTONE, "Chronologies");
@@ -528,6 +424,20 @@ describe("the submenu « Chronologies » of a task", () => {
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Créer une chronologie…" }));
     const dialog = await screen.findByRole("dialog", { name: "Créer une chronologie" });
     await expectAccessible(dialog);
+  });
+
+  it("breaks no rule of accessibility where the creation of a timeline is unavailable, with the condition it lacks [WF-PLA-0060-A]", async () => {
+    serve();
+    const missing: CommandOffer = {
+      is_available: false,
+      missing_conditions: ["is_project_manager"],
+    };
+    render(planningGrid(planning, { named: [], creation: missing }));
+    const menu = await openSubmenu(MILESTONE, "Chronologies");
+    const entry = within(menu).getByRole("menuitem", { name: /Créer une chronologie…/ });
+    expect(entry).toHaveAttribute("aria-disabled", "true");
+    expect(entry).toHaveTextContent("Condition non remplie : être chef de projet.");
+    await expectAccessible(menu);
   });
 
   it("starts with the column « Chronologies » hidden, and shows it from the menu of the columns [WF-PLA-0060-A]", () => {

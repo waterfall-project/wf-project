@@ -88,7 +88,7 @@ export function renderGrid(editable = true, preferences?: GridPreferences, readi
         editable={editable}
         tasksEditable
         query={{ sort: reading?.sort, search }}
-        preferences={preferences}
+        preferences={preferences ?? { hidden_columns: [] }}
       />
     </NextIntlClientProvider>,
   );

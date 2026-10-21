@@ -90,7 +90,7 @@ function planningOf(nodes: NodeList) {
         structureVersion={1}
         filters={{}}
         query={NO_QUERY}
-        preferences={undefined}
+        preferences={{ hidden_columns: [] }}
       />
     </NextIntlClientProvider>
   );
@@ -110,7 +110,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
           structure={STRUCTURE}
           structureVersion={1}
           query={NO_QUERY}
-          preferences={undefined}
+          preferences={{ hidden_columns: [] }}
         />
       ) : (
         <PlanningGrid
@@ -119,7 +119,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
           structureVersion={1}
           filters={{}}
           query={NO_QUERY}
-          preferences={undefined}
+          preferences={{ hidden_columns: [] }}
         />
       )}
     </NextIntlClientProvider>,
@@ -537,7 +537,7 @@ describe("a value of a grid the server computes", () => {
           totals={estimate.totals}
           totalsCaption={() => "Total"}
           query={NO_QUERY}
-          preferences={undefined}
+          preferences={{ hidden_columns: [] }}
         />
       </NextIntlClientProvider>,
     );

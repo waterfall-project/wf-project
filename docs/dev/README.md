@@ -918,7 +918,10 @@ posant Annuler et Rétablir, et la grille, en lecture seule quand elle ne la lis
 filtre aussi par un lot ou un poste du lotissement lu entier, comme le planning et le devis
 (`order_item_id`, `work_package_id`, restreignant la grille seule) ; la fin d'une
 tâche s'y montre sans se saisir, et la fin dépassée par une marque propre, que le serveur dit
-(`finish_overdue`). Son bandeau ne montre que le sous-projet, seul paramètre de contexte que ses
+(`finish_overdue`). Les sous-projets du projet (`listSubprojects`, lus avec le bandeau, une fois par
+requête) ne sont lus que là où la structure liste `edit_remaining` disponible, et refusés ils ne
+donnent pas le sous-menu « Sous-projet » ; la colonne et le sous-menu sont ceux du devis, décrits
+avec le menu contextuel des cellules (`choice-menu.tsx`). Son bandeau ne montre que le sous-projet, seul paramètre de contexte que ses
 lectures prennent, et dit qu'il ne restreint que la grille, ses indicateurs étant ceux du projet
 entier (`gridOnly` de `ContextBanner`, #459). Le Kanban du démarrage des tâches, FBS-4.5.3, est une
 feuille de la fonction, `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches
@@ -1787,21 +1790,28 @@ ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une
 (la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit par `useSaid` et le
 refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
 
-Le menu contextuel des cellules offre un sous-menu de plus (`choice-menu.tsx`, règles pures dans
+Le menu contextuel des cellules offre deux sous-menus de plus (`choice-menu.tsx`, règles pures dans
 `row-choices.ts`, US-0480). « Chronologies » : une case par chronologie du projet (`listTimelines`),
 cochée quand la tâche y est inscrite, et « Suivi temps/temps » pour un jalon ; la tâche l'offre quand
-elle nomme `task.tracking` dans ses `editable_fields`, le front ne déduisant pas cette garde. Le
-sous-menu s'applique à la sélection, ou à la ligne seule : un appel par tâche qui nomme le champ,
-avec la version de cette tâche — `setNodeTracking` avec la liste complète de ses inscriptions —,
-dans l'ordre de la grille — sans écriture pour une ligne déjà dans l'état visé — et jusqu'au premier
-refus, dit pour sa ligne comme celui d'un geste : les lignes écrites avant lui le restent, celles
-d'après ne sont pas écrites. Chaque réponse prend la place de la ligne lue (`applied` de
-`RowCommands.menu`), puis la grille est relue comme après un geste. Un projet sans chronologie
-propose « Créer une chronologie… » (`createTimeline`), nommée dans un dialogue, à laquelle les
-tâches sont inscrites, selon l'offre `manage_timelines` du projet : absente, l'entrée n'est pas
-présentée ; indisponible, elle l'est grisée avec sa condition. La colonne « Chronologies » du planning est en lecture et masquée
-(`GridColumn.hidden`) tant que le compte n'a gardé aucune liste de colonnes masquées
-(`initialSettings`) ; il la montre par le choix des colonnes.
+elle nomme `task.tracking` dans ses `editable_fields`. « Sous-projet » : des boutons radio,
+« Aucun sous-projet » et chaque sous-projet du projet (`listSubprojects`), nommé par son code et son
+libellé — le code seul est unique dans un projet —, celui de la ligne coché ;
+la ligne l'offre quand elle nomme `estimate_line.subproject_id`, ce que ne fait ni une ligne de
+provision, ni celle d'une tâche démarrée dont le sous-projet a reçu des coûts réels
+(`SUBPROJECT_HAS_ACTUAL_COSTS`) : le front ne déduit aucune de ces gardes. Dans le devis, le choix se
+fait tant que le projet n'est pas En cours, dans le reste à engager ensuite, selon ce que la ligne
+nomme. Un sous-menu s'applique à la sélection, ou à la ligne seule : un appel par ligne qui nomme le
+champ, avec la version de cette ligne — `setNodeTracking` avec la liste complète de ses inscriptions,
+`updateEstimateLine` avec `subproject_id` —, dans l'ordre de la grille — sans écriture pour une
+ligne déjà dans l'état visé — et jusqu'au premier refus, dit pour sa ligne comme celui d'un geste :
+les lignes écrites avant lui le restent, celles d'après ne sont pas écrites. Chaque réponse prend la
+place de la ligne lue (`applied` de `RowCommands.menu`), puis la grille est relue comme après un
+geste. Un projet sans chronologie propose « Créer une chronologie… » (`createTimeline`), nommée dans
+un dialogue, à laquelle les tâches sont inscrites, selon l'offre `manage_timelines` du projet :
+absente, l'entrée n'est pas présentée ; indisponible, elle l'est grisée avec sa condition. Les
+colonnes « Chronologies » du planning et « Sous-projet » du devis et du reste à engager sont en
+lecture et masquées (`GridColumn.hidden`) tant que le compte n'a gardé aucune liste de colonnes
+masquées (`initialSettings`) ; il les montre par le choix des colonnes.
 
 ### Les grilles arborescentes : plier et déplier
 
