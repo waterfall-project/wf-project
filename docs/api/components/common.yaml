@@ -262,6 +262,10 @@ Problem:
         `backup_version` et `installed_version`, dans `params`, la version de l'application qui a
         pris la sauvegarde et celle de l'installation qui refuse de la restaurer
         (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ;
+        `risk`, dans `fields[].params`, le risque dont une ligne de provision déplacée dans
+        la grille relève, par son identifiant et son libellé (`risk_id`, `label` ;
+        `PROVISION_LINE_MOVED_BY_RISK`, `moveNodes`, WF-RIS-0010, #1227) : la ligne se déplace
+        par le formulaire du risque ;
         `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux
         n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160).
     fields:
@@ -440,6 +444,10 @@ ErrorCode:
     # provision d'un risque (`/provision_cost_category_id`, `createRisk`, `updateRisk`,
     # `reviewRisk`, WF-RIS-0010).
     - PROVISION_CATEGORY_REQUIRED
+    # Une ligne de provision déplacée dans la grille : elle se déplace par le formulaire de son
+    # risque, qui désigne sa tâche (`/node_ids/<n>`, `moveNodes`, `fields[].params.risk`,
+    # WF-RIS-0010 ; #1227).
+    - PROVISION_LINE_MOVED_BY_RISK
     # Une réestimation qui termine la tâche sans la date de terminaison que la validation
     # demande (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
     - COMPLETION_DATE_REQUIRED
@@ -464,6 +472,10 @@ ErrorCode:
     # Un seuil d'indice qui n'est pas strictement compris entre 0 et 1 (`IndexThreshold`,
     # WF-REF-0170) ; le pointeur désigne le seuil, sans paramètre.
     - THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE
+    # Une constante de conversion des unités de durée nulle (`DurationUnitsWrite`,
+    # `setDurationUnits`, WF-PLA-0160) : elle est strictement positive ; le pointeur désigne la
+    # constante, sans paramètre.
+    - DURATION_UNIT_NOT_POSITIVE
     # Motifs par champ du rattachement d'une tâche à un lot ou à un poste du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0170) ; le premier aussi d'un identifiant que la saisie du
     # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`

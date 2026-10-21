@@ -407,16 +407,13 @@ def test_the_stale_reactivations_name_the_version_another_session_wrote() -> Non
     assert calendar["params"]["expected_lock_version"] > week["lock_version"]
 
 
-def test_the_grid_and_the_calendars_refuse_bounds_inverted_or_a_bound_without_its_year() -> None:
-    for name, pointer, minimum in (
-        ("calendars_bounds_inverted", "/query/friday_max", "10"),
-        ("hourly_rate_grid_bounds_inverted", "/query/rate_max", "100"),
-    ):
-        refused = fixture(name)
-        assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
-        assert refused["fields"] == [
-            {"pointer": pointer, "code": "VALUE_OUT_OF_RANGE", "params": {"minimum": minimum}}
-        ]
+def test_the_grid_refuses_bounds_inverted_or_a_bound_without_its_year() -> None:
+    # The calendars have no bound left on the hours of their days (C-352, #1047).
+    refused = fixture("hourly_rate_grid_bounds_inverted")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [
+        {"pointer": "/query/rate_max", "code": "VALUE_OUT_OF_RANGE", "params": {"minimum": "100"}}
+    ]
     missing = fixture("hourly_rate_grid_rate_year_missing")
     assert (missing["status"], missing["code"]) == (422, "VALIDATION_FAILED")
     assert missing["fields"] == [{"pointer": "/query/rate_year", "code": "VALUE_REQUIRED"}]

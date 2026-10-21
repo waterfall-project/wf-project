@@ -352,6 +352,21 @@ def test_a_nul_in_an_item_of_a_list_is_pointed_at_the_item(app: FastAPI) -> None
     ]
 
 
+def test_an_integer_out_of_an_enumeration_of_integers_alone_is_a_value_out_of_range(
+    app: FastAPI,
+) -> None:
+    # The number of lines per page is one of four integers: another integer is out of the range
+    # the contract admits (#1045). The theme is one of three words: an integer sent there is a
+    # value of another kind, refused as any other value, not a value out of range.
+    sent = {"theme": 3, "grids": {"users": {"page_size": 30}}}
+    problem = problem_of(TestClient(app).post("/preferences", json=sent))
+    assert problem.fields is not None
+    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+        ("/theme", "VALIDATION_FAILED", None),
+        ("/grids/users/page_size", "VALUE_OUT_OF_RANGE", None),
+    ]
+
+
 def test_an_identifier_in_the_path_that_cannot_name_an_object_is_a_not_found(
     app: FastAPI,
 ) -> None:

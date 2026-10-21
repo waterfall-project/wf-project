@@ -1,5 +1,5 @@
 {
-  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun ; et, sur la table des rôles d'habilitation, les rôles composés que porte un compte au moins : les filtres que l'écran retrouve quand l'adresse n'en dit rien (US-0380) ; sur la table des comptes, les seuls comptes créés dans Waterfall qui sont actifs (US-0360).",
+  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun ; et, sur la table des rôles d'habilitation, les rôles composés que porte un compte au moins : les filtres que l'écran retrouve quand l'adresse n'en dit rien (US-0380) ; sur la table des comptes, les seuls comptes créés dans Waterfall qui sont actifs (US-0360). Elle lit aussi 25 lignes par page sur la table des comptes (WF-IHM-0060, C-351), et a disposé la chronologie « Comité de pilotage », la « Réception des études » et la « Réception usine » dans le deuxième couloir (WF-PLA-0140).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000301",
     "last_name": "Martin",
@@ -61,6 +61,15 @@
           "filters": {
             "origins": "local",
             "is_active": "true"
+          },
+          "page_size": 25
+        }
+      },
+      "timelines": {
+        "01926f3a-7c00-7000-8000-000000001000": {
+          "lanes": {
+            "01926f3a-7c00-7000-8000-000000000525": 1,
+            "01926f3a-7c00-7000-8000-000000000556": 1
           }
         }
       }

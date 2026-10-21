@@ -65,7 +65,9 @@
     description: >-
       Préférences personnelles, cantonnées à la présentation ; nul ne modifie celles
       d'un autre (WF-ADM-0040). La langue en fait partie et s'applique sans
-      reconnexion (WF-INTF-0160).
+      reconnexion (WF-INTF-0160), comme le nombre de lignes par page de chaque table plate
+      (`GridPreferences.page_size`, WF-IHM-0060) et la disposition de chaque chronologie en
+      frise (`timelines`, WF-PLA-0140).
     requestBody:
       required: true
       content:
@@ -80,6 +82,8 @@
             examples:
               witness: { $ref: ../../../fixtures/api/preferences.json }
               dark: { $ref: ../../../fixtures/api/preferences_dark.json }
+              page_size: { $ref: ../../../fixtures/api/preferences_page_size.json }
+              timeline_lanes: { $ref: ../../../fixtures/api/preferences_timeline_lanes.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '422':
@@ -88,16 +92,23 @@
           étroite que la plus petite admise, vingt points (`GridPreferences`) :
           `/grids/<grille>/column_widths/<colonne>` par `VALUE_OUT_OF_RANGE`,
           `fields[].params.minimum` à `20`, la seule borne franchie, comme toute borne d'une
-          écriture (WF-IHM-0060). Une préférence plus grande que ses bornes — plus de cent
-          grilles, un nom de grille, de colonne ou de filtre de plus de 64 caractères, plus de 64
-          colonnes masquées ou largeurs, plus de 20 filtres, un filtre de plus de 500 caractères
-          (`DisplayPreferences`, #874) — : `VALUE_TOO_LONG`, un nom trop long au pointeur de
-          l'objet qui le porte. Rien n'est enregistré.
+          écriture (WF-IHM-0060). Un couloir de chronologie négatif (`TimelinePreferences`) :
+          `/timelines/<chronologie>/lanes/<tâche>` par `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` à `0`. Un nombre de lignes par page autre que 10, 25, 50 ou
+          100 (`GridPreferences`, C-351) : `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`,
+          sans paramètre. Une préférence plus grande que ses bornes — plus de cent grilles ou de
+          cent chronologies, un nom de grille, de colonne, de filtre, de chronologie ou de tâche
+          de plus de 64 caractères, plus de 64 colonnes masquées, largeurs ou tâches placées,
+          plus de 20 filtres, un filtre de plus de 500 caractères (`DisplayPreferences`, #874) — :
+          `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Rien n'est
+          enregistré.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               column_width_out_of_range: { $ref: ../../../fixtures/api/preferences_column_width_out_of_range.json }
+              lane_out_of_range: { $ref: ../../../fixtures/api/preferences_lane_out_of_range.json }
+              page_size_out_of_range: { $ref: ../../../fixtures/api/preferences_page_size_out_of_range.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/avatar:

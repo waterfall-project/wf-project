@@ -64,7 +64,6 @@ import {
   type CalendarSort,
   calendarDay,
   DAYS,
-  type Day,
   ORG_CODE,
   ORG_CODE_LENGTH,
   ORG_LEVEL,
@@ -150,13 +149,6 @@ function bounds<Column extends string>(column: Column, { min, max }: Bounds) {
   return { ...given(`${column}_min`, min), ...given(`${column}_max`, max) } as Partial<
     Record<`${Column}_min` | `${Column}_max`, string>
   >;
-}
-
-/** The bounds of the hours of each day, under the names of the contract. */
-function dayBounds(hours: DayBounds) {
-  return Object.fromEntries(
-    DAYS.flatMap((day) => Object.entries(bounds(day, hours[day]))),
-  ) as Partial<Record<`${Day}_min` | `${Day}_max`, string>>;
 }
 
 /** What the page asks of each list, as its address and the session say. */
@@ -248,10 +240,13 @@ function readRoles(
   );
 }
 
-/** The page of the calendars the address asks, filtered, bounded and sorted as it says. */
+/**
+ * The page of the calendars the address asks, filtered and sorted as it says: the contract bounds
+ * no hours of a day (C-352, #1047), which the address no longer sends (US-0570/L3 withdraws them).
+ */
 function readCalendars(
   client: ApiClient,
-  { inactive, calendars, calendarState, calendarHours, calendarOffset }: ResourceQueries,
+  { inactive, calendars, calendarState, calendarOffset }: ResourceQueries,
 ) {
   return readOrRefused("listCalendars", BOUNDS_REFUSED, () =>
     client.GET("/reference/calendars", {
@@ -260,7 +255,6 @@ function readCalendars(
           ...inactive,
           ...asked(calendars, calendarOffset),
           ...given("is_active", calendarState),
-          ...dayBounds(calendarHours),
         },
       },
     }),

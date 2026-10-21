@@ -101,9 +101,11 @@ Risk:
         La tâche de la structure principale de la révision lue qui porte la ligne de provision
         (`provision_node_id`), par son nœud et son libellé, résolu à la lecture : celle que le
         risque a désignée à sa déclaration ou depuis, tant qu'il était identifié, et à défaut la
-        première tâche de premier niveau (WF-RIS-0010, #786). Le formulaire la présente et la
-        propose de nouveau sans relire la structure (WF-ARC-0020). Nulle quand le risque n'est pas
-        identifié : il ne porte alors aucune ligne de provision.
+        première tâche de premier niveau (WF-RIS-0010, #786). Un risque écarté qui redevient
+        identifié retrouve la tâche qu'il désignait si elle est encore une tâche de la structure
+        principale, et sinon la première tâche de premier niveau (`reviewRisk`, #1227). Le
+        formulaire la présente et la propose de nouveau sans relire la structure (WF-ARC-0020).
+        Nulle quand le risque n'est pas identifié : il ne porte alors aucune ligne de provision.
     matrix_cell: { $ref: '#/RiskMatrixCell' }
     last_review_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
@@ -291,7 +293,8 @@ RiskReviewWrite:
     (WF-RIS-0010). Il se fait hors sous-projet quand le sous-projet que le risque désignait a été
     supprimé depuis, la désignation passée à nul (décision de l'auteur, #732). Son annulation rend
     au risque son état précédent et la catégorie qu'il désignait avant ce retour, la catégorie
-    choisie au retour comprise (WF-IHM-0110, WF-RIS-0020).
+    choisie au retour comprise (WF-IHM-0110, WF-RIS-0020). La tâche qui porte la ligne recréée
+    est dite par `reviewRisk` (#1227).
   properties:
     probability: { $ref: ../common.yaml#/Percent }
     state:

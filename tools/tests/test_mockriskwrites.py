@@ -22,6 +22,7 @@ CITED = {
     ("risks.yaml", "reviewRisk", "201"): "risk_reviewed",
     ("risks.yaml", "declareRiskOccurrence", "202"): "task_occurrence_queued",
     ("risks.yaml", "createRisk", "422"): "risk_provision_task_refused",
+    ("revisions.yaml", "moveNodes", "422"): "nodes_move_provision_refused",
 }
 
 
@@ -127,3 +128,28 @@ def test_a_provision_designated_on_a_task_of_another_structure_is_refused_on_its
     assert mockriskwrites.REFUSED_TASK not in {row.number for row in mockcore.current()}
     label = {row.number: row.label for row in mockamendment.rows()}[mockriskwrites.REFUSED_TASK]
     assert label in example("risk_provision_task_refused")["summary"]
+
+
+def test_a_risk_declared_today_is_said_a_counterfactual_from_the_first_words() -> None:
+    # The convention of #1196: a counterfactual opens its summary by saying it (#1228).
+    assert example("risk_created")["summary"].startswith("Variante contrefactuelle : ")
+
+
+def test_a_line_of_provision_moved_in_the_grid_is_refused_and_names_its_risk() -> None:
+    # #1227: the line of provision moves by the form of its risk alone, which designates its task.
+    refused = example("nodes_move_provision_refused")["value"]
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    risk = {"risk_id": universe(mockwitness.REWORK.number), "label": mockwitness.REWORK.label}
+    assert refused["fields"] == [
+        {
+            "pointer": "/node_ids/0",
+            "code": "PROVISION_LINE_MOVED_BY_RISK",
+            "params": {"risk": risk},
+        }
+    ]
+    rows = {row.number: row for row in mockcore.current()}
+    line = rows[cast("int", mockwitness.REWORK.provision_line)]
+    assert cast("dict[str, Any]", line.node["estimate_line"])["is_computed"]
+    assert line.parent == N.WIRING != mockriskwrites.PROVISION_MOVED_UNDER
+    summary = example("nodes_move_provision_refused")["summary"]
+    assert rows[mockriskwrites.PROVISION_MOVED_UNDER].label in summary
