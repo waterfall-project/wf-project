@@ -430,13 +430,26 @@
     },
     "matrix": {
       "title": "Risk matrix",
+      "description": "Bubble chart of the risks: the probability across and the severity, as a share of the reference budget, up; each risk is a bubble at its exact values, as large as its severity in amount, over the sixteen zones of the matrix.",
+      "axisSeverity": "Severity (% of the budget)",
+      "counts": "Count of the risks by cell of the matrix, all states together",
+      "none": "No risk to draw for this filter.",
+      "file": "risk-matrix",
       "probability": "Probability",
       "severity": "Severity, as a share of the reference budget",
       "between": "{lower} to under {upper}",
-      "from": "{lower} and over"
+      "from": "{lower} and over",
+      "tooltip": {
+        "project": "Project",
+        "probability": "Probability",
+        "severity": "Severity",
+        "provision": "Provision",
+        "state": "State",
+        "zone": "Zone",
+        "closed": "Project cannot be opened"
+      }
     },
     "detail": {
-      "hint": "Choose a risk in the register to read its description, its mitigation actions and the history of its reviews.",
       "close": "Close the detail of the risk",
       "description": "Description",
       "mitigation": "Mitigation actions",

@@ -213,6 +213,7 @@ describe("the screens of the portfolio", () => {
       'href="/projects/01926f3a-7c00-7000-8000-000300000119">Extension de la sous-station — Grenoble</a>',
     );
     expect(page).toContain("Risk matrix");
+    expect(markup).toContain("Export as PNG");
     // The cell of the highest probability and severity, by its signal and its count.
     expect(markup).toMatch(/aria-label="Alert"(?:(?!<\/td>)[\s\S])*?<\/span>32<\/span>/);
   });

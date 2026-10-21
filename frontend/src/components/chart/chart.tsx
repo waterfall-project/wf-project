@@ -23,7 +23,14 @@
  */
 "use client";
 
-import { BarChart, type BarSeriesOption, LineChart, type LineSeriesOption } from "echarts/charts";
+import {
+  BarChart,
+  type BarSeriesOption,
+  LineChart,
+  type LineSeriesOption,
+  ScatterChart,
+  type ScatterSeriesOption,
+} from "echarts/charts";
 import {
   AriaComponent,
   type AriaComponentOption,
@@ -31,6 +38,8 @@ import {
   type GridComponentOption,
   LegendComponent,
   type LegendComponentOption,
+  MarkAreaComponent,
+  type MarkAreaComponentOption,
   MarkLineComponent,
   type MarkLineComponentOption,
   TitleComponent,
@@ -43,8 +52,9 @@ import { LabelLayout } from "echarts/features";
 import { CanvasRenderer, SVGRenderer } from "echarts/renderers";
 import { ImageDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef } from "react";
+import { type ReactNode, useEffect, useId, useLayoutEffect, useRef } from "react";
 
+import { type AlertZone, ZoneProbes } from "@/components/signal/signal";
 import { Button } from "@/components/ui/button";
 import { scrollingList } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
@@ -58,8 +68,10 @@ register([
   LabelLayout,
   LineChart,
   BarChart,
+  ScatterChart,
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
   MarkLineComponent,
   TitleComponent,
   TooltipComponent,
@@ -68,12 +80,17 @@ register([
   CanvasRenderer,
 ]);
 
-/** What a chart of the application may draw: lines and bars on a grid, a legend, marked lines, a tooltip. */
+/**
+ * What a chart of the application may draw: lines, bars and points on a grid, a legend, marked
+ * lines and areas, a tooltip.
+ */
 export type ChartOption = ComposeOption<
   | LineSeriesOption
   | BarSeriesOption
+  | ScatterSeriesOption
   | GridComponentOption
   | LegendComponentOption
+  | MarkAreaComponentOption
   | MarkLineComponentOption
   | TitleComponentOption
   | TooltipComponentOption
@@ -94,6 +111,8 @@ export interface ChartPalette {
   readonly grid: string;
   /** The background of the page, which an exported image is drawn on: `--background`. */
   readonly background: string;
+  /** The colour of each zone of a signal (`--signal-*`), for the area a zone fills. */
+  readonly zones: Readonly<Record<AlertZone, string>>;
   /** The font of the page. */
   readonly font: string;
 }
@@ -195,6 +214,11 @@ function readPalette(probes: HTMLElement): ChartPalette {
     axis: colour("axis"),
     grid: colour("grid"),
     background: colour("background"),
+    zones: {
+      nominal: colour("zone-nominal"),
+      watch: colour("zone-watch"),
+      alert: colour("zone-alert"),
+    },
     font: getComputedStyle(probes).fontFamily,
   };
 }
@@ -241,6 +265,23 @@ export function timeAxis(
   };
 }
 
+/** A text as HTML: a label is typed by a person, and a tooltip is written as HTML. */
+export function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+/** The identifier (`id`) of a data item of a series, as ECharts hands it back; none without one. */
+export function dataId(data: unknown): string | undefined {
+  return typeof data === "object" && data !== null && "id" in data && typeof data.id === "string"
+    ? data.id
+    : undefined;
+}
+
 /** The probes of the tokens, hidden: each takes the colour of one. */
 function Probes() {
   const singles = (["text", "mark", "axis", "grid", "background"] as const).map((name) => (
@@ -252,6 +293,7 @@ function Probes() {
         <span key={tone} data-probe={`series-${index.toString()}`} className={tone} />
       ))}
       {singles}
+      <ZoneProbes />
     </>
   );
 }
@@ -498,14 +540,32 @@ export interface ChartProps {
    * offered for export.
    */
   readonly exported?: () => ChartExport;
+  /**
+   * Called with the identifier (`id`) of the data item a click reaches, when it has one — a point
+   * of a scatter.
+   */
+  readonly onPoint?: (id: string) => void;
 }
 
 /** Render a chart: a figure, its caption, its drawing named by a sentence, its values. */
-export function Chart({ title, description, note, option, children, exported }: ChartProps) {
+export function Chart({
+  title,
+  description,
+  note,
+  option,
+  children,
+  exported,
+  onPoint,
+}: ChartProps) {
   const t = useTranslations("chart");
   const drawing = useRef<HTMLDivElement>(null);
   const probes = useRef<HTMLSpanElement>(null);
   const caption = useId();
+  // The latest handler of a click, which the event reads: the chart is not drawn anew for it.
+  const clicked = useRef(onPoint);
+  useLayoutEffect(() => {
+    clicked.current = onPoint;
+  });
 
   useEffect(() => {
     const element = drawing.current;
@@ -528,6 +588,12 @@ export function Chart({ title, description, note, option, children, exported }: 
       );
     };
     draw();
+    chart.on("click", (event) => {
+      const id = dataId(event.data);
+      if (id !== undefined) {
+        clicked.current?.(id);
+      }
+    });
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
     scheme.addEventListener("change", draw);
     const theme = new MutationObserver(draw);

@@ -160,8 +160,10 @@ describe("the envelope of the charts", () => {
       "axis",
       "grid",
       "background",
+      "zones",
       "font",
     ]);
+    expect(Object.keys(palette?.zones ?? {})).toEqual(["nominal", "watch", "alert"]);
     // Each colour is a probe painted by the class of its token, which the browser resolves.
     const probes = document.querySelectorAll("[data-probe]");
     expect([...probes].map((probe) => probe.className)).toEqual([
@@ -174,6 +176,9 @@ describe("the envelope of the charts", () => {
       "text-input",
       "text-border",
       "text-background",
+      "text-signal-nominal",
+      "text-signal-watch",
+      "text-signal-alert",
     ]);
     document.documentElement.setAttribute("data-theme", "dark");
     await waitFor(() => {
@@ -202,6 +207,7 @@ describe("the look of a curve", () => {
     axis: "axis",
     grid: "grid",
     background: "background",
+    zones: { nominal: "nominal", watch: "watch", alert: "alert" },
     font: "font",
   };
   const points = [

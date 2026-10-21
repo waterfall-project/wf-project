@@ -21,7 +21,7 @@ import { useTranslations } from "next-intl";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
-import { readProjectContext } from "@/components/context/reading";
+import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
@@ -37,7 +37,8 @@ import {
   type RiskRows,
   type RiskSortColumn,
 } from "@/components/risks/risk-grid";
-import { RiskMatrixView } from "@/components/risks/risk-matrix";
+import { ProjectRiskMatrix } from "@/components/risks/risk-bubble-chart";
+import type { RiskMatrix } from "@/components/risks/risk-matrix";
 import { RisksGrid } from "@/components/risks/risks-grid";
 import { RiskStateFilter } from "@/components/risks/state-filter";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -146,10 +147,36 @@ function RisksHeader({ count }: { readonly count: number }) {
   );
 }
 
-/** The aside of the grid: the detail of a risk opened, or how to open one. */
-function DetailHint() {
-  const t = useTranslations("risks.detail");
-  return <p className="text-sm text-muted-foreground">{t("hint")}</p>;
+/**
+ * The matrix of the revision as a bubble chart over the whole width of the screen, its exported
+ * image naming the project, the revision and the date of the calculation of the coverage, which
+ * the matrix is read with.
+ */
+function RiskMatrixSection({
+  reading,
+  matrix,
+  states,
+  computedAt,
+}: {
+  readonly reading: ProjectReading;
+  readonly matrix: RiskMatrix;
+  readonly states: readonly RiskState[];
+  readonly computedAt: string;
+}) {
+  const t = useTranslations("contextBanner");
+  const { project, revision } = reading;
+  return (
+    <ProjectRiskMatrix
+      matrix={matrix}
+      states={states}
+      provenance={{
+        project: project.label,
+        code: project.code ?? project.project_id,
+        revision: revision?.version_name ?? t("currentRevision"),
+      }}
+      computedAt={computedAt}
+    />
+  );
 }
 
 /**
@@ -197,14 +224,25 @@ export default async function RisksPage({
             </FiguresGrid>
             <RiskStateFilter states={states} />
           </div>
-          <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
+          <RiskMatrixSection
+            reading={reading}
+            matrix={matrix}
+            states={states}
+            computedAt={coverage.context.computed_at}
+          />
+          {/* The detail of a risk, beside the grid, keeps the height to read it in: the window too
+              low for the chart, the grid and the detail scrolls the page. */}
+          <div
+            className={`flex flex-col gap-4 lg:flex-1 lg:flex-row ${detail === undefined ? "lg:min-h-0" : "lg:min-h-96"}`}
+          >
             <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
               <RisksGrid risks={risks} query={query} preferences={preferences} />
             </div>
-            <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
-              <RiskMatrixView matrix={matrix} />
-              {detail === undefined ? <DetailHint /> : <RiskDetail {...detail} />}
-            </aside>
+            {detail === undefined ? null : (
+              <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
+                <RiskDetail {...detail} />
+              </aside>
+            )}
           </div>
         </Screen>
       </PendingAddress>

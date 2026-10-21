@@ -52,6 +52,7 @@ const PALETTE: ChartPalette = {
   axis: "axis",
   grid: "grid",
   background: "background",
+  zones: { nominal: "nominal", watch: "watch", alert: "alert" },
   font: "font",
 };
 

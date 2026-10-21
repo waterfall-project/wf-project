@@ -627,7 +627,20 @@ dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de plann
 courbe trace les chaînes de l'API telles quelles — ECharts en tire une position —, une valeur
 non calculable étant un trou, un cumul d'événements datés — valeur acquise, coût réel — en
 escalier (`step`), une marche verticale par deux points à la même date, et le tableau les écrit
-par `src/i18n/format.ts`, les zones par `Signal`. Une figure qui reçoit `exported` offre la
+par `src/i18n/format.ts`, les zones par `Signal`. La matrice des risques est un nuage de bulles
+(`risks/risk-bubble-chart.tsx`, `RiskBubbleChart`, partagé par le projet et le portefeuille) : un
+`scatter` par état de risque — le cercle, le losange, le triangle, que la légende montre —, sur
+seize `markArea` d'une série à part, une par case, que `ChartPalette.zones` colore des jetons des
+zones (`ZoneProbes` de `signal/signal.tsx`, le seul fichier qui nomme ces jetons) ; une zone
+se nomme dans son aire quand sa bande a la place d'une ligne, et son bord a un trait à elle (plein,
+tireté, pointillé), la couleur ne la portant jamais seule. Les axes vont du zéro à la fin du dernier
+niveau — que le serveur laisse sans borne haute, et qu'ECharts ne prolonge pas pour une aire —, à
+la bulle la plus haute près ; une bulle est à la probabilité et à la part de gravité exactes de son
+point, et sa taille, bornée, suit la gravité en montant ; l'infobulle dit le risque, son projet au
+portefeuille, et le clic (`onPoint` de `Chart`, par l'`id` de la donnée) ouvre le détail du risque
+dans l'adresse d'un projet, ou le projet d'un point que `can_open` permet d'ouvrir. La table du
+décompte par case (`RiskCountsTable`, `cells`) est celle des valeurs de la figure. Une figure qui
+reçoit `exported` offre la
 commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une instance hors
 écran, en rendu canvas, à la taille d'une image, son titre et sa provenance (`useProvenance`) —
 projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs (`detail` : la base et
@@ -679,7 +692,11 @@ la suivent sont les risques, le devis, le reste à engager, les coûts réels et
 portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau du contexte de
 lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la ligne des
 totaux de la grille reste dans la fenêtre sous les cartes, à 1366 et à 911 de large sur 768 de
-haut : `e2e/grid-frame.spec.ts` le vérifie. _Contrôle_ : la revue ;
+haut : `e2e/grid-frame.spec.ts` le vérifie — sauf les risques, dont le graphique de la matrice
+(288 points, `h-72`) prend la place entre les cartes et la grille. Cette exception à 768 de haut
+attend la décision de #1252 : elle est affirmée par un test à part, qui exige que les totaux soient dans
+la fenêtre une fois la page défilée, d'au plus la hauteur du bloc de la matrice ; la règle générale
+est vérifiée sur les risques dans une fenêtre de 1000 de haut. _Contrôle_ : la revue ;
 `src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
 ### Les grilles
@@ -917,9 +934,13 @@ risques retenus, par état et le total général, tels que le serveur les rend ;
 contrat) ; la grille dense, une configuration de plus (`risk-grid.tsx`), en lecture, où la
 gravité et la provision sont des colonnes calculées entières — aucun champ de nœud à demander
 (`field` rend `undefined`), leur refus nomme les règles que le risque porte pour chacune
-(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
-par les bornes que rend le serveur, chaque case par son signal et son nombre de risques ; et,
-quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provision présente ou
+(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice des risques, un nuage de bulles
+(`RiskBubbleChart`, « Les courbes ») sur toute la largeur entre les cartes et la grille — la colonne
+de droite n'existe plus —, dont les bulles sont les risques des états du filtre, et sous lui la table du
+décompte par case, ses axes nommés par les bornes que rend le serveur, chaque case par son signal et
+son nombre de risques ; et,
+quand l'adresse nomme un risque (`risk`) — d'un clic sur sa bulle ou sur son libellé —, son détail, dans
+une colonne à côté de la grille qui garde de quoi le lire (la page défile dans une fenêtre trop basse) : notes, ligne de provision présente ou
 retirée à la survenance, avec la catégorie et le sous-projet que le risque désigne pour elle, par les
 libellés que le serveur résout — la catégorie dite désactivée quand elle ou sa nature l'est
 (`provision_cost_category_is_active`), la provision hors sous-projet quand il n'en désigne aucun

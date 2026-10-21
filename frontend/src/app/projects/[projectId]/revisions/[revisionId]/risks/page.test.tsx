@@ -134,9 +134,22 @@ describe("the screen of the risks", () => {
     expect(callsTo(RISK)).toEqual([]);
     expect(callsTo(REVIEWS)).toEqual([]);
     expect(text(page)).toContain("Risk management 3 risks retained");
-    expect(text(page)).toContain(
-      "Choose a risk in the register to read its description, its mitigation actions and the history of its reviews.",
-    );
+    // The matrix is not in a column beside the grid: with no risk named, nothing is.
+    expect(page).not.toContain("<aside");
+  });
+
+  it("draws the matrix over the whole width, between the cards and the grid, as a bubble chart [WF-RIS-0040-A]", async () => {
+    const page = await risksAt();
+    const figure = page.indexOf("<figure aria-labelledby");
+    expect(figure).toBeGreaterThan(page.indexOf('aria-label="Risk coverage"'));
+    expect(figure).toBeLessThan(page.indexOf('role="grid"'));
+    expect(text(page.slice(figure, figure + 400))).toContain("Risk matrix");
+    expect(page).toContain("Export as PNG");
+    expect(page).not.toContain("<aside");
+    // A risk named opens its detail in a column beside the grid, the matrix staying above.
+    const opened = await risksAt({ risk: CABLING });
+    expect(opened.indexOf("<aside")).toBeGreaterThan(opened.indexOf('role="grid"'));
+    expect(opened.indexOf("<figure aria-labelledby")).toBeLessThan(opened.indexOf('role="grid"'));
   });
 
   it("hands the grid the risks in the order of the answer, of each the fields it reads alone", async () => {
@@ -232,8 +245,11 @@ describe("the screen of the risks", () => {
 
   it("names the axes of the matrix by their bounds, and each cell by its signal and its count [WF-IHM-0070-A]", async () => {
     const page = await risksAt();
-    // The table of the matrix, named by its caption.
-    const start = page.lastIndexOf("<table", page.indexOf("Risk matrix</h2></caption>"));
+    // The table of the counts of the matrix, under the chart, named by its caption.
+    const start = page.lastIndexOf(
+      "<table",
+      page.indexOf("Count of the risks by cell of the matrix, all states together</caption>"),
+    );
     const matrix = page.slice(start, page.indexOf("</table>", start));
     expect(text(matrix)).toContain(
       "Probability Severity, as a share of the reference budget " +
