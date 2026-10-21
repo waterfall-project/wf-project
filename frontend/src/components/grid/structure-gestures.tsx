@@ -376,7 +376,7 @@ export function useStructureGestures<Row extends GridNode>(
   const remove = (row: Row, opening: number | undefined, cell?: HTMLElement) => {
     const label = labelOf(row);
     send(
-      () => deleteNode(scope.structure, row.node_id),
+      () => deleteNode(scope.structure, row.node_id, row.lock_version),
       row,
       { label, done: t("deleted", { label }) },
       opening,

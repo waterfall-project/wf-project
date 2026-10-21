@@ -88,9 +88,26 @@ def test_a_line_removed_is_sorted_by_its_base_values_and_unsorted_stays_in_place
     ]
     assert line["estimate_line"] == was
     assert (lines.index(line), line["position"]) == (0, 1)
+    # Read as listNodes reads it, sorted by the amount descending through the sort of the fake
+    # back (`mockcore.subtree`, #1216): the marked tree, each node at its row, the one removed
+    # read on its base values — those it had before —, the others on their own.
+    numbers = {cast("str", row.node["node_id"]): row.number for row in [*before, *after]}
+    tree = [
+        mockcore.Row(
+            numbers[node["node_id"]],
+            None if node["parent_id"] is None else numbers[node["parent_id"]],
+            node["row_number"],
+            node["kind"],
+            "",
+            node,
+        )
+        for node in nodes
+    ]
     by_amount = LineSort("base_amount", descending=True)
-    ordered = sorted(lines, key=lambda node: by_amount.key(node["estimate_line"]), reverse=True)
+    read = cast("list[dict[str, Any]]", mockcore.subtree(tree, N.WIRING, sort=by_amount)["items"])
+    siblings = [node for node in read if node["parent_id"] == wiring]
+    assert [node["node_id"] for node in siblings][-1] == line["node_id"]
+    assert len(siblings) == len(lines)
     amount = Decimal(was["base_amount"])
     others = [Decimal(node["estimate_line"]["base_amount"]) for node in lines if node is not line]
     assert all(other > amount for other in others)
-    assert ordered.index(line) == len(lines) - 1

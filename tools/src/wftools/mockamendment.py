@@ -133,14 +133,15 @@ def _copied(roots: Iterable[Task]) -> tuple[Task, ...]:
     return rewritten(roots, lambda task: replace(task, bears=None, inscriptions=()))
 
 
-def marked() -> list[JsonObject]:
+def marked(roots: Iterable[Task] | None = None) -> list[JsonObject]:
     """Return the whole differential read today, marked against the main structure.
 
     The main structure as the differential copies it, so that a node removed renders as a node of
     the differential would; the marks are those of its values alone (``mockdiff``); every node
-    named by its identifier in the differential (``own_id``).
+    named by its identifier in the differential (``own_id``). The differential as described, or
+    as a write leaves it (``roots``).
     """
-    before, after = mockcore.current(_copied(described())), rows()
+    before, after = mockcore.current(_copied(described())), rows(roots)
     nodes = mockdiff.marked(before, after)
     own = {node_id(row.number): own_id(row.number) for row in (*before, *after)}
     for node in nodes:
@@ -157,9 +158,12 @@ def marked() -> list[JsonObject]:
     return nodes
 
 
-def rows() -> list[mockcore.Row]:
-    """Return the differential read today, its lines after the review of the reference."""
-    return mockcore.current(amendment())
+def rows(roots: Iterable[Task] | None = None) -> list[mockcore.Row]:
+    """Return the differential read today, its lines after the review of the reference.
+
+    As described, or as a write leaves it (``roots``).
+    """
+    return mockcore.current(amendment() if roots is None else roots)
 
 
 def nodes_amendment() -> JsonObject:

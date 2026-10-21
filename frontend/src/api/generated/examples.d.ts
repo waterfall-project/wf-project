@@ -239,6 +239,9 @@ export interface Examples {
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_attached" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
   };
+  "PATCH /projects/{project_id}/risks/{risk_id}": {
+    200: "risk_updated";
+  };
   "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
     200: "subproject_updated";
   };
@@ -328,6 +331,15 @@ export interface Examples {
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_subproject_held" | "paste_plan_unknown_category";
+  };
+  "POST /projects/{project_id}/risks": {
+    201: "risk_created";
+  };
+  "POST /projects/{project_id}/risks/{risk_id}/occurrence": {
+    202: "task_occurrence_queued";
+  };
+  "POST /projects/{project_id}/risks/{risk_id}/reviews": {
+    201: "risk_reviewed";
   };
   "POST /projects/{project_id}/subprojects": {
     201: "subproject_created";

@@ -43,6 +43,9 @@ const STRUCTURE = {
 const planning = example("nodes_planning") as NodeList;
 const id = (index: number) => planning.items[index]?.node_id;
 const [STUDIES, DETAIL, DESKS, REVIEW, MILESTONE, FILE] = [0, 1, 2, 3, 4, 5];
+const movedAnswer = example("nodes_moved") as { structure_lock_version: number };
+/** The counter of the structure the first move answers, which the next move sends. */
+const MOVED_VERSION = movedAnswer.structure_lock_version;
 
 /** Serve the fake back, its answers held until `hold` settles if one is given. */
 function serve(hold?: Promise<unknown>): FakeClient {
@@ -389,7 +392,7 @@ describe("the moves of a selection", () => {
         node_ids: [id(MILESTONE)],
         parent_id: id(STUDIES),
         after_node_id: id(REVIEW),
-        lock_version: 2,
+        lock_version: MOVED_VERSION,
       },
     ]);
   });
@@ -432,7 +435,12 @@ describe("the moves through the reading anew they ask", () => {
     await userEvent.keyboard(DOWN);
     expect(moved(client)).toEqual([
       { node_ids: [id(DESKS)], parent_id: id(STUDIES), after_node_id: id(REVIEW), lock_version: 1 },
-      { node_ids: [id(REVIEW)], parent_id: id(STUDIES), after_node_id: id(DESKS), lock_version: 2 },
+      {
+        node_ids: [id(REVIEW)],
+        parent_id: id(STUDIES),
+        after_node_id: id(DESKS),
+        lock_version: MOVED_VERSION,
+      },
     ]);
   });
 
@@ -481,7 +489,7 @@ describe("the moves through the reading anew they ask", () => {
         node_ids: [id(DESKS)],
         parent_id: id(STUDIES),
         after_node_id: id(MILESTONE),
-        lock_version: 2,
+        lock_version: MOVED_VERSION,
       },
     ]);
   });
@@ -691,7 +699,7 @@ describe("the drag of rows by their handles", () => {
     await screen.findByText("« Dossier de conception » déplacée.");
     expect(moved(client)).toEqual([
       { node_ids: [id(DESKS)], parent_id: id(STUDIES), after_node_id: id(REVIEW), lock_version: 1 },
-      { node_ids: [id(FILE)], parent_id: id(DETAIL), lock_version: 2 },
+      { node_ids: [id(FILE)], parent_id: id(DETAIL), lock_version: MOVED_VERSION },
     ]);
   });
 
