@@ -7126,6 +7126,22 @@ de la tâche : le début au début de son jour (`0`), la fin au bout des heures 
 accorde ce jour-là. Envoyées, les heures sont prises telles quelles. Le front affiche, il ne
 calcule pas.
 
+**Des heures envoyées au-delà de celles du jour sont refusées, jamais bornées** (revue de #1244).
+Un `WorkInstant` compte les heures de travail écoulées ce jour-là sur le calendrier applicable
+(WF-DAT-0100) : il n'y en a jamais plus que le calendrier n'en accorde, ni moins de `0`. Des
+heures hors de ces bornes — `{"date": <samedi>, "hours": "6"}` sur un calendrier sans samedi —
+sont refusées par 422 `VALIDATION_FAILED`, `fields` sur `/start/hours` ou `/finish/hours` par
+`VALUE_OUT_OF_RANGE`, `fields[].params` portant la seule borne franchie, `minimum` à `0` ou
+`maximum` aux heures du jour, `0` un jour sans heure travaillée ; rien n'est écrit. Écarté :
+borner les heures au maximum du jour. « Prises telles quelles » ne le permet pas — le serveur
+écrirait une autre valeur que celle envoyée, sans le dire, et une fin envoyée à `10` sur un jour
+de huit heures deviendrait `8` sans que le client le sache ; le refus dit la borne, que le client
+connaît dès lors sans connaître le calendrier. Le motif est celui de toute borne incluse
+franchie, `VALUE_OUT_OF_RANGE` (« Session et erreurs ») : aucun code nouveau, et le front le dit
+déjà. La borne dépend du calendrier et du jour : le schéma ne la publie pas en `maximum`.
+Exemple engendré : `task_hours_beyond_day`, la fin de la mise en service envoyée un samedi à six
+heures, refusée, `maximum` à `0`.
+
 **Un jour sans heure travaillée est gardé, le début et la fin à `0`.** La spécification ne dit
 rien d'une date manuelle saisie un jour chômé de son calendrier ; WF-PLA-0020 dit seulement que
 Waterfall ne recalcule jamais les dates d'une tâche manuelle, qui « tient lieu de contrainte de

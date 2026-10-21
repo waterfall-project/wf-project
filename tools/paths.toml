@@ -318,6 +318,7 @@ paths = [
     "fixtures/api/task_description_entered.json",
     "fixtures/api/task_date_computed_refused.json",
     "fixtures/api/task_horizon_exceeded.json",
+    "fixtures/api/task_hours_beyond_day.json",
     "fixtures/api/predecessors_entered.json",
     "fixtures/api/predecessors_cycle_refused.json",
     "fixtures/api/predecessors_forbidden.json",

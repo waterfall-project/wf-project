@@ -962,13 +962,18 @@
           nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`). Ou, sans
           `fields`, une saisie qui porterait la durée du projet au-delà de quinze ans :
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé
-          (WF-PLA-0150).
+          (WF-PLA-0150). Ou des heures envoyées avec une date hors de `0` aux heures que le
+          calendrier de la tâche accorde ce jour-là : `fields` sur `/start/hours` ou
+          `/finish/hours` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum`
+          aux heures du jour, la seule borne franchie, `0` un jour sans heure travaillée
+          (`WorkInstantWrite`, WF-PLA-0010, WF-DAT-0100, #1244).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
+              hours_beyond_day: { $ref: ../../../fixtures/api/task_hours_beyond_day.json }
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
               attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_work_package.json }
               attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }

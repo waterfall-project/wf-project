@@ -65,8 +65,12 @@ WorkInstantWrite:
     heures que le calendrier accorde ce jour-là — `8` un vendredi d'un calendrier de huit
     heures. La date est gardée telle qu'elle est saisie, même un jour sans heure travaillée,
     que Waterfall ne déplace pas (WF-PLA-0020 : « ne les recalcule jamais ») : le début et la
-    fin y sont à `0`, sans refus (#1244). Envoyées, les heures sont prises telles quelles. La
-    lecture rend toujours un `WorkInstant`, ses heures complétées.
+    fin y sont à `0`, sans refus (#1244). Envoyées, les heures sont prises telles quelles,
+    jamais bornées : hors de `0` aux heures que le calendrier accorde ce jour-là, elles sont
+    refusées par 422 `VALIDATION_FAILED`, `fields` sur `/start/hours` ou `/finish/hours` par
+    `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la
+    seule borne franchie — `maximum` à `0` un jour sans heure travaillée. La lecture rend
+    toujours un `WorkInstant`, ses heures complétées.
   properties:
     date: { $ref: '#/PlanningDate' }
     hours: { $ref: '#/Hours' }

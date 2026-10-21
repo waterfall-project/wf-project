@@ -214,6 +214,41 @@ def task_dates_sent() -> JsonObject:
     }
 
 
+HOURS_BEYOND_DAY = (date(2027, 1, 16), Decimal(6))
+"""The finish sent with its hours on the commissioning, manual: a Saturday, at six hours."""
+HOURS_CORRELATION = universe(1305)
+
+
+def hours_granted() -> Decimal:
+    """Return the hours the calendar of the commissioning grants the day of HOURS_BEYOND_DAY."""
+    day, _ = HOURS_BEYOND_DAY
+    first, _ = ENTERED_DATES
+    roots = amended(CORE, on_task(N.COMMISSIONING, manual=(first, day)))
+    return mockcore.schedule(roots)[N.COMMISSIONING].calendar.hours_on(day)
+
+
+def task_hours_beyond_day() -> JsonObject:
+    """Return what updateTaskFacet answers to a finish sent past the hours its day grants.
+
+    Hours sent are taken as they are, never bounded (#1244): those its day on the calendar of
+    the task does not grant are refused on their field, the bound crossed in ``maximum`` — none
+    on a day without hours of work.
+    """
+    maximum = hours_granted()
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/finish/hours",
+                "code": "VALUE_OUT_OF_RANGE",
+                "params": {"maximum": str(maximum)},
+            }
+        ],
+        "correlation_id": HOURS_CORRELATION,
+    }
+
+
 ENTERED_DURATION = (3, "w")
 DURATION_TASK = "Préparation 1.1.1"
 """The task drawn about the core whose duration is entered in weeks, kept in that unit
@@ -694,6 +729,16 @@ def _entry_examples() -> dict[str, JsonObject]:
             f"{mocktext.day(project_start())} : la saisie est refusée et la tâche nommée par son "
             f"nœud et son libellé ; rien n'est écrit (WF-PLA-0150).",
             task_horizon_exceeded(),
+        ),
+        "task_hours_beyond_day.json": mocktext.example(
+            f"La fin de la « {rows[N.COMMISSIONING].label} », en mode manuel, envoyée le "
+            f"{mocktext.day(HOURS_BEYOND_DAY[0])} à {HOURS_BEYOND_DAY[1]} h, quand le calendrier "
+            f"de la tâche en accorde "
+            f"{hours_granted()} ce jour-là : les heures "
+            f"envoyées sont prises telles quelles, jamais bornées, et refusées sur leur champ, "
+            f"la borne franchie nommée ; rien n'est écrit (WF-PLA-0010, WF-PLA-0020, "
+            f"WF-DAT-0100, #1244).",
+            task_hours_beyond_day(),
         ),
     }
 
