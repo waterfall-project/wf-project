@@ -129,9 +129,11 @@ afterEach(() => {
 roomForCharts();
 
 describe("the workload of a project", () => {
-  it("draws the load of each role by month in bars, as the API gave them, and no capacity nor ratio [WF-DEV-0070-A]", async () => {
+  it("stacks the load of each role by month in bars, as the API gave them, and draws no capacity, no ratio nor total [WF-DEV-0070-A]", async () => {
     workload();
-    const image = screen.getByRole("img", { name: /^Bars of the load of each resource role/ });
+    const image = screen.getByRole("img", {
+      name: /^Stacked bars of the load of each resource role/,
+    });
     await waitFor(() => {
       expect(getInstanceByDom(image)).toBeDefined();
     });
@@ -154,6 +156,9 @@ describe("the workload of a project", () => {
     // The bars alone: the capacity of each role, that of the whole installation, is in the table,
     // in regard of its load, never drawn — a line that would crush the bars (#375, option b).
     expect(series.map((each) => each.type)).toEqual(["bar", "bar", "bar"]);
+    // One stack, a bar a month divided by role; the plan of a project gets no total of its months
+    // from the contract, and sums nothing here.
+    expect(series.map((each) => (each as BarSeriesOption).stack)).toEqual(["load", "load", "load"]);
     // Its months on an axis in UTC, June 2026 to August 2029: a tick every six months over so
     // long a range, from the first of 2026 to the first of 2030.
     expect(option.useUTC).toBe(true);

@@ -605,7 +605,18 @@ mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe. Elle
 coup, sans animation, et une légende y est inerte : un clic, à la souris seule, ne cache aucune
 série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur nombre — pas de
 légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
-chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; une
+chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; un plan de
+charge est un histogramme empilé (`stackedRoles` de `workload/stacked-load.ts` : une barre par mois,
+divisée par rôle, les motifs gardés), dont l'infobulle d'un mois liste les rôles et leurs heures
+(`monthTooltip`, libellés échappés) ; celui du projet n'a ni droite de capacité (#375) ni total de
+mois, le contrat n'en rendant pas, celui du portefeuille porte le total de chaque mois que le
+serveur rend (`monthly_totals`, `monthTotals`) au sommet de sa barre et, en pointillés, la capacité
+du périmètre (`capacity_monthly_hours`), la table des rôles, de leur taux et de leurs signaux étant
+sous le graphique ; les liens vers le plan de charge ouvrent une base (`basis`,
+`workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis `reference_budget`
+d'un projet en cours ou terminé qui a une référence, `current_remaining` sinon ; le lien du reste à
+engager vers ce plan est une icône seule (`aria-label`, `title`), le titre de l'écran et les totaux
+de sa grille ne tenant dans la fenêtre de 1280 points qu'à ce prix (`remaining.spec.ts`) ; une
 courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; une série de barres
 (`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ;
 `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire des instants

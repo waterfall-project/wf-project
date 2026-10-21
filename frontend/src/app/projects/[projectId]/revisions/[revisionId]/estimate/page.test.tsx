@@ -202,6 +202,26 @@ describe("the way from the estimate to the imports and exports (#521)", () => {
   });
 });
 
+describe("the link of the estimate to the workload (#1069)", () => {
+  const WORKLOAD = `/projects/${PROJECT}/revisions/${REVISION}/workload`;
+
+  it("opens the workload on the reference budget once the project is in progress, and on the remaining of the revision under way while it is priced [WF-DEV-0070-A]", async () => {
+    expect(await estimatePage("me")).toContain(`href="${WORKLOAD}?basis=reference_budget"`);
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing_estimator",
+    };
+    expect(await estimatePage("me_estimator")).toContain(
+      `href="${WORKLOAD}?basis=current_remaining"`,
+    );
+  });
+
+  it("keeps the context of the address, and adds the basis to it [WF-DEV-0070-A]", async () => {
+    const page = await estimatePage("me", { as_of: "2026-03-16" });
+    expect(page).toContain(`href="${WORKLOAD}?as_of=2026-03-16&amp;basis=reference_budget"`);
+  });
+});
+
 describe("the shares of the estimate (#626)", () => {
   it("says a share too small to show below the smallest shown, never « 0% »", async () => {
     // The estimate the offer v1.0 kept at its marking: its work package, 2,019.56 of 65,427,832.64,

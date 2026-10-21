@@ -712,10 +712,11 @@ describe("the indicators and the missing rates of the estimate", () => {
     expect(text(html)).toMatch(
       /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 66,105,223.89 .*No\. Label/,
     );
-    // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
+    // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
+    // on the reference budget of a project in progress (#1069).
     expect(html).toMatch(
       new RegExp(
-        `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/workload"[^>]*>.*?Workload</a>`,
+        `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/workload\\?basis=reference_budget"[^>]*>.*?Workload</a>`,
       ),
     );
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');

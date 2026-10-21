@@ -142,6 +142,29 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   }
 });
 
+test("leads from the remaining to commit to the workload of the project, on the remaining of the revision under way, in the same context [WF-DEV-0070-A]", async ({
+  page,
+}) => {
+  test.slow();
+  await compile(page.request, `${IN_REVISION}/workload`);
+  // The link is an icon alone for the room of the head on a window of 1280 points: the title of
+  // the screen and the totals of the grid are in view all the same.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
+  await expect(page.getByRole("heading", { level: 1 })).toBeInViewport({ ratio: 1 });
+  await expect(
+    page
+      .getByRole("treegrid", { name: "Grille de reste à engager" })
+      .getByRole("gridcell", { name: /^Total — / }),
+  ).toBeInViewport({ ratio: 1 });
+  await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
+  await expect(page).toHaveURL(
+    `${IN_REVISION}/workload?subproject_id=${SUBPROJECT}&basis=current_remaining`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByLabel("Base")).toHaveValue("current_remaining", { timeout: WORKING });
+});
+
 test("carries a line to a sub-project from the menu of its cell, and takes it out of any, the column being shown [WF-PRJ-0050-A] [WF-RAE-0040-A]", async ({
   page,
 }) => {
