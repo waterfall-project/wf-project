@@ -313,6 +313,7 @@ paths = [
     "fixtures/api/node_summary_deleted.json",
     "fixtures/api/task_mode_changed.json",
     "fixtures/api/task_dates_entered.json",
+    "fixtures/api/task_dates_sent.json",
     "fixtures/api/task_duration_entered.json",
     "fixtures/api/task_description_entered.json",
     "fixtures/api/task_date_computed_refused.json",

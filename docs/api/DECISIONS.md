@@ -7112,6 +7112,40 @@ donc là, et un changement du contrat échoue aux tests de ses champs. Écarté 
 type du champ que désigne `loc` dans le modèle, comme le proposait #1236, puisque le test suffit à
 dire la dérive.
 
+## Les heures d'une date saisie, complétées par le serveur (EP-15/US-0470, #1244)
+
+**Une date de début ou de fin se saisit sans ses heures** (décision de l'auteur du 2026-10-21,
+#1244 ; WF-PLA-0010, WF-PLA-0020, WF-DAT-0100). `TaskFacetUpdate.start` et `finish` exigeaient un
+`WorkInstant` entier, la date et les heures de travail écoulées ce jour-là sur le calendrier
+applicable ; or le front ne connaît pas ce calendrier. La grille reprenait donc les heures que la
+tâche portait à son ancienne date, ou `0` : un début à `4` déplacé à un jour de moins de quatre
+heures aurait porté des heures que le calendrier n'accorde pas. L'entrée de `updateTaskFacet`
+prend un schéma propre, `WorkInstantWrite`, dont `hours` est facultatif ; `WorkInstant` reste
+celui des lectures, `hours` exigé. Sans `hours`, le serveur complète sur le calendrier applicable
+de la tâche : le début au début de son jour (`0`), la fin au bout des heures que le calendrier
+accorde ce jour-là. Envoyées, les heures sont prises telles quelles. Le front affiche, il ne
+calcule pas.
+
+**Un jour sans heure travaillée est gardé, le début et la fin à `0`.** La spécification ne dit
+rien d'une date manuelle saisie un jour chômé de son calendrier ; WF-PLA-0020 dit seulement que
+Waterfall ne recalcule jamais les dates d'une tâche manuelle, qui « tient lieu de contrainte de
+date » — une livraison un samedi est une date imposée de l'extérieur. La règle retenue est la plus
+simple : la formule s'applique telle quelle, et un jour sans heure donne `0` au début comme à la
+fin. Écartés : reporter la date au jour ouvré suivant, ce qui recalculerait une date manuelle
+contre WF-PLA-0020 ; un refus, qu'aucun motif déclaré ne porte — `TASK_WITHOUT_WORKING_HOURS`
+juge la semaine d'un calendrier, non un jour, et un code nouveau aurait refusé ce que MS Project
+accepte d'une tâche manuelle.
+
+**La création n'est pas touchée.** `TaskFacetWrite` (`createNode`) garde `WorkInstant` : la
+décision vise la saisie d'une date dans la grille ; une création qui portera des dates saisies
+suivra la même règle, par une modification du contrat.
+
+Exemple engendré (`wftools.mockgestures`) : `task_dates_sent`, le corps de `updateTaskFacet` qui
+donne `task_dates_entered` — les dates de la mise en service, manuelle, envoyées par leur seule
+date, rendues à `0` et `8` heures sur son calendrier. Le faux back complète désormais
+les heures d'une tâche manuelle sur son calendrier applicable (`wftools.mockcore`), et non plus à
+huit heures ; aucune réponse engendrée n'en change.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

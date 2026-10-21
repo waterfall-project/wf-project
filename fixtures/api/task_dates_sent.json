@@ -1,0 +1,9 @@
+{
+  "summary": "Les dates de la « Mise en service », en mode manuel (task_mode_changed), envoyées sans leurs heures, le 4 janvier 2027 et le 15 janvier 2027, avec le compteur que le changement de mode lui a laissé : le front ne connaît pas le calendrier, et le serveur complète les heures, le début au début de son jour, la fin au bout de ses heures sur le calendrier de la tâche — 0 h et 8 h, ce que rend task_dates_entered (WF-PLA-0020, WF-DAT-0100, #1244).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "start": {"date":"2027-01-04"},
+    "finish": {"date":"2027-01-15"},
+    "lock_version": 2
+  }
+}

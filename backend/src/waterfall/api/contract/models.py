@@ -3658,13 +3658,18 @@ class ComputedValueDependencies(ContractModel):
     ]
 
 
+class WorkInstantWrite(ContractModel):
+    date: PlanningDate
+    hours: Hours | None = None
+
+
 class TaskFacetUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
     description: str | None = None
     scheduling_mode: SchedulingMode | None = None
     duration: Duration | None = None
-    start: WorkInstant | None = None
-    finish: WorkInstant | None = None
+    start: WorkInstantWrite | None = None
+    finish: WorkInstantWrite | None = None
     work_package_id: Annotated[
         Uuid | None,
         Field(

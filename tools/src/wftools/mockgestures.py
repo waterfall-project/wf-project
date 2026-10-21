@@ -198,6 +198,22 @@ def task_dates_entered() -> JsonObject:
     )
 
 
+def task_dates_sent() -> JsonObject:
+    """Return the body of updateTaskFacet that ``task_dates_entered`` answers: the days alone.
+
+    The front does not know the calendar: it sends the dates without their hours, which the
+    server completes, the start at the start of its day, the finish at the end of its hours
+    (#1244). The counter is the one the mode changed left (``task_mode_changed``).
+    """
+    first, last = ENTERED_DATES
+    [manual] = _nodes(task_mode_changed())
+    return {
+        "start": {"date": first.isoformat()},
+        "finish": {"date": last.isoformat()},
+        "lock_version": manual["lock_version"],
+    }
+
+
 ENTERED_DURATION = (3, "w")
 DURATION_TASK = "Préparation 1.1.1"
 """The task drawn about the core whose duration is entered in weeks, kept in that unit
@@ -639,6 +655,17 @@ def _entry_examples() -> dict[str, JsonObject]:
             f"{_redated(dated)}. Avec elle, sa récapitulative et {totals_said(dated)} "
             f"(WF-PLA-0020, WF-DEV-0040).",
             dated,
+        ),
+        "task_dates_sent.json": mocktext.example(
+            f"Les dates de la « {rows[N.COMMISSIONING].label} », en mode manuel "
+            f"(task_mode_changed), envoyées sans leurs heures, le "
+            f"{mocktext.day(ENTERED_DATES[0])} et le {mocktext.day(ENTERED_DATES[1])}, avec le "
+            f"compteur que le changement de mode lui a laissé : le front ne connaît pas le "
+            f"calendrier, et le serveur complète les heures, le début au début de son jour, la "
+            f"fin au bout de ses heures sur le calendrier de la tâche — "
+            f"{_task(dated)['start']['hours']} h et {_task(dated)['finish']['hours']} h, ce que "
+            f"rend task_dates_entered (WF-PLA-0020, WF-DAT-0100, #1244).",
+            task_dates_sent(),
         ),
         "task_duration_entered.json": mocktext.example(
             f"La durée de « {DURATION_TASK} », tâche tirée autour du cœur, saisie en semaines, "
