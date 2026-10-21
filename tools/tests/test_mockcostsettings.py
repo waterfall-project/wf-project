@@ -150,6 +150,10 @@ SMALLEST_RATE = Decimal("0.01")
 """The smallest positive amount a `Money` writes, two decimals."""
 
 
+READ_WITH_FIELDS = frozenset({"volume/comparison_volume"})
+"""The examples read with `fields`, whose lines may leave their category out (#1208)."""
+
+
 def _every_example() -> dict[str, Any]:
     return {
         path.relative_to(mockwitness.FIXTURES).with_suffix("").as_posix(): json.loads(
@@ -185,15 +189,16 @@ def _categories() -> dict[str, Entry]:
 def _lined(examples: dict[str, Any]) -> set[str]:
     """Return the categories a line of an example bears.
 
-    A reading that names `fields` may leave the category out (#166, #1208): the line it reduces is
-    one another example renders whole.
+    Only an example read with `fields` may leave the category out (#166, #1208): the line it
+    reduces is one another example renders whole. A line of any other example bears it, or the
+    reading fails.
     """
     return {
-        entry["estimate_line"]["cost_category_id"]
-        for example in examples.values()
+        line["cost_category_id"]
+        for key, example in examples.items()
         for entry in _walk(example["value"])
-        if isinstance(entry.get("estimate_line"), dict)
-        and "cost_category_id" in entry["estimate_line"]
+        if isinstance(line := entry.get("estimate_line"), dict)
+        and (key not in READ_WITH_FIELDS or "cost_category_id" in line)
     }
 
 

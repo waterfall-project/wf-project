@@ -13,7 +13,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdiff, mockhistory
+from wftools import mockcore, mockdata, mockdiff, mockhistory
 from wftools.mockids import universe
 from wftools.mockwitness import N
 
@@ -164,3 +164,14 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     assert "5 999 nœuds" in summary
     assert "2 770 modifiés par leurs propres valeurs" in summary
     assert "1 027 251,25 en tout" in summary
+
+
+VOLUME_BOUND = 1_500_000
+"""The bytes the volume of the comparison stays under, written as the fixture is (#1204)."""
+
+
+def test_the_volume_of_the_comparison_stays_under_its_bound() -> None:
+    # #1204: the volume is read by the screen and versioned; a reading that renders more than the
+    # fields of the screen, or nodes rendered whole, would make it grow past its bound.
+    written = mockdata.render(mockhistory.comparison_volume()).encode("utf-8")
+    assert len(written) < VOLUME_BOUND
