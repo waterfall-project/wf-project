@@ -40,8 +40,13 @@ import { type NamedRevision, useRevisionName } from "./revision-history";
 /** A comparison of two revisions, as the API renders it. */
 export type RevisionComparison = components["schemas"]["RevisionComparison"];
 
-type ComparisonNode = components["schemas"]["Node"];
+/**
+ * A node of the comparison, as `fields` reduces it (#1208): only its address and its mark are always
+ * rendered, the rest when `fields` names it.
+ */
+type ComparisonNode = components["schemas"]["ComparedNodeRead"];
 type NodeDifference = components["schemas"]["NodeDifference"];
+type NodeKind = components["schemas"]["NodeKind"];
 type AmountDelta = RevisionComparison["amount_deltas"][number];
 
 /** The two revisions the address asks to compare, as the contract names them. */
@@ -60,7 +65,7 @@ export function comparedRevisions(search: SearchParameters): ComparedRevisions |
 }
 
 /** The icon of each kind of node: a task, a line of the estimate. */
-const KIND_ICONS: Readonly<Record<ComparisonNode["kind"], LucideIcon>> = {
+const KIND_ICONS: Readonly<Record<NodeKind, LucideIcon>> = {
   task: ClipboardList,
   estimate_line: Calculator,
 };
@@ -174,6 +179,21 @@ function Part({
   );
 }
 
+/** The kind of a node, its icon and its name; nothing when `fields` leaves it out. */
+function KindOf({ kind }: { readonly kind: NodeKind | undefined }) {
+  const name = useTranslations("enums.NodeKind");
+  if (kind === undefined) {
+    return null;
+  }
+  const Icon = KIND_ICONS[kind];
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Icon aria-hidden="true" className={ICON} />
+      {name(kind)}
+    </span>
+  );
+}
+
 /** The tasks and lines of one part — added, removed, changed —, and what changed of each. */
 function Nodes({
   title,
@@ -187,37 +207,32 @@ function Nodes({
   readonly withChanges: boolean;
 }) {
   const t = useTranslations("revisionScreen.comparison");
-  const kind = useTranslations("enums.NodeKind");
   const change = useTranslations("enums.NodeChange");
   const columns = [t("label"), t("kind"), ...(withChanges ? [t("changes")] : [])];
   return (
     <Part title={title} empty={nodes.length === 0 ? none : undefined}>
       <ListTable label={title} columns={columns}>
-        {nodes.map((node) => {
-          const Icon = KIND_ICONS[node.kind];
-          return (
-            <TableRow key={node.lineage_id}>
-              <TableCell className={`${CELL} whitespace-normal`}>{labelOf(node)}</TableCell>
+        {nodes.map((node) => (
+          // Keyed by `node_id`, always rendered, and not by `lineage_id`, which `fields` leaves
+          // out when the screen does not name it (#1208): no two nodes of a reading share it.
+          <TableRow key={node.node_id}>
+            <TableCell className={`${CELL} whitespace-normal`}>{labelOf(node)}</TableCell>
+            <TableCell className={CELL}>
+              <KindOf kind={node.kind} />
+            </TableCell>
+            {withChanges ? (
               <TableCell className={CELL}>
-                <span className="inline-flex items-center gap-1.5">
-                  <Icon aria-hidden="true" className={ICON} />
-                  {kind(node.kind)}
+                <span className="flex flex-wrap gap-1">
+                  {node.changes.map((name) => (
+                    <Badge key={name} variant="outline">
+                      {change(name)}
+                    </Badge>
+                  ))}
                 </span>
               </TableCell>
-              {withChanges ? (
-                <TableCell className={CELL}>
-                  <span className="flex flex-wrap gap-1">
-                    {(node.changes ?? []).map((name) => (
-                      <Badge key={name} variant="outline">
-                        {change(name)}
-                      </Badge>
-                    ))}
-                  </span>
-                </TableCell>
-              ) : null}
-            </TableRow>
-          );
-        })}
+            ) : null}
+          </TableRow>
+        ))}
       </ListTable>
     </Part>
   );
@@ -261,8 +276,7 @@ function labelOf(node: ComparisonNode): string | undefined {
 function marked(nodes: readonly ComparisonNode[], difference: NodeDifference): ComparisonNode[] {
   return nodes.filter(
     (node) =>
-      node.difference === difference &&
-      (difference !== "modified" || (node.changes ?? []).length > 0),
+      node.difference === difference && (difference !== "modified" || node.changes.length > 0),
   );
 }
 

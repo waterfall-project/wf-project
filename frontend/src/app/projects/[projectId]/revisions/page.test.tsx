@@ -265,7 +265,7 @@ describe("the comparison of two revisions", () => {
     // A task the API marks modified for its content alone, with no change of its own, has no row:
     // its content says it — the summary task at the root of the window, and the two beneath it.
     const contentOnly = COMPARISON.items.filter(
-      (node) => node.difference === "modified" && (node.changes ?? []).length === 0,
+      (node) => node.difference === "modified" && node.changes.length === 0,
     );
     expect(contentOnly.map((node) => node.task?.label)).toEqual([
       "Installation sur site",
@@ -314,6 +314,42 @@ describe("the comparison of two revisions", () => {
       "Ajouts Rien n’a été ajouté. Retraits Rien n’a été retiré. " +
         "Modifications Rien n’a été modifié. Écarts de montants Aucun écart de montant.",
     );
+  });
+
+  it("presents a comparison read with fields, each node reduced to what the screen shows (#1208)", async () => {
+    // The volume of the witness, whole, each node reduced by `fields` to its kind and its label:
+    // no `lineage_id`, which the rows are not keyed by, nothing but what the parts show.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/comparison": "volume/comparison_volume",
+    };
+    const volume = example("volume/comparison_volume") as RevisionComparison;
+    expect(volume.items.some((node) => "lineage_id" in node)).toBe(false);
+    const page = html(
+      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
+    );
+    // As its summary counts them: 5 added, 2 removed, 2 770 changed by their own values.
+    expect([rows(page, "Ajouts"), rows(page, "Retraits"), rows(page, "Modifications")]).toEqual([
+      5, 2, 2770,
+    ]);
+    // Each node by its label and its kind, as `fields` gives them, in the order of the API.
+    const kinds = { task: "Tâche", estimate_line: "Ligne de devis" } as const;
+    for (const [part, difference] of [
+      ["Ajouts", "added"],
+      ["Retraits", "removed"],
+    ] as const) {
+      const nodes = volume.items.filter((node) => node.difference === difference);
+      expect(table(page, part)).toBe(
+        text(
+          `Libellé Nature ${nodes
+            .map(
+              (node) =>
+                `${node.task?.label ?? node.estimate_line?.label ?? ""} ${node.kind === undefined ? "" : kinds[node.kind]}`,
+            )
+            .join(" ")}`,
+        ),
+      );
+    }
   });
 
   it("asks nothing of the API until the address names both revisions", async () => {

@@ -28,6 +28,9 @@ if TYPE_CHECKING:
 
 ADDED, REMOVED, MODIFIED, UNCHANGED = "added", "removed", "modified", "unchanged"
 
+ALWAYS = (*mockcore.ALWAYS, "difference", "changes")
+"""What a marked tree renders of each node whatever `fields` names: its mark with the four."""
+
 _TASK_CHANGES = (
     ("dates", ("start", "finish")),
     ("duration", ("duration",)),

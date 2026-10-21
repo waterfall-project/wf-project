@@ -729,6 +729,41 @@ def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
     )
 
 
+VOLUME_FIELDS = ("kind", "task.label", "estimate_line.label")
+"""What the screen of the comparison shows of a node besides its mark: its kind and its label."""
+
+
+def comparison_volume() -> JsonObject:
+    """Return the volume of compareRevisions: the comparison read whole, with `fields` (#1201).
+
+    The offer and the reference over the whole structure, read without a filter as the screen of
+    the comparison reads it, each node reduced to what the screen shows (`VOLUME_FIELDS`) besides
+    what a marked tree always renders: the scale its bound of time is tried on (US-0500/L4).
+    """
+    compared = comparison(offer_rows(), reference_rows(), OFFER, REFERENCE)
+    nodes = cast("list[JsonObject]", compared["items"])
+    added, removed, changed, content = _marks(nodes)
+    unchanged = len(nodes) - len(added) - len(removed) - len(changed) - len(content)
+    deltas = cast("list[JsonObject]", compared["amount_deltas"])
+    by_nature = [entry for entry in deltas if entry["dimension"] == "cost_type"]
+    total = sum((Decimal(cast("str", entry["delta"])) for entry in by_nature), Decimal(0))
+    read = mockcore.with_fields(nodes, VOLUME_FIELDS, mockdiff.ALWAYS)
+    return mocktext.example(
+        f"De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la "
+        f"structure du témoin aux volumes du §4.6.2, lue entière, sans filtre, comme l'écran de la "
+        f"comparaison la lit, chaque nœud réduit par `fields` à ce que l'écran en montre — "
+        f"{', '.join(VOLUME_FIELDS)} — et à ce qui est toujours rendu, sa marque comprise : "
+        f"{mocktext.count(len(nodes))} nœuds dans l'ordre du plan, dont "
+        f"{mocktext.count(len(added))} ajoutés, {mocktext.count(len(removed))} retirés et rendus "
+        f"à leur place, {mocktext.count(len(changed))} modifiés par leurs propres valeurs, "
+        f"{mocktext.count(len(content))} tâches modifiées par leur seul contenu et "
+        f"{mocktext.count(unchanged)} inchangés (C-361). Les totaux et la meta sont ceux de "
+        f"`listNodes` sur la référence entière, les écarts du devis à l'année de référence ceux de "
+        f"toute la structure, {_amount(total)} en tout (WF-REV-0080, WF-DAT-0030, #1193, #1201).",
+        {**compared, "items": cast("list[JsonValue]", read)},
+    )
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the history of the witness, by file name."""
     today, rows = mockcore.current(), reference_rows()

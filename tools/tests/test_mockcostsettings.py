@@ -150,6 +150,10 @@ SMALLEST_RATE = Decimal("0.01")
 """The smallest positive amount a `Money` writes, two decimals."""
 
 
+READ_WITH_FIELDS = frozenset({"volume/comparison_volume"})
+"""The examples read with `fields`, whose lines may leave their category out (#1208)."""
+
+
 def _every_example() -> dict[str, Any]:
     return {
         path.relative_to(mockwitness.FIXTURES).with_suffix("").as_posix(): json.loads(
@@ -182,15 +186,26 @@ def _categories() -> dict[str, Entry]:
     }
 
 
+def _lined(examples: dict[str, Any]) -> set[str]:
+    """Return the categories a line of an example bears.
+
+    Only an example read with `fields` may leave the category out (#166, #1208): the line it
+    reduces is one another example renders whole. A line of any other example bears it, or the
+    reading fails.
+    """
+    return {
+        line["cost_category_id"]
+        for key, example in examples.items()
+        for entry in _walk(example["value"])
+        if isinstance(line := entry.get("estimate_line"), dict)
+        and (key not in READ_WITH_FIELDS or "cost_category_id" in line)
+    }
+
+
 def _employed(examples: dict[str, Any]) -> set[str]:
     """Return the natures whose categories a line of an example bears."""
     categories = _categories()
-    return {
-        categories[entry["estimate_line"]["cost_category_id"]]["cost_type_id"]
-        for example in examples.values()
-        for entry in _walk(example["value"])
-        if isinstance(entry.get("estimate_line"), dict)
-    }
+    return {categories[category]["cost_type_id"] for category in _lined(examples)}
 
 
 def _attached() -> set[str]:
@@ -294,12 +309,7 @@ def test_the_refused_change_of_kind_names_the_condition_its_command_misses(
     # The condition is lifted by moving the categories employed under another nature of the same
     # kind, never unavailable: the refusal names them all, by code (WF-IHM-0090; #766,
     # EP-14/L42s) — those of the nature that a line of an example bears.
-    lines = {
-        entry["estimate_line"]["cost_category_id"]
-        for each in examples.values()
-        for entry in _walk(each["value"])
-        if isinstance(entry.get("estimate_line"), dict)
-    }
+    lines = _lined(examples)
     employed = sorted(
         (c for c in _categories().values() if c["cost_type_id"] == universe(462)),
         key=lambda category: category["code"],
@@ -322,16 +332,6 @@ def _rated(examples: dict[str, Any]) -> set[str]:
         for example in examples.values()
         for entry in _walk(example["value"])
         if {"cost_category_id", "year", "amount"} <= entry.keys()
-    }
-
-
-def _lined(examples: dict[str, Any]) -> set[str]:
-    """Return the categories a line of an example bears."""
-    return {
-        entry["estimate_line"]["cost_category_id"]
-        for example in examples.values()
-        for entry in _walk(example["value"])
-        if isinstance(entry.get("estimate_line"), dict)
     }
 
 

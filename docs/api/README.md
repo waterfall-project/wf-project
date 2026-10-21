@@ -55,6 +55,7 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 | Une adresse est reçue telle qu'elle est écrite, casse comprise, et comparée sans égard à la casse : une seule `@`, une partie locale et un domaine non vides, aucun espace, 254 caractères au plus ; les domaines à usage spécial (`.local`, `.test`) et sans point (`intranet`) sont admis. Une adresse mal formée est refusée par 422 `VALIDATION_FAILED` sur son champ | WF-ADM-0050 |
 | Toute opération qui reçoit un corps déclare le `400` d'un corps illisible (`MALFORMED_REQUEST`) et le `422` d'un champ manquant ou refusé (`VALIDATION_FAILED` et les codes par champ) ; `make lint-openapi` le vérifie (`rule/operation-with-body-declares-400-and-422`) | WF-ARC-0060, WF-ARC-0110 |
 | Un libellé, un nom ou un code reçu porte au moins un caractère qui n'est pas un blanc (`pattern: '\S'`) : fait seulement de blancs, il est refusé par 422 `VALIDATION_FAILED` sur son champ | WF-ARC-0110 |
+| Une ancre YAML (`&nom`, `*nom`, `<<: *nom`) ne sert qu'à dériver un schéma d'un autre du même fichier — `ComparedNodeRead` reprend les propriétés de `Node` —, jamais d'un fichier à l'autre, où l'on passe par `$ref` ; `make lint-openapi` éprouve le contrat assemblé, et `server-models-up-to-date` que les modèles du service engendrés de lui sont ceux versionnés | — |
 | Une opération longue renvoie une tâche de fond, jamais un résultat | WF-ARC-0090 |
 | L'API ne localise rien ; seuls les documents qu'elle engendre suivent la langue du destinataire | WF-ARC-0110, WF-INTF-0180 |
 
