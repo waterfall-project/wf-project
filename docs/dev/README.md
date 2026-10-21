@@ -627,7 +627,20 @@ dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de plann
 courbe trace les chaînes de l'API telles quelles — ECharts en tire une position —, une valeur
 non calculable étant un trou, un cumul d'événements datés — valeur acquise, coût réel — en
 escalier (`step`), une marche verticale par deux points à la même date, et le tableau les écrit
-par `src/i18n/format.ts`, les zones par `Signal`. Une figure qui reçoit `exported` offre la
+par `src/i18n/format.ts`, les zones par `Signal`. La matrice des risques est un nuage de bulles
+(`risks/risk-bubble-chart.tsx`, `RiskBubbleChart`, partagé par le projet et le portefeuille) : un
+`scatter` par état de risque — le cercle, le losange, le triangle, que la légende montre —, sur
+seize `markArea` d'une série à part, une par case, que `ChartPalette.zones` colore des jetons des
+zones (`ZoneProbes` de `signal/signal.tsx`, le seul fichier qui nomme ces jetons) ; une zone
+se nomme dans son aire quand sa bande a la place d'une ligne, et son bord a un trait à elle (plein,
+tireté, pointillé), la couleur ne la portant jamais seule. Les axes vont du zéro à la fin du dernier
+niveau — que le serveur laisse sans borne haute, et qu'ECharts ne prolonge pas pour une aire —, à
+la bulle la plus haute près ; une bulle est à la probabilité et à la part de gravité exactes de son
+point, et sa taille, bornée, suit la gravité en montant ; l'infobulle dit le risque, son projet au
+portefeuille, et le clic (`onPoint` de `Chart`, par l'`id` de la donnée) ouvre le détail du risque
+dans l'adresse d'un projet, ou le projet d'un point que `can_open` permet d'ouvrir. La table du
+décompte par case (`RiskCountsTable`, `cells`) est celle des valeurs de la figure. Une figure qui
+reçoit `exported` offre la
 commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une instance hors
 écran, en rendu canvas, à la taille d'une image, son titre et sa provenance (`useProvenance`) —
 projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs (`detail` : la base et
@@ -679,7 +692,11 @@ la suivent sont les risques, le devis, le reste à engager, les coûts réels et
 portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau du contexte de
 lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la ligne des
 totaux de la grille reste dans la fenêtre sous les cartes, à 1366 et à 911 de large sur 768 de
-haut : `e2e/grid-frame.spec.ts` le vérifie. _Contrôle_ : la revue ;
+haut : `e2e/grid-frame.spec.ts` le vérifie — sauf les risques, dont le graphique de la matrice
+(288 points, `h-72`) prend la place entre les cartes et la grille. Cette exception à 768 de haut
+attend la décision de #1252 : elle est affirmée par un test à part, qui exige que les totaux soient dans
+la fenêtre une fois la page défilée, d'au plus la hauteur du bloc de la matrice ; la règle générale
+est vérifiée sur les risques dans une fenêtre de 1000 de haut. _Contrôle_ : la revue ;
 `src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
 ### Les grilles
@@ -931,9 +948,13 @@ risques retenus, par état et le total général, tels que le serveur les rend ;
 contrat) ; la grille dense, une configuration de plus (`risk-grid.tsx`), en lecture, où la
 gravité et la provision sont des colonnes calculées entières — aucun champ de nœud à demander
 (`field` rend `undefined`), leur refus nomme les règles que le risque porte pour chacune
-(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
-par les bornes que rend le serveur, chaque case par son signal et son nombre de risques ; et,
-quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provision présente ou
+(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice des risques, un nuage de bulles
+(`RiskBubbleChart`, « Les courbes ») sur toute la largeur entre les cartes et la grille — la colonne
+de droite n'existe plus —, dont les bulles sont les risques des états du filtre, et sous lui la table du
+décompte par case, ses axes nommés par les bornes que rend le serveur, chaque case par son signal et
+son nombre de risques ; et,
+quand l'adresse nomme un risque (`risk`) — d'un clic sur sa bulle ou sur son libellé —, son détail, dans
+une colonne à côté de la grille qui garde de quoi le lire (la page défile dans une fenêtre trop basse) : notes, ligne de provision présente ou
 retirée à la survenance, avec la catégorie et le sous-projet que le risque désigne pour elle, par les
 libellés que le serveur résout — la catégorie dite désactivée quand elle ou sa nature l'est
 (`provision_cost_category_is_active`), la provision hors sous-projet quand il n'en désigne aucun
@@ -2051,7 +2072,27 @@ toutes (`explode: false`, que `make lint-openapi` exige de chaque paramètre de 
 le contrat cite par opération et par statut (`wftools.exampleroutes`), qui type les réponses du
 faux client des tests. Une opération qui
 manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
-fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
+fichier engendré se versionne avec elle.
+
+Le client garde ses connexions ouvertes, et la suivante réutilise celle qu'une réponse a libérée.
+L'API ferme une connexion inactive après un délai à elle — cinq secondes pour Prism comme pour
+uvicorn —, et undici, le `fetch` du serveur de Next, ne réutilise la sienne qu'en deçà d'une marge
+sous ce délai ; mais son minuteur est celui de la boucle du serveur, qu'une charge retient plus
+longtemps que la marge : la requête part alors sur une connexion que l'API vient de fermer, et
+`fetch` la rejette (`UND_ERR_SOCKET`, `other side closed`, ou `ECONNRESET`), sans qu'aucun délai
+plus court n'y change rien, retenu de même. Une lecture (`GET`, `HEAD`) ainsi coupée part une
+seconde fois, sur une connexion nouvelle, et la coupure s'écrit au journal du serveur
+(`console.warn`) ; coupée encore, c'est l'API hors d'atteinte (`Unreachable`), jamais un silence.
+Une écriture ne repart jamais : l'API a pu la faire avant de fermer. `WATERFALL_API_CONNECTIONS`
+dit comment le serveur tient ses connexions : `kept`, ou rien, en production comme en développement ;
+`closed`, une connexion par requête, fermée une fois répondue (`Connection: close`), que seul le
+harnais pose (« Un parcours de bout en bout »), et que le serveur, démarré ainsi hors du harnais du
+faux back (`WATERFALL_E2E`), signale une fois au journal ; aucun fichier de `deploy/` ni l'image du
+front ne la nomme, ce que `src/api/server.test.ts` vérifie. Toute autre valeur arrête le serveur à
+son démarrage (`src/startup.ts`), plutôt que de répondre une erreur à chaque requête. La coupure
+écrite au journal n'en dit que la méthode et le chemin, jamais la recherche.
+`src/api/client.test.ts`, `src/api/connections.test.ts` — contre un serveur sur une vraie socket,
+qui coupe la connexion réutilisée — et `src/api/server.test.ts` l'éprouvent. Aucun appel réseau ne s'écrit hors de
 `frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
 n'importe de `src/api/` que ses actions serveur (`src/api/actions/`) et des types.
 
@@ -2839,6 +2880,35 @@ chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les 
 (`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
+
+Avant le premier parcours, le harnais demande une fois chaque route au serveur de développement
+(`globalSetup`, `frontend/e2e/warm-up.ts`, #1145) : celui-ci compile une route à sa première
+demande, et sous la charge de quatre workers la compilation dépassait les cinq secondes de
+l'assertion qui attend l'écran qu'un clic atteint. Les écrans sont ceux de `frontend/e2e/routes.ts`,
+que `src/app/screens.test.ts` tient à chaque page de `src/app`, avec les pages qui ne font que
+rediriger : une page ajoutée est préchauffée avec elles. Les route handlers le sont aussi, chacun à
+une adresse qui ne change rien — `/auth/sign-out` sans suivre sa redirection, `/auth/backchannel-logout`
+par un `GET` qu'il refuse, un téléchargement à une adresse qui ne nomme rien —, ou déclarés exempts
+avec leur raison — `/login`, qui commence hors du faux back une connexion, un état gardé dans
+Redis — ;
+`src/app/route-handlers.test.ts` tient ces deux listes à chaque `route.ts` de `src/app`. Quatre à la
+fois, la redirection non suivie ; ce qu'une route répond reste aux parcours, mais une erreur du
+serveur — un statut de 500 ou plus, ou aucune réponse — s'écrit dans la sortie au moment où elle
+survient, et fait échouer le lancement une fois toutes les routes demandées, en nommant chaque adresse
+en cause : un écran qui ne compile pas se voit là, pas dans chaque parcours. Le préchauffage écrit
+sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois passages du 2026-10-21, pour les
+38 écrans d'alors. Il ne précède ni la
+mesure jouée seule (`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques
+écrans de l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans
+session enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un
+projet que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui
+compile lui-même ce qu'il atteint.
+
+Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
+(`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
+back ou mandataire du contrat, qui ferme une connexion inactive depuis cinq secondes, et le serveur de
+développement chargé envoyait une requête sur une connexion que Prism venait de fermer
+(`UND_ERR_SOCKET: other side closed`, puis `Unreachable` dans `readOrFail`, #1145).
 
 `make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
 (`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la

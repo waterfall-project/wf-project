@@ -20,15 +20,19 @@ const PRODUCTION = {
 let exit: MockInstance<typeof process.exit>;
 /** `console.error`, where the server writes why it stops. */
 let written: MockInstance<typeof console.error>;
+/** `console.warn`, where the server writes what it starts with and should not, without stopping. */
+let warned: MockInstance<typeof console.warn>;
 
 beforeEach(() => {
   exit = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
   written = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  warned = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.stubEnv("NODE_ENV", "production");
   vi.stubEnv("NEXT_RUNTIME", "nodejs");
   vi.stubEnv("NEXT_PHASE", "phase-production-server");
   vi.stubEnv("WATERFALL_AUTH", undefined);
   vi.stubEnv("WATERFALL_E2E", undefined);
+  vi.stubEnv("WATERFALL_API_CONNECTIONS", undefined);
   for (const [name, value] of Object.entries(PRODUCTION)) {
     vi.stubEnv(name, value);
   }
@@ -58,6 +62,7 @@ function expectStopped(said: string): void {
 
 /** Expect the server to go on, having written nothing and stopped nothing. */
 function expectGoesOn(): void {
+  expect(warned).not.toHaveBeenCalled();
   expect(written).not.toHaveBeenCalled();
   expect(exit).not.toHaveBeenCalled();
 }
@@ -142,5 +147,43 @@ describe("the start of the server of the front", () => {
     vi.stubEnv("WATERFALL_AUTH", "mock");
     await register();
     expectStopped("WATERFALL_AUTH=mock is refused in production");
+  });
+
+  it("stops on a way of holding the connections to the API it does not know, rather than answer every request with an error (#1145)", async () => {
+    vi.stubEnv("WATERFALL_API_CONNECTIONS", "close");
+    await register();
+    expectStopped('WATERFALL_API_CONNECTIONS must be "kept" or "closed", or unset: close');
+  });
+
+  it.each(["", "kept"])(
+    "goes on with the connections to the API kept alive: %j",
+    async (connections) => {
+      vi.stubEnv("WATERFALL_API_CONNECTIONS", connections);
+      await register();
+      expectGoesOn();
+    },
+  );
+
+  it("warns once, and goes on, with a connection of its own for each request out of the harness of the fake back (#1145)", async () => {
+    vi.stubEnv("WATERFALL_API_CONNECTIONS", "closed");
+    await register();
+    expect(written).not.toHaveBeenCalled();
+    expect(exit).not.toHaveBeenCalled();
+    expect(warned.mock.calls).toEqual([
+      [
+        "WATERFALL_API_CONNECTIONS=closed: each request to the API opens a connection of its own, as the end-to-end harness asks — never in production",
+      ],
+    ]);
+  });
+
+  it("says nothing of a connection of its own for each request in the harness of the fake back, which asks for it", async () => {
+    for (const variable of Object.keys(PRODUCTION)) {
+      vi.stubEnv(variable, undefined);
+    }
+    vi.stubEnv("WATERFALL_AUTH", "mock");
+    vi.stubEnv("WATERFALL_E2E", "1");
+    vi.stubEnv("WATERFALL_API_CONNECTIONS", "closed");
+    await register();
+    expectGoesOn();
   });
 });

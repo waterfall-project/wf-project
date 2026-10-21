@@ -19,6 +19,10 @@
  * environment moves the ports, for two checkouts on one workstation. With `WATERFALL_API_ADDRESS`
  * set, the paths run against the API it names, and no fake back is started.
  *
+ * Before the paths, every route is asked once of the development server, which compiles a route
+ * the first time it is asked for (`e2e/warm-up.ts`, #1145); and the front opens a connection of its
+ * own for each request to the API, Prism here whatever the API, which closes an idle one.
+ *
  * The measure never fails the run on the second itself: it writes what it measured, and warns
  * when an opening overran it (`opening.spec.ts`).
  *
@@ -72,6 +76,15 @@ const PRODUCTION = `http://127.0.0.1:${String(PRODUCTION_PORT)}`;
 // authentication stands.
 const AUTHENTICATION =
   NAMED_API === undefined ? { WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" } : {};
+// What the front of the harness is told: where the API is, and to open a connection of its own for
+// each request — the API is Prism, the fake back or the proxy of the contract, which closes a
+// connection idle for five seconds, and the development server under load would send a request on a
+// connection Prism has just closed (`Connections`, `src/api/client.ts`, #1145).
+const FRONT_ENV = {
+  WATERFALL_API_ADDRESS: API,
+  WATERFALL_API_CONNECTIONS: "closed",
+  ...AUTHENTICATION,
+};
 const PARTS = ["paths", "measure", "service"] as const;
 type Part = (typeof PARTS)[number];
 
@@ -229,7 +242,7 @@ function developmentServer(): WebServer[] {
     {
       command: `pnpm dev --hostname ${hostname} --port ${String(FRONT_PORT)}`,
       url: FRONT,
-      env: { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION },
+      env: FRONT_ENV,
       reuseExistingServer: false,
       timeout: 120_000,
       // Signal the whole process group: make and pnpm start the servers as children.
@@ -250,7 +263,7 @@ function productionServer(): WebServer[] {
       // the two live side by side.
       command: `pnpm build && pnpm start --hostname 127.0.0.1 --port ${String(PRODUCTION_PORT)}`,
       url: PRODUCTION,
-      env: { WATERFALL_API_ADDRESS: API, ...AUTHENTICATION },
+      env: FRONT_ENV,
       reuseExistingServer: false,
       timeout: 300_000,
       // Signal the whole process group: make and pnpm start the servers as children.
@@ -261,6 +274,12 @@ function productionServer(): WebServer[] {
 
 export default defineConfig({
   testDir: "e2e",
+  // Every screen asked once of the development server before the paths, which then find each route
+  // compiled (#1145). The paths against the service are left out: they reach a few screens of the
+  // administration, one sign-in through the realm before each, and the screens asked without a
+  // session would send through the proxy of the contract, whose log their guard holds, the reads of
+  // a project the service does not have.
+  ...(PLAYS_PATHS ? { globalSetup: "./e2e/warm-up.ts" } : {}),
   forbidOnly: !onWorkstation,
   retries: 0,
   reporter: [["list"]],

@@ -37,6 +37,22 @@ const ZONES: Readonly<Record<AlertZone, ZoneStyle>> = {
 };
 
 /**
+ * The colour of each zone, for a chart that draws it into its SVG, where a class of CSS does not
+ * reach: a hidden probe per zone takes the token of its zone (`data-probe="zone-<zone>"`), which
+ * the chart reads as the browser resolves it in the mode shown. The zone is still named and drawn
+ * by a shape apart from its colour, on the chart (WF-IHM-0070).
+ */
+export function ZoneProbes() {
+  return (
+    <>
+      {(Object.keys(ZONES) as AlertZone[]).map((zone) => (
+        <span key={zone} data-probe={`zone-${zone}`} className={ZONES[zone].tone} />
+      ))}
+    </>
+  );
+}
+
+/**
  * A signal: the zone the API gave, and how much room it takes — its icon and its name
  * written (`label`, the default), or its icon alone, its name given to assistive
  * technologies and to the pointer (`icon`), for a dense grid or a matrix.

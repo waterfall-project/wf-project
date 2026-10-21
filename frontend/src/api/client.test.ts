@@ -123,6 +123,120 @@ describe("createApiClient", () => {
   });
 });
 
+/** A rejection of `fetch` as undici makes it, its cause carrying the code of the network. */
+function rejection(code: string): TypeError {
+  return new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+}
+
+/** A transport that fails as told, then answers an empty object; the requests it was sent. */
+function failing(...failures: TypeError[]) {
+  const sent: Request[] = [];
+  const send = (request: Request): Promise<Response> => {
+    sent.push(request);
+    const failure = failures.shift();
+    return failure === undefined ? Promise.resolve(Response.json({})) : Promise.reject(failure);
+  };
+  return { send, sent };
+}
+
+describe("a connection the API drops before answering (#1145)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each(["UND_ERR_SOCKET", "ECONNRESET", "EPIPE"])(
+    "sends a read dropped by %s once more, and says so in the log of the server",
+    async (code) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const { send, sent } = failing(rejection(code));
+      const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+      const { data } = await client.GET("/health");
+      expect(data).toEqual({});
+      expect(sent.map((request) => request.method)).toEqual(["GET", "GET"]);
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]?.[0]).toBe(
+        `The API dropped the connection of GET ${API_PREFIX}/health`,
+      );
+    },
+  );
+
+  it("sends a HEAD dropped once more, as any read", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { send, sent } = failing(rejection("UND_ERR_SOCKET"));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    // The contract declares no HEAD: the request of a GET, made a HEAD as it leaves.
+    client.use({ onRequest: ({ request }) => new Request(request, { method: "HEAD" }) });
+    const { response } = await client.GET("/health");
+    expect(response.status).toBe(200);
+    expect(sent.map((request) => request.method)).toEqual(["HEAD", "HEAD"]);
+  });
+
+  it("writes the method and the path of a dropped read to the log, never its query", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { send } = failing(rejection("ECONNRESET"));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await client.GET("/tasks", { params: { query: { status: ["queued"] } } });
+    expect(warn).toHaveBeenCalledOnce();
+    // The whole of what is written: no query in it.
+    expect(warn.mock.calls[0]?.[0]).toBe(
+      `The API dropped the connection of GET ${API_PREFIX}/tasks`,
+    );
+  });
+
+  it("never sends a write again: the API may have done it before closing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const dropped = rejection("UND_ERR_SOCKET");
+    const { send, sent } = failing(dropped, dropped, dropped, dropped);
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await expect(client.POST("/projects", { body: { label: "Poste" } })).rejects.toMatchObject({
+      name: "Unreachable",
+      cause: dropped,
+    });
+    await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Unreachable);
+    expect(sent.map((request) => request.method)).toEqual(["POST", "DELETE"]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("is the API out of reach when the read sent once more is dropped too: never silence", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const second = rejection("ECONNRESET");
+    const { send, sent } = failing(rejection("UND_ERR_SOCKET"), second);
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await expect(client.GET("/health")).rejects.toMatchObject({
+      name: "Unreachable",
+      cause: second,
+      digest: UNREACHABLE_DIGEST,
+    });
+    expect(sent).toHaveLength(2);
+  });
+
+  it("sends a read again for a dropped connection alone, not for an API that refuses it", async () => {
+    const refused = rejection("ECONNREFUSED");
+    const { send, sent } = failing(refused);
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await expect(client.GET("/health")).rejects.toMatchObject({ cause: refused });
+    expect(sent).toHaveLength(1);
+  });
+
+  it("asks for a connection of its own for each request when its connections are closed, and none otherwise", async () => {
+    const { send, sent } = failing();
+    const closed = createApiClient({
+      address: "http://localhost:4010",
+      fetch: send,
+      connections: "closed",
+    });
+    await closed.GET("/health");
+    await closed.POST("/projects", { body: { label: "Poste" } });
+    const kept = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await kept.GET("/health");
+    expect(sent.map((request) => request.headers.get("Connection"))).toEqual([
+      "close",
+      "close",
+      null,
+    ]);
+  });
+});
+
 describe("the module of the client", () => {
   afterEach(() => {
     vi.doMock("server-only", () => ({}));
