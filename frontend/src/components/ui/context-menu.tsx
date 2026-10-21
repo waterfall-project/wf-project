@@ -4,9 +4,9 @@
  * The context menu of shadcn/ui, copied into the repository, the parts a grid uses: the menu of a
  * cell, opened by a right click or, from the keyboard, by Shift+F10 or the Menu key. Radix gives it
  * the roles of a menu and its keyboard — the arrows, Enter, Escape — and gives the focus back to
- * what held it once closed; a submenu, with its checked entries or its choice among values, is the
- * one a command offers several values with. The surface of the popover token, a border and the one shadow of the
- * charter, as the drop-down menu; no animation.
+ * what held it once closed; a submenu, with its checked entries, is the one a command offers several
+ * values with. The surface of the popover token, a border and the one shadow of the charter, as the
+ * drop-down menu; no animation.
  */
 "use client";
 
@@ -147,34 +147,5 @@ export function ContextMenuCheckboxItem({
       </span>
       {children}
     </ContextMenuPrimitive.CheckboxItem>
-  );
-}
-
-/** A choice among values, one of which is checked. */
-export function ContextMenuRadioGroup(
-  props: ComponentProps<typeof ContextMenuPrimitive.RadioGroup>,
-) {
-  return <ContextMenuPrimitive.RadioGroup data-slot="context-menu-radio-group" {...props} />;
-}
-
-/** One value of a choice, checked or not: a mark in front of the one checked. */
-export function ContextMenuRadioItem({
-  className,
-  children,
-  ...props
-}: ComponentProps<typeof ContextMenuPrimitive.RadioItem>) {
-  return (
-    <ContextMenuPrimitive.RadioItem
-      data-slot="context-menu-radio-item"
-      className={cn(ENTRY, "pl-8", className)}
-      {...props}
-    >
-      <span className="pointer-events-none absolute left-2 flex size-4 items-center justify-center">
-        <ContextMenuPrimitive.ItemIndicator>
-          <Check aria-hidden="true" className="size-4 text-foreground" />
-        </ContextMenuPrimitive.ItemIndicator>
-      </span>
-      {children}
-    </ContextMenuPrimitive.RadioItem>
   );
 }

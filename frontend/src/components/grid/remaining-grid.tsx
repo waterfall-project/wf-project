@@ -37,7 +37,6 @@ import {
   type RemainingNode,
   type RemainingWrites,
 } from "./remaining";
-import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
 import { useStructureVersion } from "./structure-version";
@@ -70,12 +69,6 @@ export interface RemainingGridProps {
   readonly editable: boolean;
   /** The categories a line is created from; none, and no line is created. */
   readonly categories?: readonly LineCategory[] | undefined;
-  /**
-   * The sub-projects of the project, which the menu of the cells of a line offers it (US-0480): a
-   * line is carried to one from the remaining to commit once the project is in progress; none, and
-   * the grid offers no submenu.
-   */
-  readonly subprojects?: readonly ChoiceOption[] | undefined;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
@@ -115,7 +108,6 @@ export function RemainingGrid({
   filters,
   editable,
   categories,
-  subprojects,
   query,
   preferences,
 }: RemainingGridProps) {
@@ -126,21 +118,6 @@ export function RemainingGrid({
     [structure, nodes.items],
   );
   const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
-  // The reading always narrows to some states of the tasks: the totals of the structure a write
-  // answers are never its own.
-  const choices = useMemo<RowChoices<RemainingNode> | undefined>(
-    () =>
-      !editable || subprojects === undefined
-        ? undefined
-        : {
-            subproject: {
-              subprojects,
-              current: (node) => node.estimate_line?.subproject_id ?? null,
-            },
-            written: (written) => nodesWritten(written, REMAINING_FIELDS, false),
-          },
-    [editable, subprojects],
-  );
   const gestures = useStructureGestures<RemainingNode>(
     editable
       ? {
@@ -155,7 +132,6 @@ export function RemainingGrid({
     (written) => {
       reach(written.structure_lock_version);
     },
-    choices,
   );
   const config = useMemo(
     () => remainingGrid(editable ? structureWrites(structure, filters, reach) : undefined),

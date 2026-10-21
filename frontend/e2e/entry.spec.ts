@@ -40,6 +40,7 @@ const COLUMNS = {
   role: "Rôle",
   quantity: "Qté",
   hours: "Charge (h)",
+  subproject: "Sous-projet",
   delay: "Délai de paiement (j)",
   reference: "Montant (année de réf.)",
 } as const;
@@ -181,6 +182,7 @@ test("enters a whole line of the estimate without the mouse — label, category,
     "1",
     "74,5",
     "",
+    "Poste de commande",
     "0",
     "",
     /5\s960,00$/,
@@ -212,14 +214,13 @@ test("traverses the computed cells of a line entered along its row, without ente
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");
   await expect(cellAt(grid, PROVISION, at.label)).toBeFocused();
-  // From its label, Tab goes past its quantity and its unit disbursement, which the server
-  // computes, past its category, its role and its effort, which its node does not accept (#219),
-  // past its payment delay, which it does not carry (WF-DEV-0020, EP-14/L42s), and past its
-  // amounts, to the next row. Its sub-project, the one its risk designates (EP-14/L42p), is a
-  // column hidden until shown (US-0480).
+  // From its label, Tab goes past its quantity, its unit disbursement and its sub-project — the
+  // one its risk designates (EP-14/L42p) —, which the server computes, past its category, its role
+  // and its effort, which its node does not accept (#219), past its payment delay, which it does
+  // not carry (WF-DEV-0020, EP-14/L42s), and past its amounts, to the next row.
   await press(page, "Enter", "Tab");
   await expect(cellAt(grid, PROVISION + 1, at.label)).toBeFocused();
-  for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
+  for (const column of [at.category, at.role, at.quantity, at.hours, at.subproject, at.delay]) {
     await expect(cellAt(grid, PROVISION, column)).toHaveAttribute("aria-readonly", "true");
   }
   await expect(grid.getByRole("textbox")).toHaveCount(0);

@@ -1,31 +1,28 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The submenus « Chronologies » and « Sous-projet » of the menu of a cell (US-0480, WF-PLA-0060,
- * WF-PRJ-0050), and what writes them: two instances of one submenu, a box to check for each
- * timeline of the project — and « Suivi temps/temps » for a milestone —, a radio button for each
- * sub-project — and « Aucun sous-projet ». Each applies to the rows the menu acts on, the selection
- * the row stands in or the row alone, one write per row with the version of that row; a row that does
- * not name the field it writes among those it accepts is left aside.
+ * The submenu « Chronologies » of the menu of a cell (US-0480, WF-PLA-0060), and what writes it: a
+ * box to check for each timeline of the project — and « Suivi temps/temps » for a milestone. It
+ * applies to the rows the menu acts on, the selection the row stands in or the row alone, one write
+ * per row with the version of that row; a row that does not name the field it writes among those it
+ * accepts is left aside.
  *
  * A project without a timeline offers to create one, named in a dialog, to which the rows are
  * inscribed once it exists.
  */
 "use client";
 
-import { CalendarRange, FolderTree, Plus, X } from "lucide-react";
+import { CalendarRange, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useRef, useState } from "react";
 
-import { setNodeTracking, updateEstimateLine } from "@/api/actions/nodes";
+import { setNodeTracking } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenuCheckboxItem,
   ContextMenuItem,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
@@ -41,7 +38,6 @@ import {
   entriesAfter,
   isInscribed,
   milestoneOf,
-  portable,
   type RowChange,
   type RowChoices,
   trackable,
@@ -50,9 +46,6 @@ import {
 /** The longest label of a timeline the contract takes. */
 const LABEL_LENGTH = 300;
 
-/** The value of the radio button that bears no sub-project. */
-const NONE = "none";
-
 /** What the menu asks of the screen: write a change on the rows, or create a timeline first. */
 export interface ChoiceActions<Row extends GridNode> {
   /** Whether a write or its reading anew is under way, which holds the choices. */
@@ -60,28 +53,6 @@ export interface ChoiceActions<Row extends GridNode> {
   readonly change: (change: RowChange) => void;
   readonly create: () => void;
   readonly row: Row;
-}
-
-/** The entry of a submenu: the label it carries and the icon of its command. */
-function Trigger({
-  icon,
-  busy,
-  children,
-}: {
-  readonly icon: "timelines" | "subproject";
-  readonly busy: boolean;
-  readonly children: string;
-}) {
-  return (
-    <ContextMenuSubTrigger aria-disabled={busy ? true : undefined} className={UNAVAILABLE}>
-      {icon === "timelines" ? (
-        <CalendarRange aria-hidden="true" />
-      ) : (
-        <FolderTree aria-hidden="true" />
-      )}
-      {children}
-    </ContextMenuSubTrigger>
-  );
 }
 
 /** The submenu of the timelines of a task: a box for each, the time/time tracking of a milestone. */
@@ -97,9 +68,10 @@ function TimelinesMenu<Row extends GridNode>({
   const milestone = milestoneOf(row);
   return (
     <ContextMenuSub>
-      <Trigger icon="timelines" busy={busy}>
+      <ContextMenuSubTrigger aria-disabled={busy ? true : undefined} className={UNAVAILABLE}>
+        <CalendarRange aria-hidden="true" />
         {t("timelines")}
-      </Trigger>
+      </ContextMenuSubTrigger>
       <ContextMenuSubContent aria-label={t("timelines")} className="max-w-64">
         {choices.timelines.map((timeline) => (
           <ContextMenuCheckboxItem
@@ -147,53 +119,10 @@ function TimelinesMenu<Row extends GridNode>({
   );
 }
 
-/** The submenu of the sub-project of a line: a radio button for each, and none. */
-function SubprojectMenu<Row extends GridNode>({
-  choices,
-  row,
-  busy,
-  change,
-}: ChoiceActions<Row> & { readonly choices: NonNullable<RowChoices<Row>["subproject"]> }) {
-  const t = useTranslations("grid.structure");
-  return (
-    <ContextMenuSub>
-      <Trigger icon="subproject" busy={busy}>
-        {t("subproject")}
-      </Trigger>
-      <ContextMenuSubContent aria-label={t("subproject")} className="max-w-64">
-        <ContextMenuRadioGroup
-          value={choices.current(row) ?? NONE}
-          onValueChange={(value) => {
-            change({ kind: "subproject", id: value === NONE ? null : value });
-          }}
-        >
-          <ContextMenuRadioItem
-            value={NONE}
-            aria-disabled={busy ? true : undefined}
-            className={UNAVAILABLE}
-          >
-            {t("noSubproject")}
-          </ContextMenuRadioItem>
-          {choices.subprojects.map((subproject) => (
-            <ContextMenuRadioItem
-              key={subproject.id}
-              value={subproject.id}
-              aria-disabled={busy ? true : undefined}
-              className={UNAVAILABLE}
-            >
-              {subproject.label}
-            </ContextMenuRadioItem>
-          ))}
-        </ContextMenuRadioGroup>
-      </ContextMenuSubContent>
-    </ContextMenuSub>
-  );
-}
-
 /**
- * The submenus of the menu of the cell of a row, where the grid gives them and the row names the
- * field they write: the timelines of a task, the sub-project of a line. Nothing for a row that
- * names none, nor in the menu of the header. `separated` tells that entries come before them.
+ * The submenu of the menu of the cell of a row, where the grid gives it and the row names the field
+ * it writes: the timelines of a task. Nothing for a row that names none, nor in the menu of the
+ * header. `separated` tells that entries come before it.
  */
 export function ChoiceMenuItems<Row extends GridNode>({
   choices,
@@ -203,18 +132,15 @@ export function ChoiceMenuItems<Row extends GridNode>({
   readonly choices: RowChoices<Row>;
   readonly separated: boolean;
 }) {
-  const { row } = actions;
-  const timelines = choices.tracking !== undefined && trackable(row) ? choices.tracking : undefined;
-  const subproject =
-    choices.subproject !== undefined && portable(row) ? choices.subproject : undefined;
-  if (timelines === undefined && subproject === undefined) {
+  const timelines =
+    choices.tracking !== undefined && trackable(actions.row) ? choices.tracking : undefined;
+  if (timelines === undefined) {
     return null;
   }
   return (
     <>
       {separated ? <ContextMenuSeparator /> : null}
-      {timelines === undefined ? null : <TimelinesMenu choices={timelines} {...actions} />}
-      {subproject === undefined ? null : <SubprojectMenu choices={subproject} {...actions} />}
+      <TimelinesMenu choices={timelines} {...actions} />
     </>
   );
 }
@@ -246,15 +172,10 @@ export async function writeChange<Row extends GridNode>(
   wrote: (written: NodesWritten) => void,
 ): Promise<ChangeWritten<Row>> {
   const one = (row: Row): Promise<Outcome<NodesWritten>> =>
-    change.kind === "subproject"
-      ? updateEstimateLine(structure, row.node_id, {
-          subproject_id: change.id,
-          lock_version: row.lock_version,
-        })
-      : setNodeTracking(structure, row.node_id, {
-          entries: [...entriesAfter(choices.tracking?.entries(row) ?? [], change)],
-          lock_version: row.lock_version,
-        });
+    setNodeTracking(structure, row.node_id, {
+      entries: [...entriesAfter(choices.tracking?.entries(row) ?? [], change)],
+      lock_version: row.lock_version,
+    });
   const [first, ...others] = rows;
   let last = await one(first);
   if (last.kind !== "done") {

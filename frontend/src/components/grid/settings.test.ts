@@ -4,24 +4,26 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_WIDTH, MIN_WIDTH } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
+import { PLANNING_GRID } from "./planning";
 import { initialSettings, recordedPreferences } from "./settings";
 
 describe("the settings a grid starts from", () => {
   it("are the columns the grid hides, and no width, without preferences", () => {
-    expect(initialSettings(undefined, ESTIMATE_GRID.columns)).toEqual({
-      visibility: { subproject: false },
+    expect(initialSettings(undefined, PLANNING_GRID.columns)).toEqual({
+      visibility: { timelines: false },
       sizing: {},
     });
-    expect(initialSettings({ column_widths: {} }, ESTIMATE_GRID.columns).visibility).toEqual({
-      subproject: false,
+    expect(initialSettings({ column_widths: {} }, PLANNING_GRID.columns).visibility).toEqual({
+      timelines: false,
     });
+    expect(initialSettings(undefined, ESTIMATE_GRID.columns).visibility).toEqual({});
   });
 
   it("show a column hidden by default once the account kept a list of hidden columns that omits it", () => {
-    expect(initialSettings({ hidden_columns: [] }, ESTIMATE_GRID.columns).visibility).toEqual({});
+    expect(initialSettings({ hidden_columns: [] }, PLANNING_GRID.columns).visibility).toEqual({});
     expect(
-      initialSettings({ hidden_columns: ["hours"] }, ESTIMATE_GRID.columns).visibility,
-    ).toEqual({ hours: false });
+      initialSettings({ hidden_columns: ["gantt"] }, PLANNING_GRID.columns).visibility,
+    ).toEqual({ gantt: false });
   });
 
   it("hide the columns the account hid, and never the label, which identifies a row", () => {

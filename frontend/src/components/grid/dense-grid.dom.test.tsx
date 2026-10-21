@@ -115,7 +115,7 @@ function renderGrid(
         structure={STRUCTURE}
         structureVersion={1}
         query={query}
-        preferences={options.preferences ?? { hidden_columns: [] }}
+        preferences={options.preferences}
       />
     </NextIntlClientProvider>
   );
@@ -648,7 +648,7 @@ describe("the columns and their widths, a display preference of the account", ()
           grids: {
             estimate: {
               sort: { column: "inflated_amount", order: "desc" },
-              hidden_columns: ["subproject"],
+              hidden_columns: [],
               column_widths: { label: 336 },
             },
           },
@@ -841,7 +841,7 @@ describe("a grid configured without its options", () => {
           totals={witness.totals}
           totalsCaption={() => "—"}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={undefined}
         />
       </NextIntlClientProvider>,
     );

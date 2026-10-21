@@ -106,7 +106,7 @@ function grid(
         tasksEditable={tasksEditable}
         query={query}
         filters={filters}
-        preferences={{ hidden_columns: [] }}
+        preferences={undefined}
       />
     </NextIntlClientProvider>
   );

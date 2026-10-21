@@ -237,10 +237,7 @@ describe("a field of a line that says nothing, left out by the projection", () =
 // from 2.98 to 3.29 million, 0.431 to 0.476; those of the remaining to commit from 3.80 to 4.11
 // million, 0.550 to 0.594. The structure of the witness in hours (EP-02/L27), its core first, made
 // the volume 7.09 million characters: the rows of the estimate weigh 4.63 million, 0.653; those of
-// the planning 3.30 million, 0.466; those of the remaining to commit 4.41 million, 0.623. The
-// sub-project of a line, its identifier and its label (US-0480), which the remaining to commit now
-// reads to choose it from the menu of a cell and to show it in a column, took its rows to 4.83
-// million, 0.680.
+// the planning 3.30 million, 0.466; those of the remaining to commit 4.41 million, 0.623.
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");
@@ -267,5 +264,5 @@ holdsWhatTheGridReads(
   "remaining to commit",
   remainingGrid({ line: unwritten }),
   REMAINING_FIELDS,
-  0.69,
+  0.64,
 );
