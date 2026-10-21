@@ -35,7 +35,20 @@ export interface ApiClientOptions {
    * without it.
    */
   readonly bearer?: Bearer;
+  /** How the requests hold their connections to the API: kept alive by default (`Connections`). */
+  readonly connections?: Connections;
 }
+
+/**
+ * How the requests hold their connections to the API. `kept`, the platform's: a connection is kept
+ * alive once answered, and the next request reuses it. `closed`: each request opens a connection of
+ * its own, closed once answered (`Connection: close`) — the end-to-end harness's (#1145). Its
+ * servers are Prism, the fake back or the proxy of the contract, which closes a connection idle
+ * for five seconds; the development server, loaded by four workers, has its loop held up for
+ * longer than the margin undici keeps under that delay, and sends a request on a connection Prism
+ * has just closed. No delay of its own would do: the loop held up delays its timer as well.
+ */
+export type Connections = "kept" | "closed";
 
 /** What gives the token of a request: the session of the front, or the fixed token of the mock. */
 export type Bearer = () => string | undefined | Promise<string | undefined>;
@@ -64,13 +77,65 @@ export class Unreachable extends Error {
   }
 }
 
-/** Send a request, the rejection of `fetch` — a `TypeError` — marked as `Unreachable`. */
-function marking(send: (request: Request) => Promise<Response>) {
+/** The methods of a read: asked again, it changes nothing on the API. */
+const READS = new Set(["GET", "HEAD"]);
+
+/**
+ * What the rejection of `fetch` carries when the API closed the connection before answering:
+ * undici's socket closed by the other side (`UND_ERR_SOCKET`, « other side closed »), or reset.
+ */
+const DROPPED = new Set(["UND_ERR_SOCKET", "ECONNRESET", "EPIPE"]);
+
+/** Whether `fetch` rejected because the API closed the connection before answering. */
+function isDropped(error: unknown): boolean {
+  if (!(error instanceof TypeError)) {
+    return false;
+  }
+  const { cause } = error;
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    "code" in cause &&
+    typeof cause.code === "string" &&
+    DROPPED.has(cause.code)
+  );
+}
+
+/** The rejection of `fetch` — a `TypeError` — marked as `Unreachable`; any other error as it is. */
+function marked(error: unknown): unknown {
+  return error instanceof TypeError ? new Unreachable(error) : error;
+}
+
+/**
+ * Send a request, the rejection of `fetch` marked as `Unreachable`. A read the API dropped the
+ * connection of before answering is sent once more: a connection kept alive and closed by the API
+ * at the very moment it is reused — the API closes an idle one after a delay of its own, which the
+ * platform's cannot be sure to stay under, its timer held up by a loaded loop. Sent again, it opens
+ * a new one. A write is never sent again: the API may have done it before closing. The read dropped
+ * a second time is the API out of reach, and the first drop is written to the log of the server —
+ * its method and path, never its query —, never passed over in silence.
+ */
+function transport(send: (request: Request) => Promise<Response>, connections: Connections) {
   return async (request: Request): Promise<Response> => {
+    if (connections === "closed") {
+      request.headers.set("Connection", "close");
+    }
+    const read = READS.has(request.method);
+    try {
+      // A read keeps its request whole, to be sent again.
+      return await send(read ? request.clone() : request);
+    } catch (error) {
+      if (!read || !isDropped(error)) {
+        throw marked(error);
+      }
+      // The path alone: the query may carry what the log of the server has no need of.
+      const { pathname } = new URL(request.url);
+      console.warn(`The API dropped the connection of ${request.method} ${pathname}`, error);
+    }
     try {
       return await send(request);
     } catch (error) {
-      throw error instanceof TypeError ? new Unreachable(error) : error;
+      throw marked(error);
     }
   };
 }
@@ -86,7 +151,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = new URL(API_PREFIX, options.address).toString();
   // The platform's fetch is looked up at each call: Next may have replaced it in the meantime.
   const send = options.fetch ?? ((request: Request) => fetch(request));
-  const client = createClient<paths>({ baseUrl, fetch: marking(send), querySerializer: QUERY });
+  const fetching = transport(send, options.connections ?? "kept");
+  const client = createClient<paths>({ baseUrl, fetch: fetching, querySerializer: QUERY });
   const { bearer } = options;
   if (bearer !== undefined) {
     // The first middleware: whatever comes after sees the request as it leaves.
