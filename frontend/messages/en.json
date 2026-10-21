@@ -375,7 +375,7 @@
     "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
     "duration": "{value} {unit}",
     "critical": "Critical path",
-    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
+    "predecessor": "{row}{code}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
     "linkCode": "{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}",
     "trackingSeparator": ", ",

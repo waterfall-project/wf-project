@@ -885,7 +885,9 @@ qui le dit, sans rien envoyer. Un refus du serveur se dit à la cellule par son 
 liaisons, avec les tâches qu'elle traverse (`cycle`, `problemDetails`), une liaison entre une
 récapitulative et sa subordonnée, un projet qui dépasserait quinze ans —, et les lignes écrites, avec
 les tâches que le serveur redate, prennent la place des lignes lues, le Gantt suivant ; le front ne
-date rien. La validation de la dernière cellule saisissable
+date rien. Le refus d'une liaison qui sortirait une tâche de son lot n'est pas tenu à la cellule,
+faute d'exigence et de code au contrat de `setPredecessors` : la question est ouverte en #1256.
+La validation de la dernière cellule saisissable
 d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée.
 Toute écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ
 (`byField` de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API

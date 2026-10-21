@@ -55,7 +55,7 @@ describe("a cell of a task written with a value its column cannot write", () => 
     { key: "duration", value: "two days", reason: /is not a duration/ },
     { key: "duration", value: null, reason: /is not a duration/ },
   ])(
-    "rejects $value in the cell $key, and sends nothing that would carry the version alone (#1250)",
+    "guards the empty request: rejects $value in the cell $key, and sends nothing that would carry the version alone (#1250)",
     async ({ key, value, reason }) => {
       if (desks === undefined) {
         throw new Error("the example lacks the desks");

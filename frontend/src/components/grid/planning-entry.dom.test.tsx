@@ -353,6 +353,35 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     expect(cellAt(rowOf(planning, "Études"), "predecessors")).not.toHaveAttribute("aria-readonly");
   });
 
+  it.each<Locale>(["fr", "en"])(
+    "shows a lag of 50 % as the entry proposes it, in %s [WF-PLA-0030-A]",
+    async (locale) => {
+      serve({});
+      const row = rowOf(planning, "Réception des études");
+      const shared: NodeList = {
+        ...planning,
+        items: planning.items.map((node, index) =>
+          index === row
+            ? {
+                ...node,
+                predecessors: (node.predecessors ?? []).slice(0, 1).map((link) => ({
+                  ...link,
+                  link_type: "start_to_start" as const,
+                  lag: { value: "50", unit: "percent" as const },
+                })),
+              }
+            : node,
+        ),
+      };
+      render(grid(shared, { locale }));
+      // The cell keeps its number and its unit together by a no-break space; the entry types a plain one.
+      const read = cellAt(row, "predecessors").textContent.replace(/\s/gu, " ");
+      expect(read).toMatch(/\+50 %$/u);
+      const field = await entered(row, "predecessors");
+      expect((field as HTMLInputElement).value).toBe(read);
+    },
+  );
+
   it("writes the links typed in place of the task's, the four types and a lead among them, and takes the row answered and the successor the server redated in place of those read [WF-PLA-0030-A] [WF-PLA-0020-A]", async () => {
     // « 19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50% »: the four types, a lag, none, a lead, a share. The
     // fake back answers by its first example: the mounting 2 d after « Réception usine », and
@@ -422,7 +451,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     });
   });
 
-  it("empties the predecessors of a task by a blank text, and writes nothing for the links it already has", async () => {
+  it("empties the predecessors of a task by a blank text, and writes nothing for the links it already has [WF-PLA-0030-A]", async () => {
     const client = serve({ [PREDECESSORS]: "predecessor_set" });
     render(grid(nested));
     const mounting = rowOf(nested, "Montage des armoires sur site");
@@ -497,7 +526,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     },
   );
 
-  it("enters no predecessors in a grid read only", () => {
+  it("enters no predecessors in a grid read only [WF-PLA-0030-A]", () => {
     serve({});
     render(grid(planning, { editable: false }));
     expect(cellAt(rowOf(planning, "Réception des études"), "predecessors")).toHaveAttribute(

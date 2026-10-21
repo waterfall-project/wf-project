@@ -210,10 +210,10 @@ describe("the predecessors typed as Microsoft Project writes them", () => {
     ]);
     expect(value).toBeDefined();
     expect(predecessorsText(value ?? "", "fr", namesOf("fr"))).toBe(
-      "3FD+2 j; 5DD; 12; 3DF-1,5 sem; 3FF+50%",
+      "3FD+2 j; 5DD; 12; 3DF-1,5 sem; 3FF+50 %",
     );
     expect(predecessorsText(value ?? "", "en", namesOf("en"))).toBe(
-      "3FS+2 d; 5SS; 12; 3SF-1.5 wk; 3FF+50%",
+      "3FS+2 d; 5SS; 12; 3SF-1.5 wk; 3FF+50 %",
     );
     // What the entry starts from reads back as the same links.
     const again = parsePredecessors(

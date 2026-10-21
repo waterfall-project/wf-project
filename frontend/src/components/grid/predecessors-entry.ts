@@ -234,7 +234,7 @@ function lagText(
 ): string {
   const sign = lag.value.startsWith("-") ? "-" : "+";
   const value = formatDecimal(lag.value.replace(/^-/, ""), locale);
-  return `${sign}${value}${lag.unit === "percent" ? "" : " "}${suffix(lag.unit)}`;
+  return `${sign}${value} ${suffix(lag.unit)}`;
 }
 
 /**

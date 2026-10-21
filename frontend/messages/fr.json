@@ -375,7 +375,7 @@
     "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
     "duration": "{value} {unit}",
     "critical": "Chemin critique",
-    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
+    "predecessor": "{row}{code}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
     "linkCode": "{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}",
     "trackingSeparator": ", ",
