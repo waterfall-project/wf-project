@@ -338,6 +338,7 @@ function readQueries(
       RESOURCE_ROLE_SORTS,
       grids?.[RESOURCE_ROLE_GRID_KEY]?.sort,
       RESOURCE_ROLE_ADDRESS,
+      grids?.[RESOURCE_ROLE_GRID_KEY]?.page_size,
     ),
     roleFilters: {
       code: textOf(search, ROLE_CODE, ORG_CODE_LENGTH),
@@ -354,6 +355,7 @@ function readQueries(
       CALENDAR_SORTS,
       grids?.[CALENDAR_GRID_KEY]?.sort,
       CALENDAR_ADDRESS,
+      grids?.[CALENDAR_GRID_KEY]?.page_size,
     ),
     calendarState: state(CALENDAR_STATE),
     calendarHours: Object.fromEntries(

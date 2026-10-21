@@ -54,7 +54,7 @@ import { CostsGrid } from "@/components/costs/costs-grid";
 import { ImportJournal } from "@/components/costs/import-journal";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { refusedPeriod } from "@/components/grid/period";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/grid/query";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -113,14 +113,14 @@ async function readCosts(
   filters: CostFilters,
   asked: Promise<GridQuery<CostSortColumn>>,
 ) {
-  const { sort } = await asked;
+  const { sort, size } = await asked;
   const subproject = context.parameters.get("subproject_id") ?? undefined;
   const offset = readPage(address, COSTS_PAGE);
   const read = await readOrRefused("listActualCosts", FILTERS_REFUSED, () =>
     serverClient().GET("/projects/{project_id}/actual-costs", {
       params: {
         path: { project_id: revision.projectId },
-        query: costsQuery({ offset, subproject, filters, sort }),
+        query: costsQuery({ offset, subproject, filters, sort, size }),
       },
     }),
   );
@@ -221,7 +221,13 @@ export default async function ActualCostsPage({
   // A column kept from the file sorts by its name, which no list of the screen knows beforehand.
   const asked = settings.then((kept) => {
     const named = [at.address.get("sort_by"), kept?.sort?.column].filter(isKeptSort);
-    return readGridQuery(at.address, [...COST_SORT_COLUMNS, ...named], kept?.sort);
+    return readGridQuery(
+      at.address,
+      [...COST_SORT_COLUMNS, ...named],
+      kept?.sort,
+      CONTRACT_ADDRESS,
+      kept?.page_size,
+    );
   });
   const [reading, costs, imports, subprojects, preferences, query] = await Promise.all([
     // The costs are read for the filtered sub-project alone (`listActualCosts`): no date (#302).

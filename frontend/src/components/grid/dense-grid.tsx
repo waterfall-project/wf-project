@@ -106,6 +106,7 @@ import { configColumn, type GridFeatures, type GridTable, useGridTable } from ".
 import { GridToolbar, toggledColumns } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type KeptFilters, useKeptFilters } from "./kept-filters";
+import { useKeptPageSize } from "./kept-size";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
@@ -121,6 +122,7 @@ import {
 import {
   type GridPreferences,
   initialSettings,
+  keptPageSize,
   recordedPreferences,
   useSettingsWriter,
 } from "./settings";
@@ -558,6 +560,8 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // The sort the account keeps for the grid: the session's, then the last one a header asked.
   // Only a header writes it; a column shown or widened sends it back as it is.
   const keptSort = useRef(preferences?.sort);
+  // The size of its pages the account keeps for the grid: the session's, then the last one chosen.
+  const [keptSize, setKeptSize] = useState(keptPageSize(preferences));
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
@@ -567,13 +571,37 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const recordFilters = useCallback(
     (filters: KeptFilters) => {
       recordShown(() =>
-        recordedPreferences(preferences, currentSettings.current, keptSort.current, filters),
+        recordedPreferences(
+          preferences,
+          currentSettings.current,
+          keptSort.current,
+          filters,
+          keptSize,
+        ),
       );
       shown();
     },
-    [preferences, recordShown, shown],
+    [keptSize, preferences, recordShown, shown],
   );
   const kept = useKeptFilters(config, preferences, recordFilters);
+  // The size of the pages the address asks, recorded as the filters are (`kept-size.ts`).
+  const recordSize = useCallback(
+    (size: number) => {
+      setKeptSize(size);
+      recordShown(() =>
+        recordedPreferences(
+          preferences,
+          currentSettings.current,
+          keptSort.current,
+          kept.current,
+          size,
+        ),
+      );
+      shown();
+    },
+    [kept, preferences, recordShown, shown],
+  );
+  useKeptPageSize(config.address, keptSize, recordSize, config.tree === undefined);
   const scroller = useRef<HTMLDivElement>(null);
   const frameWidth = useFrameWidth(scroller);
   const rowHeight = ROW_REM * useRootFontSize();
@@ -600,7 +628,13 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
     writer.recordShown(() =>
-      recordedPreferences(preferences, currentSettings.current, keptSort.current, kept.current),
+      recordedPreferences(
+        preferences,
+        currentSettings.current,
+        keptSort.current,
+        kept.current,
+        keptSize,
+      ),
     );
   };
   const search = (text: string) => {
@@ -637,7 +671,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     onSettings: (next) => {
       setSettings(next);
       currentSettings.current = next;
-      writer.record(recordedPreferences(preferences, next, keptSort.current, kept.current));
+      writer.record(
+        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize),
+      );
     },
   });
 

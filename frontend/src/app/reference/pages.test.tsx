@@ -19,6 +19,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import CostSettingsPage, { generateMetadata as costsMetadata } from "./costs/page";
 import IndicatorSettingsPage from "./indicators/page";
@@ -108,7 +109,7 @@ const REACTIVATE =
 
 /** The queries the pages sent to an operation, each as its parameters. */
 function queriesOf(route: string): Record<string, string>[] {
-  return callsTo(route).map((call) => Object.fromEntries(call.query));
+  return callsTo(route).map((call) => queryOfCall(call.query));
 }
 
 /** The headings of the columns a grid of a page sorts: those whose header holds a button. */
@@ -177,7 +178,7 @@ describe("the settings of the costs", () => {
     expect(handed?.grid.meta.total).toBe(150);
     expect(handed?.currency).toBe("EUR");
     expect(handed?.editable).toBe(true);
-    expect(handed?.query).toEqual({ sort: undefined, search: undefined });
+    expect(handed?.query).toEqual({ sort: undefined, search: undefined, size: 50 });
     // The page of the server's size: nothing asked but what the address asks.
     expect(queriesOf(RATES)).toEqual([{}]);
   });
@@ -188,15 +189,24 @@ describe("the settings of the costs", () => {
       sort_by: "rate.2026",
       sort_order: "desc",
       offset: "50",
+      limit: "25",
       // The names of the other grids of the screen are not the rates'.
       type_sort_by: "label",
+      type_limit: "100",
     });
     expect(queriesOf(RATES)).toEqual([
-      { search: "Automatisme", sort_by: "rate.2026", sort_order: "desc", offset: "50" },
+      {
+        search: "Automatisme",
+        sort_by: "rate.2026",
+        sort_order: "desc",
+        offset: "50",
+        limit: "25",
+      },
     ]);
     expect(grids.rates[0]?.query).toEqual({
       sort: { column: "rate.2026", order: "desc" },
       search: "Automatisme",
+      size: 25,
     });
   });
 

@@ -3,7 +3,17 @@
 import { describe, expect, it } from "vitest";
 
 import { ESTIMATE_SORT_COLUMNS } from "./estimate";
-import { prefixedAddress, readGridQuery, SEARCH_LENGTH, searchHref, sortHref } from "./query";
+import {
+  asked,
+  CONTRACT_ADDRESS,
+  pagedList,
+  pageSizeOf,
+  prefixedAddress,
+  readGridQuery,
+  SEARCH_LENGTH,
+  searchHref,
+  sortHref,
+} from "./query";
 import { REMAINING_SORT_COLUMNS } from "./remaining";
 
 describe("what the address asks of a grid", () => {
@@ -110,6 +120,7 @@ describe("the address a grid leads to", () => {
     expect(readGridQuery(address, ESTIMATE_SORT_COLUMNS, null, roles)).toEqual({
       sort: { column: "label", order: "desc" },
       search: "Ing",
+      size: 50,
     });
     expect(sortHref("/r", address, { column: "hours", order: "asc" }, roles)).toBe(
       "/r?sort_by=hours&search=other&role_search=Ing&role_sort_by=hours&role_sort_order=asc",
@@ -128,5 +139,58 @@ describe("the address a grid leads to", () => {
     expect(searchHref("/r", paged, "Ing", roles)).toBe(
       "/r?offset=50&calendar_offset=10&role_search=Ing",
     );
+  });
+});
+
+describe("the size of the pages of a flat table", () => {
+  const size = (query: string, kept?: number | null, names = CONTRACT_ADDRESS) =>
+    readGridQuery(new URLSearchParams(query), ESTIMATE_SORT_COLUMNS, null, names, kept).size;
+
+  it("is one of 10, 25, 50 and 100 as the contract admits them, a text of the address or a number of the settings", () => {
+    expect([10, 25, 50, 100].map(pageSizeOf)).toEqual([10, 25, 50, 100]);
+    expect(["10", "25", "50", "100"].map(pageSizeOf)).toEqual([10, 25, 50, 100]);
+    for (const refused of ["", "0", "7", "500", "-25", "25.5", "x", " 25", null, undefined, 25.5]) {
+      expect(pageSizeOf(refused)).toBeUndefined();
+    }
+  });
+
+  it("is read from the address, else from the settings of the grid, else 50, whatever the address holds that no server takes [WF-IHM-0060-A]", () => {
+    expect(size("")).toBe(50);
+    expect(size("", 25)).toBe(25);
+    expect(size("limit=100", 25)).toBe(100);
+    expect(size("limit=7", 25)).toBe(25);
+    expect(size("limit=7")).toBe(50);
+    expect(size("", 7)).toBe(50);
+    expect(size("", null)).toBe(50);
+  });
+
+  it("is carried by a grid among several under its own name, the others' kept [WF-IHM-0060-A]", () => {
+    const roles = prefixedAddress("role_");
+    expect(roles.limit).toBe("role_limit");
+    expect(size("limit=10&role_limit=25", undefined, roles)).toBe(25);
+    expect(size("limit=10", undefined, roles)).toBe(50);
+  });
+
+  it("is asked of the server by every reading, under the name of the contract [WF-IHM-0060-A]", () => {
+    const query = readGridQuery(new URLSearchParams("limit=25"), ESTIMATE_SORT_COLUMNS);
+    expect(asked(query, 50)).toEqual({ limit: 25, offset: 50 });
+    expect(asked({ sort: undefined, search: undefined })).toEqual({});
+  });
+
+  it("is read by the list of its pages, which a sort, a search or a size changed reads otherwise", () => {
+    const roles = prefixedAddress("role_");
+    expect(pagedList(roles)).toEqual({
+      page: "role_offset",
+      size: "role_limit",
+      reads: ["role_search", "role_sort_by", "role_sort_order", "role_limit"],
+    });
+  });
+
+  it("is kept by a sort or a search that changes, back to its first page", () => {
+    const paged = new URLSearchParams("limit=25&offset=50");
+    expect(sortHref("/r", paged, { column: "label", order: "asc" })).toBe(
+      "/r?limit=25&sort_by=label&sort_order=asc",
+    );
+    expect(searchHref("/r", paged, "Ing")).toBe("/r?limit=25&search=Ing");
   });
 });

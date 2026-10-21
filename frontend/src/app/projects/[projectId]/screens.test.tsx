@@ -15,6 +15,7 @@ import {
 } from "@/components/projects/settings-lists";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import LifecyclePage, { generateMetadata as lifecycleMetadata } from "./lifecycle/page";
 import ProjectPage from "./page";
@@ -87,7 +88,7 @@ function queriesOf(route: string): Record<string, string>[] {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 /** The table a page names, its inner markup. */

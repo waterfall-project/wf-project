@@ -16,7 +16,13 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 import { readValues } from "@/components/grid/filters";
-import { CONTRACT_ADDRESS, type GridQuery, OFFSET, pagedList } from "@/components/grid/query";
+import {
+  CONTRACT_ADDRESS,
+  type GridQuery,
+  limited,
+  OFFSET,
+  pagedList,
+} from "@/components/grid/query";
 import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
 import type { ProjectState } from "@/navigation/home";
@@ -234,6 +240,7 @@ export function portfolioProjectsQuery<Sort extends NonNullable<ProjectsQuery["s
     ...(zones.length === 0 ? {} : { zones: [...zones] }),
     ...(offset === 0 ? {} : { offset }),
     ...(query.search === undefined ? {} : { search: query.search }),
+    ...limited(query),
     ...(query.sort === undefined
       ? {}
       : { sort_by: query.sort.column, sort_order: query.sort.order }),

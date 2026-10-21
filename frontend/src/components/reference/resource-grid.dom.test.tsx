@@ -192,6 +192,27 @@ describe("the tree of the organisation", () => {
     expect(tree.querySelector("tfoot tr")?.textContent).toBe("4 nœuds");
   });
 
+  it("offers no number of rows per page, and records none whatever the address holds [WF-IHM-0060-A]", async () => {
+    const client = serve();
+    page.search = `${ORG_NODE_ADDRESS.limit}=25&limit=25`;
+    render(
+      inFrench(
+        <ResourceGrid
+          editable={false}
+          kind="orgNodes"
+          rows={nodes}
+          query={NO_QUERY}
+          preferences={undefined}
+          narrowing={{}}
+        />,
+      ),
+    );
+    expect(screen.getByRole("treegrid", { name: "Arbre d’organisation" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Lignes par page")).toBeNull();
+    await new Promise((done) => setTimeout(done, 50));
+    expect(client.calls.filter(({ route }) => route === "PATCH /me/preferences")).toEqual([]);
+  });
+
   it("asks the server for the nodes a search retains, under the names of its grid", async () => {
     serve();
     page.search = "role_sort_by=label";

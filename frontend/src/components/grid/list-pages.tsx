@@ -15,6 +15,11 @@
  * the place of a row in the list shown meaning nothing in the other; a sort or a page of another
  * list of the screen leaves it as it is (#294).
  *
+ * A flat table of which the account chooses the size of the pages (`PagedList.size`) offers it beside
+ * its links — « Lignes par page » (`page-size.tsx`) —, as long as it holds more rows than the
+ * smallest page, even when it holds a single page: a size chosen too large must be taken back. A
+ * list whose pages have a size of their own, or a tree, offers none.
+ *
  * Every prop is data, never a function: a server component hands it over (défaut n° 12 de
  * `typescript.md`).
  */
@@ -33,7 +38,9 @@ import {
 import { type ListPage, type PagedList, pageOffsets, readingOf } from "@/navigation/pages";
 
 import { filterHref } from "./filters";
+import { PageSizeChoice } from "./page-size";
 import { usePendingLink } from "./pending-address";
+import { PAGE_SIZES } from "./query";
 
 /**
  * The texts of the pages of a list alone on its screen, or of one of the costs: those of its links,
@@ -105,23 +112,30 @@ export function ListPages({
   const t = useTranslations(naming.texts ?? NAMED);
   const named = useTranslations(NAMED);
   const { beyond, previous, next } = pageOffsets(page, shown);
-  if (previous === undefined && next === undefined) {
+  const size = page.total > PAGE_SIZES[0] ? list.size : undefined;
+  const turns = previous !== undefined || next !== undefined;
+  if (!turns && size === undefined) {
     return null;
   }
   const label = naming.texts === undefined ? named("label", { list: naming.title }) : t("label");
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       {beyond ? <p>{t("beyond")}</p> : null}
-      <Pagination aria-label={label}>
-        <PaginationContent>
-          {previous === undefined ? null : (
-            <PageLink list={list} offset={previous} direction="previous" text={t("previous")} />
-          )}
-          {next === undefined ? null : (
-            <PageLink list={list} offset={next} direction="next" text={t("next")} />
-          )}
-        </PaginationContent>
-      </Pagination>
+      {turns ? (
+        <Pagination aria-label={label}>
+          <PaginationContent>
+            {previous === undefined ? null : (
+              <PageLink list={list} offset={previous} direction="previous" text={t("previous")} />
+            )}
+            {next === undefined ? null : (
+              <PageLink list={list} offset={next} direction="next" text={t("next")} />
+            )}
+          </PaginationContent>
+        </Pagination>
+      ) : null}
+      {size === undefined ? null : (
+        <PageSizeChoice size={size} page={list.page} current={page.limit} title={naming.title} />
+      )}
     </div>
   );
 }

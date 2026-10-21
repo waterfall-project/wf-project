@@ -9,6 +9,7 @@ import type { NatureChoice } from "@/components/reference/cost-kinds";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import CostSettingsPage from "./page";
 
@@ -91,7 +92,7 @@ function queriesOf(route: string): Record<string, string>[] {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 /** What the page handed the list of the categories: every nature, and the natures offered. */

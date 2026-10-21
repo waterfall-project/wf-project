@@ -17,6 +17,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import HomePage, { generateMetadata } from "./page";
 
@@ -106,7 +107,7 @@ function listQuery(): Record<string, string> {
   const call = server.clients
     .flatMap((client) => client.calls)
     .find((each) => each.route === "GET /projects");
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {
@@ -152,6 +153,7 @@ describe("the home, the list of projects", () => {
       sort_order: "desc",
       search: "poste",
       offset: "50",
+      limit: "25",
     });
     expect(listQuery()).toEqual({
       is_contributor: "true",
@@ -160,10 +162,12 @@ describe("the home, the list of projects", () => {
       sort_order: "desc",
       search: "poste",
       offset: "50",
+      limit: "25",
     });
     expect(grids.props.at(-1)?.query).toEqual({
       sort: { column: "updated_at", order: "desc" },
       search: "poste",
+      size: 25,
     });
   });
 

@@ -23,6 +23,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import ResourceSettingsPage from "./page";
 
@@ -161,7 +162,7 @@ function queriesOf(route: string): Record<string, string>[] {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 beforeEach(() => {

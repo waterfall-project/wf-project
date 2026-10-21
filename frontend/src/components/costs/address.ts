@@ -145,11 +145,13 @@ export function costsQuery<Sort extends NonNullable<CostsQuery["sort_by"]>>(aske
   readonly subproject: string | undefined;
   readonly filters: CostFilters;
   readonly sort: GridSort<Sort> | undefined;
+  readonly size?: number | undefined;
 }): CostsQuery {
-  const { offset, subproject, filters, sort } = asked;
+  const { offset, subproject, filters, sort, size } = asked;
   const scope = scopeParameter(filters.scope);
   return {
     ...(offset === 0 ? {} : { offset }),
+    ...(size === undefined ? {} : { limit: size }),
     ...(subproject === undefined ? {} : { subproject_id: subproject }),
     ...(filters.from === undefined ? {} : { from: filters.from }),
     ...(filters.to === undefined ? {} : { to: filters.to }),

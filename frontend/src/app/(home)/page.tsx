@@ -29,7 +29,7 @@ import { serverClient } from "@/api/server";
 import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readPeriod, refusedPeriod } from "@/components/grid/period";
-import { readGridQuery } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { platformOffer } from "@/components/commands/offer";
 import { homeQuery } from "@/components/projects/home-list";
@@ -177,7 +177,13 @@ export default async function HomePage({
     filtered,
     states: readValues(search, STATES_PARAMETER, PROJECT_STATES),
     period: readPeriod(search, "day"),
-    query: readGridQuery(search, PROJECT_LIST_SORT_COLUMNS, kept?.sort),
+    query: readGridQuery(
+      search,
+      PROJECT_LIST_SORT_COLUMNS,
+      kept?.sort,
+      CONTRACT_ADDRESS,
+      kept?.page_size,
+    ),
     offset: offsetOf(search.get(OFFSET_PARAMETER)),
   };
   const [projects, readiness] = await Promise.all([

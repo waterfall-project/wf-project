@@ -16,6 +16,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 import { buttons, instants, links, rows, sortable, text } from "@/test/markup";
+import { queryOfCall } from "@/test/queries";
 
 import SystemStatusPage, { generateMetadata as statusMetadata } from "../system/page";
 import AccessRolesPage, { generateMetadata as rolesMetadata } from "./access-roles/page";
@@ -88,7 +89,7 @@ function queriesOf(route: string) {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 beforeEach(() => {
@@ -418,8 +419,8 @@ describe("the accounts", () => {
     await UsersPage(searched({ search: "" }));
     await UsersPage(searched({ sort_by: "email", sort_order: "asc" }));
     expect(queriesOf("GET /users")).toEqual([
-      { include_inactive: "true" },
-      { include_inactive: "true", sort_by: "email", sort_order: "asc" },
+      { include_inactive: "true", limit: "25" },
+      { include_inactive: "true", sort_by: "email", sort_order: "asc", limit: "25" },
     ]);
   });
 

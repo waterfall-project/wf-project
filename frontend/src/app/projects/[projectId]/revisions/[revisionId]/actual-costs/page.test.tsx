@@ -15,6 +15,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import ActualCostsPage, { generateMetadata } from "./page";
 
@@ -89,7 +90,7 @@ function queryOf(route: string): Record<string, string> {
   const calls = server.clients.flatMap((client) => client.calls);
   const [call, ...more] = calls.filter((each) => each.route === route);
   expect(more).toEqual([]);
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {

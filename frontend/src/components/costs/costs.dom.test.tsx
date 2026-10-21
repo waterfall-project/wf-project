@@ -523,7 +523,7 @@ describe("the pages of a list the server pages", () => {
     );
   });
 
-  it("shows no way through a list the page holds whole", () => {
+  it("shows no way through a list the page holds whole, and none at all for a list the smallest page holds", () => {
     const list = listOf("actual_costs");
     const { container } = render(
       inLanguage(
@@ -535,7 +535,21 @@ describe("the pages of a list the server pages", () => {
         />,
       ),
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole("navigation", { name: "Pages des coûts réels" })).toBeNull();
+    // The size chosen can be taken back, though the list holds a single page.
+    expect(screen.getByRole("combobox", { name: "Lignes par page" })).toHaveValue("50");
+    const short = render(
+      inLanguage(
+        <ListPages
+          list={COSTS_LIST}
+          texts="actualCosts.pages.costs"
+          page={{ limit: 50, offset: 0, total: 8 }}
+          shown={8}
+        />,
+      ),
+    );
+    expect(short.container).toBeEmptyDOMElement();
+    expect(container).not.toBeEmptyDOMElement();
   });
 
   it("says a page asked beyond the end, and leads back to the last page", () => {

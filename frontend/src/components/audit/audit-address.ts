@@ -19,6 +19,7 @@ import { isInstant } from "@/components/grid/period";
 import {
   CONTRACT_ADDRESS,
   type GridQuery,
+  limited,
   OFFSET,
   pagedList,
   SEARCH,
@@ -212,6 +213,7 @@ export function auditQuery(
   return {
     ...(offset === undefined ? {} : { offset }),
     ...(grid.search === undefined ? {} : { search: grid.search }),
+    ...limited(grid),
     ...(filters.from === undefined ? {} : { from: filters.from }),
     ...(filters.to === undefined ? {} : { to: filters.to }),
     ...(filters.user === undefined ? {} : { user_id: filters.user }),

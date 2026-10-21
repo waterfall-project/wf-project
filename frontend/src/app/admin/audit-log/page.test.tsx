@@ -14,6 +14,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import AuditLogPage, { generateMetadata } from "./page";
 
@@ -74,7 +75,7 @@ function queriesOf(route: string) {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 /** The grid of the page, by its name. */

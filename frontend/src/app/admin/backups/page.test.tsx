@@ -24,6 +24,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 import { buttons, instants, links, rows, sortable, text } from "@/test/markup";
+import { queryOfCall } from "@/test/queries";
 
 import BackupsPage, { generateMetadata as backupsMetadata } from "./page";
 
@@ -94,7 +95,7 @@ function queriesOf(route: string) {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 beforeEach(() => {

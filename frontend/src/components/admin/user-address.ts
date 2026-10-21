@@ -20,7 +20,7 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 import { keptReading } from "@/components/grid/kept-address";
-import { CONTRACT_ADDRESS, type GridQuery, pagedList } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, limited, pagedList } from "@/components/grid/query";
 import { listReads } from "@/components/reference/address";
 import type { SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
@@ -149,6 +149,7 @@ export function usersQuery<Sort extends NonNullable<UsersQuery["sort_by"]>>(aske
     include_inactive: true,
     ...(offset === undefined ? {} : { offset }),
     ...(query.search === undefined ? {} : { search: query.search }),
+    ...limited(query),
     ...(origins.length === 0 ? {} : { origins: [...origins] }),
     ...(orgNode === undefined ? {} : { org_node_id: orgNode }),
     ...(accessRoles.length === 0 ? {} : { access_role_ids: [...accessRoles] }),
