@@ -752,6 +752,37 @@ def whole(rows: list[Row]) -> JsonObject:
     return _answer(rows, rows, [])
 
 
+ALWAYS = ("node_id", "row_number", "level", "lock_version")
+"""What a reading renders of each node whatever `fields` names (`NodeFields`, #166)."""
+
+
+def with_fields(
+    nodes: Iterable[JsonObject], names: Iterable[str], always: Iterable[str] = ALWAYS
+) -> list[JsonObject]:
+    """Return the nodes as a reading that names `fields` renders them (`NodeFields`, #166).
+
+    A property of `Node` named is rendered whole; a property of a facet, `task.label`, renders
+    the facet with its properties named alone; a facet of which nothing is named is omitted, and
+    what a node does not bear is not rendered. What is always rendered comes first, in its order.
+    """
+    named = list(names)
+    kept = [*always, *(name for name in named if "." not in name)]
+    facets: dict[str, list[str]] = {}
+    for name in named:
+        if "." in name:
+            facet, key = name.split(".", 1)
+            facets.setdefault(facet, []).append(key)
+    read: list[JsonObject] = []
+    for node in nodes:
+        rendered: JsonObject = {key: node[key] for key in kept if key in node}
+        for facet, keys in facets.items():
+            if facet in node and facet not in rendered:
+                values = cast("JsonObject", node[facet])
+                rendered[facet] = {key: values[key] for key in keys if key in values}
+        read.append(rendered)
+    return read
+
+
 def search(rows: list[Row], text: str) -> JsonObject:
     """Return the reading of a search: the nodes whose label holds the text, and their ancestors.
 

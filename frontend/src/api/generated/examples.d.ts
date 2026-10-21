@@ -126,7 +126,7 @@ export interface Examples {
     200: "revisions" | "revisions_empty" | "revisions_marked";
   };
   "GET /projects/{project_id}/revisions/comparison": {
-    200: "comparison" | "comparison_identical";
+    200: "comparison" | "comparison_identical" | "volume/comparison_volume";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
     200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader" | "revision_without_tasks";

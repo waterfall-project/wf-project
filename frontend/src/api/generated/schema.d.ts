@@ -3936,24 +3936,24 @@ export interface components {
             kind: "timeline" | "milestone_tracking";
             timeline_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique, dates et durée d'une récapitulative, marge, criticité, avancement physique, fin dépassée — ne sont pas saisissables (WF-IHM-0030). La durée est portée dans l'unité de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de travail écoulées ce jour-là (WF-DAT-0100). Une tâche, récapitulative ou feuille, peut porter le rattachement à un lot ou à un poste du lotissement (`work_package_id`, `order_item_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le fichier lui donnait (`external_id`, WF-INTF-0040). */
-        TaskFacet: {
-            label: string;
+        /** @description La facette temps d'un nœud de la comparaison (`ComparedNodeRead.task`) : les propriétés de `TaskFacet`, reprises de lui, aucune exigée — une lecture avec `fields` ne rend que celles qu'il nomme (`task.label`), une lecture sans `fields` les rend toutes (#166, #1208). */
+        ComparedTaskFacet: {
+            label?: string;
             description?: string | null;
-            scheduling_mode: components["schemas"]["SchedulingMode"];
-            duration: components["schemas"]["Duration"];
-            start: components["schemas"]["WorkInstant"] | null;
-            finish: components["schemas"]["WorkInstant"] | null;
-            progress: components["schemas"]["TaskProgress"];
+            scheduling_mode?: components["schemas"]["SchedulingMode"];
+            duration?: components["schemas"]["Duration"];
+            start?: components["schemas"]["WorkInstant"] | null;
+            finish?: components["schemas"]["WorkInstant"] | null;
+            progress?: components["schemas"]["TaskProgress"];
             /** @description Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon. */
-            finish_overdue: boolean;
+            finish_overdue?: boolean;
             started_on?: components["schemas"]["PlanningDate"] | null;
             /** @description Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030). */
             completed_on?: components["schemas"]["PlanningDate"] | null;
             /** @description Récapitulative : son état est dérivé de ses subordonnées, non saisissable (WF-PLA-0040). */
-            is_summary: boolean;
+            is_summary?: boolean;
             /** @description Jalon, tâche de durée nulle (WF-PLA-0050). */
-            is_milestone: boolean;
+            is_milestone?: boolean;
             /** @description Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). */
             calendar_id?: components["schemas"]["Uuid"] | null;
             /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
@@ -3963,13 +3963,13 @@ export interface components {
             /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
             physical_progress?: components["schemas"]["Computable"] | null;
             /** @description Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent. */
-            base_amount: components["schemas"]["Money"];
+            base_amount?: components["schemas"]["Money"];
             /** @description Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020). */
-            budgeted_amount: components["schemas"]["Money"];
+            budgeted_amount?: components["schemas"]["Money"];
             /** @description Même somme, pour les montants réestimés, à l'année de référence. */
-            reestimated_amount: components["schemas"]["Money"];
+            reestimated_amount?: components["schemas"]["Money"];
             /** @description Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050). */
-            inflated_amount: components["schemas"]["Money"];
+            inflated_amount?: components["schemas"]["Money"];
             /** @description Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060). */
             tracking?: components["schemas"]["TrackingEntry"][];
             /** @description Le poste du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que `work_package_id`, exclusif de lui : une tâche porte un lot ou un poste, jamais les deux ; un poste n'est porté que par une tâche à la fois. « Lorsque le lot d'un poste est rattaché, la tâche de ce poste se trouve dans le sous-arbre de la tâche de ce lot » (WF-PLA-0170). Les grilles filtrent par poste sur ce rattachement (WF-DEV-0050, WF-RAE-0040). */
@@ -3986,17 +3986,17 @@ export interface components {
             is_available: boolean;
             missing_conditions: components["schemas"]["CommandCondition"][];
         };
-        /** @description Facette argent d'un nœud. Les quatre montants sont calculés et non saisissables : le montant à l'année de référence est celui de la ligne telle qu'elle est chiffrée (WF-DEV-0030), le budgété est fixé par la révision de référence et nul pour une ligne ajoutée après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-RAE-0040) — tous trois à l'année de référence —, et le montant corrigé de l'inflation, seul à porter l'inflation, est le montant projeté sur l'année de consommation de la ligne (WF-DEV-0040). La grille de devis présente le premier et le dernier, jamais le budgété ni le réestimé (WF-DEV-0050). La catégorie, le rôle et le sous-projet sont nommés par leur libellé, que le serveur résout à la lecture, l'objet actif ou désactivé, pour que la grille ne rapproche aucune liste (WF-ARC-0020, WF-REF-0150). Une ligne qui emploie un objet du référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis et de reste à engager la signalent (WF-REF-0010). */
-        EstimateLineFacet: {
-            label: string;
-            cost_category_id: components["schemas"]["Uuid"];
+        /** @description La facette devis d'un nœud de la comparaison (`ComparedNodeRead.estimate_line`) : les propriétés d'`EstimateLineFacet`, reprises de lui, aucune exigée — une lecture avec `fields` ne rend que celles qu'il nomme (`estimate_line.label`), une lecture sans `fields` les rend toutes (#166, #1208). */
+        ComparedEstimateLineFacet: {
+            label?: string;
+            cost_category_id?: components["schemas"]["Uuid"];
             /** @description Libellé de la catégorie de coût, résolu à la lecture, active ou désactivée. */
-            cost_category_label: string;
-            quantity: components["schemas"]["Decimal"];
+            cost_category_label?: string;
+            quantity?: components["schemas"]["Decimal"];
             /** @description Exigé pour une catégorie de main-d'œuvre, absent sinon (WF-DEV-0020). */
             resource_role_id?: components["schemas"]["Uuid"] | null;
             /** @description Libellé du rôle de ressource, résolu à la lecture, actif ou désactivé ; nul pour une ligne sans rôle. */
-            resource_role_label: string | null;
+            resource_role_label?: string | null;
             hours?: components["schemas"]["Hours"] | null;
             /** @description Débours unitaire d'une ligne hors main-d'œuvre (WF-DEV-0020). */
             unit_disbursement?: components["schemas"]["Money"] | null;
@@ -4005,15 +4005,15 @@ export interface components {
             /** @description Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020). */
             subproject_id?: components["schemas"]["Uuid"] | null;
             /** @description Libellé du sous-projet, résolu à la lecture ; nul pour une ligne hors sous-projet. */
-            subproject_label: string | null;
+            subproject_label?: string | null;
             /** @description Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ; celui que la grille de devis présente (WF-DEV-0050). */
-            base_amount: components["schemas"]["Money"];
+            base_amount?: components["schemas"]["Money"];
             /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants. */
-            budgeted_amount: components["schemas"]["Money"];
+            budgeted_amount?: components["schemas"]["Money"];
             /** @description Montant réestimé, à l'année de référence. */
-            reestimated_amount: components["schemas"]["Money"];
+            reestimated_amount?: components["schemas"]["Money"];
             /** @description Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant. */
-            inflated_amount: components["schemas"]["Money"];
+            inflated_amount?: components["schemas"]["Money"];
             /** @description Quantité au reste à engager précédent, que la grille de reste à engager présente à côté de la courante (WF-RAE-0040), lue dans la ligne et non dans une autre révision (WF-ARC-0020) ; nulle avant la première revue. */
             previous_quantity?: components["schemas"]["Decimal"] | null;
             /** @description Charge au reste à engager précédent (WF-RAE-0040) ; nulle avant la première revue, et pour une ligne sans charge, comme `hours`. */
@@ -4025,11 +4025,11 @@ export interface components {
             /** @description Année de consommation, déduite du planning (WF-DEV-0040). */
             consumption_year?: components["schemas"]["Year"] | null;
             /** @description Vrai pour une ligne de provision, dont le montant est calculé depuis le risque et jamais saisi (WF-RIS-0010). */
-            is_computed: boolean;
+            is_computed?: boolean;
             /** @description Calculé : vrai quand la catégorie de coût, le rôle de ressource ou la nature de la ligne est désactivé dans le référentiel ; la ligne reste lisible, la grille la signale (WF-REF-0010). Le refus d'une saisie qui emploierait un objet désactivé est inchangé (`INACTIVE_REFERENCE_OBJECT`). */
-            uses_inactive_object: boolean;
+            uses_inactive_object?: boolean;
             /** @description Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement. */
-            remaining_entry: components["schemas"]["EntryAvailability"];
+            remaining_entry?: components["schemas"]["EntryAvailability"];
             /** @description Tâche porteuse, résolue à la lecture. */
             bearing_task_node_id?: components["schemas"]["Uuid"] | null;
             bearing_task_label?: string | null;
@@ -4076,29 +4076,29 @@ export interface components {
          * @enum {string}
          */
         NodeChange: "dates" | "duration" | "progress" | "budgeted_amount" | "reestimated_amount" | "parent";
-        /** @description `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et les inscriptions aux suivis (WF-DAT-0030). */
-        Node: {
+        /** @description Un nœud de la comparaison (`RevisionComparison.items`), tel que `compareRevisions` le rend : les propriétés de `Node`, reprises de lui, dont seules sont exigées celles qu'une lecture rend toujours — `node_id`, `row_number`, `level` et `lock_version`, et la marque du nœud, `difference` et `changes` —, les autres n'étant rendues que si `fields` les nomme, ou toutes s'il est omis (#166, #1201, #1208). Ses facettes sont partielles de même. `Node`, que rend `listNodes`, ne change pas. */
+        ComparedNodeRead: {
             node_id: components["schemas"]["Uuid"];
-            lineage_id: components["schemas"]["Uuid"];
-            kind: components["schemas"]["NodeKind"];
-            parent_id: components["schemas"]["Uuid"] | null;
+            lineage_id?: components["schemas"]["Uuid"];
+            kind?: components["schemas"]["NodeKind"];
+            parent_id?: components["schemas"]["Uuid"] | null;
             /** @description Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place qu'ils avaient (`NodeDifference`). */
-            readonly position: number;
+            readonly position?: number;
             /** @description Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri. Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne (`NodeDifference`). */
             row_number: number;
             level: number;
-            task?: components["schemas"]["TaskFacet"] | null;
-            estimate_line?: components["schemas"]["EstimateLineFacet"] | null;
+            task?: components["schemas"]["ComparedTaskFacet"] | null;
+            estimate_line?: components["schemas"]["ComparedEstimateLineFacet"] | null;
             predecessors?: components["schemas"]["Predecessor"][];
             /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
-            computed_fields: components["schemas"]["ComputedField"][];
+            computed_fields?: components["schemas"]["ComputedField"][];
             /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
-            editable_fields: components["schemas"]["EditableField"][];
+            editable_fields?: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
-            /** @description L'écart du nœud, que le serveur rend et que le front ne calcule pas : sur la lecture d'un différentiel, avec la structure principale de sa révision ; dans une comparaison de deux révisions (`RevisionComparison`), avec la révision de base (WF-REV-0080, WF-REV-0100, C-361). Toujours rendu sur ces deux lectures, que `fields` le nomme ou non ; nul — ou omis — sur la structure principale et sur le devis propre d'un risque, qui ne se lisent par rapport à rien. */
-            difference?: components["schemas"]["NodeDifference"] | null;
+            /** @description L'écart du nœud à la révision de base (`from_revision_id`), que le serveur rend et que le front ne calcule pas (WF-REV-0080, C-361) : toujours rendu, que `fields` le nomme ou non, jamais nul. */
+            difference: components["schemas"]["NodeDifference"];
             /** @description Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` : vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée. */
-            changes?: components["schemas"]["NodeChange"][];
+            changes: components["schemas"]["NodeChange"][];
         };
         /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. Chaque montant est la somme du montant de même nom des lignes retenues (`EstimateLineFacet`) : à l'année de référence, sauf le montant corrigé de l'inflation (WF-DEV-0050). `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de provision comprises : ce n'est pas le budget de référence, diminué des provisions selon WF-RIS-0050. */
         NodeTotals: {
@@ -4120,7 +4120,7 @@ export interface components {
             from_revision_id: components["schemas"]["Uuid"];
             to_revision_id: components["schemas"]["Uuid"];
             /** @description Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend : chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080, C-361). */
-            items: components["schemas"]["Node"][];
+            items: components["schemas"]["ComparedNodeRead"][];
             /** @description Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes retenues, sans les nœuds retirés, qui ne sont plus de sa structure. */
             totals: components["schemas"]["NodeTotals"];
             /** @description Ce que la lecture dit de la structure principale de la révision comparée. */
@@ -4239,6 +4239,123 @@ export interface components {
             main_structure_lock_version: components["schemas"]["LockVersion"];
             /** @description Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`). */
             amendment_lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique, dates et durée d'une récapitulative, marge, criticité, avancement physique, fin dépassée — ne sont pas saisissables (WF-IHM-0030). La durée est portée dans l'unité de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de travail écoulées ce jour-là (WF-DAT-0100). Une tâche, récapitulative ou feuille, peut porter le rattachement à un lot ou à un poste du lotissement (`work_package_id`, `order_item_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le fichier lui donnait (`external_id`, WF-INTF-0040). */
+        TaskFacet: {
+            label: string;
+            description?: string | null;
+            scheduling_mode: components["schemas"]["SchedulingMode"];
+            duration: components["schemas"]["Duration"];
+            start: components["schemas"]["WorkInstant"] | null;
+            finish: components["schemas"]["WorkInstant"] | null;
+            progress: components["schemas"]["TaskProgress"];
+            /** @description Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon. */
+            finish_overdue: boolean;
+            started_on?: components["schemas"]["PlanningDate"] | null;
+            /** @description Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030). */
+            completed_on?: components["schemas"]["PlanningDate"] | null;
+            /** @description Récapitulative : son état est dérivé de ses subordonnées, non saisissable (WF-PLA-0040). */
+            is_summary: boolean;
+            /** @description Jalon, tâche de durée nulle (WF-PLA-0050). */
+            is_milestone: boolean;
+            /** @description Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). */
+            calendar_id?: components["schemas"]["Uuid"] | null;
+            /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
+            total_float?: components["schemas"]["Duration"] | null;
+            /** @description Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). */
+            is_critical?: boolean;
+            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
+            physical_progress?: components["schemas"]["Computable"] | null;
+            /** @description Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent. */
+            base_amount: components["schemas"]["Money"];
+            /** @description Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020). */
+            budgeted_amount: components["schemas"]["Money"];
+            /** @description Même somme, pour les montants réestimés, à l'année de référence. */
+            reestimated_amount: components["schemas"]["Money"];
+            /** @description Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050). */
+            inflated_amount: components["schemas"]["Money"];
+            /** @description Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060). */
+            tracking?: components["schemas"]["TrackingEntry"][];
+            /** @description Le poste du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que `work_package_id`, exclusif de lui : une tâche porte un lot ou un poste, jamais les deux ; un poste n'est porté que par une tâche à la fois. « Lorsque le lot d'un poste est rattaché, la tâche de ce poste se trouve dans le sous-arbre de la tâche de ce lot » (WF-PLA-0170). Les grilles filtrent par poste sur ce rattachement (WF-DEV-0050, WF-RAE-0040). */
+            order_item_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le lot du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) : posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de `order_item_id`. Un lot n'est porté que par une tâche à la fois ; c'est par elle que le devis présente le total par lot, celui de son sous-arbre (WF-DEV-0060), et que les grilles filtrent par lot. Une récapitulative qui perd sa dernière subordonnée garde son rattachement. Nul sans rattachement. */
+            work_package_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé du lot ou du poste porté, résolu à la lecture, que la colonne `work_breakdown` présente sans que la grille lise le lotissement (WF-ARC-0020) ; nul sans rattachement. */
+            work_breakdown_label?: string | null;
+            /** @description L'identifiant que MS Project donnait à la tâche dans le fichier dont l'import l'a créée, conservé comme identifiant externe (WF-INTF-0040) : c'est par lui qu'un fichier remanié avant le premier export se rapproche de la tâche. Nul pour une tâche créée dans Waterfall, jamais saisi. */
+            external_id?: string | null;
+        };
+        /** @description Facette argent d'un nœud. Les quatre montants sont calculés et non saisissables : le montant à l'année de référence est celui de la ligne telle qu'elle est chiffrée (WF-DEV-0030), le budgété est fixé par la révision de référence et nul pour une ligne ajoutée après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-RAE-0040) — tous trois à l'année de référence —, et le montant corrigé de l'inflation, seul à porter l'inflation, est le montant projeté sur l'année de consommation de la ligne (WF-DEV-0040). La grille de devis présente le premier et le dernier, jamais le budgété ni le réestimé (WF-DEV-0050). La catégorie, le rôle et le sous-projet sont nommés par leur libellé, que le serveur résout à la lecture, l'objet actif ou désactivé, pour que la grille ne rapproche aucune liste (WF-ARC-0020, WF-REF-0150). Une ligne qui emploie un objet du référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis et de reste à engager la signalent (WF-REF-0010). */
+        EstimateLineFacet: {
+            label: string;
+            cost_category_id: components["schemas"]["Uuid"];
+            /** @description Libellé de la catégorie de coût, résolu à la lecture, active ou désactivée. */
+            cost_category_label: string;
+            quantity: components["schemas"]["Decimal"];
+            /** @description Exigé pour une catégorie de main-d'œuvre, absent sinon (WF-DEV-0020). */
+            resource_role_id?: components["schemas"]["Uuid"] | null;
+            /** @description Libellé du rôle de ressource, résolu à la lecture, actif ou désactivé ; nul pour une ligne sans rôle. */
+            resource_role_label: string | null;
+            hours?: components["schemas"]["Hours"] | null;
+            /** @description Débours unitaire d'une ligne hors main-d'œuvre (WF-DEV-0020). */
+            unit_disbursement?: components["schemas"]["Money"] | null;
+            /** @description Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne quand elle présente les décaissements (WF-IND-0100). Nul pour une ligne de provision, qui n'en porte pas et reste à la date de la tâche qui la porte (WF-DEV-0020, WF-IND-0100 ; EP-14/L42s). */
+            payment_delay_days?: number | null;
+            /** @description Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020). */
+            subproject_id?: components["schemas"]["Uuid"] | null;
+            /** @description Libellé du sous-projet, résolu à la lecture ; nul pour une ligne hors sous-projet. */
+            subproject_label: string | null;
+            /** @description Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ; celui que la grille de devis présente (WF-DEV-0050). */
+            base_amount: components["schemas"]["Money"];
+            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants. */
+            budgeted_amount: components["schemas"]["Money"];
+            /** @description Montant réestimé, à l'année de référence. */
+            reestimated_amount: components["schemas"]["Money"];
+            /** @description Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant. */
+            inflated_amount: components["schemas"]["Money"];
+            /** @description Quantité au reste à engager précédent, que la grille de reste à engager présente à côté de la courante (WF-RAE-0040), lue dans la ligne et non dans une autre révision (WF-ARC-0020) ; nulle avant la première revue. */
+            previous_quantity?: components["schemas"]["Decimal"] | null;
+            /** @description Charge au reste à engager précédent (WF-RAE-0040) ; nulle avant la première revue, et pour une ligne sans charge, comme `hours`. */
+            previous_hours?: components["schemas"]["Hours"] | null;
+            /** @description Débours unitaire au reste à engager précédent (WF-RAE-0040) ; nul avant la première revue, et pour une ligne de main-d'œuvre, comme `unit_disbursement`. */
+            previous_unit_disbursement?: components["schemas"]["Money"] | null;
+            /** @description Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue. */
+            previous_reestimated_amount?: components["schemas"]["Money"] | null;
+            /** @description Année de consommation, déduite du planning (WF-DEV-0040). */
+            consumption_year?: components["schemas"]["Year"] | null;
+            /** @description Vrai pour une ligne de provision, dont le montant est calculé depuis le risque et jamais saisi (WF-RIS-0010). */
+            is_computed: boolean;
+            /** @description Calculé : vrai quand la catégorie de coût, le rôle de ressource ou la nature de la ligne est désactivé dans le référentiel ; la ligne reste lisible, la grille la signale (WF-REF-0010). Le refus d'une saisie qui emploierait un objet désactivé est inchangé (`INACTIVE_REFERENCE_OBJECT`). */
+            uses_inactive_object: boolean;
+            /** @description Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement. */
+            remaining_entry: components["schemas"]["EntryAvailability"];
+            /** @description Tâche porteuse, résolue à la lecture. */
+            bearing_task_node_id?: components["schemas"]["Uuid"] | null;
+            bearing_task_label?: string | null;
+        };
+        /** @description `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et les inscriptions aux suivis (WF-DAT-0030). */
+        Node: {
+            node_id: components["schemas"]["Uuid"];
+            lineage_id: components["schemas"]["Uuid"];
+            kind: components["schemas"]["NodeKind"];
+            parent_id: components["schemas"]["Uuid"] | null;
+            /** @description Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place qu'ils avaient (`NodeDifference`). */
+            readonly position: number;
+            /** @description Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri. Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne (`NodeDifference`). */
+            row_number: number;
+            level: number;
+            task?: components["schemas"]["TaskFacet"] | null;
+            estimate_line?: components["schemas"]["EstimateLineFacet"] | null;
+            predecessors?: components["schemas"]["Predecessor"][];
+            /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
+            computed_fields: components["schemas"]["ComputedField"][];
+            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
+            editable_fields: components["schemas"]["EditableField"][];
+            lock_version: components["schemas"]["LockVersion"];
+            /** @description L'écart du nœud, que le serveur rend et que le front ne calcule pas : sur la lecture d'un différentiel, avec la structure principale de sa révision ; dans une comparaison de deux révisions (`RevisionComparison`), avec la révision de base (WF-REV-0080, WF-REV-0100, C-361). Toujours rendu sur ces deux lectures, que `fields` le nomme ou non ; nul — ou omis — sur la structure principale et sur le devis propre d'un risque, qui ne se lisent par rapport à rien. */
+            difference?: components["schemas"]["NodeDifference"] | null;
+            /** @description Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` : vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée. */
+            changes?: components["schemas"]["NodeChange"][];
         };
         /** @description Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). Le rattachement à un lot ou à un poste est accepté de toute tâche de la structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son lot. */
         TaskFacetWrite: {

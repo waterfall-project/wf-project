@@ -1989,7 +1989,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   autour de lui, datée en heures sur le calendrier de chaque tâche et lue aujourd'hui
   (`wftools.mockstructure`, datée et émise par `wftools.mockcore`), premier exemple de
   `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
-  durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; les trois cents projets de
+  durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; la comparaison de l'offre et
+  de la référence sur toute cette structure, lue avec `fields`, deuxième exemple de
+  `compareRevisions` (`wftools.mockhistory`, #1201) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
   structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
   catégories de coût et quinze ans de taux horaires, en une page et par pages, la grille triée

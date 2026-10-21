@@ -44,6 +44,7 @@ def first_example(path: str, operation: str) -> str:
 
 def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> None:
     assert sorted(volumes) == [
+        "comparison_volume.json",
         "cost_categories.json",
         "cost_categories_page.json",
         "cost_categories_reader.json",
