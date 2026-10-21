@@ -186,8 +186,10 @@ export function PlanningGrid({
   // revision left while it was generated — never shows it.
   const [generated, setGenerated] = useState<Generated>();
   const ours = generated?.structure === structure.structure_id ? generated : undefined;
-  // One account of the version the structure moved on to, whichever write moved it.
-  const [version, reach] = useStructureVersion(structure.structure_id, structureVersion);
+  // One account of the writes of the structure: the version they moved it on to, whichever write
+  // moved it, and those under way, which the gestures wait for.
+  const account = useStructureVersion(structure.structure_id, structureVersion);
+  const { version, reach } = account;
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
   // A reader for each reading: an answer names rows a new reading may have renumbered.
@@ -236,19 +238,29 @@ export function PlanningGrid({
     };
     return planningGrid(writes, timelines);
   }, [editable, breakdown, kinds, modes, units, t, structure, whole, reach, timelines]);
-  const generate = async (): Promise<Outcome<NodesWritten>> => {
+  // The skeleton moves the structure on as any write of the grid does: counted in the account, the
+  // gestures wait for it (#1224). The command calls it in its transition, which would hold the count
+  // back until the answer: the write is sent, and counted, once out of it.
+  const generate = (): Promise<Outcome<NodesWritten>> => {
     const asked = structure.structure_id;
-    const outcome = await generatePlanningSkeleton(structure.project_id, structure.revision_id);
-    if (outcome.kind === "done") {
-      reach(outcome.data.structure_lock_version);
-      const written = nodesWritten(outcome.data, PLANNING_FIELDS, true);
-      setGenerated({
-        structure: asked,
-        rows: { items: written.rows, totals: outcome.data.totals },
-        version: outcome.data.structure_lock_version,
-      });
-    }
-    return outcome;
+    const send = async (): Promise<Outcome<NodesWritten>> => {
+      const outcome = await generatePlanningSkeleton(structure.project_id, structure.revision_id);
+      if (outcome.kind === "done") {
+        reach(outcome.data.structure_lock_version);
+        const written = nodesWritten(outcome.data, PLANNING_FIELDS, true);
+        setGenerated({
+          structure: asked,
+          rows: { items: written.rows, totals: outcome.data.totals },
+          version: outcome.data.structure_lock_version,
+        });
+      }
+      return outcome;
+    };
+    return Promise.resolve().then(() => {
+      const write = send();
+      account.writing(write);
+      return write;
+    });
   };
   // The timelines a task is inscribed to are chosen where the planning may be entered, among those the
   // project lists.
@@ -278,9 +290,7 @@ export function PlanningGrid({
           version,
         }
       : undefined,
-    (written) => {
-      reach(written.structure_lock_version);
-    },
+    account,
     choices,
   );
   const offered = nodes.items.length === 0 || ours !== undefined;

@@ -420,9 +420,13 @@ function taskColumn(
         node.editable_fields.includes(spec.field) &&
         column.computed?.in(node) !== true,
       value: spec.value,
-      // A node without its task never gets here, its cells refusing the entry (`in`).
+      // A node without its task never gets here, its cells refusing the entry (`in`). Should a path
+      // bypass that, nothing is sent: an empty change would carry the version alone (#819.8), and
+      // the write fails as unexpected, which the grid tells.
       write: (node, value) =>
-        writes.task(node, node.task == null ? {} : spec.change(node.task, value)),
+        node.task == null
+          ? Promise.reject(new Error(`the node ${node.node_id} was read without its task`))
+          : writes.task(node, spec.change(node.task, value)),
     },
   };
 }

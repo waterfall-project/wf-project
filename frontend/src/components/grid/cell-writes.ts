@@ -17,7 +17,8 @@
  * marks and has it describe (EP-14/L44d). A refusal by field is told by the reason of its field
  * (`byField`, #817.1), and only a refusal of the value marks the cell: the API out of reach, a
  * version gone stale or a session lost say nothing of what was entered (#819.2). A value the row
- * answered already holds writes nothing (#819.8).
+ * answered already holds writes nothing (#819.8). Each write is told the screen (`writing`), whose
+ * gestures wait for it (#1224).
  *
  * The cells of a row leave one after the other: each is written from the row the server last
  * answered, so that the second carries the version the first gave it, whatever the pace of the
@@ -280,6 +281,7 @@ export interface CellWrites<Row, Totals> {
 export function useCellWrites<Row, Totals>(
   reading: CellReading<Row, Totals>,
   { rowKey, retotal, fresher }: CellRules<Row, Totals>,
+  writing?: (write: Promise<unknown>) => void,
 ): CellWrites<Row, Totals> {
   const [state, setState] = useState(() => fresh<Row, Totals>(reading));
   // A reading at another address starts afresh, in the very render that brings it; a reading anew
@@ -469,6 +471,7 @@ export function useCellWrites<Row, Totals>(
     });
     queues.current.set(key, queued);
     hold(queued);
+    writing?.(queued);
   };
   const applied = (together: RowsWritten<Row, Totals>) => {
     for (const row of together.rows) {

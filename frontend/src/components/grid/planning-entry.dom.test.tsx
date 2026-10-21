@@ -199,7 +199,10 @@ describe("the cells of a task entered in the grid of the planning", () => {
   });
 
   it("keeps the hours the task had at its former date when its start is moved, not those of the new day (#1244)", async () => {
-    // The desks start at hour 4 of their day: moved to another, they still start at hour 4.
+    // A choice of the front, which no Vérif states — that of WF-DAT-0100-A says nothing of the hours
+    // a date entered carries —, held here until #1244 settles whether the server completes them: the
+    // contract asks for them, and the front knows no calendar. The desks start at hour 4 of their
+    // day: moved to another, they still start at hour 4.
     const hold = held();
     const client = serve({ [TASK]: "task_dates_entered" }, hold.until);
     const moved = structuredClone(planning);

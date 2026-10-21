@@ -21,6 +21,7 @@ import { CircleAlert, ClipboardPaste, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { Button } from "@/components/ui/button";
@@ -210,6 +211,11 @@ export function PasteAppliedNotice({ applied, onClear, onDismissed }: PasteAppli
 /** The paste under way, and what to do with it. */
 export interface PasteDialogProps {
   readonly pasting: Pasting;
+  /**
+   * Whether another write of the grid is under way, which the confirmation waits for: offered,
+   * inactive and saying so, until it answered (#1224).
+   */
+  readonly waiting?: boolean | undefined;
   readonly onApply: () => void;
   readonly onAbandon: () => void;
   /** Give the focus back to the cell the block was pasted on: the dialog has no trigger. */
@@ -217,8 +223,15 @@ export interface PasteDialogProps {
 }
 
 /** Show the report of a paste, and apply or abandon it. */
-export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDialogProps) {
+export function PasteDialog({
+  pasting,
+  waiting = false,
+  onApply,
+  onAbandon,
+  onClosed,
+}: PasteDialogProps) {
   const t = useTranslations("grid");
+  const why = useId();
   const { plan, block, target, applying } = pasting;
   const applicable = plan !== undefined && plan.accepted > 0;
   return (
@@ -231,7 +244,7 @@ export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDial
       }}
     >
       <DialogContent
-        aria-busy={plan === undefined || applying}
+        aria-busy={plan === undefined || applying || waiting}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           onClosed();
@@ -250,6 +263,7 @@ export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDial
         </DialogHeader>
         <div role="status" className="space-y-2 text-sm">
           {plan === undefined ? t("paste.reading") : <Report plan={plan} block={block} />}
+          {applicable && waiting ? <p id={why}>{t("paste.waiting")}</p> : null}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={applying} onClick={onAbandon}>
@@ -257,7 +271,15 @@ export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDial
             {t("paste.abandon")}
           </Button>
           {applicable ? (
-            <Button type="button" disabled={applying} onClick={onApply}>
+            <Button
+              type="button"
+              disabled={applying}
+              aria-disabled={waiting ? true : undefined}
+              aria-busy={waiting ? true : undefined}
+              aria-describedby={waiting ? why : undefined}
+              className={UNAVAILABLE}
+              onClick={onApply}
+            >
               <ClipboardPaste aria-hidden="true" />
               {t("paste.apply")}
             </Button>

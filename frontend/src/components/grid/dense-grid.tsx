@@ -125,12 +125,14 @@ import {
   useSettingsWriter,
 } from "./settings";
 import {
+  busyOf,
   CellMenu,
   hasCellMenu,
   onRows,
   type RowCommands,
   UndoAnnouncer,
   useUndoShortcut,
+  writingOf,
 } from "./undo-commands";
 
 /** The rows rendered beyond those in view, at each end. */
@@ -611,7 +613,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // at the address they were written at — the page read anew there, or the same rows read at
   // another, drop none of them.
   const address = `${pathname}?${useSearchParams().toString()}`;
-  const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config);
+  // Each write a cell or a paste sends is one the commands of the screen wait for (#1224).
+  const writing = writingOf(commands);
+  const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config, writing);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
   // The rows the tree leaves unfolded, which the grid renders and moves through.
@@ -678,6 +682,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     scroller,
     answered: writes.rows,
     narrowed: isNarrowed(narrowing),
+    writing,
+    // The confirmation waits for any other write of the screen, as its gestures do (#1224).
+    busy: busyOf(commands),
   });
   const undo = useUndoShortcut(undoable);
   const foldReach = useFoldReach();
@@ -802,6 +809,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       {paste.pasting === undefined ? null : (
         <PasteDialog
           pasting={paste.pasting}
+          waiting={paste.waiting}
           onApply={paste.apply}
           onAbandon={paste.abandon}
           onClosed={paste.refocus}
