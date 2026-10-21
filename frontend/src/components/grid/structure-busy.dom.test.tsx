@@ -6,6 +6,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { findOffer } from "@/components/commands/offer";
+import type { Revision } from "@/components/context/read-only";
 import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
@@ -33,6 +35,7 @@ const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined
 const NODES = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const MOVE = `POST ${NODES}/move` as const;
 const TASK = `PATCH ${NODES}/{node_id}/task` as const;
+const SKELETON = "POST /projects/{project_id}/revisions/{revision_id}/skeleton";
 // The main structure of the current revision of the witness project, and the amendment 2 prepared
 // beside it, as the examples name them.
 const STRUCTURE = {
@@ -47,6 +50,19 @@ const breakdown = breakdownItems(example("work_breakdown") as WorkBreakdownReadi
 const MOUNTING = nested.items.findIndex(
   (node) => node.task?.label === "Montage des armoires sur site",
 );
+// The nested tasks read anew without « Réception usine », the row just above the mounting: the
+// mounting is one row up.
+const RECEPTION = nested.items.findIndex((node) => node.task?.label === "Réception usine");
+const withoutReception: NodeList = {
+  ...nested,
+  items: nested.items.filter((_, index) => index !== RECEPTION),
+};
+const empty = example("nodes_empty") as NodeList;
+// The skeleton the revision opened today offers, its main structure without a task.
+const skeleton = findOffer(
+  (example("revision_without_tasks") as Revision).available_commands,
+  "generate_skeleton",
+);
 
 /** Serve the fake back, the calls of a route held until `hold` settles, and give it back. */
 function serve(answers: FakeAnswers, held?: { route: string; until: Promise<unknown> }) {
@@ -57,12 +73,18 @@ function serve(answers: FakeAnswers, held?: { route: string; until: Promise<unkn
   return client;
 }
 
-/** The grid of the planning of the nested tasks on a structure, entered, its attachment too. */
-function grid(structure = STRUCTURE) {
+/**
+ * The grid of the planning of tasks — the nested ones unless told — on a structure, entered, its
+ * attachment too, and the skeleton when it is offered.
+ */
+function grid(
+  structure = STRUCTURE,
+  { nodes = nested, offer }: { readonly nodes?: NodeList; readonly offer?: typeof skeleton } = {},
+) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PlanningGrid
-        nodes={nested}
+        nodes={nodes}
         structure={structure}
         structureVersion={VERSION}
         filters={{ kinds: ["task"] }}
@@ -71,6 +93,7 @@ function grid(structure = STRUCTURE) {
         undoable
         editable
         breakdown={breakdown}
+        skeleton={offer}
       />
     </NextIntlClientProvider>
   );
@@ -119,7 +142,7 @@ afterEach(() => {
 });
 
 describe("a grid busy with any of its writes", () => {
-  it("holds the gestures while a cell written is under way, and moves with the version it reached once answered", async () => {
+  it("holds the gestures while a cell written is under way, and moves with the version it reached once answered (#1224)", async () => {
     // The attachment of the mounting under way: the indentation pressed meanwhile would leave with
     // the version the answer is about to move on, and be refused.
     const hold = held();
@@ -155,7 +178,36 @@ describe("a grid busy with any of its writes", () => {
     expect(moves(client)).toMatchObject([{ lock_version: 2 }]);
   });
 
-  it("holds the gestures while a paste applied is under way", async () => {
+  it("holds the gestures while the skeleton generated is under way (#1224)", async () => {
+    // The skeleton moves the structure on: a first task inserted meanwhile would leave with the
+    // version its answer is about to move on, and be refused.
+    const hold = held();
+    serve(
+      { [SKELETON]: { example: "skeleton_generated", status: 201 } },
+      { route: SKELETON, until: hold.until },
+    );
+    render(grid(STRUCTURE, { nodes: empty, offer: skeleton }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Engendrer le squelette de planning" }),
+    );
+    const table = screen.getByRole("treegrid");
+    await vi.waitFor(() => {
+      expect(table).toHaveAttribute("aria-busy", "true");
+    });
+    const first = screen.getByRole("button", { name: "Insérer une tâche" });
+    expect(first).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(first);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await act(async () => {
+      hold.release();
+      await hold.until;
+    });
+    await vi.waitFor(() => {
+      expect(table).toHaveAttribute("aria-busy", "false");
+    });
+  });
+
+  it("holds the gestures while a paste applied is under way (#1224)", async () => {
     const hold = held();
     serve(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied" },
@@ -188,7 +240,7 @@ describe("a grid busy with any of its writes", () => {
     );
   });
 
-  it("applies nothing of an answer once the grid shows another structure: no reading anew, nor its version", async () => {
+  it("applies nothing of an answer once the grid shows another structure: no reading anew, nor its version (#1224)", async () => {
     // A move sent in the main structure, answered once the grid shows the amendment: the grid is not
     // read anew for it, nor waits for it, and the next move of the amendment carries its own version.
     const hold = held();
@@ -217,7 +269,7 @@ describe("a grid busy with any of its writes", () => {
     });
   });
 
-  it("keeps the version the other structure moved on to by its own writes when a late answer of the first arrives", async () => {
+  it("keeps the version the other structure moved on to by its own writes when a late answer of the first arrives (#1224)", async () => {
     // A move sent in the main structure, held, answered at its version 3 (`nodes_moved`), once the
     // amendment shown moved on to its version 2 by a move of its own (`nodes_indented`): the
     // amendment keeps its 2, the main structure takes its 3.
@@ -256,5 +308,28 @@ describe("a grid busy with any of its writes", () => {
       expect(moves(client)).toHaveLength(4);
     });
     expect(moves(client)[3]).toMatchObject({ lock_version: 3 });
+  });
+
+  it("follows no row moved in a structure left once back on it (#1224)", async () => {
+    // A move sent in the main structure, answered once the grid shows the amendment, then the main
+    // structure shown again, read anew with the mounting one row up: the active cell stays where it
+    // is, the row the late answer moved is not followed.
+    const hold = held();
+    const client = serve({ [MOVE]: "nodes_indented" }, { route: MOVE, until: hold.until });
+    const view = render(grid());
+    await indent(MOUNTING);
+    await vi.waitFor(() => {
+      expect(moves(client)).toHaveLength(1);
+    });
+    view.rerender(grid(AMENDMENT));
+    await act(async () => {
+      hold.release();
+      await hold.until;
+    });
+    await screen.findByText(/indentée\.$/);
+    view.rerender(grid(STRUCTURE, { nodes: withoutReception }));
+    expect(cellAt(MOUNTING - 1, "label")).toHaveTextContent("Montage des armoires sur site");
+    expect(cellAt(MOUNTING - 1, "label")).toHaveAttribute("tabindex", "-1");
+    expect(cellAt(MOUNTING, "label")).toHaveAttribute("tabindex", "0");
   });
 });

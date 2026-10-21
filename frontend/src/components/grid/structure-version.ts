@@ -6,8 +6,8 @@
  * it on to (`NodesWritten.structure_lock_version`), a cell entered, a node created, moved or deleted,
  * a block pasted, a skeleton generated all advancing it —, and the writes under way. A single account
  * per grid, so that the next move or paste carries the version the last write left, whichever wrote
- * it, and so that the grid is busy while any of them waits — a gesture, a cell entered, a paste
- * (decision of the author of 2026-10-21, #1224): a move or a drop sent meanwhile would leave with a
+ * it, and so that the grid is busy while any of them waits — a gesture, a cell entered, a paste, a
+ * skeleton generated (decision of the author of 2026-10-21, #1224): a move or a drop sent meanwhile would leave with a
  * version an answer is about to move on, and be refused.
  *
  * Each is kept for the structure it was written in (défaut n° 1 de `typescript.md`): a grid that

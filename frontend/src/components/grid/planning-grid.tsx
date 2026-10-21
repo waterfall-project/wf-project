@@ -238,19 +238,29 @@ export function PlanningGrid({
     };
     return planningGrid(writes, timelines);
   }, [editable, breakdown, kinds, modes, units, t, structure, whole, reach, timelines]);
-  const generate = async (): Promise<Outcome<NodesWritten>> => {
+  // The skeleton moves the structure on as any write of the grid does: counted in the account, the
+  // gestures wait for it (#1224). The command calls it in its transition, which would hold the count
+  // back until the answer: the write is sent, and counted, once out of it.
+  const generate = (): Promise<Outcome<NodesWritten>> => {
     const asked = structure.structure_id;
-    const outcome = await generatePlanningSkeleton(structure.project_id, structure.revision_id);
-    if (outcome.kind === "done") {
-      reach(outcome.data.structure_lock_version);
-      const written = nodesWritten(outcome.data, PLANNING_FIELDS, true);
-      setGenerated({
-        structure: asked,
-        rows: { items: written.rows, totals: outcome.data.totals },
-        version: outcome.data.structure_lock_version,
-      });
-    }
-    return outcome;
+    const send = async (): Promise<Outcome<NodesWritten>> => {
+      const outcome = await generatePlanningSkeleton(structure.project_id, structure.revision_id);
+      if (outcome.kind === "done") {
+        reach(outcome.data.structure_lock_version);
+        const written = nodesWritten(outcome.data, PLANNING_FIELDS, true);
+        setGenerated({
+          structure: asked,
+          rows: { items: written.rows, totals: outcome.data.totals },
+          version: outcome.data.structure_lock_version,
+        });
+      }
+      return outcome;
+    };
+    return Promise.resolve().then(() => {
+      const write = send();
+      account.writing(write);
+      return write;
+    });
   };
   // The timelines a task is inscribed to are chosen where the planning may be entered, among those the
   // project lists.

@@ -554,26 +554,48 @@ describe("the rows written together while a cell of theirs is under way", () => 
   const first = { address: ADDRESS, rows: nodes.items, totals: nodes.totals };
   const keyOf = (at: number) => nodeKey(nodes.items[at] as EstimateNode);
 
-  /** The line of labour written together with others, at a later place among the writes. */
-  function together(): RowsWritten<EstimateNode, NodeTotals> {
-    const labour = nodes.items[LABOUR] as EstimateNode;
-    return nodeAnswered(
-      { ...labour, lock_version: labour.lock_version + 1 },
-      { hours: "40" },
-      undefined,
-      4,
-    );
+  /** The cabling, the summary of the line of labour, as an answer recalculated it. */
+  function summed(amount: string): EstimateNode {
+    const task = nodes.items[TASK];
+    if (task?.task === null || task?.task === undefined) {
+      throw new Error("the estimate holds the cabling");
+    }
+    return { ...task, task: { ...task.task, base_amount: amount } };
   }
 
-  it("keeps what the rows written together answered when the cell written before them answers after them, earlier (#421)", async () => {
+  /**
+   * The line of labour written together with others, at a later place among the writes: its
+   * summary and the totals recalculated with it.
+   */
+  function together(): RowsWritten<EstimateNode, NodeTotals> {
+    const labour = nodes.items[LABOUR] as EstimateNode;
+    return {
+      ...nodeAnswered(
+        { ...labour, lock_version: labour.lock_version + 1 },
+        { hours: "40" },
+        { ...nodes.totals, hours: "38.5" },
+        4,
+      ),
+      changed: [summed("4000.00")],
+    };
+  }
+
+  it("keeps what the rows written together answered when the cell written before them answers after them, earlier: their rows, the summary above them, the totals (#421)", async () => {
     const { result } = writes(NODES, first);
     const { entry, answer } = held<EstimateNode, NodeTotals>();
     await enter(result.current, LABOUR, "hours", entry, "14");
     act(() => {
       result.current.applied(together());
     });
-    await answer(0, (from) => nodeAnswered(from, { hours: "14" }, undefined, 3));
+    // The cell answers after them, earlier in the structure, with its own summary and totals: it
+    // takes back none of theirs.
+    await answer(0, (from) => ({
+      ...nodeAnswered(from, { hours: "14" }, { ...nodes.totals, hours: "12.5" }, 3),
+      changed: [summed("3000.00")],
+    }));
     expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+    expect(result.current.rows[TASK]?.task?.base_amount).toBe("4000.00");
+    expect(result.current.totals?.hours).toBe("38.5");
     expect(result.current.pending(keyOf(LABOUR), "hours")).toBeUndefined();
   });
 

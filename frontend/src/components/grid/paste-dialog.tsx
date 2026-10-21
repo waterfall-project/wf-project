@@ -275,7 +275,7 @@ export function PasteDialog({
               type="button"
               disabled={applying}
               aria-disabled={waiting ? true : undefined}
-              aria-busy={waiting}
+              aria-busy={waiting ? true : undefined}
               aria-describedby={waiting ? why : undefined}
               className={UNAVAILABLE}
               onClick={onApply}

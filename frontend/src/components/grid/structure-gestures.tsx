@@ -40,7 +40,8 @@
  * the next move starts from the neighbours that reading shows, never from those before it with a
  * version already moved on. An answer closes only the dialog it was sent from (défaut n° 24), and
  * belongs to the structure it was written in (défaut n° 1): its version, the row it moved and the
- * reading anew are that structure's, and nothing is read anew once the grid shows another. The row a
+ * reading anew are that structure's, and nothing is read anew, nor a row followed, once the grid
+ * shows another. The row a
  * move was asked from — the first of the rows dropped — is told the grid
  * (`moved`), whose active cell follows it through the reading; the grid says it is busy as long as
  * the gestures wait (`busy`).
@@ -410,8 +411,10 @@ export function useStructureGestures<Row extends GridNode>(
         }
         setTold(undefined);
         say(node.done, { object: node.label });
+        // The row followed is one of the structure shown: an answer of a structure left since would
+        // keep its row, which the grid would follow anew on coming back to that structure.
         const { moves: bore } = node;
-        if (bore !== undefined) {
+        if (bore !== undefined && account.shows(structure)) {
           setMoved((before) => ({
             structure,
             row: bore,

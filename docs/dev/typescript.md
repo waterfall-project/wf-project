@@ -440,4 +440,7 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     gestes, `busy` reste optionnel, pour les écrans qui n'écrivent pas l'arbre, et le poser est la
     règle de tout écran qui l'écrit. La preuve : `row-selection.dom.test.tsx`, « holds the next move
     until the reading anew is over », « drops nothing while the grid is busy » et « demands busy of
-    a screen that drags ». La revue cherche le reste.
+    a screen that drags ». Toute écriture de la grille, pas seulement celles de ses gestes — une
+    cellule saisie, un collage appliqué, un squelette engendré —, passe par `writing`
+    (`StructureAccount`, `structure-version.ts`) et tient `busy` vrai jusqu'à sa réponse (#1224) :
+    `structure-busy.dom.test.tsx` le prouve. La revue cherche le reste.
