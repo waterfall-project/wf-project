@@ -2535,20 +2535,20 @@ class ExternalId(RootModel[str]):
     ]
 
 
-class TaskFacet(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+class ComparedTaskFacet(ContractModel):
+    label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
     description: str | None = None
-    scheduling_mode: SchedulingMode
-    duration: Duration
-    start: WorkInstant | None
-    finish: WorkInstant | None
-    progress: TaskProgress
+    scheduling_mode: SchedulingMode | None = None
+    duration: Duration | None = None
+    start: WorkInstant | None = None
+    finish: WorkInstant | None = None
+    progress: TaskProgress | None = None
     finish_overdue: Annotated[
-        bool,
+        bool | None,
         Field(
             description="Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon."
         ),
-    ]
+    ] = None
     started_on: PlanningDate | None = None
     completed_on: Annotated[
         PlanningDate | None,
@@ -2557,12 +2557,14 @@ class TaskFacet(ContractModel):
         ),
     ] = None
     is_summary: Annotated[
-        bool,
+        bool | None,
         Field(
             description="Récapitulative : son état est dérivé de ses subordonnées, non saisissable (WF-PLA-0040)."
         ),
-    ]
-    is_milestone: Annotated[bool, Field(description="Jalon, tâche de durée nulle (WF-PLA-0050).")]
+    ] = None
+    is_milestone: Annotated[
+        bool | None, Field(description="Jalon, tâche de durée nulle (WF-PLA-0050).")
+    ] = None
     calendar_id: Annotated[
         Uuid | None,
         Field(
@@ -2588,26 +2590,27 @@ class TaskFacet(ContractModel):
         ),
     ] = None
     base_amount: Annotated[
-        Money,
+        Money | None,
         Field(
             description="Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent."
         ),
-    ]
+    ] = None
     budgeted_amount: Annotated[
-        Money,
+        Money | None,
         Field(
             description="Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020)."
         ),
-    ]
+    ] = None
     reestimated_amount: Annotated[
-        Money, Field(description="Même somme, pour les montants réestimés, à l'année de référence.")
-    ]
+        Money | None,
+        Field(description="Même somme, pour les montants réestimés, à l'année de référence."),
+    ] = None
     inflated_amount: Annotated[
-        Money,
+        Money | None,
         Field(
             description="Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050)."
         ),
-    ]
+    ] = None
     tracking: Annotated[
         list[TrackingEntry] | None,
         Field(description="Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060)."),
@@ -2653,16 +2656,16 @@ class PaymentDelayDays(RootModel[int]):
     ]
 
 
-class EstimateLineFacet(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    cost_category_id: Uuid
+class ComparedEstimateLineFacet(ContractModel):
+    label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
+    cost_category_id: Uuid | None = None
     cost_category_label: Annotated[
-        str,
+        str | None,
         Field(
             description="Libellé de la catégorie de coût, résolu à la lecture, active ou désactivée."
         ),
-    ]
-    quantity: Decimal
+    ] = None
+    quantity: Decimal | None = None
     resource_role_id: Annotated[
         Uuid | None,
         Field(description="Exigé pour une catégorie de main-d'œuvre, absent sinon (WF-DEV-0020)."),
@@ -2672,7 +2675,7 @@ class EstimateLineFacet(ContractModel):
         Field(
             description="Libellé du rôle de ressource, résolu à la lecture, actif ou désactivé ; nul pour une ligne sans rôle."
         ),
-    ]
+    ] = None
     hours: Hours | None = None
     unit_disbursement: Annotated[
         Money | None,
@@ -2695,28 +2698,28 @@ class EstimateLineFacet(ContractModel):
         Field(
             description="Libellé du sous-projet, résolu à la lecture ; nul pour une ligne hors sous-projet."
         ),
-    ]
+    ] = None
     base_amount: Annotated[
-        Money,
+        Money | None,
         Field(
             description="Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ; celui que la grille de devis présente (WF-DEV-0050)."
         ),
-    ]
+    ] = None
     budgeted_amount: Annotated[
-        Money,
+        Money | None,
         Field(
             description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
         ),
-    ]
+    ] = None
     reestimated_amount: Annotated[
-        Money, Field(description="Montant réestimé, à l'année de référence.")
-    ]
+        Money | None, Field(description="Montant réestimé, à l'année de référence.")
+    ] = None
     inflated_amount: Annotated[
-        Money,
+        Money | None,
         Field(
             description="Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant."
         ),
-    ]
+    ] = None
     previous_quantity: Annotated[
         Decimal | None,
         Field(
@@ -2745,23 +2748,23 @@ class EstimateLineFacet(ContractModel):
         Year | None, Field(description="Année de consommation, déduite du planning (WF-DEV-0040).")
     ] = None
     is_computed: Annotated[
-        bool,
+        bool | None,
         Field(
             description="Vrai pour une ligne de provision, dont le montant est calculé depuis le risque et jamais saisi (WF-RIS-0010)."
         ),
-    ]
+    ] = None
     uses_inactive_object: Annotated[
-        bool,
+        bool | None,
         Field(
             description="Calculé : vrai quand la catégorie de coût, le rôle de ressource ou la nature de la ligne est désactivé dans le référentiel ; la ligne reste lisible, la grille la signale (WF-REF-0010). Le refus d'une saisie qui emploierait un objet désactivé est inchangé (`INACTIVE_REFERENCE_OBJECT`)."
         ),
-    ]
+    ] = None
     remaining_entry: Annotated[
-        EntryAvailability,
+        EntryAvailability | None,
         Field(
             description="Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement."
         ),
-    ]
+    ] = None
     bearing_task_node_id: Annotated[
         Uuid | None, Field(description="Tâche porteuse, résolue à la lecture.")
     ] = None
@@ -2852,18 +2855,18 @@ class NodeChange(StrEnum):
     parent = "parent"
 
 
-class Node(ContractModel):
+class ComparedNodeRead(ContractModel):
     node_id: Uuid
-    lineage_id: Uuid
-    kind: NodeKind
-    parent_id: Uuid | None
+    lineage_id: Uuid | None = None
+    kind: NodeKind | None = None
+    parent_id: Uuid | None = None
     position: Annotated[
-        int,
+        int | None,
         Field(
             description="Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place qu'ils avaient (`NodeDifference`).",
             ge=1,
         ),
-    ]
+    ] = None
     row_number: Annotated[
         int,
         Field(
@@ -2872,34 +2875,34 @@ class Node(ContractModel):
         ),
     ]
     level: Annotated[int, Field(ge=1)]
-    task: TaskFacet | None = None
-    estimate_line: EstimateLineFacet | None = None
+    task: ComparedTaskFacet | None = None
+    estimate_line: ComparedEstimateLineFacet | None = None
     predecessors: list[Predecessor] | None = None
     computed_fields: Annotated[
-        list[ComputedField],
+        list[ComputedField] | None,
         Field(
             description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
         ),
-    ]
+    ] = None
     editable_fields: Annotated[
-        list[EditableField],
+        list[EditableField] | None,
         Field(
             description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
         ),
-    ]
+    ] = None
     lock_version: LockVersion
     difference: Annotated[
-        NodeDifference | None,
+        NodeDifference,
         Field(
-            description="L'écart du nœud, que le serveur rend et que le front ne calcule pas : sur la lecture d'un différentiel, avec la structure principale de sa révision ; dans une comparaison de deux révisions (`RevisionComparison`), avec la révision de base (WF-REV-0080, WF-REV-0100, C-361). Toujours rendu sur ces deux lectures, que `fields` le nomme ou non ; nul — ou omis — sur la structure principale et sur le devis propre d'un risque, qui ne se lisent par rapport à rien."
+            description="L'écart du nœud à la révision de base (`from_revision_id`), que le serveur rend et que le front ne calcule pas (WF-REV-0080, C-361) : toujours rendu, que `fields` le nomme ou non, jamais nul."
         ),
-    ] = None
+    ]
     changes: Annotated[
-        list[NodeChange] | None,
+        list[NodeChange],
         Field(
             description="Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` : vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée."
         ),
-    ] = None
+    ]
 
 
 class NodeTotals(ContractModel):
@@ -2953,7 +2956,7 @@ class RevisionComparison(ContractModel):
     from_revision_id: Uuid
     to_revision_id: Uuid
     items: Annotated[
-        list[Node],
+        list[ComparedNodeRead],
         Field(
             description="Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend : chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080, C-361)."
         ),
@@ -3183,6 +3186,274 @@ class StructureMerge(ContractModel):
     ]
 
 
+class TaskFacet(ContractModel):
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    description: str | None = None
+    scheduling_mode: SchedulingMode
+    duration: Duration
+    start: WorkInstant | None
+    finish: WorkInstant | None
+    progress: TaskProgress
+    finish_overdue: Annotated[
+        bool,
+        Field(
+            description="Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon."
+        ),
+    ]
+    started_on: PlanningDate | None = None
+    completed_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030)."
+        ),
+    ] = None
+    is_summary: Annotated[
+        bool,
+        Field(
+            description="Récapitulative : son état est dérivé de ses subordonnées, non saisissable (WF-PLA-0040)."
+        ),
+    ]
+    is_milestone: Annotated[bool, Field(description="Jalon, tâche de durée nulle (WF-PLA-0050).")]
+    calendar_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010)."
+        ),
+    ] = None
+    total_float: Annotated[
+        Duration | None,
+        Field(
+            description="Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge."
+        ),
+    ] = None
+    is_critical: Annotated[
+        bool | None,
+        Field(
+            description="Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100)."
+        ),
+    ] = None
+    physical_progress: Annotated[
+        Computable | None,
+        Field(
+            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
+        ),
+    ] = None
+    base_amount: Annotated[
+        Money,
+        Field(
+            description="Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent."
+        ),
+    ]
+    budgeted_amount: Annotated[
+        Money,
+        Field(
+            description="Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020)."
+        ),
+    ]
+    reestimated_amount: Annotated[
+        Money, Field(description="Même somme, pour les montants réestimés, à l'année de référence.")
+    ]
+    inflated_amount: Annotated[
+        Money,
+        Field(
+            description="Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050)."
+        ),
+    ]
+    tracking: Annotated[
+        list[TrackingEntry] | None,
+        Field(description="Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060)."),
+    ] = None
+    order_item_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le poste du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que `work_package_id`, exclusif de lui : une tâche porte un lot ou un poste, jamais les deux ; un poste n'est porté que par une tâche à la fois. « Lorsque le lot d'un poste est rattaché, la tâche de ce poste se trouve dans le sous-arbre de la tâche de ce lot » (WF-PLA-0170). Les grilles filtrent par poste sur ce rattachement (WF-DEV-0050, WF-RAE-0040)."
+        ),
+    ] = None
+    work_package_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le lot du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) : posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de `order_item_id`. Un lot n'est porté que par une tâche à la fois ; c'est par elle que le devis présente le total par lot, celui de son sous-arbre (WF-DEV-0060), et que les grilles filtrent par lot. Une récapitulative qui perd sa dernière subordonnée garde son rattachement. Nul sans rattachement."
+        ),
+    ] = None
+    work_breakdown_label: Annotated[
+        str | None,
+        Field(
+            description="Le libellé du lot ou du poste porté, résolu à la lecture, que la colonne `work_breakdown` présente sans que la grille lise le lotissement (WF-ARC-0020) ; nul sans rattachement."
+        ),
+    ] = None
+    external_id: Annotated[
+        ExternalId | None,
+        Field(
+            description="L'identifiant que MS Project donnait à la tâche dans le fichier dont l'import l'a créée, conservé comme identifiant externe (WF-INTF-0040) : c'est par lui qu'un fichier remanié avant le premier export se rapproche de la tâche. Nul pour une tâche créée dans Waterfall, jamais saisi."
+        ),
+    ] = None
+
+
+class EstimateLineFacet(ContractModel):
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    cost_category_id: Uuid
+    cost_category_label: Annotated[
+        str,
+        Field(
+            description="Libellé de la catégorie de coût, résolu à la lecture, active ou désactivée."
+        ),
+    ]
+    quantity: Decimal
+    resource_role_id: Annotated[
+        Uuid | None,
+        Field(description="Exigé pour une catégorie de main-d'œuvre, absent sinon (WF-DEV-0020)."),
+    ] = None
+    resource_role_label: Annotated[
+        str | None,
+        Field(
+            description="Libellé du rôle de ressource, résolu à la lecture, actif ou désactivé ; nul pour une ligne sans rôle."
+        ),
+    ]
+    hours: Hours | None = None
+    unit_disbursement: Annotated[
+        Money | None,
+        Field(description="Débours unitaire d'une ligne hors main-d'œuvre (WF-DEV-0020)."),
+    ] = None
+    payment_delay_days: Annotated[
+        PaymentDelayDays | None,
+        Field(
+            description="Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne quand elle présente les décaissements (WF-IND-0100). Nul pour une ligne de provision, qui n'en porte pas et reste à la date de la tâche qui la porte (WF-DEV-0020, WF-IND-0100 ; EP-14/L42s)."
+        ),
+    ] = None
+    subproject_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020)."
+        ),
+    ] = None
+    subproject_label: Annotated[
+        str | None,
+        Field(
+            description="Libellé du sous-projet, résolu à la lecture ; nul pour une ligne hors sous-projet."
+        ),
+    ]
+    base_amount: Annotated[
+        Money,
+        Field(
+            description="Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ; celui que la grille de devis présente (WF-DEV-0050)."
+        ),
+    ]
+    budgeted_amount: Annotated[
+        Money,
+        Field(
+            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
+        ),
+    ]
+    reestimated_amount: Annotated[
+        Money, Field(description="Montant réestimé, à l'année de référence.")
+    ]
+    inflated_amount: Annotated[
+        Money,
+        Field(
+            description="Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant."
+        ),
+    ]
+    previous_quantity: Annotated[
+        Decimal | None,
+        Field(
+            description="Quantité au reste à engager précédent, que la grille de reste à engager présente à côté de la courante (WF-RAE-0040), lue dans la ligne et non dans une autre révision (WF-ARC-0020) ; nulle avant la première revue."
+        ),
+    ] = None
+    previous_hours: Annotated[
+        Hours | None,
+        Field(
+            description="Charge au reste à engager précédent (WF-RAE-0040) ; nulle avant la première revue, et pour une ligne sans charge, comme `hours`."
+        ),
+    ] = None
+    previous_unit_disbursement: Annotated[
+        Money | None,
+        Field(
+            description="Débours unitaire au reste à engager précédent (WF-RAE-0040) ; nul avant la première revue, et pour une ligne de main-d'œuvre, comme `unit_disbursement`."
+        ),
+    ] = None
+    previous_reestimated_amount: Annotated[
+        Money | None,
+        Field(
+            description="Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue."
+        ),
+    ] = None
+    consumption_year: Annotated[
+        Year | None, Field(description="Année de consommation, déduite du planning (WF-DEV-0040).")
+    ] = None
+    is_computed: Annotated[
+        bool,
+        Field(
+            description="Vrai pour une ligne de provision, dont le montant est calculé depuis le risque et jamais saisi (WF-RIS-0010)."
+        ),
+    ]
+    uses_inactive_object: Annotated[
+        bool,
+        Field(
+            description="Calculé : vrai quand la catégorie de coût, le rôle de ressource ou la nature de la ligne est désactivé dans le référentiel ; la ligne reste lisible, la grille la signale (WF-REF-0010). Le refus d'une saisie qui emploierait un objet désactivé est inchangé (`INACTIVE_REFERENCE_OBJECT`)."
+        ),
+    ]
+    remaining_entry: Annotated[
+        EntryAvailability,
+        Field(
+            description="Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement."
+        ),
+    ]
+    bearing_task_node_id: Annotated[
+        Uuid | None, Field(description="Tâche porteuse, résolue à la lecture.")
+    ] = None
+    bearing_task_label: str | None = None
+
+
+class Node(ContractModel):
+    node_id: Uuid
+    lineage_id: Uuid
+    kind: NodeKind
+    parent_id: Uuid | None
+    position: Annotated[
+        int,
+        Field(
+            description="Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une création ou un déplacement désigne sa place par le nœud après lequel se placer (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place qu'ils avaient (`NodeDifference`).",
+            ge=1,
+        ),
+    ]
+    row_number: Annotated[
+        int,
+        Field(
+            description="Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri. Sur la lecture d'un différentiel et sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne (`NodeDifference`).",
+            ge=1,
+        ),
+    ]
+    level: Annotated[int, Field(ge=1)]
+    task: TaskFacet | None = None
+    estimate_line: EstimateLineFacet | None = None
+    predecessors: list[Predecessor] | None = None
+    computed_fields: Annotated[
+        list[ComputedField],
+        Field(
+            description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
+        ),
+    ]
+    editable_fields: Annotated[
+        list[EditableField],
+        Field(
+            description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
+        ),
+    ]
+    lock_version: LockVersion
+    difference: Annotated[
+        NodeDifference | None,
+        Field(
+            description="L'écart du nœud, que le serveur rend et que le front ne calcule pas : sur la lecture d'un différentiel, avec la structure principale de sa révision ; dans une comparaison de deux révisions (`RevisionComparison`), avec la révision de base (WF-REV-0080, WF-REV-0100, C-361). Toujours rendu sur ces deux lectures, que `fields` le nomme ou non ; nul — ou omis — sur la structure principale et sur le devis propre d'un risque, qui ne se lisent par rapport à rien."
+        ),
+    ] = None
+    changes: Annotated[
+        list[NodeChange] | None,
+        Field(
+            description="Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` : vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée."
+        ),
+    ] = None
+
+
 class TaskFacetWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
@@ -3194,7 +3465,7 @@ class TaskFacetWrite(ContractModel):
     work_package_id: Uuid | None = None
 
 
-class PaymentDelayDays1(RootModel[int]):
+class PaymentDelayDays2(RootModel[int]):
     root: Annotated[int, Field(ge=0)]
 
 
@@ -3205,7 +3476,7 @@ class EstimateLineWrite(ContractModel):
     resource_role_id: Uuid | None = None
     hours: Hours | None = None
     unit_disbursement: Money | None = None
-    payment_delay_days: PaymentDelayDays1 | None = None
+    payment_delay_days: PaymentDelayDays2 | None = None
     subproject_id: Uuid | None = None
 
 
@@ -3381,7 +3652,7 @@ class EstimateLineUpdate(ContractModel):
     resource_role_id: Uuid | None = None
     hours: Hours | None = None
     unit_disbursement: Money | None = None
-    payment_delay_days: PaymentDelayDays1 | None = None
+    payment_delay_days: PaymentDelayDays2 | None = None
     subproject_id: Annotated[
         Uuid | None,
         Field(

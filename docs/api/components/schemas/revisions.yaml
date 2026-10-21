@@ -442,7 +442,7 @@ Node:
     `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
     d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et
     les inscriptions aux suivis (WF-DAT-0030).
-  properties:
+  properties: &node_properties
     node_id: { $ref: ../common.yaml#/Uuid }
     lineage_id: { $ref: ../common.yaml#/Uuid }
     kind: { $ref: '#/NodeKind' }
@@ -1025,7 +1025,7 @@ TaskFacet:
     porter le rattachement à un lot ou à un poste du lotissement (`work_package_id`,
     `order_item_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le
     fichier lui donnait (`external_id`, WF-INTF-0040).
-  properties:
+  properties: &task_facet_properties
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
@@ -1163,7 +1163,7 @@ EstimateLineFacet:
     WF-REF-0150). Une ligne qui emploie un objet du
     référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis
     et de reste à engager la signalent (WF-REF-0010).
-  properties:
+  properties: &estimate_line_facet_properties
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     cost_category_label:
@@ -1783,7 +1783,7 @@ RevisionComparison:
         que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de
         base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080,
         C-361).
-      items: { $ref: '#/Node' }
+      items: { $ref: '#/ComparedNodeRead' }
     totals:
       allOf: [{ $ref: '#/NodeTotals' }]
       description: >-
@@ -1829,3 +1829,43 @@ RevisionComparison:
               (`from_revision_id`), positif quand la comparée porte davantage — le sens où une
               tâche est dite ajoutée, et celui du devis en cours moins le devis comparé
               (`EstimateIndicators.delta_to_reference`).
+
+ComparedNodeRead:
+  type: object
+  required: [node_id, row_number, level, lock_version, difference, changes]
+  description: >-
+    Un nœud de la comparaison (`RevisionComparison.items`), tel que `compareRevisions` le rend :
+    les propriétés de `Node`, reprises de lui, dont seules sont exigées celles qu'une lecture rend
+    toujours — `node_id`, `row_number`, `level` et `lock_version`, et la marque du nœud,
+    `difference` et `changes` —, les autres n'étant rendues que si `fields` les nomme, ou toutes
+    s'il est omis (#166, #1201, #1208). Ses facettes sont partielles de même. `Node`, que rend
+    `listNodes`, ne change pas.
+  properties:
+    <<: *node_properties
+    task:
+      anyOf: [{ $ref: '#/ComparedTaskFacet' }, { type: 'null' }]
+    estimate_line:
+      anyOf: [{ $ref: '#/ComparedEstimateLineFacet' }, { type: 'null' }]
+    difference:
+      allOf: [{ $ref: '#/NodeDifference' }]
+      description: >-
+        L'écart du nœud à la révision de base (`from_revision_id`), que le serveur rend et que le
+        front ne calcule pas (WF-REV-0080, C-361) : toujours rendu, que `fields` le nomme ou non,
+        jamais nul.
+
+ComparedTaskFacet:
+  type: object
+  description: >-
+    La facette temps d'un nœud de la comparaison (`ComparedNodeRead.task`) : les propriétés de
+    `TaskFacet`, reprises de lui, aucune exigée — une lecture avec `fields` ne rend que celles
+    qu'il nomme (`task.label`), une lecture sans `fields` les rend toutes (#166, #1208).
+  properties: *task_facet_properties
+
+ComparedEstimateLineFacet:
+  type: object
+  description: >-
+    La facette devis d'un nœud de la comparaison (`ComparedNodeRead.estimate_line`) : les
+    propriétés d'`EstimateLineFacet`, reprises de lui, aucune exigée — une lecture avec `fields`
+    ne rend que celles qu'il nomme (`estimate_line.label`), une lecture sans `fields` les rend
+    toutes (#166, #1208).
+  properties: *estimate_line_facet_properties

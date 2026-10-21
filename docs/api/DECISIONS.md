@@ -6694,6 +6694,36 @@ de toute la structure — 5 999 nœuds, 2 770 modifiés par leurs valeurs, 1 027
 tenus par `tools/tests/test_mockhistory.py` sur la comparaison lue entière, que le générateur calcule
 sans qu'un exemple la rende. Aucune variante ne montre une page suivante : `listNodes` n'en a pas.
 
+## L'exemple de volume de la comparaison, et ses nœuds partiels (EP-15/US-0500/L6)
+
+**Un exemple de volume pour la comparaison** (décision de l'auteur du 2026-10-20 sur #1201,
+point 2). Les fenêtres de L5 ne disent pas ce que pèse la comparaison que l'écran lit entière ;
+`volume`, cité en deuxième sous `compareRevisions`, la rend : la comparaison de l'offre et de la
+référence sur toute la structure du témoin, 5 999 nœuds, lue sans filtre et avec `fields` réduit à
+ce que l'écran montre — `kind`, `task.label`, `estimate_line.label` —, 1,3 Mo au lieu de 7,4 Mo.
+Il est engendré par `wftools.mockhistory` comme `nodes_thousand` pour `listNodes`
+(`fixtures/api/volume/comparison_volume.json`), la lecture avec `fields` par
+`wftools.mockcore.with_fields`. US-0500/L4 éprouve dessus la borne de 15 s d'US-0500, et le fera
+passer en premier.
+
+**Les nœuds de la comparaison sont décrits par un schéma partiel** (décision de l'auteur du
+2026-10-20, #1208). « Une lecture de `listNodes` choisit les champs qu'elle rend » (#166, ci-dessus)
+laissait aux schémas le nœud entier, que rend une lecture sans `fields`, et à une lecture avec
+`fields` des propriétés exigées qu'elle omet ; un exemple ainsi lu n'était pas conforme, et
+`make lint-openapi` le refusait. `RevisionComparison.items` est désormais un tableau de
+`ComparedNodeRead`, dont seules sont exigées les propriétés toujours rendues — `node_id`,
+`row_number`, `level`, `lock_version` — et la marque du nœud, `difference`, jamais nul, et
+`changes` ; ses facettes, `ComparedTaskFacet` et `ComparedEstimateLineFacet`, n'exigent rien. Le
+schéma de `listNodes`, `Node` et ses facettes, ne change pas : il reste la seule réponse dont le
+schéma ne dit pas tout d'une lecture avec `fields`. Les propriétés sont reprises de `Node`, de
+`TaskFacet` et d'`EstimateLineFacet` par des ancres YAML (`&node_properties`, `<<:`), que le
+bundle résout en copies : une propriété ajoutée au nœud l'est aux deux, et aucune ne dérive.
+Écartés : un `$ref` par propriété (`#/Node/properties/…`), que le bundle hisse en composants
+renommés (`budgeted_amount-2`) et dont les modèles du service faisaient des classes vides ; une
+exception dans `.redocly.lint-ignore.yaml`, qui laisserait l'exemple non vérifié. Le front de la
+comparaison lit les types partiels : il ne suppose plus `kind` ni `lineage_id`, ses lignes sont
+clés par `node_id`, toujours rendu.
+
 ## Du projet créé au projet En cours, et l'avenant (EP-15/US-0490, US-0510)
 
 **Le cycle des révisions a ses exemples de succès** (partie K4 de la conception d'EP-15, #1074,
