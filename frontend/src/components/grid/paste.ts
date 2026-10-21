@@ -25,7 +25,8 @@
  * the server wrote taking the place of what was read (`CellWrites.applied`), the navigations of the
  * page held until it answers, and dropped when it is refused (`useHeldCommand`, #688) — its valid
  * rows, a plan that refuses some applied all the same, the refused rows left as they were
- * (EP-14/L42q). What the
+ * (EP-14/L42q). The confirmation waits for any other write of the grid under way — a cell entered,
+ * a gesture —, whose answer moves on the version of the structure it carries (`busy`, #1224). What the
  * confirmation did not write — the refusals of the preview, and those the server adds judging the
  * accepted rows again — is told with the cell the block was pasted from and the number of rows
  * written, the refusals in a region whose height is bounded, until the next paste or until the user
@@ -309,6 +310,12 @@ export interface GridPasteOptions<Row extends RowData, Sort extends string, Tota
   readonly narrowed?: boolean | undefined;
   /** Tell the screen a paste applied is under way, whose gestures wait for it (#1224). */
   readonly writing?: ((write: Promise<unknown>) => void) | undefined;
+  /**
+   * Whether another write of the grid is under way — a cell entered, a gesture — or the reading anew
+   * that follows a gesture: the confirmation waits for it, since it carries the version of the
+   * structure that write's answer is about to move on, and would be refused (412, #1224).
+   */
+  readonly busy?: boolean | undefined;
 }
 
 /** Paste a block into a grid: read it, show its plan, apply it once confirmed, or abandon it. */
@@ -321,6 +328,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   answered,
   narrowed,
   writing,
+  busy = false,
 }: GridPasteOptions<Row, Sort, Totals>) {
   const [pasting, setPasting] = useState<Pasting>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
@@ -424,11 +432,19 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   /**
    * Apply the plan shown, once: what the server wrote takes the place of what was read, the rows it
    * did not write are told, and a refusal is told. The dialog stays until the server answers, and
-   * cannot be abandoned meanwhile: what is under way is written whatever happens to it.
+   * cannot be abandoned meanwhile: what is under way is written whatever happens to it. Confirmed
+   * while another write of the grid is under way, it does nothing: it is offered again once that one
+   * answered, with the version it moved the structure on to (#1224).
    */
   const apply = () => {
     const plan = pasting?.plan;
-    if (paste === undefined || pasting === undefined || plan === undefined || pasting.applying) {
+    if (
+      paste === undefined ||
+      pasting === undefined ||
+      plan === undefined ||
+      pasting.applying ||
+      busy
+    ) {
       return;
     }
     setPasting({ ...pasting, applying: true });
@@ -454,6 +470,8 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
 
   return {
     pasting,
+    /** Whether the paste shown waits for another write of the grid before it may be applied. */
+    waiting: busy && pasting?.applying !== true,
     outcome,
     /** The column the grid does not show a refused block would reach, if one was refused for it. */
     hidden,

@@ -545,3 +545,91 @@ describe("the outcome of a cell written, in any grid", () => {
     expect(result.current.outcome).toBeUndefined();
   });
 });
+
+describe("the rows written together while a cell of theirs is under way", () => {
+  // Rows written together — a choice of the menu of a cell, a paste — taking the place of the line
+  // of labour while a cell of it, written before them, has not answered yet: the gestures and the
+  // confirmation of a paste wait for a cell under way (#1224), but a cell may leave while a gesture
+  // is under way, and answer after it.
+  const first = { address: ADDRESS, rows: nodes.items, totals: nodes.totals };
+  const keyOf = (at: number) => nodeKey(nodes.items[at] as EstimateNode);
+
+  /** The line of labour written together with others, at a later place among the writes. */
+  function together(): RowsWritten<EstimateNode, NodeTotals> {
+    const labour = nodes.items[LABOUR] as EstimateNode;
+    return nodeAnswered(
+      { ...labour, lock_version: labour.lock_version + 1 },
+      { hours: "40" },
+      undefined,
+      4,
+    );
+  }
+
+  it("keeps what the rows written together answered when the cell written before them answers after them, earlier (#421)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    act(() => {
+      result.current.applied(together());
+    });
+    await answer(0, (from) => nodeAnswered(from, { hours: "14" }, undefined, 3));
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+    expect(result.current.pending(keyOf(LABOUR), "hours")).toBeUndefined();
+  });
+
+  it("keeps quiet the refusal of a cell written before rows written together took its row (#202)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    act(() => {
+      result.current.applied(together());
+    });
+    await refuse(0, {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    });
+    expect(result.current.outcome).toBeUndefined();
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(false);
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+  });
+
+  it("tells the refusal of a row they did not write, whatever the quiet refusal answered after it (#202)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const marked: Outcome<never> = {
+      kind: "conflict",
+      problem: { code: "REVISION_MARKED", status: 409 },
+      conflictingObjectId: null,
+    };
+    await enter(result.current, TASK, "label", entry);
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    act(() => {
+      result.current.applied(together());
+    });
+    await refuse(0, marked);
+    await refuse(1, {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    });
+    expect(result.current.outcome).toEqual(marked);
+  });
+
+  it("keeps the refusal of a cell written before them on a row they did not write", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const stale: Outcome<never> = {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    };
+    await enter(result.current, TASK, "label", entry);
+    act(() => {
+      result.current.applied(together());
+    });
+    await refuse(0, stale);
+    expect(result.current.outcome).toEqual(stale);
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+  });
+});

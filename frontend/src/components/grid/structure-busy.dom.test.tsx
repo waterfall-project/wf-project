@@ -195,7 +195,9 @@ describe("a grid busy with any of its writes", () => {
     const client = serve({ [MOVE]: "nodes_indented" }, { route: MOVE, until: hold.until });
     const view = render(grid());
     await indent(MOUNTING);
-    expect(moves(client)).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(moves(client)).toHaveLength(1);
+    });
     view.rerender(grid(AMENDMENT));
     expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "false");
     await act(async () => {
@@ -213,5 +215,46 @@ describe("a grid busy with any of its writes", () => {
     await vi.waitFor(() => {
       expect(router.refresh).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("keeps the version the other structure moved on to by its own writes when a late answer of the first arrives", async () => {
+    // A move sent in the main structure, held, answered at its version 3 (`nodes_moved`), once the
+    // amendment shown moved on to its version 2 by a move of its own (`nodes_indented`): the
+    // amendment keeps its 2, the main structure takes its 3.
+    const hold = held();
+    const client = fakeClient(
+      { [MOVE]: ["nodes_moved", "nodes_indented"] },
+      { hold: (route, index) => (route === MOVE && index === 0 ? hold.until : undefined) },
+    );
+    server.client = client;
+    const view = render(grid());
+    await indent(MOUNTING);
+    await vi.waitFor(() => {
+      expect(moves(client)).toHaveLength(1);
+    });
+    view.rerender(grid(AMENDMENT));
+    await indent(MOUNTING);
+    await vi.waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      hold.release();
+      await hold.until;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    // The late answer reads nothing anew for the amendment.
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    await indent(MOUNTING);
+    await vi.waitFor(() => {
+      expect(moves(client)).toHaveLength(3);
+    });
+    expect(moves(client)[2]).toMatchObject({ lock_version: 2 });
+    // Back on the main structure, the next move carries the version its own answer reached.
+    view.rerender(grid());
+    await indent(MOUNTING);
+    await vi.waitFor(() => {
+      expect(moves(client)).toHaveLength(4);
+    });
+    expect(moves(client)[3]).toMatchObject({ lock_version: 3 });
   });
 });

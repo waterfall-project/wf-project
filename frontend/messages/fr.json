@@ -333,6 +333,7 @@
       "refusedRows": "Lignes refusées par le collage",
       "apply": "Appliquer le collage",
       "abandon": "Abandonner",
+      "waiting": "Enregistrement en cours dans la grille : le collage s’applique une fois l’écriture terminée.",
       "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
       "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit.",
       "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut.",

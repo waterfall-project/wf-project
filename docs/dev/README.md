@@ -1671,10 +1671,15 @@ cellules telles que copiées et son motif, une ligne refusée pour plusieurs cel
 fois —, et `applyPaste` l'applique sur confirmation, en une seule opération : les lignes valides sont
 écrites, les lignes refusées ne le sont pas (WF-IHM-0050, EP-14/L42q). Un plan qui refuse des lignes
 et en écrit d'autres le dit, et se confirme ; un plan qui n'écrit aucune ligne n'offre que
-l'abandon. Ce que la confirmation rend prend la place de ce qui était lu (`CellWrites.applied`) ; une
-écriture de cellule partie avant le collage et répondue après se prend comme toute réponse, le
-compteur de la structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et seul son
-refus se tait quand le collage a écrit sa ligne depuis. Ce qu'elle n'a pas écrit
+l'abandon. La confirmation attend toute autre écriture de la grille en cours — une cellule saisie, un
+geste — et la relecture qui suit un geste : elle porterait la version de la structure que leur
+réponse va avancer, et serait refusée (412) ; « Appliquer le collage » reste offert, inactif, occupé
+et décrit par l'attente, jusqu'à leur réponse (`busy` de `useGridPaste`, #1224). Ce que la
+confirmation rend prend la place de ce qui était lu (`CellWrites.applied`), comme les lignes qu'écrit
+un choix du menu d'une cellule ; une écriture de cellule partie avant elles et répondue après se
+prend comme toute réponse, le compteur de la structure décidant laquelle des deux une ligne montre
+(`answers.ts`, #202, #421), et seul son refus se tait quand elles ont écrit sa ligne depuis. Ce que
+le collage n'a pas écrit
 (`PasteApplied.rejected`) — les refus de l'aperçu, et ceux que le serveur ajoute en jugeant de
 nouveau les lignes acceptées, une catégorie ou un rôle désactivés entre-temps — est dit au-dessus de
 la grille avec la cellule d'où le bloc a été collé et le nombre de lignes écrites
@@ -1768,10 +1773,12 @@ un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni s
 une flèche, là où le déplacement n'est pas offert, sont pris sans effet : la cellule active ne bouge
 pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours — un geste, une cellule
 saisie, un collage appliqué, toute écriture de la grille (décision de l'auteur du 2026-10-21, #1224) —,
-puis la relecture qui suit un geste, retiennent les gestes, la grille se disant occupée
-(`aria-busy`) : le suivant part des voisines que la relecture a rendues, jamais de celles d'avant
-avec une version déjà avancée. La grille dit ses propres écritures aux commandes de son écran
-(`RowCommands.writing`), qui les comptent avec les leurs (`useStructureVersion`).
+puis la relecture qui suit un geste, retiennent les gestes et la confirmation d'un collage, la
+grille se disant occupée (`aria-busy`) : le suivant part des voisines que la relecture a rendues,
+jamais de celles d'avant avec une version déjà avancée. La grille dit ses propres écritures aux
+commandes de son écran (`RowCommands.writing`), qui les comptent avec les leurs
+(`useStructureVersion`), chacune pour la structure où elle est partie : une réponse arrivée quand la
+grille en montre une autre n'en avance pas la version et ne la relit pas.
 
 La poignée glisse la sélection — ou sa seule ligne, qui n'en est pas — à côté d'une autre ligne :
 avant elle ou après elle, à son niveau, par le quart haut ou bas de la ligne, ou sous elle, en

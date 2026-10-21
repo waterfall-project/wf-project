@@ -323,6 +323,14 @@ export function writingOf<Row>(
 }
 
 /**
+ * Whether the commands of a grid's screen wait for a write — theirs or the grid's — or for the reading
+ * anew that follows: the confirmation of a paste waits with them (#1224).
+ */
+export function busyOf<Row>(commands: RowCommands<Row> | undefined): boolean {
+  return commands?.busy === true;
+}
+
+/**
  * Whether the cells of a grid have a menu, which they announce: the commands of its screen, undo and
  * redo, or its folding.
  */

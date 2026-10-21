@@ -125,6 +125,7 @@ import {
   useSettingsWriter,
 } from "./settings";
 import {
+  busyOf,
   CellMenu,
   hasCellMenu,
   onRows,
@@ -682,6 +683,8 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     answered: writes.rows,
     narrowed: isNarrowed(narrowing),
     writing,
+    // The confirmation waits for any other write of the screen, as its gestures do (#1224).
+    busy: busyOf(commands),
   });
   const undo = useUndoShortcut(undoable);
   const foldReach = useFoldReach();
@@ -806,6 +809,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       {paste.pasting === undefined ? null : (
         <PasteDialog
           pasting={paste.pasting}
+          waiting={paste.waiting}
           onApply={paste.apply}
           onAbandon={paste.abandon}
           onClosed={paste.refocus}

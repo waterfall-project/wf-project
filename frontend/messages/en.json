@@ -333,6 +333,7 @@
       "refusedRows": "Rows the paste refused",
       "apply": "Apply the paste",
       "abandon": "Abandon",
+      "waiting": "Saving in the grid: the paste applies once that write is done.",
       "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
       "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block.",
       "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block.",
