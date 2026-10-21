@@ -123,7 +123,9 @@
         schema: { $ref: ../components/common.yaml#/Percent }
     responses:
       '200':
-        description: Charges et capacités par rôle et par mois.
+        description: >-
+          Charges et capacités par rôle et par mois, la capacité du périmètre et le total de
+          chaque mois.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioWorkload }
