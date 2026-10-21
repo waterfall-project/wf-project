@@ -19,7 +19,7 @@ import pytest
 
 from wftools import (
     REPOSITORY,
-    mockamendment,
+    mockamendmentwrites,
     mockcore,
     mockdata,
     mockgestures,
@@ -114,6 +114,7 @@ REFUSALS = {
         "nodes_move_after_not_sibling",
         "nodes_indent_forbidden",
         "nodes_move_cycle_refused",
+        "nodes_move_completed_refused",
     ],
     "setNodeTracking": ["node_tracking_milestone_refused"],
 }
@@ -131,7 +132,8 @@ def _cited(text: str) -> list[str]:
 
 
 def test_every_gesture_is_an_example_the_contract_cites_under_its_answer() -> None:
-    examples = mockgestures.examples()
+    # The gestures of the estimate on the amendment 2 are said with them (#1214).
+    examples = {**mockgestures.examples(), **mockamendmentwrites.examples()}
     cited: set[str] = set()
     for operation, (status, names) in OPERATIONS.items():
         text = _operation(operation)
@@ -206,73 +208,6 @@ def test_a_task_created_under_a_leaf_makes_it_its_summary(read: dict[str, Node])
     [created] = gesture("node_created")["nodes"]
     place = ("node_id", "parent_id", "position", "row_number", "level", "lock_version")
     assert [leaf[key] for key in place] == [created[key] for key in place]
-
-
-def test_a_line_created_after_the_reference_has_no_budget(
-    read: dict[str, Node], totals: dict[str, Any]
-) -> None:
-    # A line added after the reference has a budget nil (WF-RAE-0050); its amount climbs to its
-    # task and its summary, and to the totals; it has no previous review.
-    created = gesture("estimate_line_created")
-    [line] = created["nodes"]
-    facet = line["estimate_line"]
-    assert (line["lock_version"], line["parent_id"]) == (1, universe(N.COMMISSIONING))
-    assert (facet["base_amount"], facet["budgeted_amount"]) == ("350.00", "0.00")
-    assert {key: facet[key] for key in mockcore.PREVIOUS} == dict.fromkeys(mockcore.PREVIOUS)
-    for node in created["ancestors"]:
-        was = read[node["node_id"]]["task"]
-        assert money(node["task"]["base_amount"]) == money(was["base_amount"]) + 350
-        assert node["task"]["budgeted_amount"] == was["budgeted_amount"]
-    assert created["totals"]["estimate_line_count"] == totals["estimate_line_count"] + 1
-    assert money(created["totals"]["base_amount"]) == money(totals["base_amount"]) + 350
-    assert created["totals"]["budgeted_amount"] == totals["budgeted_amount"]
-
-
-def test_a_line_sent_after_a_subordinate_goes_after_the_last_line_of_its_task(
-    read: dict[str, Node],
-) -> None:
-    # The lines of a task precede its subordinates (#1187): a line that names a subordinate to
-    # follow falls back on the boundary, after the last line — here the first child of the
-    # station, which bears none, and the row right under it, before the wiring of the cabinets.
-    after = read[universe(mockgestures.SHARED_AFTER)]
-    station = read[universe(mockgestures.SHARED_UNDER)]
-    assert after["parent_id"] == station["node_id"]
-    assert after["kind"] == "task"
-    assert not mockwitness.CONTROL_STATION.lines
-    [line] = gesture("estimate_line_created_after_subtask")["nodes"]
-    assert (line["node_id"], line["kind"], line["parent_id"]) == (
-        universe(mockgestures.CREATED_SHARED),
-        "estimate_line",
-        station["node_id"],
-    )
-    assert (line["position"], line["row_number"]) == (1, station["row_number"] + 1)
-    assert line["row_number"] == read[universe(N.WIRING)]["row_number"]
-
-
-def test_a_selection_moved_changes_the_task_that_bears_its_lines_and_nothing_else(
-    read: dict[str, Node], totals: dict[str, Any]
-) -> None:
-    moved = gesture("nodes_moved")
-    source = mockwitness.node_id(mockgestures.network_task(mockgestures.MOVED_FROM).number)
-    target = mockwitness.node_id(mockgestures.network_task(mockgestures.MOVED_TO).number)
-    lines = moved["nodes"]
-    assert [line["estimate_line"]["label"] for line in lines] == list(mockgestures.MOVED_LINES)
-    sum_moved = Decimal(0)
-    for line in lines:
-        was = read[line["node_id"]]
-        assert (was["parent_id"], line["parent_id"], line["lock_version"]) == (source, target, 2)
-        assert line["estimate_line"] == was["estimate_line"]
-        sum_moved += money(line["estimate_line"]["base_amount"])
-    above = by_number(moved["ancestors"])
-    assert {source, target} <= set(above)
-    assert money(above[source]["task"]["base_amount"]) == (
-        money(read[source]["task"]["base_amount"]) - sum_moved
-    )
-    assert money(above[target]["task"]["base_amount"]) == (
-        money(read[target]["task"]["base_amount"]) + sum_moved
-    )
-    assert (moved["rescheduled"], moved["reinflated"]) == ([], [])
-    assert moved["totals"] == totals
 
 
 def test_a_task_indented_goes_under_the_task_above_it_and_nothing_moves(
@@ -777,45 +712,3 @@ def test_the_rank_follows_the_rule_of_the_contract(
 def test_a_place_after_a_node_moved_or_not_a_sibling_is_refused(after: int) -> None:
     with pytest.raises(ValueError, match="is not a sibling"):
         mocktree.placed(LINES, TASKS, ((11, LINE),), after)
-
-
-def test_the_mixed_selection_of_the_contract_is_placed_by_the_rule() -> None:
-    # The body of the example: a line and a task moved under the station after the wiring, on the
-    # amendment 2, whose estimate is open; the line goes first of its lines, which it has none,
-    # the task right after the wiring (#1188).
-    body = gesture("nodes_move_mixed")
-    own = mockamendment.own_id
-    assert body["node_ids"] == [own(number) for number, _ in mockgestures.MIXED]
-    assert (body["parent_id"], body["after_node_id"]) == (
-        own(mockgestures.MIXED_UNDER),
-        own(mockgestures.MIXED_AFTER),
-    )
-    read = {node["node_id"]: node for node in mockamendment.marked()}
-    assert read[body["after_node_id"]]["parent_id"] == body["parent_id"]
-    assert [read[each]["kind"] for each in body["node_ids"]] == ["estimate_line", "task"]
-    lines, tasks = mockgestures.mixed_places()
-    assert lines == [N.BLOCKS]
-    assert tasks[: tasks.index(N.TRANSPORT) + 1] == [N.WIRING, N.TRANSPORT]
-    amendment = _json(mockamendment.structure("amendment"))
-    assert body["lock_version"] == amendment["lock_version"]
-    assert {"command": "edit_estimate", "is_available": True, "missing_conditions": []} in (
-        amendment["available_commands"]
-    )
-    assert str(amendment["label"]) in _summary("nodes_move_mixed")
-
-
-def test_a_line_created_under_a_completed_task_is_refused_naming_the_condition() -> None:
-    # WF-DEV-0050, WF-RAE-0030: a task completed is reopened from the Kanban first (#1184); on the
-    # amendment 2, whose estimate is open.
-    refused = gesture("estimate_line_completed_refused")
-    assert (refused["code"], refused["status"]) == ("STATE_FORBIDS_OPERATION", 409)
-    assert refused["params"] == {"missing_condition": "task_not_completed"}
-    read = {node["node_id"]: node for node in _json(mockamendment.marked())}
-    task = read[mockamendment.own_id(mockgestures.COMPLETED_UNDER)]["task"]
-    assert task["progress"] == "completed"
-    label = mockamendment.structure("amendment")["label"]
-    assert str(label) in _summary("estimate_line_completed_refused")
-
-
-def _summary(name: str) -> str:
-    return str(mockgestures.examples()[f"{name}.json"]["summary"])

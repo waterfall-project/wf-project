@@ -1,0 +1,37 @@
+{
+  "summary": "« Indisponibilité de la grue de levage », déclaré aujourd'hui (risk_created), modifié : ses actions de mitigation saisies, et sa ligne de provision déplacée sur la tâche que le formulaire désigne, « Montage des armoires sur site » (provision_task_id), le total du devis inchangé ; une version de plus (WF-RIS-0010, #786).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "risk_id": "01926f3a-7c00-7000-8000-000000000754",
+    "label": "Indisponibilité de la grue de levage",
+    "description": "Les armoires se lèvent sur site par une grue louée, dont la disponibilité n'est pas confirmée.",
+    "mitigation_notes": "Réservation d'une seconde grue auprès d'un autre loueur.",
+    "probability": "0.2",
+    "severity": "0.00",
+    "provision_amount": "0.00",
+    "state": "identified",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000208",
+    "provision_node_id": "01926f3a-7c00-7000-8000-000000000585",
+    "provision_cost_category_id": "01926f3a-7c00-7000-8000-000000000404",
+    "provision_cost_category_label": "Provisions pour risques",
+    "provision_cost_category_is_active": true,
+    "provision_subproject_id": null,
+    "provision_subproject_label": null,
+    "provision_task": {"node_id":"01926f3a-7c00-7000-8000-000000000562","label":"Montage des armoires sur site"},
+    "matrix_cell": {"probability_level":2,"severity_level":1,"zone":"nominal"},
+    "last_review_on": "2026-06-03",
+    "computed_fields": [
+      {"field":"severity","dependencies":["own_estimate"]},
+      {"field":"provision_amount","dependencies":["severity_and_probability"]}
+    ],
+    "available_commands": [
+      {"command":"update","is_available":true,"missing_conditions":[]},
+      {"command":"update_provision","is_available":true,"missing_conditions":[]},
+      {"command":"review","is_available":true,"missing_conditions":[]},
+      {"command":"declare_occurrence","is_available":true,"missing_conditions":[]},
+      {"command":"delete","is_available":true,"missing_conditions":[]}
+    ],
+    "audit": {"created_at":"2026-06-03T14:05:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-06-03T14:05:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
+    "lock_version": 2
+  }
+}

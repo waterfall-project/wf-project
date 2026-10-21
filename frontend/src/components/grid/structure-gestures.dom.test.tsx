@@ -190,10 +190,7 @@ function remainingGrid(editable: boolean, withCategories = true, nodes: NodeList
 const CREATE_COMPLETED_REFUSED = {
   problem: example("estimate_line_completed_refused") as Problem & { status: 409 },
 };
-/**
- * The refusal of a deletion under a task completed, which the contract has no example of, and of
- * a version no longer the current one, whose example waits on #1210.
- */
+/** The refusal of a deletion under a task completed, which the contract has no example of. */
 const COMPLETED_REFUSED = {
   problem: {
     code: "STATE_FORBIDS_OPERATION",
@@ -201,9 +198,10 @@ const COMPLETED_REFUSED = {
     params: { missing_condition: "task_not_completed" },
   },
 } as const;
+/** The refusal of a deletion sent with a counter no longer the current one, as the fake back gives it (#1210). */
 const STALE_REFUSED = {
-  problem: { code: "STALE_LOCK_VERSION", status: 412, params: { expected_lock_version: 3 } },
-} as const;
+  problem: example("node_delete_stale") as Problem & { status: 412 },
+};
 
 beforeEach(() => {
   window.sessionStorage.clear();

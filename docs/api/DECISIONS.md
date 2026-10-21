@@ -6859,10 +6859,99 @@ la hiérarchie, les subordonnées avant la récapitulative ; `params.cycle` le d
   `CommandCondition` dit que `task_not_completed` manque aussi à la création d'une ligne.
 - Le 412 de `deleteNode` n'a pas d'exemple : la requête ne porte aucun compteur, et le 412 est
   inatteignable (#1210, à trancher).
+  *Tranché par l'auteur le 2026-10-20 et réalisé par US-0520/L1 : `deleteNode` reçoit le compteur
+  du nœud, et son 412 a son exemple, `node_delete_stale`.*
 
 **Les exemptions de #421 se réduisent** (#1196). `ELSEWHERE` ne garde que `comparison`. Les
 résumés de `nodes_summaries` et de `startable_tasks_milestone` s'ouvrent par « Variante
 contrefactuelle » : la seconde est une lecture contrefactuelle, et non la suite d'une écriture.
+
+## La déclaration d'un risque désigne la tâche de sa provision, et les saisies du risque ont leurs exemples (EP-15/US-0520)
+
+**La tâche de la provision se désigne** (partie K5 de la conception d'EP-15, #786 ; US-0520/L1).
+WF-RIS-0010 veut la ligne de provision « portée par la tâche de la structure principale que
+l'utilisateur désigne à la déclaration du risque », déplaçable sur une autre, et « à défaut de
+désignation » portée par la première tâche de premier niveau. Le contrat ne permettait ni l'un ni
+l'autre.
+- `RiskWrite.provision_task_id`, facultatif, nul ou omis à la déclaration : la première tâche de
+  premier niveau. Une récapitulative la porte comme une feuille, la ligne n'entrant pas dans
+  l'état de sa tâche.
+- À la modification (`RiskUpdate`), omis, il garde la tâche ; nul, il rend la ligne à la première
+  tâche de premier niveau ; une autre tâche y déplace la ligne, le total du devis inchangé. Il
+  relève d'`update_provision`, comme la catégorie et le sous-projet : changé pour un risque qui
+  n'est pas identifié, 409 à `risk_identified`.
+- Un nœud qui n'est pas une tâche de la structure principale de la révision en cours — une ligne,
+  une tâche d'un différentiel, un identifiant inconnu — est refusé par 422 `VALIDATION_FAILED`,
+  `/provision_task_id`, `UNKNOWN_TASK`, code que `FieldErrorCode` portait déjà.
+- `Risk.provision_task`, exigé, `{node_id, label}` par un schéma nommé, `ProvisionTask`, comme
+  `AttachedTask` nomme la tâche d'un lot : la tâche qui porte la ligne, nulle quand le risque
+  n'est pas identifié et ne porte donc pas de ligne, comme `provision_node_id`. Le formulaire la
+  présente sans relire la structure. `risks`, `risk` et `risk_occurred_detail` la nomment : le
+  « Câblage des armoires » pour 751, rien pour 752, survenu, ni pour 753, écarté.
+
+Écarté : un `provision_task_id` exigé, que la spécification dit facultatif. Deux points restent
+hors de cette partie : ce que `moveNodes` fait d'une ligne de provision ; et la tâche où le retour
+d'un risque écarté à l'état identifié recrée sa ligne, que la spécification ne dit pas (#1227, à
+trancher).
+
+**Les saisies du risque ont leurs exemples** (#763). Elles sont engendrées, depuis les risques de
+`mockwitness` et la lecture du registre (`mockhistory.risk_item`), par `wftools.mockriskwrites` :
+`mockhistory` aurait passé les mille lignes. `tools/tests/test_mockriskwrites.py` les tient.
+- `risk_created` (201) : « Indisponibilité de la grue de levage », 754, déclaré aujourd'hui à
+  20 % sans tâche désignée. Sa structure propre, 208, est ouverte vide : sa gravité et sa
+  provision sont nulles jusqu'au chiffrage de son devis propre. Sa ligne de provision, 585, est
+  portée par « Études », la première tâche de premier niveau. À sa première version.
+- `risk_updated` (200) : le même, sa ligne déplacée sur le « Montage des armoires sur site » et
+  ses actions de mitigation saisies, une version de plus.
+- `risk_reviewed` (201) : 751 confirmé aujourd'hui sans modification, un réexamen daté du jour,
+  une version de plus que `risk`.
+- `task_occurrence_queued` (202) : la survenance de 752, confirmée le 20 février 2026 à 16 h, la
+  tâche de fond 949 en file : un instant antérieur de la chronologie, celui de son dernier
+  réexamen.
+- `risk_provision_task_refused` (422) : une provision désignée sur la « Reprise des essais de
+  câblage », que seul l'avenant 2 porte (corrélation 1193).
+
+Écarté : la déclaration de 751 le 12 janvier, que le registre aurait donnée. Le témoin la dit
+identifiée avec une gravité de 1 000 000, quand une structure propre vide, à la création, n'en
+porterait aucune ; et la révision 101 de ce jour-là n'est pas celle dont les exemples nomment les
+nœuds.
+
+**`deleteNode` porte le compteur du nœud supprimé** (#1210, tranché par l'auteur le 2026-10-20).
+Le 412 que l'opération déclarait était inatteignable : la requête ne portait aucun compteur. Elle
+reçoit `lock_version`, paramètre de requête exigé, le compteur lu du nœud désigné, comme toute
+modification ; les subordonnées qu'une récapitulative emporte ne se jugent pas. Elle déclare donc
+aussi 422, pour un paramètre de requête hors de son schéma. Son 412 a son exemple engendré,
+`node_delete_stale` : le « Raccordement des borniers » supprimé avec le compteur lu, 1, que la
+saisie de ses 14 heures (`estimate_line_updated`) a porté à 2 (corrélation 1194). Le front envoie
+le compteur de la ligne (`src/api/actions/nodes.ts`), et `structure-gestures.dom.test.tsx` lit cet
+exemple au lieu du refus qu'il écrivait. `test_every_writing_that_declares_a_412_sends_a_counter`
+(`backend/tests/test_contract_declarations.py`) tient le sens inverse de
+`test_every_writing_that_carries_a_lock_version_declares_its_412` : une écriture qui déclare un
+412 envoie un compteur, `lock_version` ou `…_lock_version`, dans son corps ou ses paramètres. Écarté :
+retirer le 412 (proposition (a) de #1210).
+
+**Les gestes du devis s'écrivent sur l'avenant 2** (#1214, tranché par l'auteur le 2026-10-20).
+Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
+(Vérif de WF-DEV-0050, `structures`). `estimate_line_created`, `estimate_line_created_after_subtask`
+et `nodes_moved` portent donc sur l'avenant 2, structure 203, par ses identifiants propres
+(`mockamendment.own_id`) : chaque réponse est la différence de deux lectures du différentiel,
+marquées contre la structure principale, la ligne créée `added`, les lignes déplacées `modified`
+par leur parent, le compteur du différentiel passé à 3. Une ligne créée sur un différentiel porte
+les grandeurs de référence d'où la fusion tirera son budget (WF-REV-0050), comme la reprise des
+essais : son montant budgété est son montant, et non le budget nul d'une ligne ajoutée en revue
+périodique. `wftools.mockamendmentwrites` les engendre, avec `nodes_move_mixed` et
+`estimate_line_completed_refused` que `mockgestures` portait : il aurait passé les mille lignes.
+- Le refus de `moveNodes` vers une tâche terminée est décrit : « le déplacement d'une ligne vers
+  elle, est refusé » (Vérif de WF-DEV-0050). 409 `STATE_FORBIDS_OPERATION` à
+  `task_not_completed`, pour une ligne déplacée vers une tâche terminée ou depuis elle, à la place
+  de la réponse 409 commune. Exemple engendré, `nodes_move_completed_refused` : les « Borniers »
+  déplacés sous les « Études de détail », sur l'avenant 2 (corrélation 1195). `CommandCondition`
+  le dit.
+- `row-selection.dom.test.tsx` lit le compteur que rend `nodes_moved` au lieu de l'écrire.
+
+**Le tri d'un nœud retiré passe par celui du faux back** (#1216). Le test de #1205
+(`tools/tests/test_mockdiff.py`) trie les lignes du différentiel par `LineSort.ordered`, la ligne
+retirée lue sur ses valeurs de base, au lieu de refaire le tri à la main.
 
 ## Collage et annulation
 

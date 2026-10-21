@@ -390,11 +390,29 @@ def _actor() -> JsonObject:
     return cast("JsonObject", fixture("project")["audit"]["created_by"])
 
 
-def risk_item(risk: Risk, budget: Decimal) -> JsonObject:
+def provision_task(risk: Risk, bearer: int | None = None) -> JsonObject | None:
+    """Return the task that bears the line of provision of a risk, by its node and its label.
+
+    The task of the main structure of the current revision its line is under — or the one given,
+    for a line a write places —, while the risk is identified; none otherwise, the risk bearing no
+    line (WF-RIS-0010, #786).
+    """
+    if risk.provision_line is None or risk.last.state != IDENTIFIED:
+        return None
+    rows = {row.number: row for row in mockcore.current()}
+    number = rows[risk.provision_line].parent if bearer is None else bearer
+    if number is None:
+        message = f"the line of provision of the risk {risk.number} has no task"
+        raise ValueError(message)
+    return {"node_id": universe(number), "label": rows[number].label}
+
+
+def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObject:
     """Return a risk as the register reads it in the current revision (`Risk`).
 
     The category and the subproject of its provision are named by their labels, resolved at the
-    reading (WF-RIS-0010, WF-ARC-0020).
+    reading, and the task that bears its line by its node and its label (WF-RIS-0010,
+    WF-ARC-0020): the parent of its line, or the task given (``bearer``).
     """
     last = risk.last
     actor = _actor()
@@ -419,6 +437,7 @@ def risk_item(risk: Risk, budget: Decimal) -> JsonObject:
         "provision_subproject_label": None
         if risk.provision_subproject is None
         else named[risk.provision_subproject],
+        "provision_task": provision_task(risk, bearer),
         "matrix_cell": matrix_cell(risk, budget),
         "last_review_on": last.at.date().isoformat(),
         "computed_fields": _COMPUTED,
@@ -837,7 +856,9 @@ def examples() -> dict[str, JsonObject]:
             f"gravité de {_amount(rework.last.severity)}, total de son devis propre, et sa "
             f"provision de {_amount(provision(rework))}, la gravité à "
             f"{_percent(rework.last.probability)} — ni l'une ni l'autre saisies (WF-RIS-0010). "
-            f"Sa ligne de provision porte la catégorie qu'il a désignée, "
+            f"Sa ligne de provision, portée par le "
+            f"« {cast('JsonObject', items[0]['provision_task'])['label']} » (provision_task), "
+            f"porte la catégorie qu'il a désignée, "
             f"« {items[0]['provision_cost_category_label']} », "
             f"{_subproject_text(items[0])} (WF-RIS-0010). "
             f"{_risk_commands_text(items[0])}",

@@ -88,9 +88,13 @@ def test_a_line_removed_is_sorted_by_its_base_values_and_unsorted_stays_in_place
     ]
     assert line["estimate_line"] == was
     assert (lines.index(line), line["position"]) == (0, 1)
+    # Sorted by the sort of the fake back (#1216): the lines of the differential, the one removed
+    # read on its base values — those it had before —, the others on their own.
+    rows = {cast("str", row.node["node_id"]): row for row in [*before, *after]}
     by_amount = LineSort("base_amount", descending=True)
-    ordered = sorted(lines, key=lambda node: by_amount.key(node["estimate_line"]), reverse=True)
+    ordered = by_amount.ordered([rows[node["node_id"]] for node in lines])
     amount = Decimal(was["base_amount"])
     others = [Decimal(node["estimate_line"]["base_amount"]) for node in lines if node is not line]
     assert all(other > amount for other in others)
-    assert ordered.index(line) == len(lines) - 1
+    assert [row.number for row in ordered][-1] == gone
+    assert len(ordered) == len(lines)

@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import mockamendment, mockcore, mocktext, mockwitness
+from wftools import mockcore, mocktext, mockwitness
 from wftools.mockcalendar import START_TO_START
 from wftools.mockids import universe
 from wftools.mockstructure import NETWORK, JsonObject, described
@@ -32,11 +32,8 @@ from wftools.mockwitness import (
     CONTROL_STATION,
     CORE,
     CUSTOMER,
-    EQUIPMENT,
     INSTALLATION,
     STUDIES,
-    SUBPROJECT_CONTROL,
-    SUBPROJECT_TESTS,
     TIMELINES,
     Line,
     Link,
@@ -66,7 +63,7 @@ any of its structures (WF-PLA-0150)."""
 
 # --- The structure created, moved, deleted -----------------------------------------------------
 
-CREATED, CREATED_CHILD, CREATED_LINE, CREATED_SHARED = 581, 582, 583, 584
+CREATED, CREATED_CHILD = 581, 582
 
 SIBLING = Task(CREATED, "Note de calcul des protections", days=1, progress="not_started")
 """The task created beside the design file, a label alone sent: a leaf in automatic mode, of one
@@ -74,16 +71,6 @@ day, without a predecessor (WF-DEV-0050), not started — nothing starts by itse
 
 CHILD = Task(CREATED_CHILD, "Relevé des réglages existants", days=1, progress="not_started")
 """The task created under the one created beside the design file, which becomes its summary."""
-
-TEST_SUPPLIES = Line(
-    CREATED_LINE,
-    "Consommables d'essais",
-    EQUIPMENT,
-    unit=Decimal("350.00"),
-    subproject=SUBPROJECT_TESTS,
-    budgeted=Decimal(0),
-)
-"""The line created under the commissioning, after the reference: its budget nil (WF-RAE-0050)."""
 
 
 def added(
@@ -131,83 +118,10 @@ def node_created_child() -> JsonObject:
     return core_write(after, [CREATED_CHILD], following=before)
 
 
-def estimate_line_created() -> JsonObject:
-    """Return what createNode answers to a line created under the commissioning."""
-    return core_write(amended(CORE, added(N.COMMISSIONING, line=TEST_SUPPLIES)), [CREATED_LINE])
-
-
-SHARED_UNDER, SHARED_AFTER = N.CONTROL_STATION, N.FACTORY_ACCEPTANCE
-"""The summary a line is created under, and the node it is sent to follow: its last subordinate,
-the factory acceptance. The lines of a task precede its subordinates: a line sent after a
-subordinate falls back on the boundary, after the last line of the task (#1187)."""
-
-SHARED_TOOLING = Line(
-    CREATED_SHARED,
-    "Outillage commun du poste",
-    EQUIPMENT,
-    unit=Decimal("420.00"),
-    subproject=SUBPROJECT_CONTROL,
-    budgeted=Decimal(0),
-)
-"""The line created under the control station, a summary that bears no line of its own: sent
-after its last subordinate, it becomes its first child, before the wiring of the cabinets."""
-
-
-def estimate_line_created_after_subtask() -> JsonObject:
-    """Return what createNode answers to a line created under the station, after a subordinate.
-
-    The witness renders the lines of a task before its subordinates (``mockcore``): the line
-    added last among the lines of the station is at the place the contract gives a line that
-    names a subordinate to follow (``NodeCreate``, #1187).
-    """
-    roots = amended(CORE, added(SHARED_UNDER, line=SHARED_TOOLING, after=SHARED_AFTER))
-    return core_write(roots, [CREATED_SHARED])
-
-
 def network_task(label: str) -> Task:
     """Return a task drawn about the core, by its label."""
     [task] = [each for each in mockcore.tasks_in_order(NETWORK) if each.label == label]
     return task
-
-
-MOVED_FROM, MOVED_TO = "Conception 1.1.2", "Revue 1.1.3"
-MOVED_LINES = ("Matériel", "Sous-traitance")
-"""The selection moved: two lines of a task drawn about the core, neither of labour, to the task
-after it in its lot — no calendar changes, no task is redated (WF-PLA-0010)."""
-
-
-def moved_lines() -> tuple[tuple[Task, ...], list[int]]:
-    """Return the structure the selection moved leaves, and the lines it moves.
-
-    Sent without a node to follow, they go after the last line of the task (``placed``).
-    """
-    source, target = network_task(MOVED_FROM), network_task(MOVED_TO)
-    lines = [line for line in source.lines if line.label in MOVED_LINES]
-    numbers = [line.number for line in lines]
-
-    def move(each: Task) -> Task:
-        if each.number == source.number:
-            return replace(
-                each, lines=tuple(line for line in each.lines if line.number not in numbers)
-            )
-        if each.number == target.number:
-            order, _ = placed(
-                [line.number for line in each.lines],
-                [child.number for child in each.children],
-                [(number, LINE) for number in numbers],
-                AT_END,
-            )
-            by_number = {line.number: line for line in (*each.lines, *lines)}
-            return replace(each, lines=tuple(by_number[number] for number in order))
-        return each
-
-    return amended(described(), move), numbers
-
-
-def nodes_moved() -> JsonObject:
-    """Return what moveNodes answers to a selection of two lines moved under another task."""
-    roots, numbers = moved_lines()
-    return volume_write(roots, numbers)
 
 
 def nodes_indented() -> JsonObject:
@@ -536,55 +450,6 @@ def nodes_move_after_not_sibling() -> JsonObject:
     return not_sibling(MOVED_UNDER, MOVED_AFTER, MOVE_PLACE_CORRELATION, moved=(MOVED_AWAY,))
 
 
-MIXED_UNDER, MIXED_AFTER = N.CONTROL_STATION, N.WIRING
-MIXED = ((N.BLOCKS, LINE), (N.TRANSPORT, TASK))
-"""A selection that mixes a line and a task — the blocks of the wiring of the cabinets and the
-exceptional transport of the subtree the occurrence merged —, moved under the control station
-after the wiring, its first subordinate: the line falls back on the boundary, the task follows the
-wiring (#1187, #1188). On the amendment 2, whose estimate is open: the main structure of a project
-in progress no longer edits its estimate (WF-DEV-0050), and a line moved changes its task."""
-
-
-def mixed_places() -> tuple[list[int], list[int]]:
-    """Return the lines and the subordinates of the station on the amendment 2, the mix placed."""
-    under = [row for row in mockamendment.rows() if row.parent == MIXED_UNDER]
-    lines = [row.number for row in under if row.kind == LINE]
-    return placed(lines, [row.number for row in under if row.kind == TASK], MIXED, MIXED_AFTER)
-
-
-def nodes_move_mixed() -> JsonObject:
-    """Return the body of moveNodes for a line and a task, on the amendment 2, by its own ids."""
-    return {
-        "node_ids": [mockamendment.own_id(number) for number, _ in MIXED],
-        "parent_id": mockamendment.own_id(MIXED_UNDER),
-        "after_node_id": mockamendment.own_id(MIXED_AFTER),
-        "lock_version": mockamendment.structure("amendment")["lock_version"],
-    }
-
-
-COMPLETED_UNDER = N.DETAILED_STUDIES
-COMPLETED_CORRELATION = universe(1186)
-
-
-def estimate_line_completed_refused() -> JsonObject:
-    """Return what createNode answers to a line created under a task completed, on the amendment 2.
-
-    No line is created, modified, moved or deleted under a task completed, which is reopened from
-    the Kanban first (WF-DEV-0050, WF-RAE-0030): the state of the task refuses it, by the condition
-    a line under it misses (#1184). The main structure of a project in progress closes its estimate.
-    """
-    rows = {row.number: row for row in mockamendment.rows()}
-    if cast("dict[str, Any]", rows[COMPLETED_UNDER].node["task"])["progress"] != "completed":
-        message = f"the task {COMPLETED_UNDER} is not completed"
-        raise ValueError(message)
-    return {
-        "code": "STATE_FORBIDS_OPERATION",
-        "status": 409,
-        "params": {"missing_condition": "task_not_completed"},
-        "correlation_id": COMPLETED_CORRELATION,
-    }
-
-
 TRACKED_TASK = N.DESIGN_REVIEW
 
 
@@ -649,7 +514,7 @@ def _task(answer: JsonObject, key: str = "nodes") -> Node:
     return cast("Node", _nodes(answer, key)[0]["task"])
 
 
-def _labels(answer: JsonObject, key: str) -> str:
+def tasks_said(answer: JsonObject, key: str) -> str:
     """Say the tasks of a list of an answer by their label, in its order."""
     return mocktext.listed(
         [f"« {node['task']['label']} »" for node in _nodes(answer, key) if node["kind"] == "task"]
@@ -694,22 +559,17 @@ def examples() -> dict[str, JsonObject]:
         **_entry_examples(),
         **_link_examples(),
         **_move_refusal_examples(),
-        **_place_examples(),
     }
 
 
 def _structure_examples() -> dict[str, JsonObject]:
-    created, child, line = node_created(), node_created_child(), estimate_line_created()
-    shared = estimate_line_created_after_subtask()
-    moved, indented, deleted = nodes_moved(), nodes_indented(), node_summary_deleted()
+    created, child = node_created(), node_created_child()
+    indented, deleted = nodes_indented(), node_summary_deleted()
     rows = {row.number: row for row in mockcore.current()}
     created_task = _task(created)
     [child_parent] = [
         node["task"] for node in _nodes(child, "ancestors") if node["node_id"] == universe(CREATED)
     ]
-    [new_line] = _nodes(line)
-    [shared_line] = _nodes(shared)
-    supplies = cast("Node", new_line["estimate_line"])
     [indented_node] = _nodes(indented)
     gone = [rows[number] for number in (N.MOUNTING, N.COMMISSIONING)]
     gone_lines = [row for row in rows.values() if row.parent in {N.MOUNTING, N.COMMISSIONING}]
@@ -729,41 +589,9 @@ def _structure_examples() -> dict[str, JsonObject]:
             f"précédente a ajoutée (node_created) : la feuille devient sa récapitulative, ses "
             f"dates et sa durée tirées de sa seule subordonnée, {mocktext.span(child_parent)}, et "
             f"n'accepte plus ni son mode ni sa durée (editable_fields). Avec elle, ses deux "
-            f"ancêtres, {_labels(child, 'ancestors')}, {totals_said(child)}, et {_version(child)} "
-            f"(WF-PLA-0040, WF-PLA-0130).",
+            f"ancêtres, {tasks_said(child, 'ancestors')}, {totals_said(child)}, et "
+            f"{_version(child)} (WF-PLA-0040, WF-PLA-0130).",
             child,
-        ),
-        "estimate_line_created.json": mocktext.example(
-            f"La ligne « {TEST_SUPPLIES.label} » créée sous la "
-            f"{rows[N.COMMISSIONING].label.lower()}, {money_said(supplies['base_amount'])} de "
-            f"matériel au sous-projet « {supplies['subproject_label']} » : ajoutée après la "
-            f"référence, son montant budgété est nul, {money_said(supplies['budgeted_amount'])} "
-            f"(WF-RAE-0050) ; à sa première version (201). Avec elle, ses ancêtres, "
-            f"{_labels(line, 'ancestors')}, dont le montant suit, et {totals_said(line)}, le "
-            f"budgété inchangé (WF-DEV-0050).",
-            line,
-        ),
-        "estimate_line_created_after_subtask.json": mocktext.example(
-            f"La ligne « {SHARED_TOOLING.label} » créée sous le "
-            f"« {rows[SHARED_UNDER].label} », une récapitulative sans ligne propre, après sa "
-            f"dernière subordonnée, la « {rows[SHARED_AFTER].label} » (after_node_id) : les "
-            f"lignes d'une tâche précèdent toujours ses sous-tâches, et une ligne qui suit une "
-            f"sous-tâche se place après la dernière ligne. Elle devient le premier enfant du "
-            f"poste, au rang {shared_line['position']}, avant le « {rows[N.WIRING].label} » ; "
-            f"{money_said(shared_line['estimate_line']['base_amount'])} de matériel, son "
-            f"montant budgété nul (WF-RAE-0050), à sa première version (201). Avec elle, ses "
-            f"ancêtres, {_labels(shared, 'ancestors')}, dont le montant suit, et "
-            f"{totals_said(shared)}, le budgété inchangé (WF-DEV-0050 ; #1187).",
-            shared,
-        ),
-        "nodes_moved.json": mocktext.example(
-            f"Une sélection de deux lignes, « {MOVED_LINES[0]} » et « {MOVED_LINES[1]} » de "
-            f"« {MOVED_FROM} », déplacée en une écriture sous « {MOVED_TO} », à sa fin : leur "
-            f"tâche porteuse change, une version de plus chacune ; aucune n'est de main-d'œuvre, "
-            f"aucun calendrier ne change : {_redated(moved)}. Avec elles, les anciens et les "
-            f"nouveaux ancêtres, {_labels(moved, 'ancestors')}, dont les montants suivent, et "
-            f"{totals_said(moved)}, inchangés (WF-PLA-0040, WF-DEV-0050).",
-            moved,
         ),
         "nodes_indented.json": mocktext.example(
             f"La récapitulative « {rows[N.INSTALLATION].label} » mise en retrait sous la tâche "
@@ -964,35 +792,5 @@ def _move_refusal_examples() -> dict[str, JsonObject]:
             f"déplacée, {mocktext.listed([f'« {label} »' for label in loop])} ; rien n'est "
             f"écrit (WF-PLA-0030, WF-PLA-0040).",
             nodes_move_cycle_refused(),
-        ),
-    }
-
-
-def _place_examples() -> dict[str, JsonObject]:
-    rows = {row.number: row for row in mockamendment.rows()}
-    lines, tasks = mixed_places()
-    (line, _), (task, _) = MIXED
-    amendment = mockamendment.structure("amendment")
-    on = f"Sur l'« {amendment['label']} », différentiel non fusionné de la révision courante"
-    return {
-        "nodes_move_mixed.json": mocktext.example(
-            f"{on}, une sélection qui mêle une ligne et une tâche, « {rows[line].label} » du "
-            f"« {_parent(rows, line)} » et « {rows[task].label} », envoyée sous le "
-            f"« {rows[MIXED_UNDER].label} » après le « {rows[MIXED_AFTER].label} », sa première "
-            f"subordonnée (after_node_id). Chaque nœud suit la règle, dans l'ordre de node_ids : "
-            f"les lignes d'une tâche précèdent ses sous-tâches, et la ligne, envoyée après une "
-            f"sous-tâche, se place après la dernière ligne du poste, qui n'en porte aucune — au "
-            f"rang {lines.index(line) + 1} — ; la tâche suit le « {rows[MIXED_AFTER].label} », "
-            f"au rang "
-            f"{len(lines) + tasks.index(task) + 1} (#1187, #1188).",
-            nodes_move_mixed(),
-        ),
-        "estimate_line_completed_refused.json": mocktext.example(
-            f"{on}, une ligne créée sous les « {rows[COMPLETED_UNDER].label} », "
-            f"terminées : aucune "
-            f"ligne ne se crée sous une tâche terminée, qui se rouvre d'abord depuis le Kanban. "
-            f"La création est refusée, la condition nommée ; rien n'est créé (WF-DEV-0050, "
-            f"WF-RAE-0030, #1184).",
-            estimate_line_completed_refused(),
         ),
     }

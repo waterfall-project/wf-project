@@ -4175,6 +4175,11 @@ class RiskState(StrEnum):
     dismissed = "dismissed"
 
 
+class ProvisionTask(ContractModel):
+    node_id: Uuid
+    label: Annotated[str, Field(max_length=300, min_length=1)]
+
+
 class RiskMatrixCell(ContractModel):
     probability_level: Annotated[int, Field(ge=1, le=4)]
     severity_level: Annotated[int, Field(ge=1, le=4)]
@@ -4264,6 +4269,12 @@ class Risk(ContractModel):
             description="Le libellé de ce sous-projet, résolu à la lecture ; nul pour une provision hors sous-projet."
         ),
     ]
+    provision_task: Annotated[
+        ProvisionTask | None,
+        Field(
+            description="La tâche de la structure principale de la révision lue qui porte la ligne de provision (`provision_node_id`), par son nœud et son libellé, résolu à la lecture : celle que le risque a désignée à sa déclaration ou depuis, tant qu'il était identifié, et à défaut la première tâche de premier niveau (WF-RIS-0010, #786). Le formulaire la présente et la propose de nouveau sans relire la structure (WF-ARC-0020). Nulle quand le risque n'est pas identifié : il ne porte alors aucune ligne de provision."
+        ),
+    ]
     matrix_cell: RiskMatrixCell | None = None
     last_review_on: PlanningDate | None = None
     computed_fields: Annotated[
@@ -4307,6 +4318,12 @@ class RiskWrite(ContractModel):
         Uuid | None,
         Field(
             description="Le sous-projet auquel appartient la ligne de provision, facultatif ; nul ou omis à la déclaration, elle compte hors sous-projet (WF-RIS-0010, WF-RAE-0020). Un sous-projet que le projet n'a pas est refusé par 422, `UNKNOWN_SUBPROJECT`. À la modification, omis, il reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé pour un risque qui n'est pas identifié, est refusé comme la catégorie, par `risk_identified`."
+        ),
+    ] = None
+    provision_task_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La tâche de la structure principale de la révision en cours qui porte la ligne de provision, facultative : « à défaut de désignation, elle est portée par la première tâche de premier niveau de la structure » (WF-RIS-0010, #786). Une récapitulative la porte comme une feuille ; la ligne n'entre pas dans l'état de sa tâche (WF-PLA-0040). Un nœud qui n'est pas une tâche de cette structure — une ligne, une tâche d'une autre structure, un identifiant inconnu — est refusé par 422, `UNKNOWN_TASK`. À la modification, omise, elle reste celle du risque ; `null` la rend à la première tâche de premier niveau ; une autre déplace la ligne sur elle, le total du devis inchangé. Changée pour un risque qui n'est pas identifié, elle est refusée comme la catégorie, par `risk_identified` (`update_provision`)."
         ),
     ] = None
 
