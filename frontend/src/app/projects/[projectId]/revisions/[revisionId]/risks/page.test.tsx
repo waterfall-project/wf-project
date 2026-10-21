@@ -248,7 +248,7 @@ describe("the screen of the risks", () => {
     // The table of the counts of the matrix, under the chart, named by its caption.
     const start = page.lastIndexOf(
       "<table",
-      page.indexOf("Count of the risks by cell of the matrix</caption>"),
+      page.indexOf("Count of the risks by cell of the matrix, all states together</caption>"),
     );
     const matrix = page.slice(start, page.indexOf("</table>", start));
     expect(text(matrix)).toContain(

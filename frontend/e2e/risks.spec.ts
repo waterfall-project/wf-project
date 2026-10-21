@@ -159,11 +159,19 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
     .getByRole("figure", { name: "Matrice des risques" })
     .getByRole("img", { name: /^Nuage de bulles des risques/ });
   await expect(drawing.locator("svg")).toBeVisible();
-  // The zones are named in their areas, not told by their colour alone.
-  for (const zone of ["Nominal", "Vigilance", "Alerte"]) {
-    await expect(
-      drawing.locator("text", { hasText: new RegExp(`^${zone}$`) }).first(),
-    ).toBeVisible();
+  // The zones are named in their areas, not told by their colour alone: the twelve zones that have
+  // room for a line — the four thinner bands of the lowest severity are not named — are, each one,
+  // three of the nominal zone, six of the watch zone and three of the alert zone.
+  for (const [zone, count] of [
+    ["Nominal", 3],
+    ["Vigilance", 6],
+    ["Alerte", 3],
+  ] as const) {
+    const names = drawing.locator("text", { hasText: new RegExp(`^${zone}$`) });
+    await expect(names, `the zones named ${zone}`).toHaveCount(count);
+    for (const name of await names.all()) {
+      await expect(name).toBeVisible();
+    }
   }
   // The legend names the states of the risks, each by the shape of its bubbles too.
   for (const state of ["Identifié", "Survenu", "Écarté"]) {

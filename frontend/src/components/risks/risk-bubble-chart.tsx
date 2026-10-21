@@ -8,14 +8,14 @@
  * the position of a bubble is the probability and the severity ratio of its point, its zone the one
  * the server classes (`zone`), the count of the cells the server's (`cells`, the table under the
  * chart); the front only lays out, it computes and classes nothing (WF-ARC-0020). A zone is told
- * apart without its colour (WF-IHM-0100, WF-IHM-0070): it is named in its area, and its border has
+ * apart without its colour (WF-IHM-0100, WF-IHM-0070): it is named in its area, and its sides have
  * a stroke of its own; a state of a risk, by the shape of its bubble. A tooltip tells a bubble in
  * words; a click leads to the risk, or to its project in the portfolio. The chart is exported as a
  * PNG image with its provenance (WF-IHM-0130).
  */
 "use client";
 
-import type { MarkAreaComponentOption } from "echarts/components";
+import type { MarkAreaComponentOption, MarkLineComponentOption } from "echarts/components";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
@@ -46,6 +46,9 @@ type AlertZone = components["schemas"]["AlertZone"];
 /** A zone of the matrix: the corner it starts at, with its look, and the corner it ends at. */
 type Area = Extract<NonNullable<MarkAreaComponentOption["data"]>[number], readonly unknown[]>;
 
+/** A side of a zone: the corner it starts at, with its stroke, and the corner it ends at. */
+type Edge = Extract<NonNullable<MarkLineComponentOption["data"]>[number], readonly unknown[]>;
+
 /** The rank of the colour and the shape of the bubbles of each state of a risk. */
 const STATE_STYLE: Readonly<
   Record<RiskState, { readonly rank: number; readonly symbol: "circle" | "diamond" | "triangle" }>
@@ -55,7 +58,7 @@ const STATE_STYLE: Readonly<
   dismissed: { rank: 2, symbol: "triangle" },
 };
 
-/** The stroke of the border of the area of each zone, a second mark of the zone beside its name. */
+/** The stroke of the sides of each zone, a second mark of the zone beside its name. */
 const ZONE_STROKE: Readonly<Record<AlertZone, "solid" | "dashed" | "dotted">> = {
   nominal: "solid",
   watch: "dashed",
@@ -70,16 +73,23 @@ const ZONE_OPACITY = 0.18;
 
 /**
  * The least share of the height of the chart a zone takes to be named in its area: a thinner band
- * has no room for a line of text, and its border and its signal in the table still tell it.
+ * has no room for a line of text, and its stroke and its signal in the table still tell it.
  */
 const LABELLED = 0.08;
+
+/** Whether a number laid out is one that can be read (neither `NaN` nor infinite). */
+function isReadable(value: number): boolean {
+  return Number.isFinite(value);
+}
 
 /** The size of the bubble of a severity in amount, the largest shown being the largest bubble. */
 function bubbleSize(amount: string, largest: number): number {
   if (largest <= 0) {
     return BUBBLE.smallest;
   }
-  const share = Math.min(1, Math.max(0, Number(amount) / largest));
+  // Layout: a size in pixels, not a figure; an amount that cannot be read draws the smallest.
+  const ratio = Number(amount) / largest;
+  const share = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0;
   return BUBBLE.smallest + (BUBBLE.largest - BUBBLE.smallest) * Math.sqrt(share);
 }
 
@@ -97,6 +107,9 @@ function ticks(levels: readonly Level[]): number[] {
 function shownPoints(points: readonly Point[], states: readonly RiskState[]): readonly Point[] {
   return states.length === 0 ? points : points.filter(({ state }) => states.includes(state));
 }
+
+/** The states of the portfolio matrix: the server filters it, so that none is asked here. */
+const EVERY_STATE: readonly RiskState[] = [];
 
 /** What the bubble chart draws, and what a click on a bubble does. */
 export interface RiskBubbleChartProps {
@@ -133,13 +146,16 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
       });
       const lastSeverity = matrix.severity_levels.at(-1);
       // The axes reach the end of the last level, which ECharts does not do for an area: the last
-      // level is unbounded, and is drawn up to a bit above the highest bubble.
+      // level is unbounded, and is drawn up to a bit above the highest bubble of the matrix — all
+      // the states, so that the zones and their names stay where they are whatever the filter.
+      // `Number` is for this layout alone, never for a value drawn; a ratio that cannot be read
+      // leaves the axis alone.
       const top = Math.max(
         Number(lastSeverity?.lower ?? 0) * 1.5,
-        ...points.map((point) => Number(point.severity_ratio) * 1.15),
+        ...matrix.points.map((point) => Number(point.severity_ratio) * 1.15).filter(isReadable),
       );
       const right = 1;
-      const areas = matrix.cells.flatMap((cell) => {
+      const zones = matrix.cells.flatMap((cell) => {
         const across = matrix.probability_levels.find(
           ({ level }) => level === cell.probability_level,
         );
@@ -150,17 +166,15 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
         const [left, over] = span(across, right);
         const [bottom, high] = span(up, top);
         const colour = palette.zones[cell.zone];
+        const name = t(`enums.AlertZone.${cell.zone}`);
         const area: Area = [
           {
-            name: t(`enums.AlertZone.${cell.zone}`),
+            name,
             xAxis: left,
             yAxis: bottom,
             itemStyle: {
               color: colour,
               opacity: ZONE_OPACITY,
-              borderColor: colour,
-              borderWidth: 1,
-              borderType: ZONE_STROKE[cell.zone],
             },
             label: {
               show: (high - bottom) / top >= LABELLED,
@@ -172,9 +186,23 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
           },
           { xAxis: over, yAxis: high },
         ];
-        return [area];
+        // The stroke of a zone is drawn on two of its sides, the left one and the lower one: a side
+        // shared by two zones is drawn once, by the zone it is the left or the lower side of, and
+        // never as the superposition of two strokes (the outer sides are the axes and the frame).
+        const style = { color: colour, width: 1, type: ZONE_STROKE[cell.zone] };
+        const edges: Edge[] = [
+          [{ name, coord: [left, bottom], lineStyle: style }, { coord: [left, high] }],
+          [{ name, coord: [left, bottom], lineStyle: style }, { coord: [over, bottom] }],
+        ];
+        return [{ area, edges }];
       });
-      const largest = Math.max(0, ...points.map((point) => Number(point.severity_amount)));
+      const areas = zones.map(({ area }) => area);
+      const edges = zones.flatMap((zone) => zone.edges);
+      // Layout again: the size of the bubbles, from the severities in amount that can be read.
+      const largest = Math.max(
+        0,
+        ...points.map((point) => Number(point.severity_amount)).filter(isReadable),
+      );
       const present = (Object.keys(STATE_STYLE) as RiskState[]).filter((state) =>
         points.some((point) => point.state === state),
       );
@@ -246,6 +274,7 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
               ),
               line(t("risks.matrix.tooltip.state"), stateName(point.state)),
               line(t("risks.matrix.tooltip.zone"), t(`enums.AlertZone.${point.zone}`)),
+              ...(point.can_open === false ? [escapeHtml(t("risks.matrix.tooltip.closed"))] : []),
             ].join("<br/>");
           },
         },
@@ -257,6 +286,7 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
             silent: true,
             data: [],
             markArea: { silent: true, data: areas },
+            markLine: { silent: true, symbol: "none", label: { show: false }, data: edges },
           },
           ...present.map((state) => ({
             type: "scatter" as const,
@@ -270,7 +300,8 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
               .map((point) => ({
                 id: point.risk_id,
                 name: point.label,
-                value: [Number(point.probability), Number(point.severity_ratio)],
+                // The strings of the API as they are: ECharts reads the position from them.
+                value: [point.probability, point.severity_ratio],
                 symbolSize: bubbleSize(point.severity_amount, largest),
               })),
           })),
@@ -346,7 +377,7 @@ export function PortfolioRiskMatrix({
   return (
     <RiskBubbleChart
       matrix={matrix}
-      states={[]}
+      states={EVERY_STATE}
       exported={exported}
       onOpen={(point) => {
         // A project the caller cannot open is named by the bubble, and not opened (WF-PTF-0030).

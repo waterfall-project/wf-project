@@ -693,8 +693,10 @@ portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau 
 lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la ligne des
 totaux de la grille reste dans la fenêtre sous les cartes, à 1366 et à 911 de large sur 768 de
 haut : `e2e/grid-frame.spec.ts` le vérifie — sauf les risques, dont le graphique de la matrice
-(356 points) prend la place entre les cartes et la grille : leur fenêtre y est de 1000 de haut, la page
-défilant jusqu'aux totaux dans une plus basse. _Contrôle_ : la revue ;
+(288 points, `h-72`) prend la place entre les cartes et la grille. Cette exception à 768 de haut
+attend la décision de #1252 : elle est affirmée par un test à part, qui exige que les totaux soient dans
+la fenêtre une fois la page défilée, d'au plus la hauteur du bloc de la matrice ; la règle générale
+est vérifiée sur les risques dans une fenêtre de 1000 de haut. _Contrôle_ : la revue ;
 `src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
 ### Les grilles

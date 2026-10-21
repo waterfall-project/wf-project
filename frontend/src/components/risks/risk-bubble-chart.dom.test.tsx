@@ -32,6 +32,19 @@ vi.mock("@/components/chart/chart", async (original) => {
   };
 });
 
+// The instance is the real one; only the number of instances made is counted.
+const instances = vi.hoisted(() => ({ made: 0 }));
+vi.mock("echarts/core", async (actual) => {
+  const echarts = await actual<typeof import("echarts/core")>();
+  return {
+    ...echarts,
+    init: (...args: Parameters<typeof echarts.init>) => {
+      instances.made += 1;
+      return echarts.init(...args);
+    },
+  };
+});
+
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 const PATHNAME = "/projects/p/revisions/r/risks";
 vi.mock("next/navigation", async (original) => ({
@@ -90,7 +103,7 @@ function drawn() {
 /** The `[probability, severity ratio]` of each bubble of a series, by the risk it stands for. */
 function placed(series: ScatterSeriesOption | undefined) {
   return Object.fromEntries(
-    (series?.data as { id: string; value: number[]; symbolSize: number }[] | undefined)?.map(
+    (series?.data as { id: string; value: string[]; symbolSize: number }[] | undefined)?.map(
       (each) => [each.id, each.value] as const,
     ) ?? [],
   );
@@ -116,10 +129,11 @@ describe("the risk matrix as a bubble chart", () => {
       ["scatter", "Occurred", "diamond"],
       ["scatter", "Dismissed", "triangle"],
     ]);
-    // Placed at the values of the point, never rounded to a cell: 0.000003 stays 0.000003.
-    expect(placed(bubbles[0])).toEqual({ [CABLING]: [0.4, 0.0191] });
-    expect(placed(bubbles[1])).toEqual({ [DELIVERY]: [0.3, 0.000003] });
-    expect(placed(bubbles[2])).toEqual({ [AUTOMATON]: [0.05, 0.1834] });
+    // Placed at the values of the point, the strings of the API as they are, never rounded to a
+    // cell nor read as floats: 0.000003 stays 0.000003.
+    expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0191"] });
+    expect(placed(bubbles[1])).toEqual({ [DELIVERY]: ["0.3", "0.000003"] });
+    expect(placed(bubbles[2])).toEqual({ [AUTOMATON]: ["0.05", "0.1834"] });
     // The states are told apart by the shape of the bubble, and the legend names them.
     expect(option?.legend).toMatchObject({ data: ["Identified", "Occurred", "Dismissed"] });
   });
@@ -161,34 +175,41 @@ describe("the risk matrix as a bubble chart", () => {
     expect(zones).toMatchObject({ silent: true, data: [] });
   });
 
-  it("tells the zones apart without their colour: each is named in its area, its border has a stroke of its own [WF-IHM-0070-A]", () => {
+  it("tells the zones apart without their colour: each is named in its area, its sides have a stroke of its own, two sides each [WF-IHM-0070-A]", () => {
     project();
     const { zones } = drawn();
     const areas = zones?.markArea?.data as unknown as [
       {
         name: string;
         label: { show: boolean };
-        itemStyle: { color: string; borderType: string };
+        itemStyle: { color: string };
       },
       unknown,
     ][];
-    const looks = areas.map(([area]) => [area.name, area.itemStyle.borderType, area.label.show]);
-    expect(new Set(looks.map(([name, stroke]) => [name, stroke].join(" ")))).toEqual(
+    const looks = areas.map(([area]) => [area.name, area.label.show]);
+    // The left side and the lower side of each zone, in the stroke of the zone: a side shared by
+    // two zones is the side of one of them only, never two strokes one over the other.
+    const edges = zones?.markLine?.data as unknown as [
+      { name: string; lineStyle: { type: string } },
+      unknown,
+    ][];
+    expect(edges).toHaveLength(32);
+    expect(new Set(edges.map(([edge]) => [edge.name, edge.lineStyle.type].join(" ")))).toEqual(
       new Set(["Nominal solid", "Watch dashed", "Alert dotted"]),
     );
     // Named in its area when the band has room for a line: the four thinner bands of the lowest
-    // severity level are not, and the stroke of their border tells their zone.
-    expect(looks.map(([, , shown]) => shown)).toEqual(
+    // severity level are not, and the stroke of their sides tells their zone.
+    expect(looks.map(([, shown]) => shown)).toEqual(
       Array.from({ length: 16 }, (_, cell) => cell % 4 !== 0),
     );
-    expect(new Set(looks.filter(([, , shown]) => shown === true).map(([name]) => name))).toEqual(
+    expect(new Set(looks.filter(([, shown]) => shown === true).map(([name]) => name))).toEqual(
       new Set(["Nominal", "Watch", "Alert"]),
     );
     // The colour of a zone is the token of its zone, read from the document.
     expect(areas.map(([area]) => area.itemStyle.color)).toContain("zone-alert");
     // The cells of the server stay in words under the chart, each with its signal and its count.
     const counts = screen.getByRole("table", {
-      name: "Count of the risks by cell of the matrix",
+      name: "Count of the risks by cell of the matrix, all states together",
       hidden: true,
     });
     expect(within(counts).getAllByRole("img", { hidden: true, name: "Alert" })).toHaveLength(3);
@@ -201,6 +222,49 @@ describe("the risk matrix as a bubble chart", () => {
     expect(Object.keys(placed(filtered.bubbles[0]))).toEqual([DELIVERY]);
     project([]);
     expect(drawn().bubbles).toHaveLength(3);
+  });
+
+  it("keeps the axis and the zones where they are whatever the states asked: the top of the axis is the matrix's, not the bubbles drawn's", () => {
+    const zonesOf = () => {
+      const { option, zones } = drawn();
+      const areas = zones?.markArea?.data as unknown as [{ label: { show: boolean } }, unknown][];
+      return {
+        max: (option?.yAxis as { max: number }).max,
+        shown: areas.map(([area]) => area.label.show),
+      };
+    };
+    project([]);
+    const every = zonesOf();
+    project(["identified"]);
+    expect(zonesOf()).toEqual(every);
+    project(["occurred"]);
+    expect(zonesOf()).toEqual(every);
+  });
+
+  it("counts the cells of every risk under the chart, whatever the states asked, and says so in the name of the table", () => {
+    const counts = () =>
+      screen.getByRole("table", {
+        name: "Count of the risks by cell of the matrix, all states together",
+        hidden: true,
+      }).textContent;
+    const { unmount } = project([]);
+    const every = counts();
+    unmount();
+    project(["identified"]);
+    expect(counts()).toBe(every);
+    expect(drawn().bubbles).toHaveLength(1);
+  });
+
+  it("leaves a ratio it cannot read out of the top of the axis, which stays a number", () => {
+    project([]);
+    const reference = (drawn().option?.yAxis as { max: number }).max;
+    project([], {
+      ...MATRIX,
+      points: MATRIX.points.map((point, rank) =>
+        rank === 0 ? { ...point, severity_ratio: "n/a" } : point,
+      ),
+    });
+    expect((drawn().option?.yAxis as { max: number }).max).toBe(reference);
   });
 
   it("says so when the filter leaves nothing to draw, and still draws the zones", () => {
@@ -316,6 +380,30 @@ describe("the risk matrix of the portfolio", () => {
       onPoint?.(open?.risk_id ?? "");
     });
     expect(router.push).toHaveBeenCalledExactlyOnceWith(`/projects/${open?.project_id ?? ""}`);
+  });
+
+  it("tells in its tooltip a project that cannot be opened, and only that one", () => {
+    portfolio();
+    const tooltip = drawn().option?.tooltip as { formatter: (params: unknown) => string };
+    const closed = RISKS.matrix.points.find((point) => point.can_open === false);
+    const open = RISKS.matrix.points.find((point) => point.can_open === true);
+    expect(tooltip.formatter({ data: { id: closed?.risk_id } })).toContain(
+      "Project cannot be opened",
+    );
+    expect(tooltip.formatter({ data: { id: open?.risk_id } })).not.toContain("cannot be opened");
+  });
+
+  it("makes one instance of the chart, a render with the same props making no other", () => {
+    instances.made = 0;
+    const view = (
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
+        <PortfolioRiskMatrix matrix={RISKS.matrix} scope={RISKS.scope} />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(view);
+    expect(instances.made).toBe(1);
+    rerender(view);
+    expect(instances.made).toBe(1);
   });
 
   it("exports a PNG image that names the perimeter the server retained and its date of calculation [WF-IHM-0130-A]", () => {

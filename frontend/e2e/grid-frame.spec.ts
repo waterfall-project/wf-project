@@ -13,6 +13,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { compile } from "./compile";
 import { untilHydrated, WORKING } from "./hydration";
 import { path } from "./routes";
+import { scrollPageToGrid } from "./scroll";
 
 test.describe.configure({ mode: "parallel" });
 test.slow();
@@ -161,9 +162,11 @@ test("a grid of a few rows is no taller than its content, in a window that would
  * the bar of the grid and the 160 of its floor. So is the actual costs, whose cards are no cause:
  * below 1024 its grid and the journal of imports lie one under the other, and the grid takes the
  * height of the window (`max-h-svh`) from where it starts. The risks keep, between their cards and
- * their grid, the chart of their matrix over the whole width (US-0550/L4): 356 points with its
- * caption and its values, so that in a window 768 high the grid ends at 881 at 1366 and at 923 at
- * 911, and the page scrolls to its totals; the window is 1000 high for them.
+ * their grid, the chart of their matrix over the whole width (US-0550/L4): it takes its 288 points
+ * and its caption, so that in a window 768 high the grid ends below the window at 1366 and at 911,
+ * and the page scrolls to reach its totals. That is the exception, kept at 768 and stated by the
+ * test below (#1252): the totals are in the window once the page has scrolled, by no more than the
+ * block of the matrix. In a window 1000 high the rule holds for them as for the others.
  */
 const CARD_SCREENS = [
   { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768 },
@@ -171,6 +174,12 @@ const CARD_SCREENS = [
   { address: path(`${REVISION}/actual-costs`), widths: [1366], height: 768 },
   { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 1000 },
 ] as const;
+
+/** The height of the drawing of a chart (`h-72`), in points: what the matrix adds to the page. */
+const CHART_HEIGHT = 288;
+
+/** What the block of the matrix holds beside its drawing — title, bar, caption, values — at most. */
+const MATRIX_CHROME = 140;
 
 for (const { address, widths, height } of CARD_SCREENS) {
   test(`${address}: the cards of figures leave the totals of the grid in the window`, async ({
@@ -190,3 +199,35 @@ for (const { address, widths, height } of CARD_SCREENS) {
     }
   });
 }
+
+const RISKS = path(`${REVISION}/risks`);
+
+test(`${RISKS}: in a window 768 high the page scrolls to the totals of the grid by no more than the block of the matrix (#1252)`, async ({
+  page,
+}) => {
+  await compile(page.request, RISKS);
+  for (const width of [1366, 911]) {
+    await open(page, RISKS, { width, height: 768 });
+    const grid = page.locator("main [role='grid']").first();
+    const figure = page.getByRole("figure").first();
+    const block = (await figure.boundingBox())?.height ?? Number.NaN;
+    expect(block, `the block of the matrix at ${String(width)}`).toBeGreaterThanOrEqual(
+      CHART_HEIGHT,
+    );
+    expect(block, `the block of the matrix at ${String(width)}`).toBeLessThanOrEqual(
+      CHART_HEIGHT + MATRIX_CHROME,
+    );
+    // The totals are out of the window as it opens, which is what the exception is.
+    await scrollPageToGrid(grid);
+    await expect(
+      grid.getByRole("row").last().locator("td, th").first(),
+      `the totals of the risks at ${String(width)}`,
+    ).toBeInViewport({ ratio: 1 });
+    const scrolled = await page.evaluate(() => window.scrollY);
+    expect(scrolled, `the page scrolls at ${String(width)}`).toBeGreaterThan(0);
+    expect(scrolled, `the scroll of the page at ${String(width)}`).toBeLessThanOrEqual(block);
+    expect(scrolled, `the scroll of the page at ${String(width)}`).toBeLessThanOrEqual(
+      CHART_HEIGHT + MATRIX_CHROME,
+    );
+  }
+});
