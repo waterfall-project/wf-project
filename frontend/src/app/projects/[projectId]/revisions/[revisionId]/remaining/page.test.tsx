@@ -272,7 +272,7 @@ describe("the screen of the remaining to commit", () => {
     expect(page).toContain(
       `href="/projects/${PROJECT}/revisions/${REVISION}/workload?subproject_id=${SUBPROJECT}&amp;basis=current_remaining"`,
     );
-    expect(text(page)).toContain("Workload");
+    expect(page).toContain('aria-label="Workload"');
   });
 
   it("places undo and redo in the remaining to commit of a revision in progress, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {

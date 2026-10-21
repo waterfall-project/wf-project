@@ -185,9 +185,16 @@ function RemainingHeader({
             </Link>
           )}
           {workload === undefined ? null : (
-            <Link href={workload} className={action}>
+            // An icon alone, named for the readers of the screen and for the pointer: the title, the
+            // subtitle and four links with their words leave the title no room on a window of 1280
+            // points, and the totals of the grid out of it.
+            <Link
+              href={workload}
+              aria-label={t(WORKLOAD.label)}
+              title={t(WORKLOAD.label)}
+              className={buttonVariants({ variant: "outline", size: "icon" })}
+            >
               <WorkloadIcon aria-hidden="true" />
-              {t(WORKLOAD.label)}
             </Link>
           )}
           {exchanges}
