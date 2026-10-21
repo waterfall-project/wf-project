@@ -252,7 +252,7 @@
     },
     "selection": {
       "handle": "{number} — poignée de la ligne",
-      "hint": "Espace sélectionne la ligne, Maj et une flèche étendent la sélection, Échap la lève. Alt+Maj et une flèche la déplacent : Alt+Maj+↑ et Alt+Maj+↓ d’un rang, Alt+Maj+→ et Alt+Maj+← en l’indentant et en la désindentant.",
+      "hint": "Espace sélectionne la ligne, Maj et une flèche étendent la sélection, Échap la lève. Alt+Maj et une flèche la déplacent — Alt+Maj+↑ et Alt+Maj+↓ d’un rang, Alt+Maj+→ et Alt+Maj+← en l’indentant et en la désindentant —, comme le glisser de la poignée à la souris.",
       "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}"
     },
     "structure": {
@@ -268,7 +268,8 @@
         "indented": "{others, plural, =0 {« {label} » indentée.} one {« {label} » et la ligne suivante indentées.} other {« {label} » et les # lignes suivantes indentées.}}",
         "outdented": "{others, plural, =0 {« {label} » désindentée.} one {« {label} » et la ligne suivante désindentées.} other {« {label} » et les # lignes suivantes désindentées.}}",
         "up": "{others, plural, =0 {« {label} » montée d’un rang.} one {« {label} » et la ligne suivante montées d’un rang.} other {« {label} » et les # lignes suivantes montées d’un rang.}}",
-        "down": "{others, plural, =0 {« {label} » descendue d’un rang.} one {« {label} » et la ligne suivante descendues d’un rang.} other {« {label} » et les # lignes suivantes descendues d’un rang.}}"
+        "down": "{others, plural, =0 {« {label} » descendue d’un rang.} one {« {label} » et la ligne suivante descendues d’un rang.} other {« {label} » et les # lignes suivantes descendues d’un rang.}}",
+        "dropped": "{others, plural, =0 {« {label} » déplacée.} one {« {label} » et la ligne suivante déplacées.} other {« {label} » et les # lignes suivantes déplacées.}}"
       },
       "delete": "Supprimer",
       "deleteTitle": "Supprimer « {label} » ?",

@@ -23,6 +23,15 @@ async function labelOf(grid: Locator, name: RegExp): Promise<Locator> {
   return grid.getByRole("row", { name }).getByRole("gridcell").nth(at.label);
 }
 
+/**
+ * Wait for what a gesture says it did, then for the reading anew its answer asked: the grid says it
+ * is busy until then, and holds the next gesture.
+ */
+async function saidAndRead(page: Page, table: Locator, said: string) {
+  await expect(page.getByText(said)).toBeVisible({ timeout: WORKING });
+  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+}
+
 /** Open a grid of a screen hydrated, and give the cell of the label of a row its focus. */
 async function focusRow(page: Page, screen: string, grid: string, name: RegExp) {
   await openHydrated(page, `${IN_REVISION}/${screen}`);
@@ -53,16 +62,13 @@ test("inserts a task below, then a sub-task, in the planning, from the menu of a
   const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
   await dialog.getByRole("textbox", { name: "Libellé" }).fill("Note de calcul des protections");
   await dialog.getByRole("button", { name: "Créer" }).click();
-  await expect(page.getByText("« Note de calcul des protections » créée.")).toBeVisible({
-    timeout: WORKING,
-  });
+  await saidAndRead(page, table, "« Note de calcul des protections » créée.");
   await expect(dialog).toHaveCount(0);
   // The focus goes back to the cell the menu opened on.
   await expect(cell).toBeFocused();
 
   // From the keys, on the cell, once the grid is read anew: Alt+Insert asks the sub-task; a label
   // left blank creates nothing.
-  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   await page.keyboard.press("Alt+Insert");
   const child = page.getByRole("dialog", { name: "Insérer une sous-tâche" });
   await child.getByRole("button", { name: "Créer" }).click();
@@ -110,13 +116,10 @@ test("confirms the deletion of a summary of the planning before it is sent, and 
     .getByRole("dialog", { name: "Supprimer « Poste de commande » ?" })
     .getByRole("button", { name: "Supprimer" })
     .click();
-  await expect(page.getByText("« Poste de commande » supprimée.")).toBeVisible({
-    timeout: WORKING,
-  });
+  await saidAndRead(page, table, "« Poste de commande » supprimée.");
 
   // A task without subordinates is deleted at once, from the menu of its cell, once the grid is
   // read anew.
-  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   const leaf = await labelOf(table, /^9 .*Câblage des armoires/);
   await leaf.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
@@ -170,13 +173,10 @@ test("indents a summary under the task above it and outdents a task from the key
     /^13 .*Risque survenu — Retard de livraison/,
   );
   await page.keyboard.press("Alt+Shift+ArrowRight");
-  await expect(
-    page.getByText("« Risque survenu — Retard de livraison des armoires » indentée."),
-  ).toBeVisible({ timeout: WORKING });
+  await saidAndRead(page, table, "« Risque survenu — Retard de livraison des armoires » indentée.");
   await expect(cell).toBeFocused();
 
   // From the menu of the cell of a task under it, once the grid is read anew: outdented.
-  await expect(table).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   const task = await labelOf(table, /^16 .*Transport exceptionnel/);
   await task.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
@@ -191,7 +191,7 @@ test("indents a summary under the task above it and outdents a task from the key
   await expect(task).toBeFocused();
 });
 
-test("selects tasks of the planning by their handles and indents the group from the keys, said [WF-PLA-0080-A]", async ({
+test("selects tasks of the planning by their handles, indents the group from the keys and drags it under a task, each said [WF-PLA-0080-A]", async ({
   page,
 }) => {
   test.slow();
@@ -211,9 +211,23 @@ test("selects tasks of the planning by their handles and indents the group from 
   // From the keys, on the handle that has the focus: the group indented.
   await expect(handle(5)).toBeFocused();
   await page.keyboard.press("Alt+Shift+ArrowRight");
-  await expect(
-    page.getByText("« Pupitres opérateurs » et la ligne suivante indentées."),
-  ).toBeVisible({ timeout: WORKING });
+  await saidAndRead(page, table, "« Pupitres opérateurs » et la ligne suivante indentées.");
+
+  // By the handle, once the grid is read anew, dragged onto the middle of the row of « Études de
+  // détail »: under it.
+  const target = await labelOf(table, /^2 .*Études de détail/);
+  await handle(4).dragTo(target, { targetPosition: { x: 20, y: 14 } });
+  await saidAndRead(page, table, "« Pupitres opérateurs » et la ligne suivante déplacées.");
+  await expect(table.getByRole("row", { selected: true })).toHaveCount(2);
+  // Read anew, the row dropped stands at the level the reading gives it — the fake back reads the
+  // same rows —, and the active cell, with the focus, is on the handle of the first of the rows
+  // dropped.
+  await expect(table.getByRole("row", { name: /^4 .*Pupitres opérateurs/ })).toHaveAttribute(
+    "aria-level",
+    "2",
+  );
+  await expect(handle(4)).toHaveAttribute("tabindex", "0");
+  await expect(handle(4)).toBeFocused();
 });
 
 test("adds a task from the remaining to commit of a project in progress, below a row, the creation said and the grid read anew [WF-RAE-0040-A]", async ({
