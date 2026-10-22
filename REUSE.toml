@@ -28,6 +28,7 @@ path = [
     "frontend/src/api/generated/**",
     "backend/src/waterfall/api/contract/models.py",
     "fixtures/**",
+    "docs/spec/exemples/*.xlsx",
     "tools/src/wftools/py.typed",
 ]
 precedence = "aggregate"

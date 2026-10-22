@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **160 opérations sur 125 chemins, dans 13 familles.**
-Le contrat cite **187 des 211 exigences** de la spécification.
+Le contrat cite **187 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -262,7 +262,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-24 sur 211. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+25 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -274,3 +274,4 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |
+| REF | WF-REF-0190 | Pas encore au contrat : la correspondance de l'extraction des coûts réels, exigence ajoutée le 2026-10-22 (C-374), y entre par #1304. |

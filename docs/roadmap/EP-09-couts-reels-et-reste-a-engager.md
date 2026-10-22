@@ -56,6 +56,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 |---|---|---|---|
 | `WF-INTF-0070-A` | Formats d’échange Excel | fin — amorcée en EP-07 | — |
 | `WF-INTF-0140-A` | Import des coûts réels (FLX-07) | entière | — |
+| `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | entière | — |
 | `WF-PLA-0070-A` | Suppression d’une tâche | fin — amorcée en EP-06 | — |
 | `WF-DEV-0070-A` | Plan de charge du projet | fin — amorcée en EP-07, EP-15 | — |
 | `WF-RAE-0010-A` | Composition du reste à engager | entière | — |
