@@ -17,12 +17,13 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import {
   abandonRevision,
   createRevision,
   designateReferenceRevision,
+  prepareAmendment,
 } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
 
@@ -144,5 +145,61 @@ export function DesignateCommand({
       run={() => designateReferenceRevision(revision.projectId, revision.revisionId)}
       done={(project) => t("designate.done", { name: revision.name, state: state(project.state) })}
     />
+  );
+}
+
+/**
+ * Offer the preparation of an amendment, as the current revision lists it (`create_structure`): the
+ * label is asked, the differential created, and the screen opens it in the grid of the planning,
+ * where the gestures of the structure apply (US-0460, US-0500).
+ */
+export function PrepareAmendmentCommand({
+  offer,
+  revision,
+  names,
+}: {
+  readonly offer: CommandOffer;
+  readonly revision: RevisionSubject;
+  readonly names: ObjectNames;
+}) {
+  const t = useTranslations("revisionCommands.amendment");
+  const router = useRouter();
+  const field = useId();
+  const [label, setLabel] = useState("");
+  return (
+    <ConfirmedCommand
+      offer={offer}
+      label={t("label")}
+      icon={commandIcon(REVISION_COMMAND_ICONS.create_structure)}
+      statement={t("statement")}
+      submit={t("submit")}
+      ready={label.trim() !== ""}
+      names={names}
+      subject={revision.name}
+      run={() => prepareAmendment(revision.projectId, revision.revisionId, label.trim())}
+      done={(structure) => t("done", { label: structure.label })}
+      onDone={(structure) => {
+        setLabel("");
+        router.push(
+          `/projects/${revision.projectId}/revisions/${revision.revisionId}/planning?structure=${structure.structure_id}`,
+        );
+      }}
+    >
+      <div className="space-y-1">
+        <label htmlFor={field} className="block text-sm font-medium">
+          {t("name")}
+        </label>
+        <input
+          id={field}
+          value={label}
+          required
+          maxLength={300}
+          onChange={(event) => {
+            setLabel(event.target.value);
+          }}
+          className="h-9 w-full max-w-sm rounded-md border border-input bg-background px-2 text-foreground"
+        />
+      </div>
+    </ConfirmedCommand>
   );
 }

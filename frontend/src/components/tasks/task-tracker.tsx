@@ -241,6 +241,36 @@ export function useTrackTask(): TrackTask {
 }
 
 /**
+ * Do something once the task a screen handed over has succeeded — the merge of an amendment, whose
+ * screen then shows the reference it produced. The task is the one handed over, by the reference it
+ * was handed over under (a relaunch keeps it); once, however many times the tracker reads it
+ * afterwards; and not at all when the task failed or was dismissed: the entry of the tracker tells
+ * its end. `then` may change from one render to the next.
+ */
+export function useWhenTaskSucceeds(
+  key: string | undefined,
+  then: (task: BackgroundTask) => void,
+): void {
+  const { store } = inTracker(useContext(StateContext));
+  const task = useSyncExternalStore(
+    store.subscribe,
+    () => store.read().tracking.tasks.find((tracked) => tracked.key === key)?.task,
+    () => undefined,
+  );
+  const latest = useRef(then);
+  const done = useRef<string>(undefined);
+  useEffect(() => {
+    latest.current = then;
+  });
+  useEffect(() => {
+    if (key !== undefined && task?.status === "succeeded" && done.current !== key) {
+      done.current = key;
+      latest.current(task);
+    }
+  }, [key, task]);
+}
+
+/**
  * The function that forgets every task the tracker follows, what the tab kept of them for a
  * reload, and the history of the messages: signing out leaves nothing of the session to the next
  * user of the tab.

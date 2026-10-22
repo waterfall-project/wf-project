@@ -10,9 +10,11 @@
  * background task it starts to the tracker of the shell (`MarkCommand`); so are the exits of the
  * lifecycle of a project, which open their confirmation (`ExitCommand`), the opening of the
  * current revision and its abandon (`revision-commands.tsx`), the designation of the reference
- * being the history's, on the marked revision. The other commands of a revision — a structure to
- * create or merge — come with the forms of their domain, which hand each command its server
- * action; until then a command is shown, and pressing it does nothing. The exports of a revision are the
+ * being the history's, on the marked revision; the preparation of an amendment (`create_structure`),
+ * which leads to its differential; the merge of an amendment (`merge_structure`) is its grid's, the
+ * revision not saying which of its amendments it is about (US-0510). The other commands of a
+ * revision come with the forms of their domain, which hand each command its server action; until
+ * then a command is shown, and pressing it does nothing. The exports of a revision are the
  * screen of the imports and exports' to offer, where they are asked (`ExportForm`): the list of
  * the commands of a revision leaves them out. So does it the commands a screen of the revision
  * offers itself: its entries, which each grid takes as the revision lists them (`edit_planning`,
@@ -32,7 +34,11 @@ import { isExit } from "./exits";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import { MarkCommand } from "./mark-command";
 import { findOffer } from "./offer";
-import { AbandonCommand, CreateRevisionCommand } from "./revision-commands";
+import {
+  AbandonCommand,
+  CreateRevisionCommand,
+  PrepareAmendmentCommand,
+} from "./revision-commands";
 
 type RevisionCommand = components["schemas"]["RevisionCommand"];
 
@@ -86,6 +92,7 @@ function isOfferedByItsScreen(command: RevisionCommand): boolean {
   return (
     command.startsWith("edit_") ||
     command === "generate_skeleton" ||
+    command === "merge_structure" ||
     command === "designate_reference"
   );
 }
@@ -109,6 +116,15 @@ function RevisionCommandItem({
   if (offer.command === "abandon") {
     return (
       <AbandonCommand
+        offer={offer}
+        revision={{ projectId: revision.project_id, revisionId: revision.revision_id, name }}
+        names={names}
+      />
+    );
+  }
+  if (offer.command === "create_structure") {
+    return (
+      <PrepareAmendmentCommand
         offer={offer}
         revision={{ projectId: revision.project_id, revisionId: revision.revision_id, name }}
         names={names}

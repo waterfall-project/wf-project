@@ -480,8 +480,7 @@ describe("the commands of the revision the screen reads in", () => {
     // The draft carries amendment 2, not merged: another one opens all the same, several
     // coexisting (WF-REV-0100, #1211).
     for (const name of [
-      "Créer une structure",
-      "Fusionner une structure",
+      "Préparer un avenant",
       "Marquer la révision",
       "Abandonner la révision en cours",
     ]) {
@@ -500,8 +499,7 @@ describe("the commands of the revision the screen reads in", () => {
     expect(text(page)).toContain("Marquée");
     expect(text(page)).toContain("Lecture seule");
     for (const name of [
-      "Créer une structure",
-      "Fusionner une structure",
+      "Préparer un avenant",
       "Marquer la révision",
       "Abandonner la révision en cours",
     ]) {
@@ -519,7 +517,7 @@ describe("the commands of the revision the screen reads in", () => {
     expect(offered(page, "Marquer la révision")).toBe("absent");
     // The estimate, the one command left them, is offered by its grid: the screen lists no command
     // of the revision, and the opening of a revision, which the project lists, alone.
-    expect(offered(page, "Créer une structure")).toBe("absent");
+    expect(offered(page, "Préparer un avenant")).toBe("absent");
     expect(offered(page, "Abandonner la révision en cours")).toBe("absent");
   });
 

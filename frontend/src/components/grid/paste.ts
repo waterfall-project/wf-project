@@ -241,6 +241,60 @@ interface ReadRows<Row> {
   readonly narrowed: boolean;
 }
 
+/** Where a block pasted lands in the plan, as the server fills it. */
+interface PlanWalk {
+  /** The numbers of the rows the differential removes, which the server skips. */
+  readonly removed: ReadonlySet<number>;
+  /** The number of the row of the plan the first row out of place should have shown. */
+  readonly expected: number;
+  /** The number of the row of the plan the last line of the block lands on. */
+  readonly end: number;
+}
+
+/**
+ * Walk the rows of the plan under a cell, line by line of the block. The server skips the nodes a
+ * differential removes and writes the next ones (#1278): they hold no line of the block, nor a rank
+ * of it, so a row removed counts for nothing, shown or not. Nothing when each line lands on the row
+ * shown below it.
+ */
+function walkPlan<Row extends RowData, Sort extends string, Totals>(
+  config: GridConfig<Row, Sort, Totals>,
+  numberOf: (row: Row) => number,
+  read: ReadRows<Row>,
+  at: number,
+  count: number,
+  first: number,
+): PlanWalk | undefined {
+  const removedRow = (each: Row) => config.difference?.(each) === "removed";
+  const removed = new Set(read.answered.filter(removedRow).map(numberOf));
+  const after = (number: number) => {
+    let next = number + 1;
+    while (removed.has(next)) {
+      next += 1;
+    }
+    return next;
+  };
+  const alive = read.shown.slice(at + 1).filter((each) => !removedRow(each));
+  let below = 1;
+  let expected = after(first);
+  while (below < count) {
+    const under = alive[below - 1];
+    if (under === undefined || numberOf(under) !== expected) {
+      break;
+    }
+    below += 1;
+    expected = after(expected);
+  }
+  if (below >= count) {
+    return undefined;
+  }
+  let end = first;
+  for (let line = 1; line < count; line += 1) {
+    end = after(end);
+  }
+  return { removed, expected, end };
+}
+
 /**
  * Why a block of rows pasted on the row shown at an index would fill a row of the plan the grid does
  * not show at the same distance under it (L40, #527); nothing when each row of the block lands on
@@ -267,26 +321,19 @@ function unshownRows<Row extends RowData, Sort extends string, Totals>(
     return undefined;
   }
   const first = numberOf(row);
-  const landsOn = (below: number) => {
-    const under = read.shown[at + below];
-    return under !== undefined && numberOf(under) === first + below;
-  };
-  let below = 1;
-  while (below < count && landsOn(below)) {
-    below += 1;
-  }
-  if (below >= count) {
+  const walk = walkPlan(config, numberOf, read, at, count, first);
+  if (walk === undefined) {
     return undefined;
   }
+  const { removed, expected, end } = walk;
   const shown = new Set(read.shown.map(numberOf));
   const answered = read.answered.map(numberOf);
   const held = new Set(answered);
-  for (let number = first + 1; number < first + count; number += 1) {
-    if (held.has(number) && !shown.has(number)) {
+  for (let number = first + 1; number <= end; number += 1) {
+    if (held.has(number) && !shown.has(number) && !removed.has(number)) {
       return "folded";
     }
   }
-  const expected = first + below;
   if (shown.has(expected)) {
     return "sorted";
   }

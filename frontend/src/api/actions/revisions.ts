@@ -3,7 +3,8 @@
 /**
  * The server actions of the revisions of a project — marked (`markRevision`), opened
  * (`createRevision`), abandoned (`abandonRevision`), designated as the reference
- * (`designateReferenceRevision`), their rates updated (`applyRateUpdate`): the browser asks the
+ * (`designateReferenceRevision`), their rates updated (`applyRateUpdate`), an amendment prepared
+ * (`prepareAmendment`), its merge read (`readMergeReport`) and confirmed (`mergeAmendment`): the browser asks the
  * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes
  * of its answer (`src/api/problem.ts`). A write answered reads the page anew: the state of the
  * project, its banner, the commands of its revisions are the server's again.
@@ -122,6 +123,85 @@ export async function applyRateUpdate(
         params: { path: { project_id: projectId, revision_id: revisionId } },
         body: { cost_category_ids: [...update.categoryIds], lock_version: update.lockVersion },
       }),
+    ),
+  );
+}
+
+/**
+ * Prepare an amendment (WF-REV-0100): a differential of the main structure of the current revision,
+ * under the label the user gave. The API answers the structure created, which the screen opens in the
+ * grid of the planning, or refuses a revision that is no more current (409).
+ */
+export async function prepareAmendment(
+  projectId: string,
+  revisionId: string,
+  label: string,
+): Promise<Outcome<Schemas["CostStructure"]>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().POST("/projects/{project_id}/revisions/{revision_id}/structures", {
+        params: { path: { project_id: projectId, revision_id: revisionId } },
+        body: { kind: "amendment", label },
+      }),
+    ),
+  );
+}
+
+/**
+ * Read what merging an amendment would do (WF-REV-0050): the report that is shown before anything is
+ * applied, with the two counters the confirmation carries. A read, which writes nothing: abandoning at
+ * this step is not confirming.
+ */
+export async function readMergeReport(
+  projectId: string,
+  revisionId: string,
+  structureId: string,
+): Promise<Outcome<Schemas["StructureMergeReport"]>> {
+  return decode(() =>
+    serverClient().GET(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge",
+      {
+        params: {
+          path: { project_id: projectId, revision_id: revisionId, structure_id: structureId },
+        },
+      },
+    ),
+  );
+}
+
+/** What confirming the merge of an amendment takes: its version name, and the counters the report read. */
+export interface AmendmentMerge {
+  readonly versionName: string;
+  readonly mainStructureLockVersion: number;
+  readonly amendmentLockVersion: number;
+}
+
+/**
+ * Merge an amendment into the main structure, marking the revision under the version name given
+ * (WF-REV-0050): the API hands the merge to the worker and answers at once with the reference of the
+ * background task (WF-ARC-0090), which the tracker of the shell follows. A report that went stale — a
+ * counter moved since it was read — is refused (412), and nothing is merged.
+ */
+export async function mergeAmendment(
+  projectId: string,
+  revisionId: string,
+  structureId: string,
+  merge: AmendmentMerge,
+): Promise<Outcome<BackgroundTask>> {
+  return decodeTask(() =>
+    serverClient().POST(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge",
+      {
+        params: {
+          path: { project_id: projectId, revision_id: revisionId, structure_id: structureId },
+        },
+        body: {
+          confirmed: true,
+          version_name: merge.versionName,
+          main_structure_lock_version: merge.mainStructureLockVersion,
+          amendment_lock_version: merge.amendmentLockVersion,
+        },
+      },
     ),
   );
 }

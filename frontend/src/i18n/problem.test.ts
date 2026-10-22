@@ -272,7 +272,7 @@ describe("the sentence of a refusal", () => {
     );
   });
 
-  it("keeps the short sentence alone when the day without a working hour is not fully given", () => {
+  it("keeps the short sentence alone when the day without a working hour is not fully given [WF-PLA-0020-A]", () => {
     const short = "Date on a day without a working hour.";
     expect(say({ code: "NON_WORKING_DAY" }, "en")).toBe(short);
     expect(say({ code: "NON_WORKING_DAY", params: {} }, "en")).toBe(short);
