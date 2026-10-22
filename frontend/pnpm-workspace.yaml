@@ -14,3 +14,4 @@ allowBuilds:
 # because a transitive range (css-tree, optional) keeps the lock file on the flawed one otherwise.
 overrides:
   source-map-js: ">=1.2.2"
+  vite: ">=8.3.3"
