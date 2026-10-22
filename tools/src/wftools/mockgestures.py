@@ -249,6 +249,28 @@ def task_hours_beyond_day() -> JsonObject:
     }
 
 
+HOURS_BELOW_ZERO = (ENTERED_DATES[0], Decimal(-1))
+"""The start sent with its hours on the commissioning, manual: its first day, an hour before."""
+BELOW_CORRELATION = universe(1541)
+
+
+def task_hours_below_zero() -> JsonObject:
+    """Return what updateTaskFacet answers to a start sent before the first hour of its day.
+
+    An instant of work counts the hours worked that day, never fewer than none (WF-DAT-0100):
+    hours below zero are refused on their field, the bound crossed in ``minimum`` (#1273) — the
+    type of the hours, a decimal, holds a sign.
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {"pointer": "/start/hours", "code": "VALUE_OUT_OF_RANGE", "params": {"minimum": "0"}}
+        ],
+        "correlation_id": BELOW_CORRELATION,
+    }
+
+
 ENTERED_DURATION = (3, "w")
 DURATION_TASK = "Préparation 1.1.1"
 """The task drawn about the core whose duration is entered in weeks, kept in that unit
@@ -739,6 +761,14 @@ def _entry_examples() -> dict[str, JsonObject]:
             f"la borne franchie nommée ; rien n'est écrit (WF-PLA-0010, WF-PLA-0020, "
             f"WF-DAT-0100, #1244).",
             task_hours_beyond_day(),
+        ),
+        "task_hours_below_zero.json": mocktext.example(
+            f"Le début de la « {rows[N.COMMISSIONING].label} », en mode manuel, envoyé le "
+            f"{mocktext.day(HOURS_BELOW_ZERO[0])} à {HOURS_BELOW_ZERO[1]} h : un instant de "
+            f"travail compte les heures travaillées ce jour-là, jamais moins de zéro ; les heures "
+            f"sont refusées sur leur champ, la borne franchie nommée ; rien n'est écrit "
+            f"(WF-PLA-0020, WF-DAT-0100, #1273).",
+            task_hours_below_zero(),
         ),
     }
 

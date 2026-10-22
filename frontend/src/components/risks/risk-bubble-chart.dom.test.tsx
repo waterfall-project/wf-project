@@ -288,10 +288,21 @@ describe("the risk matrix as a bubble chart", () => {
     project([], {
       ...MATRIX,
       points: MATRIX.points.map((point, rank) =>
-        rank === 0 ? { ...point, severity_ratio: "n/a" } : point,
+        rank === 0
+          ? { ...point, severity_ratio: { is_computable: true, value: "n/a", reason: null } }
+          : point,
       ),
     });
     expect((drawn().option?.yAxis as { max: number }).max).toBe(reference);
+  });
+
+  it("draws no bubble for a risk whose ratio the server could not compute, its cell still counting it", () => {
+    // #1240: on a base of nought, the ratio is not computable and the risk is at the lowest level
+    // of severity; the chart has no ordinate for it, and computes none.
+    project([], example("risk_matrix_no_basis") as RiskMatrix);
+    const { bubbles, zones } = drawn();
+    expect(bubbles.map((each) => each.data)).toEqual([[], [], []]);
+    expect(zones?.markArea?.data).toHaveLength(16);
   });
 
   it("says so when the filter leaves nothing to draw, and still draws the zones", () => {

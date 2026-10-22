@@ -449,5 +449,27 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
         "basis": basis,
         "org_node_id": org,
         "org_node_label": None if org is None else named[org],
+        "monthly_totals": monthly_totals(cast("list[JsonObject]", roles)),
         "roles": roles,
     }
+
+
+def monthly_totals(roles: list[JsonObject]) -> list[JsonValue]:
+    """Return the hours of the roles retained, month by month (`WorkloadPlan.monthly_totals`).
+
+    From the first month a role loads to the last, without a gap, a month without load at nought:
+    the label of the top of each bar, which the front does not sum (WF-DEV-0070, #1247).
+    """
+    totals: dict[str, Decimal] = {}
+    for role in roles:
+        for month in cast("list[JsonObject]", role["months"]):
+            key = cast("str", month["month"])
+            totals[key] = totals.get(key, Decimal(0)) + Decimal(cast("str", month["hours"]))
+    found: list[JsonValue] = []
+    if not totals:
+        return found
+    end = month_end(date.fromisoformat(f"{min(totals)}-01"))
+    while (key := end.strftime("%Y-%m")) <= max(totals):
+        found.append({"month": key, "hours": decimal(totals.get(key, Decimal(0)))})
+        end = month_end(end + timedelta(days=1))
+    return found

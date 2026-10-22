@@ -75,7 +75,9 @@ NotComputableReason:
     la projection au rythme constaté quand l'indice de coût est nul, faute de valeur
     acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ;
     `no_reference_budget`, la consommation du budget et l'avancement physique du projet
-    (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une
+    (WF-IND-0040, WF-IND-0060), et la part de gravité d'un risque sur une assiette nulle, un
+    projet sans budget de référence dont le devis ne porte encore que des provisions
+    (`RiskMatrixPoint.severity_ratio`, WF-REF-0160, #1240) ; `no_budgeted_amount`, l'avancement physique d'une
     récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ;
     `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le
     taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le
@@ -355,7 +357,7 @@ Projections:
 
 WorkloadPlan:
   type: object
-  required: [context, basis, org_node_id, org_node_label, roles]
+  required: [context, basis, org_node_id, org_node_label, monthly_totals, roles]
   description: >-
     Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la
     durée de sa tâche par interpolation linéaire (WF-DEV-0070).
@@ -381,6 +383,21 @@ WorkloadPlan:
         Le libellé du nœud retenu, résolu à la lecture, qu'il soit actif ou désactivé
         (WF-REF-0150), que l'en-tête du plan de charge nomme sans lire l'arbre d'organisation
         (WF-ARC-0020) ; nul sans nœud.
+    monthly_totals:
+      type: array
+      description: >-
+        Le total des heures de chaque mois du plan, la somme des heures des rôles retenus ce
+        mois-là, que le sommet de la barre du mois porte, sans que le front somme les rôles
+        (WF-DEV-0070, WF-ARC-0020, #1247) : du premier au dernier mois qu'un rôle charge,
+        croissants et sans trou, un mois sans charge compris à zéro, chacun nommant son mois
+        comme les mois d'un rôle (`roles[].months`) et comme `PortfolioWorkload.monthly_totals` ;
+        vide quand aucun rôle n'a de charge.
+      items:
+        type: object
+        required: [month, hours]
+        properties:
+          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+          hours: { $ref: ../common.yaml#/Hours }
     roles:
       type: array
       items:

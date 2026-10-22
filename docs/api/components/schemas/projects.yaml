@@ -230,6 +230,15 @@ CommandCondition:
     et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
     elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans
     leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214).
+    Quatre tiennent à la nature et aux lignes d'une tâche, et la carte du Kanban les nomme
+    (`KanbanTask.available_commands`, WF-RAE-0030, WF-PLA-0050) : `task_is_milestone` manque à
+    la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la
+    terminaison depuis le Kanban d'une tâche qui porte une ligne hors provision, que la saisie
+    d'un reste à engager nul sur toutes ses lignes termine (WF-RAE-0040) ; `task_not_milestone`
+    au démarrage d'un jalon, qui ne démarre jamais, et à la réouverture d'un jalon terminé vers
+    l'état démarré ; `completed_milestone` au retour à l'état non démarré d'une tâche qui n'est
+    pas un jalon terminé — « Aucune commande ne fait passer une tâche démarrée à l'état non
+    démarré » (WF-RAE-0030). `setTaskProgress` nomme dans son 409 la première qui manque.
     `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun
     différentiel de la révision n'est à fusionner, et la révision la nomme
     (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en
@@ -261,6 +270,10 @@ CommandCondition:
     - revision_has_tasks_and_lines
     - unmerged_amendment_exists
     - task_not_completed
+    - task_is_milestone
+    - task_not_milestone
+    - task_without_lines
+    - completed_milestone
     - hourly_rates_set
     - no_background_task_running
     - may_create_revision

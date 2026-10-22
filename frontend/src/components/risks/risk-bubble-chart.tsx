@@ -105,6 +105,14 @@ function ticks(levels: readonly Level[]): number[] {
   return levels.map(({ lower }) => Number(lower));
 }
 
+/**
+ * The severity ratio of a point, as the server gives it; none when it cannot be computed — a
+ * project whose base is nought (#1240) —, and the chart has no ordinate to draw its bubble at.
+ */
+function ratioOf({ severity_ratio: ratio }: Point): string | undefined {
+  return ratio.is_computable ? (ratio.value ?? undefined) : undefined;
+}
+
 /** The risks the chart draws: those in the states asked, every one when none is. */
 function shownPoints(points: readonly Point[], states: readonly RiskState[]): readonly Point[] {
   return states.length === 0 ? points : points.filter(({ state }) => states.includes(state));
@@ -162,7 +170,7 @@ export function RiskBubbleChart({
       // leaves the axis alone.
       const top = Math.max(
         Number(lastSeverity?.lower ?? 0) * 1.5,
-        ...matrix.points.map((point) => Number(point.severity_ratio) * 1.15).filter(isReadable),
+        ...matrix.points.map((point) => Number(ratioOf(point)) * 1.15).filter(isReadable),
       );
       const right = 1;
       const zones = matrix.cells.flatMap((cell) => {
@@ -275,6 +283,7 @@ export function RiskBubbleChart({
             }
             const line = (name: string, value: string) =>
               `${escapeHtml(name)} : ${escapeHtml(value)}`;
+            const ratio = ratioOf(point);
             return [
               `<b>${escapeHtml(point.label)}</b>`,
               ...(point.project_label === undefined
@@ -283,7 +292,9 @@ export function RiskBubbleChart({
               line(t("risks.matrix.tooltip.probability"), formatPercent(point.probability, locale)),
               line(
                 t("risks.matrix.tooltip.severity"),
-                `${formatMoney(point.severity_amount, locale)} (${formatPercent(point.severity_ratio, locale)})`,
+                ratio === undefined
+                  ? formatMoney(point.severity_amount, locale)
+                  : `${formatMoney(point.severity_amount, locale)} (${formatPercent(ratio, locale)})`,
               ),
               line(
                 t("risks.matrix.tooltip.provision"),
@@ -314,13 +325,21 @@ export function RiskBubbleChart({
             z: 3,
             data: points
               .filter((point) => point.state === state)
-              .map((point) => ({
-                id: point.risk_id,
-                name: point.label,
-                // The strings of the API as they are: ECharts reads the position from them.
-                value: [point.probability, point.severity_ratio],
-                symbolSize: bubbleSize(point.severity_amount, largest),
-              })),
+              .flatMap((point) => {
+                const ratio = ratioOf(point);
+                // A risk without a ratio has no ordinate: no bubble, its cell still counting it.
+                return ratio === undefined
+                  ? []
+                  : [
+                      {
+                        id: point.risk_id,
+                        name: point.label,
+                        // The strings of the API as they are: ECharts reads the position from them.
+                        value: [point.probability, ratio],
+                        symbolSize: bubbleSize(point.severity_amount, largest),
+                      },
+                    ];
+              }),
           })),
         ],
       };

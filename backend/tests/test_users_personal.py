@@ -22,6 +22,7 @@ from waterfall.core.users.interface import image_type
 from waterfall.core.users.personal import merged
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database, utc_now
+from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.installation import THE_ROW, Installation
 
 ME = "/api/v1/me"
@@ -296,6 +297,45 @@ def test_preferences_that_pass_a_bound_are_refused_and_nothing_is_written(
     assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
     assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [fault]
     assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+@pytest.mark.parametrize("table", ["timelines", "grids"])
+def test_a_table_the_changes_would_take_past_a_hundred_entries_is_refused_and_kept(
+    api: ContractClient, database: Database, realm: TestRealm, table: str
+) -> None:
+    # #1235: a hundred entries a change, and a hundred once it applies. Sixty, then forty-one
+    # more: the second change would hold a hundred and one, and is refused on the table, nothing
+    # written; forty, the hundred, are written.
+    def entries(first: int, count: int) -> dict[str, Any]:
+        entry = STEERING if table == "timelines" else USERS_GRID
+        return {f"e{rank}": entry for rank in range(first, first + count)}
+
+    user_id, headers = person(database, realm)
+    sixty = api.patch(PREFERENCES, headers=headers, json={table: entries(0, 60)})
+    assert sixty.status_code == 200, sixty.text
+    response = api.patch(PREFERENCES, headers=headers, json={table: entries(60, 41)})
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [
+        (f"/{table}", "VALUE_TOO_LONG")
+    ]
+    assert preferences_of(database, user_id) == {table: entries(0, 60)}
+    hundred = api.patch(PREFERENCES, headers=headers, json={table: entries(60, 40)})
+    assert hundred.status_code == 200, hundred.text
+    assert len(preferences_of(database, user_id)[table]) == 100
+
+
+def test_a_change_that_does_not_grow_a_table_is_not_refused_for_its_size() -> None:
+    # A table already past the bound — held before it was counted once merged — may still lose
+    # entries or have them replaced; it may not grow. Each table is counted alone.
+    held = {"timelines": {f"t{rank}": STEERING for rank in range(120)}}
+    forgotten = merged(held, {"timelines": {"t0": None, "t1": {"lanes": {}}}})
+    assert len(forgotten["timelines"]) == 119
+    assert len(merged(held, {"timelines": {"t2": {"lanes": {}}}})["timelines"]) == 120
+    with pytest.raises(UnprocessableError) as refused:
+        merged(held, {"timelines": {"t120": STEERING}, "grids": {"users": USERS_GRID}})
+    assert [(fault.pointer, fault.code) for fault in refused.value.fields] == [
+        ("/timelines", "VALUE_TOO_LONG")
+    ]
 
 
 @pytest.mark.parametrize(

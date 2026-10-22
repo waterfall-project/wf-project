@@ -328,6 +328,12 @@ RiskOccurrence:
 RiskMatrixCell:
   type: object
   required: [probability_level, severity_level, zone]
+  description: >-
+    La case d'un risque : ses niveaux sur les bornes de la matrice, et la zone que
+    l'installation donne à la case (WF-RIS-0040, WF-REF-0160). Sur une assiette nulle — un
+    projet sans budget de référence dont le devis ne porte encore que des provisions —, la
+    gravité ne se rapporte à rien : le risque est au niveau de gravité le plus bas, `1`, sa
+    part de gravité non calculable (`RiskMatrixPoint.severity_ratio`, #1240).
   properties:
     probability_level: { type: integer, minimum: 1, maximum: 4 }
     severity_level: { type: integer, minimum: 1, maximum: 4 }
@@ -375,14 +381,18 @@ RiskMatrixPoint:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: La gravité du risque (`Risk.severity`), ce qu'il coûterait s'il survenait.
     severity_ratio:
-      allOf: [{ $ref: ../common.yaml#/Percent }]
+      allOf: [{ $ref: indicators.yaml#/Computable }]
       description: >-
         La gravité en part de l'assiette du projet du risque — son budget de référence, ou
         avant lui le total hors provisions du devis de sa révision courante (WF-REF-0160) —,
         arrondie à quatre décimales (README, « Une part… »). La case du risque et sa zone
         sont celles de la part exacte, que les bornes de gravité classent avant l'arrondi :
         une bulle à moins d'un demi-centième de pour cent d'une borne peut être tracée sur la
-        ligne de cette borne, dans la case que dit `zone`.
+        ligne de cette borne, dans la case que dit `zone`. Non calculable sur une assiette
+        nulle, motif `no_reference_budget` — un projet sans budget de référence dont le devis
+        ne porte encore que des provisions — : le risque est alors au niveau de gravité le
+        plus bas (`RiskMatrixCell`), compté dans sa case, et le graphique, qui n'a pas
+        d'ordonnée pour lui, ne trace pas sa bulle (#1240).
     provision_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: La provision du risque (`Risk.provision_amount`, WF-RIS-0010).

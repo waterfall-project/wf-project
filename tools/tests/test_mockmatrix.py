@@ -68,12 +68,17 @@ def test_each_risk_the_matrix_counts_is_a_point_at_the_values_of_the_risk(
             "state": item["state"],
             "zone": item["matrix_cell"]["zone"],
         }
-        ratio = Decimal(point["severity_ratio"])
+        assert point["severity_ratio"]["is_computable"] is True
+        ratio = Decimal(point["severity_ratio"]["value"])
         assert ratio == mockstructure.share(Decimal(item["severity"]) / budget)
         assert mockhistory.level(ratio, _bounds(matrix)) == item["matrix_cell"]["severity_level"]
     # 1.91 %, under a hundredth of a percent given to its first digit, 18.34 % (README, « Une
     # part… »).
-    assert [point["severity_ratio"] for point in points] == ["0.0191", "0.000003", "0.1834"]
+    assert [point["severity_ratio"]["value"] for point in points] == [
+        "0.0191",
+        "0.000003",
+        "0.1834",
+    ]
 
 
 def test_each_risk_the_matrix_of_the_portfolio_counts_is_a_point_with_its_project(
@@ -95,7 +100,7 @@ def test_each_risk_the_matrix_of_the_portfolio_counts_is_a_point_with_its_projec
             "label": risk.label,
             "probability": str(risk.probability),
             "severity_amount": mockstructure.money(risk.severity),
-            "severity_ratio": str(risk.severity_ratio),
+            "severity_ratio": mockstructure.computable(str(risk.severity_ratio)),
             "provision_amount": mockstructure.money(risk.provision),
             "state": "identified",
             "zone": zones[risk.cell],
@@ -129,11 +134,43 @@ def test_a_share_just_under_a_bound_is_rounded_onto_it_its_cell_that_of_the_exac
     risk = dataclasses.replace(mockwitness.REWORK, reviews=(review,))
     bounds = mockwitness.fixture("reference_settings")["risk_matrix"]["severity_bounds"]
     point = mockhistory.matrix_point(risk, budget)
-    assert point["severity_ratio"] == "0.1000"
+    assert point["severity_ratio"] == mockstructure.computable("0.1000")
     assert mockhistory.level(Decimal("0.1000"), bounds) == 4
     cell = mockhistory.matrix_cell(risk, budget)
     assert (cell["probability_level"], cell["severity_level"]) == (3, 3)
     assert point["zone"] == cell["zone"] == "watch"
+
+
+def test_on_a_basis_of_nothing_a_risk_has_no_share_and_the_lowest_level_of_severity(
+    history: dict[str, Any],
+) -> None:
+    # #1240: a project without a reference budget whose estimate bears provisions alone has no
+    # basis; the share of each risk is not computable, and the risk is counted at the lowest
+    # level of severity, in the cell of its probability, its zone that of the cell.
+    matrix, witness = history["risk_matrix_no_basis"], history["risk_matrix"]
+    for point in matrix["points"]:
+        assert point["severity_ratio"] == {
+            "is_computable": False,
+            "value": None,
+            "reason": "no_reference_budget",
+        }
+    for risk in mockwitness.REGISTER:
+        cell = mockhistory.matrix_cell(risk, Decimal(0))
+        assert cell["severity_level"] == 1
+        assert cell == mockhistory.matrix_cell(
+            dataclasses.replace(
+                risk, reviews=(dataclasses.replace(risk.last, severity=Decimal(0)),)
+            ),
+            Decimal(1),
+        )
+    counted = {
+        (cell["probability_level"], cell["severity_level"]): cell["count"]
+        for cell in matrix["cells"]
+        if cell["count"]
+    }
+    assert {level for _, level in counted} == {1}
+    assert sum(counted.values()) == len(matrix["points"]) == len(witness["points"])
+    assert matrix["totals"] == witness["totals"]
 
 
 def _matrices(value: object, path: str) -> Iterator[tuple[str, Node]]:

@@ -344,12 +344,13 @@ def test_the_task_the_refusals_name_bears_the_lot_and_its_post_no_task_but_after
 ) -> None:
     # The summary « Poste de commande » bears the one lot, wherever an example reads it: the
     # refusal of a second bearer names it by its node and label; that of its post alongside, by
-    # the exclusivity. The post is borne by no task but in the write that attaches it, and in the
-    # variants that refuse to move it out of its lot (WF-PLA-0170).
+    # the exclusivity. The post is borne by no task but in the write that attaches it, in the
+    # completion of the milestone that follows it (milestone_completed), and in the variants that
+    # refuse to move it out of its lot (WF-PLA-0170).
     read = [
         (name, entry)
         for name, entry in _read(examples, {"node_id", "task"})
-        if entry["task"] and name != "task_attached"
+        if entry["task"] and name not in {"task_attached", "milestone_completed"}
     ]
     station = [entry["task"] for _, entry in read if entry["node_id"] == CONTROL_STATION]
     assert station
