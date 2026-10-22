@@ -49,6 +49,7 @@ def derive(contract: dict[str, object]) -> dict[str, object]:
 STRUCTURES_PATH = "/projects/{project_id}/revisions/{revision_id}/structures"
 NODES_PATH = STRUCTURES_PATH + "/{structure_id}/nodes"
 AMENDMENT_EXAMPLE = "amendment"
+HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 STRUCTURE_PARAMETER = "#/components/parameters/StructureId"
 
 type Json = dict[str, Any]
@@ -72,7 +73,10 @@ def _resolved(contract: Json, value: Json) -> Json:
     name = str(value["$ref"]).rsplit("/", 1)[-1]
     components: Json = contract.get("components", {})
     examples: Json = components.get("examples", {})
-    return cast("Json", examples.get(name, value))
+    if name not in examples:
+        message = f"the reference {value['$ref']} points at no example of the components"
+        raise ValueError(message)
+    return cast("Json", examples[name])
 
 
 def _examples(operation: Json) -> Json:
@@ -82,31 +86,53 @@ def _examples(operation: Json) -> Json:
 
 
 def _amendment_structures(contract: Json, path: Json | None) -> list[str]:
-    """Return the identifiers of the differential structures the first listing example names."""
-    operation: Json = (path or {}).get("get", {})
-    examples = list(_examples(operation).values())
+    """Return the identifiers of the differential structures the first listing example names.
+
+    A listing that exists and names none is an error: the fake back would serve the nodes of an
+    amendment its guide promises, and silently serve the wrong ones.
+    """
+    if path is None:
+        return []
+    examples = list(_examples(path.get("get", {})).values())
     first = _resolved(contract, cast("Json", examples[0])) if examples else {}
     listed = first.get("value")
-    if not isinstance(listed, list):
-        return []
-    structures = cast("list[Json]", listed)
-    return [str(item["structure_id"]) for item in structures if item.get("kind") == "amendment"]
+    structures = cast("list[Json]", listed) if isinstance(listed, list) else []
+    found = [str(item["structure_id"]) for item in structures if item.get("kind") == "amendment"]
+    if not found:
+        message = (
+            f"the first example of {STRUCTURES_PATH} lists no structure of kind "
+            f"{AMENDMENT_EXAMPLE!r}: the fake back has no amendment to serve (#1219)"
+        )
+        raise ValueError(message)
+    return found
+
+
+def _is_structure_parameter(parameter: Json) -> bool:
+    """Tell whether a parameter is the structure identifier."""
+    return parameter.get("$ref") == STRUCTURE_PARAMETER
 
 
 def _at_a_structure(path: Json) -> Json:
-    """Return the path of the nodes without its structure parameter, the amendment example first."""
-    served: Json = {
-        method: {
-            **operation,
-            "parameters": [
-                item
-                for item in operation.get("parameters", [])
-                if item.get("$ref") != STRUCTURE_PARAMETER
-            ],
-        }
-        for method, operation in path.items()
-    }
-    read = served["get"]
+    """Return the path of the nodes without its structure parameter, the amendment example first.
+
+    Only the HTTP methods are rewritten; the parameters declared on the path itself lose the
+    structure too. A path with no ``get`` has no example to lead with.
+    """
+    served: Json = {}
+    for key, value in path.items():
+        if key in HTTP_METHODS:
+            parameters = value.get("parameters", [])
+            served[key] = {
+                **value,
+                "parameters": [item for item in parameters if not _is_structure_parameter(item)],
+            }
+        elif key == "parameters":
+            served[key] = [item for item in value if not _is_structure_parameter(item)]
+        else:
+            served[key] = value
+    read = served.get("get")
+    if read is None:
+        return served
     examples = _examples(read)
     if AMENDMENT_EXAMPLE in examples:
         reordered = {AMENDMENT_EXAMPLE: examples[AMENDMENT_EXAMPLE]} | examples
