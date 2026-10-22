@@ -1465,7 +1465,9 @@ TaskFacetUpdate:
     exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent
     reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`), à ceci près que
     le début et la fin se saisissent sans leurs heures, que le serveur complète sur le
-    calendrier de la tâche (`WorkInstantWrite`, #1244) ; une valeur
+    calendrier de la tâche (`WorkInstantWrite`, #1244), et qu'une date sur un jour sans heure
+    travaillée à ce calendrier est refusée, nommant le jour travaillé suivant (`NON_WORKING_DAY`,
+    WF-PLA-0020 ; #1271) ; une valeur
     que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030), et un champ
     que le nœud n'accepte pas, ni saisi ni calculé pour lui — la durée d'un jalon, qui n'en a pas
     à saisir (WF-PLA-0050) —, par `FIELD_NOT_ACCEPTED` (`editable_fields` ; EP-14/L42s).

@@ -1,11 +1,11 @@
 {
-  "summary": "La fin de la « Mise en service », en mode manuel, envoyée le 16 janvier 2027 à 6 h, quand le calendrier de la tâche en accorde 0 ce jour-là : les heures envoyées sont prises telles quelles, jamais bornées, et refusées sur leur champ, la borne franchie nommée ; rien n'est écrit (WF-PLA-0010, WF-PLA-0020, WF-DAT-0100, #1244).",
+  "summary": "La fin de la « Mise en service », en mode manuel, envoyée le 15 janvier 2027 à 10 h, quand le calendrier de la tâche en accorde 8 ce jour-là : les heures envoyées sont prises telles quelles, jamais bornées, et refusées sur leur champ, la borne franchie nommée ; rien n'est écrit (WF-PLA-0010, WF-PLA-0020, WF-DAT-0100, #1244).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,
     "fields": [
-      {"pointer":"/finish/hours","code":"VALUE_OUT_OF_RANGE","params":{"maximum":"0"}}
+      {"pointer":"/finish/hours","code":"VALUE_OUT_OF_RANGE","params":{"maximum":"8"}}
     ],
     "correlation_id": "01926f3a-7c00-7000-8000-000000001305"
   }

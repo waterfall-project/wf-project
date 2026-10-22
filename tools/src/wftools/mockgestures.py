@@ -214,8 +214,10 @@ def task_dates_sent() -> JsonObject:
     }
 
 
-HOURS_BEYOND_DAY = (date(2027, 1, 16), Decimal(6))
-"""The finish sent with its hours on the commissioning, manual: a Saturday, at six hours."""
+HOURS_BEYOND_DAY = (ENTERED_DATES[1], Decimal(10))
+"""The finish sent with its hours on the commissioning, manual: its Friday, at ten hours. A day
+without hours of work is refused by its date, its hours not judged (#1271): the hours beyond those
+of a day are said on a day that grants some."""
 HOURS_CORRELATION = universe(1305)
 
 
@@ -231,8 +233,8 @@ def task_hours_beyond_day() -> JsonObject:
     """Return what updateTaskFacet answers to a finish sent past the hours its day grants.
 
     Hours sent are taken as they are, never bounded (#1244): those its day on the calendar of
-    the task does not grant are refused on their field, the bound crossed in ``maximum`` — none
-    on a day without hours of work.
+    the task does not grant are refused on their field, the bound crossed in ``maximum``, never
+    none — a day without hours of work is refused by its date (``mocknonworking``, #1271).
     """
     maximum = hours_granted()
     return {

@@ -53,6 +53,7 @@
       "ignored": [],
       "completed_tasks": [],
       "date_mismatches": [],
+      "signals": [],
       "requires_confirmation_reasons": []
     },
     "task": {

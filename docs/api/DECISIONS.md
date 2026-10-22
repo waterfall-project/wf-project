@@ -7156,7 +7156,7 @@ donc là, et un changement du contrat échoue aux tests de ses champs. Écarté 
 type du champ que désigne `loc` dans le modèle, comme le proposait #1236, puisque le test suffit à
 dire la dérive.
 
-## Les heures d'une date saisie, complétées par le serveur (EP-15/US-0470, #1244)
+## Les heures d'une date saisie, complétées par le serveur ; un jour chômé refusé (EP-15/US-0470, #1244, #1271)
 
 **Une date de début ou de fin se saisit sans ses heures** (décision de l'auteur du 2026-10-21,
 #1244 ; WF-PLA-0010, WF-PLA-0020, WF-DAT-0100). `TaskFacetUpdate.start` et `finish` exigeaient un
@@ -7176,25 +7176,48 @@ Un `WorkInstant` compte les heures de travail écoulées ce jour-là sur le cale
 heures hors de ces bornes — `{"date": <samedi>, "hours": "6"}` sur un calendrier sans samedi —
 sont refusées par 422 `VALIDATION_FAILED`, `fields` sur `/start/hours` ou `/finish/hours` par
 `VALUE_OUT_OF_RANGE`, `fields[].params` portant la seule borne franchie, `minimum` à `0` ou
-`maximum` aux heures du jour, `0` un jour sans heure travaillée ; rien n'est écrit. Écarté :
+`maximum` aux heures du jour, jamais nul depuis #1271 — un jour chômé est refusé par sa date, ses
+heures n'étant pas jugées ; rien n'est écrit. Écarté :
 borner les heures au maximum du jour. « Prises telles quelles » ne le permet pas — le serveur
 écrirait une autre valeur que celle envoyée, sans le dire, et une fin envoyée à `10` sur un jour
 de huit heures deviendrait `8` sans que le client le sache ; le refus dit la borne, que le client
 connaît dès lors sans connaître le calendrier. Le motif est celui de toute borne incluse
 franchie, `VALUE_OUT_OF_RANGE` (« Session et erreurs ») : aucun code nouveau, et le front le dit
 déjà. La borne dépend du calendrier et du jour : le schéma ne la publie pas en `maximum`.
-Exemple engendré : `task_hours_beyond_day`, la fin de la mise en service envoyée un samedi à six
-heures, refusée, `maximum` à `0`.
+Exemple engendré : `task_hours_beyond_day`, la fin de la mise en service envoyée le vendredi
+15 janvier 2027 à dix heures, refusée, `maximum` à `8` — un samedi à six heures jusqu'à #1271, où
+`maximum` valait `0`.
 
-**Un jour sans heure travaillée est gardé, le début et la fin à `0`.** La spécification ne dit
-rien d'une date manuelle saisie un jour chômé de son calendrier ; WF-PLA-0020 dit seulement que
-Waterfall ne recalcule jamais les dates d'une tâche manuelle, qui « tient lieu de contrainte de
-date » — une livraison un samedi est une date imposée de l'extérieur. La règle retenue est la plus
-simple : la formule s'applique telle quelle, et un jour sans heure donne `0` au début comme à la
-fin. Écartés : reporter la date au jour ouvré suivant, ce qui recalculerait une date manuelle
-contre WF-PLA-0020 ; un refus, qu'aucun motif déclaré ne porte — `TASK_WITHOUT_WORKING_HOURS`
-juge la semaine d'un calendrier, non un jour, et un code nouveau aurait refusé ce que MS Project
-accepte d'une tâche manuelle.
+**Un jour sans heure travaillée est refusé à la saisie, nommant le jour travaillé suivant ;
+gardé et signalé à l'import** (décision de l'auteur du 2026-10-22, #1271 ; WF-PLA-0020 tel que
+#1289 l'a réécrit). Elle remplace la règle de #1244 (commit 289c868e), qui gardait une telle date
+le début et la fin à `0`, faute d'un texte. WF-PLA-0020 dit désormais : « Une date saisie sur un
+jour sans aucune heure travaillée au calendrier applicable est refusée, et le refus nomme le jour
+travaillé suivant ; rien n'est écrit. L'import d'un fichier MS Project garde une telle date telle
+quelle, et le compte rendu la signale », et son Vérif : « Sur un calendrier du lundi au vendredi,
+la date de début d'une tâche manuelle saisie un samedi est refusée, et le refus nomme le lundi
+suivant ; la même date importée d'un fichier MS Project est gardée et signalée au compte rendu ».
+
+- *La saisie* (`updateTaskFacet`) : 422 `VALIDATION_FAILED`, `fields` sur `/start/date` ou
+  `/finish/date` par un motif nouveau, `NON_WORKING_DAY`, `fields[].params.date` la date envoyée
+  et `next_working_day` le premier jour suivant qui compte des heures au calendrier applicable de
+  la tâche — le front dit « le samedi 19 n'est pas travaillé sur le calendrier de la tâche ;
+  saisis le lundi 21 » sans connaître ce calendrier. Une date chômée n'a pas d'heures : celles
+  qu'on envoie avec elle ne sont pas jugées, et `VALUE_OUT_OF_RANGE` ne nomme plus jamais un
+  `maximum` à `0`. Le début et la fin chômés tous deux font deux refus, un par champ.
+- *L'import MS Project* : la date est gardée telle que le fichier la porte, le début et la fin à
+  `0` comme la formule de #1244 le donne, et le compte rendu la signale dans un tableau nouveau,
+  `ImportReport.signals`, toujours rendu comme les autres : un `ImportSignal` par date — la
+  tâche (`lineage_id`, `label`), la colonne (`start`, `finish`), et le même motif avec les mêmes
+  paramètres, pour que la saisie et l'import se disent d'une même phrase (WF-ARC-0110). Ni rejet
+  ni confirmation : WF-PLA-0020 garde la date.
+
+Écartés : un code d'heure (`VALUE_OUT_OF_RANGE` sur `/start/hours`), qui ne dit pas la vraie cause
+— le jour, non ses heures (défaut n° 10 du guide) — ni le jour suivant ; reporter la date au jour
+suivant, que WF-PLA-0020 ne permet pas (« rien n'est écrit ») ; `TASK_WITHOUT_WORKING_HOURS`, qui
+juge la semaine d'un calendrier, non un jour ; signaler l'import par `date_mismatches`, qui dit un
+écart avec le recalcul de Waterfall, ou par `ignored`, qui dit ce qui n'est pas lu, quand la date
+est lue et gardée.
 
 **La création n'est pas touchée.** `TaskFacetWrite` (`createNode`) garde `WorkInstant` : la
 décision vise la saisie d'une date dans la grille ; une création qui portera des dates saisies
@@ -7205,6 +7228,15 @@ donne `task_dates_entered` — les dates de la mise en service, manuelle, envoy�
 date, rendues à `0` et `8` heures sur son calendrier. Le faux back complète désormais
 les heures d'une tâche manuelle sur son calendrier applicable (`wftools.mockcore`), et non plus à
 huit heures ; aucune réponse engendrée n'en change.
+
+Exemples engendrés par `wftools.mocknonworking` (#1271) : `task_date_non_working_day`, le début de
+la mise en service, manuelle, envoyé le samedi 19 décembre 2026, refusé, le lundi 21 nommé ; et
+`import_planning_non_working_day` (`getImport`), le planning de la structure principale exporté
+aujourd'hui et réimporté, la mise en service passée en mode manuel et commencée ce samedi : un
+écart sur `scheduling_mode` et `start`, la date gardée et signalée, le lundi 21 nommé, les deux
+calendriers du fichier ignorés et dits — une variante qu'`imports` ne reprend pas. Les autres
+comptes rendus d'import portent `signals` vide. Le témoin #421 n'en est pas touché : aucun de ces
+exemples ne rend de nœud.
 
 ## Les gestes du Kanban (EP-15/US-0540)
 

@@ -913,8 +913,9 @@
       envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`). Le
       début et la fin se saisissent par leur seule date : le serveur en complète les heures sur
       le calendrier applicable de la tâche (WF-PLA-0010), le début au début de son jour, la fin
-      au bout des heures que le calendrier accorde ce jour-là ; un jour sans heure travaillée est
-      gardé, le début et la fin à `0` (`WorkInstantWrite`, #1244).
+      au bout des heures que le calendrier accorde ce jour-là (`WorkInstantWrite`, #1244). Une
+      date sur un jour sans aucune heure travaillée à ce calendrier est refusée, et le refus nomme
+      le jour travaillé suivant ; rien n'est écrit (WF-PLA-0020 ; #1271).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -963,17 +964,23 @@
           nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`). Ou, sans
           `fields`, une saisie qui porterait la durée du projet au-delà de quinze ans :
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé
-          (WF-PLA-0150). Ou des heures envoyées avec une date hors de `0` aux heures que le
-          calendrier de la tâche accorde ce jour-là : `fields` sur `/start/hours` ou
-          `/finish/hours` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum`
-          aux heures du jour, la seule borne franchie, `0` un jour sans heure travaillée
-          (`WorkInstantWrite`, WF-PLA-0010, WF-DAT-0100, #1244).
+          (WF-PLA-0150). Ou une date envoyée un jour sans aucune heure travaillée au calendrier
+          de la tâche : `fields` sur `/start/date` ou `/finish/date` par `NON_WORKING_DAY`,
+          `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant
+          — « le refus nomme le jour travaillé suivant ; rien n'est écrit » (WF-PLA-0020,
+          WF-PLA-0010 ; #1271). Ou des heures envoyées avec un jour travaillé hors de `0` aux
+          heures que le calendrier de la tâche accorde ce jour-là : `fields` sur `/start/hours`
+          ou `/finish/hours` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou
+          `maximum` aux heures du jour, la seule borne franchie, jamais nulle — un jour chômé est
+          refusé par sa date, ses heures n'étant pas jugées (`WorkInstantWrite`, WF-PLA-0010,
+          WF-DAT-0100, #1244).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
+              non_working_day: { $ref: ../../../fixtures/api/task_date_non_working_day.json }
               hours_beyond_day: { $ref: ../../../fixtures/api/task_hours_beyond_day.json }
               hours_below_zero: { $ref: ../../../fixtures/api/task_hours_below_zero.json }
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }

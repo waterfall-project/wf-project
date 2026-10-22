@@ -1832,6 +1832,7 @@
     "THRESHOLD_NOT_BELOW_WATCH": "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "Le seuil doit être compris entre 0 et 1, l’un et l’autre exclus.",
     "DURATION_UNIT_NOT_POSITIVE": "La constante doit être strictement positive.",
+    "NON_WORKING_DAY": "Ce jour n’est pas travaillé sur le calendrier de la tâche.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Cet élément ne fait pas partie du lotissement lu : inconnu, d’une autre nature ou supprimé.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un lot ou un poste, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce lot ou ce poste est déjà porté par une autre tâche.",

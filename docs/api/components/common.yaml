@@ -63,14 +63,18 @@ WorkInstantWrite:
     connaît pas le calendrier applicable (WF-PLA-0010) : sans `hours`, le serveur les
     complète sur ce calendrier, le début au début de son jour (`0`), la fin au bout des
     heures que le calendrier accorde ce jour-là — `8` un vendredi d'un calendrier de huit
-    heures. La date est gardée telle qu'elle est saisie, même un jour sans heure travaillée,
-    que Waterfall ne déplace pas (WF-PLA-0020 : « ne les recalcule jamais ») : le début et la
-    fin y sont à `0`, sans refus (#1244). Envoyées, les heures sont prises telles quelles,
-    jamais bornées : hors de `0` aux heures que le calendrier accorde ce jour-là, elles sont
-    refusées par 422 `VALIDATION_FAILED`, `fields` sur `/start/hours` ou `/finish/hours` par
-    `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la
-    seule borne franchie — `maximum` à `0` un jour sans heure travaillée. La lecture rend
-    toujours un `WorkInstant`, ses heures complétées.
+    heures. Une date sur un jour sans aucune heure travaillée au calendrier applicable est
+    refusée, et le refus nomme le jour travaillé suivant ; rien n'est écrit (WF-PLA-0020 ;
+    #1271) : 422 `VALIDATION_FAILED`, `fields` sur `/start/date` ou `/finish/date` par
+    `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour
+    travaillé suivant ; les heures envoyées avec elle ne sont pas jugées. Envoyées avec un jour
+    travaillé, les heures sont prises telles quelles, jamais bornées : hors de `0` aux heures
+    que le calendrier accorde ce jour-là, elles sont refusées par 422 `VALIDATION_FAILED`,
+    `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE`,
+    `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la seule borne franchie,
+    jamais nulle. La lecture rend toujours un `WorkInstant`, ses heures complétées ; une date
+    importée d'un fichier MS Project un jour chômé y est gardée, le début et la fin à `0`, et le
+    compte rendu la signale (`ImportReport.signals`).
   properties:
     date: { $ref: '#/PlanningDate' }
     hours: { $ref: '#/Hours' }
@@ -176,8 +180,9 @@ Problem:
         taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le
         délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au
         plus `24`, les heures d'un instant de travail envoyé (`/start/hours`, `/finish/hours` de
-        `updateTaskFacet`), au plus les heures que le calendrier de la tâche accorde ce jour-là, `0`
-        un jour sans heure travaillée (#1244), ou le jour d'une sauvegarde hebdomadaire, au plus
+        `updateTaskFacet`), au plus les heures que le calendrier de la tâche accorde ce jour-là,
+        jamais `0` — un jour sans heure travaillée est refusé par sa date, `NON_WORKING_DAY`
+        (#1244, #1271) —, ou le jour d'une sauvegarde hebdomadaire, au plus
         `7`), `component` (un
         `PlatformComponent`, WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
@@ -291,6 +296,11 @@ Problem:
         la grille relève, par son identifiant et son libellé (`risk_id`, `label` ;
         `PROVISION_LINE_MOVED_BY_RISK`, `moveNodes`, WF-RIS-0010, #1227) : la ligne se déplace
         par le formulaire du risque ;
+        `date` et `next_working_day`, dans `fields[].params`, la date d'une tâche manuelle
+        envoyée un jour sans aucune heure travaillée au calendrier de la tâche, et le jour
+        travaillé suivant, que la saisie peut prendre — « le refus nomme le jour travaillé
+        suivant » (`NON_WORKING_DAY`, `updateTaskFacet`, WF-PLA-0020 ; #1271) —, et les mêmes
+        paramètres au signalement d'une telle date importée (`ImportSignal.params`) ;
         `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux
         n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160).
     fields:
@@ -533,6 +543,12 @@ ErrorCode:
     # (`PastePreview` ; EP-14/L42s), sauf le sous-projet d'une ligne qui ne peut pas le quitter,
     # refusé par `SUBPROJECT_HAS_ACTUAL_COSTS`.
     - FIELD_NOT_ACCEPTED
+    # Une date d'une tâche manuelle sur un jour sans aucune heure travaillée au calendrier
+    # applicable de la tâche (WF-PLA-0020, WF-PLA-0010 ; #1271, #1289) : refusée à la saisie
+    # (`/start/date` ou `/finish/date`, `updateTaskFacet`), rien n'est écrit ; gardée à l'import
+    # d'un fichier MS Project, et signalée au compte rendu (`ImportReport.signals`).
+    # `params.date` nomme la date, `params.next_working_day` le jour travaillé suivant.
+    - NON_WORKING_DAY
     # Une ligne dont la tâche est démarrée ou terminée, passée hors d'un sous-projet qui a reçu
     # des coûts réels (`/subproject_id`, `updateEstimateLine`, WF-PRJ-0050) ;
     # `fields[].params.subproject` nomme ce sous-projet. Aussi le motif d'une cellule de

@@ -126,8 +126,9 @@ def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
         if task.manual is not None:
             # The dates entered are days: the server completes their hours, the start at the
             # start of its day, the finish at the end of that day's hours on the applicable
-            # calendar, none on a day without (#1244). A milestone in manual mode is an
-            # instant, like any other (WF-PLA-0050).
+            # calendar (#1244). A day without hours, refused entered, is kept imported, at no
+            # hour (#1271). A milestone in manual mode is an instant, like any other
+            # (WF-PLA-0050).
             first, last = task.manual
             finish = Instant(last, calendar.hours_on(last))
             start = finish if task.is_milestone else Instant(first)

@@ -322,11 +322,12 @@ columns of a line, write nothing (`PastePreview`)."""
 AMENDMENT_PASTE = universe(994)
 
 
-def paste_targets() -> list[int]:
-    """Return the nodes the rows of the block write, by their number, in the order of the plan.
+def paste_targets(count: int = len(AMENDMENT_BLOCK)) -> list[int]:
+    """Return the nodes the rows of a block write, by their number, in the order of the plan.
 
-    The rows of the grid from ENTERED_LINE, as the installation is read on the differential, a
-    node withdrawn holding its row (``nodes_amendment``).
+    The ``count`` rows of the grid from ENTERED_LINE — those of the block pasted, the block of the
+    example by default —, as the installation is read on the differential, a node withdrawn
+    holding its row (``nodes_amendment``; #1296).
     """
     by_id = {mockamendment.own_id(row.number): row.number for row in mockamendment.rows()}
     ids = [
@@ -334,7 +335,7 @@ def paste_targets() -> list[int]:
         for node in cast("list[Node]", mockamendment.nodes_amendment()["items"])
     ]
     start = ids.index(mockamendment.own_id(ENTERED_LINE))
-    return [by_id[node_id] for node_id in ids[start : start + len(AMENDMENT_BLOCK)]]
+    return [by_id[node_id] for node_id in ids[start : start + count]]
 
 
 def paste_plan_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
@@ -350,7 +351,7 @@ def paste_plan_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
     categories, roles = known()
     kinds = {row.number: row.kind for row in mockamendment.rows()}
     refusals: list[tuple[int, str, str]] = []
-    for index, (number, cells) in enumerate(zip(paste_targets(), block, strict=True)):
+    for index, (number, cells) in enumerate(zip(paste_targets(len(block)), block, strict=True)):
         _, category, role, _ = cells
         if kinds[number] == TASK:
             refusals.extend(
@@ -385,7 +386,8 @@ def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
         message = "the block pasted on the amendment is refused in part"
         raise ValueError(message)
     categories, roles = known()
-    labels = dict(zip(paste_targets(), block, strict=True))
+    targets = paste_targets(len(block))
+    labels = dict(zip(targets, block, strict=True))
 
     def task(each: Task) -> Task:
         return replace(each, label=labels[each.number][0]) if each.number in labels else each
@@ -403,7 +405,7 @@ def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
         )
 
     roots = amended(entered_roots(), task, line)
-    answer = amendment_write(roots, paste_targets(), following=(entered_roots(), [ENTERED_LINE]))
+    answer = amendment_write(roots, targets, following=(entered_roots(), [ENTERED_LINE]))
     return {**answer, "rejected": []}
 
 
