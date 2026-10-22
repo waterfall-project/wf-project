@@ -20,6 +20,7 @@ import {
   type ReactElement,
   type ReactNode,
   type SubmitEvent,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -90,11 +91,23 @@ export function ConfirmedCommand<T>({
   const [pending, startTransition] = useTransition();
   const button = useRef<HTMLButtonElement>(null);
   // The page read again may no longer offer the command: its confirmation is not shown.
-  const shown = presented && open && offer.is_available;
-  if (open && !(presented && offer.is_available)) {
-    // Not offered any more: the confirmation is closed, and does not come back with the command.
-    setOpen(false);
-  }
+  const offered = presented && offer.is_available;
+  const shown = open && offered;
+  useEffect(() => {
+    if (!shown) {
+      return undefined;
+    }
+    const command = button.current;
+    // Once the confirmation is shown no more, whatever the reason: when the page read again does
+    // not offer the command any more, it is closed and does not come back with the command, and
+    // the focus the form held, fallen on the page, goes back to the command if it is still there.
+    return () => {
+      setOpen(false);
+      if (document.activeElement === document.body || document.activeElement === null) {
+        command?.focus();
+      }
+    };
+  }, [shown]);
   const close = () => {
     setOpen(false);
     button.current?.focus();

@@ -247,8 +247,10 @@ describe("the designation of the reference", () => {
         projectId={PROJECT}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Désigner comme référence" }));
+    const command = screen.getByRole("button", { name: "Désigner comme référence" });
+    await userEvent.click(command);
     expect(screen.getByRole("form", { name: "Désigner comme référence" })).toBeVisible();
+    screen.getByRole("button", { name: "Confirmer la désignation" }).focus();
 
     const frame = (revisions: DesignatedRevision[]) => (
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
@@ -259,6 +261,8 @@ describe("the designation of the reference", () => {
     );
     rerender(frame(history("revisions")));
     expect(screen.queryByRole("form")).toBeNull();
+    // The focus the form held does not fall on the page: it goes back to the command.
+    expect(command).toHaveFocus();
     rerender(frame(history("revisions_designation_open")));
     expect(screen.queryByRole("form")).toBeNull();
     expect(screen.getByRole("button", { name: "Désigner comme référence" })).toHaveAttribute(
