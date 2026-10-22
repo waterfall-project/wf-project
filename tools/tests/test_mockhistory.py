@@ -18,6 +18,7 @@ import pytest
 
 from wftools import (
     REPOSITORY,
+    mockcomparisons,
     mockcore,
     mockdata,
     mockdating,
@@ -108,7 +109,10 @@ def history() -> dict[str, Any]:
     """Read the named examples of the history back from the text the generator writes."""
     return {
         name.removesuffix(".json"): json.loads(mockdata.render(example))["value"]
-        for name, example in mockhistory.examples().items()
+        for name, example in {
+            **mockhistory.examples(),
+            **mockcomparisons.examples(),
+        }.items()
     }
 
 
@@ -327,7 +331,7 @@ def whole() -> Node:
     """Return the comparison of the offer and the reference read whole, without a filter (#1193)."""
     return cast(
         "Node",
-        mockhistory.comparison(
+        mockcomparisons.comparison(
             mockhistory.offer_rows(),
             mockhistory.reference_rows(),
             mockhistory.OFFER,
@@ -459,7 +463,7 @@ def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_o
             if entry["dimension"] == dimension
         ]
         assert sum(deltas, Decimal(0)) == expected == Decimal("602950.00")
-    summary = str(mockhistory.examples()["comparison.json"]["summary"])
+    summary = str(mockcomparisons.examples()["comparison.json"]["summary"])
     assert "sous-arbre « Installation sur site » (subtree_of)" in summary
     assert "9 nœuds dans l'ordre du plan" in summary
     assert "« Essais préliminaires sur site » et « Location du banc d'essais »" in summary
@@ -476,7 +480,7 @@ def test_the_comparison_names_the_lines_reestimated_without_being_designated(
     kept = [entry["estimate_line"]["label"] for entry in rerated if entry["lineage_id"] in core]
     assert kept == ["Câblage sur site", "Mise en service sur site"]
     assert len(rerated) - len(kept) == 2_766
-    example = mockhistory.examples()["comparison.json"]
+    example = mockcomparisons.examples()["comparison.json"]
     window = cast("list[Node]", cast("Node", example["value"])["items"])
     assert [
         entry["estimate_line"]["label"]
@@ -539,7 +543,7 @@ def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() 
 
 def test_a_revision_compared_with_itself_has_no_difference() -> None:
     rows = mockhistory.reference_rows()
-    same = mockhistory.comparison(rows, rows, mockhistory.REFERENCE, mockhistory.REFERENCE)
+    same = mockcomparisons.comparison(rows, rows, mockhistory.REFERENCE, mockhistory.REFERENCE)
     nodes = cast("list[Node]", same["items"])
     assert {node["difference"] for node in nodes} == {"unchanged"}
     assert len(nodes) == len(rows)
@@ -553,7 +557,7 @@ def test_a_node_moved_under_another_parent_is_changed_by_its_parent() -> None:
     rows = mockhistory.reference_rows()
     # The design file under the control station instead of the studies.
     moved = [replace(row, parent=551) if row.number == 526 else row for row in rows]
-    compared = mockhistory.comparison(rows, moved, mockhistory.REFERENCE, mockhistory.REFERENCE)
+    compared = mockcomparisons.comparison(rows, moved, mockhistory.REFERENCE, mockhistory.REFERENCE)
     nodes = cast("list[Node]", compared["items"])
     [design_file] = [node for node in nodes if node["changes"]]
     assert (design_file["lineage_id"], design_file["difference"], design_file["changes"]) == (
@@ -682,7 +686,9 @@ def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference(
         offered = mockcore.core(
             mockhistory.offer(core), mockwitness.OFFER_MARKED.on, mockhistory.offer_rates()
         )
-        compared = mockhistory.comparison(offered, rows, mockhistory.OFFER, mockhistory.REFERENCE)
+        compared = mockcomparisons.comparison(
+            offered, rows, mockhistory.OFFER, mockhistory.REFERENCE
+        )
     assert 599 not in {row.number for row in rows}
     added = _marked(compared, "added")
     assert mockcore.lineage(599) not in {entry["lineage_id"] for entry in added}

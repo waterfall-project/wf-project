@@ -6683,7 +6683,7 @@ restait à trancher (#1201, point 4) ; tranché depuis (#1205, EP-15/US-0490/L1,
 ses valeurs de base, comme tout nœud. `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
 les grilles de `listNodes`, que son chemin dit désormais.
 
-**Les exemples sont des fenêtres**, engendrés par `wftools.mockhistory`. `comparison`, le premier,
+**Les exemples sont des fenêtres**, engendrés par `wftools.mockcomparisons`. `comparison`, le premier,
 est le sous-arbre de l'installation sur site (`subtree_of`), comme `nodes_amendment` sur le
 différentiel : 9 nœuds, et chaque marque — deux ajoutés, la tâche et la ligne retirées, à leur
 place, deux lignes réestimées, trois tâches modifiées par leur seul contenu —, les totaux de
@@ -6701,7 +6701,7 @@ point 2). Les fenêtres de L5 ne disent pas ce que pèse la comparaison que l'é
 `volume`, cité en deuxième sous `compareRevisions`, la rend : la comparaison de l'offre et de la
 référence sur toute la structure du témoin, 5 999 nœuds, lue sans filtre et avec `fields` réduit à
 ce que l'écran montre — `kind`, `task.label`, `estimate_line.label` —, 1,3 Mo au lieu de 7,4 Mo.
-Il est engendré par `wftools.mockhistory` comme `nodes_thousand` pour `listNodes`
+Il est engendré par `wftools.mockcomparisons` comme `nodes_thousand` pour `listNodes`
 (`fixtures/api/volume/comparison_volume.json`), la lecture avec `fields` par
 `wftools.mockcore.with_fields`. US-0500/L4 éprouve dessus la borne de 15 s d'US-0500, et le fera
 passer en premier.
