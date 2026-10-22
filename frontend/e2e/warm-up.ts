@@ -14,10 +14,13 @@
  * that changes nothing, or declared exempt with the reason why (`WARMED_HANDLERS`,
  * `EXEMPT_HANDLERS`), which a test holds to every `route.ts` of `src/app`
  * (`src/app/route-handlers.test.ts`). A few at a time, as the workers will ask. A route is asked as
- * `compileAnswered` asks it, its redirect not followed: any answer but an error of the server. An
- * error — a status of 500 or more, or no answer at all — is written as it comes, and fails the run
- * once every route has been asked, naming each address in error: a screen that does not compile
- * shows here, not in each path that reaches it. The time the warm-up took is written too.
+ * `compileAnswered` asks it, its redirect not followed: any answer but an error of the server. A
+ * connection the server drops (`DROPPED`), which the development server does under load, is not an
+ * error of the screen: the route is asked once more, which is written (#1301). An error — a status
+ * of 500 or more, asked once, or no answer at all, a second drop included — is written as it comes,
+ * and fails the run once every route has been asked, naming each address in error: a screen that
+ * does not compile shows here, not in each path that reaches it. The time the warm-up took is
+ * written too.
  */
 import { type FullConfig, request } from "@playwright/test";
 
@@ -28,6 +31,9 @@ const AT_ONCE = 4;
 
 /** How long a route is given to compile and answer, the first of a cold `.next` included. */
 const COMPILING = 180_000;
+
+/** The messages of a connection the server dropped, which earns a route a second asking. */
+const DROPPED = /\b(?:ECONNRESET|EPIPE)\b|socket hang up/;
 
 /**
  * The route handlers of `src/app` the warm-up asks, by route, each at an address that changes
@@ -64,8 +70,9 @@ export function warmedAddresses(): string[] {
 }
 
 /**
- * Ask the server at `baseURL` for each address once, a few at a time; each error written as it
- * comes, and every one of them in the error thrown once all are asked.
+ * Ask the server at `baseURL` for each address once, a few at a time, and once more an address
+ * whose connection was dropped; each error written as it comes, and every one of them in the error
+ * thrown once all are asked.
  */
 export async function warm(baseURL: string, addresses: readonly string[]): Promise<void> {
   const context = await request.newContext({ baseURL });
@@ -75,16 +82,26 @@ export async function warm(baseURL: string, addresses: readonly string[]): Promi
     failed.push(failure);
     console.error(`Warm-up: ${failure}`);
   };
+  /** Ask for an address; dropped, ask once more, unless it already was. */
+  const ask = async (address: string, again = false): Promise<void> => {
+    try {
+      const response = await context.get(address, { maxRedirects: 0, timeout: COMPILING });
+      if (response.status() >= 500) {
+        failing(`${address} answered ${String(response.status())}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (again || !DROPPED.test(message)) {
+        failing(`${address} failed${again ? " again" : ""}: ${message}`);
+        return;
+      }
+      console.warn(`Warm-up: ${address} dropped, asked again: ${message}`);
+      await ask(address, true);
+    }
+  };
   const asking = async (): Promise<void> => {
     for (let address = waiting.shift(); address !== undefined; address = waiting.shift()) {
-      try {
-        const response = await context.get(address, { maxRedirects: 0, timeout: COMPILING });
-        if (response.status() >= 500) {
-          failing(`${address} answered ${String(response.status())}`);
-        }
-      } catch (error) {
-        failing(`${address} failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      await ask(address);
     }
   };
   try {

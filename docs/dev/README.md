@@ -2955,9 +2955,11 @@ par un `GET` qu'il refuse, un téléchargement à une adresse qui ne nomme rien 
 avec leur raison — `/login`, qui commence hors du faux back une connexion, un état gardé dans
 Redis — ;
 `src/app/route-handlers.test.ts` tient ces deux listes à chaque `route.ts` de `src/app`. Quatre à la
-fois, la redirection non suivie ; ce qu'une route répond reste aux parcours, mais une erreur du
-serveur — un statut de 500 ou plus, ou aucune réponse — s'écrit dans la sortie au moment où elle
-survient, et fait échouer le lancement une fois toutes les routes demandées, en nommant chaque adresse
+fois, la redirection non suivie ; ce qu'une route répond reste aux parcours. Une connexion que le
+serveur coupe (`ECONNRESET`, `EPIPE`, `socket hang up`), ce que fait le serveur de développement
+sous charge, n'est pas une erreur de l'écran : la route est redemandée une fois, et la sortie
+l'écrit (#1301). Mais une erreur du serveur — un statut de 500 ou plus, jamais redemandé, ou aucune
+réponse, une seconde coupure comprise — s'écrit dans la sortie au moment où elle survient, et fait échouer le lancement une fois toutes les routes demandées, en nommant chaque adresse
 en cause : un écran qui ne compile pas se voit là, pas dans chaque parcours. Le préchauffage écrit
 sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois passages du 2026-10-21, pour les
 38 écrans d'alors. Il ne précède ni la
