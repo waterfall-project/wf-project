@@ -97,15 +97,20 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   // command unfolds it, and folds it again.
   const drawing = figure.getByRole("img", { name: /^Nuage de bulles des risques/ });
   await expect(drawing).toHaveCount(0);
-  const unfold = figure.getByRole("button", { name: "Afficher le graphique" });
-  await expect(unfold).toHaveAttribute("aria-expanded", "false");
-  await unfold.click();
+  const toggle = figure.getByRole("button", { name: "Graphique", exact: true });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
   await expect(drawing).toBeVisible();
-  await expect(figure.getByRole("button", { name: "Replier le graphique" })).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
-  await figure.getByRole("button", { name: "Replier le graphique" }).click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  // Unfolded, the figure lies between the cards and the grid, over the whole width.
+  const unfolded = await boxOf(figure);
+  const cardsBox = await boxOf(page.getByRole("region", { name: "Couverture des risques" }));
+  const registerBox = await boxOf(grid);
+  expect(unfolded.y).toBeGreaterThan(cardsBox.y + cardsBox.height - 1);
+  expect(unfolded.y + unfolded.height).toBeLessThan(registerBox.y + 1);
+  expect(unfolded.width).toBeGreaterThan(registerBox.width - 1);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(drawing).toHaveCount(0);
   const frame = await boxOf(figure);
   const cards = await boxOf(page.getByRole("region", { name: "Couverture des risques" }));
@@ -169,7 +174,7 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
   await page.setViewportSize({ width: 1366, height: 900 });
   await openHydrated(page, RISKS);
   const figure = page.getByRole("figure", { name: "Matrice des risques" });
-  await figure.getByRole("button", { name: "Afficher le graphique" }).click();
+  await figure.getByRole("button", { name: "Graphique", exact: true }).click();
   const drawing = figure.getByRole("img", { name: /^Nuage de bulles des risques/ });
   await expect(drawing.locator("svg")).toBeVisible();
   // The zones are named in their areas, not told by their colour alone: the twelve zones that have

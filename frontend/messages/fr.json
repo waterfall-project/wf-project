@@ -798,8 +798,7 @@
   },
   "chart": {
     "values": "Valeurs du graphique",
-    "unfold": "Afficher le graphique",
-    "fold": "Replier le graphique",
+    "toggle": "Graphique",
     "exportPng": "Exporter en PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Révision : {revision} · Calculé le {date}",

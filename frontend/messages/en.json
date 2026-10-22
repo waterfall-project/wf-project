@@ -798,8 +798,7 @@
   },
   "chart": {
     "values": "Values of the chart",
-    "unfold": "Show the chart",
-    "fold": "Fold the chart",
+    "toggle": "Chart",
     "exportPng": "Export as PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Revision: {revision} · Computed on {date}",

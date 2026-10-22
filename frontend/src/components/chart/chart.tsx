@@ -547,7 +547,8 @@ export interface ChartProps {
   readonly onPoint?: (id: string) => void;
   /**
    * Whether the drawing starts folded, so that a screen short of room keeps what follows the
-   * chart in its window: a command shows it, and folds it again. The values stay under it.
+   * chart in its window: a command shows it, and folds it again. The values stay under it. Only
+   * the initial state: a later change of the prop does not fold nor unfold the drawing.
    */
   readonly folded?: boolean;
 }
@@ -648,7 +649,7 @@ export function Chart({
               }}
             >
               {shown ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
-              {shown ? t("fold") : t("unfold")}
+              {t("toggle")}
             </Button>
           ) : null}
           {exported === undefined ? null : (
@@ -665,6 +666,7 @@ export function Chart({
       </span>
       {shown ? (
         <div
+          key="drawing"
           ref={drawing}
           id={drawingId}
           role="img"
@@ -672,7 +674,7 @@ export function Chart({
           className="h-72 w-full"
         />
       ) : (
-        <div id={drawingId} />
+        <div key="folded" id={drawingId} />
       )}
       <details className="text-sm">
         <summary className="cursor-pointer text-muted-foreground">{t("values")}</summary>

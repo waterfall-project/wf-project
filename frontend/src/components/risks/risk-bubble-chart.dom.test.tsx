@@ -32,15 +32,33 @@ vi.mock("@/components/chart/chart", async (original) => {
   };
 });
 
-// The instance is the real one; only the number of instances made is counted.
-const instances = vi.hoisted(() => ({ made: 0 }));
+// The instance of the screen is the real one; the instances made and released are counted. The
+// image is drawn on a canvas, which the simulated document does not paint: an instance in its
+// place records what it is asked to draw.
+const instances = vi.hoisted(() => ({ made: 0, disposed: 0, images: [] as unknown[] }));
 vi.mock("echarts/core", async (actual) => {
   const echarts = await actual<typeof import("echarts/core")>();
   return {
     ...echarts,
     init: (...args: Parameters<typeof echarts.init>) => {
+      if (args[2]?.renderer === "canvas") {
+        return {
+          setOption: () => undefined,
+          getDataURL: (image: unknown) => {
+            instances.images.push(image);
+            return "data:image/png;base64,iVBORw0KGgo=";
+          },
+          dispose: () => undefined,
+        };
+      }
       instances.made += 1;
-      return echarts.init(...args);
+      const chart = echarts.init(...args);
+      const dispose = chart.dispose.bind(chart);
+      chart.dispose = () => {
+        instances.disposed += 1;
+        dispose();
+      };
+      return chart;
     },
   };
 });
@@ -342,25 +360,56 @@ describe("the risk matrix as a bubble chart", () => {
 
   it("starts folded, makes no instance of the chart until a command unfolds it, and folds it again (#1252)", () => {
     instances.made = 0;
+    instances.disposed = 0;
     project();
     const drawing = /^Bubble chart of the risks: the probability across/;
     expect(screen.queryByRole("img", { name: drawing })).not.toBeInTheDocument();
     expect(instances.made).toBe(0);
-    const unfold = screen.getByRole("button", { name: "Show the chart" });
+    const unfold = screen.getByRole("button", { name: "Chart" });
     expect(unfold).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(unfold);
     expect(screen.getByRole("img", { name: drawing })).toBeInTheDocument();
     expect(instances.made).toBe(1);
-    const fold = screen.getByRole("button", { name: "Fold the chart" });
+    const fold = screen.getByRole("button", { name: "Chart" });
     expect(fold).toHaveAttribute("aria-expanded", "true");
     expect(fold).toHaveAttribute("aria-controls", screen.getByRole("img", { name: drawing }).id);
     fireEvent.click(fold);
     expect(screen.queryByRole("img", { name: drawing })).not.toBeInTheDocument();
+    // One instance made, one released: the fold leaves none behind.
+    expect(instances.made).toBe(1);
+    expect(instances.disposed).toBe(1);
+  });
+
+  it("folds into another node than the one ECharts styled, which keeps neither its role nor its styles (#1252)", () => {
+    project();
+    fireEvent.click(screen.getByRole("button", { name: "Chart" }));
+    const drawing = screen.getByRole("img", { name: /^Bubble chart of the risks/ });
+    expect(drawing.getAttribute("style")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Chart" }));
+    const folded = document.getElementById(drawing.id);
+    expect(folded).not.toBeNull();
+    expect(folded).not.toBe(drawing);
+    expect(folded?.getAttribute("role")).toBeNull();
+    expect(folded?.getAttribute("style")).toBeNull();
+    expect(folded?.className).toBe("");
+  });
+
+  it("exports a PNG image while the matrix is unfolded, the instance of the screen kept (#1252, WF-IHM-0130-A)", () => {
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    project();
+    fireEvent.click(screen.getByRole("button", { name: "Chart" }));
+    instances.images = [];
+    fireEvent.click(screen.getByRole("button", { name: "Export as PNG" }));
+    expect(instances.images).toHaveLength(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("img", { name: /^Bubble chart of the risks/ })).toBeInTheDocument();
   });
 
   it("describes its drawing in a sentence and breaks no rule of accessibility [WF-IHM-0100-A]", async () => {
     const { container } = project();
-    fireEvent.click(screen.getByRole("button", { name: "Show the chart" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chart" }));
     expect(
       screen.getByRole("img", { name: /^Bubble chart of the risks: the probability across/ }),
     ).toBeInTheDocument();
