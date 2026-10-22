@@ -232,7 +232,7 @@ describe("the comparison of two revisions", () => {
     );
   });
 
-  it("presents what compareRevisions gives, nothing paired, summed nor ordered by the front [WF-ARC-0020-A]", async () => {
+  it("presents what compareRevisions gives, nothing paired, summed nor ordered by the front [WF-ARC-0020-A] [WF-REV-0080-A]", async () => {
     // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
     const page = html(
       await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),

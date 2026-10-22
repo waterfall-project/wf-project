@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync } from "node:fs";
+
 import { expect, test } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
@@ -69,6 +71,15 @@ test("the revisions of a project, their comparison as the API renders it, its st
 const VOLUME_PROJECT = "01926f3a-7c00-7000-8000-000300000300";
 const FROM = "01926f3a-7c00-7000-8000-000000000100";
 const TO = "01926f3a-7c00-7000-8000-000000000101";
+// The nodes of the example of the volume, the header and the totals besides making the rows.
+const VOLUME_NODES = (
+  JSON.parse(
+    readFileSync(
+      `${import.meta.dirname}/../../fixtures/api/volume/comparison_volume.json`,
+      "utf-8",
+    ),
+  ) as { value: { items: unknown[] } }
+).value.items.length;
 
 test("the comparison of the whole structure, 5 999 nodes, shows its grid with its marks under the bound of a screen of grid [WF-REV-0080-A]", async ({
   page,
@@ -88,7 +99,7 @@ test("the comparison of the whole structure, 5 999 nodes, shows its grid with it
     timeout: WORKING,
   });
   // The whole structure is the grid's, the rows drawn being those in view.
-  await expect(nodes).toHaveAttribute("aria-rowcount", /^6\d{3}$/);
+  await expect(nodes).toHaveAttribute("aria-rowcount", (VOLUME_NODES + 2).toString());
   const elapsed = Date.now() - started;
   test.info().annotations.push({ type: "duration", description: `${elapsed.toString()} ms` });
   expect(elapsed).toBeLessThan(WORKING);

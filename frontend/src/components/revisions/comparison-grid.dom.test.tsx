@@ -22,6 +22,8 @@ vi.mock("next/navigation", async (original) => ({
 
 // The sub-tree of « Installation sur site »: two nodes added, two removed, five modified.
 const COMPARISON = example("comparison") as RevisionComparison;
+// The same sub-tree where « Mise en service » is moved under « Installation sur site ».
+const MOVED = example("comparison_moved") as RevisionComparison;
 const VOLUME = example("volume/comparison_volume") as RevisionComparison;
 
 /** The grid of a comparison, in French. */
@@ -64,7 +66,7 @@ afterEach(() => {
 });
 
 describe("the grid of the comparison of two revisions", () => {
-  it("marks each node as the server marks it, in a column at the start, the unchanged one apart", () => {
+  it("marks each node as the server marks it, in a column at the start [WF-REV-0080-A]", () => {
     render(grid(COMPARISON));
     const header = screen.getAllByRole("columnheader");
     expect(header[0]).toHaveAccessibleName("Écart");
@@ -87,24 +89,31 @@ describe("the grid of the comparison of two revisions", () => {
 
   it("presents as modified a task moved under another summary [WF-REV-0080-A]", () => {
     // Une tâche déplacée sous une autre récapitulative est présentée modifiée.
-    // The comparison of the witness bears no task moved: « Mise en service », which the server marks
-    // modified, is read as the server marks a task moved, its `changes` naming the parent.
-    const moved = indexOfLabel(COMPARISON, "Mise en service");
-    expect(COMPARISON.items[moved]).toMatchObject({ kind: "task", difference: "modified" });
-    render(
-      grid({
-        ...COMPARISON,
-        items: COMPARISON.items.map((node, index) =>
-          index === moved ? { ...node, changes: ["parent"] } : node,
-        ),
-      }),
-    );
+    // The example of the contract, as it is: the server marks « Mise en service » modified, its
+    // `changes` naming the parent, and its `parent_id` the summary it moved under.
+    const moved = MOVED.items.findIndex((node) => node.changes.includes("parent"));
+    expect(MOVED.items[moved]).toMatchObject({
+      kind: "task",
+      difference: "modified",
+      changes: ["parent"],
+      parent_id: "01926f3a-7c00-7000-8000-000000000561",
+    });
+    render(grid(MOVED));
     expect(cell(moved, "label")).toHaveTextContent("Mise en service");
     expect(cell(moved, "diff_mark")).toHaveTextContent("MModifié");
     expect(cell(moved, "changes")).toHaveTextContent("Rattachement");
   });
 
-  it("names what changes of a node as the server names it, nothing for a node that keeps its own values", () => {
+  it("leaves the mark of an unchanged node empty and its row untinted [WF-REV-0080-A]", () => {
+    render(grid(VOLUME));
+    const unchanged = VOLUME.items.findIndex((node) => node.difference === "unchanged");
+    expect(unchanged).toBeGreaterThanOrEqual(0);
+    expect(cell(unchanged, "diff_mark")).toBeEmptyDOMElement();
+    const row = cell(unchanged, "diff_mark").closest("tr");
+    expect(row?.className).not.toMatch(/bg-diff-/);
+  });
+
+  it("names what changes of a node as the server names it, nothing for a node that keeps its own values [WF-REV-0080-A]", () => {
     render(grid(COMPARISON));
     const wired = indexOfLabel(COMPARISON, "Câblage sur site");
     expect(COMPARISON.items[wired]?.changes).toEqual(["reestimated_amount"]);
@@ -114,7 +123,31 @@ describe("the grid of the comparison of two revisions", () => {
     );
   });
 
-  it("tints the rows of the nodes marked and no other", () => {
+  it("wraps the changes of a node that bears all six, none cut off", () => {
+    const all = [
+      "dates",
+      "duration",
+      "progress",
+      "budgeted_amount",
+      "reestimated_amount",
+      "parent",
+    ] as const;
+    render(
+      grid({
+        ...COMPARISON,
+        items: COMPARISON.items.map((node, index) =>
+          index === 0 ? { ...node, changes: [...all] } : node,
+        ),
+      }),
+    );
+    const changes = cell(0, "changes");
+    expect(within(changes).getAllByText(/./)).toHaveLength(6);
+    expect(changes.querySelector("span.flex")).toHaveClass("flex-wrap");
+  });
+
+  // Non-regression tests: the tint and the read only grid are those of the dense grid, which
+  // WF-REV-0080-A does not verify.
+  it("tints the rows of the nodes marked and no other (non-regression)", () => {
     render(grid(COMPARISON));
     const tinted = screen
       .getAllByRole("row")
@@ -123,7 +156,7 @@ describe("the grid of the comparison of two revisions", () => {
     expect(tinted).toHaveLength(COMPARISON.items.length);
   });
 
-  it("is read only: no header sorts, no search is offered, no cell takes an entry", () => {
+  it("is read only: no header sorts, no search is offered, no cell takes an entry (non-regression)", () => {
     render(grid(COMPARISON));
     for (const header of screen.getAllByRole("columnheader")) {
       expect(within(header).queryByRole("button")).not.toBeInTheDocument();
@@ -132,18 +165,18 @@ describe("the grid of the comparison of two revisions", () => {
     expect(screen.queryByRole("button", { name: /Annuler|Rétablir/ })).not.toBeInTheDocument();
   });
 
-  it("tells the totals of the revision compared as the server computes them", () => {
+  it("tells the totals of the revision compared as the server computes them (non-regression)", () => {
     render(grid(COMPARISON));
     expect(screen.getByRole("grid")).toHaveAccessibleName("Nœuds comparés");
     expect(screen.getByText("Total — 3 tâches, 4 lignes")).toBeInTheDocument();
   });
 
-  it("is accessible", async () => {
+  it("is accessible [WF-IHM-0100-A]", async () => {
     const { container } = render(grid(COMPARISON));
     await expectAccessible(container);
   });
 
-  it("mounts a window of the nodes of the comparison of the whole structure, not the whole (#1201)", () => {
+  it("mounts a window of the nodes of the comparison of the whole structure, not the whole (#1201, non-regression)", () => {
     // 5 999 nodes of the volume of the witness, 2 770 of them modified by their values.
     const modified = VOLUME.items.filter((node) => node.difference === "modified");
     expect(VOLUME.items).toHaveLength(5999);

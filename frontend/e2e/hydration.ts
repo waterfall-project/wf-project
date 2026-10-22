@@ -15,11 +15,12 @@ import { type Locator, type Page, expect } from "@playwright/test";
  * reads the structure of a thousand tasks (`listNodes`) — the Kanban, the tree, the timelines —,
  * to show, to hydrate, or to read anew after a click; the comparison of two revisions too, whose
  * nodes come in the dense grid of the structures, read with `fields` (US-0500/L4, #624, #729). A
- * bound of its working under load, not a measure (#315); the risks and the actual costs, read anew, overran five seconds under load:
- * measures in #500, which is still to be decided. The settings of the costs, read anew for a
- * nature chosen, took from two to seven seconds under six workers on four processors — the read of
- * the server and the commit of the page up to four each (EP-02/L41g). Any other screen keeps the
- * five seconds of an assertion; the helpers below give a page that long to hydrate.
+ * bound of its working under load, not a measure (#315); the risks and the actual costs, read
+ * anew, overran five seconds under load: measures in #500, which is still to be decided. The
+ * settings of the costs, read anew for a nature chosen, took from two to seven seconds under six
+ * workers on four processors — the read of the server and the commit of the page up to four each
+ * (EP-02/L41g). Any other screen keeps the five seconds of an assertion; the helpers below give
+ * a page that long to hydrate.
  */
 export const WORKING = 15_000;
 

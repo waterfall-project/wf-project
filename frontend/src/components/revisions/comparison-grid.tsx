@@ -51,7 +51,7 @@ function KindIcon({ kind }: { readonly kind: NodeKind | undefined }) {
 function Changes({ changes }: { readonly changes: ComparisonRow["changes"] }) {
   const name = useTranslations("enums.NodeChange");
   return (
-    <span className="flex gap-1">
+    <span className="flex flex-wrap gap-1">
       {changes.map((change) => (
         <Badge key={change} variant="outline">
           {name(change)}
