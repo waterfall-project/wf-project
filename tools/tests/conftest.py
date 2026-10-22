@@ -7,6 +7,7 @@ tests of how it is written and checked — files written, left over, outdated, m
 the computation, which other tests try: they share one, computed once a session.
 """
 
+import json
 from typing import Any
 
 import pytest
@@ -32,3 +33,12 @@ def computed_once(
     volumes, named = universe_computed
     monkeypatch.setattr(mockdata, "volumes", lambda: volumes)
     monkeypatch.setattr(mockdata, "named", lambda: named)
+
+
+@pytest.fixture(scope="module")
+def readings() -> dict[str, Any]:
+    """Read the named examples back from the text the generator writes."""
+    return {
+        name: json.loads(mockdata.render(example))["value"]
+        for name, example in mockdata.readings().items()
+    }

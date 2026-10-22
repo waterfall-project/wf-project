@@ -1753,7 +1753,7 @@ liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin 
 successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
 sa fin à cet instant, en jours ouvrés ; une tâche en mode manuel n'a ni marge ni criticité et
 n'impose rien à ses prédécesseurs. Les lignes sont chiffrées au taux de leur catégorie pour l'année
-de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; `mockcore` fait sommer à une tâche ses
+de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; une tâche somme ses
 lignes et ses subordonnées ; l'avancement physique d'une récapitulative est le budget des lignes de
 ses tâches terminées sur celui de son sous-arbre, non calculable sans budget (`no_budgeted_amount`).
 L'avancement se lit aux dates à aujourd'hui, le 3 juin 2026 : les études sont terminées, les pupitres
@@ -2095,7 +2095,7 @@ porteur d'un coût réel (`has_actual_costs`), écrit à la main — `subproject
 générateurs — et confronté aux lignes par le test d'invariants.
 
 **Toute ligne rend son délai de paiement, que la courbe applique** (WF-DEV-0020, WF-IND-0100).
-`estimate_line.payment_delay_days` est donné par `mockdating` (`payment_delay`) et rendu par `mockcore` sur chaque ligne du cœur : trente jours
+`estimate_line.payment_delay_days` est rendu par `mockcore` sur chaque ligne du cœur : trente jours
 sur l'ingénierie de détail et sur les borniers, zéro sur les autres, main-d'œuvre et provision
 comprises. La lecture des indicateurs tire ses délais des nœuds qu'elle rend, et la courbe des
 décaissements les applique : une seule source, que le test d'invariants vérifie ligne à ligne. Les
@@ -2283,7 +2283,7 @@ WF-PLA-0010, WF-PLA-0160). `wftools.mockstructure` décrit, comme le cœur l'est
 `mockwitness`, en tâches et en lignes, neuf phases tirées après lui — les approvisionnements à la
 réception, les études étant le cœur —, chacune des trois lots, chaque lot ses tâches de travail en
 trois chaînes et un jalon ; `wftools.mockdating` date le tout ensemble, en heures de travail sur le
-calendrier des rôles de chaque tâche, le chiffre, et `mockcore` l'émet. Les compteurs du §4.6.2 sont gardés :
+calendrier des rôles de chaque tâche, le chiffre et l'émet. Les compteurs du §4.6.2 sont gardés :
 mille tâches, dont les quinze du cœur, et cinq mille lignes, dont ses neuf — cinq sur chacune des
 922 tâches de travail tirées et une sixième sur 381 d'entre elles. **Deux calendriers** : le
 câblage est confié au monteur câbleur, toutes ses heures de main-d'œuvre, et ses 103 tâches

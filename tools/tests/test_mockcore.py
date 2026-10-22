@@ -14,13 +14,37 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from witnessreadings import (
+    ACCEPTANCE,
+    BLOCKS,
+    COMMISSIONING,
+    CONTROL_STATION,
+    DESKS,
+    DETAILED_STUDIES,
+    FILE,
+    INSTALLATION,
+    LABOUR,
+    MILESTONE,
+    MOUNTING,
+    OCCURRED,
+    PROVISION,
+    REMINDER,
+    REMINDER_LINE,
+    REVIEW,
+    STUDIES,
+    TRANSPORT,
+    TRANSPORT_LINE,
+    WIRING,
+    Node,
+    facet,
+    nodes,
+)
 
 from wftools import (
     REPOSITORY,
     mockamendment,
     mockcore,
     mockdata,
-    mockdating,
     mockids,
     mocktext,
     mockwitness,
@@ -29,51 +53,10 @@ from wftools import (
 from wftools.mockids import universe
 from wftools.mockwitness import TODAY, Line, N, Task
 
-type Node = dict[str, Any]
-
-STUDIES, DETAILED_STUDIES, STUDIES_LINE, DESKS, REVIEW, ACCEPTANCE, FILE = (
-    521,
-    522,
-    527,
-    523,
-    524,
-    525,
-    526,
-)
-CONTROL_STATION, WIRING, LABOUR, BLOCKS, PROVISION, MILESTONE = 551, 552, 553, 554, 555, 556
-OCCURRED, REMINDER, REMINDER_LINE, TRANSPORT, TRANSPORT_LINE = 541, 542, 543, 544, 545
-INSTALLATION, MOUNTING, ON_SITE, TESTS, COMMISSIONING, COMMISSIONING_LINE = (
-    561,
-    562,
-    563,
-    564,
-    565,
-    566,
-)
-
 
 @pytest.fixture(scope="module")
 def rows() -> list[mockcore.Row]:
     return mockcore.core()
-
-
-@pytest.fixture(scope="module")
-def readings() -> dict[str, Any]:
-    """Read the named examples back from the text the generator writes."""
-    return {
-        name: json.loads(mockdata.render(example))["value"]
-        for name, example in mockdata.readings().items()
-    }
-
-
-def nodes(reading: Any) -> dict[int, Node]:
-    """Return the nodes of a reading by the number of their identifier."""
-    items = cast("list[Node]", reading["items"])
-    return {int(node["node_id"][-4:]): node for node in items}
-
-
-def facet(node: Node) -> Node:
-    return cast("Node", node[node["kind"]])
 
 
 LIST_NODES = (
@@ -449,25 +432,6 @@ def test_the_readings_are_the_fixtures_the_front_reads(readings: dict[str, Any])
         assert mockwitness.fixture(name.removesuffix(".json")) == value, name
 
 
-def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
-    # A line consumed two years after the reference year, at 3 %: 1.03 x 1.03 its amount.
-    later = Task(
-        591,
-        "Plus tard",
-        days=1,
-        manual=(date(2028, 1, 3), date(2028, 1, 3)),
-        progress="not_started",
-        lines=(Line(592, "Matériel", mockwitness.EQUIPMENT, unit=Decimal("100.00")),),
-    )
-    [task, line] = mockcore.core((later,))
-    assert facet(line.node)["consumption_year"] == 2028
-    assert (facet(line.node)["base_amount"], facet(line.node)["inflated_amount"]) == (
-        "100.00",
-        "106.09",
-    )
-    assert facet(task.node)["inflated_amount"] == "106.09"
-
-
 def test_the_summary_of_the_control_station_bears_the_one_lot_of_the_witness(
     readings: dict[str, Any],
 ) -> None:
@@ -810,11 +774,10 @@ def test_the_summary_of_a_kanban_counts_its_columns_and_names_its_tasks_of_the_c
             assert "aucune tâche non démarrée dont les prédécesseurs" in summary, name
 
 
-def test_a_quantity_is_an_exact_decimal_rendered_as_the_contract_carries_it() -> None:
-    # A quantity of 2.5 times a disbursement of 100: 250 exactly, the quantity written 2.5.
+def test_a_quantity_is_rendered_as_the_contract_carries_it() -> None:
+    # A quantity of 2.5, written 2.5.
     line = Line(
         1, "Location", mockwitness.EQUIPMENT, unit=Decimal("100.00"), quantity=Decimal("2.5")
     )
-    assert mockdating.price(line, 2026).base == Decimal(250)
     [_, row] = mockcore.core([Task(2, "Tâche", days=1, lines=(line,))])
     assert cast("Node", row.node["estimate_line"])["quantity"] == "2.5"

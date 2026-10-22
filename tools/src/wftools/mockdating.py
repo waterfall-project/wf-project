@@ -10,8 +10,8 @@ them, in ``wftools.mockcore``.
 
 The formulas are simple and said here, to be replaced by the kernel of EP-06 to EP-08: a
 backward pass gives each task the latest it may finish, its float being the hours of work from
-its finish to that instant; the physical progress of a summary is the budget of its completed
-tasks over the budget of its subtree.
+its finish to that instant. The physical progress of a summary, the budget of its completed
+tasks over the budget of its subtree, is not found here: ``wftools.mockcore`` computes it.
 """
 
 from __future__ import annotations
