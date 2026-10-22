@@ -11,15 +11,13 @@
  * its chip: the chip says what it restricts — the grid and not the indicators (#459), every figure
  * of the indicators but the tracking of the milestones, which a sub-project does not have
  * (WF-IND-0020). A grid filtered by a lot or a post of the work breakdown gives its filter, which a
- * chip shows after those of the context, lifted by a link (`ChipLift`) that is the address shown without it, or, by a click, the address last
- * asked. A grid
- * that reads the structure its address names — the planning, the estimate (US-0500) — gives it, and
- * the banner names it, its kind besides when it is not the main one — a differential, the own
- * estimate of a risk —, and offers the other structures of the revision to read instead
- * (`StructureChoice`); a filter of the context lifted leaves the grid on it. An icon
- * before each
- * fact, whose name the list of definitions gives to a screen reader; the states in badges, in
- * words.
+ * chip shows after those of the context, lifted by a link (`ChipLift`) that is the address shown
+ * without it, or, by a click, the address last asked. A grid that reads the structure its address
+ * names — the planning, the estimate (US-0500) — gives it, and the banner names it, its kind
+ * besides when it is not the main one — a differential, the own estimate of a risk —, and offers
+ * the other structures of the revision to read instead (`StructureChoice`); a filter of the
+ * context lifted leaves the grid on it. An icon before each fact, whose name the list of
+ * definitions gives to a screen reader; the states in badges, in words.
  *
  * A server component: what it shows is the reading of the page, and a filter is lifted by
  * following a link, not by a state of the browser. It hands the project on to the shell, which

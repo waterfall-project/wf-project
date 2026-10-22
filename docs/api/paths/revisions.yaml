@@ -338,19 +338,19 @@
       recherche et le tri s'y appliquent comme à la lecture d'un différentiel : un nœud retiré
       s'y juge sur ses valeurs de la révision de base, comme tout autre nœud sur les siennes, et
       sans tri il reste à la place qu'il avait (#1205).
-      `subtree_of` nomme une tâche de l'arbre rendu, une tâche retirée comprise : la fenêtre
-      est alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur
-      place, des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts
-      de ses lignes retirées. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues,
-      sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ; `meta` dit la structure de
-      la révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme
-      `totals`, et se calcule de même sur les lignes retenues, retirées comprises, quel que
-      soit `kinds` : une lecture sans filtre rend les écarts de toute la structure, celle d'un
-      sous-arbre les siens (`comparison`) ; une ligne déplacée compte dans la fenêtre de son
-      parent dans la révision comparée, pour son écart entier (`amount_deltas`). La grille de la
-      comparaison est celle des structures, avec les mêmes marques que la lecture d'un
-      différentiel. Une paire identique — la même révision deux fois — rend chaque nœud
-      inchangé et aucun écart de montant, jamais un refus.
+      `subtree_of` nomme une tâche de l'arbre rendu, une tâche retirée comprise : la fenêtre est
+      alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur place,
+      des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts de ses lignes
+      retirées. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues,
+      sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ; `meta` dit la structure de la
+      révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme `totals`,
+      et se calcule de même sur les lignes retenues, retirées comprises, quel que soit `kinds` : une
+      lecture sans filtre rend les écarts de toute la structure, celle d'un sous-arbre les siens
+      (`comparison`) ; une ligne déplacée compte dans la fenêtre de son parent dans la révision
+      comparée, pour son écart entier (`amount_deltas`). La grille de la comparaison est celle des
+      structures, avec les mêmes marques que la lecture d'un différentiel. Une paire identique — la
+      même révision deux fois — rend chaque nœud inchangé et aucun écart de montant, jamais un
+      refus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: from_revision_id
@@ -388,6 +388,7 @@
               witness: { $ref: ../../../fixtures/api/comparison.json }
               volume: { $ref: ../../../fixtures/api/volume/comparison_volume.json }
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
+              moved: { $ref: ../../../fixtures/api/comparison_moved.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -1022,6 +1023,7 @@
               updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
               redated: { $ref: ../../../fixtures/api/estimate_line_redated.json }
               subproject_changed: { $ref: ../../../fixtures/api/estimate_line_subproject_changed.json }
+              amendment: { $ref: ../../../fixtures/api/estimate_line_updated_amendment.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1426,6 +1428,7 @@
               planned: { $ref: ../../../fixtures/api/paste_plan.json }
               unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
               subproject_held: { $ref: ../../../fixtures/api/paste_plan_subproject_held.json }
+              amendment: { $ref: ../../../fixtures/api/paste_plan_amendment.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1475,6 +1478,7 @@
             examples:
               applied: { $ref: ../../../fixtures/api/paste_applied.json }
               partial: { $ref: ../../../fixtures/api/paste_applied_partial.json }
+              amendment: { $ref: ../../../fixtures/api/paste_applied_amendment.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

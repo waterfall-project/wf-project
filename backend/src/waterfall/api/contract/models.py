@@ -2865,6 +2865,7 @@ class EditableField(StrEnum):
     task_start = "task.start"
     task_finish = "task.finish"
     task_progress = "task.progress"
+    task_predecessors = "task.predecessors"
     task_order_item_id = "task.order_item_id"
     task_work_package_id = "task.work_package_id"
     task_tracking = "task.tracking"

@@ -401,8 +401,10 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
 
     A task in automatic mode computes its dates; one in manual mode enters them, and computes
     nothing. A summary computes its duration and its progress too, and accepts its label and its
-    description; a milestone has no duration to enter. Every task of the main structure, summary
-    or leaf, accepts its attachment to an order item or a work package (WF-PLA-0130), then its
+    description; a milestone has no duration to enter. Every task, summary, leaf or milestone,
+    accepts its predecessors, after its other fields of planning: a link is refused only by what it
+    links, as it is entered (WF-PLA-0030, WF-PLA-0040, #1257). Every task of the main structure
+    accepts its attachment to an order item or a work package (WF-PLA-0130), then its
     inscriptions to the timelines and to the time/time tracking, last (WF-PLA-0060, #1065): every
     task emitted here is one of the main structure.
     """
@@ -410,14 +412,17 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     editable: list[JsonValue] = ["task.label", "task.description"]
     main_only: list[JsonValue] = ["task.order_item_id", "task.work_package_id", "task.tracking"]
     if is_summary:
-        return Fields(["task.duration", *dates, "task.progress"], [*editable, *main_only])
+        return Fields(
+            ["task.duration", *dates, "task.progress"],
+            [*editable, "task.predecessors", *main_only],
+        )
     editable.append("task.scheduling_mode")
     if not is_milestone:
         editable.append("task.duration")
     if is_manual:
         editable.extend(dates)
         dates = []
-    editable.append("task.progress")
+    editable.extend(["task.progress", "task.predecessors"])
     return Fields(dates, [*editable, *main_only])
 
 

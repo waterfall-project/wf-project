@@ -4,11 +4,12 @@
  * The revisions of a project (FBS-4.1, US-0210), under the banner of its reading context
  * (WF-IHM-0020): the commands of the revision the address carries, each available or naming what
  * it lacks (WF-IHM-0090), its marking wired; the history of the revisions; the comparison of two
- * marked ones, as `compareRevisions` gives it — the history read whole, whatever the server pages
+ * marked ones, as `compareRevisions` gives it, read whole and reduced by `fields` to what the grid
+ * of the comparison shows (US-0500, #1201) — the history read whole, whatever the server pages
  * (`readEveryPage`, #303), so that the comparison offers every marked revision —; and, of the
- * revision the address carries, its cost
- * structures and — for the current revision, the one a rate update would apply to — the rate
- * update the API proposes. The ergonomics gathers the leaves of the function on one screen.
+ * revision the address carries, its cost structures and — for the current revision, the one a rate
+ * update would apply to — the rate update the API proposes. The ergonomics gathers the leaves of
+ * the function on one screen.
  *
  * The screen reads once, on the server: the end of a marking is announced by the tracker of the
  * shell, which offers to reload the screen; the screen does not read itself again.
@@ -22,6 +23,7 @@ import { serverClient } from "@/api/server";
 import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Revision } from "@/components/context/read-only";
+import { COMPARISON_FIELDS, COMPARISON_KEY } from "@/components/revisions/comparison-rows";
 import {
   comparedRevisions,
   RevisionComparisonSection,
@@ -31,6 +33,7 @@ import { CostStructureList, RateUpdate } from "@/components/revisions/revision-p
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { pageSearch } from "@/navigation/context";
+import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../title";
 import {
@@ -63,6 +66,12 @@ function RevisionsHeader({ revision }: { readonly revision: Revision | undefined
   );
 }
 
+/** The settings the account keeps for the grid of the comparison; none if it keeps none. */
+async function readComparisonPreferences() {
+  const session = await requestSession();
+  return session?.display_preferences?.grids?.[COMPARISON_KEY] ?? undefined;
+}
+
 /** Render the revisions of a project, their comparison, and the parts of the one it reads in. */
 export default async function RevisionsPage(props: ProjectPageProps) {
   const address = await projectAddress(props, "revisions");
@@ -70,7 +79,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
   const client = serverClient();
   const project = { project_id: address.projectId };
   const { revisionId } = address.context;
-  const [read, revisions, structures, comparison] = await Promise.all([
+  const [read, revisions, structures, comparison, preferences] = await Promise.all([
     readProjectScreen(address),
     readEveryPage("listRevisions", (page) =>
       client.GET("/projects/{project_id}/revisions", { params: { path: project, query: page } }),
@@ -86,9 +95,10 @@ export default async function RevisionsPage(props: ProjectPageProps) {
       ? undefined
       : readOrFail("compareRevisions", () =>
           client.GET("/projects/{project_id}/revisions/comparison", {
-            params: { path: project, query: compared },
+            params: { path: project, query: { ...compared, fields: [...COMPARISON_FIELDS] } },
           }),
         ),
+    compared === undefined ? undefined : readComparisonPreferences(),
   ]);
   // A marked revision is immutable (WF-REV-0020): a rate update applies to the current one.
   const current = read.revision?.status === "draft" ? read.revision : undefined;
@@ -112,6 +122,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
           context={read.context}
           compared={compared}
           comparison={comparison}
+          preferences={preferences}
         />
         {structures === undefined ? null : <CostStructureList structures={structures} />}
         {rates === undefined ? null : <RateUpdate proposal={rates} />}
