@@ -4,7 +4,7 @@
 
 import json
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from wftools import mock
 
@@ -58,7 +58,6 @@ def test_the_file_is_rewritten_in_place(tmp_path: Path) -> None:
 
 STRUCTURES = "/projects/{project_id}/revisions/{revision_id}/structures"
 AMENDMENT = "01926f3a-7c00-7000-8000-000000000203"
-Served = dict[str, dict[str, dict[str, dict[str, dict[str, dict[str, object]]]]]]
 
 
 def amendments_contract() -> dict[str, object]:
@@ -96,12 +95,16 @@ def amendments_contract() -> dict[str, object]:
     }
 
 
+def examples_of(path: dict[str, Any]) -> dict[str, Any]:
+    """Return the examples of the answer 200 of the reading of a path."""
+    content = path["get"]["responses"]["200"]["content"]
+    return cast("dict[str, Any]", content["application/json"]["examples"])
+
+
 def test_the_nodes_of_an_amendment_are_served_at_its_address_leading_with_its_example() -> None:
     paths = paths_of(mock.derive(amendments_contract()))
     served = paths[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"]
-    read = cast("Served", {"": served})[""]
-    examples = read["get"]["responses"]["200"]["content"]["application/json"]["examples"]
-    assert list(examples) == ["amendment", "witness"]
+    assert list(examples_of(served)) == ["amendment", "witness"]
     assert served["get"]["parameters"] == [{"$ref": "#/components/parameters/ProjectId"}]
     assert served["post"]["parameters"] == []
     assert not any("main" in path for path in paths)
@@ -110,6 +113,4 @@ def test_the_nodes_of_an_amendment_are_served_at_its_address_leading_with_its_ex
 def test_the_templated_nodes_keep_their_first_example() -> None:
     paths = paths_of(mock.derive(amendments_contract()))
     templated = paths[f"/api/v1{STRUCTURES}/{{structure_id}}/nodes"]
-    read = cast("Served", {"": templated})[""]
-    examples = read["get"]["responses"]["200"]["content"]["application/json"]["examples"]
-    assert list(examples) == ["witness", "amendment"]
+    assert list(examples_of(templated)) == ["witness", "amendment"]
