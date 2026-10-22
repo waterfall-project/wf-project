@@ -763,11 +763,14 @@
     "finish": "Finish on {date}",
     "finishOverdue": "Finish overdue",
     "completedOn": "Completed on {date}",
+    "keys": "Arrows: choose a card. Shift + right or left arrow: carry it to the neighbouring column. A card can also be dragged to another column, or moved by its menu.",
     "gestures": "Gestures of the task {label}",
     "moved": "{label}: column “{column}”.",
     "eventDate": "Date of the event",
     "dateRequired": "Enter the date of the event.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "noGesture": "No gesture leads this task to the column “{column}”.",
+    "gestureUnavailable": "“{command}” is unavailable. {conditions}"
   },
   "contextBanner": {
     "label": "Reading context",

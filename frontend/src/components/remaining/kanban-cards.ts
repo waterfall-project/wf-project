@@ -151,6 +151,16 @@ export function replaced(
 }
 
 /**
+ * The gesture of a card that leads it to a column, as the API lists it: the one available when there
+ * is one, else the one that lacks conditions; none when no gesture sends the card to that state —
+ * the screen does not say which should (WF-IHM-0090).
+ */
+export function gestureToward(card: KanbanCard, state: TaskProgress): CardGesture | undefined {
+  const leading = card.commands.filter((gesture) => gesture.progress === state);
+  return leading.find((gesture) => gesture.is_available) ?? leading[0];
+}
+
+/**
  * The address of the grid of the remaining to commit on a task: its label searched, and the tasks
  * not started shown too when the task is not started — the grid shows the lines of the tasks
  * started alone otherwise (WF-RAE-0040).
@@ -161,4 +171,102 @@ export function remainingHref(pathname: string, card: KanbanCard): string {
     new URLSearchParams({ [SEARCH]: card.label }),
     card.state === "not_started",
   );
+}
+
+/** What a key does on a card: gives the focus to another card, or carries the card to a column. */
+export type Move =
+  | { readonly kind: "focus"; readonly id: string }
+  | { readonly kind: "carry"; readonly state: TaskProgress };
+
+/** The position of a card in the columns: its column, and its place in it. */
+interface Place {
+  readonly column: number;
+  readonly index: number;
+}
+
+/** Where a card is, among the columns. */
+function placeOf(columns: KanbanColumns, id: string): Place | undefined {
+  for (const [column, [state]] of COLUMNS.entries()) {
+    const index = columns[state].findIndex((card) => card.node_id === id);
+    if (index >= 0) {
+      return { column, index };
+    }
+  }
+  return undefined;
+}
+
+/** The cards of the column at a place of the row of columns; none past its ends. */
+function cardsAt(columns: KanbanColumns, column: number): readonly KanbanCard[] {
+  const state = COLUMNS[column]?.[0];
+  return state === undefined ? [] : columns[state];
+}
+
+/** The way a sideways arrow goes: right, left; none for another key. */
+function sidewaysOf(key: string): 1 | -1 | undefined {
+  switch (key) {
+    case "ArrowRight":
+      return 1;
+    case "ArrowLeft":
+      return -1;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * The card a sideways arrow leads to: in the nearest column that holds any, at the same place, or
+ * the last card when the column holds fewer.
+ */
+function acrossFrom(columns: KanbanColumns, place: Place, step: 1 | -1): string | undefined {
+  for (let at = place.column + step; at >= 0 && at < COLUMNS.length; at += step) {
+    const cards = cardsAt(columns, at);
+    if (cards.length > 0) {
+      return cards[Math.min(place.index, cards.length - 1)]?.node_id;
+    }
+  }
+  return undefined;
+}
+
+/** The card the arrows, Home and End lead to from a place; none when they lead nowhere. */
+function focusFrom(columns: KanbanColumns, place: Place, key: string): string | undefined {
+  const column = cardsAt(columns, place.column);
+  switch (key) {
+    case "ArrowDown":
+      return column[place.index + 1]?.node_id;
+    case "ArrowUp":
+      return column[place.index - 1]?.node_id;
+    case "Home":
+      return column[0]?.node_id;
+    case "End":
+      return column.at(-1)?.node_id;
+    default: {
+      const step = sidewaysOf(key);
+      return step === undefined ? undefined : acrossFrom(columns, place, step);
+    }
+  }
+}
+
+/**
+ * What a key does on the card given (WF-IHM-0100): the up and down arrows, Home and End choose
+ * another card of its column, the sideways arrows one of the nearest column that holds any, at the
+ * same place; with Shift, a sideways arrow carries the card to the neighbouring column — the keys'
+ * equivalent of the drag. Nothing for a key that leads nowhere.
+ */
+export function moveOf(
+  columns: KanbanColumns,
+  id: string,
+  key: string,
+  shift: boolean,
+): Move | undefined {
+  const place = placeOf(columns, id);
+  if (place === undefined) {
+    return undefined;
+  }
+  if (shift) {
+    const step = sidewaysOf(key);
+    const state = step === undefined ? undefined : COLUMNS[place.column + step]?.[0];
+    return state === undefined ? undefined : { kind: "carry", state };
+  }
+  const target = focusFrom(columns, place, key);
+  return target === undefined ? undefined : { kind: "focus", id: target };
 }

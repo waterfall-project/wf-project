@@ -763,11 +763,14 @@
     "finish": "Fin le {date}",
     "finishOverdue": "Fin dépassée",
     "completedOn": "Terminée le {date}",
+    "keys": "Flèches : choisir une carte. Maj + flèche droite ou gauche : la déplacer vers la colonne voisine. Une carte se glisse aussi vers une autre colonne, ou se déplace par son menu.",
     "gestures": "Gestes de la tâche {label}",
     "moved": "{label} : colonne « {column} ».",
     "eventDate": "Date de l’événement",
     "dateRequired": "Saisissez la date de l’événement.",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "noGesture": "Aucun geste ne mène cette tâche vers la colonne « {column} ».",
+    "gestureUnavailable": "« {command} » est indisponible. {conditions}"
   },
   "contextBanner": {
     "label": "Contexte de lecture",

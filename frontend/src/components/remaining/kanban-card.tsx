@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { type KeyboardEvent, useId, useRef, useState } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -275,11 +275,16 @@ function EventDate({
 /** What the board hands a card: what is chosen, asked, told, and the gestures it makes. */
 export interface CardActions {
   readonly remaining: string;
+  readonly hint: string;
   readonly selected: string | undefined;
+  readonly tabStop: string | undefined;
+  readonly dragged: string | undefined;
   readonly writing: string | undefined;
   readonly element: (id: string, element: HTMLElement | null) => void;
   readonly field: (element: HTMLInputElement | null) => void;
   readonly choose: (id: string) => void;
+  readonly key: (event: KeyboardEvent<HTMLElement>, card: KanbanCard) => void;
+  readonly drag: (id: string | undefined) => void;
   readonly gesture: (card: KanbanCard, gesture: CardGesture) => void;
   readonly date: (card: KanbanCard, gesture: CardGesture, date: string) => void;
   readonly cancel: (id: string) => void;
@@ -361,6 +366,13 @@ function CardAsks({
   );
 }
 
+/** Whether a card is dragged: it lists a gesture that sends a state, and nothing is under way. */
+function isDraggable(card: KanbanCard, writing: string | undefined, asked: boolean): boolean {
+  return (
+    writing === undefined && !asked && card.commands.some((gesture) => gesture.progress !== null)
+  );
+}
+
 /** A card of the Kanban: a task, and whether it is a milestone to complete, as the API says. */
 export function Card({
   card,
@@ -371,24 +383,37 @@ export function Card({
   readonly actions: CardActions;
   readonly state: CardState;
 }) {
-  const { selected, writing } = actions;
+  const { selected, tabStop, dragged, writing } = actions;
   const isSelected = selected === card.node_id;
   return (
     <li
       ref={(element) => {
         actions.element(card.node_id, element);
       }}
-      tabIndex={0}
+      tabIndex={tabStop === card.node_id ? 0 : -1}
       aria-current={isSelected ? "true" : undefined}
+      aria-describedby={actions.hint}
       aria-busy={writing === card.node_id}
+      draggable={isDraggable(card, writing, state.asking !== undefined)}
       onFocus={(event) => {
         if (event.target === event.currentTarget) {
           actions.choose(card.node_id);
         }
       }}
+      onKeyDown={(event) => {
+        actions.key(event, card);
+      }}
+      onDragStart={(event) => {
+        event.dataTransfer.setData("text/plain", card.node_id);
+        event.dataTransfer.effectAllowed = "move";
+        actions.drag(card.node_id);
+      }}
+      onDragEnd={() => {
+        actions.drag(undefined);
+      }}
       className={`space-y-1 rounded-md border bg-card p-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         isSelected ? "border-primary ring-1 ring-primary" : ""
-      }`}
+      } ${dragged === card.node_id ? "opacity-50" : ""}`}
     >
       <CardTitle card={card} />
       {isSelected && card.commands.length > 0 ? (

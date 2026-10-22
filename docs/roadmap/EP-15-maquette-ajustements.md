@@ -1133,7 +1133,7 @@ poignée ; l'échelle et le zoom ; la frise.
 
 ## US-0540 — Les gestes du Kanban
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RAE-0030-A`
 - **opérations** : `listStartableTasks`, `setTaskProgress`
 - **issue** : #1128
