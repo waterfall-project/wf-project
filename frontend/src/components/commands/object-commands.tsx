@@ -11,10 +11,9 @@
  * lifecycle of a project, which open their confirmation (`ExitCommand`), the opening of the
  * current revision and its abandon (`revision-commands.tsx`), the designation of the reference
  * being the history's, on the marked revision; the preparation of an amendment (`create_structure`),
- * which leads to its differential; the merge of an amendment (`merge_structure`) is its grid's, the
- * revision not saying which of its amendments it is about (US-0510). The other commands of a
- * revision come with the forms of their domain, which hand each command its server action; until
- * then a command is shown, and pressing it does nothing. The exports of a revision are the
+ * which leads to its differential. The other commands of a revision — the merge of an amendment —
+ * come with the forms of their domain, which hand each command its server action; until then a
+ * command is shown, and pressing it does nothing. The exports of a revision are the
  * screen of the imports and exports' to offer, where they are asked (`ExportForm`): the list of
  * the commands of a revision leaves them out. So does it the commands a screen of the revision
  * offers itself: its entries, which each grid takes as the revision lists them (`edit_planning`,
@@ -92,7 +91,6 @@ function isOfferedByItsScreen(command: RevisionCommand): boolean {
   return (
     command.startsWith("edit_") ||
     command === "generate_skeleton" ||
-    command === "merge_structure" ||
     command === "designate_reference"
   );
 }

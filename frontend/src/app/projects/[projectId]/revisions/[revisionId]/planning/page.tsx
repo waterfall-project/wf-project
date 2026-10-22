@@ -32,8 +32,7 @@ import { useTranslations } from "next-intl";
 
 import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { type CommandOffer, findOffer } from "@/components/commands/offer";
-import type { ListedStructure } from "@/components/context/structure";
+import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
 import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
@@ -47,7 +46,6 @@ import {
 } from "@/components/grid/planning";
 import { PlanningGrid } from "@/components/grid/planning-grid";
 import type { ChoiceOption } from "@/components/grid/row-choices";
-import { MergeAmendmentCommand } from "@/components/revisions/merge-amendment-command";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -134,40 +132,6 @@ async function readTimelines(projectId: string): Promise<readonly ChoiceOption[]
   return timelines?.map((timeline) => ({ id: timeline.timeline_id, label: timeline.label }));
 }
 
-/**
- * The contractualisation of the amendment the grid reads, as the revision lists it (US-0510); nothing
- * on any other structure.
- */
-function AmendmentMerge({
-  structure,
-  offer,
-  revision,
-}: {
-  /** The structure read, when it is an amendment's differential. */
-  readonly structure: ListedStructure | undefined;
-  readonly offer: CommandOffer | undefined;
-  readonly revision: RevisionParams;
-}) {
-  const amendment = structure?.kind === "amendment" ? structure : undefined;
-  if (amendment === undefined) {
-    return null;
-  }
-  return (
-    <MergeAmendmentCommand
-      key={`merge:${amendment.structure_id}`}
-      offer={offer}
-      amendment={{
-        projectId: revision.projectId,
-        revisionId: revision.revisionId,
-        structureId: amendment.structure_id,
-        label: amendment.label,
-      }}
-      merged={amendment.is_merged}
-      names={{ [amendment.structure_id]: amendment.label }}
-    />
-  );
-}
-
 /** Render the grid of the planning on the structure of a revision the address names. */
 export default async function PlanningPage({
   params,
@@ -207,11 +171,6 @@ export default async function PlanningPage({
       />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
-        <AmendmentMerge
-          structure={screen.structures?.read}
-          offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
-          revision={revision}
-        />
         {editable || skeleton?.is_available === true ? <MockupNotice /> : null}
         {screen.breakdown === undefined ? null : (
           <BreakdownFilterChoice choices={screen.breakdown} />

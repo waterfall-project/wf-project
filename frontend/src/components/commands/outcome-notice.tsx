@@ -76,12 +76,6 @@ export function KnownNames({
   return <Known value={names}>{children}</Known>;
 }
 
-/** The offer to read anew, by a command, what its confirmation carried (412). */
-export interface Reread {
-  readonly label: string;
-  readonly run: () => void;
-}
-
 /** The outcome to tell of, and what the screen knows to tell it with. */
 export interface OutcomeNoticeProps {
   /** The outcome of the last action; nothing to tell before any. */
@@ -106,11 +100,6 @@ export interface OutcomeNoticeProps {
    * refusal: the object in conflict otherwise, when the refusal names one.
    */
   readonly subject?: string | undefined;
-  /**
-   * What a stale object (412) is read again by, in place of the reload of the screen: a command whose
-   * confirmation carries what it read — the report of a merge — reads it anew, and says so.
-   */
-  readonly reread?: Reread | undefined;
   /**
    * What the refusal is said to, told before its sentence inside the alert — the row of a grid it was
    * refused at —, so that the alert is read whole.
@@ -174,30 +163,6 @@ function Reload({ onClear }: { readonly onClear: () => void }) {
     <Button type="button" variant="outline" size="sm" onClick={reload}>
       <RefreshCw aria-hidden="true" />
       {t("reload")}
-    </Button>
-  );
-}
-
-/** The offer to read anew what a command confirmed, which has changed since it was read. */
-function RereadOffer({
-  reread,
-  onClear,
-}: {
-  readonly reread: Reread;
-  readonly onClear: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        onClear();
-        reread.run();
-      }}
-    >
-      <RefreshCw aria-hidden="true" />
-      {reread.label}
     </Button>
   );
 }
@@ -415,7 +380,6 @@ export function OutcomeNotice({
   onDismissed,
   id,
   subject,
-  reread,
   lead,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
@@ -463,13 +427,7 @@ export function OutcomeNotice({
         )}
         {kind === "signed_out" ? <SignIn reauthenticate={asksIdentifiers(problem.code)} /> : null}
         {/* Reloading forgets the outcome as dismissing it does, the focus given back the same way. */}
-        {kind === "stale" ? (
-          reread === undefined ? (
-            <Reload onClear={dismissed} />
-          ) : (
-            <RereadOffer reread={reread} onClear={dismissed} />
-          )
-        ) : null}
+        {kind === "stale" ? <Reload onClear={dismissed} /> : null}
         {dismiss}
       </div>
       <NamedItems problem={problem} told={sentenceId} />

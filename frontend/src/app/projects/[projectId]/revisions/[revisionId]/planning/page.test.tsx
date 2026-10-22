@@ -333,12 +333,6 @@ describe("the structure the planning reads", () => {
     expect(page).toContain("Avenant 2 — reprise des essais ·");
   });
 
-  it("offers the contractualisation of the amendment on its grid, as the revision lists it, and on no other structure [WF-REV-0050-A]", async () => {
-    const amendment = await planning({ structure: AMENDMENT });
-    expect(amendment).toContain("Contractualise the amendment");
-    expect(await planning()).not.toContain("Contractualise the amendment");
-  });
-
   it("lists every differential of the revision, two coexisting in it [WF-REV-0100-A]", async () => {
     // Deux structures différentielles coexistent dans une même révision : the reference revision
     // (`structures_amendments`) bears the amendment 1, merged, and the amendment 2, not merged, and

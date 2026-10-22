@@ -946,7 +946,7 @@ marque se voie sans variante (#791, ramené en EP-15).
 
 ## US-0510 — Préparer un avenant et le contractualiser
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-REV-0050-A`
 - **opérations** : `createCostStructure`, `getStructureMergeReport`, `mergeCostStructure`,
   `listCostStructures`, `getRevision`, `listBackgroundTasks`, `getBackgroundTask`

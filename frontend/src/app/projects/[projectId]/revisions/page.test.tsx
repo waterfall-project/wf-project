@@ -481,6 +481,7 @@ describe("the commands of the revision the screen reads in", () => {
     // coexisting (WF-REV-0100, #1211).
     for (const name of [
       "Préparer un avenant",
+      "Fusionner une structure",
       "Marquer la révision",
       "Abandonner la révision en cours",
     ]) {
@@ -500,6 +501,7 @@ describe("the commands of the revision the screen reads in", () => {
     expect(text(page)).toContain("Lecture seule");
     for (const name of [
       "Préparer un avenant",
+      "Fusionner une structure",
       "Marquer la révision",
       "Abandonner la révision en cours",
     ]) {
