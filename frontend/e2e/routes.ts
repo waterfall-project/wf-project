@@ -113,18 +113,31 @@ export const OTHER_SCREENS: readonly AppScreen[] = [
  * The grids of the planning and of the estimate opened on the amendment 2 of the current revision, a
  * differential (`structures`): the marks of a difference, `+`, `-` and `M`, tint their rows in a
  * green, a red and a yellow, and the contrast of those colours is held in both modes (US-0500).
- * Two more addresses of pages the table already names, not two more pages: they are checked with
- * the screens, and not counted in them (`src/app/screens.test.ts`).
+ * The comparison of two revisions marks its nodes alike, in the same grid: the screen of the
+ * revisions opened on the offer compared to the reference. Three more addresses of pages the table
+ * already names, not three more pages: they are checked with the screens, and not counted in them
+ * (`src/app/screens.test.ts`).
  */
 export const DIFFERENTIAL_SCREENS: readonly AppScreen[] = [
-  ["planning", "/projects/[projectId]/revisions/[revisionId]/planning", "functions.planning"],
-  ["estimate", "/projects/[projectId]/revisions/[revisionId]/estimate", "functions.estimate"],
-].map(([code = "", route = "", label = ""]) => ({
-  code: `${code}-differential`,
-  route,
-  address: `${path(route)}?structure=01926f3a-7c00-7000-8000-000000000203`,
-  name: text(label),
-}));
+  ...[
+    ["planning", "/projects/[projectId]/revisions/[revisionId]/planning", "functions.planning"],
+    ["estimate", "/projects/[projectId]/revisions/[revisionId]/estimate", "functions.estimate"],
+  ].map(([code = "", route = "", label = ""]) => ({
+    code: `${code}-differential`,
+    route,
+    address: `${path(route)}?structure=01926f3a-7c00-7000-8000-000000000203`,
+    name: text(label),
+  })),
+  {
+    code: "revisions-comparison",
+    route: "/projects/[projectId]/revisions",
+    address:
+      path("/projects/[projectId]/revisions") +
+      "?from_revision_id=01926f3a-7c00-7000-8000-000000000100" +
+      "&to_revision_id=01926f3a-7c00-7000-8000-000000000101",
+    name: text("functions.revisions"),
+  },
+];
 
 /** The pages that only redirect, and have no screen of their own to check. */
 export const REDIRECTS: readonly string[] = [

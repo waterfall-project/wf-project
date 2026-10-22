@@ -1,32 +1,33 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The comparison of two marked revisions of a project (FBS-4.1, US-0210): the choice of the two,
- * among the marked revisions of the history, which the address carries — `from_revision_id` and
- * `to_revision_id`, named as the contract names them —, and what `compareRevisions` gives for
- * them, as it gives it (WF-REV-0080): the tasks and lines added, removed and changed, each change
- * named, and the deviations of amounts by nature of cost and by sub-project.
+ * The comparison of two marked revisions of a project (FBS-4.1, US-0210, US-0500): the choice of
+ * the two, among the marked revisions of the history, which the address carries —
+ * `from_revision_id` and `to_revision_id`, named as the contract names them —, and what
+ * `compareRevisions` gives for them, as it gives it (WF-REV-0080): the tree of the revision
+ * compared in the dense grid of the structures, each node with the mark of its difference, and the
+ * deviations of amounts by nature of cost and by sub-project.
  *
  * The server pairs the two revisions by the lineage of their objects (WF-DAT-0030) and marks each
  * node of the compared tree with its `difference` (C-361): the front pairs nothing, sums nothing
- * and orders nothing (WF-ARC-0020). It only splits the nodes the server gives — its `items`, read
- * as `listNodes` reads a structure (#1193) — into three parts by the mark the server gave them —
- * added, removed, changed —, keeping the order of the plan within each, and leaves the unchanged
- * ones out — the dense grid of the whole tree comes with US-0500/L4. Each deviation is named by the label the API resolves (#204); one it leaves out is
- * said missing, never replaced by an identifier.
+ * and orders nothing (WF-ARC-0020). It reads the nodes the server gives — its `items`, read as
+ * `listNodes` reads a structure (#1193), reduced to the fields the grid shows (`fields`, #1201) —
+ * and hands them to the grid, which marks them as it marks a differential (`ComparisonGrid`). Each
+ * deviation is named by the label the API resolves (#204); one it leaves out is said missing,
+ * never replaced by an identifier.
  */
-import { Calculator, ClipboardList, GitCompareArrows, type LucideIcon } from "lucide-react";
+import { GitCompareArrows } from "lucide-react";
 import Form from "next/form";
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
-import { CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
-import { Badge } from "@/components/ui/badge";
+import { CELL, ListSection, ListTable } from "@/components/projects/project-tables";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { TableCell, TableRow } from "@/components/ui/table";
+import type { GridPreferences } from "@/components/grid/settings";
 import { formatMoney } from "@/i18n/format";
 import {
   type ProjectContext,
@@ -35,18 +36,13 @@ import {
   UNASSIGNED,
 } from "@/navigation/context";
 
+import { ComparisonGrid } from "./comparison-grid";
+import { comparisonRows } from "./comparison-rows";
 import { type NamedRevision, useRevisionName } from "./revision-history";
 
 /** A comparison of two revisions, as the API renders it. */
 export type RevisionComparison = components["schemas"]["RevisionComparison"];
 
-/**
- * A node of the comparison, as `fields` reduces it (#1208): only its address and its mark are always
- * rendered, the rest when `fields` names it.
- */
-type ComparisonNode = components["schemas"]["ComparedNodeRead"];
-type NodeDifference = components["schemas"]["NodeDifference"];
-type NodeKind = components["schemas"]["NodeKind"];
 type AmountDelta = RevisionComparison["amount_deltas"][number];
 
 /** The two revisions the address asks to compare, as the contract names them. */
@@ -64,12 +60,6 @@ export function comparedRevisions(search: SearchParameters): ComparedRevisions |
     : { from_revision_id: from, to_revision_id: to };
 }
 
-/** The icon of each kind of node: a task, a line of the estimate. */
-const KIND_ICONS: Readonly<Record<NodeKind, LucideIcon>> = {
-  task: ClipboardList,
-  estimate_line: Calculator,
-};
-
 /** What the comparison of a screen of the revisions shows. */
 export interface RevisionComparisonProps {
   /** The revisions of the history, in the order of the server; the marked ones are offered. */
@@ -82,6 +72,8 @@ export interface RevisionComparisonProps {
   readonly compared: ComparedRevisions | undefined;
   /** What the API gives for them, if they were asked. */
   readonly comparison: RevisionComparison | undefined;
+  /** The settings of the grid of the comparison the session read, if any. */
+  readonly preferences: GridPreferences | undefined;
 }
 
 /** The context the choice carries on: the revision of the screen, and its filters. */
@@ -179,65 +171,6 @@ function Part({
   );
 }
 
-/** The kind of a node, its icon and its name; nothing when `fields` leaves it out. */
-function KindOf({ kind }: { readonly kind: NodeKind | undefined }) {
-  const name = useTranslations("enums.NodeKind");
-  if (kind === undefined) {
-    return null;
-  }
-  const Icon = KIND_ICONS[kind];
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <Icon aria-hidden="true" className={ICON} />
-      {name(kind)}
-    </span>
-  );
-}
-
-/** The tasks and lines of one part — added, removed, changed —, and what changed of each. */
-function Nodes({
-  title,
-  none,
-  nodes,
-  withChanges,
-}: {
-  readonly title: string;
-  readonly none: string;
-  readonly nodes: readonly ComparisonNode[];
-  readonly withChanges: boolean;
-}) {
-  const t = useTranslations("revisionScreen.comparison");
-  const change = useTranslations("enums.NodeChange");
-  const columns = [t("label"), t("kind"), ...(withChanges ? [t("changes")] : [])];
-  return (
-    <Part title={title} empty={nodes.length === 0 ? none : undefined}>
-      <ListTable label={title} columns={columns}>
-        {nodes.map((node) => (
-          // Keyed by `node_id`, always rendered, and not by `lineage_id`, which `fields` leaves
-          // out when the screen does not name it (#1208): no two nodes of a reading share it.
-          <TableRow key={node.node_id}>
-            <TableCell className={`${CELL} whitespace-normal`}>{labelOf(node)}</TableCell>
-            <TableCell className={CELL}>
-              <KindOf kind={node.kind} />
-            </TableCell>
-            {withChanges ? (
-              <TableCell className={CELL}>
-                <span className="flex flex-wrap gap-1">
-                  {node.changes.map((name) => (
-                    <Badge key={name} variant="outline">
-                      {change(name)}
-                    </Badge>
-                  ))}
-                </span>
-              </TableCell>
-            ) : null}
-          </TableRow>
-        ))}
-      </ListTable>
-    </Part>
-  );
-}
-
 /** The deviations of amounts, by nature of cost and by sub-project, in the order of the server. */
 function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
   const t = useTranslations("revisionScreen.comparison");
@@ -263,45 +196,20 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
   );
 }
 
-/** The label of a node, that of its task or of its line. */
-function labelOf(node: ComparisonNode): string | undefined {
-  return (node.task ?? node.estimate_line)?.label;
-}
-
-/**
- * The nodes of the compared tree the server marked so, in the order of the plan. A changed node is
- * one of which something changes itself (`changes`): a task marked modified for its content only
- * — a line or a sub-task added, removed or changed — is not one, its content saying it.
- */
-function marked(nodes: readonly ComparisonNode[], difference: NodeDifference): ComparisonNode[] {
-  return nodes.filter(
-    (node) =>
-      node.difference === difference && (difference !== "modified" || node.changes.length > 0),
-  );
-}
-
 /** What the API gives for the two revisions compared. */
-function ComparisonResult({ comparison }: { readonly comparison: RevisionComparison }) {
-  const t = useTranslations("revisionScreen.comparison");
+function ComparisonResult({
+  comparison,
+  preferences,
+}: {
+  readonly comparison: RevisionComparison;
+  readonly preferences: GridPreferences | undefined;
+}) {
   return (
     <div className="space-y-3">
-      <Nodes
-        title={t("added")}
-        none={t("noneAdded")}
-        nodes={marked(comparison.items, "added")}
-        withChanges={false}
-      />
-      <Nodes
-        title={t("removed")}
-        none={t("noneRemoved")}
-        nodes={marked(comparison.items, "removed")}
-        withChanges={false}
-      />
-      <Nodes
-        title={t("changed")}
-        none={t("noneChanged")}
-        nodes={marked(comparison.items, "modified")}
-        withChanges
+      <ComparisonGrid
+        rows={comparisonRows(comparison.items)}
+        totals={comparison.totals}
+        preferences={preferences}
       />
       <Deltas deltas={comparison.amount_deltas} />
     </div>
@@ -318,6 +226,7 @@ export function RevisionComparisonSection({
   context,
   compared,
   comparison,
+  preferences,
 }: RevisionComparisonProps) {
   const t = useTranslations("revisionScreen.comparison");
   const marked = revisions.filter((revision) => revision.status === "marked");
@@ -328,7 +237,9 @@ export function RevisionComparisonSection({
       empty={marked.length < 2 ? t("needsTwo") : undefined}
     >
       <ComparisonForm marked={marked} action={action} context={context} compared={compared} />
-      {comparison === undefined ? null : <ComparisonResult comparison={comparison} />}
+      {comparison === undefined ? null : (
+        <ComparisonResult comparison={comparison} preferences={preferences} />
+      )}
     </ListSection>
   );
 }

@@ -867,7 +867,7 @@ du planning — et ne déduit rien (#1058). Les libellés du lotissement sont ce
 
 ## US-0500 — Lire la structure choisie, voir un différentiel comme un diff
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0020-A`, `WF-REV-0080-A`, `WF-REV-0100-A`
 - **opérations** : `listCostStructures`, `listNodes`, `compareRevisions`, `listRevisions`
 - **issue** : #1101

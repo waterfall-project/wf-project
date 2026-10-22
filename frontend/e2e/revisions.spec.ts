@@ -38,21 +38,26 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(main.getByRole("table", { name: "Mise à jour des taux proposée" })).toHaveCount(0);
 
   // The comparison asked of the server: what it answers is shown, nothing paired by the front.
-  // The example is a window, the sub-tree of « Installation sur site » (#1193), as its
-  // description counts it: 2 nodes added, 2 removed, 2 lines re-estimated at the rates of 2026
-  // (EP-14/L45a), and 5 deviations — 3 natures of cost, 2 sub-projects —, each table with its
-  // header row. The comparison keeps the bound of a screen of grid (`WORKING`): read unfiltered
-  // against the service, it is still the whole structure (#1201).
+  // The example is a window, the sub-tree of « Installation sur site » (#1193), as its description
+  // counts it: 2 nodes added, 2 removed, 2 lines re-estimated at the rates of 2026 (EP-14/L45a),
+  // and 5 deviations — 3 natures of cost, 2 sub-projects —, each table with its header row. The
+  // nodes come in the dense grid of the structures, each with the mark the server gives it, and
+  // the screen keeps the bound of a screen of grid (`WORKING`): read unfiltered against the
+  // service, the comparison is still the whole structure (#1201).
   await main.getByRole("button", { name: "Comparer" }).click();
   await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
-  await expect(main.getByRole("table", { name: "Ajouts" }).getByRole("row")).toHaveCount(3);
-  await expect(main.getByRole("table", { name: "Retraits" })).toContainText(
-    "Essais préliminaires sur site",
+  const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
+  await expect(nodes.getByRole("row")).toHaveCount(11);
+  await expect(nodes.getByRole("row", { name: /Assistance aux essais de câblage/ })).toContainText(
+    "Ajouté",
   );
-  const changed = main.getByRole("table", { name: "Modifications" });
-  await expect(changed.getByRole("row")).toHaveCount(3);
-  await expect(changed).toContainText("Câblage sur site");
+  await expect(nodes.getByRole("row", { name: /Essais préliminaires sur site/ })).toContainText(
+    "Retiré",
+  );
+  const wiring = nodes.getByRole("row", { name: /Câblage sur site/ });
+  await expect(wiring).toContainText("Modifié");
+  await expect(wiring).toContainText("Montant réestimé");
   const deltas = main.getByRole("table", { name: "Écarts de montants" });
   await expect(deltas.getByRole("row")).toHaveCount(6);
-  await expect(deltas.getByRole("row").nth(1)).toContainText("3 300,00");
+  await expect(deltas.getByRole("row").nth(1)).toContainText("3 300,00");
 });

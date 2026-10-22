@@ -113,15 +113,14 @@ sur le serveur, et l'arbre qu'elle rend se monte dans un document, où seul un r
 la bannière et la grille partagent (`structure-screens.dom.test.tsx`). Un tel test n'éprouve pas
 le Vérif d'une exigence et n'en cite pas : il tient en non-régression le défaut n° 20 de
 `typescript.md` et #819.3, les mêmes écrans ayant leurs parcours sous `e2e/`. Un test du projet
-`dom` qui écrit sur la sortie
-d'erreur — `console.error`, `console.warn`, `console.trace` — échoue une fois son document
-nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) : un avertissement de React
-ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du test ou du code, pas un
-bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la console la fait taire
-lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut dit. happy-dom ne
-mesure rien : un test qui monte une courbe donne à son dessin la place qu'une page lui donne
-(`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit qu'il n'a
-ni largeur ni hauteur (EP-02/L37).
+`dom` qui écrit sur la sortie d'erreur — `console.error`, `console.warn`, `console.trace` —
+échoue une fois son document nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) :
+un avertissement de React ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du
+test ou du code, pas un bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la
+console la fait taire lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut
+dit. happy-dom ne mesure rien : un test qui monte une courbe donne à son dessin la place qu'une
+page lui donne (`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit
+qu'il n'a ni largeur ni hauteur (EP-02/L37).
 
 ### La navigation : la table des fonctions et ses routes
 
@@ -874,6 +873,23 @@ des écrans du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`, `e2e/routes.ts`
 et ne se touche pas : aucun geste de structure ne lui est offert, ni « Insérer » ni « Supprimer » ni
 Ctrl+Suppr, il ne se déplace pas, rien ne se dépose à côté de lui (`isRemoved`, `structure-rules.ts`,
 #1185), et la cellule des prédécesseurs d'une tâche retirée n'est pas saisissable (#1257).
+
+La comparaison de deux révisions (`/revisions?from_revision_id=…&to_revision_id=…`) est la même
+grille, en lecture seule (`comparison-grid.tsx`, `components/revisions/`) : les nœuds de
+`compareRevisions` — l'arbre de la révision comparée, les nœuds retirés à leur place —, chacun avec
+la marque que le serveur rend (`difference`, `changes`, une tâche déplacée sous une autre
+récapitulative marquée modifiée, WF-REV-0080), la colonne `DiffMark` en tête, puis le numéro, le
+libellé indenté par son niveau sous l'icône de sa nature, et ce qui change du nœud, nommé comme le
+serveur le nomme. La comparaison ne se pagine pas, comme `listNodes` (#1201) : l'écran demande
+l'arbre entier, réduit par `fields` aux colonnes qu'il montre (`COMPARISON_FIELDS`, `kind`,
+`task.label`, `estimate_line.label`) et projeté (`comparisonRows`) ; le serveur rend toujours le
+numéro, le niveau, la version et la marque. Faute de parent dans ces champs, l'arbre ne se plie
+pas ; rien ne se trie ni ne se cherche, l'ordre est celui du plan. Les 5 999 nœuds de l'exemple de
+volume (`volume/comparison_volume.json`, dont 2 770 modifiés) ne montent qu'une fenêtre de lignes,
+et l'écran garde la borne d'un écran de grille (`WORKING`, 15 s, `revisions.spec.ts`) ; le parcours
+joue l'exemple de la fenêtre, le faux back servant le premier exemple de l'opération. Les écarts
+de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
+d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
 ### La grille de planning et le Gantt
 
