@@ -249,6 +249,27 @@ def test_the_block_pasted_on_the_amendment_writes_the_rows_under_its_line_in_the
     assert plan["paste_id"] != _json(mockwitness.fixture("paste_plan"))["paste_id"]
 
 
+def test_a_block_refused_in_part_names_each_cell_and_is_never_applied() -> None:
+    # A cell past the label of the task falls on a column it does not accept; on a line, a
+    # category, then a role, the reference data does not name (WF-IHM-0050). Such a block is
+    # previewed, never applied: the generator refuses to write its answer.
+    first, task, last = mockamendmentwrites.AMENDMENT_BLOCK
+    block = (
+        (first[0], "Catégorie inconnue", first[2], first[3]),
+        (task[0], "", "", "4"),
+        (last[0], last[1], "Rôle inconnu", last[3]),
+    )
+    plan = _json(mockamendmentwrites.paste_plan_amendment(block))
+    assert plan["rejected"] == [
+        {"row": 0, "column": "cost_category", "code": "UNKNOWN_COST_CATEGORY"},
+        {"row": 1, "column": "quantity", "code": "FIELD_NOT_ACCEPTED"},
+        {"row": 2, "column": "resource_role", "code": "UNKNOWN_RESOURCE_ROLE"},
+    ]
+    assert plan["accepted"] == 0
+    with pytest.raises(ValueError, match="refused in part"):
+        mockamendmentwrites.paste_applied_amendment(block)
+
+
 def test_the_block_pasted_on_the_amendment_follows_the_hours_entered() -> None:
     # #421: the paste reads the line at the version the entry left, and leaves the structure one
     # version further still; a node written is not among the ancestors (`NodesWritten`).

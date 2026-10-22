@@ -15,7 +15,8 @@ the whole structure of the witness, its core first, as they were marked (EP-14/L
 examples say of them is read from those descriptions:
 
 - the comparison of the offer and the reference (``comparison``), the tree of the reference, its
-  nodes marked against the offer by lineage (``wftools.mockdiff``, WF-REV-0080, C-361);
+  nodes marked against the offer by lineage (``wftools.mockdiff``, WF-REV-0080, C-361), and its
+  counterfactual variant with a task moved under another summary (``comparison_moved``);
 - the reference budget and the reserve for risks of the reference (WF-RIS-0050), which place each
   risk in its cell of the matrix and give the totals of the provisions (WF-RIS-0040);
 - the register of the risks, a risk alone, the matrix, the reviews of a risk and the coverage of
@@ -190,6 +191,31 @@ def offer_rates() -> dict[str, Decimal]:
 def offer_rows() -> list[mockcore.Row]:
     """Return the offer read on the day it was marked, at the rates it kept."""
     return mockcore.core(offer(), OFFER_MARKED.on, offer_rates())
+
+
+def moved_offer_rows() -> list[mockcore.Row]:
+    """Return the offer of a counterfactual variant: the commissioning under the control station.
+
+    As if the offer had borne it under the summary « Poste de commande », and the amendment 1 had
+    moved it under the installation on site, where the reference bears it (``comparison_moved``).
+    """
+    found: list[Task] = []
+
+    def gather(task: Task) -> Task:
+        found.extend(child for child in task.children if child.number == N.COMMISSIONING)
+        return task
+
+    tasks = rewritten(offer(), gather)
+
+    def move(task: Task) -> Task:
+        if task.number == N.INSTALLATION:
+            kept = tuple(child for child in task.children if child.number != N.COMMISSIONING)
+            return replace(task, children=kept)
+        if task.number == N.CONTROL_STATION:
+            return replace(task, children=(*task.children, *found))
+        return task
+
+    return mockcore.core(rewritten(tasks, move), OFFER_MARKED.on, offer_rates())
 
 
 def _line(row: mockcore.Row) -> dict[str, JsonValue]:
@@ -806,6 +832,38 @@ def comparison_volume() -> JsonObject:
     )
 
 
+def comparison_moved(rows: list[mockcore.Row]) -> JsonObject:
+    """Return the comparison of a counterfactual offer, a task moved under another summary.
+
+    The window of the first example, read on the offer of ``moved_offer_rows``: the commissioning,
+    moved from the control station, is rendered once, under the installation on site, modified by
+    its parent (``mockdiff``, WF-REV-0080-A).
+    """
+    compared = comparison(moved_offer_rows(), rows, OFFER, REFERENCE, N.INSTALLATION)
+    nodes = cast("list[JsonObject]", compared["items"])
+    [moved] = [node for node in nodes if "parent" in cast("list[str]", node["changes"])]
+    [summary] = [node for node in nodes if node["node_id"] == moved["parent_id"]]
+    named = {row.number: row.label for row in rows}
+
+    def said(node: JsonObject) -> str:
+        return ", ".join(cast("list[str]", node["changes"]))
+
+    return mocktext.example(
+        f"Variante contrefactuelle : la comparaison de l'offre v1.0 à la révision de référence, "
+        f"lue sur le même sous-arbre « {_label(summary)} » que le premier exemple, comme si "
+        f"l'offre avait porté « {_label(moved)} » sous la récapitulative "
+        f"« {named[N.CONTROL_STATION]} » et que l'avenant 1 l'avait déplacée sous "
+        f"« {_label(summary)} », où la référence la porte : "
+        f"{mocktext.count(len(nodes))} nœuds dans l'ordre du plan. La tâche déplacée est rendue "
+        f"une fois, à sa nouvelle place, et présentée modifiée, son rattachement nommé parmi ce "
+        f"qui change d'elle (`changes` : {said(moved)}) ; la récapitulative qui la reçoit, "
+        f"modifiée par ce qui change d'elle ({said(summary)}) ; les nœuds retirés, à la place "
+        f"qu'ils avaient dans cette offre. Les totaux et les écarts du devis sont ceux du premier "
+        f"exemple (WF-REV-0080, C-361).",
+        compared,
+    )
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the history of the witness, by file name."""
     today, rows = mockcore.current(), reference_rows()
@@ -852,6 +910,7 @@ def examples() -> dict[str, JsonObject]:
     )
     return {
         "comparison.json": comparison_example(rows),
+        "comparison_moved.json": comparison_moved(rows),
         "comparison_identical.json": mocktext.example(
             "Variante contrefactuelle : l'offre v1.0 comparée à elle-même, son cœur lu seul, "
             "comme si la structure ne portait que lui — les études, le lot « Poste de commande » "

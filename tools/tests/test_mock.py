@@ -298,4 +298,6 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203_and_the_volume(
         (f"{at}/paste", "post"),
     ):
         assert next(iter(examples_of(served[path], method))) == "amendment", path
-    assert f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}" in served
+    volume = served[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
+    assert next(iter(examples_of(volume))) == "volume"
+    assert next(iter(examples_of(served[f"/api/v1{COMPARISON}"]))) == "witness"

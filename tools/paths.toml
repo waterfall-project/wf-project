@@ -346,6 +346,7 @@ paths = [
     "fixtures/api/import_remaining_subproject_held.json",
     "fixtures/api/import_estimate_main_in_progress.json",
     "fixtures/api/comparison.json",
+    "fixtures/api/comparison_moved.json",
     "fixtures/api/comparison_identical.json",
     "fixtures/api/nodes_amendment.json",
     "fixtures/api/structure_merge_report.json",

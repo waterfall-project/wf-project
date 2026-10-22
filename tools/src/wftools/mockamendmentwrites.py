@@ -294,7 +294,11 @@ def estimate_line_updated_amendment() -> JsonObject:
     return amendment_write(entered_roots(), [ENTERED_LINE])
 
 
-AMENDMENT_BLOCK = (
+type Block = tuple[tuple[str, str, str, str], ...]
+"""A block pasted: rows of four cells — label, category, role, quantity."""
+
+
+AMENDMENT_BLOCK: Block = (
     (
         "Assistance à la reprise des essais de câblage",
         "Mise en service",
@@ -333,20 +337,20 @@ def paste_targets() -> list[int]:
     return [by_id[node_id] for node_id in ids[start : start + len(AMENDMENT_BLOCK)]]
 
 
-def paste_plan_amendment() -> JsonObject:
-    """Return what previewPaste answers to the block on the amendment: each row judged by its node.
+def paste_plan_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
+    """Return what previewPaste answers to a block on the amendment: each row judged by its node.
 
     The columns are those of a line from its label (`NodeColumn`). On a line, a category or a role
     the reference data does not name is refused, its row and its column named; on a task, a cell
     past its label that is not empty falls on a column the task does not accept, and is refused;
-    an empty cell writes nothing (WF-IHM-0050).
+    an empty cell writes nothing (WF-IHM-0050). The block of the example by default.
     """
     columns = node_columns()
     line_columns = ["label", *columns[columns.index("cost_category") :]]
     categories, roles = known()
     kinds = {row.number: row.kind for row in mockamendment.rows()}
     refusals: list[tuple[int, str, str]] = []
-    for index, (number, cells) in enumerate(zip(paste_targets(), AMENDMENT_BLOCK, strict=True)):
+    for index, (number, cells) in enumerate(zip(paste_targets(), block, strict=True)):
         _, category, role, _ = cells
         if kinds[number] == TASK:
             refusals.extend(
@@ -363,13 +367,13 @@ def paste_plan_amendment() -> JsonObject:
     ]
     return {
         "paste_id": AMENDMENT_PASTE,
-        "accepted": len(AMENDMENT_BLOCK) - len({row for row, _, _ in refusals}),
+        "accepted": len(block) - len({row for row, _, _ in refusals}),
         "rejected": rejected,
     }
 
 
-def paste_applied_amendment() -> JsonObject:
-    """Return what applyPaste answers to the block on the amendment, confirmed.
+def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
+    """Return what applyPaste answers to a block on the amendment, confirmed, refused in none.
 
     The paste follows the hours entered (``estimate_line_updated_amendment``): it reads the line
     at the version that write left, and leaves the structure one version further still (#421).
@@ -377,11 +381,11 @@ def paste_applied_amendment() -> JsonObject:
     label; amounts follow, the budget with them on a differential (WF-REV-0050), and the summaries
     above, and the totals.
     """
-    if paste_plan_amendment()["rejected"]:
+    if paste_plan_amendment(block)["rejected"]:
         message = "the block pasted on the amendment is refused in part"
         raise ValueError(message)
     categories, roles = known()
-    labels = dict(zip(paste_targets(), AMENDMENT_BLOCK, strict=True))
+    labels = dict(zip(paste_targets(), block, strict=True))
 
     def task(each: Task) -> Task:
         return replace(each, label=labels[each.number][0]) if each.number in labels else each
