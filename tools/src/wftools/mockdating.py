@@ -4,14 +4,14 @@
 
 The whole structure, the core first, is dated in hours of work on the calendar of each task
 (``wftools.mockcalendar``, WF-PLA-0010), its total float and its critical path found from its
-links (WF-PLA-0100), its lines priced at the rates of the universe (WF-DEV-0020) and its
-summaries summed (WF-DEV-0050). The nodes are emitted from these, and read as ``listNodes``
-reads them, in ``wftools.mockcore``.
+links (WF-PLA-0100) and its lines priced at the rates of the universe (WF-DEV-0020). The
+summaries are summed (WF-DEV-0050), the nodes emitted from these and read as ``listNodes`` reads
+them, in ``wftools.mockcore``.
 
 The formulas are simple and said here, to be replaced by the kernel of EP-06 to EP-08: a
 backward pass gives each task the latest it may finish, its float being the hours of work from
 its finish to that instant; the physical progress of a summary is the budget of its completed
-tasks over the budget of its subtree; a line is consumed in the year its task starts.
+tasks over the budget of its subtree.
 """
 
 from __future__ import annotations

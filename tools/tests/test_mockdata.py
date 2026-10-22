@@ -629,7 +629,7 @@ def test_two_runs_write_the_same_bytes(
     # What is compared is how the examples are assembled, not the whole computation: a run reads
     # again what an earlier one of the process left in its caches (`functools.cache`) — the dated
     # structure and its readings, the drawn invoices, the witness and the rates of the portfolio:
-    # `mockdating._schedule` and `_core`, `mockindicators._read`, `mockcosts.drawn`,
+    # `mockdating._schedule`, `mockcore._core`, `mockindicators._read`, `mockcosts.drawn`,
     # `mockportfolio._witness`, `mockportfoliotime._rates`. Clearing them would cost some thirty
     # seconds a run, for little (#653).
     first = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
