@@ -330,10 +330,15 @@ _RENAMED = {
         for number in mockamendmentwrites.paste_targets()
         for identifier in (mockamendment.own_id(number), mockcore.lineage(number))
     ),
+    *(
+        ("paste_applied_amendment_skipping.json", identifier)
+        for identifier in (mockamendment.own_id(N.SITE_TESTS), mockcore.lineage(N.SITE_TESTS))
+    ),
 }
 """The nodes a write renames, by their node and their lineage, in the fixture that answers it:
-the wiring of the cabinets (``wftools.mockwrites``), and the three rows the block pasted on the
-amendment 2 relabels (``wftools.mockamendmentwrites``, #1277)."""
+the wiring of the cabinets (``wftools.mockwrites``), the three rows the block pasted on the
+amendment 2 relabels (``wftools.mockamendmentwrites``, #1277), and the trials on site the block
+that skips the line withdrawn relabels (#1278)."""
 
 
 def _named(value: Any, found: list[tuple[str, str, str]]) -> None:

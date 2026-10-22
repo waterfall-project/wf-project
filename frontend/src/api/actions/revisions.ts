@@ -3,7 +3,8 @@
 /**
  * The server actions of the revisions of a project — marked (`markRevision`), opened
  * (`createRevision`), abandoned (`abandonRevision`), designated as the reference
- * (`designateReferenceRevision`), their rates updated (`applyRateUpdate`): the browser asks the
+ * (`designateReferenceRevision`), their rates updated (`applyRateUpdate`), an amendment prepared
+ * (`prepareAmendment`): the browser asks the
  * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes
  * of its answer (`src/api/problem.ts`). A write answered reads the page anew: the state of the
  * project, its banner, the commands of its revisions are the server's again.
@@ -121,6 +122,26 @@ export async function applyRateUpdate(
       serverClient().POST("/projects/{project_id}/revisions/{revision_id}/rate-update", {
         params: { path: { project_id: projectId, revision_id: revisionId } },
         body: { cost_category_ids: [...update.categoryIds], lock_version: update.lockVersion },
+      }),
+    ),
+  );
+}
+
+/**
+ * Prepare an amendment (WF-REV-0100): a differential of the main structure of the current revision,
+ * under the label the user gave. The API answers the structure created, which the screen opens in the
+ * grid of the planning, or refuses a revision that is no more current (409).
+ */
+export async function prepareAmendment(
+  projectId: string,
+  revisionId: string,
+  label: string,
+): Promise<Outcome<Schemas["CostStructure"]>> {
+  return readAnew(
+    await decode(() =>
+      serverClient().POST("/projects/{project_id}/revisions/{revision_id}/structures", {
+        params: { path: { project_id: projectId, revision_id: revisionId } },
+        body: { kind: "amendment", label },
       }),
     ),
   );

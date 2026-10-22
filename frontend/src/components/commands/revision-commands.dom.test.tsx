@@ -174,7 +174,12 @@ describe("the abandon of the current revision", () => {
     expect(client.calls.filter((call) => call.route === ABANDON).map((call) => call.path)).toEqual([
       `/projects/${PROJECT}/revisions/${DRAFT}`,
     ]);
-    expect(await screen.findByRole("status")).toHaveTextContent("dernière révision marquée");
+    // The other commands of the revision keep their own region of status, empty.
+    await vi.waitFor(() => {
+      expect(screen.getAllByRole("status").map((status) => status.textContent)).toContainEqual(
+        expect.stringContaining("dernière révision marquée"),
+      );
+    });
     expect(router.replace).toHaveBeenCalledWith(REVISIONS);
   });
 
