@@ -10,8 +10,10 @@ allowBuilds:
   "@swc/core": false
   unrs-resolver: false
 
-# The versions below which a dependency is flawed, whichever dependency asks for it: raised here
-# because a transitive range (css-tree, optional) keeps the lock file on the flawed one otherwise.
+# The versions below which a dependency is flawed, whichever dependency asks for it.
 overrides:
+  # css-tree (optional) keeps the lock file on the flawed version otherwise.
   source-map-js: ">=1.2.2"
-  vite: ">=8.3.3"
+  # GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv and GHSA-r825-w8mm-5pxw, fixed in 8.3.3; pulled by
+  # vitest. Caret: stays in the major version vitest supports.
+  vite: "^8.3.3"
