@@ -1,0 +1,10 @@
+{
+  "summary": "Les « Études de détail », terminées, envoyées à l'état non démarré : seul un jalon terminé y revient, et aucune commande ne fait passer une autre tâche à cet état — leur carte ne rouvre que vers l'état démarré (available_commands). Le geste est refusé, la condition nommée ; rien n'est écrit (WF-RAE-0030).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"completed_milestone"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001540"
+  }
+}

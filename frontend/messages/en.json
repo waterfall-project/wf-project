@@ -444,6 +444,7 @@
       "axisSeverity": "Severity (% of the budget)",
       "counts": "Count of the risks by cell of the matrix, all states together",
       "none": "No risk to draw for this filter.",
+      "unplotted": "{count, plural, one {# risk is not drawn: its severity cannot be set as a share of the budget — {reason}} other {# risks are not drawn: their severity cannot be set as a share of the budget — {reason}}}",
       "file": "risk-matrix",
       "probability": "Probability",
       "severity": "Severity, as a share of the reference budget",
@@ -2211,6 +2212,10 @@
       "revision_has_tasks_and_lines": "revision bearing at least one task and one estimate line",
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",
+      "task_is_milestone": "the task is a milestone",
+      "task_not_milestone": "the task is not a milestone",
+      "task_without_lines": "task without any line but provisions",
+      "completed_milestone": "completed milestone",
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
       "may_create_revision": "holding the permission to create a revision",
@@ -2328,6 +2333,12 @@
       "main": "Main structure",
       "amendment": "Amendment",
       "risk": "Risk estimate"
+    },
+    "KanbanCommand": {
+      "start": "Start",
+      "complete": "Complete",
+      "reopen": "Reopen",
+      "enter_remaining": "Enter the remaining to commit"
     },
     "StructureCommand": {
       "edit_planning": "Edit the schedule",
@@ -2494,12 +2505,6 @@
       "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",
       "own_estimate": "The severity of a risk is the total of its own estimate.",
       "severity_and_probability": "The provision of a risk is its severity weighted by its probability."
-    },
-    "ProgressUpdate": {
-      "progress": {
-        "started": "Started",
-        "completed": "Completed"
-      }
     },
     "WorkloadPlan": {
       "basis": {

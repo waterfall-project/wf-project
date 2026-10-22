@@ -1747,13 +1747,13 @@ la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 
 ### Les lectures de la grille (EP-02/L21)
 
 **Les exemples nommés de `listNodes` sont des lectures d'un seul arbre, engendrées** (#287 ; C1,
-C14). `wftools.mockcore` date le cœur décrit dans `mockwitness` en heures de travail sur le
+C14). `wftools.mockdating` date le cœur décrit dans `mockwitness` en heures de travail sur le
 calendrier de chaque tâche (`mockcalendar`), à partir du début des études (2 mars 2026) et de ses
 liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin la plus tardive que ses
 successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
 sa fin à cet instant, en jours ouvrés ; une tâche en mode manuel n'a ni marge ni criticité et
 n'impose rien à ses prédécesseurs. Les lignes sont chiffrées au taux de leur catégorie pour l'année
-de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; une tâche somme ses
+de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; `mockcore` fait sommer à une tâche ses
 lignes et ses subordonnées ; l'avancement physique d'une récapitulative est le budget des lignes de
 ses tâches terminées sur celui de son sous-arbre, non calculable sans budget (`no_budgeted_amount`).
 L'avancement se lit aux dates à aujourd'hui, le 3 juin 2026 : les études sont terminées, les pupitres
@@ -2095,7 +2095,7 @@ porteur d'un coût réel (`has_actual_costs`), écrit à la main — `subproject
 générateurs — et confronté aux lignes par le test d'invariants.
 
 **Toute ligne rend son délai de paiement, que la courbe applique** (WF-DEV-0020, WF-IND-0100).
-`estimate_line.payment_delay_days` est rendu par `mockcore` sur chaque ligne du cœur : trente jours
+`estimate_line.payment_delay_days` est donné par `mockdating` (`payment_delay`) et rendu par `mockcore` sur chaque ligne du cœur : trente jours
 sur l'ingénierie de détail et sur les borniers, zéro sur les autres, main-d'œuvre et provision
 comprises. La lecture des indicateurs tire ses délais des nœuds qu'elle rend, et la courbe des
 décaissements les applique : une seule source, que le test d'invariants vérifie ligne à ligne. Les
@@ -2282,8 +2282,8 @@ son code, sans lien (`can_open`, WF-PTF-0030).
 WF-PLA-0010, WF-PLA-0160). `wftools.mockstructure` décrit, comme le cœur l'est dans
 `mockwitness`, en tâches et en lignes, neuf phases tirées après lui — les approvisionnements à la
 réception, les études étant le cœur —, chacune des trois lots, chaque lot ses tâches de travail en
-trois chaînes et un jalon ; `wftools.mockcore` date le tout ensemble, en heures de travail sur le
-calendrier des rôles de chaque tâche, le chiffre et l'émet. Les compteurs du §4.6.2 sont gardés :
+trois chaînes et un jalon ; `wftools.mockdating` date le tout ensemble, en heures de travail sur le
+calendrier des rôles de chaque tâche, le chiffre, et `mockcore` l'émet. Les compteurs du §4.6.2 sont gardés :
 mille tâches, dont les quinze du cœur, et cinq mille lignes, dont ses neuf — cinq sur chacune des
 922 tâches de travail tirées et une sixième sur 381 d'entre elles. **Deux calendriers** : le
 câblage est confié au monteur câbleur, toutes ses heures de main-d'œuvre, et ses 103 tâches
@@ -2451,7 +2451,7 @@ les deux Kanban ne présentent que les tâches du cœur. Leurs résumés le dise
 (`mocktext.CORE_ONLY`, « jusqu'à EP-14/L45b »).
 
 **Le générateur à cette échelle.** Une structure est datée et émise une fois pour une date, des taux
-et une revue précédente donnés (`mockcore.core`, `mockcore.schedule`), une révision lue une fois
+et une revue précédente donnés (`mockcore.core`, `mockdating.schedule`), une révision lue une fois
 (`mockindicators.read`) ; les flux d'une courbe sont sommés d'un coup une fois dépensés en entier et
 lus un à un tant qu'ils courent (`mockcurves.Spread`), les bornes de chacun comptées une fois sur son
 calendrier. `make mock-data` écrit le tout en une quinzaine de secondes.
@@ -5570,7 +5570,7 @@ fermé la modification, le réexamen et la suppression d'un risque, qui n'en dé
 paiement, en jours, qui […] reste saisissable sur toute ligne autre qu'une ligne de provision, qui
 n'en porte pas » ; WF-IND-0100 : « une ligne de provision, qui n'en porte pas, reste à la date de la
 tâche qui la porte »). Le délai quitte les `editable_fields` de la ligne de provision, sa lecture le
-rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockcore.payment_delay`,
+rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockdating.payment_delay`,
 `mockindicators.delays`) ; envoyé, il est refusé par 422, `fields` sur `/payment_delay_days`, motif
 `FIELD_NOT_ACCEPTED`, code nouveau, celui de tout champ qu'un nœud n'accepte pas, ni saisi ni
 calculé pour lui, que le contrat refusait jusqu'ici sans le nommer : un champ d'une autre nature de
@@ -6371,7 +6371,7 @@ chaîne d'une seule liaison est la liaison interdite : le code le plus précis l
 engendrés par `wftools.mockgestures` : `nodes_indent_forbidden`, la mise en service mise en retrait
 sous le montage, la tâche au-dessus d'elle et son prédécesseur ; `nodes_move_cycle_refused`,
 « Documentation 1.1.7 », tâche tirée autour du cœur, déplacée sous « Préparation 1.1.1 », qu'elle
-suit par « Réalisation 1.1.4 ». `mockcore.schedule` refuse les deux structures que ces gestes
+suit par « Réalisation 1.1.4 ». `mockdating.schedule` refuse les deux structures que ces gestes
 laisseraient, comme celle que `predecessors_cycle_refused` laisserait : le faux back ne date pas ce
 que le serveur refuse. `createNode` ne déclare ni l'un ni l'autre (#1167, tranché par l'auteur le
 2026-10-19) : son corps ne porte pas de liaison (`TaskFacetWrite`, sans `predecessors`), et créer un
@@ -7205,6 +7205,96 @@ donne `task_dates_entered` — les dates de la mise en service, manuelle, envoy�
 date, rendues à `0` et `8` heures sur son calendrier. Le faux back complète désormais
 les heures d'une tâche manuelle sur son calendrier applicable (`wftools.mockcore`), et non plus à
 huit heures ; aucune réponse engendrée n'en change.
+
+## Les gestes du Kanban (EP-15/US-0540)
+
+Partie K6 de la conception d'EP-15 (US-0540/L1, #1129), sur la décision de l'auteur du 2026-10-18
+(#1070), et les décisions du 2026-10-21 que le lot reprend (#1235, #1240, #1247, #1154, #1273).
+
+**Chaque carte liste ses gestes** (WF-RAE-0030, WF-IHM-0090). Les trois colonnes de
+`listStartableTasks` rendent des `KanbanTask` : le nœud et `available_commands`, des
+`KanbanCommandAvailability` sur `KanbanCommand` — `start`, `complete`, `reopen`,
+`enter_remaining` —, chacun disponible ou non avec les conditions qui lui manquent ; une tâche non
+démarrée est un `NotStartedTask`, qui garde `predecessors_completed`. Une carte ne liste que les
+gestes que son état et sa nature admettent : `start` sur une tâche non démarrée qui n'est pas un
+jalon, qui ne démarre jamais (WF-PLA-0050) ; `complete` sur toute carte non terminée, qui manque
+de `task_is_milestone` pour une tâche non démarrée qui n'est pas un jalon, et de
+`task_without_lines` pour une tâche qui porte une ligne hors provision ; `reopen` sur toute carte
+terminée ; `enter_remaining`, qui renvoie à la grille de reste à engager sans rien écrire, sur
+une carte non terminée qui porte une ligne hors provision. Une ligne de provision ne retient pas
+une tâche de se terminer depuis le Kanban (WF-PLA-0050). Après les conditions du geste viennent
+celles de `StructureCommand.edit_remaining` de la structure principale, `project_in_progress`
+puis `no_background_task_running` : le Kanban est une saisie du reste à engager (FBS-4.5.3),
+sous `remaining.write`, sans laquelle la liste est vide. Chaque geste dit aussi l'état qu'il
+envoie à `setTaskProgress` (`progress`) : la réouverture d'un jalon envoie `not_started`, celle
+de toute autre tâche `started`, et le front n'a pas à le déduire de `task.is_milestone`. Quatre
+conditions s'ajoutent à `CommandCondition` : `task_is_milestone`, `task_not_milestone`,
+`task_without_lines` et `completed_milestone`. Écartés : lister les quatre gestes sur chaque
+carte, indisponibles hors de leur colonne, ce qui ferait nommer une condition à un geste qu'aucun
+état de la tâche n'ouvrira jamais — la convention est celle de `edit_remaining`, jamais listée sur
+un différentiel ; laisser au front le choix de l'état d'une réouverture.
+
+**`not_started` pour un jalon terminé, et lui seul** (WF-RAE-0030). `ProgressUpdate.progress`
+prend toute valeur de `TaskProgress`. « Un jalon terminé que l'on rouvre redevient non démarré,
+seul cas où une tâche revient à cet état, et sa date de terminaison est effacée » ; `not_started`
+envoyé pour toute autre tâche est refusé par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `completed_milestone` — une tâche démarrée par erreur se corrige en
+annulant la saisie (WF-IHM-0110). La description de `ProgressUpdate`, qui disait qu'« aucun geste
+ne la ramène à “non démarrée” », est réécrite. Le 409 de `setTaskProgress` nomme la première
+condition qui manque, comme la carte : `task_is_milestone`, `task_without_lines`,
+`task_not_milestone` (un jalon envoyé à `started`), `completed_milestone`.
+
+**Le 200 de `setTaskProgress` ne rend pas les lignes de la tâche** (#1154). Elles ne sont pas
+écrites ; ce qu'elles acceptent suit pourtant l'état de leur tâche — une ligne d'une tâche démarrée
+dont le sous-projet a reçu des coûts réels ne nomme plus `estimate_line.subproject_id`, une ligne
+d'une tâche terminée n'accepte plus la réestimation. Le contrat dit qu'une grille qui les tient
+les relit (`listNodes`, `subtree_of`). Écarté : les rendre dans `nodes`, à la version qu'elles
+gardent, ce qui ferait rendre un même nœud à une même version avec deux contenus (#421).
+
+Exemples engendrés par `wftools.mockkanban` : `startable_tasks` et `startable_tasks_milestone`
+disent les gestes de chaque carte ; `task_started`, le montage des armoires sur site démarré le
+3 juin, à la suite de `predecessor_set` qui l'avait écrit, une version de plus, ses dates
+inchangées et sa date de démarrage celle du geste ; `milestone_completed`, la réception usine,
+jalon sans ligne, terminée le 3 juin à la suite de `task_attached`, sa date prévue du 30 juin
+gardée ; `task_reopened`, les études de détail rouvertes, démarrées ; `milestone_reopened`, la
+réception des études rouverte, non démarrée ; `task_reopen_not_started_refused`, les études de
+détail envoyées à l'état non démarré. Le faux back date désormais un geste du Kanban par le jour
+où il est fait (`Task.declared_on`), et non plus par les dates de la tâche (WF-PLA-0130) ; aucune
+autre réponse engendrée n'en change.
+
+**Le plafond des préférences se vérifie une fois la modification fusionnée** (#1235).
+`grids` et `timelines` étaient bornés à cent entrées par requête, mais des `PATCH` successifs
+faisaient grandir la table gardée. Le service compte les entrées après la fusion : une
+modification qui porterait l'une ou l'autre au-delà de cent est refusée par 422
+`VALIDATION_FAILED`, `fields` sur `/grids` ou `/timelines` par `VALUE_TOO_LONG`, rien n'étant
+écrit. Une modification qui n'accroît pas la table — qui en oublie ou en remplace des entrées —
+n'est jamais refusée pour sa taille : une table déjà plus grande, gardée avant cette règle, peut
+toujours décroître. Une modification qui porte aussi la langue l'a déjà dite au fournisseur
+d'identité quand elle est refusée ; le choix de la langue renvoyé répare le désaccord, comme le
+dit « Les préférences d'affichage… ». `backend/tests/test_users_personal.py` cumule cent une
+chronologies, puis cent une grilles, sur deux `PATCH`.
+
+**La part de gravité d'un risque sur une assiette nulle** (#1240). `RiskMatrixPoint.severity_ratio`
+passe dans l'enveloppe `Computable`. Sur une assiette nulle — un projet sans budget de référence
+dont le devis ne porte encore que des provisions —, elle n'est pas calculable, motif
+`no_reference_budget`, et le risque est au niveau de gravité le plus bas, compté dans la case de
+sa probabilité ; le graphique ne trace pas de bulle sans ordonnée. Le motif existant dit la cause
+— l'assiette est le budget de référence, et à défaut un total qui ne le remplace pas ici — sans
+clé nouvelle à traduire. Écartés : un motif nouveau, qui dirait la même chose ; le risque hors de
+la matrice, que les cases ne compteraient plus alors que le registre le liste. Exemple :
+`risk_matrix_no_basis`, variante contrefactuelle, le registre du témoin lu sur une assiette nulle.
+
+**Le plan de charge du projet porte le total de chaque mois** (#1247). `WorkloadPlan.monthly_totals`
+donne, comme `PortfolioWorkload.monthly_totals`, des `{month, hours}`, la somme des heures des
+rôles retenus : du premier au dernier mois qu'un rôle charge, croissants et sans trou, un mois
+sans charge à zéro, vide quand aucun rôle n'est chargé. Le plan d'un projet n'a pas de `months` à
+la racine — chaque rôle ne porte que les mois qu'il charge — : chaque total nomme son mois.
+Les quatre exemples `workload*` le portent ; le front le dessine en US-0550/L5 (#1259).
+
+**Les heures d'un instant de travail dans le catalogue de `Problem.params`** (#1273).
+`/start/hours` et `/finish/hours` de `updateTaskFacet` y sont nommés, `minimum` à `0` et
+`maximum` aux heures du jour. Le type `Hours` est un décimal signé, qui n'interdit pas le négatif :
+la borne `minimum` reste, et a son exemple, `task_hours_below_zero`, un début envoyé à `-1` heure.
 
 ## Collage et annulation
 

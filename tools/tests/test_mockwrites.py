@@ -16,6 +16,7 @@ from wftools import (
     REPOSITORY,
     mockcore,
     mockdata,
+    mockdating,
     mockids,
     mockstructure,
     mocktext,
@@ -280,7 +281,7 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     # The wiring on site given to the cable fitter, on the week of four days: the mounting works
     # the days both its roles work, four of eight hours (WF-PLA-0010), and finishes in 2027.
     roots = mockwrites.amended(CORE, line=mockwrites.on_line(ON_SITE, role=CABLE_FITTER))
-    calendar = mockcore.schedule(roots)[MOUNTING].calendar
+    calendar = mockdating.schedule(roots)[MOUNTING].calendar
     assert calendar.week == tuple(Decimal(hours) for hours in (8, 8, 8, 8, 0, 0, 0))
     redated = write("estimate_line_redated")
     read = numbered(whole["items"])
@@ -596,7 +597,7 @@ def test_a_loop_of_links_cannot_be_dated_and_the_tasks_left_are_named() -> None:
         ValueError,
         match=r"among the tasks left undated: Montage des armoires sur site, Mise en service$",
     ):
-        mockcore.schedule(looped)
+        mockdating.schedule(looped)
 
 
 def test_a_reestimation_follows_the_figures_entered_and_leaves_the_budget(

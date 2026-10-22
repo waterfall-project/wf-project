@@ -27,6 +27,7 @@ from wftools.mockstructure import (
     PROVISION,
     JsonObject,
     JsonValue,
+    computable,
     decimal,
     draw,
     money,
@@ -539,7 +540,9 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
     register = cast("list[dict[str, Any]]", cast("dict[str, Any]", read["risks"])["items"])
     matrix = cast("dict[str, Any]", read["risk_matrix"])
     levels = {"probability": matrix["probability_levels"], "severity": matrix["severity_levels"]}
-    ratios = {point["risk_id"]: Decimal(point["severity_ratio"]) for point in matrix["points"]}
+    ratios = {
+        point["risk_id"]: Decimal(point["severity_ratio"]["value"]) for point in matrix["points"]
+    }
     risks: list[Risk] = []
     for row in rows:
         if row["state"] != "in_progress":
@@ -668,7 +671,7 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
                     "label": risk.label,
                     "probability": str(risk.probability),
                     "severity_amount": money(risk.severity),
-                    "severity_ratio": str(risk.severity_ratio),
+                    "severity_ratio": computable(str(risk.severity_ratio)),
                     "provision_amount": money(risk.provision),
                     "state": "identified",
                     "zone": zones[risk.cell],

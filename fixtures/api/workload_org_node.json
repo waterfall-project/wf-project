@@ -6,6 +6,16 @@
     "basis": "current_remaining",
     "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
     "org_node_label": "Atelier de câblage",
+    "monthly_totals": [
+      {"month":"2027-09","hours":"726.88"},
+      {"month":"2027-10","hours":"1817.2"},
+      {"month":"2027-11","hours":"2785.23"},
+      {"month":"2027-12","hours":"3298.64"},
+      {"month":"2028-01","hours":"3181.1"},
+      {"month":"2028-02","hours":"972.83"},
+      {"month":"2028-03","hours":"560.98"},
+      {"month":"2028-04","hours":"9.14"}
+    ],
     "roles": [
       {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","capacity_monthly_hours":"216662.5","months":[{"month":"2027-09","hours":"726.88","zone":"nominal"},{"month":"2027-10","hours":"1817.2","zone":"nominal"},{"month":"2027-11","hours":"2785.23","zone":"nominal"},{"month":"2027-12","hours":"3298.64","zone":"nominal"},{"month":"2028-01","hours":"3181.1","zone":"nominal"},{"month":"2028-02","hours":"972.83","zone":"nominal"},{"month":"2028-03","hours":"560.98","zone":"nominal"},{"month":"2028-04","hours":"9.14","zone":"nominal"}]}
     ]

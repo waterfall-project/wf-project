@@ -20,6 +20,7 @@ from wftools import (
     REPOSITORY,
     mockcore,
     mockdata,
+    mockdating,
     mockhistory,
     mockstructure,
     mocktext,
@@ -520,7 +521,7 @@ def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() 
     assert mockwitness.FACTORY_ACCEPTANCE not in offer
     followers = [
         task
-        for task in mockcore.tasks_in_order(mockhistory.offer())
+        for task in mockdating.tasks_in_order(mockhistory.offer())
         if any(link.predecessor == mockwitness.WIRING for link in task.links)
     ]
     assert [task.number for task in followers if task.number < GENERATED] == [N.MOUNTING]

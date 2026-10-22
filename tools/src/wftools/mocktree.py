@@ -5,7 +5,7 @@
 Where a node created or moved goes among the siblings of its parent — the lines of a task before
 its subordinates —, and the loop a link or a move would close, a chain of links that may cross
 the hierarchy: the fake back says them as the server does, and ``wftools.mockgestures`` writes its
-answers by them. ``mockcore.schedule`` refuses the structures a loop would leave.
+answers by them. ``mockdating.schedule`` refuses the structures a loop would leave.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from wftools import mockcore
+from wftools import mockdating
 from wftools.mockwitness import CORE
 
 if TYPE_CHECKING:
@@ -107,7 +107,7 @@ class Plan:
 
 def plan_of(roots: Iterable[Task]) -> Plan:
     """Return the links and the hierarchy of a structure, in the order of the plan."""
-    tasks = mockcore.tasks_in_order(roots)
+    tasks = mockdating.tasks_in_order(roots)
     followers: dict[int, list[int]] = {}
     for each in tasks:
         for link in each.links:
@@ -187,7 +187,7 @@ def move_loop(numbers: Sequence[int], parent: int, roots: Iterable[Task]) -> lis
     plan = read
     for number in numbers:
         plan = plan.moved(number, parent)
-    order = [each.number for each in mockcore.tasks_in_order(roots)]
+    order = [each.number for each in mockdating.tasks_in_order(roots)]
     for number in sorted(numbers, key=order.index):
         found = _loop(plan, number, parent)
         if found:

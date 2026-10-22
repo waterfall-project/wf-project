@@ -24,7 +24,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mocktext, mockwitness
+from wftools import REPOSITORY, mockcore, mockdating, mocktext, mockwitness
 from wftools.mockids import universe
 from wftools.mockstructure import (
     CATEGORY_LABELS,
@@ -195,7 +195,7 @@ def on_line(number: int, **changes: Any) -> Callable[[Line], Line | None]:
     """
 
     def entered(each: Line) -> Line:
-        budgeted = mockcore.price(each, REFERENCE_YEAR).budgeted
+        budgeted = mockdating.price(each, REFERENCE_YEAR).budgeted
         return replace(each, budgeted=budgeted, **changes)
 
     return lambda each: entered(each) if each.number == number else each
@@ -267,7 +267,9 @@ def task_attached() -> JsonObject:
     The milestone of the deliverable of the post, the report of the factory acceptance, bears
     the post of the one lot of the witness, which the summary above it bears: a leaf may bear a
     post, and the task of the post is in the subtree of the task of its lot (WF-PLA-0170, #817).
-    No other write renders the milestone: two answers never render it at one version (#421).
+    Of the writes here, none other renders the milestone; the Kanban's completion of it
+    (``wftools.mockkanban``, `milestone_completed`) follows this one, one version further: two
+    answers never render it at one version (#421).
     """
     return core_write(amended(CORE, on_task(MILESTONE, bears=FIRST_ITEM)), [MILESTONE])
 
@@ -423,7 +425,7 @@ def volume_write(
 
 def task_lengthened() -> JsonObject:
     """Return what updateTaskFacet answers when the duration of LENGTHENED grows by its days."""
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if each.label == LENGTHENED]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if each.label == LENGTHENED]
     roots = amended(described(), on_task(task.number, days=task.days + LENGTHENED_BY))
     return volume_write(roots, [task.number])
 
@@ -524,7 +526,7 @@ def pasted(block: Sequence[Sequence[str]]) -> tuple[tuple[Task, ...], list[int],
     that write left it (WF-IHM-0050).
     """
     entered = amended(described(), line=on_line(LINE, label=ENTERED))
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
     rejected = cast("list[JsonObject]", paste_plan(block, PASTES[0])["rejected"])
     refused = {cast("int", each["row"]) for each in rejected}
     rows = list(zip(_numbers(task.lines[: len(block)]), block, strict=True))

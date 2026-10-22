@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
+from itertools import pairwise
 from pathlib import Path
 from typing import Any, cast
 
@@ -604,6 +605,35 @@ def test_a_node_of_organisation_retains_the_roles_under_it_alone(today: dict[str
     assert [role["resource_role_id"] for role in filtered["roles"]] == [universe(454)]
     everyone = {role["resource_role_id"]: role for role in today["workload"]["roles"]}
     assert filtered["roles"] == [everyone[universe(454)]]
+
+
+@pytest.mark.parametrize("name", ["workload", "workload_org_node", "workload_reference_budget"])
+def test_the_monthly_totals_sum_the_roles_month_by_month_without_a_gap(
+    today: dict[str, Any], name: str
+) -> None:
+    # The label of the top of each bar, which the front does not sum (#1247): from the first
+    # month a role loads to the last, each month once and in order, nought where none loads.
+    plan = today[name]
+    by_month: dict[str, Decimal] = {}
+    for role in plan["roles"]:
+        for month in role["months"]:
+            by_month[month["month"]] = by_month.get(month["month"], Decimal(0)) + Decimal(
+                month["hours"]
+            )
+    totals = plan["monthly_totals"]
+    assert totals
+    assert {total["month"]: Decimal(total["hours"]) for total in totals} == {
+        month: by_month.get(month, Decimal(0)) for month in (total["month"] for total in totals)
+    }
+    assert (totals[0]["month"], totals[-1]["month"]) == (min(by_month), max(by_month))
+    starts = [date.fromisoformat(f"{total['month']}-01") for total in totals]
+    for before, after in pairwise(starts):
+        assert after == (before + timedelta(days=31)).replace(day=1)
+
+
+def test_the_monthly_totals_are_empty_when_no_role_loads() -> None:
+    assert mockcurves.monthly_totals([]) == []
+    assert mockcurves.monthly_totals([{"resource_role_id": universe(451), "months": []}]) == []
 
 
 def test_the_evolution_of_the_indices_keeps_the_revisions_marked_in_progress(

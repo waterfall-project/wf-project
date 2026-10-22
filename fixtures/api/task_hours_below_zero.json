@@ -1,0 +1,12 @@
+{
+  "summary": "Le début de la « Mise en service », en mode manuel, envoyé le 4 janvier 2027 à -1 h : un instant de travail compte les heures travaillées ce jour-là, jamais moins de zéro ; les heures sont refusées sur leur champ, la borne franchie nommée ; rien n'est écrit (WF-PLA-0020, WF-DAT-0100, #1273).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/start/hours","code":"VALUE_OUT_OF_RANGE","params":{"minimum":"0"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001541"
+  }
+}

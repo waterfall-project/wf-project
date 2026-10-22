@@ -392,6 +392,9 @@ export interface Examples {
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set" | "predecessors_entered";
   };
+  "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress": {
+    200: "milestone_completed" | "milestone_reopened" | "task_reopened" | "task_started";
+  };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining": {
     200: "remaining_reestimated";
   };

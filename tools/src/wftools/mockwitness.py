@@ -304,7 +304,8 @@ class Task:
     unit="w"`` —, as its links' lags are in their units, both converted into hours by
     ``mockcalendar.to_hours`` (WF-PLA-0160); its lines and its subordinates. The progress of a
     task in automatic mode is read from its dates at TODAY; a task in manual mode carries the
-    dates its user entered, and the progress its user declared. A task may bear a lot or a post
+    dates its user entered, and the progress its user declared — a gesture of the Kanban, on the
+    day ``declared_on`` says, or on its dates' day without it. A task may bear a lot or a post
     of the work breakdown, never both (WF-PLA-0130, WF-PLA-0170). A write may give it a
     description, and its inscriptions — the timelines, and ``MILESTONE_TRACKING`` for the
     time/time tracking —, which are otherwise those ``INSCRIBED`` and ``TRACKED`` say.
@@ -320,6 +321,7 @@ class Task:
     children: tuple[Task, ...] = ()
     manual: tuple[date, date] | None = None
     progress: str | None = None
+    declared_on: date | None = None
     bears: WorkPackage | OrderItem | None = None
     description: str | None = None
     inscriptions: tuple[str, ...] | None = None

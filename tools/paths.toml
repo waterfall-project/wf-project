@@ -256,8 +256,8 @@ by = "make fixtures"
 [[generated]]
 # The volumes, the named examples read from the core of the witness (wftools.mockcore), the
 # answers of the writes of the grids (wftools.mockwrites, wftools.mockgestures,
-# wftools.mockamendmentwrites), the history of the witness — its revisions compared and its risks
-# (wftools.mockhistory), the entries of a risk (wftools.mockriskwrites) —, its indicators today
+# wftools.mockamendmentwrites) and of the gestures of the Kanban (wftools.mockkanban), the
+# history of the witness — its revisions compared and its risks (wftools.mockhistory), the entries of a risk (wftools.mockriskwrites) —, its indicators today
 # (wftools.mocktoday), its actual costs with the journal of their imports (wftools.mockcosts), and
 # the views of the portfolio over time that sum it with the other projects
 # (wftools.mockportfoliotime), the journal of audit of the universe (wftools.mockaudit), the
@@ -304,6 +304,11 @@ paths = [
     "fixtures/api/node_deleted.json",
     "fixtures/api/node_delete_stale.json",
     "fixtures/api/predecessor_set.json",
+    "fixtures/api/task_started.json",
+    "fixtures/api/milestone_completed.json",
+    "fixtures/api/task_reopened.json",
+    "fixtures/api/milestone_reopened.json",
+    "fixtures/api/task_reopen_not_started_refused.json",
     "fixtures/api/node_created.json",
     "fixtures/api/node_created_child.json",
     "fixtures/api/estimate_line_created.json",
@@ -319,6 +324,7 @@ paths = [
     "fixtures/api/task_date_computed_refused.json",
     "fixtures/api/task_horizon_exceeded.json",
     "fixtures/api/task_hours_beyond_day.json",
+    "fixtures/api/task_hours_below_zero.json",
     "fixtures/api/predecessors_entered.json",
     "fixtures/api/predecessors_cycle_refused.json",
     "fixtures/api/predecessors_forbidden.json",
@@ -354,6 +360,7 @@ paths = [
     "fixtures/api/risk.json",
     "fixtures/api/risk_occurred_detail.json",
     "fixtures/api/risk_matrix.json",
+    "fixtures/api/risk_matrix_no_basis.json",
     "fixtures/api/risk_reviews.json",
     "fixtures/api/risk_coverage.json",
     "fixtures/api/risk_created.json",

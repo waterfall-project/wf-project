@@ -194,11 +194,7 @@ def offer_rows() -> list[mockcore.Row]:
 
 
 def moved_offer_rows() -> list[mockcore.Row]:
-    """Return the offer of a counterfactual variant: the commissioning under the control station.
-
-    As if the offer had borne it under the summary « Poste de commande », and the amendment 1 had
-    moved it under the installation on site, where the reference bears it (``comparison_moved``).
-    """
+    """Return the offer bearing the commissioning under the control station (counterfactual)."""
     found: list[Task] = []
 
     def gather(task: Task) -> Task:
@@ -364,11 +360,12 @@ def matrix_cell(risk: Risk, budget: Decimal) -> JsonObject:
     """Return the cell of a risk in the matrix, and the zone the installation gives the cell.
 
     Its probability on the bounds of probability; its severity, a share of the reference budget,
-    on those of severity (WF-RIS-0040, WF-REF-0160).
+    on those of severity (WF-RIS-0040, WF-REF-0160) — at the lowest level on a budget of nothing,
+    where the share is not computable (#1240).
     """
     settings = fixture("reference_settings")["risk_matrix"]
     probability = level(risk.last.probability, settings["probability_bounds"])
-    severity = level(risk.last.severity / budget, settings["severity_bounds"])
+    severity = level(risk.last.severity / budget, settings["severity_bounds"]) if budget else 1
     count = len(settings["severity_bounds"]) + 1
     zone = settings["zones"][(probability - 1) * count + severity - 1]
     return {"probability_level": probability, "severity_level": severity, "zone": zone}
@@ -379,15 +376,20 @@ def matrix_point(risk: Risk, budget: Decimal) -> JsonObject:
 
     Its probability, its severity in amount and as a share of the budget given, rounded, its
     provision, its state, and the zone of its cell, which classes the exact share (WF-RIS-0040,
-    WF-REF-0160).
+    WF-REF-0160). On a budget of nothing, the share is not computable (#1240).
     """
     last = risk.last
+    ratio: JsonObject = (
+        {"is_computable": True, "value": str(share(last.severity / budget)), "reason": None}
+        if budget
+        else {"is_computable": False, "value": None, "reason": "no_reference_budget"}
+    )
     return {
         "risk_id": universe(risk.number),
         "label": risk.label,
         "probability": str(last.probability),
         "severity_amount": money(last.severity),
-        "severity_ratio": str(share(last.severity / budget)),
+        "severity_ratio": ratio,
         "provision_amount": money(provision(risk)),
         "state": last.state,
         "zone": matrix_cell(risk, budget)["zone"],
@@ -833,12 +835,7 @@ def comparison_volume() -> JsonObject:
 
 
 def comparison_moved(rows: list[mockcore.Row]) -> JsonObject:
-    """Return the comparison of a counterfactual offer, a task moved under another summary.
-
-    The window of the first example, read on the offer of ``moved_offer_rows``: the commissioning,
-    moved from the control station, is rendered once, under the installation on site, modified by
-    its parent (``mockdiff``, WF-REV-0080-A).
-    """
+    """Return the comparison of a counterfactual offer, a task moved under another summary."""
     compared = comparison(moved_offer_rows(), rows, OFFER, REFERENCE, N.INSTALLATION)
     nodes = cast("list[JsonObject]", compared["items"])
     [moved] = [node for node in nodes if "parent" in cast("list[str]", node["changes"])]
@@ -855,11 +852,10 @@ def comparison_moved(rows: list[mockcore.Row]) -> JsonObject:
         f"« {named[N.CONTROL_STATION]} » et que l'avenant 1 l'avait déplacée sous "
         f"« {_label(summary)} », où la référence la porte : "
         f"{mocktext.count(len(nodes))} nœuds dans l'ordre du plan. La tâche déplacée est rendue "
-        f"une fois, à sa nouvelle place, et présentée modifiée, son rattachement nommé parmi ce "
-        f"qui change d'elle (`changes` : {said(moved)}) ; la récapitulative qui la reçoit, "
-        f"modifiée par ce qui change d'elle ({said(summary)}) ; les nœuds retirés, à la place "
-        f"qu'ils avaient dans cette offre. Les totaux et les écarts du devis sont ceux du premier "
-        f"exemple (WF-REV-0080, C-361).",
+        f"une fois, à sa nouvelle place, modifiée, son rattachement nommé parmi ce qui change "
+        f"d'elle (`changes` : {said(moved)}) ; la récapitulative qui la reçoit, modifiée "
+        f"({said(summary)}) ; les nœuds retirés, à leur place dans cette offre. Les totaux et "
+        f"les écarts du devis sont ceux du premier exemple (WF-REV-0080, C-361).",
         compared,
     )
 
@@ -966,6 +962,16 @@ def examples() -> dict[str, JsonObject]:
             f"l'écran filtre par état (#1053) ; et les totaux de provisions "
             "(WF-RIS-0040, WF-REF-0160).",
             read["risk_matrix"],
+        ),
+        "risk_matrix_no_basis.json": mocktext.example(
+            "Variante contrefactuelle : le registre du témoin lu sur une assiette nulle, comme "
+            "sur un projet sans budget de référence dont le devis ne porte encore que des "
+            "provisions. La gravité ne se rapporte à rien : la part de chaque risque n'est pas "
+            "calculable (`no_reference_budget`), et chacun est au niveau de gravité le plus "
+            "bas, compté dans la case de sa probabilité ; le graphique ne trace pas de bulle "
+            "sans ordonnée. Les niveaux, les zones et les totaux de provisions sont ceux de la "
+            "matrice du témoin (WF-RIS-0040, WF-REF-0160, #1240).",
+            matrix(reference_rows(), Decimal(0)),
         ),
         "risk_reviews.json": mocktext.example(
             f"L'historique des réexamens de « {rework.label} », du plus récent au plus ancien : "

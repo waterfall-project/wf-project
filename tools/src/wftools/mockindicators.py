@@ -35,7 +35,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mockcosts, mockhistory
+from wftools import mockcore, mockcosts, mockdating, mockhistory
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockstructure import (
     CENT,
@@ -101,7 +101,7 @@ class Reading:
     revision: str
     at: datetime
     rows: tuple[mockcore.Row, ...]
-    dated: Mapping[int, mockcore.Dated]
+    dated: Mapping[int, mockdating.Dated]
     delays: Mapping[int, int]
     by_number: Mapping[int, mockcore.Row]
 
@@ -123,7 +123,7 @@ class Reading:
         """Return the facet of the task of a number."""
         return self.facet(self.by_number[number])
 
-    def bearer(self, line: mockcore.Row) -> mockcore.Dated:
+    def bearer(self, line: mockcore.Row) -> mockdating.Dated:
         """Return the task that bears a line, dated."""
         return self.dated[cast("int", line.parent)]
 
@@ -181,7 +181,7 @@ def _read(
 ) -> Reading:
     rows = tuple(mockcore.core(roots, at.date(), dict(rates), previous))
     by_number = {row.number: row for row in rows}
-    return Reading(revision, at, rows, mockcore.schedule(roots), delays(rows), by_number)
+    return Reading(revision, at, rows, mockdating.schedule(roots), delays(rows), by_number)
 
 
 def delays(rows: Iterable[mockcore.Row]) -> dict[int, int]:
@@ -308,12 +308,12 @@ class Flow:
         return self.amount * self.calendar.work_between(self.start, end) / total
 
 
-def over(placed: mockcore.Dated, amount: Decimal, delay: int = 0) -> Flow:
+def over(placed: mockdating.Dated, amount: Decimal, delay: int = 0) -> Flow:
     """Return an amount spread over the hours of work of a task."""
     return Flow(amount, placed.calendar, placed.start, placed.finish, delay)
 
 
-def worked(placed: mockcore.Dated, day: date) -> Decimal:
+def worked(placed: mockdating.Dated, day: date) -> Decimal:
     """Return the share of a task's hours of work done by the end of a day.
 
     A task of no duration, a milestone, is whole at its date (WF-DEV-0080).
