@@ -20,10 +20,12 @@ from wftools import (
     mockamendment,
     mockcore,
     mockdata,
+    mockdating,
     mockids,
     mockstructure,
     mocktext,
     mockwitness,
+    mockwitnessrisks,
     mockwrites,
 )
 from wftools.mockids import universe
@@ -559,7 +561,7 @@ def test_the_readings_are_the_fixtures_the_front_reads(readings: dict[str, Any])
 
 def test_a_line_without_hours_nor_disbursement_cannot_be_priced() -> None:
     with pytest.raises(ValueError, match="the line 999 has neither hours nor a unit disbursement"):
-        mockcore.price(Line(999, "Rien", mockwitness.EQUIPMENT), 2026)
+        mockdating.price(Line(999, "Rien", mockwitness.EQUIPMENT), 2026)
     with pytest.raises(ValueError, match="a line is borne by a task"):
         _ = mockcore.Place(None, 0, 1, 1).bearing
 
@@ -726,20 +728,20 @@ def test_the_core_is_dated_in_the_order_of_its_links_whatever_the_order_of_the_p
 ) -> None:
     # The review linked to the design file too, a predecessor further down the plan: dated after
     # it, it starts after the design file finishes, 15 April, and names it by its row.
-    review = next(task for task in mockcore.tasks_in_order() if task.number == REVIEW)
+    review = next(task for task in mockdating.tasks_in_order() if task.number == REVIEW)
     roots = mockwrites.amended(
         mockwitness.CORE,
         mockwrites.on_task(REVIEW, links=(*review.links, mockwitness.Link(FILE))),
     )
-    dated = mockcore.schedule(roots)
+    dated = mockdating.schedule(roots)
     assert dated[FILE].finish.day == date(2026, 4, 15)
     assert dated[REVIEW].start.day > dated[FILE].finish.day
     node = next(row.node for row in mockcore.core(roots) if row.number == REVIEW)
     links = cast("list[dict[str, Any]]", node["predecessors"])
     assert [link["predecessor_row_number"] for link in links] == [2, 7]
     # Unlinked, the order of the plan stands; the whole reading gives every row and the totals.
-    order = [task.number for task in mockcore.in_link_order(mockcore.tasks_in_order())]
-    assert order == [task.number for task in mockcore.tasks_in_order()]
+    order = [task.number for task in mockdating.in_link_order(mockdating.tasks_in_order())]
+    assert order == [task.number for task in mockdating.tasks_in_order()]
     whole = readings["nodes_core.json"]
     assert [item["row_number"] for item in whole["items"]] == list(range(1, 25))
     assert whole["totals"]["task_count"] == 15
@@ -824,7 +826,7 @@ def test_the_kanban_holds_every_task_by_its_state_the_milestones_to_complete_fla
 
 def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review() -> None:
     today = {row.number: row for row in mockcore.current()}
-    marked = {row.number: row for row in mockcore.core(mockwitness.reference())}
+    marked = {row.number: row for row in mockcore.core(mockwitnessrisks.reference())}
     lines = [
         row
         for row in today.values()
@@ -864,7 +866,7 @@ def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review(
 
 
 def test_a_marked_revision_shows_no_previous_review() -> None:
-    for row in mockcore.core(mockwitness.reference()):
+    for row in mockcore.core(mockwitnessrisks.reference()):
         if row.kind == mockcore.ESTIMATE_LINE:
             facet = cast("Node", row.node["estimate_line"])
             assert all(facet[name] is None for name in mockcore.PREVIOUS)
@@ -976,6 +978,6 @@ def test_a_quantity_is_an_exact_decimal_rendered_as_the_contract_carries_it() ->
     line = Line(
         1, "Location", mockwitness.EQUIPMENT, unit=Decimal("100.00"), quantity=Decimal("2.5")
     )
-    assert mockcore.price(line, 2026).base == Decimal(250)
+    assert mockdating.price(line, 2026).base == Decimal(250)
     [_, row] = mockcore.core([Task(2, "Tâche", days=1, lines=(line,))])
     assert cast("Node", row.node["estimate_line"])["quantity"] == "2.5"

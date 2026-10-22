@@ -29,16 +29,11 @@ from wftools import (
     mockids,
     mockindicators,
     mockwitness,
+    mockwitnesscosts,
 )
 from wftools.mockids import PREFIX, universe
-from wftools.mockwitness import (
-    COSTS,
-    JOURNAL,
-    PAYMENT_DELAY,
-    STUDIES_LINE,
-    TODAY,
-    fixture,
-)
+from wftools.mockwitness import PAYMENT_DELAY, STUDIES_LINE, TODAY, fixture
+from wftools.mockwitnesscosts import COSTS, JOURNAL
 
 type Node = dict[str, Any]
 
@@ -750,7 +745,7 @@ def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() ->
 def test_the_columns_kept_are_those_of_every_line_retained_in_the_order_declared() -> None:
     def kept(items: list[Node]) -> list[str]:
         found = {column for item in items for column in cast("Node", item["passthrough"])}
-        return [column for column in mockwitness.PASSTHROUGH if column in found]
+        return [column for column in mockwitnesscosts.PASSTHROUGH if column in found]
 
     whole = fixture("actual_costs")
     # The whole consultation is one page: its lines are every line retained.

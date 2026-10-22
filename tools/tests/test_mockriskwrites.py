@@ -11,10 +11,19 @@ import json
 import re
 from typing import Any, cast
 
-from wftools import REPOSITORY, mockamendment, mockcore, mockdata, mockriskwrites, mockwitness
+from wftools import (
+    REPOSITORY,
+    mockamendment,
+    mockcore,
+    mockdata,
+    mockriskwrites,
+    mockwitness,
+    mockwitnessrisks,
+)
 from wftools.mockhistory import stamp
 from wftools.mockids import universe
-from wftools.mockwitness import DELIVERY_DELAY, REGISTER, TODAY, N
+from wftools.mockwitness import TODAY, N
+from wftools.mockwitnessrisks import DELIVERY_DELAY, REGISTER
 
 CITED = {
     ("risks.yaml", "createRisk", "201"): "risk_created",
@@ -112,7 +121,7 @@ def test_the_occurrence_queued_is_the_one_of_the_delay_of_the_cabinets() -> None
     queued = example("task_occurrence_queued")["value"]
     assert (queued["kind"], queued["status"]) == ("risk_occurrence", "queued")
     assert queued["submitted_at"] == stamp(DELIVERY_DELAY.last.at)
-    assert DELIVERY_DELAY.last.state == mockwitness.OCCURRED
+    assert DELIVERY_DELAY.last.state == mockwitnessrisks.OCCURRED
     others = [
         path.name
         for path in mockwitness.FIXTURES.glob("*.json")
@@ -139,7 +148,10 @@ def test_a_line_of_provision_moved_in_the_grid_is_refused_and_names_its_risk() -
     # #1227: the line of provision moves by the form of its risk alone, which designates its task.
     refused = example("nodes_move_provision_refused")["value"]
     assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
-    risk = {"risk_id": universe(mockwitness.REWORK.number), "label": mockwitness.REWORK.label}
+    risk = {
+        "risk_id": universe(mockwitnessrisks.REWORK.number),
+        "label": mockwitnessrisks.REWORK.label,
+    }
     assert refused["fields"] == [
         {
             "pointer": "/node_ids/0",
@@ -148,7 +160,7 @@ def test_a_line_of_provision_moved_in_the_grid_is_refused_and_names_its_risk() -
         }
     ]
     rows = {row.number: row for row in mockcore.current()}
-    line = rows[cast("int", mockwitness.REWORK.provision_line)]
+    line = rows[cast("int", mockwitnessrisks.REWORK.provision_line)]
     assert cast("dict[str, Any]", line.node["estimate_line"])["is_computed"]
     assert line.parent == N.WIRING != mockriskwrites.PROVISION_MOVED_UNDER
     summary = example("nodes_move_provision_refused")["summary"]

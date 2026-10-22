@@ -40,16 +40,9 @@ from wftools import mockcosts, mockhistory, mocktext
 from wftools.mockhistory import stamp
 from wftools.mockids import AUDIT_EVENTS, CORRELATIONS, hex_identifier, identifier, universe
 from wftools.mocktext import PAGE
-from wftools.mockwitness import (
-    AMENDMENT_MERGED,
-    COSTS,
-    JOURNAL,
-    OCCURRED,
-    ORDER_RECEIVED,
-    REGISTER,
-    TODAY,
-    fixture,
-)
+from wftools.mockwitness import AMENDMENT_MERGED, ORDER_RECEIVED, TODAY, fixture
+from wftools.mockwitnesscosts import COSTS, JOURNAL
+from wftools.mockwitnessrisks import OCCURRED, REGISTER
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
