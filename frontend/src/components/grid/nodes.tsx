@@ -9,7 +9,7 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 
-import type { GridColumn, GridTree, RowPart, RowsWritten } from "./columns";
+import type { GridColumn, GridConfig, GridTree, RowPart, RowsWritten } from "./columns";
 import { rowNature, RowNatureIcon } from "./row-nature";
 
 /** A node of a structure, as the API reads it. */
@@ -118,7 +118,8 @@ export type AnyNodeFields = NodeFields<NodeField, keyof TaskFacet, keyof Estimat
  * The fields every grid of a structure reads: the identity and the version of a node, which an
  * entry sends back, the fields the server computes on it and those it accepts (#219), its number,
  * its level and the node it is under, which the tree folds by, its kind and the flags of its
- * nature, its label.
+ * nature, its label, and the difference the structure read as a differential marks on it
+ * (US-0500), which the server renders on every node of one and never on another.
  */
 export const COMMON_FIELDS = {
   node: [
@@ -131,6 +132,7 @@ export const COMMON_FIELDS = {
     "parent_id",
     "position",
     "kind",
+    "difference",
   ],
   task: ["label", "is_summary", "is_milestone"],
   line: ["label", "is_computed", "resource_role_id"],
@@ -460,6 +462,27 @@ export const NODE_TREE: GridTree<GridNode> = {
   emphasis,
   parent: (node) => node.parent_id,
 };
+
+/** The difference a node bears with the structure it is read against (`GridConfig.difference`). */
+export function nodeDifference(node: GridNode): GridNode["difference"] {
+  return node.difference;
+}
+
+/**
+ * A grid of a structure, with the column of the marks of a difference where the structure read is a
+ * differential (`GridConfig.difference`); as it is otherwise.
+ */
+export function withDifference<Row extends GridNode, Sort extends string, Totals>(
+  config: GridConfig<Row, Sort, Totals>,
+  differential: boolean | undefined,
+): GridConfig<Row, Sort, Totals> {
+  return differential === true ? { ...config, difference: nodeDifference } : config;
+}
+
+/** Whether a differential removes a node: it is read in its place, and nothing is done to it. */
+export function isRemoved(node: GridNode): boolean {
+  return node.difference === "removed";
+}
 
 /** The identity of a node, stable from one answer to the next. */
 export function nodeKey(node: GridNode): string {

@@ -5,13 +5,18 @@
 Usage: ``python -m wftools.mock BUNDLE``, where BUNDLE is the contract bundled as JSON; the
 file is rewritten in place.
 
-Two differences, and only these, so that the fake back answers what the contract says:
+Three differences, and only these, so that the fake back answers what the contract says:
 
 - every path is prefixed with the path of the contract's server, ``/api/v1``: Prism serves
   paths at the root and ignores a relative server, and the front must call the fake back
   exactly as it will call the real service;
 - no operation requires a bearer token: the fake back answers whoever calls it, as the account
-  the mock-up starts from, and authentication is the real service's (EP-03).
+  the mock-up starts from, and authentication is the real service's (EP-03);
+- the nodes of a differential structure are read at the address of that structure: Prism serves
+  the first example of an operation whatever the path, so the path of each structure of kind
+  ``amendment`` that the first example of ``listCostStructures`` lists is repeated with its
+  identifier written in, and ``listNodes`` there leads with its example ``amendment`` (#1219).
+  Prism prefers a path with no parameter to a templated one.
 
 No response is written here: responses are the examples of the contract.
 
@@ -23,7 +28,7 @@ passes as it answers it, where Prism, asking for a token, would answer one of it
 import json
 import sys
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 
 def derive(contract: dict[str, object]) -> dict[str, object]:
@@ -37,8 +42,110 @@ def derive(contract: dict[str, object]) -> dict[str, object]:
     }
     derived = {key: value for key, value in contract.items() if key != "security"}
     derived["servers"] = [{"url": "/"}]
-    derived["paths"] = derived_paths
+    derived["paths"] = _with_amendment_nodes(contract, cast("Json", derived_paths), prefix)
     return derived
+
+
+STRUCTURES_PATH = "/projects/{project_id}/revisions/{revision_id}/structures"
+NODES_PATH = STRUCTURES_PATH + "/{structure_id}/nodes"
+AMENDMENT_EXAMPLE = "amendment"
+HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
+STRUCTURE_PARAMETER = "#/components/parameters/StructureId"
+
+type Json = dict[str, Any]
+
+
+def _with_amendment_nodes(contract: Json, paths: Json, prefix: str) -> Json:
+    """Return the paths, plus the nodes of each differential structure at its own address."""
+    nodes = paths.get(prefix + NODES_PATH)
+    if nodes is None:
+        return paths
+    served = dict(paths)
+    for structure in _amendment_structures(contract, paths.get(prefix + STRUCTURES_PATH)):
+        served[prefix + NODES_PATH.replace("{structure_id}", structure)] = _at_a_structure(nodes)
+    return served
+
+
+def _resolved(contract: Json, value: Json) -> Json:
+    """Return what a reference to the examples of the components points at; others unchanged."""
+    if "$ref" not in value:
+        return value
+    name = str(value["$ref"]).rsplit("/", 1)[-1]
+    components: Json = contract.get("components", {})
+    examples: Json = components.get("examples", {})
+    if name not in examples:
+        message = f"the reference {value['$ref']} points at no example of the components"
+        raise ValueError(message)
+    return cast("Json", examples[name])
+
+
+def _examples(operation: Json) -> Json:
+    """Return the examples of the JSON answer 200 of an operation."""
+    content = operation.get("responses", {}).get("200", {}).get("content", {})
+    return cast("Json", content.get("application/json", {}).get("examples", {}))
+
+
+def _amendment_structures(contract: Json, path: Json | None) -> list[str]:
+    """Return the identifiers of the differential structures the first listing example names.
+
+    A listing that exists and names none is an error: the fake back would serve the nodes of an
+    amendment its guide promises, and silently serve the wrong ones.
+    """
+    if path is None:
+        return []
+    examples = list(_examples(path.get("get", {})).values())
+    first = _resolved(contract, cast("Json", examples[0])) if examples else {}
+    listed = first.get("value")
+    structures = cast("list[Json]", listed) if isinstance(listed, list) else []
+    found = [str(item["structure_id"]) for item in structures if item.get("kind") == "amendment"]
+    if not found:
+        message = (
+            f"the first example of {STRUCTURES_PATH} lists no structure of kind "
+            f"{AMENDMENT_EXAMPLE!r}: the fake back has no amendment to serve (#1219)"
+        )
+        raise ValueError(message)
+    return found
+
+
+def _is_structure_parameter(parameter: Json) -> bool:
+    """Tell whether a parameter is the structure identifier."""
+    return parameter.get("$ref") == STRUCTURE_PARAMETER
+
+
+def _at_a_structure(path: Json) -> Json:
+    """Return the path of the nodes without its structure parameter, the amendment example first.
+
+    Only the HTTP methods are rewritten; the parameters declared on the path itself lose the
+    structure too. A path with no ``get`` has no example to lead with.
+    """
+    served: Json = {}
+    for key, value in path.items():
+        if key in HTTP_METHODS:
+            parameters = value.get("parameters", [])
+            served[key] = {
+                **value,
+                "parameters": [item for item in parameters if not _is_structure_parameter(item)],
+            }
+        elif key == "parameters":
+            served[key] = [item for item in value if not _is_structure_parameter(item)]
+        else:
+            served[key] = value
+    read = served.get("get")
+    if read is None:
+        return served
+    examples = _examples(read)
+    if AMENDMENT_EXAMPLE in examples:
+        reordered = {AMENDMENT_EXAMPLE: examples[AMENDMENT_EXAMPLE]} | examples
+        response = read["responses"]["200"]
+        media = response["content"]["application/json"]
+        read["responses"] = {
+            **read["responses"],
+            "200": {
+                **response,
+                "content": {"application/json": {**media, "examples": reordered}},
+            },
+        }
+    return served
 
 
 def _without_security(field: object) -> object:

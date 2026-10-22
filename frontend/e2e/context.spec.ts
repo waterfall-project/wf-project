@@ -4,6 +4,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
+import { rowAt } from "./scroll";
 
 // The fake back serves the first example of each operation: the project in progress, its
 // current revision — a draft, without a version name —, its structures — the main one, the
@@ -76,9 +77,8 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   page,
 }) => {
   // Une grille ouverte sur une structure différentielle nomme cette structure. The fake back serves
-  // the first example of `listNodes` whatever the structure — the nodes of the main one —: what
-  // the page asks of each structure is proven by `planning/page.test.tsx`.
-  // TODO(#1219): see the nodes of the amendment once the fake back serves them at its address.
+  // the nodes of the amendment at its address (`nodes_amendment`, #1219): what the page asks of each
+  // structure is proven by `planning/page.test.tsx`.
   const amendment = "01926f3a-7c00-7000-8000-000000000203";
   const named = (structure: string) =>
     banner(page).getByRole("button", {
@@ -97,6 +97,15 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   const facts = banner(page).getByRole("definition");
   await expect(facts.filter({ hasText: /^Avenant 2 — reprise des essais$/ })).toBeVisible();
   await expect(facts.filter({ hasText: /^Avenant$/ })).toBeVisible();
+  // The grid reads the nodes of the amendment, each marked by the difference the server renders
+  // (US-0500): a task modified, a line unchanged, a line removed, read in its place, a task added.
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const mark = (row: number) => rowAt(grid, row).getByRole("gridcell").first();
+  await expect(grid.getByRole("columnheader").first()).toHaveAccessibleName("Écart");
+  await expect(mark(1)).toHaveText("MModifié");
+  await expect(mark(3)).toHaveText("");
+  await expect(mark(4)).toHaveText("-Retiré");
+  await expect(mark(5)).toHaveText("+Ajouté");
   // The head of the grid names it too.
   await expect(page.getByRole("main")).toContainText("Avenant 2 — reprise des essais ·");
 

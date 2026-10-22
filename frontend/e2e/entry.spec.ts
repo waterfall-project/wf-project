@@ -18,20 +18,25 @@ import { rowAt } from "./scroll";
 // grid does with another answer is proven on its own examples by the tests of the grid
 // (`entry.dom.test.tsx`).
 //
-// The estimate is read on the amendment 2 its address names (`structure=`, US-0500), a differential
-// not merged of the current revision, which lists the estimate entered whatever the state of the
-// project (`structures`), where the main structure of the project in progress lists it read only
-// (#1176). The fake back serves the first example of an operation whatever its path: the nodes are
-// those of the first example of `listNodes`, the main structure — it serves `nodes_amendment` for
-// no address —, entered under the commands of the amendment.
-// TODO(#1219): enter the nodes of the amendment once the fake back serves them at its address.
+// The main structure of the project in progress lists the estimate read only (#1176), so that the
+// journeys that write read it on the own estimate of the risk of the rewiring (`structure=`, the
+// structure 204 of `structures`), which lists the estimate entered and which the fake back serves
+// the first example of `listNodes` at — only the paths of the differentials are served their own
+// (#1219). The journeys that write nothing read the amendment 2 (US-0500), a differential not merged
+// of the current revision, on its nodes, `nodes_amendment`, nine rows of the tree: row 7, the line
+// « Assistance à la reprise des essais », added by the amendment, of labour, 40 hours; row 5, the
+// summary « Essais sur site », whose figures the server computes.
+// TODO(#1277): enter the amendment too once the contract gives `updateEstimateLine` an example for
+// it; the fake back answers it a node of the witness, which the grid takes for another row.
 //
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // The amendment 2 « reprise des essais », a differential of the current revision (`structures`).
 const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
-const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate?structure=${AMENDMENT}`;
+// The own estimate of the risk of the rewiring: the nodes of the main structure, entered.
+const OWN = "01926f3a-7c00-7000-8000-000000000204";
+const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
 // The columns the journeys enter and read, by their heading (`columnsOf`).
 const COLUMNS = {
@@ -76,10 +81,14 @@ interface Screen<K extends string> {
 }
 
 const ESTIMATE_SCREEN: Screen<keyof typeof COLUMNS> = {
-  path: ESTIMATE,
+  path: `${ESTIMATE}?structure=${OWN}`,
   grid: "Grille de devis",
   columns: COLUMNS,
   first: "label",
+};
+const AMENDMENT_SCREEN: Screen<keyof typeof COLUMNS> = {
+  ...ESTIMATE_SCREEN,
+  path: `${ESTIMATE}?structure=${AMENDMENT}`,
 };
 
 /**
@@ -111,9 +120,12 @@ async function tabIntoGrid<K extends string>(
   return { grid, at };
 }
 
-/** The first line drawn after the core, and the provision of the core. */
+/** The first line drawn after the core, and the provision of the core, of the witness. */
 const LINE = 28;
 const PROVISION = 12;
+/** The line added by the amendment, and the summary it adds, whose figures the server computes. */
+const AMENDMENT_LINE = 7;
+const SUMMARY = 5;
 
 /** Press keys, one after the other. */
 async function press(page: Page, ...keys: readonly string[]): Promise<void> {
@@ -193,16 +205,40 @@ test("enters a whole line of the estimate without the mouse — label, category,
 test("leaves a cell at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
-  await press(page, ...times("ArrowDown", LINE - 1), ...times("ArrowRight", at.hours - at.label));
-  const hours = cellAt(grid, LINE, at.hours);
+  const { grid, at } = await tabIntoGrid(page, AMENDMENT_SCREEN);
+  await press(
+    page,
+    ...times("ArrowDown", AMENDMENT_LINE - 1),
+    ...times("ArrowRight", at.hours - at.label),
+  );
+  const hours = cellAt(grid, AMENDMENT_LINE, at.hours);
   await expect(hours).toBeFocused();
   await page.keyboard.type("99");
   await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("99");
   await page.keyboard.press("Escape");
   await expect(hours.getByRole("textbox")).toHaveCount(0);
-  await expect(hours).toHaveText("74,5");
+  await expect(hours).toHaveText("40");
   await expect(hours).toBeFocused();
+});
+
+test("traverses the cells of a summary that its node does not accept or the server computes along its row, without entering them [WF-IHM-0040-A]", async ({
+  page,
+}) => {
+  const { grid, at } = await tabIntoGrid(page, AMENDMENT_SCREEN);
+  await press(page, ...times("ArrowDown", SUMMARY - 1));
+  await expect(rowAt(grid, SUMMARY)).toContainText("Essais sur site");
+  await expect(cellAt(grid, SUMMARY, at.label)).toBeFocused();
+  // From its label, Tab goes past its category, its role, its quantity and its effort, which its
+  // node does not accept (#219) — a summary bears no line of its own —, past its payment delay,
+  // which it does not carry (WF-DEV-0020, EP-14/L42s), and past its amounts, which the server
+  // computes from its subordinates, to the next row. Its sub-project is a column hidden until shown
+  // (US-0480).
+  await press(page, "Enter", "Tab");
+  await expect(cellAt(grid, SUMMARY + 1, at.label)).toBeFocused();
+  for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
+    await expect(cellAt(grid, SUMMARY, column)).toHaveAttribute("aria-readonly", "true");
+  }
+  await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
 test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
@@ -228,18 +264,22 @@ test("traverses the computed cells of a line entered along its row, without ente
 test("opens the entry of the effort on a digit typed, and the refusal of the amount, with no field, on the same digit [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
-  await press(page, ...times("ArrowDown", LINE - 1), ...times("ArrowRight", at.hours - at.label));
-  const hours = cellAt(grid, LINE, at.hours);
+  const { grid, at } = await tabIntoGrid(page, AMENDMENT_SCREEN);
+  await press(
+    page,
+    ...times("ArrowDown", AMENDMENT_LINE - 1),
+    ...times("ArrowRight", at.hours - at.label),
+  );
+  const hours = cellAt(grid, AMENDMENT_LINE, at.hours);
   await expect(hours).toBeFocused();
   // The effort of a line of labour is entered: a digit opens its entry, with it.
   await page.keyboard.press("7");
   await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("7");
   await page.keyboard.press("Escape");
-  await expect(hours).toHaveText("74,5");
+  await expect(hours).toHaveText("40");
   // Its amount is computed: the arrows reach it, the same digit opens no field but its refusal.
   await press(page, ...times("ArrowRight", at.reference - at.hours));
-  const amount = cellAt(grid, LINE, at.reference);
+  const amount = cellAt(grid, AMENDMENT_LINE, at.reference);
   await expect(amount).toBeFocused();
   await expect(amount).toHaveAttribute("aria-readonly", "true");
   await page.keyboard.press("7");

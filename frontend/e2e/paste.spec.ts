@@ -18,18 +18,18 @@ import { rowAt, scrollToPosition } from "./scroll";
 // the browser posts; what the grid does with a plan that refuses a row is proven on its own
 // example by the tests of the grid (`paste.dom.test.tsx`).
 //
-// The estimate is read on the amendment 2 its address names (`structure=`, US-0500), a differential
-// not merged of the current revision, at its version 2, which lists the estimate entered whatever
-// the state of the project (`structures`), where the main structure of the project in progress
-// lists it read only (#1176). The fake back serves the first example of an operation whatever its
-// path: the nodes are those of the first example of `listNodes`, the main structure — it serves
-// `nodes_amendment` for no address —, pasted on under the commands of the amendment.
-// TODO(#1219): paste on the nodes of the amendment once the fake back serves them at its address.
+// The main structure of the project in progress lists the estimate read only (#1176): the block is
+// pasted on the own estimate of the risk of the rewiring its address names (`structure=`, the
+// structure 204 of `structures`, at its version 1), which lists the estimate entered and which the
+// fake back serves the first example of `listNodes` at — only the paths of the differentials are
+// served their own (#1219).
+// TODO(#1277): paste on the amendment too once the contract gives `applyPaste` an example for it;
+// the fake back answers it three lines of the witness, which the amendment does not hold.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-// The amendment 2 « reprise des essais », a differential of the current revision (`structures`).
-const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
-const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate?structure=${AMENDMENT}`;
+// The own estimate of the risk of the rewiring, a structure of the current revision (`structures`).
+const OWN = "01926f3a-7c00-7000-8000-000000000204";
+const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate?structure=${OWN}`;
 const LINE_4 = "01926f3a-7c00-7000-8000-000100000028";
 const FIRST = 28;
 
@@ -141,7 +141,7 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   expect(argumentsWith(posted, "paste_id")?.[1]).toEqual({
     paste_id: "01926f3a-7c00-7000-8000-000000000991",
     confirmed: true,
-    lock_version: 2,
+    lock_version: 1,
   });
   // The three rows the server wrote, in place of those read; the focus back on the cell.
   await expect(cellAt(grid, FIRST, at.label)).toHaveText("Heures de câblage et repérage");

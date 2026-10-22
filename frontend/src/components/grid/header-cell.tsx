@@ -22,7 +22,14 @@ import { type KeyboardEvent, useId } from "react";
 import { TableHead } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 
-import { alignment, type GridColumn, headingOf, MAX_WIDTH, MIN_WIDTH } from "./columns";
+import {
+  alignment,
+  DIFF_MARK_KEY,
+  type GridColumn,
+  headingOf,
+  MAX_WIDTH,
+  MIN_WIDTH,
+} from "./columns";
 import type { CellPosition } from "./grid-keyboard";
 import type { GridHeader, GridTable } from "./grid-table";
 
@@ -134,10 +141,13 @@ function Heading({
   column,
   label,
   width,
+  named,
 }: {
   readonly id: string;
   readonly column: HeaderColumn | undefined;
   readonly label: string;
+  /** Whether the label names the column to the readers of the screen alone: too narrow to write. */
+  readonly named: boolean;
   /** The width of the column, at which an axis draws. */
   readonly width: number;
 }) {
@@ -153,7 +163,9 @@ function Heading({
         <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
       ) : null}
       {Icon === undefined ? (
-        <span className={column?.axis === undefined ? "truncate" : "sr-only"}>{label}</span>
+        <span className={column?.axis === undefined && !named ? "truncate" : "sr-only"}>
+          {label}
+        </span>
       ) : (
         <Icon role="img" aria-label={label} className="size-3.5 shrink-0" />
       )}
@@ -172,15 +184,24 @@ export function HeaderCell<Row extends RowData>({
   active,
 }: HeaderCellProps<Row>) {
   const t = useTranslations("grid");
-  const label =
-    column === undefined ? t("columns.rowNumber") : headingOf(column, (key) => t(`columns.${key}`));
+  const numbers =
+    header.column.id === DIFF_MARK_KEY ? t("columns.diffMark") : t("columns.rowNumber");
+  const label = column === undefined ? numbers : headingOf(column, (key) => t(`columns.${key}`));
   const sorted = header.column.getIsSorted();
   const align = column === undefined ? "end" : alignment(column);
   const end = align === "end";
   // The header is named by its heading alone — the Σ and the label —, not by the name of the
   // handle it holds, which would be read with every cell of the column.
   const id = useId();
-  const heading = <Heading id={id} column={column} label={label} width={header.getSize()} />;
+  const heading = (
+    <Heading
+      id={id}
+      column={column}
+      label={label}
+      width={header.getSize()}
+      named={header.column.id === DIFF_MARK_KEY}
+    />
+  );
   const sorts = header.column.getCanSort();
   const resizes = header.column.getCanResize();
   // The keys the header itself takes, not those of its button or handle, which take their own.

@@ -30,6 +30,7 @@ import { useMemo } from "react";
 import {
   type GridColumn,
   type GridConfig,
+  DIFF_MARK_KEY,
   MAX_WIDTH,
   MIN_WIDTH,
   ROW_NUMBER_KEY,
@@ -59,11 +60,29 @@ export type GridHeader<Row extends RowData> = Header<GridFeatures, Row>;
 /** The width of the column of row numbers. */
 const ROW_NUMBER_WIDTH = 48;
 
-/** The columns of the table, from those of the configuration: the row numbers first, if any. */
+/** The width of the column of the marks of a difference. */
+const DIFF_MARK_WIDTH = 32;
+
+/**
+ * The columns of the table, from those of the configuration: the marks of a difference first, if the
+ * grid reads any, then the row numbers, if any.
+ */
 function tableColumns<Row extends RowData, Sort extends string, Totals>(
   config: GridConfig<Row, Sort, Totals>,
 ) {
   const helper = createColumnHelper<GridFeatures, Row>();
+  const marks =
+    config.difference === undefined
+      ? []
+      : [
+          helper.display({
+            id: DIFF_MARK_KEY,
+            size: DIFF_MARK_WIDTH,
+            enableHiding: false,
+            enableSorting: false,
+            enableResizing: false,
+          }),
+        ];
   const numbers =
     config.rowNumber === undefined
       ? []
@@ -77,6 +96,7 @@ function tableColumns<Row extends RowData, Sort extends string, Totals>(
           }),
         ];
   return [
+    ...marks,
     ...numbers,
     // An accessor, which a column needs to offer its sort: the value it reads, never sorted
     // here — no sorted row model is registered.
@@ -135,6 +155,7 @@ export function useGridTable<Row extends RowData, Sort extends string, Totals>({
   const columns = useMemo(() => tableColumns(config), [config]);
   const pinned = useMemo(
     () => [
+      ...(config.difference === undefined ? [] : [DIFF_MARK_KEY]),
       ...(config.rowNumber === undefined ? [] : [ROW_NUMBER_KEY]),
       ...config.columns.filter((column) => column.pinned === true).map((column) => column.key),
     ],

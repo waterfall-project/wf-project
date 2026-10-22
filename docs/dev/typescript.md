@@ -169,7 +169,9 @@ harnais n'ouvre pas (#782 pour le reste) ; le reste, la revue.
   réponse qui manque est un exemple que le contrat cite pour l'opération.
 - Un composant serveur de `src/app/` se teste dans le projet `node` (`*.test.tsx`), sans
   document, comme il s'exécute ; un composant client, dans le projet `dom`
-  (`*.dom.test.tsx`), par Testing Library.
+  (`*.dom.test.tsx`), par Testing Library. Un `*.dom.test.tsx` sous `src/app/` compose une page lue
+  sur le serveur et les composants client qu'elle monte, dans un document : il tient en
+  non-régression ce que seul un rendu montre (le défaut n° 20, #819.3), sans citer d'exigence.
 - Un test unitaire rend le composant et vérifie ce qu'il produit ; un parcours de bout en
   bout trouve les éléments par `getByRole` ou `getByLabel` de Playwright, jamais par une
   classe CSS.

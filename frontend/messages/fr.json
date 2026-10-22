@@ -114,6 +114,7 @@
     },
     "columns": {
       "rowNumber": "N°",
+      "diffMark": "Écart",
       "label": "Libellé",
       "category": "Catégorie",
       "role": "Rôle",

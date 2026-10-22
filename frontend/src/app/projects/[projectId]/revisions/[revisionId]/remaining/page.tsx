@@ -242,12 +242,7 @@ export default async function RemainingPage({
       <ContextBanner
         reading={screen.reading}
         restricts={RESTRICTS}
-        breakdown={breakdownChip(
-          screen.breakdownFilter,
-          screen.breakdown?.items,
-          at.pathname,
-          searchQuery(search),
-        )}
+        breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
       />
       <Screen density={FUNCTION_DENSITY.remaining} fill>
         <RemainingHeader

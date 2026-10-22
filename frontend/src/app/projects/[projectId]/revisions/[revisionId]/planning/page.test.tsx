@@ -198,7 +198,7 @@ describe("the filter of the planning by a lot or a post", () => {
     expect(page).not.toContain("Active filters");
   });
 
-  it("asks the server for the subtree of the post the address names, shows it chosen and active in the banner, lifted with the rest of the address kept", async () => {
+  it("asks the server for the subtree of the post the address names, shows it chosen and active in the banner, with a link that lifts it", async () => {
     const page = await planning({ order_item_id: ITEM, search: "Revue" });
     const [read] = callsOf(NODES);
     expect(read?.query.get("order_item_id")).toBe(ITEM);
@@ -207,9 +207,6 @@ describe("the filter of the planning by a lot or a post", () => {
     expect(page).toContain(`<option value="${ITEM}" selected="">Order item: Poste 1.1</option>`);
     const chips = /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
     expect(chips).toContain("Order item: Poste 1.1");
-    expect(chips).toContain(
-      `href="/projects/${PROJECT}/revisions/${REVISION}/planning?search=Revue"`,
-    );
     expect(chips).toContain(`aria-label="Remove the filter “Order item: Poste 1.1”"`);
   });
 
@@ -219,8 +216,9 @@ describe("the filter of the planning by a lot or a post", () => {
     expect(read?.query.get("work_package_id")).toBe(LOT);
     expect(read?.query.get("order_item_id")).toBeNull();
     expect(page).toContain(`<option value="${LOT}" selected="">Work package: Lot 1</option>`);
-    // The chip lifts both: the post left in the address would take the place of the lot.
-    expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/planning"`);
+    // The chip is the lot's alone: it lifts both parameters, the post left in the address taking the
+    // place of the lot (`structure-screens.dom.test.tsx`).
+    expect(page).toContain('aria-label="Remove the filter “Work package: Lot 1');
   });
 });
 
@@ -243,7 +241,7 @@ describe("the planning whose work breakdown the API refuses", () => {
       expect(read?.query.get("order_item_id")).toBe(ITEM);
       const chips = /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
       expect(chips).toContain(ITEM);
-      expect(chips).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/planning"`);
+      expect(chips).toContain("Remove the filter");
     },
   );
 

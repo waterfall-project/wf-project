@@ -70,6 +70,7 @@ import type { Locale } from "@/i18n/locale";
 import {
   alignment,
   type DependencyReader,
+  DIFF_MARK_KEY,
   formatCell,
   type GridColumn,
   type GridConfig,
@@ -81,6 +82,7 @@ import { cellAttributes, cellKeys, cellStateOf, invalidRing } from "./cell-attri
 import { CellEditor, EntryProblemNotice } from "./cell-editor";
 import { useCellWrites } from "./cell-writes";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
+import { DiffMark, differenceTint } from "./diff-mark";
 import {
   FOLD_KEYS,
   useFoldReach,
@@ -334,7 +336,14 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   const computed = computedIn(column, row);
   const pinning = pinningOf(table, position.column, "z-10");
   const state = cellStateOf(cells, config.rowKey(row), position);
-  const content = state.pending ?? cellContent(config, column, row, locale);
+  const marks = position.column === DIFF_MARK_KEY;
+  const content =
+    state.pending ??
+    (marks ? (
+      <DiffMark difference={config.difference?.(row)} />
+    ) : (
+      cellContent(config, column, row, locale)
+    ));
   let shown = content;
   if (state.draft !== undefined && column !== undefined) {
     shown = cells.editor(state.draft, column);
@@ -370,7 +379,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
         column === undefined || state.pending !== undefined ? "text-muted-foreground" : null,
         state.draft === undefined ? null : "py-0",
         invalidRing(state.invalid),
-        alignClass(column),
+        marks ? "text-center" : alignClass(column),
       )}
     >
       {shown}
@@ -408,7 +417,7 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
       aria-setsize={tree?.siblings}
       aria-expanded={tree?.expanded}
       {...selected}
-      className={cn("h-7", className)}
+      className={cn("h-7", className, differenceTint(shared.config.difference?.(row.original)))}
     >
       {row
         .getVisibleCells()

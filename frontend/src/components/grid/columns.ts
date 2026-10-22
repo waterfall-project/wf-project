@@ -384,6 +384,13 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   readonly rowNumber?: (row: Row) => number;
   readonly tree?: GridTree<Row>;
   /**
+   * The difference a row bears with the structure it is read against, as the server marks it
+   * (`Node.difference`, US-0500): given, the grid has a column of marks at its start, `+`, `-` or `M`
+   * written on the row, tinted by it; none, and it has no such column. A row with none, or
+   * unchanged, bears nothing.
+   */
+  readonly difference?: (row: Row) => RowDifference | null | undefined;
+  /**
    * Whether its headers sort its rows, each by the column of the contract it shows (WF-IHM-0060);
    * by default they do. A grid of a tree whose rows keep the order of the plan sorts none — the
    * planning (§3.4) —, and its address asks no sort. In a grid that sorts, a column may yet sort
@@ -422,6 +429,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
 
 /** The key of the column of row numbers, which no configuration may take. */
 export const ROW_NUMBER_KEY = "row_number";
+
+/** The key of the column of the marks of a difference, which no configuration may take either. */
+export const DIFF_MARK_KEY = "diff_mark";
+
+/** What a row bears with the structure it is read against: added, removed, modified, unchanged. */
+export type RowDifference = components["schemas"]["NodeDifference"];
 
 /** The narrowest a column gets: the contract keeps no width under 20. */
 export const MIN_WIDTH = 40;

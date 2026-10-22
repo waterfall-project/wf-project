@@ -51,6 +51,7 @@ import {
   nodesWritten,
   pasteSpan,
   type StructurePath,
+  withDifference,
 } from "./nodes";
 import type { GridQuery } from "./query";
 import type { RowChoices } from "./row-choices";
@@ -90,6 +91,11 @@ export interface EstimateGridProps {
   readonly tasksEditable: boolean;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
+  /**
+   * Whether the structure read is a differential, whose nodes bear the difference the server marks:
+   * the grid then has its column of marks (US-0500).
+   */
+  readonly differential?: boolean | undefined;
 }
 
 /**
@@ -203,6 +209,7 @@ export function EstimateGrid({
   tasksEditable,
   query,
   preferences,
+  differential,
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
 
@@ -251,7 +258,7 @@ export function EstimateGrid({
     account,
     choices,
   );
-  const config = useMemo(() => {
+  const read = useMemo(() => {
     const told: Moved = {
       to: reach,
       whole,
@@ -264,6 +271,7 @@ export function EstimateGrid({
         : undefined,
     );
   }, [reference, editable, tasksEditable, structure, version, reach, filters, whole, columns]);
+  const config = useMemo(() => withDifference(read, differential), [read, differential]);
   return (
     <DenseGrid
       config={config}

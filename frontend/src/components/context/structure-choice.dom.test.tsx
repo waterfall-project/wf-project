@@ -7,6 +7,7 @@ import { startTransition } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { readContext } from "@/navigation/context";
 import { expectAccessible } from "@/test/axe";
@@ -74,7 +75,9 @@ function banner(structure: StructureChoices, search = "") {
   };
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <ContextBanner reading={reading} structure={structure} />
+      <PendingAddress>
+        <ContextBanner reading={reading} structure={structure} />
+      </PendingAddress>
     </NextIntlClientProvider>,
   );
 }
@@ -186,6 +189,28 @@ describe("the choice of the structure", () => {
       within(menu).getByRole("menuitemradio", { name: "Structure principale" }),
     );
     expect(router.push).toHaveBeenLastCalledWith(`${PLANNING}?search=Revue`, { scroll: false });
+  });
+
+  it("keeps the structure asked when a filter is lifted before the address arrives", async () => {
+    // A filter lifted from its chip goes on from the address last asked (défaut n° 20 de
+    // `typescript.md`, #1221).
+    banner(choices("structures", MAIN), `subproject_id=${SUBPROJECT}&search=Revue`);
+    const menu = await openChoice("Structure principale");
+    await userEvent.click(
+      within(menu).getByRole("menuitemradio", { name: "Avenant 2 — reprise des essais" }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PLANNING}?subproject_id=${SUBPROJECT}&search=Revue&structure=${AMENDMENT}`,
+      { scroll: false },
+    );
+    // The address shown is still the one before: the chip lifts the filter from the one asked.
+    await userEvent.click(within(region()).getByRole("link", { name: /^Lever le filtre/ }));
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PLANNING}?search=Revue&structure=${AMENDMENT}`,
+      {
+        scroll: false,
+      },
+    );
   });
 
   it("leaves the grid on the structure it reads when a filter of the context is lifted", () => {

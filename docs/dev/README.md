@@ -107,7 +107,13 @@ avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `
 que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
 et les composants serveur de `src/app/`, qui se rendent sans document comme en production —,
 `dom` pour les `*.dom.test.ts` et `*.dom.test.tsx` — les composants client, que Testing
-Library rend dans le document de happy-dom. Un test du projet `dom` qui écrit sur la sortie
+Library rend dans le document de happy-dom. Un `*.dom.test.tsx` peut vivre sous `src/app/` quand
+il éprouve ce qu'une page compose avec ses composants client : la page se lit comme en production,
+sur le serveur, et l'arbre qu'elle rend se monte dans un document, où seul un rendu montre ce que
+la bannière et la grille partagent (`structure-screens.dom.test.tsx`). Un tel test n'éprouve pas
+le Vérif d'une exigence et n'en cite pas : il tient en non-régression le défaut n° 20 de
+`typescript.md` et #819.3, les mêmes écrans ayant leurs parcours sous `e2e/`. Un test du projet
+`dom` qui écrit sur la sortie
 d'erreur — `console.error`, `console.warn`, `console.trace` — échoue une fois son document
 nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) : un avertissement de React
 ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du test ou du code, pas un
@@ -853,6 +859,21 @@ lit, et ses indicateurs, avec leur date de calcul, ou qu'ils sont indisponibles 
 ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #159) — ces
 deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
 (`EstimateSummary`).
+
+Une grille qui lit un différentiel (`CostStructure.kind` = `amendment`) est un diff avec la structure
+principale, que le serveur calcule (`Node.difference`, rendu sur chaque nœud, avec les nœuds retirés
+à leur place) : elle reçoit `GridConfig.difference` (`withDifference`, `nodes.tsx`) et une colonne
+`DiffMark` en tête (`diff-mark.tsx`, `DIFF_MARK_KEY`), avant le numéro. Le caractère dit la
+différence — `+` un ajout, `-` un retrait, `M` une modification, une récapitulative dont le contenu
+change comprise —, la couleur le double, la marque dans le vert, le rouge ou le jaune de son jeton
+et la ligne teintée du même (`--diff-added`, `--diff-removed`, `--diff-modified` et leurs `-mark`, avec
+leurs valeurs sombres), jamais la couleur seule : le mot — « Ajouté », « Retiré », « Modifié » — est
+lu par qui ne voit ni l'un ni l'autre, et un nœud inchangé ne porte rien. Les jetons sont mesurés
+dans les deux modes (`contrast.test.ts`), et les grilles du planning et du devis sur l'avenant 2 sont
+des écrans du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`, `e2e/routes.ts`). Un nœud retiré se lit
+et ne se touche pas : aucun geste de structure ne lui est offert, ni « Insérer » ni « Supprimer » ni
+Ctrl+Suppr, il ne se déplace pas, rien ne se dépose à côté de lui (`isRemoved`, `structure-rules.ts`,
+#1185), et la cellule des prédécesseurs d'une tâche retirée n'est pas saisissable (#1257).
 
 ### La grille de planning et le Gantt
 
@@ -2199,7 +2220,18 @@ sauf là où le numéro est ce que le test éprouve (#400).
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune sécurité exigée (`security`
 retiré) — le faux back accorde la session dont part la maquette (EP-02), et Prism n'exige donc pas le
-jeton. Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
+jeton. Une troisième différence : Prism sert le premier exemple d'une opération quel que soit son
+chemin, si bien que `listNodes` de l'avenant aurait rendu la structure principale. La variante
+répète donc le chemin de `listNodes` pour chaque structure de nature `amendment` que liste le
+premier exemple de `listCostStructures`, son identifiant écrit dans le chemin, et y place l'exemple
+`amendment` en tête (`wftools.mock`, #1219) ; Prism préfère un chemin sans paramètre à un chemin
+gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du chemin. Les
+écritures sur l'avenant attendent #1277 : `updateEstimateLine` et `applyPaste` y répondent par un
+nœud du témoin, que la grille prend pour une autre ligne, faute d'exemple du contrat propre à
+l'avenant ; les parcours qui écrivent le devis (`entry.spec.ts`, `paste.spec.ts`) lisent donc le
+devis propre d'un risque, saisissable, que la variante ne sert pas à part et dont les nœuds sont
+ceux de la structure principale, et seuls ceux qui n'écrivent pas lisent l'avenant. Rien
+d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
 en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
 (`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
 navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si
@@ -3492,6 +3524,11 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   (`[color:…]`, `[--primary:…]`), ni `color-mix(`, ni une couleur écrite dans une chaîne,
   dans un `style` ou dans l'attribut d'un SVG. Une police s'ajoute de même, par un jeton
   `--font-<nom>`.
+- **La marque d'un différentiel** (US-0500) a trois jetons de ligne et trois jetons de marque,
+  `--diff-added`, `--diff-removed`, `--diff-modified` et leurs `-mark` — un vert, un rouge, un jaune —,
+  que `DiffMark` pose (`frontend/src/components/grid/diff-mark.tsx`) ; la couleur double le caractère
+  `+`, `-` ou `M` et le mot, elle ne les remplace jamais. Le texte de la page et la marque atteignent
+  4,5:1 sur chaque teinte dans les deux modes (`contrast.test.ts`).
 - **Le contraste** d'un texte sur son fond atteint 4,5:1, celui de ce qui montre un contrôle —
   bord d'un champ, anneau du focus — 3:1, dans les deux modes (WCAG AA, §3.6).
 - **Un signalement passe par `Signal`** (`frontend/src/components/signal/`), et seulement
