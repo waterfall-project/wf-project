@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The actual costs of the witness and the journal of their imports, engendered (EP-02/L25).
 
-The lines of the core and the imports are described once (``mockwitnesscosts.COSTS``,
-``mockwitnesscosts.JOURNAL``); the lines of the tasks drawn about the core follow from the structure
+The lines of the core and the imports are described once (``mockwitness.COSTS``,
+``mockwitness.JOURNAL``); the lines of the tasks drawn about the core follow from the structure
 (``drawn``, EP-14/L45a): each work task completed by today has received the invoice of its supplier,
 dated the day it completed, brought by the imports whose period holds that day. Here they are read
 as the consultation of the costs and the journal present them today (WF-CRE-0040, WF-CRE-0050), and
@@ -29,18 +29,21 @@ from wftools.mockhistory import stamp
 from wftools.mockids import COST_LINES, hex_identifier, identifier
 from wftools.mockstructure import CENT, draw, money
 from wftools.mocktext import PAGE
-from wftools.mockwitness import GENERATED, SUBPROJECT_CONTROL, TODAY, fixture
-from wftools.mockwitnesscosts import (
+from wftools.mockwitness import (
     APRIL,
     APRIL_AGAIN,
     COSTS,
+    GENERATED,
     JOURNAL,
     MARCH,
     MAY,
     PASSTHROUGH,
+    SUBPROJECT_CONTROL,
+    TODAY,
     UNDATED,
     CostImport,
     CostLine,
+    fixture,
 )
 
 if TYPE_CHECKING:
@@ -76,7 +79,7 @@ def cost_line_id(number: int) -> str:
 def brought_by(day: date) -> tuple[CostImport, ...]:
     """Return the imports that brought a line dated a day: those whose period holds it.
 
-    A file without a period brought no line of the project (``mockwitnesscosts.UNDATED``); an import
+    A file without a period brought no line of the project (``mockwitness.UNDATED``); an import
     is applied after the lines it brings are dated (WF-CRE-0050).
     """
     return tuple(

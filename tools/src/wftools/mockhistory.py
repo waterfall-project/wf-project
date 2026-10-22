@@ -55,12 +55,16 @@ from wftools.mockstructure import (
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CORE,
+    DISMISSED,
     EQUIPMENT,
     FACTORY_ACCEPTANCE,
+    IDENTIFIED,
     LABOUR,
+    OCCURRED,
     OFFER_MARKED,
     OFFER_OPENED,
     OFFER_YEAR,
+    REGISTER,
     RISK_751_REVIEWED,
     RISKS_IDENTIFIED,
     TODAY,
@@ -69,19 +73,13 @@ from wftools.mockwitness import (
     Line,
     Link,
     N,
+    Risk,
     Task,
     by_identifier,
     fixture,
-    rewritten,
-)
-from wftools.mockwitnessrisks import (
-    DISMISSED,
-    IDENTIFIED,
-    OCCURRED,
-    REGISTER,
-    Risk,
     reference,
     reference_provision,
+    rewritten,
 )
 
 if TYPE_CHECKING:

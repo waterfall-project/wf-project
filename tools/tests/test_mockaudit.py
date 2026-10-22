@@ -13,16 +13,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import (
-    REPOSITORY,
-    mockaudit,
-    mockcosts,
-    mockdata,
-    mockhistory,
-    mocktext,
-    mockwitness,
-    mockwitnesscosts,
-)
+from wftools import REPOSITORY, mockaudit, mockcosts, mockdata, mockhistory, mocktext, mockwitness
 from wftools.mockids import hex_identifier, universe
 from wftools.mocktext import PAGE
 from wftools.mockwitness import INSTALLED, TODAY, fixture
@@ -117,7 +108,7 @@ def test_each_action_on_the_witness_is_one_the_chronology_says(journal: dict[str
     assert ("amendment_merge", mockhistory.stamp(mockwitness.AMENDMENT_MERGED.instant)) in said
     assert ("risk_occurrence", mockhistory.stamp(mockwitness.RISK_752_OCCURRED.instant)) in said
     # Each import of actual costs applied is an inscription, at the instant its journal says.
-    applied = {mockhistory.stamp(each.event.instant) for each in mockwitnesscosts.JOURNAL}
+    applied = {mockhistory.stamp(each.event.instant) for each in mockwitness.JOURNAL}
     imported = {entry["imported_at"] for entry in fixture("cost_imports")["items"]}
     assert applied == imported
     assert {at for action, at in said if action == "import_apply"} == imported
@@ -240,8 +231,7 @@ def test_each_actor_is_the_one_who_did_the_action(journal: dict[str, Node]) -> N
     risks = {each["risk_id"]: each for each in fixture("risks")["items"]}
     reference = next(each for each in revisions.values() if each["is_reference"])
     imports = {
-        hex_identifier(each.exchange): hex_identifier(each.number)
-        for each in mockwitnesscosts.JOURNAL
+        hex_identifier(each.exchange): hex_identifier(each.number) for each in mockwitness.JOURNAL
     }
     journal_of_costs = {each["cost_import_id"]: each for each in fixture("cost_imports")["items"]}
     witness = fixture("project")["audit"]["created_by"]
@@ -295,7 +285,7 @@ def test_the_designation_and_the_exclusion_stay_with_the_witness_whoever_updated
 
     written = mockcosts.cost_line
 
-    def line_updated_by_another(line: mockwitnesscosts.CostLine) -> Any:
+    def line_updated_by_another(line: mockwitness.CostLine) -> Any:
         value = cast("Node", written(line))
         if value["cost_line_id"] == excluded:
             value["audit"]["updated_by"] = other

@@ -67,8 +67,8 @@ from wftools.mockwitness import (
     WorkPackage,
     lineage_id,
     node_id,
+    reference,
 )
-from wftools.mockwitnessrisks import reference
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping

@@ -15,14 +15,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import (
-    REPOSITORY,
-    mockamendment,
-    mockcore,
-    mockdating,
-    mockstructure,
-    mockwitness,
-)
+from wftools import REPOSITORY, mockamendment, mockcore, mockdating, mockstructure, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
@@ -334,7 +327,7 @@ def _own_estimate(structure: Entry) -> tuple[mockwitness.Task, ...]:
     """Return the tasks of the own estimate of a risk, as the universe describes them: none.
 
     The universe draws no line in the own estimate of a risk — its severity is read from its
-    reviews (`mockwitnessrisks.Risk`) —; the structure is said, its lines bear no subproject.
+    reviews (`mockwitness.Risk`) —; the structure is said, its lines bear no subproject.
     """
     [risk] = [
         r for r in fixture("risks")["items"] if r["structure_id"] == structure["structure_id"]

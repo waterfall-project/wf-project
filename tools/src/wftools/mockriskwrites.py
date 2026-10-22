@@ -43,8 +43,7 @@ from wftools.mockhistory import (
     stamp,
 )
 from wftools.mockids import universe
-from wftools.mockwitness import TODAY, N
-from wftools.mockwitnessrisks import DELIVERY_DELAY, REGISTER, REWORK, Review, Risk
+from wftools.mockwitness import DELIVERY_DELAY, REGISTER, REWORK, TODAY, N, Review, Risk
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject

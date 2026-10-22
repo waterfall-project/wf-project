@@ -29,8 +29,6 @@ from wftools import (
     mocktext,
     mocktoday,
     mockwitness,
-    mockwitnesscosts,
-    mockwitnessrisks,
 )
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockids import universe
@@ -582,7 +580,7 @@ def test_the_workload_spreads_the_hours_of_the_lines_not_completed(today: dict[s
     assert (engineer["month"], engineer["hours"]) == ("2026-06", "12.5")
     planned = _loaded(
         mockcurves.workload(
-            mockindicators.reference(mockwitnessrisks.reference(CORE)), "reference_budget"
+            mockindicators.reference(mockwitness.reference(CORE)), "reference_budget"
         )
     )[0]["months"][:2]
     assert [(month["month"], month["hours"]) for month in planned] == [
@@ -686,9 +684,7 @@ def test_one_run_writes_the_portfolio_from_the_indicators_it_writes(
     assert witness["cost_index"] != mockwitness.fixture("project_indicators")["cost_index"]
 
 
-def _no_costs(
-    known: Sequence[mockwitnesscosts.CostLine] | None = None,
-) -> list[mockindicators.Cost]:
+def _no_costs(known: Sequence[mockwitness.CostLine] | None = None) -> list[mockindicators.Cost]:
     """Stand for the actual costs of the witness with none at all, whatever the lines given."""
     del known
     return []
