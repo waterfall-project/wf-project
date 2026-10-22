@@ -59,6 +59,10 @@ REASONS: dict[str, str] = {
     "le catalogue des permissions ; la règle de traduction vit dans le front.",
     "QUA": "Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle "
     "s'exerce sur le contrat, elle n'y figure pas.",
+    # Not a domain without surface: a requirement added on 2026-10-22, whose surface is still to
+    # write. The line goes once the contract cites it.
+    "REF": "Pas encore au contrat : la correspondance de l'extraction des coûts réels, "
+    "exigence ajoutée le 2026-10-22 (C-374), y entre par #1304.",
 }
 
 # Operations that legitimately realise no requirement: they exist because HTTP or a

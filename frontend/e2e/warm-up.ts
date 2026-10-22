@@ -14,10 +14,14 @@
  * that changes nothing, or declared exempt with the reason why (`WARMED_HANDLERS`,
  * `EXEMPT_HANDLERS`), which a test holds to every `route.ts` of `src/app`
  * (`src/app/route-handlers.test.ts`). A few at a time, as the workers will ask. A route is asked as
- * `compileAnswered` asks it, its redirect not followed: any answer but an error of the server. An
- * error — a status of 500 or more, or no answer at all — is written as it comes, and fails the run
- * once every route has been asked, naming each address in error: a screen that does not compile
- * shows here, not in each path that reaches it. The time the warm-up took is written too.
+ * `compileAnswered` asks it, its redirect not followed: any answer but an error of the server. A
+ * connection the server drops (`isDropped`), which the development server does under load, is not
+ * an error of the screen: the route is asked once more, which is written (#1301). A status of 500
+ * or more is an error of the server, never asked again, even after a drop. A second drop is an
+ * error too, which keeps the message of the first. An error, as any other failure to answer, is
+ * written as it comes, and fails the run once every route has been asked, naming each address in
+ * error: a screen that does not compile shows here, not in each path that reaches it. The time the
+ * warm-up took is written too.
  */
 import { type FullConfig, request } from "@playwright/test";
 
@@ -28,6 +32,14 @@ const AT_ONCE = 4;
 
 /** How long a route is given to compile and answer, the first of a cold `.next` included. */
 const COMPILING = 180_000;
+
+/** The messages of a connection the server dropped, which earns a route a second asking. */
+const DROPPED = /\b(?:ECONNRESET|EPIPE|socket hang up)\b/;
+
+/** Whether `message`, that of an asking that threw, tells of a connection the server dropped. */
+export function isDropped(message: string): boolean {
+  return DROPPED.test(message);
+}
 
 /**
  * The route handlers of `src/app` the warm-up asks, by route, each at an address that changes
@@ -64,8 +76,9 @@ export function warmedAddresses(): string[] {
 }
 
 /**
- * Ask the server at `baseURL` for each address once, a few at a time; each error written as it
- * comes, and every one of them in the error thrown once all are asked.
+ * Ask the server at `baseURL` for each address once, a few at a time, and once more an address
+ * whose connection was dropped; each error written as it comes, and every one of them in the error
+ * thrown once all are asked.
  */
 export async function warm(baseURL: string, addresses: readonly string[]): Promise<void> {
   const context = await request.newContext({ baseURL });
@@ -75,16 +88,32 @@ export async function warm(baseURL: string, addresses: readonly string[]): Promi
     failed.push(failure);
     console.error(`Warm-up: ${failure}`);
   };
+  /**
+   * Ask for an address; dropped, ask once more, unless it already was (`dropped`, the message of
+   * that first drop, kept in the error of the second asking). A server that restarts refuses the
+   * connection (`ECONNREFUSED`), which is not asked again: the run fails, as #1301 wants it.
+   */
+  const ask = async (address: string, dropped?: string): Promise<void> => {
+    try {
+      const response = await context.get(address, { maxRedirects: 0, timeout: COMPILING });
+      if (response.status() >= 500) {
+        failing(`${address} answered ${String(response.status())}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (dropped !== undefined) {
+        failing(`${address} failed again: ${message}\nfirst dropped: ${dropped}`);
+      } else if (isDropped(message)) {
+        console.warn(`Warm-up: ${address} dropped, asked again: ${message}`);
+        await ask(address, message);
+      } else {
+        failing(`${address} failed: ${message}`);
+      }
+    }
+  };
   const asking = async (): Promise<void> => {
     for (let address = waiting.shift(); address !== undefined; address = waiting.shift()) {
-      try {
-        const response = await context.get(address, { maxRedirects: 0, timeout: COMPILING });
-        if (response.status() >= 500) {
-          failing(`${address} answered ${String(response.status())}`);
-        }
-      } catch (error) {
-        failing(`${address} failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      await ask(address);
     }
   };
   try {

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { type KeyboardEvent, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -49,9 +49,6 @@ const ICONS: Readonly<Record<KanbanCommand, LucideIcon>> = {
   reopen: Undo2,
   enter_remaining: PenLine,
 };
-
-/** The gestures that happen on a date the user enters: the start and the completion of a task. */
-export const DATED: ReadonlySet<KanbanCommand> = new Set(["start", "complete"]);
 
 /** What a card tells of the last gesture asked of it: the refusal of the API, or a sentence. */
 export type Notice =
@@ -104,24 +101,34 @@ function CardDate({ card }: { readonly card: KanbanCard }) {
  * The menu of the gestures of a card: every gesture it lists, available or not — an unavailable one
  * stays in the menu, and names what it lacks (WF-IHM-0090) —, the entry of the remaining to commit a
  * link to the grid on the task. The focus goes where the gesture sends it, not back to the button.
+ * The card opens it too with Enter, Space or the menu key.
  */
 function CardMenu({
   card,
   remaining,
   busy,
+  open,
+  onOpenChange,
   onGesture,
+  onDismiss,
 }: {
   readonly card: KanbanCard;
   readonly remaining: string;
   readonly busy: boolean;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly onGesture: (gesture: CardGesture) => void;
+  /** The menu closed with no gesture chosen: the focus goes back to the card. */
+  readonly onDismiss: () => void;
 }) {
   const t = useTranslations("kanban");
   const commands = useTranslations("enums.KanbanCommand");
   const unmet = useUnmet();
   const chosen = useRef<CardGesture>(undefined);
+  // Whether the menu was left by a click or a touch outside it: the focus then stays where it went.
+  const outside = useRef(false);
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -137,13 +144,26 @@ function CardMenu({
       <DropdownMenuContent
         align="start"
         aria-label={t("gestures", { label: card.label })}
+        onInteractOutside={() => {
+          outside.current = true;
+        }}
         onCloseAutoFocus={(event) => {
+          const left = outside.current;
+          outside.current = false;
           // The gesture waits for the menu to be gone: its focus trap would pull the focus back.
           const gesture = chosen.current;
           if (gesture !== undefined) {
             chosen.current = undefined;
             event.preventDefault();
             onGesture(gesture);
+            return;
+          }
+          // Closed from the keyboard with no gesture: the focus goes back to the card, not to the
+          // button of the menu, so that the arrows go on from it. Left by an interaction outside,
+          // the guard of Radix keeps the focus where the user put it.
+          if (!left) {
+            event.preventDefault();
+            onDismiss();
           }
         }}
       >
@@ -275,6 +295,7 @@ function EventDate({
 /** What the board hands a card: what is chosen, asked, told, and the gestures it makes. */
 export interface CardActions {
   readonly remaining: string;
+  /** The identifier of the help of the board, which every card is described by. */
   readonly hint: string;
   readonly selected: string | undefined;
   readonly tabStop: string | undefined;
@@ -283,7 +304,9 @@ export interface CardActions {
   readonly element: (id: string, element: HTMLElement | null) => void;
   readonly field: (element: HTMLInputElement | null) => void;
   readonly choose: (id: string) => void;
-  readonly key: (event: KeyboardEvent<HTMLElement>, card: KanbanCard) => void;
+  readonly focusFrom: (id: string, key: string) => boolean;
+  /** Carry the card to the column a sideways arrow leads to; whether the key was one. */
+  readonly carryFrom: (card: KanbanCard, key: string) => boolean;
   readonly drag: (id: string | undefined) => void;
   readonly gesture: (card: KanbanCard, gesture: CardGesture) => void;
   readonly date: (card: KanbanCard, gesture: CardGesture, date: string) => void;
@@ -383,14 +406,17 @@ export function Card({
   readonly actions: CardActions;
   readonly state: CardState;
 }) {
-  const { selected, tabStop, dragged, writing } = actions;
+  const { selected, dragged, writing } = actions;
   const isSelected = selected === card.node_id;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const item = useRef<HTMLLIElement | null>(null);
   return (
     <li
       ref={(element) => {
+        item.current = element;
         actions.element(card.node_id, element);
       }}
-      tabIndex={tabStop === card.node_id ? 0 : -1}
+      tabIndex={actions.tabStop === card.node_id ? 0 : -1}
       aria-current={isSelected ? "true" : undefined}
       aria-describedby={actions.hint}
       aria-busy={writing === card.node_id}
@@ -401,7 +427,30 @@ export function Card({
         }
       }}
       onKeyDown={(event) => {
-        actions.key(event, card);
+        const opens =
+          event.key === "Enter" ||
+          event.key === " " ||
+          event.key === "ContextMenu" ||
+          (event.key === "F10" && event.shiftKey);
+        if (
+          event.target !== event.currentTarget ||
+          event.ctrlKey ||
+          event.altKey ||
+          event.metaKey
+        ) {
+          return;
+        }
+        const handled = event.shiftKey
+          ? actions.carryFrom(card, event.key)
+          : actions.focusFrom(card.node_id, event.key);
+        if (handled) {
+          event.preventDefault();
+          return;
+        }
+        if (opens && card.commands.length > 0) {
+          event.preventDefault();
+          setMenuOpen(true);
+        }
       }}
       onDragStart={(event) => {
         event.dataTransfer.setData("text/plain", card.node_id);
@@ -422,6 +471,11 @@ export function Card({
             card={card}
             remaining={actions.remaining}
             busy={writing !== undefined}
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            onDismiss={() => {
+              item.current?.focus();
+            }}
             onGesture={(gesture) => {
               actions.gesture(card, gesture);
             }}

@@ -64,7 +64,7 @@ function KanbanScreen({ board }: { readonly board: Board | undefined }) {
         <p className="text-sm text-muted-foreground">{t("kanban.inProgressOnly")}</p>
       ) : (
         <Kanban
-          // Another structure starts the board anew: an answer never lands on another (defect 1).
+          // Another structure starts the board anew: an answer never lands on another.
           key={board.structure.structure_id}
           columns={board.columns}
           structure={board.structure}

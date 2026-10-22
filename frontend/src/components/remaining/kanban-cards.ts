@@ -33,6 +33,9 @@ export interface KanbanStructure {
   readonly structure_id: string;
 }
 
+/** The gestures that happen on a date the user enters: the start and the completion of a task. */
+export const DATED: ReadonlySet<CardGesture["command"]> = new Set(["start", "complete"]);
+
 /** A card of the Kanban: a task, what it shows, and the gestures it lists. */
 export interface KanbanCard {
   readonly node_id: string;
@@ -114,6 +117,33 @@ export function columnsOf(tasks: StartableTasks): KanbanColumns {
   };
 }
 
+/** The version of each node the columns hold. */
+function versionsRead(columns: KanbanColumns): ReadonlyMap<string, number> {
+  const read = new Map<string, number>();
+  for (const [state] of COLUMNS) {
+    for (const card of columns[state]) {
+      read.set(card.node_id, card.lock_version);
+    }
+  }
+  return read;
+}
+
+/**
+ * The answers the columns read do not yet overtake: those of a node the columns hold at an older
+ * version, or not at all. The answers themselves when none is overtaken, so that a state that keeps
+ * them is not written for nothing.
+ */
+export function unanswered(
+  columns: KanbanColumns,
+  answered: Readonly<Record<string, KanbanCard>>,
+): Readonly<Record<string, KanbanCard>> {
+  const read = versionsRead(columns);
+  const kept = Object.entries(answered).filter(
+    ([id, card]) => (read.get(id) ?? -1) < card.lock_version,
+  );
+  return kept.length === Object.keys(answered).length ? answered : Object.fromEntries(kept);
+}
+
 /**
  * The columns once the cards the API answered a gesture with replace theirs: a card answered goes to
  * the column of its new state, in the order of the plan, unless the columns read since already hold
@@ -127,12 +157,7 @@ export function replaced(
   if (cards.length === 0) {
     return columns;
   }
-  const read = new Map<string, number>();
-  for (const [state] of COLUMNS) {
-    for (const card of columns[state]) {
-      read.set(card.node_id, card.lock_version);
-    }
-  }
+  const read = versionsRead(columns);
   const newer = cards.filter((card) => (read.get(card.node_id) ?? -1) < card.lock_version);
   if (newer.length === 0) {
     return columns;
@@ -173,11 +198,6 @@ export function remainingHref(pathname: string, card: KanbanCard): string {
   );
 }
 
-/** What a key does on a card: gives the focus to another card, or carries the card to a column. */
-export type Move =
-  | { readonly kind: "focus"; readonly id: string }
-  | { readonly kind: "carry"; readonly state: TaskProgress };
-
 /** The position of a card in the columns: its column, and its place in it. */
 interface Place {
   readonly column: number;
@@ -201,18 +221,6 @@ function cardsAt(columns: KanbanColumns, column: number): readonly KanbanCard[] 
   return state === undefined ? [] : columns[state];
 }
 
-/** The way a sideways arrow goes: right, left; none for another key. */
-function sidewaysOf(key: string): 1 | -1 | undefined {
-  switch (key) {
-    case "ArrowRight":
-      return 1;
-    case "ArrowLeft":
-      return -1;
-    default:
-      return undefined;
-  }
-}
-
 /**
  * The card a sideways arrow leads to: in the nearest column that holds any, at the same place, or
  * the last card when the column holds fewer.
@@ -227,8 +235,16 @@ function acrossFrom(columns: KanbanColumns, place: Place, step: 1 | -1): string 
   return undefined;
 }
 
-/** The card the arrows, Home and End lead to from a place; none when they lead nowhere. */
-function focusFrom(columns: KanbanColumns, place: Place, key: string): string | undefined {
+/**
+ * The card the arrows, Home and End lead to from a card (WF-IHM-0100): the up and down arrows, Home
+ * and End within its column, the sideways arrows in the nearest column that holds any, at the same
+ * place. None for a key that leads nowhere.
+ */
+export function focusOf(columns: KanbanColumns, id: string, key: string): string | undefined {
+  const place = placeOf(columns, id);
+  if (place === undefined) {
+    return undefined;
+  }
   const column = cardsAt(columns, place.column);
   switch (key) {
     case "ArrowDown":
@@ -239,34 +255,34 @@ function focusFrom(columns: KanbanColumns, place: Place, key: string): string | 
       return column[0]?.node_id;
     case "End":
       return column.at(-1)?.node_id;
-    default: {
-      const step = sidewaysOf(key);
-      return step === undefined ? undefined : acrossFrom(columns, place, step);
-    }
+    case "ArrowRight":
+      return acrossFrom(columns, place, 1);
+    case "ArrowLeft":
+      return acrossFrom(columns, place, -1);
+    default:
+      return undefined;
   }
 }
 
 /**
- * What a key does on the card given (WF-IHM-0100): the up and down arrows, Home and End choose
- * another card of its column, the sideways arrows one of the nearest column that holds any, at the
- * same place; with Shift, a sideways arrow carries the card to the neighbouring column — the keys'
- * equivalent of the drag. Nothing for a key that leads nowhere.
+ * The column Shift and a sideways arrow carry a card to (WF-IHM-0100): the neighbouring one, the
+ * equivalent of the drag. None past the ends, for another key, or for a card the columns do not hold.
  */
-export function moveOf(
+export function carriedTo(
   columns: KanbanColumns,
   id: string,
   key: string,
-  shift: boolean,
-): Move | undefined {
+): TaskProgress | undefined {
   const place = placeOf(columns, id);
   if (place === undefined) {
     return undefined;
   }
-  if (shift) {
-    const step = sidewaysOf(key);
-    const state = step === undefined ? undefined : COLUMNS[place.column + step]?.[0];
-    return state === undefined ? undefined : { kind: "carry", state };
+  switch (key) {
+    case "ArrowRight":
+      return COLUMNS[place.column + 1]?.[0];
+    case "ArrowLeft":
+      return COLUMNS[place.column - 1]?.[0];
+    default:
+      return undefined;
   }
-  const target = focusFrom(columns, place, key);
-  return target === undefined ? undefined : { kind: "focus", id: target };
 }

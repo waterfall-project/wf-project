@@ -1753,7 +1753,7 @@ liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin 
 successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
 sa fin à cet instant, en jours ouvrés ; une tâche en mode manuel n'a ni marge ni criticité et
 n'impose rien à ses prédécesseurs. Les lignes sont chiffrées au taux de leur catégorie pour l'année
-de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; `mockcore` fait sommer à une tâche ses
+de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; une tâche somme ses
 lignes et ses subordonnées ; l'avancement physique d'une récapitulative est le budget des lignes de
 ses tâches terminées sur celui de son sous-arbre, non calculable sans budget (`no_budgeted_amount`).
 L'avancement se lit aux dates à aujourd'hui, le 3 juin 2026 : les études sont terminées, les pupitres
@@ -1918,7 +1918,7 @@ comme le raccordement des borniers, et l'écart de main-d'œuvre vaut 3 515,00. 
 à la main, donne encore 80,00 de taux précédent à la mise en service : EP-02/L24 l'alignera sur le
 volume (C15 de #287, #232).
 
-**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitness.REGISTER`) : ce que l'utilisateur a
+**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitnessrisks.REGISTER`) : ce que l'utilisateur a
 saisi, leurs réexamens datés — l'identification la première, la survenance la dernière —, la
 ligne de provision qu'ils portent et celle que portait la référence. `risks`, `risk`,
 `risk_occurred_detail`, `risk_matrix`, `risk_reviews` et `risk_coverage` en sont lus : la
@@ -2055,7 +2055,7 @@ EP-02/L26.
 ### Coûts, échanges, tâches, comptes (EP-02/L25)
 
 **Les coûts réels du témoin sont décrits une fois et engendrés** (#287, C3 ; WF-CRE-0010 à
-WF-CRE-0050). `wftools.mockwitness` décrit les six lignes de coût — pièce, date, montant signé,
+WF-CRE-0050). `wftools.mockwitnesscosts` décrit les six lignes de coût — pièce, date, montant signé,
 code de sous-projet lu dans l'OTP s'il en a un, colonnes conservées dans l'ordre que les imports
 déclarent (`PASSTHROUGH`), imports qui les ont apportées, exclusion — et les cinq imports du
 journal, aux instants de la chronologie (3 avril, 4, 6 et 11 mai, 3 juin) ; `wftools.mockcosts` en
@@ -2095,7 +2095,7 @@ porteur d'un coût réel (`has_actual_costs`), écrit à la main — `subproject
 générateurs — et confronté aux lignes par le test d'invariants.
 
 **Toute ligne rend son délai de paiement, que la courbe applique** (WF-DEV-0020, WF-IND-0100).
-`estimate_line.payment_delay_days` est donné par `mockdating` (`payment_delay`) et rendu par `mockcore` sur chaque ligne du cœur : trente jours
+`estimate_line.payment_delay_days` est rendu par `mockcore` sur chaque ligne du cœur : trente jours
 sur l'ingénierie de détail et sur les borniers, zéro sur les autres, main-d'œuvre et provision
 comprises. La lecture des indicateurs tire ses délais des nœuds qu'elle rend, et la courbe des
 décaissements les applique : une seule source, que le test d'invariants vérifie ligne à ligne. Les
@@ -2263,7 +2263,7 @@ précédente : chaque ligne de la révision courante porte ses grandeurs à 101 
 `previous_hours`, `previous_unit_disbursement` — et le montant réestimé qu'elles donnaient,
 `previous_reestimated_amount`. La provision de 751, à 500 aujourd'hui, y était à 250 ; les lignes
 fusionnées par la survenance de 752, absentes de 101, les portent nulles, comme toute lecture d'une
-révision marquée. La description de la référence passe de `mockhistory` à `mockwitness`, que
+révision marquée. La description de la référence passe de `mockhistory` à `mockwitnessrisks`, que
 `mockcore` lit (`mockcore.current`). `remaining.dom.test.tsx`, avec les colonnes des grandeurs
 précédentes qu'EP-02/L36 a ajoutées à la grille, lit des valeurs affichées et leur format — la
 charge précédente de la main-d'œuvre, 12,5, les débours unitaires précédents des borniers,
@@ -6683,7 +6683,7 @@ restait à trancher (#1201, point 4) ; tranché depuis (#1205, EP-15/US-0490/L1,
 ses valeurs de base, comme tout nœud. `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
 les grilles de `listNodes`, que son chemin dit désormais.
 
-**Les exemples sont des fenêtres**, engendrés par `wftools.mockhistory`. `comparison`, le premier,
+**Les exemples sont des fenêtres**, engendrés par `wftools.mockcomparisons`. `comparison`, le premier,
 est le sous-arbre de l'installation sur site (`subtree_of`), comme `nodes_amendment` sur le
 différentiel : 9 nœuds, et chaque marque — deux ajoutés, la tâche et la ligne retirées, à leur
 place, deux lignes réestimées, trois tâches modifiées par leur seul contenu —, les totaux de
@@ -6701,7 +6701,7 @@ point 2). Les fenêtres de L5 ne disent pas ce que pèse la comparaison que l'é
 `volume`, cité en deuxième sous `compareRevisions`, la rend : la comparaison de l'offre et de la
 référence sur toute la structure du témoin, 5 999 nœuds, lue sans filtre et avec `fields` réduit à
 ce que l'écran montre — `kind`, `task.label`, `estimate_line.label` —, 1,3 Mo au lieu de 7,4 Mo.
-Il est engendré par `wftools.mockhistory` comme `nodes_thousand` pour `listNodes`
+Il est engendré par `wftools.mockcomparisons` comme `nodes_thousand` pour `listNodes`
 (`fixtures/api/volume/comparison_volume.json`), la lecture avec `fields` par
 `wftools.mockcore.with_fields`. US-0500/L4 éprouve dessus la borne de 15 s d'US-0500, et le fera
 passer en premier.

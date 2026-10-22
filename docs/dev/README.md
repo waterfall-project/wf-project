@@ -613,9 +613,9 @@ légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les
 chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; un plan de
 charge est un histogramme empilé (`stackedRoles` de `workload/stacked-load.ts` : une barre par mois,
 divisée par rôle, les motifs gardés), dont l'infobulle d'un mois liste les rôles et leurs heures
-(`monthTooltip`, libellés échappés) ; celui du projet n'a ni droite de capacité (#375) ni total de
-mois, le contrat n'en rendant pas, celui du portefeuille porte le total de chaque mois que le
-serveur rend (`monthly_totals`, `monthTotals`) au sommet de sa barre et, en pointillés, la capacité
+(`monthTooltip`, libellés échappés) ; celui du projet n'a pas de droite de capacité (#375) mais porte au sommet
+de chaque barre le total du mois que le serveur rend (`monthly_totals`, `monthTotals`), comme celui
+du portefeuille qui porte aussi, en pointillés, la capacité
 du périmètre (`capacity_monthly_hours`), la table des rôles, de leur taux et de leurs signaux étant
 sous le graphique ; les liens vers le plan de charge ouvrent une base (`basis`,
 `workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis `reference_budget`
@@ -2195,7 +2195,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
   durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; la comparaison de l'offre et
   de la référence sur toute cette structure, lue avec `fields`, deuxième exemple de
-  `compareRevisions` (`wftools.mockhistory`, #1201) ; les trois cents projets de
+  `compareRevisions` (`wftools.mockcomparisons`, #1201) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
   structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
   catégories de coût et quinze ans de taux horaires, en une page et par pages, la grille triée
@@ -2212,7 +2212,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   réponses (`wftools.mockkanban`), et les refus
   d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
   (`wftools.mockexchanges`) ; son
-  histoire, ses révisions comparées et ses risques (`wftools.mockhistory`), et les réponses des
+  histoire (`wftools.mockhistory`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
   saisies d'un risque (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
@@ -2969,17 +2969,21 @@ par un `GET` qu'il refuse, un téléchargement à une adresse qui ne nomme rien 
 avec leur raison — `/login`, qui commence hors du faux back une connexion, un état gardé dans
 Redis — ;
 `src/app/route-handlers.test.ts` tient ces deux listes à chaque `route.ts` de `src/app`. Quatre à la
-fois, la redirection non suivie ; ce qu'une route répond reste aux parcours, mais une erreur du
-serveur — un statut de 500 ou plus, ou aucune réponse — s'écrit dans la sortie au moment où elle
-survient, et fait échouer le lancement une fois toutes les routes demandées, en nommant chaque adresse
-en cause : un écran qui ne compile pas se voit là, pas dans chaque parcours. Le préchauffage écrit
-sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois passages du 2026-10-21, pour les
-38 écrans d'alors. Il ne précède ni la
-mesure jouée seule (`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques
-écrans de l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans
-session enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un
-projet que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui
-compile lui-même ce qu'il atteint.
+fois, la redirection non suivie ; ce qu'une route répond reste aux parcours. Une connexion que le
+serveur coupe (`ECONNRESET`, `EPIPE`, `socket hang up`), ce que fait le serveur de développement
+sous charge, n'est pas une erreur de l'écran : la route est redemandée une fois, et la sortie
+l'écrit (#1301) ; un serveur qui redémarre refuse la connexion (`ECONNREFUSED`), ce qui n'est pas
+une coupure. Une erreur du serveur — un statut de 500 ou plus, jamais redemandé, ou aucune réponse,
+une seconde coupure comprise, dont l'erreur garde le message de la première — s'écrit dans la
+sortie au moment où elle survient. Elle fait échouer le lancement une fois toutes les routes
+demandées, en nommant chaque adresse en cause : un écran qui ne compile pas se voit là, pas dans
+chaque parcours. Le préchauffage écrit sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois
+passages du 2026-10-21, pour les 38 écrans d'alors. Il ne précède ni la mesure jouée seule
+(`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques écrans de
+l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans session
+enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un projet
+que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui compile
+lui-même ce qu'il atteint.
 
 Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
 (`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux

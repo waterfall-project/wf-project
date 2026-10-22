@@ -13,8 +13,8 @@
  * nor is entered (US-0230).
  *
  * A card is chosen — by a click, by the arrows from card to card and from column to column — and
- * makes the gestures its task lists (`available_commands`, WF-IHM-0090): start, complete, reopen, or
- * enter the remaining to commit, which leads to the grid of the remaining to commit on that task.
+ * makes the gestures its task lists (`available_commands`, WF-IHM-0090): start, complete, reopen,
+ * or enter the remaining to commit, which leads to the grid of the remaining to commit on that task.
  * It makes them by dragging it to a column, by its menu, or at the keyboard — Shift and the right or
  * left arrow carry it to the neighbouring column, the equivalent of the drag (WF-IHM-0100). A task
  * is started or completed on a date the user enters, the day's by default. The answer of the API
@@ -28,12 +28,13 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type DragEvent,
-  type KeyboardEvent,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 
@@ -42,16 +43,19 @@ import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 
 import type { TaskProgress } from "./address";
-import { type Asking, Card, type CardActions, DATED, type Notice } from "./kanban-card";
+import { AnsweredCards } from "./kanban-answers";
+import { type Asking, Card, type CardActions, type Notice } from "./kanban-card";
 import {
   type CardGesture,
   cardOf,
+  carriedTo,
   COLUMNS,
+  DATED,
+  focusOf,
   gestureToward,
   type KanbanCard,
   type KanbanColumns,
   type KanbanStructure,
-  moveOf,
   replaced,
   TITLE,
 } from "./kanban-cards";
@@ -75,10 +79,11 @@ export function Kanban({
   const commands = useTranslations("enums.KanbanCommand");
   const unmet = useUnmet();
   const router = useRouter();
-  const held = useHeldCommand();
   const hint = useId();
+  const held = useHeldCommand();
   const [, startTransition] = useTransition();
-  const [answered, setAnswered] = useState<Readonly<Record<string, KanbanCard>>>({});
+  const [book] = useState(() => new AnsweredCards());
+  const answered = useSyncExternalStore(book.subscribe, book.snapshot, book.snapshot);
   const [selected, setSelected] = useState<string>();
   const [dragged, setDragged] = useState<string>();
   const [writing, setWriting] = useState<string>();
@@ -88,14 +93,23 @@ export function Kanban({
   const [focusing, setFocusing] = useState<{ readonly id: string; readonly form: boolean }>();
   const elements = useRef(new Map<string, HTMLElement>());
   const date = useRef<HTMLInputElement | null>(null);
-  // The card chosen now, set at the very moment it is: an answer judges against it (defect 2).
+  // The card chosen now, set at the very moment it is: an answer comes back after the user may
+  // have chosen another card, and the focus must not be taken from that one.
   const chosen = useRef<string>(undefined);
   const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
-  const cards = new Map(
-    COLUMNS.flatMap(([state]) => shown[state].map((card) => [card.node_id, card] as const)),
-  );
-  const first = COLUMNS.map(([state]) => shown[state][0]).find((card) => card !== undefined);
-  const tabStop = selected !== undefined && cards.has(selected) ? selected : first?.node_id;
+  // The one stop of Tab of the board: the card chosen, else the first card. The arrows go from card
+  // to card (WF-IHM-0100).
+  const tabStop = useMemo(() => {
+    const all = COLUMNS.flatMap(([state]) => shown[state]);
+    return all.find((card) => card.node_id === selected)?.node_id ?? all[0]?.node_id;
+  }, [shown, selected]);
+
+  // An answer the columns read since overtake is forgotten, so that a later reading at an older
+  // version — a page read before the write was seen — cannot bring it back. Done once the reading
+  // is committed, never while it renders.
+  useLayoutEffect(() => {
+    book.read(columns);
+  }, [book, columns]);
 
   // The focus follows the card moved, which another column mounts anew, or the field of the date.
   useEffect(() => {
@@ -140,13 +154,22 @@ export function Kanban({
       }
       if (outcome.kind !== "done") {
         say(card.node_id, { kind: "outcome", outcome });
+        // A task the API refuses for its state, or for a version past, is no more what the card
+        // shows: the tasks are read anew.
+        if (outcome.kind === "conflict" || outcome.kind === "stale") {
+          router.refresh();
+        }
         return;
       }
       const node = outcome.data.nodes.find((each) => each.node_id === card.node_id);
       const state = node?.task?.progress;
       if (node !== undefined && state !== undefined) {
-        setAnswered((now) => ({ ...now, [card.node_id]: cardOf(node, state) }));
+        book.answer(cardOf(node, state));
         setAnnounced(t("moved", { label: card.label, column: titleOf(state) }));
+      } else {
+        // The answer does not say where the task is: the card stays, and says so, rather than
+        // announce a move nobody saw.
+        say(card.node_id, { kind: "said", sentence: t("unplaced", { label: card.label }) });
       }
       // The tasks are read anew either way: the card answered lists no gesture until they are.
       router.refresh();
@@ -166,7 +189,7 @@ export function Kanban({
     write(card, asked, undefined);
   };
 
-  /** Carry a card to a column — dropped on it, or by the keys: the gesture the card lists, or why not. */
+  /** Carry a card to a column — dropped on it, or by the keys: the gesture it lists, or why not. */
   const carry = (card: KanbanCard, state: TaskProgress) => {
     if (card.state === state || writing !== undefined) {
       return;
@@ -190,29 +213,6 @@ export function Kanban({
     gesture(card, leading);
   };
 
-  const focusCard = (id: string | undefined) => {
-    if (id !== undefined) {
-      elements.current.get(id)?.focus();
-    }
-  };
-
-  /** The arrows choose a card; Shift and a sideways arrow carry it to the neighbouring column. */
-  const key = (event: KeyboardEvent<HTMLElement>, card: KanbanCard) => {
-    if (event.target !== event.currentTarget || event.ctrlKey || event.altKey || event.metaKey) {
-      return;
-    }
-    const move = moveOf(shown, card.node_id, event.key, event.shiftKey);
-    if (move === undefined) {
-      return;
-    }
-    event.preventDefault();
-    if (move.kind === "carry") {
-      carry(card, move.state);
-    } else {
-      focusCard(move.id);
-    }
-  };
-
   const actions: CardActions = {
     remaining,
     hint,
@@ -234,7 +234,22 @@ export function Kanban({
       chosen.current = id;
       setSelected(id);
     },
-    key,
+    focusFrom: (id, key) => {
+      const target = focusOf(shown, id, key);
+      if (target === undefined) {
+        return false;
+      }
+      elements.current.get(target)?.focus();
+      return true;
+    },
+    carryFrom: (card, key) => {
+      const state = carriedTo(shown, card.node_id, key);
+      if (state === undefined) {
+        return false;
+      }
+      carry(card, state);
+      return true;
+    },
     drag: setDragged,
     gesture,
     date: write,
@@ -248,15 +263,17 @@ export function Kanban({
     },
   };
 
+  const cards = new Map(
+    COLUMNS.flatMap(([state]) => shown[state].map((card) => [card.node_id, card] as const)),
+  );
+  const moving = dragged === undefined ? undefined : cards.get(dragged);
   const drop = (event: DragEvent<HTMLElement>, state: TaskProgress) => {
     event.preventDefault();
-    const card = dragged === undefined ? undefined : cards.get(dragged);
     setDragged(undefined);
-    if (card !== undefined) {
-      carry(card, state);
+    if (moving !== undefined) {
+      carry(moving, state);
     }
   };
-  const moving = dragged === undefined ? undefined : cards.get(dragged);
 
   return (
     <div className="space-y-3">
@@ -278,7 +295,7 @@ export function Kanban({
               key={state}
               aria-label={t(title)}
               onDragOver={(event) => {
-                if (dragged !== undefined) {
+                if (moving !== undefined) {
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
                 }

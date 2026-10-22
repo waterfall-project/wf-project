@@ -167,8 +167,8 @@ test("completes a milestone without a line from the Kanban, from its menu, at a 
   // Un jalon sans ligne de devis est terminé depuis le Kanban, à une date saisie. The fake back
   // keeps nothing and answers the example of its first gesture, the start of another task: what the
   // server action carries — the state the card names, the date typed, the version read — is read on
-  // the request of the browser, and what the screen does with an answer is proven by the next
-  // journey and by `kanban.dom.test.tsx`.
+  // the request of the browser, and what the screen does with an answer is proven by
+  // `kanban.dom.test.tsx`.
   test.slow();
   await compile(page.request, `${IN_REVISION}/kanban`);
   await openHydrated(page, `${IN_REVISION}/kanban`);

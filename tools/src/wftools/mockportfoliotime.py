@@ -53,15 +53,8 @@ from wftools import (
 from wftools.mockids import MILESTONES, identifier, universe
 from wftools.mockportfolio import Earned, earned, identified_risks, portfolio, role_shares
 from wftools.mockstructure import CENT, LABOUR_RATES, JsonObject, JsonValue, decimal, draw, money
-from wftools.mockwitness import (
-    AMENDMENT_MERGED,
-    COST_IMPORTS,
-    IDENTIFIED,
-    REGISTER,
-    TODAY,
-    by_identifier,
-    fixture,
-)
+from wftools.mockwitness import AMENDMENT_MERGED, COST_IMPORTS, TODAY, by_identifier, fixture
+from wftools.mockwitnessrisks import IDENTIFIED, REGISTER
 
 if TYPE_CHECKING:
     from collections.abc import Callable

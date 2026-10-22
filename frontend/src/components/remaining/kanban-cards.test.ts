@@ -5,11 +5,12 @@ import { describe, expect, it } from "vitest";
 import { example } from "@/test/fixtures";
 
 import {
+  carriedTo,
   columnsOf,
+  focusOf,
   gestureToward,
   type KanbanCard,
   type KanbanColumns,
-  moveOf,
   remainingHref,
   replaced,
   type StartableTasks,
@@ -54,38 +55,15 @@ describe("the cards of the Kanban", () => {
     );
   });
 
-  it("moves the focus by the arrows from card to card, and from column to column at the same place", () => {
+  it("carries a card to the neighbouring column by a sideways arrow, none past the ends", () => {
     const first = COLUMNS.not_started[0]?.node_id ?? "";
-    const second = COLUMNS.not_started[1]?.node_id ?? "";
-    expect(moveOf(COLUMNS, first, "ArrowDown", false)).toEqual({ kind: "focus", id: second });
-    expect(moveOf(COLUMNS, first, "ArrowUp", false)).toBeUndefined();
-    expect(moveOf(COLUMNS, second, "ArrowRight", false)).toEqual({
-      kind: "focus",
-      id: COLUMNS.started[1]?.node_id,
-    });
-    expect(moveOf(COLUMNS, first, "ArrowLeft", false)).toBeUndefined();
-    expect(moveOf(COLUMNS, first, "End", false)).toEqual({
-      kind: "focus",
-      id: COLUMNS.not_started.at(-1)?.node_id,
-    });
-    expect(moveOf(COLUMNS, first, "x", false)).toBeUndefined();
-  });
-
-  it("skips an empty column, and lands on the last card of a shorter one", () => {
-    const shorter = { ...COLUMNS, started: [], completed: COLUMNS.completed.slice(0, 2) };
-    const third = COLUMNS.not_started[2]?.node_id ?? "";
-    expect(moveOf(shorter, third, "ArrowRight", false)).toEqual({
-      kind: "focus",
-      id: shorter.completed[1]?.node_id,
-    });
-  });
-
-  it("carries a card to the neighbouring column by Shift and a sideways arrow, none past the ends", () => {
-    const first = COLUMNS.not_started[0]?.node_id ?? "";
-    expect(moveOf(COLUMNS, first, "ArrowRight", true)).toEqual({ kind: "carry", state: "started" });
-    expect(moveOf(COLUMNS, first, "ArrowLeft", true)).toBeUndefined();
-    expect(moveOf(COLUMNS, first, "ArrowDown", true)).toBeUndefined();
-    expect(moveOf(COLUMNS, "unknown", "ArrowDown", false)).toBeUndefined();
+    const last = COLUMNS.completed[0]?.node_id ?? "";
+    expect(carriedTo(COLUMNS, first, "ArrowRight")).toBe("started");
+    expect(carriedTo(COLUMNS, last, "ArrowLeft")).toBe("started");
+    expect(carriedTo(COLUMNS, first, "ArrowLeft")).toBeUndefined();
+    expect(carriedTo(COLUMNS, last, "ArrowRight")).toBeUndefined();
+    expect(carriedTo(COLUMNS, first, "ArrowDown")).toBeUndefined();
+    expect(carriedTo(COLUMNS, "unknown", "ArrowRight")).toBeUndefined();
   });
 
   it("puts the card answered in the column of its state, in the order of the plan, unless the columns read hold it as recent", () => {
@@ -111,5 +89,53 @@ describe("the cards of the Kanban", () => {
     expect(remainingHref("/r", named("Câblage des armoires"))).toBe(
       "/r?search=C%C3%A2blage+des+armoires",
     );
+  });
+
+  describe("the card the arrows lead to [WF-IHM-0100-A]", () => {
+    const base = named("Réception usine");
+    const cards = (...ids: string[]): KanbanCard[] => ids.map((id) => ({ ...base, node_id: id }));
+    const ids = (a: string[], b: string[], c: string[]): KanbanColumns => ({
+      not_started: cards(...a),
+      started: cards(...b),
+      completed: cards(...c),
+    });
+
+    it("goes up and down within the column, and stops at its ends", () => {
+      const columns = ids(["a1", "a2", "a3"], ["b1"], ["c1"]);
+      expect(focusOf(columns, "a1", "ArrowDown")).toBe("a2");
+      expect(focusOf(columns, "a3", "ArrowUp")).toBe("a2");
+      expect(focusOf(columns, "a1", "ArrowUp")).toBeUndefined();
+      expect(focusOf(columns, "a3", "ArrowDown")).toBeUndefined();
+    });
+
+    it("goes to the first and to the last card of the column with Home and End", () => {
+      const columns = ids(["a1", "a2", "a3"], ["b1"], ["c1"]);
+      expect(focusOf(columns, "a2", "Home")).toBe("a1");
+      expect(focusOf(columns, "a2", "End")).toBe("a3");
+      expect(focusOf(columns, "a1", "Home")).toBe("a1");
+      expect(focusOf(columns, "a3", "End")).toBe("a3");
+    });
+
+    it("keeps the place across columns, and skips an empty column", () => {
+      const columns = ids(["a1", "a2", "a3"], [], ["c1", "c2", "c3"]);
+      expect(focusOf(columns, "a2", "ArrowRight")).toBe("c2");
+      expect(focusOf(columns, "c3", "ArrowLeft")).toBe("a3");
+    });
+
+    it("leads to the last card of a column shorter than the place", () => {
+      const columns = ids(["a1", "a2", "a3"], ["b1", "b2"], ["c1"]);
+      expect(focusOf(columns, "a3", "ArrowRight")).toBe("b2");
+      expect(focusOf(columns, "b2", "ArrowRight")).toBe("c1");
+      expect(focusOf(columns, "b2", "ArrowLeft")).toBe("a2");
+    });
+
+    it("leads nowhere past the outer columns, for another key, or for an unknown card", () => {
+      const columns = ids(["a1"], ["b1"], ["c1"]);
+      expect(focusOf(columns, "a1", "ArrowLeft")).toBeUndefined();
+      expect(focusOf(columns, "c1", "ArrowRight")).toBeUndefined();
+      expect(focusOf(ids(["a1"], [], []), "a1", "ArrowRight")).toBeUndefined();
+      expect(focusOf(columns, "a1", "PageDown")).toBeUndefined();
+      expect(focusOf(columns, "unknown", "ArrowDown")).toBeUndefined();
+    });
   });
 });

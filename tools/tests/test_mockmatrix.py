@@ -15,7 +15,14 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockdata, mockhistory, mockportfolio, mockstructure, mockwitness
+from wftools import (
+    mockdata,
+    mockhistory,
+    mockportfolio,
+    mockstructure,
+    mockwitness,
+    mockwitnessrisks,
+)
 from wftools.mockids import universe
 
 type Node = dict[str, Any]
@@ -130,8 +137,10 @@ def test_a_share_just_under_a_bound_is_rounded_onto_it_its_cell_that_of_the_exac
     # not the fourth the rounded share would give: at a probability of 40 %, a watch, not an
     # alert.
     budget = Decimal("1000000.00")
-    review = mockwitness.Review(mockwitness.REWORK.last.at, Decimal("0.4"), Decimal("99999.00"))
-    risk = dataclasses.replace(mockwitness.REWORK, reviews=(review,))
+    review = mockwitnessrisks.Review(
+        mockwitnessrisks.REWORK.last.at, Decimal("0.4"), Decimal("99999.00")
+    )
+    risk = dataclasses.replace(mockwitnessrisks.REWORK, reviews=(review,))
     bounds = mockwitness.fixture("reference_settings")["risk_matrix"]["severity_bounds"]
     point = mockhistory.matrix_point(risk, budget)
     assert point["severity_ratio"] == mockstructure.computable("0.1000")
@@ -154,7 +163,7 @@ def test_on_a_basis_of_nothing_a_risk_has_no_share_and_the_lowest_level_of_sever
             "value": None,
             "reason": "no_reference_budget",
         }
-    for risk in mockwitness.REGISTER:
+    for risk in mockwitnessrisks.REGISTER:
         cell = mockhistory.matrix_cell(risk, Decimal(0))
         assert cell["severity_level"] == 1
         assert cell == mockhistory.matrix_cell(

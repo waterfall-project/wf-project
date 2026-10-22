@@ -2,7 +2,7 @@
 id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
 statut: à planifier
-depend_de: EP-03
+depend_de: EP-16
 famille: front, back
 issue:
 ---
@@ -31,6 +31,13 @@ closent en EP-07.
 - les natures et catégories de coût, les taux horaires annuels et le taux de l'année en cours ;
 - la matrice de risques, les seuils d'alerte des indices, le délai maximal entre deux revues et
   la devise de l'installation ;
+- le nom de l'entreprise utilisatrice, demandé par l'amorçage, gardé par la base et modifiable sous
+  `cost_settings.write` (WF-EXP-0020, C-371) ;
+- la correspondance de l'extraction des coûts réels (WF-REF-0190, C-374) :
+  - stockée, vide à l'installation ;
+  - ses intitulés comparés sans égard à la casse, aux accents ni aux espaces en bout ;
+  - complète quand les quatre colonnes exigées ont un intitulé ;
+  - EP-09 lit l'extraction selon elle et clôt l'exigence ;
 - la désactivation à la place de la suppression, et l'affichage des objets désactivés ;
 - les usages du manager sur le référentiel (WF-INTF-0020) ;
 - les écrans du référentiel de la maquette, branchés sur le service.
@@ -73,6 +80,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-REF-0170-A` | Seuils d’alerte des indices | début — close en EP-10 | — |
 | `WF-REF-0180-A` | Délai maximal entre deux revues | début — close en EP-11 | — |
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | — |
+| `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | début — close en EP-09 | — |
 | `WF-ADM-0020-A` | Aucune action réservée à un acteur | fin — amorcée en EP-03 | — |
 
 ## Opérations du contrat
@@ -91,6 +99,9 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
 ## Constats reçus
 
+- #1338, pour #1304, points 1 et 3 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
+  le nom de l'entreprise à l'amorçage et dans les paramètres communs, et la correspondance de
+  l'extraction des coûts réels, stockée avec ses règles.
 - #351 — un chiffreur sans permission du référentiel ne peut saisir ni catégorie ni rôle :
   la garde de `include_inactive` sur les lectures du référentiel, reportée d'EP-03 par son
   cadrage (2026-10-07).
@@ -140,7 +151,8 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
 ## Préalables
 
-EP-03 livré : chaque écriture du référentiel est évaluée contre une permission.
+EP-03 livré : chaque écriture du référentiel est évaluée contre une permission. EP-16 livré : le
+contrat que cet EPIC sert est figé (décision de l'auteur du 2026-10-22, au cadrage d'EP-16).
 
 ## Définition de fini
 
