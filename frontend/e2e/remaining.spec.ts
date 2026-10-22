@@ -142,6 +142,46 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   }
 });
 
+test("completes a milestone without a line from the Kanban, from its menu, at a date entered [WF-RAE-0030-A]", async ({
+  page,
+}) => {
+  // Un jalon sans ligne de devis est terminé depuis le Kanban, à une date saisie. The fake back
+  // keeps nothing and answers the example of its first gesture, the start of another task: what the
+  // server action carries — the state the card names, the date typed, the version read — is read on
+  // the request of the browser, and what the screen does with an answer is proven by
+  // `kanban.dom.test.tsx`.
+  test.slow();
+  await compile(page.request, `${IN_REVISION}/kanban`);
+  await openHydrated(page, `${IN_REVISION}/kanban`);
+  const notStarted = page.getByRole("region", { name: "Non démarrées" });
+  const card = notStarted.getByRole("listitem").filter({ hasText: "Réception usine" });
+  await card.click();
+  await expect(card).toHaveAttribute("aria-current", "true");
+  await card.getByRole("button", { name: "Gestes de la tâche Réception usine" }).click();
+  // The gestures the card lists, and no other: a milestone without a line is completed, never
+  // started.
+  const menu = page.getByRole("menu", { name: "Gestes de la tâche Réception usine" });
+  await expect(menu.getByRole("menuitem")).toHaveText(["Terminer"]);
+  await menu.getByRole("menuitem", { name: "Terminer" }).click();
+
+  // The date of the event is asked, the day's proposed, and typed over.
+  const date = card.getByLabel("Date de l’événement");
+  await expect(date).toBeFocused();
+  await expect(date).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  await date.fill("2026-06-02");
+  const sent = page.waitForRequest(
+    (request) => request.method() === "POST" && (request.postData() ?? "").includes("occurred_on"),
+  );
+  await card.getByRole("button", { name: "Terminer" }).click();
+  const body = (await sent).postData() ?? "";
+  expect(body).toContain('"progress":"completed"');
+  expect(body).toContain('"occurred_on":"2026-06-02"');
+  expect(body).toContain('"lock_version":1');
+  // The date is no longer asked, and the card, whose gesture is over, has the focus.
+  await expect(card.getByLabel("Date de l’événement")).toHaveCount(0, { timeout: WORKING });
+  await expect(card).toBeFocused();
+});
+
 test("leads from the remaining to commit to the workload of the project, on the remaining of the revision under way, in the same context [WF-DEV-0070-A]", async ({
   page,
 }) => {
