@@ -3,7 +3,7 @@
 """The answers of the entries of a risk: declared, modified, reviewed, declared occurred (#763).
 
 The forms of the risks declare a risk, modify it, review it and declare it occurred (US-0520):
-their answers are read, as the register is, from the risks of ``wftools.mockwitness`` by
+their answers are read, as the register is, from the risks of ``wftools.mockwitnessrisks`` by
 ``wftools.mockhistory.risk_item``, never written by hand (K5 of EP-15):
 
 - a risk declared today, its own structure opened empty with it — its severity and its provision
@@ -43,7 +43,8 @@ from wftools.mockhistory import (
     stamp,
 )
 from wftools.mockids import universe
-from wftools.mockwitness import DELIVERY_DELAY, REGISTER, REWORK, TODAY, N, Review, Risk
+from wftools.mockwitness import TODAY, N
+from wftools.mockwitnessrisks import DELIVERY_DELAY, REGISTER, REWORK, Review, Risk
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject
@@ -119,7 +120,7 @@ def risk_reviewed() -> JsonObject:
 def task_occurrence_queued() -> JsonObject:
     """Return what declareRiskOccurrence answered when the delay of the cabinets occurred.
 
-    On 20 February 2026, the instant of its last review (``mockwitness``): the merge of its own
+    On 20 February 2026, the instant of its last review (``mockwitnessrisks``): the merge of its own
     estimate is left to the worker (WF-RIS-0060, WF-ARC-0090).
     """
     return {

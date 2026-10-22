@@ -8,48 +8,42 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 
 from __future__ import annotations
 
-import json
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast
 
 import pytest
+from witnessreadings import (
+    ACCEPTANCE,
+    BLOCKS,
+    COMMISSIONING,
+    CONTROL_STATION,
+    DESKS,
+    DETAILED_STUDIES,
+    FILE,
+    LABOUR,
+    MILESTONE,
+    MOUNTING,
+    OCCURRED,
+    PROVISION,
+    REMINDER,
+    REVIEW,
+    STUDIES,
+    TRANSPORT,
+    WIRING,
+    Node,
+    facet,
+    nodes,
+)
 
 from wftools import (
     mockcore,
-    mockdata,
     mockdating,
     mockstructure,
     mockwitness,
     mockwrites,
 )
 from wftools.mockwitness import Line, Task
-
-type Node = dict[str, Any]
-
-STUDIES, DETAILED_STUDIES, DESKS, REVIEW, ACCEPTANCE, FILE = 521, 522, 523, 524, 525, 526
-CONTROL_STATION, WIRING, LABOUR, BLOCKS, PROVISION, MILESTONE = 551, 552, 553, 554, 555, 556
-OCCURRED, REMINDER, TRANSPORT = 541, 542, 544
-INSTALLATION, MOUNTING, COMMISSIONING = 561, 562, 565
-
-
-@pytest.fixture(scope="module")
-def readings() -> dict[str, Any]:
-    """Read the named examples back from the text the generator writes."""
-    return {
-        name: json.loads(mockdata.render(example))["value"]
-        for name, example in mockdata.readings().items()
-    }
-
-
-def nodes(reading: Any) -> dict[int, Node]:
-    """Return the nodes of a reading by the number of their identifier."""
-    items = cast("list[Node]", reading["items"])
-    return {int(node["node_id"][-4:]): node for node in items}
-
-
-def facet(node: Node) -> Node:
-    return cast("Node", node[node["kind"]])
 
 
 def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year(
@@ -211,3 +205,31 @@ def test_a_task_in_manual_mode_bounds_its_predecessors_whose_float_may_be_negati
     assert tasks[1]["is_critical"] is True
     # The task entered by hand shows no float itself.
     assert (tasks[2]["total_float"], tasks[2]["is_critical"]) == (None, False)
+
+
+def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
+    # A line consumed two years after the reference year, at 3 %: 1.03 x 1.03 its amount.
+    later = Task(
+        591,
+        "Plus tard",
+        days=1,
+        manual=(date(2028, 1, 3), date(2028, 1, 3)),
+        progress="not_started",
+        lines=(Line(592, "Matériel", mockwitness.EQUIPMENT, unit=Decimal("100.00")),),
+    )
+    [task, line] = mockcore.core((later,))
+    assert facet(line.node)["consumption_year"] == 2028
+    assert (facet(line.node)["base_amount"], facet(line.node)["inflated_amount"]) == (
+        "100.00",
+        "106.09",
+    )
+    assert facet(task.node)["inflated_amount"] == "106.09"
+    assert mockdating.price(later.lines[0], 2028).inflated == Decimal("106.09")
+
+
+def test_a_quantity_is_an_exact_decimal_in_the_amount_of_a_line() -> None:
+    # A quantity of 2.5 times a disbursement of 100: 250 exactly.
+    line = Line(
+        1, "Location", mockwitness.EQUIPMENT, unit=Decimal("100.00"), quantity=Decimal("2.5")
+    )
+    assert mockdating.price(line, 2026).base == Decimal(250)
