@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import type { Project } from "@/components/context/reading";
+import { GeneratePlanning } from "@/components/projects/generate-planning";
 import { TransitionList } from "@/components/projects/project-tables";
 import {
   ContributorList,
@@ -148,6 +149,7 @@ beforeEach(() => {
     "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
+    "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/contributors": "contributors",
     "GET /projects/{project_id}/contributors/suggestions": "contributor_suggestions",
@@ -195,6 +197,48 @@ describe("the screen of a project", () => {
     const page = html(await ProjectPage(at()));
     expect(buttons(page)).toEqual([]);
     expect(page).not.toContain("<form");
+  });
+});
+
+describe("the generation of the planning on the screen of the work breakdown", () => {
+  const REVISION = "GET /projects/{project_id}/revisions/{revision_id}";
+
+  it("offers « Engendrer le planning » as the revision in progress lists the skeleton: available on a structure without task, and the planning it leads to", async () => {
+    server.answers = { ...server.answers, [REVISION]: "revision_without_tasks" };
+    const found = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at()),
+      GeneratePlanning,
+    );
+    expect(found?.props.offer).toMatchObject({ command: "generate_skeleton", is_available: true });
+    expect(found?.props.projectId).toBe(PROJECT);
+    expect(found?.props.planningHref).toBe(
+      `/projects/${PROJECT}/revisions/${found?.props.revisionId ?? ""}/planning`,
+    );
+  });
+
+  it("offers it unavailable, naming its condition, only to the user who comes from the encart, once the structure bears a task [WF-PRJ-0030-A]", async () => {
+    const other = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at()),
+      GeneratePlanning,
+    );
+    expect(other).toBeUndefined();
+    const started = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at({ start: "skeleton" })),
+      GeneratePlanning,
+    );
+    expect(started?.props.offer).toMatchObject({
+      is_available: false,
+      missing_conditions: ["main_structure_without_tasks"],
+    });
+  });
+
+  it("offers nothing to a session whose revision does not list the skeleton", async () => {
+    server.answers = { ...server.answers, [REVISION]: "revision_reader" };
+    const found = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at({ start: "skeleton" })),
+      GeneratePlanning,
+    );
+    expect(found).toBeUndefined();
   });
 });
 

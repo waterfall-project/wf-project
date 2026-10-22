@@ -347,6 +347,34 @@ describe("the report of an import", () => {
     ).toBeVisible();
   });
 
+  it("leads to the screen it was given once the application is confirmed, and nowhere when it was given none", async () => {
+    serve({
+      [APPLY]: { example: "task_import_queued", status: 202 },
+      [TASK]: "task_running",
+    });
+    const entry = example("import_analysed") as Import;
+    const offers = importOffers(example("project") as Project);
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    open(
+      <ImportReport
+        projectId={PROJECT}
+        entry={entry}
+        offer={offers[entry.kind]}
+        start={START}
+        then={planning}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
+    expect(router.push).not.toHaveBeenCalled();
+    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    await userEvent.click(
+      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
+    );
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(planning);
+    });
+  });
+
   it("applies nothing when the confirmation is cancelled, and tells a refusal of the application", async () => {
     const client = serve({
       [APPLY]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } },

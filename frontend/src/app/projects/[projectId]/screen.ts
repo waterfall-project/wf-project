@@ -10,7 +10,13 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 
-import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import type { Revision } from "@/components/context/read-only";
+import {
+  type Project,
+  type ProjectReading,
+  readProjectContext,
+  readRevision,
+} from "@/components/context/reading";
 import {
   type PageSearchParams,
   pageSearch,
@@ -64,4 +70,17 @@ export async function readProjectScreen(address: ProjectAddress): Promise<Projec
     notFound();
   }
   return read;
+}
+
+/**
+ * The revision in progress of a project, which the start of its planning reads (`startOffers`); none
+ * for a project without one, and none when the API does not give it: the encart is an aid, and a page
+ * that cannot read the revision shows the project without it.
+ */
+export async function readCurrentRevision(project: Project): Promise<Revision | undefined> {
+  if (project.current_revision_id == null) {
+    return undefined;
+  }
+  const answer = await readRevision(project.project_id, project.current_revision_id);
+  return answer?.response.ok === true ? answer.data : undefined;
 }

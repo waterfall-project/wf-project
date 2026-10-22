@@ -38,6 +38,11 @@ export interface ReportCommandsProps {
   readonly steps: { readonly apply: boolean; readonly abandon: boolean };
   /** The address of the screen, its context kept, before any import was shown. */
   readonly start: string;
+  /**
+   * Where the screen leads once the application is confirmed — the planning an import of a schedule
+   * fills, from the start of a project —; none, and the screen stays.
+   */
+  readonly then?: string | undefined;
 }
 
 /** The confirmation of the application, asked in the page before anything is applied. */
@@ -46,13 +51,15 @@ function ConfirmForm({
   projectId,
   importId,
   filename,
+  then,
   onClose,
-}: Pick<ReportCommandsProps, "projectId" | "importId" | "filename"> & {
+}: Pick<ReportCommandsProps, "projectId" | "importId" | "filename" | "then"> & {
   readonly id: string;
   readonly onClose: () => void;
 }) {
   const t = useTranslations("exchanges.report");
   const track = useTrackTask();
+  const router = useRouter();
   const confirm = useRef<HTMLButtonElement>(null);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
@@ -70,6 +77,9 @@ function ConfirmForm({
       if (result.kind === "done") {
         track(result.data, { command, subject: filename });
         onClose();
+        if (then !== undefined) {
+          router.push(then);
+        }
       } else {
         setOutcome(result);
       }
@@ -112,6 +122,7 @@ export function ReportCommands({
   offer,
   steps,
   start,
+  then,
 }: ReportCommandsProps) {
   const t = useTranslations("exchanges.report");
   const router = useRouter();
@@ -160,6 +171,7 @@ export function ReportCommands({
           projectId={projectId}
           importId={importId}
           filename={filename}
+          then={then}
           onClose={close}
         />
       ) : null}

@@ -1712,6 +1712,23 @@ le refus dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un
 et l'ôte de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont
 l'adresse change (#416).
 
+La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
+(`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
+de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
+`start-offers.ts`) : la révision en cours liste `generate_skeleton` — l'appelant peut modifier le
+planning — sans qu'il lui manque `main_structure_without_tasks` ; le front n'en déduit rien d'autre.
+« Planning automatique depuis le lotissement » mène au lotissement (`settings?start=skeleton`), où
+« Engendrer le planning » (`GeneratePlanning`) appelle `generatePlanningSkeleton`, relit la page
+après la génération comme après un 409 (#819.5, #819.6) et mène à la grille. « Importer un fichier MS
+Project » ouvre la zone de dépôt (`FileDrop`, `components/exchanges/file-drop.tsx`) : un bouton qui
+ouvre le sélecteur, la zone nommée et décrite, le type (`.xml`) et la taille vérifiés avant l'envoi ;
+elle envoie comme le formulaire de l'écran des imports (`useOpenImport`, `open-import.ts`), le compte
+rendu s'affichant sur la page, et l'application confirmée mène à la grille. « Plus tard » replie
+l'encart pour la session de l'onglet (`start-fold.ts`, `sessionStorage`) ; un bouton le rouvre. Le
+faux back, sans état, sert au témoin une structure à mille tâches : l'encart n'y paraît jamais, et les
+deux parcours de bout en bout (lotissement puis génération ; dépôt puis compte rendu) ne se jouent
+qu'aux tests des composants, contre les exemples du contrat (`project-start.dom.test.tsx`, #1350).
+
 ### Les écrans du portefeuille
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont

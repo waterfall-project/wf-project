@@ -27,17 +27,19 @@
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
-import type { Project } from "@/components/context/reading";
+import type { Project, ProjectReading } from "@/components/context/reading";
 import { readBoolean, readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { asked, readGridQuery, searched } from "@/components/grid/query";
 import type { ContributorReading, Suggestion } from "@/components/projects/contributor-commands";
 import { estimatedRevision } from "@/components/projects/estimate-lead";
+import { GeneratePlanning } from "@/components/projects/generate-planning";
 import { ProjectIdentity } from "@/components/projects/project-form";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
@@ -66,6 +68,7 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-di
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { pageSearch } from "@/navigation/context";
+import { functionHref, functionOf } from "@/navigation/functions";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../title";
@@ -73,6 +76,7 @@ import {
   type ProjectParams,
   type ProjectPageProps,
   projectAddress,
+  readCurrentRevision,
   readProjectScreen,
 } from "../screen";
 
@@ -185,6 +189,35 @@ async function readWholeBreakdown(
   );
 }
 
+/**
+ * What « Engendrer le planning » is given (WF-PRJ-0030): the revision in progress, as it lists
+ * `generate_skeleton`, and the grid of its planning where the generation leads. Shown to the user
+ * who comes from the encart of the project (`start=skeleton`), whatever the offer says, and to any
+ * other as long as the offer is available; none when the revision does not list the skeleton.
+ */
+async function readGeneration(read: ProjectReading, fromStart: boolean): Promise<ReactNode> {
+  const revision = await readCurrentRevision(read.project);
+  const offer = revision?.available_commands.find(
+    (listed) => listed.command === "generate_skeleton",
+  );
+  if (revision === undefined || offer === undefined || !(fromStart || offer.is_available)) {
+    return null;
+  }
+  const planningHref = functionHref(functionOf("planning"), {
+    ...read.context,
+    revisionId: revision.revision_id,
+    revisionInPath: true,
+  });
+  return planningHref === undefined ? null : (
+    <GeneratePlanning
+      projectId={read.project.project_id}
+      revisionId={revision.revision_id}
+      offer={offer}
+      planningHref={planningHref}
+    />
+  );
+}
+
 /** Render the settings of a project, its work breakdown, its sub-projects and its contributors. */
 export default async function SettingsPage(props: ProjectPageProps) {
   // An address that names no project is not found before anything is asked.
@@ -252,6 +285,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
   ]);
   const offers = offersOf(read.project);
   const { update, manage, writes } = offers;
+  const generation = await readGeneration(read, search.get("start") === "skeleton");
   const [[suggestions, whole], wholeBreakdown] = await Promise.all([
     readWritable(client, address.projectId, manage, contributors),
     readWholeBreakdown(client, address.projectId, offers.breakdown, breakdown),
@@ -280,6 +314,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
               whole: wholeBreakdown,
             }}
           />
+          {generation}
           <SubprojectList
             subprojects={subprojects}
             actualCosts={actualCosts}
