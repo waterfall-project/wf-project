@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { StartableTasks } from "@/components/remaining/kanban";
+import type { StartableTasks } from "@/components/remaining/kanban-cards";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -23,6 +23,10 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: () => undefined }),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -31,6 +35,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const STARTABLE = "GET /projects/{project_id}/remaining-indicators/startable-tasks";
 const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
+const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
 
 const TASKS = example("startable_tasks") as StartableTasks;
 
@@ -80,6 +85,7 @@ beforeEach(() => {
     "GET /projects/{project_id}": "project",
     [REVISION_READ]: "revision",
     [STARTABLE]: "startable_tasks",
+    [STRUCTURES]: "structures",
   };
 });
 
@@ -152,9 +158,7 @@ describe("the Kanban of the start of the tasks", () => {
     expect(page).toContain('aria-label="Milestone"');
   });
 
-  it("offers no percentage to enter, nor any command: nothing takes a task started back to not started [WF-RAE-0030-A]", async () => {
-    // Aucune commande ne fait passer une tâche démarrée à l'état non démarré — nor does the
-    // mock-up offer one to start or complete a task (US-0230): no field, no button, no figure.
+  it("offers no percentage to enter, and no gesture before a card is chosen: no field, no button, no figure (US-0230)", async () => {
     const page = await kanbanAt();
     const main = page.slice(page.indexOf("<main"));
     expect(main).not.toMatch(/<(input|button|select|textarea)\b/);
@@ -167,10 +171,18 @@ describe("the Kanban of the start of the tasks", () => {
     expect(text(page)).not.toContain("Calculation date");
   });
 
+  it("reads the structures of the revision, where the gestures of the cards are written", async () => {
+    await kanbanAt();
+    expect(callsTo(STRUCTURES).map((call) => call.path)).toEqual([
+      `/projects/${PROJECT}/revisions/${REVISION}/structures`,
+    ]);
+  });
+
   it("asks nothing in a marked revision, and says the Kanban reads the revision in progress", async () => {
     server.answers = { ...server.answers, [REVISION_READ]: "revision_marked" };
     const page = await kanbanAt();
     expect(callsTo(STARTABLE)).toEqual([]);
+    expect(callsTo(STRUCTURES)).toEqual([]);
     expect(text(page)).toContain(
       "The Kanban presents the tasks of the revision in progress: a marked revision has none to start.",
     );

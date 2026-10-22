@@ -1034,9 +1034,23 @@ Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
 `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
 démarrées et les terminées avec leur date, telles que les rend
 `listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
-signalé à terminer (`predecessors_completed`) ; aucun pourcentage, aucune commande. L'opération lit
-la révision en cours : sur une
-révision marquée, l'écran le dit et ne demande rien.
+signalé à terminer (`predecessors_completed`, un texte et une icône) ; aucun pourcentage. La page
+découpe les cartes (`kanban-cards.ts` : ce que la carte montre et ses gestes, jamais le nœud entier
+d'un millier de tâches) et lit la structure principale de la révision (`listCostStructures`), où les
+gestes s'écrivent. Une carte se choisit au clic ou aux flèches (haut et bas dans la colonne, gauche
+et droite d'une colonne à l'autre ; un seul arrêt de tabulation) et fait les gestes que sa tâche
+liste (`available_commands`, jamais déduits de la nature de la tâche ni de ses lignes) : par son menu, qui garde les gestes indisponibles avec leurs conditions, par glisser-
+déposer sur une colonne, ou au clavier — Maj et flèche droite ou gauche portent la carte à la
+colonne voisine, l'équivalent du glisser (WF-IHM-0100). Le geste qui mène à l'état de la colonne
+visée est celui que la carte liste avec cet état (`progress`) ; sans lui, la carte le dit.
+Démarrer et terminer demandent la date de l'événement, celle du jour proposée ; « Saisir le reste à
+engager » est un lien vers la grille du reste à engager, cherchée sur le libellé de la tâche
+(`remainingHref`). La réponse de `setTaskProgress` remplace la carte dans la colonne de son nouvel
+état, tant que la lecture qui suit n'a pas le nœud à sa version ou à une plus récente (le
+compteur du nœud départage, `replaced`) ; la carte répondue ne liste aucun geste avant cette
+lecture. Le focus suit la carte, un refus se dit sur elle (`OutcomeNotice`), et une écriture à la
+fois. L'opération lit la révision en cours : sur une révision marquée, l'écran le dit et ne
+demande rien.
 
 ### L'écran des coûts réels
 

@@ -8,115 +8,310 @@
  * the order of the answer. A task is a card: its row number and its label; its finish, and the
  * mark of a finish past the date of calculation (`finish_overdue`), or, completed, the date it was
  * (`completed_on`); and, for a milestone not started whose predecessors are all completed, as the
- * API says (`predecessors_completed`), the mark that invites one to complete it, which nothing does
- * by itself. A task is started or it is not: no percentage shows, nor is entered (US-0230).
- * Starting, completing or reopening a task is a command of the epic of the actual costs and of the
- * progress, not of the mock-up: no card offers one.
+ * API says (`predecessors_completed`), the mark that invites one to complete it, a text and an icon
+ * (WF-IHM-0070), which nothing does by itself. A task is started or it is not: no percentage shows,
+ * nor is entered (US-0230).
  *
- * A component of the server: nothing of it crosses to the browser but what it renders.
+ * A card is chosen — by a click, by the arrows from card to card and from column to column — and
+ * makes the gestures its task lists (`available_commands`, WF-IHM-0090): start, complete, reopen, or
+ * enter the remaining to commit, which leads to the grid of the remaining to commit on that task.
+ * It makes them by dragging it to a column, by its menu, or at the keyboard — Shift and the right or
+ * left arrow carry it to the neighbouring column, the equivalent of the drag (WF-IHM-0100). A task
+ * is started or completed on a date the user enters, the day's by default. The answer of the API
+ * replaces the card in the column of its new state, and the focus follows it; a refusal is told on
+ * the card, and the gesture a card does not list to a column is told on it too. The screen offers no
+ * gesture the card does not list, and deduces none of the nature of the task or of its lines.
  */
-import { CalendarX2, Diamond, Flag } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+"use client";
 
-import type { operations } from "@/api/generated/schema";
-import { formatPlanningDate } from "@/i18n/format";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
-/** The answer of `listStartableTasks`: the tasks not started, started and completed. */
-export type StartableTasks =
-  operations["listStartableTasks"]["responses"][200]["content"]["application/json"];
+import { setTaskProgress } from "@/api/actions/nodes";
+import { useUnmet } from "@/components/commands/command";
+import { useHeldCommand } from "@/components/commands/held";
 
-/** A task of the Kanban, as the API reads it: a task not started says if its predecessors are. */
-type KanbanTask = StartableTasks[keyof StartableTasks][number];
-
-/** The columns of the Kanban, in their order: the key of the answer, and that of its title. */
-const COLUMNS = [
-  ["not_started", "notStarted"],
-  ["started", "started"],
-  ["completed", "completed"],
-] as const satisfies readonly (readonly [keyof StartableTasks, string])[];
+import type { TaskProgress } from "./address";
+import { type Asking, Card, type CardActions, DATED, type Notice } from "./kanban-card";
+import {
+  type CardGesture,
+  cardOf,
+  COLUMNS,
+  gestureToward,
+  type KanbanCard,
+  type KanbanColumns,
+  type KanbanStructure,
+  moveOf,
+  replaced,
+  TITLE,
+} from "./kanban-cards";
 
 /**
- * When a task of the Kanban ends: the date it was completed, or its finish, marked when it is past
- * the date of calculation, as the API says.
+ * Render the Kanban of the start of the tasks: its three columns, each a list of cards, and the
+ * gestures of the card chosen. The cards the API answered replace theirs until the screen reads
+ * them anew (`replaced`).
  */
-function CardDate({ node }: { readonly node: KanbanTask }) {
+export function Kanban({
+  columns,
+  structure,
+  remaining,
+}: {
+  readonly columns: KanbanColumns;
+  readonly structure: KanbanStructure;
+  /** The address of the grid of the remaining to commit of the revision. */
+  readonly remaining: string;
+}) {
   const t = useTranslations("kanban");
-  const locale = useLocale();
-  const task = node.task;
-  const completed = task?.completed_on ?? undefined;
-  if (completed !== undefined) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        {t("completedOn", { date: formatPlanningDate(completed, locale, "short") })}
-      </p>
-    );
-  }
-  const finish = task?.finish?.date;
-  if (finish === undefined) {
-    return null;
-  }
-  return (
-    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      {t("finish", { date: formatPlanningDate(finish, locale, "short") })}
-      {task?.finish_overdue === true ? (
-        <CalendarX2 role="img" aria-label={t("finishOverdue")} className="size-3.5">
-          <title>{t("finishOverdue")}</title>
-        </CalendarX2>
-      ) : null}
-    </p>
+  const commands = useTranslations("enums.KanbanCommand");
+  const unmet = useUnmet();
+  const router = useRouter();
+  const held = useHeldCommand();
+  const hint = useId();
+  const [, startTransition] = useTransition();
+  const [answered, setAnswered] = useState<Readonly<Record<string, KanbanCard>>>({});
+  const [selected, setSelected] = useState<string>();
+  const [dragged, setDragged] = useState<string>();
+  const [writing, setWriting] = useState<string>();
+  const [asking, setAsking] = useState<Asking>();
+  const [notices, setNotices] = useState<Readonly<Record<string, Notice>>>({});
+  const [announced, setAnnounced] = useState("");
+  const [focusing, setFocusing] = useState<{ readonly id: string; readonly form: boolean }>();
+  const elements = useRef(new Map<string, HTMLElement>());
+  const date = useRef<HTMLInputElement | null>(null);
+  // The card chosen now, set at the very moment it is: an answer judges against it (defect 2).
+  const chosen = useRef<string>(undefined);
+  const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
+  const cards = new Map(
+    COLUMNS.flatMap(([state]) => shown[state].map((card) => [card.node_id, card] as const)),
   );
-}
+  const first = COLUMNS.map(([state]) => shown[state][0]).find((card) => card !== undefined);
+  const tabStop = selected !== undefined && cards.has(selected) ? selected : first?.node_id;
 
-/** A card of the Kanban: a task, and whether it is a milestone to complete, as the API says. */
-function Card({ node }: { readonly node: KanbanTask }) {
-  const t = useTranslations("kanban");
-  const task = node.task;
-  const milestone = task?.is_milestone === true;
-  const due = milestone && "predecessors_completed" in node && node.predecessors_completed;
+  // The focus follows the card moved, which another column mounts anew, or the field of the date.
+  useEffect(() => {
+    if (focusing === undefined) {
+      return;
+    }
+    (focusing.form ? date.current : elements.current.get(focusing.id))?.focus();
+  }, [focusing]);
+
+  const titleOf = (state: TaskProgress) => t(TITLE[state]);
+  const say = (id: string, notice: Notice | undefined) => {
+    setNotices((now) => {
+      const rest = Object.entries(now).filter(([key]) => key !== id);
+      return Object.fromEntries(notice === undefined ? rest : [...rest, [id, notice]]);
+    });
+  };
+
+  /** Make a gesture the card lists, on the date given for the gestures that happen on one. */
+  const write = (card: KanbanCard, gesture: CardGesture, occurredOn: string | undefined) => {
+    const progress = gesture.progress;
+    if (progress === null || writing !== undefined) {
+      return;
+    }
+    setWriting(card.node_id);
+    setAsking(undefined);
+    setFocusing({ id: card.node_id, form: false });
+    say(card.node_id, undefined);
+    startTransition(async () => {
+      const outcome = await held(
+        setTaskProgress(structure, card.node_id, {
+          progress,
+          ...(occurredOn === undefined ? {} : { occurred_on: occurredOn }),
+          lock_version: card.lock_version,
+        }),
+      );
+      setWriting(undefined);
+      // The user may have chosen another card while this one was written: the choice and the focus
+      // stay where they went, never brought back to the card answered.
+      const stays = chosen.current === card.node_id;
+      if (stays) {
+        setFocusing({ id: card.node_id, form: false });
+      }
+      if (outcome.kind !== "done") {
+        say(card.node_id, { kind: "outcome", outcome });
+        return;
+      }
+      const node = outcome.data.nodes.find((each) => each.node_id === card.node_id);
+      const state = node?.task?.progress;
+      if (node !== undefined && state !== undefined) {
+        setAnswered((now) => ({ ...now, [card.node_id]: cardOf(node, state) }));
+        setAnnounced(t("moved", { label: card.label, column: titleOf(state) }));
+      }
+      // The tasks are read anew either way: the card answered lists no gesture until they are.
+      router.refresh();
+    });
+  };
+
+  /** Ask a gesture of a card: its date first when it happens on one, else at once. */
+  const gesture = (card: KanbanCard, asked: CardGesture) => {
+    if (writing !== undefined) {
+      return;
+    }
+    if (DATED.has(asked.command)) {
+      setAsking({ id: card.node_id, gesture: asked });
+      setFocusing({ id: card.node_id, form: true });
+      return;
+    }
+    write(card, asked, undefined);
+  };
+
+  /** Carry a card to a column — dropped on it, or by the keys: the gesture the card lists, or why not. */
+  const carry = (card: KanbanCard, state: TaskProgress) => {
+    if (card.state === state || writing !== undefined) {
+      return;
+    }
+    const leading = gestureToward(card, state);
+    if (leading === undefined) {
+      say(card.node_id, { kind: "said", sentence: t("noGesture", { column: titleOf(state) }) });
+      return;
+    }
+    if (!leading.is_available) {
+      say(card.node_id, {
+        kind: "said",
+        sentence: t("gestureUnavailable", {
+          command: commands(leading.command),
+          conditions: unmet(leading),
+        }),
+      });
+      return;
+    }
+    say(card.node_id, undefined);
+    gesture(card, leading);
+  };
+
+  const focusCard = (id: string | undefined) => {
+    if (id !== undefined) {
+      elements.current.get(id)?.focus();
+    }
+  };
+
+  /** The arrows choose a card; Shift and a sideways arrow carry it to the neighbouring column. */
+  const key = (event: KeyboardEvent<HTMLElement>, card: KanbanCard) => {
+    if (event.target !== event.currentTarget || event.ctrlKey || event.altKey || event.metaKey) {
+      return;
+    }
+    const move = moveOf(shown, card.node_id, event.key, event.shiftKey);
+    if (move === undefined) {
+      return;
+    }
+    event.preventDefault();
+    if (move.kind === "carry") {
+      carry(card, move.state);
+    } else {
+      focusCard(move.id);
+    }
+  };
+
+  const actions: CardActions = {
+    remaining,
+    hint,
+    selected,
+    tabStop,
+    dragged,
+    writing,
+    element: (id, element) => {
+      if (element === null) {
+        elements.current.delete(id);
+      } else {
+        elements.current.set(id, element);
+      }
+    },
+    field: (element) => {
+      date.current = element;
+    },
+    choose: (id) => {
+      chosen.current = id;
+      setSelected(id);
+    },
+    key,
+    drag: setDragged,
+    gesture,
+    date: write,
+    cancel: (id) => {
+      setAsking(undefined);
+      setFocusing({ id, form: false });
+    },
+    forget: (id) => {
+      say(id, undefined);
+      setFocusing({ id, form: false });
+    },
+  };
+
+  const drop = (event: DragEvent<HTMLElement>, state: TaskProgress) => {
+    event.preventDefault();
+    const card = dragged === undefined ? undefined : cards.get(dragged);
+    setDragged(undefined);
+    if (card !== undefined) {
+      carry(card, state);
+    }
+  };
+  const moving = dragged === undefined ? undefined : cards.get(dragged);
+
   return (
-    <li className="space-y-1 rounded-md border bg-card p-2 text-sm">
-      <p className="flex items-baseline gap-2">
-        <span className="tabular-nums text-muted-foreground">{node.row_number}</span>
-        {milestone ? (
-          <Diamond role="img" aria-label={t("milestone")} className="size-3.5 shrink-0">
-            <title>{t("milestone")}</title>
-          </Diamond>
-        ) : null}
-        <span className="font-medium">{task?.label}</span>
+    <div className="space-y-3">
+      <p id={hint} className="text-xs text-muted-foreground">
+        {t("keys")}
       </p>
-      <CardDate node={node} />
-      {due ? (
-        <p className="flex items-center gap-1.5 text-xs font-medium">
-          <Flag aria-hidden="true" className="size-3.5 shrink-0" />
-          {t("milestoneDue")}
-        </p>
-      ) : null}
-    </li>
-  );
-}
-
-/** Render the Kanban of the start of the tasks: its three columns, each a list of cards. */
-export function Kanban({ tasks }: { readonly tasks: StartableTasks }) {
-  const t = useTranslations("kanban");
-  return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {COLUMNS.map(([key, title]) => {
-        const cards = tasks[key];
-        return (
-          <section key={key} aria-label={t(title)} className="space-y-2">
-            <h2 className="text-sm font-semibold">{t(title)}</h2>
-            {cards.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("empty")}</p>
-            ) : (
-              <ul className="space-y-2">
-                {cards.map((node) => (
-                  <Card key={node.node_id} node={node} />
-                ))}
-              </ul>
-            )}
-          </section>
-        );
-      })}
+      <p role="status" className="sr-only">
+        {announced}
+      </p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {COLUMNS.map(([state, title]) => {
+          const listed = shown[state];
+          const reachable =
+            moving !== undefined &&
+            moving.state !== state &&
+            gestureToward(moving, state)?.is_available === true;
+          return (
+            <section
+              key={state}
+              aria-label={t(title)}
+              onDragOver={(event) => {
+                if (dragged !== undefined) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }
+              }}
+              onDrop={(event) => {
+                drop(event, state);
+              }}
+              className={`space-y-2 rounded-md ${
+                reachable ? "outline-2 outline-dashed outline-offset-4 outline-ring" : ""
+              }`}
+            >
+              <h2 className="text-sm font-semibold">{t(title)}</h2>
+              {listed.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("empty")}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {listed.map((card) => (
+                    <Card
+                      key={card.node_id}
+                      card={card}
+                      actions={actions}
+                      state={{
+                        notice: notices[card.node_id],
+                        asking: asking?.id === card.node_id ? asking : undefined,
+                      }}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

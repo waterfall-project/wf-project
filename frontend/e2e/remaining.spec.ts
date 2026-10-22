@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
@@ -17,6 +17,25 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
+
+/**
+ * Drag an element onto another by the mouse, in the steps a browser starts a drag from: a press, a
+ * move past its threshold, then the move to the target and the release: `dragTo`, which moves once,
+ * started no drag on a card, whose press chooses it and makes its menu appear.
+ */
+async function dragByMouse(page: Page, source: Locator, target: Locator) {
+  await source.scrollIntoViewIfNeeded();
+  const from = await source.boundingBox();
+  const to = await target.boundingBox();
+  if (from === null || to === null) {
+    throw new Error("nothing to drag");
+  }
+  await page.mouse.move(from.x + 20, from.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 30, from.y + 20, { steps: 5 });
+  await page.mouse.move(to.x + 40, to.y + 40, { steps: 10 });
+  await page.mouse.up();
+}
 
 /** Expect a column of the Kanban to hold so many cards, the first of them as given, in order. */
 async function expectCards(column: Locator, count: number, first: readonly RegExp[]) {
@@ -140,6 +159,90 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   for (const role of ["textbox", "spinbutton", "slider", "button", "combobox"] as const) {
     await expect(main.getByRole(role)).toHaveCount(0);
   }
+});
+
+test("completes a milestone without a line from the Kanban, from its menu, at a date entered [WF-RAE-0030-A]", async ({
+  page,
+}) => {
+  // Un jalon sans ligne de devis est terminé depuis le Kanban, à une date saisie. The fake back
+  // keeps nothing and answers the example of its first gesture, the start of another task: what the
+  // server action carries — the state the card names, the date typed, the version read — is read on
+  // the request of the browser, and what the screen does with an answer is proven by the next
+  // journey and by `kanban.dom.test.tsx`.
+  test.slow();
+  await compile(page.request, `${IN_REVISION}/kanban`);
+  await openHydrated(page, `${IN_REVISION}/kanban`);
+  const notStarted = page.getByRole("region", { name: "Non démarrées" });
+  const card = notStarted.getByRole("listitem").filter({ hasText: "Réception usine" });
+  await card.click();
+  await expect(card).toHaveAttribute("aria-current", "true");
+  await card.getByRole("button", { name: "Gestes de la tâche Réception usine" }).click();
+  // The gestures the card lists, and no other: a milestone without a line is completed, never
+  // started.
+  const menu = page.getByRole("menu", { name: "Gestes de la tâche Réception usine" });
+  await expect(menu.getByRole("menuitem")).toHaveText(["Terminer"]);
+  await menu.getByRole("menuitem", { name: "Terminer" }).click();
+
+  // The date of the event is asked, the day's proposed, and typed over.
+  const date = card.getByLabel("Date de l’événement");
+  await expect(date).toBeFocused();
+  await expect(date).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  await date.fill("2026-06-02");
+  const sent = page.waitForRequest(
+    (request) => request.method() === "POST" && (request.postData() ?? "").includes("occurred_on"),
+  );
+  await card.getByRole("button", { name: "Terminer" }).click();
+  const body = (await sent).postData() ?? "";
+  expect(body).toContain('"progress":"completed"');
+  expect(body).toContain('"occurred_on":"2026-06-02"');
+  expect(body).toContain('"lock_version":1');
+  // The date is no longer asked, and the card, whose gesture is over, has the focus.
+  await expect(card.getByLabel("Date de l’événement")).toHaveCount(0, { timeout: WORKING });
+  await expect(card).toBeFocused();
+});
+
+test("carries a card by a drag and by the keys, the arrows choosing the cards from column to column, and says on the card a gesture it does not list [WF-RAE-0030-A]", async ({
+  page,
+}) => {
+  // Aucune commande ne fait passer une tâche démarrée à l'état non démarré: the cards of the
+  // tasks started list no gesture to that state, and say so when one is asked. The fake back
+  // answers the start of « Montage des armoires sur site », which the drag carries to the tasks
+  // started, the answer replacing the card there.
+  test.slow();
+  await compile(page.request, `${IN_REVISION}/kanban`);
+  await openHydrated(page, `${IN_REVISION}/kanban`);
+  const notStarted = page.getByRole("region", { name: "Non démarrées" });
+  const started = page.getByRole("region", { name: "Démarrées", exact: true });
+
+  // The arrows choose the cards: down in a column, sideways to the card in the same place.
+  await notStarted.getByRole("listitem").filter({ hasText: "Réception usine" }).click();
+  await page.keyboard.press("ArrowDown");
+  const mounting = notStarted.getByRole("listitem").filter({ hasText: "Montage des armoires" });
+  await expect(mounting).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  const wiring = started.getByRole("listitem").filter({ hasText: "Câblage des armoires" });
+  await expect(wiring).toBeFocused();
+
+  // Carried to the column of the tasks not started by the keys — Shift and the left arrow — it
+  // says no gesture leads there, and stays where it is.
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect(wiring.getByRole("alert")).toHaveText(
+    "Aucun geste ne mène cette tâche vers la colonne « Non démarrées ».",
+  );
+  await expect(wiring).toBeFocused();
+
+  // Dragged to the column of the tasks started, the task not started asks its date, and the answer
+  // replaces the card there, the focus following it.
+  await dragByMouse(page, mounting, started);
+  const date = mounting.getByLabel("Date de l’événement");
+  await expect(date).toBeFocused();
+  await date.press("Enter");
+  const moved = started.getByRole("listitem").filter({ hasText: "Montage des armoires" });
+  await expect(moved).toBeVisible({ timeout: WORKING });
+  await expect(moved).toBeFocused();
+  await expect(
+    notStarted.getByRole("listitem").filter({ hasText: "Montage des armoires" }),
+  ).toHaveCount(0);
 });
 
 test("leads from the remaining to commit to the workload of the project, on the remaining of the revision under way, in the same context [WF-DEV-0070-A]", async ({

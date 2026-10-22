@@ -342,6 +342,11 @@ describe("the risk matrix as a bubble chart", () => {
 
   it("keeps the bubble of a risk with a share beside a risk without one, which it counts apart", () => {
     const top = MATRIX.points.reduce((a, b) => (Number(ratioOf(b)) > Number(ratioOf(a)) ? b : a));
+    // Before it loses its share, the risk of the highest ratio sets the top of the axis, above the
+    // last level's: the fall back below is the removal's, not the matrix's.
+    project([]);
+    expect((drawn().option?.yAxis as { max: number }).max).toBeGreaterThan(0.15);
+    cleanup();
     project([], {
       ...MATRIX,
       points: MATRIX.points.map((point) =>

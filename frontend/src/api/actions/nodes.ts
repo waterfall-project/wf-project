@@ -3,7 +3,8 @@
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
- * `updateEstimateLine`, `setLineRemaining`), the predecessors of a task (`setPredecessors`), a
+ * `updateEstimateLine`, `setLineRemaining`), the state of a task a card of the Kanban sends
+ * (`setTaskProgress`), the predecessors of a task (`setPredecessors`), a
  * task or a line created and a node deleted
  * (`createNode`, `deleteNode`), nodes moved under a task (`moveNodes`), the timelines a task is
  * inscribed to (`setNodeTracking`), a block pasted from a
@@ -122,6 +123,26 @@ export async function setLineRemaining(
     serverClient().PUT(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining",
       { ...nodePath(structure, nodeId), body: remaining },
+    ),
+  );
+}
+
+/**
+ * Start, complete or reopen the task of a node, the gesture of a card of the Kanban, with the state
+ * the card says the gesture sends (`KanbanCommandAvailability.progress`), the date of the event and
+ * the version of the node read (WF-RAE-0030): the API answers the node as it now is, with its
+ * ancestors and the totals of the structure — or refuses the gesture, naming the first condition
+ * that lacks (`STATE_FORBIDS_OPERATION`).
+ */
+export async function setTaskProgress(
+  structure: StructurePath,
+  nodeId: string,
+  progress: components["schemas"]["ProgressUpdate"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().PUT(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress",
+      { ...nodePath(structure, nodeId), body: progress },
     ),
   );
 }
