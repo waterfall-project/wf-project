@@ -27,7 +27,20 @@ import { columnsOf, type KanbanColumns, type StartableTasks } from "./kanban-car
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 
+// A gesture whose server action rejects, the API out of reach as `fetch` rejects in the browser.
+const failing = vi.hoisted(() => ({ on: false }));
+
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("@/api/actions/nodes", async (original) => {
+  const actual = await original<typeof import("@/api/actions/nodes")>();
+  return {
+    ...actual,
+    setTaskProgress: (...asked: Parameters<typeof actual.setTaskProgress>) =>
+      failing.on
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : actual.setTaskProgress(...asked),
+  };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -125,6 +138,7 @@ function written(client: FakeClient): unknown[] {
 
 beforeEach(() => {
   router.refresh.mockReset();
+  failing.on = false;
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 5, 3, 10, 0, 0));
 });
@@ -288,6 +302,72 @@ describe("the gestures of the cards of the Kanban", () => {
     );
     expect(within(card("Études de détail")).queryByRole("alert")).toBeNull();
     expect(card("Études de détail")).toHaveFocus();
+  });
+
+  it("tells on the card an answer that does not say where the task is, moves nothing and announces nothing, and reads the tasks anew", async () => {
+    // The answer of another task: it holds no node for the card written.
+    const client = serve({ [PROGRESS]: "milestone_completed" });
+    board();
+    await choose("Montage des armoires sur site", "Démarrer");
+    await userEvent.click(
+      within(card("Montage des armoires sur site")).getByRole("button", { name: "Démarrer" }),
+    );
+    const alert = await within(card("Montage des armoires sur site")).findByRole("alert");
+    expect(alert).toHaveTextContent(/ne dit pas dans quelle colonne/);
+    expect(written(client)).toHaveLength(1);
+    expect(labels("Non démarrées")).toContain("Montage des armoires sur site");
+    expect(labels("Démarrées")).not.toContain("Montage des armoires sur site");
+    expect(card("Montage des armoires sur site")).toHaveFocus();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells on the card a gesture whose server action rejected, which stays where it was", async () => {
+    failing.on = true;
+    serve({});
+    board();
+    await choose("Études de détail", "Rouvrir");
+    const alert = await within(card("Études de détail")).findByRole("alert");
+    expect(alert).toBeVisible();
+    expect(labels("Terminées")).toContain("Études de détail");
+    expect(card("Études de détail")).toHaveFocus();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("reads the tasks anew when the API refuses a gesture for the state of the task", async () => {
+    serve({ [PROGRESS]: REFUSED });
+    board();
+    await choose("Études de détail", "Rouvrir");
+    await within(card("Études de détail")).findByRole("alert");
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets an answer once the tasks read hold its version, which a reading at an older version does not bring back", async () => {
+    serve({ [PROGRESS]: "milestone_completed" });
+    const { again } = board();
+    await choose("Réception usine", /^Terminer/);
+    await userEvent.click(
+      within(card("Réception usine")).getByRole("button", { name: "Terminer" }),
+    );
+    await waitFor(() => {
+      expect(labels("Terminées")).toContain("Réception usine");
+    });
+    const old = columnsOfExample("startable_tasks");
+    const [milestone] = old.not_started.filter((each) => each.label === "Réception usine");
+    if (milestone === undefined) {
+      throw new Error("no milestone in the example");
+    }
+    // The tasks are read at the version answered: the card read is the one shown.
+    again({
+      ...old,
+      not_started: old.not_started.filter((each) => each !== milestone),
+      completed: [...old.completed, { ...milestone, state: "completed", lock_version: 3 }],
+    });
+    expect(labels("Terminées")).toContain("Réception usine");
+    // A reading at a lower version — the node is not started again there — is shown as it is read.
+    again(old);
+    expect(labels("Non démarrées")).toContain("Réception usine");
+    expect(labels("Terminées")).not.toContain("Réception usine");
   });
 
   it("signals a milestone to complete by a text and an icon once its predecessors are completed, and it stays not started [WF-RAE-0030-A]", () => {

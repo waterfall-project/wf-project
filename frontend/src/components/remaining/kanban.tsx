@@ -24,17 +24,27 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 
 import { setTaskProgress } from "@/api/actions/nodes";
 import { useHeldCommand } from "@/components/commands/held";
 
 import type { TaskProgress } from "./address";
-import { type Asking, Card, type CardActions, DATED, type Notice } from "./kanban-card";
+import { AnsweredCards } from "./kanban-answers";
+import { type Asking, Card, type CardActions, type Notice } from "./kanban-card";
 import {
   type CardGesture,
   cardOf,
   COLUMNS,
+  DATED,
   type KanbanCard,
   type KanbanColumns,
   type KanbanStructure,
@@ -61,7 +71,8 @@ export function Kanban({
   const router = useRouter();
   const held = useHeldCommand();
   const [, startTransition] = useTransition();
-  const [answered, setAnswered] = useState<Readonly<Record<string, KanbanCard>>>({});
+  const [book] = useState(() => new AnsweredCards());
+  const answered = useSyncExternalStore(book.subscribe, book.snapshot, book.snapshot);
   const [selected, setSelected] = useState<string>();
   const [writing, setWriting] = useState<string>();
   const [asking, setAsking] = useState<Asking>();
@@ -70,9 +81,17 @@ export function Kanban({
   const [focusing, setFocusing] = useState<{ readonly id: string; readonly form: boolean }>();
   const elements = useRef(new Map<string, HTMLElement>());
   const date = useRef<HTMLInputElement | null>(null);
-  // The card chosen now, set at the very moment it is: an answer judges against it (defect 2).
+  // The card chosen now, set at the very moment it is: an answer comes back after the user may have chosen
+  // another card, and the focus must not be taken from that one.
   const chosen = useRef<string>(undefined);
   const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
+
+  // An answer the columns read since overtake is forgotten, so that a later reading at an older
+  // version — a page read before the write was seen — cannot bring it back. Done once the reading
+  // is committed, never while it renders.
+  useLayoutEffect(() => {
+    book.read(columns);
+  }, [book, columns]);
 
   // The focus follows the card moved, which another column mounts anew, or the field of the date.
   useEffect(() => {
@@ -117,13 +136,22 @@ export function Kanban({
       }
       if (outcome.kind !== "done") {
         say(card.node_id, { kind: "outcome", outcome });
+        // A task the API refuses for its state, or for a version past, is no more what the card
+        // shows: the tasks are read anew.
+        if (outcome.kind === "conflict" || outcome.kind === "stale") {
+          router.refresh();
+        }
         return;
       }
       const node = outcome.data.nodes.find((each) => each.node_id === card.node_id);
       const state = node?.task?.progress;
       if (node !== undefined && state !== undefined) {
-        setAnswered((now) => ({ ...now, [card.node_id]: cardOf(node, state) }));
+        book.answer(cardOf(node, state));
         setAnnounced(t("moved", { label: card.label, column: titleOf(state) }));
+      } else {
+        // The answer does not say where the task is: the card stays, and says so, rather than
+        // announce a move nobody saw.
+        say(card.node_id, { kind: "said", sentence: t("unplaced", { label: card.label }) });
       }
       // The tasks are read anew either way: the card answered lists no gesture until they are.
       router.refresh();

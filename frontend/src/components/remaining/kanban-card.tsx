@@ -50,9 +50,6 @@ const ICONS: Readonly<Record<KanbanCommand, LucideIcon>> = {
   enter_remaining: PenLine,
 };
 
-/** The gestures that happen on a date the user enters: the start and the completion of a task. */
-export const DATED: ReadonlySet<KanbanCommand> = new Set(["start", "complete"]);
-
 /** What a card tells of the last gesture asked of it: the refusal of the API, or a sentence. */
 export type Notice =
   | { readonly kind: "outcome"; readonly outcome: Outcome<unknown> }
