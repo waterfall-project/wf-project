@@ -2181,7 +2181,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
   durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; la comparaison de l'offre et
   de la référence sur toute cette structure, lue avec `fields`, deuxième exemple de
-  `compareRevisions` (`wftools.mockhistory`, #1201) ; les trois cents projets de
+  `compareRevisions` (`wftools.mockcomparisons`, #1201) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
   structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
   catégories de coût et quinze ans de taux horaires, en une page et par pages, la grille triée
@@ -2198,7 +2198,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   réponses (`wftools.mockkanban`), et les refus
   d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
   (`wftools.mockexchanges`) ; son
-  histoire, ses révisions comparées et ses risques (`wftools.mockhistory`), et les réponses des
+  histoire (`wftools.mockhistory`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
   saisies d'un risque (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
