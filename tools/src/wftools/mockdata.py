@@ -78,6 +78,7 @@ from wftools import (
     mockamendment,
     mockamendmentwrites,
     mockaudit,
+    mockcomparisons,
     mockcore,
     mockcosts,
     mockexchanges,
@@ -348,6 +349,7 @@ def named() -> dict[str, JsonObject]:
         **mockexchanges.examples(),
         **mockamendment.examples(),
         **mockhistory.examples(),
+        **mockcomparisons.examples(),
         **mockriskwrites.examples(),
         **mocktoday.examples(),
         **mockcosts.examples(),
@@ -653,7 +655,7 @@ def volumes() -> dict[str, JsonObject]:
     rows = cast("list[JsonObject]", projects["items"])
     return {
         "nodes_thousand.json": _example(_structure_summary(nodes), nodes),
-        "comparison_volume.json": mockhistory.comparison_volume(),
+        "comparison_volume.json": mockcomparisons.comparison_volume(),
         "summary_dependencies.json": _example(
             "Ce dont dépend la date de fin de la première récapitulative de la structure aux "
             "volumes du §4.6.2 : ses subordonnées directes, nommées par leur numéro et leur "

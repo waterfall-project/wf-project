@@ -15,7 +15,14 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockamendment, mockcore, mockstructure, mockwitness
+from wftools import (
+    REPOSITORY,
+    mockamendment,
+    mockcore,
+    mockdating,
+    mockstructure,
+    mockwitness,
+)
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
@@ -314,7 +321,7 @@ def _cited_by_a_marked_revision() -> set[str]:
         if revision["is_reference"]:
             cited |= {
                 line.subproject
-                for task in mockcore.tasks_in_order(mockcore.REFERENCE)
+                for task in mockdating.tasks_in_order(mockcore.REFERENCE)
                 for line in task.lines
                 if line.subproject is not None
             }
@@ -327,7 +334,7 @@ def _own_estimate(structure: Entry) -> tuple[mockwitness.Task, ...]:
     """Return the tasks of the own estimate of a risk, as the universe describes them: none.
 
     The universe draws no line in the own estimate of a risk — its severity is read from its
-    reviews (`mockwitness.Risk`) —; the structure is said, its lines bear no subproject.
+    reviews (`mockwitnessrisks.Risk`) —; the structure is said, its lines bear no subproject.
     """
     [risk] = [
         r for r in fixture("risks")["items"] if r["structure_id"] == structure["structure_id"]
@@ -354,7 +361,7 @@ def _borne_by_the_current_revision() -> set[str]:
         roots = described[kind]() if kind in described else _own_estimate(structure)
         borne |= {
             line.subproject
-            for task in mockcore.tasks_in_order(roots)
+            for task in mockdating.tasks_in_order(roots)
             for line in task.lines
             if line.subproject is not None
         }
@@ -672,7 +679,9 @@ def test_each_suggestion_names_its_node_and_its_roles_as_the_reference_reads_the
     nodes = {node["org_node_id"]: node for node in fixture("org_nodes")}
     roles = {role["resource_role_id"]: role for role in fixture("resource_roles")["items"]}
     # The roles the estimate employs: those of the core, and of the structure drawn around it.
-    employed = {line.role for task in mockcore.tasks_in_order() for line in task.lines if line.role}
+    employed = {
+        line.role for task in mockdating.tasks_in_order() for line in task.lines if line.role
+    }
     employed |= {kind.role for kind in mockstructure.CABLING_KINDS if kind.role is not None}
     inscribed = {each["user_id"] for each in fixture("contributors")["items"]}
     suggestions = fixture("contributor_suggestions")

@@ -113,15 +113,14 @@ sur le serveur, et l'arbre qu'elle rend se monte dans un document, où seul un r
 la bannière et la grille partagent (`structure-screens.dom.test.tsx`). Un tel test n'éprouve pas
 le Vérif d'une exigence et n'en cite pas : il tient en non-régression le défaut n° 20 de
 `typescript.md` et #819.3, les mêmes écrans ayant leurs parcours sous `e2e/`. Un test du projet
-`dom` qui écrit sur la sortie
-d'erreur — `console.error`, `console.warn`, `console.trace` — échoue une fois son document
-nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) : un avertissement de React
-ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du test ou du code, pas un
-bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la console la fait taire
-lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut dit. happy-dom ne
-mesure rien : un test qui monte une courbe donne à son dessin la place qu'une page lui donne
-(`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit qu'il n'a
-ni largeur ni hauteur (EP-02/L37).
+`dom` qui écrit sur la sortie d'erreur — `console.error`, `console.warn`, `console.trace` —
+échoue une fois son document nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) :
+un avertissement de React ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du
+test ou du code, pas un bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la
+console la fait taire lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut
+dit. happy-dom ne mesure rien : un test qui monte une courbe donne à son dessin la place qu'une
+page lui donne (`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit
+qu'il n'a ni largeur ni hauteur (EP-02/L37).
 
 ### La navigation : la table des fonctions et ses routes
 
@@ -614,9 +613,9 @@ légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les
 chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; un plan de
 charge est un histogramme empilé (`stackedRoles` de `workload/stacked-load.ts` : une barre par mois,
 divisée par rôle, les motifs gardés), dont l'infobulle d'un mois liste les rôles et leurs heures
-(`monthTooltip`, libellés échappés) ; celui du projet n'a ni droite de capacité (#375) ni total de
-mois, le contrat n'en rendant pas, celui du portefeuille porte le total de chaque mois que le
-serveur rend (`monthly_totals`, `monthTotals`) au sommet de sa barre et, en pointillés, la capacité
+(`monthTooltip`, libellés échappés) ; celui du projet n'a pas de droite de capacité (#375) mais porte au sommet
+de chaque barre le total du mois que le serveur rend (`monthly_totals`, `monthTotals`), comme celui
+du portefeuille qui porte aussi, en pointillés, la capacité
 du périmètre (`capacity_monthly_hours`), la table des rôles, de leur taux et de leurs signaux étant
 sous le graphique ; les liens vers le plan de charge ouvrent une base (`basis`,
 `workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis `reference_budget`
@@ -873,7 +872,25 @@ dans les deux modes (`contrast.test.ts`), et les grilles du planning et du devis
 des écrans du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`, `e2e/routes.ts`). Un nœud retiré se lit
 et ne se touche pas : aucun geste de structure ne lui est offert, ni « Insérer » ni « Supprimer » ni
 Ctrl+Suppr, il ne se déplace pas, rien ne se dépose à côté de lui (`isRemoved`, `structure-rules.ts`,
-#1185), et la cellule des prédécesseurs d'une tâche retirée n'est pas saisissable (#1257).
+#1185), et la cellule des prédécesseurs suit `editable_fields` (`task.predecessors`) : celle d'une tâche
+retirée, qui ne le nomme pas, n'est pas saisissable (#1257).
+
+La comparaison de deux révisions (`/revisions?from_revision_id=…&to_revision_id=…`) est la même
+grille, en lecture seule (`comparison-grid.tsx`, `components/revisions/`) : les nœuds de
+`compareRevisions` — l'arbre de la révision comparée, les nœuds retirés à leur place —, chacun avec
+la marque que le serveur rend (`difference`, `changes`, une tâche déplacée sous une autre
+récapitulative marquée modifiée, WF-REV-0080), la colonne `DiffMark` en tête, puis le numéro, le
+libellé indenté par son niveau sous l'icône de sa nature, et ce qui change du nœud, nommé comme le
+serveur le nomme. La comparaison ne se pagine pas, comme `listNodes` (#1201) : l'écran demande
+l'arbre entier, réduit par `fields` aux colonnes qu'il montre (`COMPARISON_FIELDS`, `kind`,
+`task.label`, `estimate_line.label`) et projeté (`comparisonRows`) ; le serveur rend toujours le
+numéro, le niveau, la version et la marque. Faute de parent dans ces champs, l'arbre ne se plie
+pas ; rien ne se trie ni ne se cherche, l'ordre est celui du plan. Les 5 999 nœuds de l'exemple de
+volume (`volume/comparison_volume.json`, dont 2 770 modifiés) ne montent qu'une fenêtre de lignes,
+et l'écran garde la borne d'un écran de grille (`WORKING`, 15 s, `revisions.spec.ts`) ; le parcours
+joue l'exemple de la fenêtre, le faux back servant le premier exemple de l'opération. Les écarts
+de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
+d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
 ### La grille de planning et le Gantt
 
@@ -927,9 +944,7 @@ qui le dit, sans rien envoyer. Un refus du serveur se dit à la cellule par son 
 liaisons, avec les tâches qu'elle traverse (`cycle`, `problemDetails`), une liaison entre une
 récapitulative et sa subordonnée, un projet qui dépasserait quinze ans —, et les lignes écrites, avec
 les tâches que le serveur redate, prennent la place des lignes lues, le Gantt suivant ; le front ne
-date rien. Le refus d'une liaison qui sortirait une tâche de son lot n'est pas tenu à la cellule,
-faute d'exigence et de code au contrat de `setPredecessors` : la question est ouverte en #1256.
-La validation de la dernière cellule saisissable
+date rien. La validation de la dernière cellule saisissable
 d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée.
 Toute écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ
 (`byField` de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API
@@ -2166,7 +2181,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
   durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; la comparaison de l'offre et
   de la référence sur toute cette structure, lue avec `fields`, deuxième exemple de
-  `compareRevisions` (`wftools.mockhistory`, #1201) ; les trois cents projets de
+  `compareRevisions` (`wftools.mockcomparisons`, #1201) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
   structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
   catégories de coût et quinze ans de taux horaires, en une page et par pages, la grille triée
@@ -2178,11 +2193,12 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
   de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un
   nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur
-  l'avenant 2 dans `wftools.mockamendmentwrites`), les gestes des cartes du Kanban et leurs
+  l'avenant 2, et la saisie et le collage qu'y font les parcours, dans
+  `wftools.mockamendmentwrites`), les gestes des cartes du Kanban et leurs
   réponses (`wftools.mockkanban`), et les refus
   d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
   (`wftools.mockexchanges`) ; son
-  histoire, ses révisions comparées et ses risques (`wftools.mockhistory`), et les réponses des
+  histoire (`wftools.mockhistory`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
   saisies d'un risque (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
@@ -2223,16 +2239,26 @@ serveur, `/api/v1`, que prism ignorerait, et aucune sécurité exigée (`securit
 retiré) — le faux back accorde la session dont part la maquette (EP-02), et Prism n'exige donc pas le
 jeton. Une troisième différence : Prism sert le premier exemple d'une opération quel que soit son
 chemin, si bien que `listNodes` de l'avenant aurait rendu la structure principale. La variante
-répète donc le chemin de `listNodes` pour chaque structure de nature `amendment` que liste le
-premier exemple de `listCostStructures`, son identifiant écrit dans le chemin, et y place l'exemple
-`amendment` en tête (`wftools.mock`, #1219) ; Prism préfère un chemin sans paramètre à un chemin
-gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du chemin. Les
-écritures sur l'avenant attendent #1277 : `updateEstimateLine` et `applyPaste` y répondent par un
-nœud du témoin, que la grille prend pour une autre ligne, faute d'exemple du contrat propre à
-l'avenant ; les parcours qui écrivent le devis (`entry.spec.ts`, `paste.spec.ts`) lisent donc le
-devis propre d'un risque, saisissable, que la variante ne sert pas à part et dont les nœuds sont
-ceux de la structure principale, et seuls ceux qui n'écrivent pas lisent l'avenant. Rien
-d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
+répète donc les chemins de `listNodes`, `updateEstimateLine`, `previewPaste` et `applyPaste` pour
+chaque structure de nature `amendment` que liste le premier exemple de `listCostStructures`, son
+identifiant écrit dans le chemin, et y place l'exemple `amendment` de chaque opération en tête
+(`wftools.mock`, #1219, #1277) : la lecture de l'installation sur l'avenant, la charge de sa ligne
+ajoutée saisie, et un bloc collé sur ses lignes 7 à 9, aperçu puis appliqué
+(`wftools.mockamendmentwrites`). Prism classe un chemin par ses segments écrits, devant celui qui
+les laisse en gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du
+chemin. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme ceux de la
+principale ; les avenants 212 et 213 et les structures de risque ne sont pas aiguillés (EP-16).
+**Où jouent les parcours d'écriture.** La structure principale du projet en cours liste le devis en
+lecture seule (#1176) : un parcours qui écrit le devis ne le lit donc pas là. Celui de la saisie
+d'une ligne (`entry.spec.ts`) et celui du collage (`paste.spec.ts`) jouent sur l'avenant 2, structure
+203, dont le faux back sert les trois exemples `amendment` ; le collage y retrouve `[WF-IHM-0050-A]`,
+les trois lignes du bloc de `paste_applied_amendment` écrites après la confirmation. Les parcours
+qui n'ont pas d'exemple propre à l'avenant restent sur la structure qui les sert, le devis propre
+du risque du recâblage (structure 204, qui reçoit le premier exemple de chaque opération) : le
+collage d'une catégorie inconnue, le collage d'un bloc trop large, et la ligne de provision, que
+l'avenant ne porte pas. Un parcours qui écrit sur un autre différentiel attend ses exemples, à
+EP-16.
+Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
 en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
 (`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
 navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si

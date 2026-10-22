@@ -10,7 +10,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockids, mockwitness
+from wftools import mockdating, mockids, mockwitness
 from wftools.mockcalendar import (
     ORIGIN,
     START_TO_START,
@@ -233,7 +233,7 @@ def test_a_calendar_without_any_hour_cannot_date_a_task() -> None:
 
 def _dates() -> dict[int, tuple[Instant, Instant]]:
     """Date the tasks of the core from their links alone, by number of task."""
-    return {number: (each.start, each.finish) for number, each in mockcore.schedule().items()}
+    return {number: (each.start, each.finish) for number, each in mockdating.schedule().items()}
 
 
 def _on(month: int, day: int, worked: int = 0) -> Instant:

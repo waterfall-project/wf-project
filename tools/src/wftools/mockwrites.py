@@ -24,7 +24,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mocktext, mockwitness
+from wftools import REPOSITORY, mockcore, mockdating, mocktext, mockwitness
 from wftools.mockids import universe
 from wftools.mockstructure import (
     CATEGORY_LABELS,
@@ -83,7 +83,8 @@ def written(
     not summaries, whose amount corrected for inflation or year of consumption changed, but those
     the ancestors render whole; the ancestors of the nodes written, those they had before a move
     with those they have after, of the node deleted — read before, as it is gone after — and of
-    the tasks redated, whole. Each list in the order of the plan, each node once (`NodesWritten`).
+    the tasks redated, whole, but those written. Each list in the order of the plan, each node once
+    (`NodesWritten`).
     """
     was, now = _by_id(before), _by_id(after)
     existing = [node_id for node_id in writes if node_id in was]
@@ -94,7 +95,9 @@ def written(
         and _is_activity(node)
         and _changed(node["task"], was[node_id]["task"], SCHEDULE)
     ]
-    above = _ancestors(now, [*writes, *moved]) | _ancestors(was, [*existing, *deleted])
+    above = (_ancestors(now, [*writes, *moved]) | _ancestors(was, [*existing, *deleted])) - {
+        *writes
+    }
     reinflated: list[JsonValue] = []
     for node_id, node in now.items():
         if node_id in writes or node_id in above or not (_is_activity(node) or _is_line(node)):
@@ -192,7 +195,7 @@ def on_line(number: int, **changes: Any) -> Callable[[Line], Line | None]:
     """
 
     def entered(each: Line) -> Line:
-        budgeted = mockcore.price(each, REFERENCE_YEAR).budgeted
+        budgeted = mockdating.price(each, REFERENCE_YEAR).budgeted
         return replace(each, budgeted=budgeted, **changes)
 
     return lambda each: entered(each) if each.number == number else each
@@ -422,7 +425,7 @@ def volume_write(
 
 def task_lengthened() -> JsonObject:
     """Return what updateTaskFacet answers when the duration of LENGTHENED grows by its days."""
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if each.label == LENGTHENED]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if each.label == LENGTHENED]
     roots = amended(described(), on_task(task.number, days=task.days + LENGTHENED_BY))
     return volume_write(roots, [task.number])
 
@@ -468,7 +471,7 @@ PASTES = (universe(991), universe(992))
 TOO_WIDE_CORRELATION = universe(973)
 
 
-def _known() -> tuple[dict[str, str], dict[str, str]]:
+def known() -> tuple[dict[str, str], dict[str, str]]:
     """Return the categories and the roles of the universe by their label."""
     roles = {role["label"]: role["resource_role_id"] for role in fixture("resource_roles")["items"]}
     return {label: key for key, label in CATEGORY_LABELS.items()}, roles
@@ -480,7 +483,7 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
     A category or a role the reference data does not name is refused, its row and its column
     named; an empty role writes nothing (WF-IHM-0050).
     """
-    categories, roles = _known()
+    categories, roles = known()
     rejected: list[JsonValue] = []
     for row, (_, category, role, _) in enumerate(block):
         if category not in categories:
@@ -523,12 +526,12 @@ def pasted(block: Sequence[Sequence[str]]) -> tuple[tuple[Task, ...], list[int],
     that write left it (WF-IHM-0050).
     """
     entered = amended(described(), line=on_line(LINE, label=ENTERED))
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
     rejected = cast("list[JsonObject]", paste_plan(block, PASTES[0])["rejected"])
     refused = {cast("int", each["row"]) for each in rejected}
     rows = list(zip(_numbers(task.lines[: len(block)]), block, strict=True))
     targets = [number for row, (number, _) in enumerate(rows) if row not in refused]
-    categories, roles = _known()
+    categories, roles = known()
     roots = entered
     for number, (label, category, role, quantity) in (
         pair for row, pair in enumerate(rows) if row not in refused

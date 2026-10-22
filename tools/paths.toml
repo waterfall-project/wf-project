@@ -257,7 +257,9 @@ by = "make fixtures"
 # The volumes, the named examples read from the core of the witness (wftools.mockcore), the
 # answers of the writes of the grids (wftools.mockwrites, wftools.mockgestures,
 # wftools.mockamendmentwrites) and of the gestures of the Kanban (wftools.mockkanban), the
-# history of the witness — its revisions compared and its risks (wftools.mockhistory), the entries of a risk (wftools.mockriskwrites) —, its indicators today
+# history of the witness (its revisions in wftools.mockhistory, their comparisons in
+# wftools.mockcomparisons, its risks and the entries of a risk in wftools.mockriskwrites), its
+# indicators today
 # (wftools.mocktoday), its actual costs with the journal of their imports (wftools.mockcosts), and
 # the views of the portfolio over time that sum it with the other projects
 # (wftools.mockportfoliotime), the journal of audit of the universe (wftools.mockaudit), the
@@ -336,6 +338,9 @@ paths = [
     "fixtures/api/nodes_move_mixed.json",
     "fixtures/api/estimate_line_completed_refused.json",
     "fixtures/api/nodes_move_completed_refused.json",
+    "fixtures/api/estimate_line_updated_amendment.json",
+    "fixtures/api/paste_plan_amendment.json",
+    "fixtures/api/paste_applied_amendment.json",
     "fixtures/api/node_create_horizon_exceeded.json",
     "fixtures/api/node_tracked.json",
     "fixtures/api/node_tracking_milestone_refused.json",
@@ -349,6 +354,7 @@ paths = [
     "fixtures/api/import_remaining_subproject_held.json",
     "fixtures/api/import_estimate_main_in_progress.json",
     "fixtures/api/comparison.json",
+    "fixtures/api/comparison_moved.json",
     "fixtures/api/comparison_identical.json",
     "fixtures/api/nodes_amendment.json",
     "fixtures/api/structure_merge_report.json",

@@ -13,7 +13,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockdiff, mockhistory
+from wftools import mockcomparisons, mockcore, mockdata, mockdiff, mockhistory
 from wftools.mockids import universe
 from wftools.mockwitness import N
 
@@ -25,7 +25,7 @@ def whole() -> Node:
     """Return the comparison of the offer and the reference read whole, without a filter (#1193)."""
     return cast(
         "Node",
-        mockhistory.comparison(
+        mockcomparisons.comparison(
             mockhistory.offer_rows(),
             mockhistory.reference_rows(),
             mockhistory.OFFER,
@@ -70,7 +70,7 @@ def test_a_line_moved_into_a_subtree_brings_its_whole_delta_and_leaves_none_behi
     ]
 
     def read(subtree_of: int | None) -> Node:
-        return mockhistory.comparison(
+        return mockcomparisons.comparison(
             rows, moved, mockhistory.REFERENCE, mockhistory.REFERENCE, subtree_of
         )
 
@@ -87,7 +87,7 @@ def test_the_subtree_of_a_removed_task_is_the_one_it_had_with_its_removed_nodes(
     # which the reference no longer bears, read with their line at its place, totals of no line of
     # the reference, the delta of the line removed.
     offer = mockhistory.offer_rows()
-    window = mockhistory.comparison(
+    window = mockcomparisons.comparison(
         offer, mockhistory.reference_rows(), mockhistory.OFFER, mockhistory.REFERENCE, N.SITE_TRIALS
     )
     items = cast("list[Node]", window["items"])
@@ -145,7 +145,7 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     # #1201, point 2: the volume the bound of the screen is tried on is the comparison read whole,
     # at the scale of the witness, each node reduced by `fields` to the kind and the label the
     # screen shows, besides the four and the mark always rendered (US-0500/L6).
-    volume = mockhistory.comparison_volume()
+    volume = mockcomparisons.comparison_volume()
     read = cast("Node", volume["value"])
     assert len(read["items"]) == 5_999
     modified = (node for node in read["items"] if node["difference"] == "modified")
@@ -173,5 +173,33 @@ VOLUME_BOUND = 1_500_000
 def test_the_volume_of_the_comparison_stays_under_its_bound() -> None:
     # #1204: the volume is read by the screen and versioned; a reading that renders more than the
     # fields of the screen, or nodes rendered whole, would make it grow past its bound.
-    written = mockdata.render(mockhistory.comparison_volume()).encode("utf-8")
+    written = mockdata.render(mockcomparisons.comparison_volume()).encode("utf-8")
     assert len(written) < VOLUME_BOUND
+
+
+def test_the_moved_variant_bears_a_task_moved_under_another_summary_marked_modified() -> None:
+    # The criterion « une tâche déplacée sous une autre récapitulative est présentée modifiée »
+    # (WF-REV-0080-A) is read by the front on an example (#1105): the commissioning, under the
+    # control station in the counterfactual offer, is rendered once under the installation on
+    # site, modified by its parent alone; the window keeps the totals and the deltas of the first.
+    rows = mockhistory.reference_rows()
+    example = mockcomparisons.comparison_moved(rows)
+    first = cast("Node", mockcomparisons.comparison_example(rows)["value"])
+    moved = cast("Node", example["value"])
+    items = cast("list[Node]", moved["items"])
+    [task] = [node for node in items if "parent" in node["changes"]]
+    assert (task["node_id"], task["kind"], task["difference"], task["changes"]) == (
+        universe(N.COMMISSIONING),
+        "task",
+        "modified",
+        ["parent"],
+    )
+    assert task["parent_id"] == universe(N.INSTALLATION)
+    ids = [node["node_id"] for node in items]
+    assert ids.count(universe(N.COMMISSIONING)) == 1
+    assert set(ids) == {node["node_id"] for node in first["items"]}
+    rest = ("from_revision_id", "to_revision_id", "totals", "meta", "amount_deltas")
+    assert {key: moved[key] for key in rest} == {key: first[key] for key in rest}
+    summary = str(example["summary"])
+    assert summary.startswith("Variante contrefactuelle : ")
+    assert "« Mise en service » sous la récapitulative « Poste de commande »" in summary

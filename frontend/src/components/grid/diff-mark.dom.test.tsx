@@ -170,7 +170,8 @@ describe("the mark of a difference", () => {
 
   it("keeps the predecessors of a task a differential removes read only, where those of the others are entered", () => {
     // The task « Reprise des essais de câblage », added by the amendment, read as the contract renders
-    // a removed node: in place, with no field it accepts (`editable_fields` empty).
+    // a removed node: in place, with no field it accepts (`editable_fields` empty), whence no
+    // `task.predecessors`.
     const removed: NodeList = {
       ...amendment,
       items: amendment.items
@@ -184,6 +185,34 @@ describe("the mark of a difference", () => {
     render(planning(removed));
     const row = removed.items.findIndex((each) => each.difference === "removed");
     const other = removed.items.findIndex((each) => each.difference === "modified");
+    expect(cell(row, "predecessors")).toHaveAttribute("aria-readonly", "true");
+    expect(cell(other, "predecessors")).not.toHaveAttribute("aria-readonly");
+  });
+
+  it("follows the field the node names for the predecessors of a task, not its difference [WF-IHM-0040-A]", () => {
+    // A task added, which the contract would render with no `task.predecessors`, is read only:
+    // the cell follows `editable_fields` alone.
+    const stripped: NodeList = {
+      ...amendment,
+      items: amendment.items
+        .filter((each) => each.kind === "task")
+        .map((each) =>
+          each.task?.label === "Reprise des essais de câblage"
+            ? {
+                ...each,
+                editable_fields: each.editable_fields.filter(
+                  (name) => name !== "task.predecessors",
+                ),
+              }
+            : each,
+        ),
+    };
+    render(planning(stripped));
+    const row = stripped.items.findIndex(
+      (each) => each.task?.label === "Reprise des essais de câblage",
+    );
+    const other = stripped.items.findIndex((each) => each.difference === "modified");
+    expect(stripped.items[row]?.difference).toBe("added");
     expect(cell(row, "predecessors")).toHaveAttribute("aria-readonly", "true");
     expect(cell(other, "predecessors")).not.toHaveAttribute("aria-readonly");
   });

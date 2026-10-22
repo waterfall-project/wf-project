@@ -22,6 +22,7 @@ from wftools import (
     mockamendmentwrites,
     mockcore,
     mockdata,
+    mockdating,
     mockgestures,
     mocktree,
     mockwitness,
@@ -68,9 +69,9 @@ def moved_under(roots: tuple[Task, ...], number: int, parent: int) -> tuple[Task
     """Return a structure with a task, not a root, moved with its subordinates under another.
 
     Last under it, as an indentation puts it under the task above it at its level (WF-PLA-0040):
-    the structure a refused move would leave, which ``mockcore.schedule`` refuses too.
+    the structure a refused move would leave, which ``mockdating.schedule`` refuses too.
     """
-    [task] = [each for each in mockcore.tasks_in_order(roots) if each.number == number]
+    [task] = [each for each in mockdating.tasks_in_order(roots) if each.number == number]
 
     def move(each: Task) -> Task:
         children = tuple(child for child in each.children if child.number != number)
@@ -97,6 +98,9 @@ OPERATIONS = {
     "deleteNode": ("200", ["node_summary_deleted"]),
     "moveNodes": ("200", ["nodes_moved", "nodes_indented"]),
     "setNodeTracking": ("200", ["node_tracked"]),
+    "updateEstimateLine": ("200", ["estimate_line_updated_amendment"]),
+    "previewPaste": ("200", ["paste_plan_amendment"]),
+    "applyPaste": ("200", ["paste_applied_amendment"]),
 }
 REFUSALS = {
     "createNode": [
@@ -325,7 +329,7 @@ def test_dates_entered_on_a_manual_task_follow_the_mode_changed(read: dict[str, 
     assert Decimal(mounting["total_float"]["value"]) > 0
 
 
-def manual_on(first: date, last: date, role: str | None = None) -> mockcore.Dated:
+def manual_on(first: date, last: date, role: str | None = None) -> mockdating.Dated:
     """Return the commissioning, in manual mode, dated at two days entered without hours.
 
     Its labour line is given to another role when one is said, and the task its calendar.
@@ -333,7 +337,7 @@ def manual_on(first: date, last: date, role: str | None = None) -> mockcore.Date
     roots = mockwrites.amended(CORE, mockwrites.on_task(N.COMMISSIONING, manual=(first, last)))
     if role is not None:
         roots = mockwrites.amended(roots, line=mockwrites.on_line(N.COMMISSIONING_LINE, role=role))
-    return mockcore.schedule(roots)[N.COMMISSIONING]
+    return mockdating.schedule(roots)[N.COMMISSIONING]
 
 
 def test_dates_sent_without_their_hours_are_completed_on_the_calendar_of_the_task() -> None:
@@ -480,7 +484,7 @@ def test_a_loop_of_links_is_refused_naming_its_tasks_in_the_order_of_the_links(
         CORE, mockwrites.on_task(mockgestures.CYCLE_ON, links=mockgestures.CYCLE_LINKS)
     )
     with pytest.raises(ValueError, match="close a loop"):
-        mockcore.schedule(looped)
+        mockdating.schedule(looped)
 
 
 def test_no_loop_is_found_when_no_predecessor_sent_follows_the_task() -> None:
@@ -519,7 +523,7 @@ def test_a_task_indented_under_its_predecessor_is_refused_as_a_forbidden_link(
     assert above["node_id"] in {link["predecessor_node_id"] for link in task["predecessors"]}
     indented = moved_under(CORE, mockgestures.INDENTED_FORBIDDEN, mockgestures.INDENTED_UNDER)
     with pytest.raises(ValueError, match="binds the summary"):
-        mockcore.schedule(indented)
+        mockdating.schedule(indented)
 
 
 def test_a_task_moved_under_a_task_it_follows_is_refused_naming_the_loop(
@@ -542,7 +546,7 @@ def test_a_task_moved_under_a_task_it_follows_is_refused_naming_the_loop(
         assert each["label"] == read[each["node_id"]]["task"]["label"]
     assert read[node_id(moved)]["parent_id"] == read[node_id(under)]["parent_id"]
     with pytest.raises(ValueError, match="close a loop through a summary"):
-        mockcore.schedule(moved_under(described(), moved, under))
+        mockdating.schedule(moved_under(described(), moved, under))
 
 
 @pytest.mark.parametrize(
@@ -581,11 +585,11 @@ def test_a_move_that_closes_no_loop_is_not_refused() -> None:
 def test_a_summary_given_its_own_subordinate_as_predecessor_is_not_dated() -> None:
     bound = mockwrites.amended(CORE, mockwrites.on_task(N.INSTALLATION, links=(Link(N.MOUNTING),)))
     with pytest.raises(ValueError, match="binds the summary"):
-        mockcore.schedule(bound)
+        mockdating.schedule(bound)
 
 
 def _finish(roots: tuple[mockwitness.Task, ...], number: int) -> date:
-    return mockcore.schedule(roots)[number].finish.day
+    return mockdating.schedule(roots)[number].finish.day
 
 
 def test_a_lag_or_a_duration_beyond_the_horizon_is_refused_naming_the_task() -> None:
@@ -678,18 +682,18 @@ def test_a_loop_through_the_hierarchy_names_the_summary_and_the_subordinate_it_c
     down = (_leaf(p), Task(w, "W", links=(Link(p),), children=(_leaf(z),)), _leaf(m, z))
     assert mocktree.move_loop((m,), p, down) == [p, w, z, m]
     with pytest.raises(ValueError, match="close a loop through a summary"):
-        mockcore.schedule(_moved_root(down, m, p))
+        mockdating.schedule(_moved_root(down, m, p))
     # Up: P → Z, Z a subordinate of W, W → M — what follows W follows Z.
     up = (_leaf(p), Task(w, "W", children=(_leaf(z, p),)), _leaf(m, w))
     assert mocktree.move_loop((m,), p, up) == [p, z, w, m]
     with pytest.raises(ValueError, match="close a loop through a summary"):
-        mockcore.schedule(_moved_root(up, m, p))
+        mockdating.schedule(_moved_root(up, m, p))
     # Predecessors entered cross it too: W given P as predecessor, Z → M and M under P.
     entered = (Task(p, "P", children=(_leaf(m, z),)), Task(w, "W", children=(_leaf(z),)))
     assert mocktree.cycle(w, (Link(p),), entered) == [w, z, m, p]
     looped = mockwrites.amended(entered, mockwrites.on_task(w, links=(Link(p),)))
     with pytest.raises(ValueError, match="close a loop through a summary"):
-        mockcore.schedule(looped)
+        mockdating.schedule(looped)
 
 
 def test_a_selection_is_judged_with_all_its_tasks_moved() -> None:

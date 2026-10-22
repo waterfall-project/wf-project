@@ -10,7 +10,7 @@ before and after the gesture (``wftools.mockwrites``, #287): never written by ha
 names what the witness names — the tasks of a loop of links, the task that would carry the
 project beyond its horizon — by the labels its readings give. A move or an indentation that
 would bind a summary to its subordinate, or close a loop through it, is refused as predecessors
-entered are (#1164), the structure it would leave refused by ``mockcore.schedule`` too.
+entered are (#1164), the structure it would leave refused by ``mockdating.schedule`` too.
 
 Every node the gestures write is one no other write renders at the same version (#421): the
 nodes they create are numbered 581 to 584, after the nodes of the skeleton.
@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import mockcore, mocktext, mockwitness
+from wftools import mockcore, mockdating, mocktext, mockwitness
 from wftools.mockcalendar import START_TO_START
 from wftools.mockids import universe
 from wftools.mockstructure import NETWORK, JsonObject, described
@@ -120,7 +120,7 @@ def node_created_child() -> JsonObject:
 
 def network_task(label: str) -> Task:
     """Return a task drawn about the core, by its label."""
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if each.label == label]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if each.label == label]
     return task
 
 
@@ -148,7 +148,7 @@ def node_summary_deleted() -> JsonObject:
     With it go its subordinates, their lines and the links that bind them (WF-PLA-0070): the
     milestone drawn after the commissioning follows its other predecessors alone.
     """
-    gone = {task.number for task in mockcore.tasks_in_order((INSTALLATION,))}
+    gone = {task.number for task in mockdating.tasks_in_order((INSTALLATION,))}
 
     def unlinked(each: Task) -> Task:
         links = tuple(link for link in each.links if link.predecessor not in gone)
@@ -168,7 +168,7 @@ def node_summary_deleted() -> JsonObject:
 
 def dates_of(number: int) -> tuple[date, date]:
     """Return the days a task of the structure starts and finishes, as read today."""
-    placed = mockcore.schedule(described())[number]
+    placed = mockdating.schedule(described())[number]
     return placed.start.day, placed.finish.day
 
 
@@ -224,7 +224,7 @@ def hours_granted() -> Decimal:
     day, _ = HOURS_BEYOND_DAY
     first, _ = ENTERED_DATES
     roots = amended(CORE, on_task(N.COMMISSIONING, manual=(first, day)))
-    return mockcore.schedule(roots)[N.COMMISSIONING].calendar.hours_on(day)
+    return mockdating.schedule(roots)[N.COMMISSIONING].calendar.hours_on(day)
 
 
 def task_hours_beyond_day() -> JsonObject:
@@ -298,7 +298,7 @@ def task_description_entered() -> JsonObject:
 
 def project_start() -> date:
     """Return the day the first task of the structure starts: where the horizon counts from."""
-    return min(placed.start.day for placed in mockcore.schedule(described()).values())
+    return min(placed.start.day for placed in mockdating.schedule(described()).values())
 
 
 def beyond_horizon() -> date:

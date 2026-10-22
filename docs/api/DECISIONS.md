@@ -1747,7 +1747,7 @@ la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 
 ### Les lectures de la grille (EP-02/L21)
 
 **Les exemples nommés de `listNodes` sont des lectures d'un seul arbre, engendrées** (#287 ; C1,
-C14). `wftools.mockcore` date le cœur décrit dans `mockwitness` en heures de travail sur le
+C14). `wftools.mockdating` date le cœur décrit dans `mockwitness` en heures de travail sur le
 calendrier de chaque tâche (`mockcalendar`), à partir du début des études (2 mars 2026) et de ses
 liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin la plus tardive que ses
 successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
@@ -1918,7 +1918,7 @@ comme le raccordement des borniers, et l'écart de main-d'œuvre vaut 3 515,00. 
 à la main, donne encore 80,00 de taux précédent à la mise en service : EP-02/L24 l'alignera sur le
 volume (C15 de #287, #232).
 
-**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitness.REGISTER`) : ce que l'utilisateur a
+**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitnessrisks.REGISTER`) : ce que l'utilisateur a
 saisi, leurs réexamens datés — l'identification la première, la survenance la dernière —, la
 ligne de provision qu'ils portent et celle que portait la référence. `risks`, `risk`,
 `risk_occurred_detail`, `risk_matrix`, `risk_reviews` et `risk_coverage` en sont lus : la
@@ -2055,7 +2055,7 @@ EP-02/L26.
 ### Coûts, échanges, tâches, comptes (EP-02/L25)
 
 **Les coûts réels du témoin sont décrits une fois et engendrés** (#287, C3 ; WF-CRE-0010 à
-WF-CRE-0050). `wftools.mockwitness` décrit les six lignes de coût — pièce, date, montant signé,
+WF-CRE-0050). `wftools.mockwitnesscosts` décrit les six lignes de coût — pièce, date, montant signé,
 code de sous-projet lu dans l'OTP s'il en a un, colonnes conservées dans l'ordre que les imports
 déclarent (`PASSTHROUGH`), imports qui les ont apportées, exclusion — et les cinq imports du
 journal, aux instants de la chronologie (3 avril, 4, 6 et 11 mai, 3 juin) ; `wftools.mockcosts` en
@@ -2263,7 +2263,7 @@ précédente : chaque ligne de la révision courante porte ses grandeurs à 101 
 `previous_hours`, `previous_unit_disbursement` — et le montant réestimé qu'elles donnaient,
 `previous_reestimated_amount`. La provision de 751, à 500 aujourd'hui, y était à 250 ; les lignes
 fusionnées par la survenance de 752, absentes de 101, les portent nulles, comme toute lecture d'une
-révision marquée. La description de la référence passe de `mockhistory` à `mockwitness`, que
+révision marquée. La description de la référence passe de `mockhistory` à `mockwitnessrisks`, que
 `mockcore` lit (`mockcore.current`). `remaining.dom.test.tsx`, avec les colonnes des grandeurs
 précédentes qu'EP-02/L36 a ajoutées à la grille, lit des valeurs affichées et leur format — la
 charge précédente de la main-d'œuvre, 12,5, les débours unitaires précédents des borniers,
@@ -2282,8 +2282,8 @@ son code, sans lien (`can_open`, WF-PTF-0030).
 WF-PLA-0010, WF-PLA-0160). `wftools.mockstructure` décrit, comme le cœur l'est dans
 `mockwitness`, en tâches et en lignes, neuf phases tirées après lui — les approvisionnements à la
 réception, les études étant le cœur —, chacune des trois lots, chaque lot ses tâches de travail en
-trois chaînes et un jalon ; `wftools.mockcore` date le tout ensemble, en heures de travail sur le
-calendrier des rôles de chaque tâche, le chiffre et l'émet. Les compteurs du §4.6.2 sont gardés :
+trois chaînes et un jalon ; `wftools.mockdating` date le tout ensemble, en heures de travail sur le
+calendrier des rôles de chaque tâche, le chiffre, et `mockcore` l'émet. Les compteurs du §4.6.2 sont gardés :
 mille tâches, dont les quinze du cœur, et cinq mille lignes, dont ses neuf — cinq sur chacune des
 922 tâches de travail tirées et une sixième sur 381 d'entre elles. **Deux calendriers** : le
 câblage est confié au monteur câbleur, toutes ses heures de main-d'œuvre, et ses 103 tâches
@@ -2451,7 +2451,7 @@ les deux Kanban ne présentent que les tâches du cœur. Leurs résumés le dise
 (`mocktext.CORE_ONLY`, « jusqu'à EP-14/L45b »).
 
 **Le générateur à cette échelle.** Une structure est datée et émise une fois pour une date, des taux
-et une revue précédente donnés (`mockcore.core`, `mockcore.schedule`), une révision lue une fois
+et une revue précédente donnés (`mockcore.core`, `mockdating.schedule`), une révision lue une fois
 (`mockindicators.read`) ; les flux d'une courbe sont sommés d'un coup une fois dépensés en entier et
 lus un à un tant qu'ils courent (`mockcurves.Spread`), les bornes de chacun comptées une fois sur son
 calendrier. `make mock-data` écrit le tout en une quinzaine de secondes.
@@ -5570,7 +5570,7 @@ fermé la modification, le réexamen et la suppression d'un risque, qui n'en dé
 paiement, en jours, qui […] reste saisissable sur toute ligne autre qu'une ligne de provision, qui
 n'en porte pas » ; WF-IND-0100 : « une ligne de provision, qui n'en porte pas, reste à la date de la
 tâche qui la porte »). Le délai quitte les `editable_fields` de la ligne de provision, sa lecture le
-rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockcore.payment_delay`,
+rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockdating.payment_delay`,
 `mockindicators.delays`) ; envoyé, il est refusé par 422, `fields` sur `/payment_delay_days`, motif
 `FIELD_NOT_ACCEPTED`, code nouveau, celui de tout champ qu'un nœud n'accepte pas, ni saisi ni
 calculé pour lui, que le contrat refusait jusqu'ici sans le nommer : un champ d'une autre nature de
@@ -6371,7 +6371,7 @@ chaîne d'une seule liaison est la liaison interdite : le code le plus précis l
 engendrés par `wftools.mockgestures` : `nodes_indent_forbidden`, la mise en service mise en retrait
 sous le montage, la tâche au-dessus d'elle et son prédécesseur ; `nodes_move_cycle_refused`,
 « Documentation 1.1.7 », tâche tirée autour du cœur, déplacée sous « Préparation 1.1.1 », qu'elle
-suit par « Réalisation 1.1.4 ». `mockcore.schedule` refuse les deux structures que ces gestes
+suit par « Réalisation 1.1.4 ». `mockdating.schedule` refuse les deux structures que ces gestes
 laisseraient, comme celle que `predecessors_cycle_refused` laisserait : le faux back ne date pas ce
 que le serveur refuse. `createNode` ne déclare ni l'un ni l'autre (#1167, tranché par l'auteur le
 2026-10-19) : son corps ne porte pas de liaison (`TaskFacetWrite`, sans `predecessors`), et créer un
@@ -6683,7 +6683,7 @@ restait à trancher (#1201, point 4) ; tranché depuis (#1205, EP-15/US-0490/L1,
 ses valeurs de base, comme tout nœud. `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
 les grilles de `listNodes`, que son chemin dit désormais.
 
-**Les exemples sont des fenêtres**, engendrés par `wftools.mockhistory`. `comparison`, le premier,
+**Les exemples sont des fenêtres**, engendrés par `wftools.mockcomparisons`. `comparison`, le premier,
 est le sous-arbre de l'installation sur site (`subtree_of`), comme `nodes_amendment` sur le
 différentiel : 9 nœuds, et chaque marque — deux ajoutés, la tâche et la ligne retirées, à leur
 place, deux lignes réestimées, trois tâches modifiées par leur seul contenu —, les totaux de
@@ -6701,7 +6701,7 @@ point 2). Les fenêtres de L5 ne disent pas ce que pèse la comparaison que l'é
 `volume`, cité en deuxième sous `compareRevisions`, la rend : la comparaison de l'offre et de la
 référence sur toute la structure du témoin, 5 999 nœuds, lue sans filtre et avec `fields` réduit à
 ce que l'écran montre — `kind`, `task.label`, `estimate_line.label` —, 1,3 Mo au lieu de 7,4 Mo.
-Il est engendré par `wftools.mockhistory` comme `nodes_thousand` pour `listNodes`
+Il est engendré par `wftools.mockcomparisons` comme `nodes_thousand` pour `listNodes`
 (`fixtures/api/volume/comparison_volume.json`), la lecture avec `fields` par
 `wftools.mockcore.with_fields`. US-0500/L4 éprouve dessus la borne de 15 s d'US-0500, et le fera
 passer en premier.
@@ -6723,6 +6723,50 @@ renommés (`budgeted_amount-2`) et dont les modèles du service faisaient des cl
 exception dans `.redocly.lint-ignore.yaml`, qui laisserait l'exemple non vérifié. Le front de la
 comparaison lit les types partiels : il ne suppose plus `kind` ni `lineage_id`, ses lignes sont
 clés par `node_id`, toujours rendu.
+
+## La saisie et le collage sur l'avenant, et les prédécesseurs que la tâche accepte (EP-15/US-0500/L4)
+
+**La saisie et le collage du devis sur l'avenant ont leurs exemples** (décision de l'auteur du
+2026-10-22 sur #1277). Le faux back servait `nodes_amendment` à l'adresse de la structure 203
+(#1219), mais `updateEstimateLine`, `previewPaste` et `applyPaste` y répondaient des nœuds du
+témoin, que l'avenant ne contient pas : la grille les lisait comme une autre ligne, et les parcours
+de saisie et de collage lisaient le devis propre d'un risque. Trois exemples, nommés `amendment`
+sous leur opération, engendrés par `wftools.mockamendmentwrites` comme les gestes du devis sur
+l'avenant (#1214) : `estimate_line_updated_amendment`, la charge de la ligne que l'avenant ajoute,
+« Assistance à la reprise des essais » (nœud 1293), portée de 40 à 48 h ; `paste_plan_amendment`,
+un bloc de trois lignes et quatre colonnes collé sur son libellé, et `paste_applied_amendment`, ce
+bloc confirmé. Chaque ligne du bloc écrit la ligne de la grille à la même distance sous la cellule
+visée (`PastePreview`) : les lignes 7 à 9 de `nodes_amendment`, la ligne ajoutée, la mise en
+service et sa ligne. La mise en service est une tâche : elle prend son libellé, et ses cellules
+vides, qui tombent sur des colonnes de ligne, n'écrivent rien ; le bloc est accepté entier, ce que
+dit le premier Vérif de WF-IHM-0050. Le collage suit la saisie, comme celui du témoin suit son
+libellé saisi (#421) : la ligne 1293 y est à la version 3, la structure au compteur 4. Sur un
+différentiel, le budgété suit les grandeurs, d'où la fusion tirera le budget (WF-REV-0050).
+`wftools.mock` répète, pour chaque différentiel que liste le premier exemple de
+`listCostStructures`, les chemins de ces trois opérations avec celui de `listNodes`, et y place
+l'exemple `amendment` en tête ; Prism classe un chemin par ses segments écrits, devant celui qui
+les laisse en gabarit. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme
+ceux de la principale. Écartés : un aperçu commun au témoin et à l'avenant, dont le collage
+identifié (`paste_id`) n'aurait pas été celui du bloc collé ; l'aiguillage des avenants 212 et 213
+et des structures de risque, qui va à EP-16 avec la même décision.
+
+**Une réponse d'écriture ne rend pas parmi les ancêtres un nœud qu'elle écrit** (`NodesWritten`,
+« hors des nœuds écrits »). Le collage sur l'avenant écrit une tâche et sa ligne : la tâche est un
+nœud écrit, rendu dans `nodes`, et non dans `ancestors`. `wftools.mockwrites.written` l'écarte
+désormais ; aucun exemple existant n'écrivait un nœud et l'un de ses ancêtres à la fois.
+
+**Les prédécesseurs sont un champ que la tâche accepte** (décision de l'auteur du 2026-10-22 sur
+#1257, point 2). La cellule des prédécesseurs était offerte à toute tâche lue avec sa tâche, faute
+de champ qui la nomme : un nœud retiré d'un différentiel, en lecture seule, l'aurait gardée
+saisissable, une commande que le service refuserait (WF-IHM-0090). `EditableField` gagne
+`task.predecessors`, écrit par `setPredecessors` (WF-PLA-0030), que nomme toute tâche,
+récapitulative, feuille ou jalon, de toute structure, après ses autres champs de planning et avant
+le rattachement au lotissement ; un nœud retiré n'en nomme aucun (`editable_fields` vide). Une
+liaison n'est refusée qu'à sa saisie, par ce qu'elle relie — une récapitulative et sa subordonnée
+(`LINK_FORBIDDEN`), une boucle (`LINK_CYCLE`) — : la tâche ne dit pas d'avance une liaison qu'elle
+refuserait. `editable_fields` dit ce que le nœud accepte, `edit_planning` ce que l'appelant a le
+droit d'écrire, comme pour `task.tracking`. Écarté : garder la colonne par la marque du différentiel
+dans la grille (US-0500), qui déduirait la règle de la structure lue au lieu de la lire au nœud.
 
 ## Du projet créé au projet En cours, et l'avenant (EP-15/US-0490, US-0510)
 

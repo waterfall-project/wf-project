@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The links the hierarchy refuses: a summary bound to its subordinate, a loop through a summary.
 
-``mockcore.schedule`` dates no structure the server would refuse (WF-PLA-0030, WF-PLA-0040): the
-loops among links alone are found as it orders the tasks (``mockcore.in_link_order``), those that
+``mockdating.schedule`` dates no structure the server would refuse (WF-PLA-0030, WF-PLA-0040): the
+loops among links alone are found as it orders the tasks (``mockdating.in_link_order``), those that
 pass through a summary here, with the links that bind a summary to its subordinate, which a move
 or an indentation makes under a task already linked to what it receives (#1164).
 """
