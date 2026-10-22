@@ -639,17 +639,23 @@ la bulle la plus haute près ; une bulle est à la probabilité et à la part de
 point, et sa taille, bornée, suit la gravité en montant ; l'infobulle dit le risque, son projet au
 portefeuille, et le clic (`onPoint` de `Chart`, par l'`id` de la donnée) ouvre le détail du risque
 dans l'adresse d'un projet, ou le projet d'un point que `can_open` permet d'ouvrir. La table du
-décompte par case (`RiskCountsTable`, `cells`) est celle des valeurs de la figure. Une figure qui
-reçoit `exported` offre la
-commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une instance hors
-écran, en rendu canvas, à la taille d'une image, son titre et sa provenance (`useProvenance`) —
-projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs (`detail` : la base et
-le nœud d'organisation filtré du plan de charge), date de calcul, écrite dans l'heure du poste au
-moment de l'export —
-en tête, repliés à la largeur de l'image (`wrapLines`), la figure descendue de la hauteur de
-leurs lignes, sur le fond de la charte, puis libère l'instance. Un choix qui change ce qu'une
-courbe lit — les délais de paiement, la base et le nœud d'organisation du plan de charge — est un
-paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre ni ne décale rien.
+décompte par case (`RiskCountsTable`, `cells`) est celle des valeurs de la figure. Aucune bulle
+n'est atteignable au clavier, et c'est dit : la grille des risques, sur le même écran (projet),
+donne au clavier l'accès aux mêmes données, par le lien du libellé de chaque ligne, et au
+portefeuille le tableau des plus lourds et `/portfolio/projects` y suffisent (#1253). Les axes
+restent linéaires, aux valeurs exactes (WF-IHM-0100), même si la bande de 0 à 1 % de gravité n'y
+mesure qu'une quinzaine de points : une échelle par morceaux fausserait la lecture des positions.
+`folded` de `Chart` ne vaut que pour l'état initial du dessin — un bouton l'affiche et le replie
+ensuite —, et un changement ultérieur de la prop ne le plie ni ne le déplie. Une figure qui reçoit
+`exported` offre la commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une
+instance hors écran, en rendu canvas, à la taille d'une image, son titre et sa provenance
+(`useProvenance`) — projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs
+(`detail` : la base et le nœud d'organisation filtré du plan de charge), date de calcul, écrite dans
+l'heure du poste au moment de l'export — en tête, repliés à la largeur de l'image (`wrapLines`), la
+figure descendue de la hauteur de leurs lignes, sur le fond de la charte, puis libère l'instance. Un
+choix qui change ce qu'une courbe lit — les délais de paiement, la base et le nœud d'organisation du
+plan de charge — est un paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre
+ni ne décale rien.
 
 ### L'écran des indicateurs
 
@@ -692,11 +698,9 @@ la suivent sont les risques, le devis, le reste à engager, les coûts réels et
 portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau du contexte de
 lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la ligne des
 totaux de la grille reste dans la fenêtre sous les cartes, à 1366 et à 911 de large sur 768 de
-haut : `e2e/grid-frame.spec.ts` le vérifie — sauf les risques, dont le graphique de la matrice
-(288 points, `h-72`) prend la place entre les cartes et la grille. Cette exception à 768 de haut
-attend la décision de #1252 : elle est affirmée par un test à part, qui exige que les totaux soient dans
-la fenêtre une fois la page défilée, d'au plus la hauteur du bloc de la matrice ; la règle générale
-est vérifiée sur les risques dans une fenêtre de 1000 de haut. _Contrôle_ : la revue ;
+haut : `e2e/grid-frame.spec.ts` le vérifie, risques compris : le graphique de leur matrice, entre les
+cartes et la grille, démarre replié (`folded` de `Chart`), un bouton l'affiche et le replie, car dépliée
+sa hauteur (288 points, `h-72`) ne laisse pas les totaux dans la fenêtre à 768 de haut (#1252). _Contrôle_ : la revue ;
 `src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
 ### Les grilles

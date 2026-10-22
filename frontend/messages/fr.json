@@ -801,6 +801,7 @@
   },
   "chart": {
     "values": "Valeurs du graphique",
+    "toggle": "Graphique",
     "exportPng": "Exporter en PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Révision : {revision} · Calculé le {date}",

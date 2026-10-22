@@ -801,6 +801,7 @@
   },
   "chart": {
     "values": "Values of the chart",
+    "toggle": "Chart",
     "exportPng": "Export as PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Revision: {revision} · Computed on {date}",

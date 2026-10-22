@@ -11,7 +11,9 @@
  * apart without its colour (WF-IHM-0100, WF-IHM-0070): it is named in its area, and its sides have
  * a stroke of its own; a state of a risk, by the shape of its bubble. A tooltip tells a bubble in
  * words; a click leads to the risk, or to its project in the portfolio. The chart is exported as a
- * PNG image with its provenance (WF-IHM-0130).
+ * PNG image with its provenance (WF-IHM-0130). No bubble is reached from the keyboard: the grid of
+ * the risks, on the same screen, gives the keyboard the same data, and the axes stay linear, at
+ * the exact values (#1253). A project's chart starts folded, to keep its grid in the window (#1252).
  */
 "use client";
 
@@ -121,10 +123,18 @@ export interface RiskBubbleChartProps {
   readonly exported: () => ChartExport;
   /** Called with the point of the bubble clicked. */
   readonly onOpen: (point: Point) => void;
+  /** Whether the drawing starts folded, to keep the grid of the screen in its window. */
+  readonly folded?: boolean;
 }
 
 /** Render the bubble chart of the matrix, and under it the count of its cells. */
-export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubbleChartProps) {
+export function RiskBubbleChart({
+  matrix,
+  states,
+  exported,
+  onOpen,
+  folded = false,
+}: RiskBubbleChartProps) {
   const t = useTranslations();
   const locale = useLocale();
   const points = useMemo(() => shownPoints(matrix.points, states), [matrix.points, states]);
@@ -186,13 +196,20 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
           },
           { xAxis: over, yAxis: high },
         ];
-        // The stroke of a zone is drawn on two of its sides, the left one and the lower one: a side
-        // shared by two zones is drawn once, by the zone it is the left or the lower side of, and
-        // never as the superposition of two strokes (the outer sides are the axes and the frame).
+        // The stroke of a zone is drawn on its left side and its lower side: a side shared by two
+        // zones is drawn once, by the zone it is the left or the lower side of, and never as the
+        // superposition of two strokes. The zones of the last column and of the last row also draw
+        // their right side and their upper side, which are the outer ones of the matrix.
         const style = { color: colour, width: 1, type: ZONE_STROKE[cell.zone] };
         const edges: Edge[] = [
           [{ name, coord: [left, bottom], lineStyle: style }, { coord: [left, high] }],
           [{ name, coord: [left, bottom], lineStyle: style }, { coord: [over, bottom] }],
+          ...(over === right
+            ? [[{ name, coord: [over, bottom], lineStyle: style }, { coord: [over, high] }] as Edge]
+            : []),
+          ...(high === top
+            ? [[{ name, coord: [left, high], lineStyle: style }, { coord: [over, high] }] as Edge]
+            : []),
         ];
         return [{ area, edges }];
       });
@@ -323,6 +340,7 @@ export function RiskBubbleChart({ matrix, states, exported, onOpen }: RiskBubble
       option={option}
       exported={exported}
       onPoint={open}
+      folded={folded}
     >
       <RiskCountsTable matrix={matrix} />
     </Chart>
@@ -356,6 +374,7 @@ export function ProjectRiskMatrix({
       matrix={matrix}
       states={states}
       exported={exported}
+      folded
       onOpen={(point) => {
         request((query) => riskHref(pathname, query, point.risk_id));
       }}
