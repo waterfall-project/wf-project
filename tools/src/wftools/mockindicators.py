@@ -58,7 +58,6 @@ from wftools.mockwitness import (
     TODAY,
     TRACKED,
     WORK_BREAKDOWN,
-    CostLine,
     Task,
     WorkPackage,
     by_identifier,
@@ -68,6 +67,8 @@ from wftools.mockwitness import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
     from datetime import datetime
+
+    from wftools.mockwitnesscosts import CostLine
 
 READ_ON = TODAY.date()
 """The day the indicators of the current revision are read: the work of that day counted."""

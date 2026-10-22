@@ -24,7 +24,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mocktext, mockwitness, mockwrites
+from wftools import mockcore, mocktext, mockwitnessrisks, mockwrites
 from wftools.mockcurves import Era, cost_curve, earned_value_curves, workload
 from wftools.mockids import universe
 from wftools.mockindicators import (
@@ -49,7 +49,6 @@ from wftools.mockstructure import described
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CORE,
-    COSTS,
     ELECTRICAL_ENGINEERING,
     GENERATED,
     LABOUR,
@@ -63,6 +62,7 @@ from wftools.mockwitness import (
     SUBPROJECT_TESTS,
     fixture,
 )
+from wftools.mockwitnesscosts import COSTS
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -122,7 +122,7 @@ def alone() -> Witness:
     """
     return Witness(
         offer(CORE),
-        reference(mockwitness.reference(CORE)),
+        reference(mockwitnessrisks.reference(CORE)),
         today(CORE),
         actual_costs(COSTS),
     )

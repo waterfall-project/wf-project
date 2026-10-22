@@ -25,6 +25,7 @@ from wftools import (
     mockstructure,
     mocktext,
     mockwitness,
+    mockwitnessrisks,
     mockwrites,
 )
 from wftools.mockids import universe
@@ -36,10 +37,10 @@ from wftools.mockwitness import (
     OFFER_OPENED,
     ORDER_RECEIVED,
     RATES_UPDATED,
-    REGISTER,
     TODAY,
     N,
 )
+from wftools.mockwitnessrisks import REGISTER
 
 type Node = dict[str, Any]
 
@@ -200,9 +201,9 @@ def test_the_current_revision_is_opened_before_the_occurrence_merges_into_it() -
     # reference stays 101, the occurrence does not create a revision.
     opened, marked = mockhistory.REVISIONS[mockhistory.CURRENT]
     assert marked is None
-    occurred = mockwitness.DELIVERY_DELAY.last
+    occurred = mockwitnessrisks.DELIVERY_DELAY.last
     assert opened.instant < occurred.at
-    assert occurred.state == mockwitness.OCCURRED
+    assert occurred.state == mockwitnessrisks.OCCURRED
     references = [
         revision
         for revision in mockwitness.fixture("revisions")["items"]
@@ -225,25 +226,25 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     rows = mockhistory.reference_rows()
     # Without the subtree the occurrence merged, five rows; with the two provisions it bore.
     assert len(rows) == len(mockcore.current()) - 5 + 2
-    assert [mockwitness.reference_provision(risk) for risk in REGISTER] == [
+    assert [mockwitnessrisks.reference_provision(risk) for risk in REGISTER] == [
         Decimal("250000.00"),
         Decimal("60.00"),
         Decimal("600000.00"),
     ]
     assert mockhistory.reserve(rows) == Decimal("850060.00")
-    assert mockwitness.reference_provision(mockwitness.REWORK) == (
+    assert mockwitnessrisks.reference_provision(mockwitnessrisks.REWORK) == (
         mockwitness.REFERENCE_PROVISION_751
     )
     budget = mockhistory.reference_budget(rows)
     assert budget == mockhistory.reference_budget(mockcore.current())
     # The lines the amendment 1 did not designate keep the rates of the offer (#467): the core's
     # alone are budgeted 120,534.56, the whole structure 65,430,697.64.
-    assert mockhistory.reference_budget(mockcore.core(mockwitness.reference())) == Decimal(
+    assert mockhistory.reference_budget(mockcore.core(mockwitnessrisks.reference())) == Decimal(
         "120534.56"
     )
     assert budget == Decimal("65430697.64")
     numbers = {row.number for row in rows}
-    assert mockwitness.MERGED not in numbers
+    assert mockwitnessrisks.MERGED not in numbers
     assert {557, 567} <= numbers
 
 
@@ -313,7 +314,7 @@ def test_751_and_753_are_at_the_scale_of_the_structure_and_752_at_its_verif() ->
         if line.number == N.PROVISION
     ]
     assert line.unit == mockhistory.provision(rework) == Decimal("500000.00")
-    assert line.budgeted == mockwitness.reference_provision(rework) == Decimal("250000.00")
+    assert line.budgeted == mockwitnessrisks.reference_provision(rework) == Decimal("250000.00")
 
 
 def _marked(compared: Node, difference: str) -> list[Node]:
@@ -661,13 +662,13 @@ def test_a_risk_offers_its_commands_by_its_state_and_its_citation(
     assert available[universe(753)]["update_provision"] == ["risk_identified"]
     assert available[universe(753)]["update"] == []
     assert all(mockhistory.is_cited(risk) for risk in REGISTER)
-    late = mockwitness.Risk(
+    late = mockwitnessrisks.Risk(
         799,
         "Risque identifié aujourd'hui",
         "",
         None,
         217,
-        (mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
+        (mockwitnessrisks.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
     )
     assert not mockhistory.is_cited(late)
     assert mockhistory.commands(late)[4] == {
@@ -732,7 +733,7 @@ def test_the_reviews_of_a_risk_and_its_audit_follow_the_chronology(
         ("2026-02-02", "0.25", "1250000.00"),
         ("2026-01-12", "0.25", "1000000.00"),
     ]
-    known = mockwitness.REWORK.known_on(AMENDMENT_MERGED.on)
+    known = mockwitnessrisks.REWORK.known_on(AMENDMENT_MERGED.on)
     assert known is not None
     assert known.severity * known.probability == Decimal("250000.00")
     for item, risk in zip(history["risks"]["items"], REGISTER, strict=True):
@@ -795,19 +796,21 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> 
 def test_a_risk_identified_after_the_reference_has_no_share_in_it() -> None:
     # Identified and dismissed today: no review before the reference was marked, no provision
     # it bore — it counts nothing among the dismissed, and the reserve does not move.
-    late = mockwitness.Risk(
+    late = mockwitnessrisks.Risk(
         798,
         "Risque identifié puis écarté aujourd'hui",
         "",
         None,
         217,
         (
-            mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00")),
-            mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00"), mockwitness.DISMISSED),
+            mockwitnessrisks.Review(TODAY, Decimal("0.1"), Decimal("100.00")),
+            mockwitnessrisks.Review(
+                TODAY, Decimal("0.1"), Decimal("100.00"), mockwitnessrisks.DISMISSED
+            ),
         ),
     )
     assert late.known_on(AMENDMENT_MERGED.on) is None
-    assert mockwitness.reference_provision(late) == 0
+    assert mockwitnessrisks.reference_provision(late) == 0
     rows = mockhistory.reference_rows()
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
@@ -822,10 +825,10 @@ def test_one_run_of_the_generator_reaches_its_fixed_point(
     # in memory, not from the files the same command writes (defect no. 7 of the rules), so that
     # a register changed is written whole by one run.
     rework = replace(
-        mockwitness.REWORK,
+        mockwitnessrisks.REWORK,
         reviews=(
-            *mockwitness.REWORK.reviews,
-            mockwitness.Review(TODAY, Decimal("0.6"), Decimal("1250000.00")),
+            *mockwitnessrisks.REWORK.reviews,
+            mockwitnessrisks.Review(TODAY, Decimal("0.6"), Decimal("1250000.00")),
         ),
     )
     monkeypatch.setattr(mockhistory, "REGISTER", (rework, *REGISTER[1:]))
@@ -841,13 +844,13 @@ def test_one_run_of_the_generator_reaches_its_fixed_point(
 def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference() -> None:
     # The same late risk, bearing a line of provision in the current revision: the reference,
     # marked before it was identified, does not bear it, nor does the comparison count it.
-    late = mockwitness.Risk(
+    late = mockwitnessrisks.Risk(
         797,
         "Risque identifié aujourd'hui",
         "",
         None,
         217,
-        (mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
+        (mockwitnessrisks.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
         provision_line=599,
     )
     line = mockwitness.Line(
@@ -863,8 +866,8 @@ def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference(
     )
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
-        patch.setattr(mockwitness, "REGISTER", (*REGISTER, late))
-        rows = mockcore.core(mockwitness.reference(core), AMENDMENT_MERGED.on)
+        patch.setattr(mockwitnessrisks, "REGISTER", (*REGISTER, late))
+        rows = mockcore.core(mockwitnessrisks.reference(core), AMENDMENT_MERGED.on)
         offered = mockcore.core(
             mockhistory.offer(core), mockwitness.OFFER_MARKED.on, mockhistory.offer_rates()
         )

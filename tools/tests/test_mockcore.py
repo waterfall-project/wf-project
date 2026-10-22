@@ -25,6 +25,7 @@ from wftools import (
     mockstructure,
     mocktext,
     mockwitness,
+    mockwitnessrisks,
     mockwrites,
 )
 from wftools.mockids import universe
@@ -825,7 +826,7 @@ def test_the_kanban_holds_every_task_by_its_state_the_milestones_to_complete_fla
 
 def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review() -> None:
     today = {row.number: row for row in mockcore.current()}
-    marked = {row.number: row for row in mockcore.core(mockwitness.reference())}
+    marked = {row.number: row for row in mockcore.core(mockwitnessrisks.reference())}
     lines = [
         row
         for row in today.values()
@@ -865,7 +866,7 @@ def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review(
 
 
 def test_a_marked_revision_shows_no_previous_review() -> None:
-    for row in mockcore.core(mockwitness.reference()):
+    for row in mockcore.core(mockwitnessrisks.reference()):
         if row.kind == mockcore.ESTIMATE_LINE:
             facet = cast("Node", row.node["estimate_line"])
             assert all(facet[name] is None for name in mockcore.PREVIOUS)
