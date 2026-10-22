@@ -44,8 +44,7 @@ test("a revision offers the commands its reader may exercise, marking among them
   await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
   await expect(commands.getByRole("button", { name: "Marquer la révision" })).toBeVisible();
-  await expect(commands.getByRole("button", { name: "Créer une structure" })).not.toHaveAttribute(
-    "aria-disabled",
-    "true",
-  );
+  const amendment = commands.getByRole("button", { name: "Préparer un avenant" });
+  await expect(amendment).toBeVisible();
+  await expect(amendment).not.toHaveAttribute("aria-disabled", "true");
 });
