@@ -1021,6 +1021,7 @@
               updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
               redated: { $ref: ../../../fixtures/api/estimate_line_redated.json }
               subproject_changed: { $ref: ../../../fixtures/api/estimate_line_subproject_changed.json }
+              amendment: { $ref: ../../../fixtures/api/estimate_line_updated_amendment.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1394,6 +1395,7 @@
               planned: { $ref: ../../../fixtures/api/paste_plan.json }
               unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
               subproject_held: { $ref: ../../../fixtures/api/paste_plan_subproject_held.json }
+              amendment: { $ref: ../../../fixtures/api/paste_plan_amendment.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1443,6 +1445,7 @@
             examples:
               applied: { $ref: ../../../fixtures/api/paste_applied.json }
               partial: { $ref: ../../../fixtures/api/paste_applied_partial.json }
+              amendment: { $ref: ../../../fixtures/api/paste_applied_amendment.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

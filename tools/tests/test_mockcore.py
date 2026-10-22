@@ -18,6 +18,7 @@ import pytest
 from wftools import (
     REPOSITORY,
     mockamendment,
+    mockamendmentwrites,
     mockcore,
     mockdata,
     mockids,
@@ -257,11 +258,13 @@ def test_a_summary_is_started_with_one_subordinate_and_completed_after_the_last(
             "task.finish",
             "task.progress",
         ]
-        # A summary accepts its label, its description, its attachment to the work breakdown
-        # (WF-PLA-0130) and its inscriptions to the timelines (WF-PLA-0060, #1065).
+        # A summary accepts its label, its description, its predecessors (#1257), its attachment
+        # to the work breakdown (WF-PLA-0130) and its inscriptions to the timelines (WF-PLA-0060,
+        # #1065).
         assert summary["editable_fields"] == [
             "task.label",
             "task.description",
+            "task.predecessors",
             "task.order_item_id",
             "task.work_package_id",
             "task.tracking",
@@ -447,9 +450,15 @@ _STRUCTURE_LINEAGES = next(f for f in mockids.IDENTIFIERS if f.first == 600)
 _RENAMED = {
     ("task_renamed.json", universe(WIRING)),
     ("task_renamed.json", mockcore.lineage(WIRING)),
+    *(
+        ("paste_applied_amendment.json", identifier)
+        for number in mockamendmentwrites.paste_targets()
+        for identifier in (mockamendment.own_id(number), mockcore.lineage(number))
+    ),
 }
-"""The one node a write renames, by its node and its lineage, in the fixture that answers it
-(``wftools.mockwrites`` generates it)."""
+"""The nodes a write renames, by their node and their lineage, in the fixture that answers it:
+the wiring of the cabinets (``wftools.mockwrites``), and the three rows the block pasted on the
+amendment 2 relabels (``wftools.mockamendmentwrites``, #1277)."""
 
 
 def _named(value: Any, found: list[tuple[str, str, str]]) -> None:
@@ -748,9 +757,9 @@ def test_the_core_is_dated_in_the_order_of_its_links_whatever_the_order_of_the_p
 def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fields(
     readings: dict[str, Any],
 ) -> None:
-    # Every task, leaf included, accepts an order item or a work package (#411, WF-PLA-0130),
-    # then its inscriptions to the timelines (#1065): an automatic leaf enters neither date, a
-    # manual one both, in the order of `EditableField`.
+    # Every task, leaf included, accepts its predecessors (#1257), an order item or a work
+    # package (#411, WF-PLA-0130), then its inscriptions to the timelines (#1065): an automatic
+    # leaf enters neither date, a manual one both, in the order of `EditableField`.
     nodes = {node["node_id"]: node for node in readings["nodes_planning.json"]["items"]}
     assert nodes[universe(522)]["editable_fields"] == [
         "task.label",
@@ -758,6 +767,7 @@ def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fie
         "task.scheduling_mode",
         "task.duration",
         "task.progress",
+        "task.predecessors",
         "task.order_item_id",
         "task.work_package_id",
         "task.tracking",
@@ -770,6 +780,7 @@ def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fie
         "task.start",
         "task.finish",
         "task.progress",
+        "task.predecessors",
         "task.order_item_id",
         "task.work_package_id",
         "task.tracking",

@@ -234,7 +234,7 @@ export interface Examples {
     200: "project_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
-    200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated";
+    200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_attached" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
@@ -327,10 +327,10 @@ export interface Examples {
     200: "nodes_indented" | "nodes_moved";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
-    200: "paste_applied" | "paste_applied_partial";
+    200: "paste_applied" | "paste_applied_amendment" | "paste_applied_partial";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
-    200: "paste_plan" | "paste_plan_subproject_held" | "paste_plan_unknown_category";
+    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_subproject_held" | "paste_plan_unknown_category";
   };
   "POST /projects/{project_id}/risks": {
     201: "risk_created";

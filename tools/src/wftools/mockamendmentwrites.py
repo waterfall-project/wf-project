@@ -1,17 +1,19 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The gestures of the estimate made on the amendment 2, and their refusals (EP-15/US-0460, #1214).
+"""The gestures and the entries of the estimate made on the amendment 2, and their refusals.
 
 The main structure of a project in progress no longer edits its estimate: its grid of estimate
 offers no entry and no command of writing, while that of a differential offers them (Vérif of
 WF-DEV-0050, ``structures``). The lines the grid of estimate creates and moves are so written on
 the amendment 2, « reprise des essais », the differential not merged of the current revision
 (``wftools.mockamendment``): a line created under the commissioning, one created under the
-control station after a subordinate, a selection of two lines moved under another task. As every
-write of the grids, each answer is the difference between two readings of the differential,
-before and after the gesture (``wftools.mockwrites.written``), each node named by its identifier
-in the differential (``mockamendment.own_id``) and marked against the main structure; never
-written by hand.
+control station after a subordinate, a selection of two lines moved under another task
+(EP-15/US-0460, #1214); and the cell and the block the journeys enter and paste on it, which the
+fake back serves at the address of the differential: the hours of the line the amendment adds,
+then a block of three rows pasted from it (#1277). As every write of the grids, each answer is the
+difference between two readings of the differential, before and after the gesture
+(``wftools.mockwrites.written``), each node named by its identifier in the differential
+(``mockamendment.own_id``) and marked against the main structure; never written by hand.
 
 Their refusals on the same differential: the body of a move that mixes a line and a task, the
 line created under a task completed, and the line moved to it (WF-DEV-0050, WF-RAE-0030, #1184);
@@ -20,6 +22,7 @@ and a line the move carried one version further, deleted at the counter read bef
 
 from __future__ import annotations
 
+import copy
 from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
@@ -29,12 +32,12 @@ from wftools.mockgestures import added, money_said, network_task, tasks_said
 from wftools.mockids import universe
 from wftools.mocktree import AT_END, LINE, TASK, placed
 from wftools.mockwitness import EQUIPMENT, SUBPROJECT_CONTROL, SUBPROJECT_TESTS, Line, N, Task
-from wftools.mockwrites import amended, totals_said, written
+from wftools.mockwrites import amended, known, node_columns, totals_said, written
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
-    from wftools.mockstructure import JsonObject
+    from wftools.mockstructure import JsonObject, JsonValue
 
 type Node = dict[str, Any]
 
@@ -48,15 +51,32 @@ def reading(roots: Iterable[Task] | None = None) -> JsonObject:
     }
 
 
-def amendment_write(roots: Iterable[Task], writes: Sequence[int]) -> JsonObject:
+def amendment_write(
+    roots: Iterable[Task],
+    writes: Sequence[int],
+    *,
+    following: tuple[Iterable[Task], Sequence[int]] | None = None,
+) -> JsonObject:
     """Return what a write of the differential answers: the differential read, then as amended.
 
     The nodes written by their identifiers in the differential; the structure one version further
-    than the counter `structures` lists (WF-IHM-0110).
+    than the counter `structures` lists (WF-IHM-0110). A write that follows another — the
+    differential that one left, and the nodes it wrote — reads them one version further, and
+    leaves the structure one version further still: two answers never render one node at one
+    version with two contents (#421).
     """
     version = cast("int", mockamendment.structure("amendment")["lock_version"]) + 1
+    before = reading()
+    if following is not None:
+        previous, numbers = following
+        before = copy.deepcopy(reading(previous))
+        ids = {mockamendment.own_id(number) for number in numbers}
+        for node in cast("list[Node]", before["items"]):
+            if node["node_id"] in ids:
+                node["lock_version"] += 1
+        version += 1
     return written(
-        reading(),
+        before,
         reading(roots),
         [mockamendment.own_id(number) for number in writes],
         structure_version=version,
@@ -251,6 +271,138 @@ def nodes_move_completed_refused() -> JsonObject:
     return completed_refused(MOVE_COMPLETED_CORRELATION)
 
 
+# --- The cell entered and the block pasted (#1277) ---------------------------------------------
+
+ENTERED_LINE = N.TESTS_RESUMED_LINE
+ENTERED_HOURS = Decimal(48)
+"""The line the grid of estimate enters on the amendment, the assistance to the rework of the
+trials it adds, and the hours entered: forty-eight instead of forty. On a differential its budget
+follows its quantities, which the merge draws its budget from (WF-REV-0050)."""
+
+
+def entered_roots() -> tuple[Task, ...]:
+    """Return the differential the hours entered leave."""
+
+    def entered(each: Line) -> Line:
+        return replace(each, hours=ENTERED_HOURS) if each.number == ENTERED_LINE else each
+
+    return amended(mockamendment.amendment(), line=entered)
+
+
+def estimate_line_updated_amendment() -> JsonObject:
+    """Return what updateEstimateLine answers to the hours of the line added by the amendment."""
+    return amendment_write(entered_roots(), [ENTERED_LINE])
+
+
+AMENDMENT_BLOCK = (
+    (
+        "Assistance à la reprise des essais de câblage",
+        "Mise en service",
+        "Technicien de mise en service",
+        "2",
+    ),
+    ("Mise en service de l'installation", "", "", ""),
+    (
+        "Mise en service et réception sur site",
+        "Mise en service",
+        "Technicien de mise en service",
+        "1",
+    ),
+)
+"""A block of three rows and four columns — label, category, role, quantity —, pasted on the label
+of the line ENTERED_LINE: each row writes the row of the grid at the same distance under it, in
+the order of the plan of the reading of the installation (``nodes_amendment``), the commissioning
+and its line. The commissioning is a task: its label is written, and its empty cells, which fall on
+columns of a line, write nothing (`PastePreview`)."""
+
+AMENDMENT_PASTE = universe(994)
+
+
+def paste_targets() -> list[int]:
+    """Return the nodes the rows of the block write, by their number, in the order of the plan.
+
+    The rows of the grid from ENTERED_LINE, as the installation is read on the differential, a
+    node withdrawn holding its row (``nodes_amendment``).
+    """
+    by_id = {mockamendment.own_id(row.number): row.number for row in mockamendment.rows()}
+    ids = [
+        cast("str", node["node_id"])
+        for node in cast("list[Node]", mockamendment.nodes_amendment()["items"])
+    ]
+    start = ids.index(mockamendment.own_id(ENTERED_LINE))
+    return [by_id[node_id] for node_id in ids[start : start + len(AMENDMENT_BLOCK)]]
+
+
+def paste_plan_amendment() -> JsonObject:
+    """Return what previewPaste answers to the block on the amendment: each row judged by its node.
+
+    The columns are those of a line from its label (`NodeColumn`). On a line, a category or a role
+    the reference data does not name is refused, its row and its column named; on a task, a cell
+    past its label that is not empty falls on a column the task does not accept, and is refused;
+    an empty cell writes nothing (WF-IHM-0050).
+    """
+    columns = node_columns()
+    line_columns = ["label", *columns[columns.index("cost_category") :]]
+    categories, roles = known()
+    kinds = {row.number: row.kind for row in mockamendment.rows()}
+    refusals: list[tuple[int, str, str]] = []
+    for index, (number, cells) in enumerate(zip(paste_targets(), AMENDMENT_BLOCK, strict=True)):
+        _, category, role, _ = cells
+        if kinds[number] == TASK:
+            refusals.extend(
+                (index, line_columns[column], "FIELD_NOT_ACCEPTED")
+                for column, cell in enumerate(cells)
+                if column > 0 and cell
+            )
+        elif category not in categories:
+            refusals.append((index, "cost_category", "UNKNOWN_COST_CATEGORY"))
+        elif role and role not in roles:
+            refusals.append((index, "resource_role", "UNKNOWN_RESOURCE_ROLE"))
+    rejected: list[JsonValue] = [
+        {"row": row, "column": column, "code": code} for row, column, code in refusals
+    ]
+    return {
+        "paste_id": AMENDMENT_PASTE,
+        "accepted": len(AMENDMENT_BLOCK) - len({row for row, _, _ in refusals}),
+        "rejected": rejected,
+    }
+
+
+def paste_applied_amendment() -> JsonObject:
+    """Return what applyPaste answers to the block on the amendment, confirmed.
+
+    The paste follows the hours entered (``estimate_line_updated_amendment``): it reads the line
+    at the version that write left, and leaves the structure one version further still (#421).
+    Each line takes the label, the category, the role and the quantity of its row, the task its
+    label; amounts follow, the budget with them on a differential (WF-REV-0050), and the summaries
+    above, and the totals.
+    """
+    if paste_plan_amendment()["rejected"]:
+        message = "the block pasted on the amendment is refused in part"
+        raise ValueError(message)
+    categories, roles = known()
+    labels = dict(zip(paste_targets(), AMENDMENT_BLOCK, strict=True))
+
+    def task(each: Task) -> Task:
+        return replace(each, label=labels[each.number][0]) if each.number in labels else each
+
+    def line(each: Line) -> Line:
+        if each.number not in labels:
+            return each
+        label, category, role, quantity = labels[each.number]
+        return replace(
+            each,
+            label=label,
+            category=categories[category],
+            role=roles.get(role),
+            quantity=Decimal(quantity),
+        )
+
+    roots = amended(entered_roots(), task, line)
+    answer = amendment_write(roots, paste_targets(), following=(entered_roots(), [ENTERED_LINE]))
+    return {**answer, "rejected": []}
+
+
 # --- The examples ------------------------------------------------------------------------------
 
 
@@ -349,5 +501,68 @@ def examples() -> dict[str, JsonObject]:
             f"tâche terminée, qui se rouvre d'abord depuis le Kanban. Le déplacement est refusé, "
             f"la condition nommée ; rien ne bouge (WF-DEV-0050, WF-RAE-0030, #1214).",
             nodes_move_completed_refused(),
+        ),
+        **edit_examples(),
+    }
+
+
+def edit_examples() -> dict[str, JsonObject]:
+    """Return the named examples of the cell entered and of the block pasted on the amendment 2.
+
+    The fake back serves them at the address of the differential (``wftools.mock``, #1277).
+    """
+    rows = {row.number: row for row in mockamendment.rows()}
+    on = (
+        f"Sur l'« {mockamendment.structure('amendment')['label']} », différentiel non fusionné "
+        f"de la révision courante, dont le devis se saisit quel que soit l'état du projet "
+        f"(WF-DEV-0050)"
+    )
+    updated, plan, applied = (
+        estimate_line_updated_amendment(),
+        paste_plan_amendment(),
+        paste_applied_amendment(),
+    )
+    [line] = _nodes(updated)
+    facet = cast("Node", line["estimate_line"])
+    before = rows[ENTERED_LINE]
+    [first, task, last] = AMENDMENT_BLOCK
+    written = {cast("str", node["node_id"]): node for node in _nodes(applied)}
+    pasted = cast("Node", written[mockamendment.own_id(ENTERED_LINE)]["estimate_line"])
+    commissioning = rows[paste_targets()[1]]
+    return {
+        "estimate_line_updated_amendment.json": mocktext.example(
+            f"{on}, la ligne de main-d'œuvre « {before.label} », que l'avenant ajoute, dont la "
+            f"charge passe de {cast('JsonObject', before.node['estimate_line'])['hours']} à "
+            f"{ENTERED_HOURS} h : son montant recalculé depuis ses grandeurs, "
+            f"{money_said(facet['base_amount'])}, et son budgété avec lui, "
+            f"{money_said(facet['budgeted_amount'])} — sur un différentiel, les grandeurs sont "
+            f"celles de référence, d'où la fusion tirera le budget (WF-REV-0050) — ; une version "
+            f"de plus. Avec elle, ses ancêtres, {tasks_said(updated, 'ancestors')}, dont le "
+            f"montant suit, {totals_said(updated)}, et le compteur du différentiel passé à "
+            f"{updated['structure_lock_version']} ; aucune date ne bouge (WF-DEV-0020, "
+            f"WF-DEV-0030, #1277).",
+            updated,
+        ),
+        "paste_plan_amendment.json": mocktext.example(
+            f"{on}, un bloc de trois lignes et quatre colonnes — libellé, catégorie, rôle, "
+            f"quantité — collé sur le libellé de « {before.label} » : chaque ligne du bloc écrit "
+            f"la ligne de la grille à la même distance sous elle, la tâche "
+            f"« {commissioning.label} » puis sa ligne ; la tâche ne prend que son libellé, ses "
+            f"trois cellules vides n'écrivant rien. Les {plan['accepted']} lignes seront écrites, "
+            f"aucune n'est refusée ; rien n'est encore écrit (WF-IHM-0050, #1277).",
+            plan,
+        ),
+        "paste_applied_amendment.json": mocktext.example(
+            f"{on}, le bloc de trois lignes et quatre colonnes appliqué "
+            f"(paste_plan_amendment) : « {first[0]} », dont la quantité passe à "
+            f"{pasted['quantity']} et le montant à {money_said(pasted['base_amount'])}, à la "
+            f"version {written[mockamendment.own_id(ENTERED_LINE)]['lock_version']} — la saisie "
+            f"de sa charge (estimate_line_updated_amendment) l'avait écrite d'abord — ; la tâche "
+            f"renommée « {task[0]} » et sa ligne « {last[0]} », une version de plus chacune. Avec "
+            f"elles, leurs ancêtres, {tasks_said(applied, 'ancestors')}, dont le montant suit, "
+            f"{totals_said(applied)}, et le compteur du différentiel passé à "
+            f"{applied['structure_lock_version']}, celui que la saisie laissait plus un ; aucune "
+            f"ligne refusée (WF-IHM-0050, WF-REV-0050, #1277).",
+            applied,
         ),
     }

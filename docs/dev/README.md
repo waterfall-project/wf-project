@@ -2194,7 +2194,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
   de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un
   nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur
-  l'avenant 2 dans `wftools.mockamendmentwrites`), et les refus
+  l'avenant 2, et la saisie et le collage qu'y font les parcours, dans
+  `wftools.mockamendmentwrites`), et les refus
   d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
   (`wftools.mockexchanges`) ; son
   histoire, ses révisions comparées et ses risques (`wftools.mockhistory`), et les réponses des
@@ -2238,16 +2239,16 @@ serveur, `/api/v1`, que prism ignorerait, et aucune sécurité exigée (`securit
 retiré) — le faux back accorde la session dont part la maquette (EP-02), et Prism n'exige donc pas le
 jeton. Une troisième différence : Prism sert le premier exemple d'une opération quel que soit son
 chemin, si bien que `listNodes` de l'avenant aurait rendu la structure principale. La variante
-répète donc le chemin de `listNodes` pour chaque structure de nature `amendment` que liste le
-premier exemple de `listCostStructures`, son identifiant écrit dans le chemin, et y place l'exemple
-`amendment` en tête (`wftools.mock`, #1219) ; Prism préfère un chemin sans paramètre à un chemin
-gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du chemin. Les
-écritures sur l'avenant attendent #1277 : `updateEstimateLine` et `applyPaste` y répondent par un
-nœud du témoin, que la grille prend pour une autre ligne, faute d'exemple du contrat propre à
-l'avenant ; les parcours qui écrivent le devis (`entry.spec.ts`, `paste.spec.ts`) lisent donc le
-devis propre d'un risque, saisissable, que la variante ne sert pas à part et dont les nœuds sont
-ceux de la structure principale, et seuls ceux qui n'écrivent pas lisent l'avenant. Rien
-d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
+répète donc les chemins de `listNodes`, `updateEstimateLine`, `previewPaste` et `applyPaste` pour
+chaque structure de nature `amendment` que liste le premier exemple de `listCostStructures`, son
+identifiant écrit dans le chemin, et y place l'exemple `amendment` de chaque opération en tête
+(`wftools.mock`, #1219, #1277) : la lecture de l'installation sur l'avenant, la charge de sa ligne
+ajoutée saisie, et un bloc collé sur ses lignes 7 à 9, aperçu puis appliqué
+(`wftools.mockamendmentwrites`). Prism classe un chemin par ses segments écrits, devant celui qui
+les laisse en gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du
+chemin. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme ceux de la
+principale ; les avenants 212 et 213 et les structures de risque ne sont pas aiguillés (EP-16).
+Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
 en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
 (`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
 navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si

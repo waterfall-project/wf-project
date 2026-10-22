@@ -6724,6 +6724,50 @@ exception dans `.redocly.lint-ignore.yaml`, qui laisserait l'exemple non vérifi
 comparaison lit les types partiels : il ne suppose plus `kind` ni `lineage_id`, ses lignes sont
 clés par `node_id`, toujours rendu.
 
+## La saisie et le collage sur l'avenant, et les prédécesseurs que la tâche accepte (EP-15/US-0500/L4)
+
+**La saisie et le collage du devis sur l'avenant ont leurs exemples** (décision de l'auteur du
+2026-10-22 sur #1277). Le faux back servait `nodes_amendment` à l'adresse de la structure 203
+(#1219), mais `updateEstimateLine`, `previewPaste` et `applyPaste` y répondaient des nœuds du
+témoin, que l'avenant ne contient pas : la grille les lisait comme une autre ligne, et les parcours
+de saisie et de collage lisaient le devis propre d'un risque. Trois exemples, nommés `amendment`
+sous leur opération, engendrés par `wftools.mockamendmentwrites` comme les gestes du devis sur
+l'avenant (#1214) : `estimate_line_updated_amendment`, la charge de la ligne que l'avenant ajoute,
+« Assistance à la reprise des essais » (nœud 1293), portée de 40 à 48 h ; `paste_plan_amendment`,
+un bloc de trois lignes et quatre colonnes collé sur son libellé, et `paste_applied_amendment`, ce
+bloc confirmé. Chaque ligne du bloc écrit la ligne de la grille à la même distance sous la cellule
+visée (`PastePreview`) : les lignes 7 à 9 de `nodes_amendment`, la ligne ajoutée, la mise en
+service et sa ligne. La mise en service est une tâche : elle prend son libellé, et ses cellules
+vides, qui tombent sur des colonnes de ligne, n'écrivent rien ; le bloc est accepté entier, ce que
+dit le premier Vérif de WF-IHM-0050. Le collage suit la saisie, comme celui du témoin suit son
+libellé saisi (#421) : la ligne 1293 y est à la version 3, la structure au compteur 4. Sur un
+différentiel, le budgété suit les grandeurs, d'où la fusion tirera le budget (WF-REV-0050).
+`wftools.mock` répète, pour chaque différentiel que liste le premier exemple de
+`listCostStructures`, les chemins de ces trois opérations avec celui de `listNodes`, et y place
+l'exemple `amendment` en tête ; Prism classe un chemin par ses segments écrits, devant celui qui
+les laisse en gabarit. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme
+ceux de la principale. Écartés : un aperçu commun au témoin et à l'avenant, dont le collage
+identifié (`paste_id`) n'aurait pas été celui du bloc collé ; l'aiguillage des avenants 212 et 213
+et des structures de risque, qui va à EP-16 avec la même décision.
+
+**Une réponse d'écriture ne rend pas parmi les ancêtres un nœud qu'elle écrit** (`NodesWritten`,
+« hors des nœuds écrits »). Le collage sur l'avenant écrit une tâche et sa ligne : la tâche est un
+nœud écrit, rendu dans `nodes`, et non dans `ancestors`. `wftools.mockwrites.written` l'écarte
+désormais ; aucun exemple existant n'écrivait un nœud et l'un de ses ancêtres à la fois.
+
+**Les prédécesseurs sont un champ que la tâche accepte** (décision de l'auteur du 2026-10-22 sur
+#1257, point 2). La cellule des prédécesseurs était offerte à toute tâche lue avec sa tâche, faute
+de champ qui la nomme : un nœud retiré d'un différentiel, en lecture seule, l'aurait gardée
+saisissable, une commande que le service refuserait (WF-IHM-0090). `EditableField` gagne
+`task.predecessors`, écrit par `setPredecessors` (WF-PLA-0030), que nomme toute tâche,
+récapitulative, feuille ou jalon, de toute structure, après ses autres champs de planning et avant
+le rattachement au lotissement ; un nœud retiré n'en nomme aucun (`editable_fields` vide). Une
+liaison n'est refusée qu'à sa saisie, par ce qu'elle relie — une récapitulative et sa subordonnée
+(`LINK_FORBIDDEN`), une boucle (`LINK_CYCLE`) — : la tâche ne dit pas d'avance une liaison qu'elle
+refuserait. `editable_fields` dit ce que le nœud accepte, `edit_planning` ce que l'appelant a le
+droit d'écrire, comme pour `task.tracking`. Écarté : garder la colonne par la marque du différentiel
+dans la grille (US-0500), qui déduirait la règle de la structure lue au lieu de la lire au nœud.
+
 ## Du projet créé au projet En cours, et l'avenant (EP-15/US-0490, US-0510)
 
 **Le cycle des révisions a ses exemples de succès** (partie K4 de la conception d'EP-15, #1074,

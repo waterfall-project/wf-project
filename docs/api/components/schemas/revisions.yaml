@@ -596,7 +596,12 @@ EditableField:
     par toute tâche de la structure principale, et d'aucune autre : c'est par elle que la
     grille de planning offre le sous-menu des chronologies, sans le déduire de la structure lue
     (#1065) ; l'appelant l'écrit sous la commande de saisie du planning de la structure
-    (`StructureCommand.edit_planning`), comme les autres champs de la tâche.
+    (`StructureCommand.edit_planning`), comme les autres champs de la tâche. Les prédécesseurs
+    (`task.predecessors`, écrits par `setPredecessors`, WF-PLA-0030) sont nommés par toute tâche,
+    récapitulative, feuille ou jalon, de toute structure — une liaison n'est refusée qu'à sa
+    saisie, par ce qu'elle relie (`LINK_FORBIDDEN`, `LINK_CYCLE`) — et d'aucun nœud retiré d'un
+    différentiel, en lecture seule : c'est par lui que la grille de planning offre la cellule des
+    prédécesseurs, sous `edit_planning` comme les autres champs de la tâche (#1257).
   enum:
     - task.label
     - task.description
@@ -605,6 +610,7 @@ EditableField:
     - task.start
     - task.finish
     - task.progress
+    - task.predecessors
     - task.order_item_id
     - task.work_package_id
     - task.tracking

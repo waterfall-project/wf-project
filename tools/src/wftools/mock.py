@@ -12,11 +12,13 @@ Three differences, and only these, so that the fake back answers what the contra
   exactly as it will call the real service;
 - no operation requires a bearer token: the fake back answers whoever calls it, as the account
   the mock-up starts from, and authentication is the real service's (EP-03);
-- the nodes of a differential structure are read at the address of that structure: Prism serves
-  the first example of an operation whatever the path, so the path of each structure of kind
-  ``amendment`` that the first example of ``listCostStructures`` lists is repeated with its
-  identifier written in, and ``listNodes`` there leads with its example ``amendment`` (#1219).
-  Prism prefers a path with no parameter to a templated one;
+- the nodes of a differential structure are read, and its estimate entered and pasted, at the
+  address of that structure: Prism serves the first example of an operation whatever the path, so
+  the paths of ``listNodes``, ``updateEstimateLine``, ``previewPaste`` and ``applyPaste`` are
+  repeated for each structure of kind ``amendment`` that the first example of
+  ``listCostStructures`` lists, its identifier written in, and each operation there leads with its
+  example ``amendment`` (#1219, #1277). Prism ranks a path by its segments written in, ahead of
+  one that templates them;
 - the comparison of the volume is read at the address of a project of the volume: Prism serves
   the first example of ``compareRevisions`` and cannot route on its query (``from_revision_id``,
   ``to_revision_id``), so the path of the comparison is repeated for the project of the volume
@@ -54,6 +56,14 @@ def derive(contract: dict[str, object]) -> dict[str, object]:
 
 STRUCTURES_PATH = "/projects/{project_id}/revisions/{revision_id}/structures"
 NODES_PATH = STRUCTURES_PATH + "/{structure_id}/nodes"
+AMENDMENT_PATHS = (
+    NODES_PATH,
+    NODES_PATH + "/{node_id}/estimate-line",
+    NODES_PATH + "/paste-preview",
+    NODES_PATH + "/paste",
+)
+"""The paths served at the address of each differential: its nodes read, its estimate entered and
+pasted (#1219, #1277). The others — its gestures, its planning — answer as the main structure's."""
 AMENDMENT_EXAMPLE = "amendment"
 HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 STRUCTURE_PARAMETER = "#/components/parameters/StructureId"
@@ -88,14 +98,18 @@ def _with_volume_comparison(paths: Json, prefix: str) -> Json:
 
 
 def _with_amendment_nodes(contract: Json, paths: Json, prefix: str) -> Json:
-    """Return the paths, plus the nodes of each differential structure at its own address."""
-    nodes = paths.get(prefix + NODES_PATH)
-    if nodes is None:
+    """Return the paths, plus those of each differential structure at its own address."""
+    if prefix + NODES_PATH not in paths:
         return paths
     served = dict(paths)
     for structure in _amendment_structures(contract, paths.get(prefix + STRUCTURES_PATH)):
-        address = NODES_PATH.replace("{structure_id}", structure)
-        served[prefix + address] = _at_a_literal(nodes, STRUCTURE_PARAMETER, AMENDMENT_EXAMPLE)
+        for path in AMENDMENT_PATHS:
+            if prefix + path not in paths:
+                continue
+            address = path.replace("{structure_id}", structure)
+            served[prefix + address] = _at_a_literal(
+                paths[prefix + path], STRUCTURE_PARAMETER, AMENDMENT_EXAMPLE
+            )
     return served
 
 
@@ -142,10 +156,10 @@ def _amendment_structures(contract: Json, path: Json | None) -> list[str]:
 
 
 def _at_a_literal(path: Json, parameter: str, example: str) -> Json:
-    """Return a path without one of its parameters, the example named first.
+    """Return a path without one of its parameters, the example named first where it is listed.
 
     Only the HTTP methods are rewritten; the parameters declared on the path itself lose it too.
-    A path with no ``get`` has no example to lead with.
+    Each method whose answer 200 lists the example leads with it; the others keep their order.
     """
     served: Json = {}
     for key, value in path.items():
@@ -159,16 +173,16 @@ def _at_a_literal(path: Json, parameter: str, example: str) -> Json:
             served[key] = [item for item in value if item.get("$ref") != parameter]
         else:
             served[key] = value
-    read = served.get("get")
-    if read is None:
-        return served
-    examples = _examples(read)
-    if example in examples:
+    for key in HTTP_METHODS & served.keys():
+        operation = served[key]
+        examples = _examples(operation)
+        if example not in examples:
+            continue
         reordered = {example: examples[example]} | examples
-        response = read["responses"]["200"]
+        response = operation["responses"]["200"]
         media = response["content"]["application/json"]
-        read["responses"] = {
-            **read["responses"],
+        operation["responses"] = {
+            **operation["responses"],
             "200": {
                 **response,
                 "content": {"application/json": {**media, "examples": reordered}},

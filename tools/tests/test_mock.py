@@ -100,9 +100,9 @@ def amendments_contract() -> dict[str, object]:
     }
 
 
-def examples_of(path: dict[str, Any]) -> dict[str, Any]:
-    """Return the examples of the answer 200 of the reading of a path."""
-    content = path["get"]["responses"]["200"]["content"]
+def examples_of(path: dict[str, Any], method: str = "get") -> dict[str, Any]:
+    """Return the examples of the answer 200 of an operation of a path, its reading by default."""
+    content = path[method]["responses"]["200"]["content"]
     return cast("dict[str, Any]", content["application/json"]["examples"])
 
 
@@ -126,6 +126,33 @@ def test_the_templated_nodes_keep_their_first_example() -> None:
 
 
 NODES = f"{STRUCTURES}/{{structure_id}}/nodes"
+
+
+def with_paste(contract: dict[str, object]) -> dict[str, object]:
+    """Return a contract whose paste on a structure answers the witness, then the amendment."""
+    examples = {"applied": {"$ref": "#/x/applied"}, "amendment": {"$ref": "#/x/pasted"}}
+    paths_of(contract)[f"{NODES}/paste"] = {
+        "post": {
+            "parameters": [{"$ref": "#/components/parameters/StructureId"}],
+            "responses": {"200": {"content": {"application/json": {"examples": examples}}}},
+        }
+    }
+    return contract
+
+
+def test_the_writes_of_an_amendment_are_served_at_its_address_leading_with_its_example() -> None:
+    # #1277: the paste on the amendment answers the amendment's nodes, not the witness's.
+    paths = paths_of(mock.derive(with_paste(amendments_contract())))
+    served = paths[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes/paste"]
+    assert list(examples_of(served, "post")) == ["amendment", "applied"]
+    assert served["post"]["parameters"] == []
+    templated = paths[f"/api/v1{NODES}/paste"]
+    assert list(examples_of(templated, "post")) == ["applied", "amendment"]
+
+
+def test_a_write_path_the_contract_does_not_have_is_not_routed() -> None:
+    paths = paths_of(mock.derive(amendments_contract()))
+    assert not any(path.endswith(("/paste", "/estimate-line")) for path in paths)
 
 
 def test_without_a_nodes_path_the_paths_are_only_prefixed() -> None:
@@ -263,4 +290,12 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203_and_the_volume(
     )
     served = paths_of(mock.derive(json.loads(bundle.read_text(encoding="utf-8"))))
     assert any(path.endswith("0203/nodes") for path in served)
+    at = f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"
+    for path, method in (
+        (at, "get"),
+        (f"{at}/{{node_id}}/estimate-line", "patch"),
+        (f"{at}/paste-preview", "post"),
+        (f"{at}/paste", "post"),
+    ):
+        assert next(iter(examples_of(served[path], method))) == "amendment", path
     assert f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}" in served
