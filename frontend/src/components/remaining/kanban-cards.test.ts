@@ -6,6 +6,7 @@ import { example } from "@/test/fixtures";
 
 import {
   columnsOf,
+  focusOf,
   type KanbanCard,
   type KanbanColumns,
   remainingHref,
@@ -61,5 +62,53 @@ describe("the cards of the Kanban", () => {
     expect(remainingHref("/r", named("Câblage des armoires"))).toBe(
       "/r?search=C%C3%A2blage+des+armoires",
     );
+  });
+
+  describe("the card the arrows lead to [WF-IHM-0100-A]", () => {
+    const base = named("Réception usine");
+    const cards = (...ids: string[]): KanbanCard[] => ids.map((id) => ({ ...base, node_id: id }));
+    const ids = (a: string[], b: string[], c: string[]): KanbanColumns => ({
+      not_started: cards(...a),
+      started: cards(...b),
+      completed: cards(...c),
+    });
+
+    it("goes up and down within the column, and stops at its ends", () => {
+      const columns = ids(["a1", "a2", "a3"], ["b1"], ["c1"]);
+      expect(focusOf(columns, "a1", "ArrowDown")).toBe("a2");
+      expect(focusOf(columns, "a3", "ArrowUp")).toBe("a2");
+      expect(focusOf(columns, "a1", "ArrowUp")).toBeUndefined();
+      expect(focusOf(columns, "a3", "ArrowDown")).toBeUndefined();
+    });
+
+    it("goes to the first and to the last card of the column with Home and End", () => {
+      const columns = ids(["a1", "a2", "a3"], ["b1"], ["c1"]);
+      expect(focusOf(columns, "a2", "Home")).toBe("a1");
+      expect(focusOf(columns, "a2", "End")).toBe("a3");
+      expect(focusOf(columns, "a1", "Home")).toBe("a1");
+      expect(focusOf(columns, "a3", "End")).toBe("a3");
+    });
+
+    it("keeps the place across columns, and skips an empty column", () => {
+      const columns = ids(["a1", "a2", "a3"], [], ["c1", "c2", "c3"]);
+      expect(focusOf(columns, "a2", "ArrowRight")).toBe("c2");
+      expect(focusOf(columns, "c3", "ArrowLeft")).toBe("a3");
+    });
+
+    it("leads to the last card of a column shorter than the place", () => {
+      const columns = ids(["a1", "a2", "a3"], ["b1", "b2"], ["c1"]);
+      expect(focusOf(columns, "a3", "ArrowRight")).toBe("b2");
+      expect(focusOf(columns, "b2", "ArrowRight")).toBe("c1");
+      expect(focusOf(columns, "b2", "ArrowLeft")).toBe("a2");
+    });
+
+    it("leads nowhere past the outer columns, for another key, or for an unknown card", () => {
+      const columns = ids(["a1"], ["b1"], ["c1"]);
+      expect(focusOf(columns, "a1", "ArrowLeft")).toBeUndefined();
+      expect(focusOf(columns, "c1", "ArrowRight")).toBeUndefined();
+      expect(focusOf(ids(["a1"], [], []), "a1", "ArrowRight")).toBeUndefined();
+      expect(focusOf(columns, "a1", "PageDown")).toBeUndefined();
+      expect(focusOf(columns, "unknown", "ArrowDown")).toBeUndefined();
+    });
   });
 });

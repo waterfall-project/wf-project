@@ -240,6 +240,105 @@ describe("the gestures of the cards of the Kanban", () => {
     ).toBeInTheDocument();
   });
 
+  describe("the keyboard on the board [WF-IHM-0100-A]", () => {
+    /** The card holding the one stop of Tab is the one the test says it is. */
+    function expectStop(label: string) {
+      expect(document.querySelector("li[tabindex='0']")).toBe(card(label));
+    }
+
+    it("reaches every card of the three columns from the first, by the keyboard alone", async () => {
+      serve({});
+      const columns = columnsOfExample("startable_tasks");
+      board(columns);
+      const user = userEvent.setup();
+      const names = (state: keyof KanbanColumns) => columns[state].map((each) => each.label);
+      const first = names("not_started")[0] ?? "";
+      expect(document.querySelector("li[tabindex='0']")).toBe(card(first));
+      card(first).focus();
+      const reached = new Set<string>();
+      for (const [index, state] of (["not_started", "started", "completed"] as const).entries()) {
+        const listed = names(state);
+        if (index > 0) {
+          await user.keyboard("{ArrowRight}");
+        }
+        for (const [place, label] of listed.entries()) {
+          if (place > 0) {
+            await user.keyboard("{ArrowDown}");
+          }
+          expect(card(label)).toHaveFocus();
+          expectStop(label);
+          reached.add(label);
+        }
+        // End goes to the last card, Home back to the first, from where the next column starts.
+        await user.keyboard("{End}");
+        expect(card(listed.at(-1) ?? "")).toHaveFocus();
+        expectStop(listed.at(-1) ?? "");
+        await user.keyboard("{Home}");
+        expect(card(listed[0] ?? "")).toHaveFocus();
+        expectStop(listed[0] ?? "");
+      }
+      expect(reached.size).toBe(
+        names("not_started").length + names("started").length + names("completed").length,
+      );
+      // Sideways from the first card of the last column: the first of the one before.
+      await user.keyboard("{ArrowLeft}");
+      expect(card(names("started")[0] ?? "")).toHaveFocus();
+      expectStop(names("started")[0] ?? "");
+    });
+
+    it.each([
+      ["{ContextMenu}", "the menu key"],
+      ["{Shift>}{F10}{/Shift}", "Shift+F10"],
+    ])("opens the menu of the card with %s", async (keys) => {
+      serve({});
+      board();
+      const user = userEvent.setup();
+      const label = "Montage des armoires sur site";
+      card(label).focus();
+      await user.keyboard(keys);
+      expect(
+        await screen.findByRole("menu", { name: `Gestes de la tâche ${label}` }),
+      ).toBeInTheDocument();
+    });
+
+    it("brings the focus back to the card when the menu closes with Escape, so that the arrows go on", async () => {
+      serve({});
+      const columns = columnsOfExample("startable_tasks");
+      board(columns);
+      const user = userEvent.setup();
+      const label = "Montage des armoires sur site";
+      card(label).focus();
+      await user.keyboard("{Enter}");
+      await screen.findByRole("menu");
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      });
+      expect(card(label)).toHaveFocus();
+      await user.keyboard("{ArrowDown}");
+      expect(card(label)).not.toHaveFocus();
+      expect(document.activeElement?.tagName).toBe("LI");
+      expect(document.querySelector("li[tabindex='0']")).toBe(document.activeElement);
+    });
+
+    it("gives the stop of Tab back to the first card when the card chosen leaves the reading", async () => {
+      serve({});
+      const columns = columnsOfExample("startable_tasks");
+      const rendered = board(columns);
+      const user = userEvent.setup();
+      const first = columns.not_started[0]?.label ?? "";
+      const second = columns.not_started[1]?.label ?? "";
+      await user.click(card(second));
+      expectStop(second);
+      rendered.again({
+        ...columns,
+        not_started: columns.not_started.filter((each) => each.label !== second),
+      });
+      expect(document.querySelectorAll("li[tabindex='0']")).toHaveLength(1);
+      expectStop(first);
+    });
+  });
+
   it("starts a task not started at the date entered, and the answer carries it to the started ones [WF-RAE-0030-A]", async () => {
     const client = serve({ [PROGRESS]: "task_started" });
     board();

@@ -110,6 +110,7 @@ function CardMenu({
   open,
   onOpenChange,
   onGesture,
+  onDismiss,
 }: {
   readonly card: KanbanCard;
   readonly remaining: string;
@@ -117,6 +118,8 @@ function CardMenu({
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onGesture: (gesture: CardGesture) => void;
+  /** The menu closed with no gesture chosen: the focus goes back to the card. */
+  readonly onDismiss: () => void;
 }) {
   const t = useTranslations("kanban");
   const commands = useTranslations("enums.KanbanCommand");
@@ -146,7 +149,12 @@ function CardMenu({
             chosen.current = undefined;
             event.preventDefault();
             onGesture(gesture);
+            return;
           }
+          // Closed with no gesture: the focus goes back to the card, not to the button of the menu,
+          // so that the arrows go on from it.
+          event.preventDefault();
+          onDismiss();
         }}
       >
         {card.commands.map((gesture) => {
@@ -378,9 +386,11 @@ export function Card({
   const { selected, writing } = actions;
   const isSelected = selected === card.node_id;
   const [menuOpen, setMenuOpen] = useState(false);
+  const item = useRef<HTMLLIElement | null>(null);
   return (
     <li
       ref={(element) => {
+        item.current = element;
         actions.element(card.node_id, element);
       }}
       tabIndex={actions.tabStop === card.node_id ? 0 : -1}
@@ -427,6 +437,9 @@ export function Card({
             busy={writing !== undefined}
             open={menuOpen}
             onOpenChange={setMenuOpen}
+            onDismiss={() => {
+              item.current?.focus();
+            }}
             onGesture={(gesture) => {
               actions.gesture(card, gesture);
             }}
