@@ -9,6 +9,10 @@
  * rest (409). The revision is sent in the version read, and read again once the update is applied,
  * so that the amounts of its lines and of its totals follow.
  *
+ * The page read again once the update is applied proposes nothing more: the command is then no
+ * longer presented, and the status that told the update stays. It is kept by the revision: another
+ * one starts anew, no status and every category retained.
+ *
  * No command of the revision says the update beforehand: the proposal presents it, and the refusal of
  * the server alone names the condition that lacks.
  */
@@ -56,6 +60,7 @@ export function ApplyRateUpdateCommand({
       icon={<Coins aria-hidden="true" />}
       statement={t("statement")}
       submit={t("submit")}
+      presented={categories.length > 0}
       ready={retained.length > 0}
       names={{ [revisionId]: name }}
       subject={name}

@@ -38,7 +38,7 @@ test("the opening of a second current revision and the designation beyond the co
   await expect(designation.getByRole("form")).toHaveCount(0);
 });
 
-test("abandoning the current revision asks for a confirmation that says the return and the irreversibility, then leaves the revision", async ({
+test("abandoning the current revision asks for a confirmation that says the return and the irreversibility, then leaves the revision [WF-REV-0010-A]", async ({
   page,
 }) => {
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
@@ -49,6 +49,14 @@ test("abandoning the current revision asks for a confirmation that says the retu
   await expect(form).toContainText("dernière révision marquée");
   await expect(form).toContainText("irréversible");
   await form.getByRole("button", { name: "Confirmer l’abandon" }).click();
-  await expect(commands.getByRole("status")).toContainText("La révision en cours est abandonnée");
-  await expect(page).not.toHaveURL(/revision_id=/);
+  // The screen leaves the address of the revision, which is no more, and its commands with it: the
+  // history of the messages, in the shell, keeps what was told.
+  await expect(page).toHaveURL(`/projects/${PROJECT}/revisions`);
+  await page.getByRole("button", { name: /^Tâches et messages/ }).click();
+  const told = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Messages" })
+    .getByRole("listitem")
+    .first();
+  await expect(told).toContainText("La révision en cours est abandonnée");
 });

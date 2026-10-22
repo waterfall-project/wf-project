@@ -99,41 +99,46 @@ export function RateUpdate({
   const locale = useLocale();
   const { categories } = proposal;
   return (
-    <ListSection
-      title={t("title")}
-      icon={Coins}
-      empty={categories.length === 0 ? t("none") : undefined}
-    >
-      <div className="space-y-1 text-sm text-muted-foreground">
-        {proposal.target_year === undefined ? null : (
-          <p>{t("year", { year: proposal.target_year.toString() })}</p>
-        )}
-        <p>{t("notImposed")}</p>
-      </div>
-      <ListTable
-        label={t("title")}
-        columns={[t("category"), t("previous"), t("proposed"), t("source")]}
+    <div className="space-y-2">
+      <ListSection
+        title={t("title")}
+        icon={Coins}
+        empty={categories.length === 0 ? t("none") : undefined}
       >
-        {categories.map((category) => (
-          <TableRow key={category.cost_category_id}>
-            <TableCell className={CELL}>{category.label}</TableCell>
-            <TableCell className={AMOUNT}>
-              {formatMoney(category.previous_amount, locale)}
-            </TableCell>
-            <TableCell className={AMOUNT}>
-              {formatMoney(category.proposed_amount, locale)}
-            </TableCell>
-            <TableCell className={CELL}>{source(category.source)}</TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
-      {apply === undefined || categories.length === 0 ? null : (
+        <div className="space-y-1 text-sm text-muted-foreground">
+          {proposal.target_year === undefined ? null : (
+            <p>{t("year", { year: proposal.target_year.toString() })}</p>
+          )}
+          <p>{t("notImposed")}</p>
+        </div>
+        <ListTable
+          label={t("title")}
+          columns={[t("category"), t("previous"), t("proposed"), t("source")]}
+        >
+          {categories.map((category) => (
+            <TableRow key={category.cost_category_id}>
+              <TableCell className={CELL}>{category.label}</TableCell>
+              <TableCell className={AMOUNT}>
+                {formatMoney(category.previous_amount, locale)}
+              </TableCell>
+              <TableCell className={AMOUNT}>
+                {formatMoney(category.proposed_amount, locale)}
+              </TableCell>
+              <TableCell className={CELL}>{source(category.source)}</TableCell>
+            </TableRow>
+          ))}
+        </ListTable>
+      </ListSection>
+      {/* Beside the section, not in it: once applied, the section says no update is proposed, and the
+          command is not in the way, but what it told stays. */}
+      {apply === undefined ? null : (
         <ApplyRateUpdateCommand
+          key={apply.revisionId}
           {...apply}
           name={banner("currentRevision")}
           categories={categories}
         />
       )}
-    </ListSection>
+    </div>
   );
 }

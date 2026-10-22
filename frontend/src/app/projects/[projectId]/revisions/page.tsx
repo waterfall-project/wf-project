@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { readEveryPage } from "@/api/every-page";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { findOffer } from "@/components/commands/offer";
 import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Revision } from "@/components/context/read-only";
@@ -79,6 +80,18 @@ async function readComparisonPreferences() {
   return session?.display_preferences?.grids?.[COMPARISON_KEY] ?? undefined;
 }
 
+/**
+ * What applying the rates proposed to the current revision takes, or nothing when the revision does
+ * not list `edit_estimate` available: the rates are an estimate's, and the contract lists no
+ * command of its own for the update (#1351).
+ */
+function applicable(current: Revision, projectId: string) {
+  const offer = findOffer(current.available_commands, "edit_estimate");
+  return offer?.is_available === true
+    ? { projectId, revisionId: current.revision_id, lockVersion: current.lock_version }
+    : undefined;
+}
+
 /** Render the revisions of a project, their comparison, and the parts of the one it reads in. */
 export default async function RevisionsPage(props: ProjectPageProps) {
   const address = await projectAddress(props, "revisions");
@@ -134,14 +147,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
         />
         {structures === undefined ? null : <CostStructureList structures={structures} />}
         {rates === undefined || current === undefined ? null : (
-          <RateUpdate
-            proposal={rates}
-            apply={{
-              projectId: address.projectId,
-              revisionId: current.revision_id,
-              lockVersion: current.lock_version,
-            }}
-          />
+          <RateUpdate proposal={rates} apply={applicable(current, address.projectId)} />
         )}
       </Screen>
     </>

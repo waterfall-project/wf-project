@@ -75,17 +75,9 @@ function commands(project = "project") {
   );
 }
 
-/** The history of the contract, the offer v1.0 listing the designation available. */
-function designable(available: boolean): DesignatedRevision[] {
-  const items = (example("revisions") as { items: DesignatedRevision[] }).items;
-  return items.map((revision) => ({
-    ...revision,
-    available_commands: revision.available_commands.map((offer) =>
-      offer.command === "designate_reference" && revision.revision_id === OFFER
-        ? { ...offer, is_available: available, missing_conditions: [] }
-        : offer,
-    ),
-  }));
+/** The history of an example of the contract, each revision with the commands it lists. */
+function history(name: string): DesignatedRevision[] {
+  return (example(name) as { items: DesignatedRevision[] }).items;
 }
 
 /** The refusal (409) of an example of the contract, as the fake back answers it. */
@@ -101,6 +93,7 @@ function bodies(client: FakeClient, route: string): unknown[] {
 beforeEach(() => {
   vi.mocked(refresh).mockClear();
   router.push.mockClear();
+  router.refresh.mockClear();
   router.replace.mockClear();
   server.client = undefined;
 });
@@ -172,7 +165,7 @@ describe("the abandon of the current revision", () => {
     expect(client.calls).toHaveLength(0);
   });
 
-  it("abandons the revision once confirmed, says so, and leaves its address for the revisions", async () => {
+  it("abandons the revision once confirmed, says so, and leaves its address for the revisions [WF-REV-0010-A]", async () => {
     const client = serve({ [ABANDON]: { status: 204 } });
     show(commands());
     await userEvent.click(screen.getByRole("button", { name: "Abandonner la révision en cours" }));
@@ -205,35 +198,83 @@ describe("the abandon of the current revision", () => {
 });
 
 describe("the designation of the reference", () => {
-  it("is offered on the marked revision the server lists it for, and on that one alone [WF-REV-0040-A]", () => {
-    show(<ReferenceDesignation revisions={designable(true)} projectId={PROJECT} />);
+  it("is proposed as long as the reference can be corrected: on the marked revision the server lists it for, and that one alone [WF-REV-0040-A]", () => {
+    // The offer v1.0 is marked and lists it available, lacking nothing; the revision 101, current and
+    // not marked, is left out.
+    const listed = history("revisions_designation_open");
+    expect(
+      listed.find((revision) => revision.revision_id === OFFER)?.available_commands,
+    ).toContainEqual({
+      command: "designate_reference",
+      is_available: true,
+      missing_conditions: [],
+    });
+    show(<ReferenceDesignation revisions={listed} projectId={PROJECT} />);
     const offered = screen.getAllByRole("button", { name: "Désigner comme référence" });
-    // The two marked revisions list it; the current revision, not marked, is left out.
-    expect(offered).toHaveLength(2);
+    expect(offered).toHaveLength(1);
+    expect(screen.queryByRole("listitem", { name: "Révision en cours" })).toBeNull();
     const offer = within(screen.getByRole("listitem", { name: "Offre v1.0" })).getByRole("button");
+    expect(offer).toBe(offered[0]);
     expect(offer).not.toHaveAttribute("aria-disabled");
-    const reference = within(screen.getByRole("listitem", { name: "Référence" })).getByRole(
-      "button",
-    );
-    expect(reference).toHaveAttribute("aria-disabled", "true");
-    expect(reference).toHaveAccessibleDescription(
-      "Condition non remplie : référence encore corrigeable.",
-    );
   });
 
   it("is refused once it no longer corrects: unavailable, naming the condition, and nothing is asked [WF-REV-0040-A]", async () => {
-    const client = serve({});
-    show(<ReferenceDesignation revisions={designable(false)} projectId={PROJECT} />);
-    const offer = within(screen.getByRole("listitem", { name: "Offre v1.0" })).getByRole("button");
-    expect(offer).toHaveAttribute("aria-disabled", "true");
-    await userEvent.click(offer);
-    expect(client.calls).toHaveLength(0);
+    for (const name of ["revisions", "revisions_marked"]) {
+      const client = serve({});
+      const { unmount } = show(
+        <ReferenceDesignation revisions={history(name)} projectId={PROJECT} />,
+      );
+      // Every marked revision lists it, and none can take it.
+      const offers = screen.getAllByRole("button", { name: "Désigner comme référence" });
+      expect(offers).toHaveLength(2);
+      for (const offer of offers) {
+        expect(offer).toHaveAttribute("aria-disabled", "true");
+        expect(offer).toHaveAccessibleDescription(
+          /^Condition non remplie\s: référence encore corrigeable\.$/,
+        );
+        await userEvent.click(offer);
+      }
+      expect(client.calls).toHaveLength(0);
+      expect(screen.queryByRole("form")).toBeNull();
+      unmount();
+    }
+  });
+
+  it("closes its confirmation once the server no longer lists it available, and does not reopen it with the command", async () => {
+    const { rerender } = show(
+      <ReferenceDesignation
+        revisions={history("revisions_designation_open")}
+        projectId={PROJECT}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Désigner comme référence" }));
+    expect(screen.getByRole("form", { name: "Désigner comme référence" })).toBeVisible();
+
+    const frame = (revisions: DesignatedRevision[]) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <main>
+          <ReferenceDesignation revisions={revisions} projectId={PROJECT} />
+        </main>
+      </NextIntlClientProvider>
+    );
+    rerender(frame(history("revisions")));
     expect(screen.queryByRole("form")).toBeNull();
+    rerender(frame(history("revisions_designation_open")));
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(screen.getByRole("button", { name: "Désigner comme référence" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 
   it("says what it fixes and that the project goes in progress, then designates and says the new state [WF-REV-0040-A]", async () => {
     const client = serve({ [DESIGNATE]: { example: "reference_designated", status: 200 } });
-    show(<ReferenceDesignation revisions={designable(true)} projectId={PROJECT} />);
+    show(
+      <ReferenceDesignation
+        revisions={history("revisions_designation_open")}
+        projectId={PROJECT}
+      />,
+    );
     await userEvent.click(
       within(screen.getByRole("listitem", { name: "Offre v1.0" })).getByRole("button"),
     );
@@ -256,7 +297,12 @@ describe("the designation of the reference", () => {
 
   it("is refused by the server for a revision without task or line, naming the condition [WF-CYC-0030-A]", async () => {
     serve({ [DESIGNATE]: refused("reference_without_tasks") });
-    show(<ReferenceDesignation revisions={designable(true)} projectId={PROJECT} />);
+    show(
+      <ReferenceDesignation
+        revisions={history("revisions_designation_open")}
+        projectId={PROJECT}
+      />,
+    );
     await userEvent.click(
       within(screen.getByRole("listitem", { name: "Offre v1.0" })).getByRole("button"),
     );
@@ -268,7 +314,12 @@ describe("the designation of the reference", () => {
 
   it("is refused by the server once the reference cannot be corrected [WF-REV-0040-A]", async () => {
     serve({ [DESIGNATE]: refused("reference_not_correctable") });
-    show(<ReferenceDesignation revisions={designable(true)} projectId={PROJECT} />);
+    show(
+      <ReferenceDesignation
+        revisions={history("revisions_designation_open")}
+        projectId={PROJECT}
+      />,
+    );
     await userEvent.click(
       within(screen.getByRole("listitem", { name: "Offre v1.0" })).getByRole("button"),
     );
@@ -279,7 +330,7 @@ describe("the designation of the reference", () => {
   });
 
   it("offers nothing when no marked revision lists the command", () => {
-    const listed = designable(true).map((revision) => ({
+    const listed = history("revisions_designation_open").map((revision) => ({
       ...revision,
       available_commands: revision.available_commands.filter(
         (offer) => offer.command !== "designate_reference",
@@ -318,6 +369,8 @@ describe("the application of the rate update", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  // No Vérif of WF-REV-0060-A says a category retained, nor the absence of an update: these two
+  // tests carry the command itself, and cite none.
   it("asks nothing while no category is retained", async () => {
     const client = serve({});
     show(<RateUpdate proposal={example("rate_update") as never} apply={apply} />);
@@ -341,6 +394,76 @@ describe("the application of the rate update", () => {
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la mise à jour" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("L’état actuel ne permet pas");
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("says the version read is stale, offers to read the page anew, and reads it [WF-REV-0060-A]", async () => {
+    const client = serve({
+      [RATES]: {
+        problem: { code: "STALE_LOCK_VERSION", status: 412, params: { expected_lock_version: 5 } },
+      },
+    });
+    show(<RateUpdate proposal={example("rate_update") as never} apply={apply} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Appliquer la mise à jour des taux" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la mise à jour" }));
+    expect(bodies(client, RATES)).toHaveLength(1);
+    await userEvent.click(await screen.findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps what it told once the page read again proposes nothing more [WF-REV-0060-A]", async () => {
+    serve({ [RATES]: { example: "rate_update_applied", status: 200 } });
+    const frame = (proposal: string) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <main>
+          <RateUpdate proposal={example(proposal) as never} apply={apply} />
+        </main>
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(frame("rate_update"));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Appliquer la mise à jour des taux" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la mise à jour" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Les taux de 2 catégories sont mis à jour.",
+    );
+
+    rerender(frame("rate_update_none"));
+    // The proposal is gone, and so is the command, but not what was told of it, nor its count.
+    expect(screen.queryByRole("button", { name: "Appliquer la mise à jour des taux" })).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Les taux de 2 catégories sont mis à jour.",
+    );
+  });
+
+  it("starts anew on another revision: no status told, every category retained again", async () => {
+    serve({ [RATES]: { example: "rate_update_applied", status: 200 } });
+    const frame = (revisionId: string) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <main>
+          <RateUpdate proposal={example("rate_update") as never} apply={{ ...apply, revisionId }} />
+        </main>
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(frame(DRAFT));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Appliquer la mise à jour des taux" }),
+    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /Ingénierie électrique/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la mise à jour" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("mis à jour");
+
+    rerender(frame(CREATED));
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Appliquer la mise à jour des taux" }),
+    );
+    for (const box of screen.getAllByRole("checkbox")) {
+      expect(box).toBeChecked();
+    }
   });
 
   it("offers nothing when no update is proposed or the revision is not the current one", () => {

@@ -442,6 +442,26 @@ describe("the parts of the revision the screen reads in", () => {
     expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
   });
 
+  it("offers no application of the rates to a reader who cannot edit the estimate, though the update is proposed", async () => {
+    // The contract lists no command of its own for the update (#1351): the revision's `edit_estimate`
+    // stands for it, and a revision that does not list it leaves the proposal to be read.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    };
+    const read = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(text(read)).toContain("Taux du référentiel");
+    expect(offered(read, "Appliquer la mise à jour des taux")).toBe("absent");
+
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_estimator",
+    };
+    const estimated = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(offered(estimated, "Appliquer la mise à jour des taux")).toBe("available");
+  });
+
   it("reads nothing of a revision when the address carries none", async () => {
     const page = html(await RevisionsPage(at()));
     expect(calls().map((call) => call.route)).not.toContain(

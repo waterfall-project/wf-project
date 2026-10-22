@@ -44,6 +44,8 @@ export interface ConfirmedCommandProps<T> {
   /** What the command does, which describes the button that confirms. */
   readonly statement: string;
   readonly submit: string;
+  /** Whether the command is presented at all: not, and only what was told of it stays. */
+  readonly presented?: boolean | undefined;
   /** Whether the confirmation may be given: what the form asks besides is entered. */
   readonly ready?: boolean | undefined;
   /** What the form asks besides, between the statement and the buttons. */
@@ -68,6 +70,7 @@ export function ConfirmedCommand<T>({
   icon,
   statement,
   submit,
+  presented = true,
   ready = true,
   children,
   names,
@@ -81,12 +84,17 @@ export function ConfirmedCommand<T>({
   const sentence = `${form}-statement`;
   const held = useHeldCommand();
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<{ readonly data: T }>();
+  // What was told is kept as it was told: the page read again may change what `done` would say.
+  const [result, setResult] = useState<{ readonly data: T; readonly title: string }>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
   const button = useRef<HTMLButtonElement>(null);
   // The page read again may no longer offer the command: its confirmation is not shown.
-  const shown = open && offer.is_available;
+  const shown = presented && open && offer.is_available;
+  if (open && !(presented && offer.is_available)) {
+    // Not offered any more: the confirmation is closed, and does not come back with the command.
+    setOpen(false);
+  }
   const close = () => {
     setOpen(false);
     button.current?.focus();
@@ -100,7 +108,7 @@ export function ConfirmedCommand<T>({
     startTransition(async () => {
       const answer = await held(run());
       if (answer.kind === "done") {
-        setResult({ data: answer.data });
+        setResult({ data: answer.data, title: done(answer.data) });
         setOutcome(undefined);
         close();
         onDone?.(answer.data);
@@ -112,24 +120,26 @@ export function ConfirmedCommand<T>({
 
   return (
     <div className="space-y-2">
-      <Command
-        offer={offer}
-        label={label}
-        icon={icon}
-        names={names}
-        subject={subject}
-        disclosure={{
-          expanded: shown,
-          controls: form,
-          toggle: () => {
-            if (!open) {
-              setOutcome(undefined);
-            }
-            setOpen(!open);
-          },
-          ref: button,
-        }}
-      />
+      {presented ? (
+        <Command
+          offer={offer}
+          label={label}
+          icon={icon}
+          names={names}
+          subject={subject}
+          disclosure={{
+            expanded: shown,
+            controls: form,
+            toggle: () => {
+              if (!open) {
+                setOutcome(undefined);
+              }
+              setOpen(!open);
+            },
+            ref: button,
+          }}
+        />
+      ) : null}
       {shown ? (
         <form
           id={form}
@@ -177,11 +187,7 @@ export function ConfirmedCommand<T>({
           />
         </form>
       ) : null}
-      <DoneNotice
-        subject={subject}
-        title={result === undefined ? undefined : done(result.data)}
-        of={result}
-      />
+      <DoneNotice subject={subject} title={result?.title} of={result} />
     </div>
   );
 }
