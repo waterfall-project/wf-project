@@ -1,7 +1,7 @@
 ---
 id: EP-16
 titre: Le contrat figé — ses mineurs soldés, la reprise de la spécification du 2026-10-22 au contrat, au faux back et aux écrans, et des parcours joués contre le front construit
-statut: à planifier
+statut: prêt
 depend_de: EP-15
 famille: front
 issue:
@@ -119,6 +119,9 @@ Venus de la reprise de la spécification du 2026-10-22 :
 
 - #1304 — contrat, back, front : ce que la reprise ajoute au modèle — sa part contrat, faux back et
   écrans (US-0600 à US-0630) ; son service va à EP-04, EP-05, EP-06 et EP-09.
+- #1311 — spec : FBS-3.1.3, une feuille pour la correspondance de l'extraction des coûts réels
+  (WF-REF-0190), ouverte au cadrage (validation de la conception, 2026-10-22) ; elle bloque la page
+  de la correspondance d'US-0620 jusqu'à son intégration par l'auteur.
 
 Reportés d'EP-15 le 2026-10-22, en exception au principe (#1262), ou parce qu'ils touchent le
 contrat :
@@ -169,13 +172,28 @@ qui reçoit un contrat déjà écrit. Ce qui suit fixe ce que chaque lot devrait
 
 ### Ce que le cadrage décide
 
+La conception est validée par l'auteur le 2026-10-22. Il a suivi chaque recommandation sauf une :
+une variable locale rejoue les parcours contre `next dev`.
+
+- **Le contrat figé** : `info.version` passe à `1.0.0` à la livraison d'EP-16. Ensuite, toute
+  modification du contrat par un EPIC de domaine passe par une issue « contrat » que l'auteur
+  tranche, inscrite dans `DECISIONS.md`. Écartées : la version seule sans règle, et rien.
 - **Le principe** (décision de l'auteur du 2026-10-22) : EP-16 garde tout ce qui touche le contrat
   ou peut le toucher, et fige le contrat ; le reste va à EP-17 (finitions) ou à EP-13 (navigateurs,
   dépendances). Exception : #1262, parce qu'il faut une file de fusion stable pour livrer.
 - **Les parcours se jouent contre le front construit, et le préchauffage disparaît** (US-0590).
-  - Le harnais ne démarre plus `next dev`. Un seul serveur `next start` sert les parcours, la mesure
-    de la seconde et les parcours du service, sur le port `E2E_FRONT_PORT`, celui que Keycloak
-    connaît pour son canal de retour. `E2E_PRODUCTION_PORT` disparaît.
+  - Par défaut, le harnais ne démarre plus `next dev`. Un seul serveur `next start` sert les
+    parcours, la mesure de la seconde et les parcours du service, sur le port `E2E_FRONT_PORT`,
+    celui que Keycloak connaît pour son canal de retour. `E2E_PRODUCTION_PORT` disparaît.
+  - Une variable locale, `E2E_DEV_SERVER=1`, rejoue les parcours contre `next dev` (décision de
+    l'auteur du 2026-10-22, à la validation de la conception) :
+    - elle évite au développeur de reconstruire le front à chaque rejeu ;
+    - la mesure de la seconde ne la suit jamais, et se joue toujours contre le front construit ;
+    - le harnais refuse de démarrer quand elle est posée dans la chaîne (`CI` défini), en le
+      disant ;
+    - le guide la documente (`docs/dev/README.md`, « Un parcours de bout en bout ») ;
+    - le préchauffage ne revient pas pour elle : un rejeu local se joue sur peu de fichiers, et la
+      première compilation d'une route s'y attend.
   - Le build est celui de `make build-front`, qui ne joint aucune API pendant la construction
     (#131). Un même build sert donc le faux back et le vrai service.
   - Le préchauffage des routes (`e2e/warm-up.ts`, #1145) compilait chaque route au premier appel du
@@ -299,8 +317,8 @@ et ses exemples.
   `updateMyPreferences`.
 - **Les mineurs** (US-0640) : chaque constat, point par point, selon sa proposition, sauf ce que
   « Ce que le cadrage décide » tranche autrement ; aucune opération nouvelle.
-- **La version du contrat** : voir la question de la validation de la conception. Le relevé de
-  validation la tranchera.
+- **La version du contrat** : `info.version` passe de `1.0.0-draft` à `1.0.0` par le dernier lot
+  d'EP-16, à sa livraison.
 
 ### Le faux back et le témoin
 
@@ -330,7 +348,11 @@ et ses exemples.
     conservées, une autre.
   - Une barre dit les colonnes exigées sans intitulé.
   - L'enregistrement est entier, et un refus se dit au champ par son pointeur.
-  - Son adresse dans le menu dépend de la question 1 de la validation de la conception.
+  - La page est l'écran de la feuille FBS-3.1.3, que #1311 demande à la spécification :
+    - `functions.json` la range dans les `leaves` de FBS-3.1 ;
+    - l'écran des paramètres de coûts y mène par `leafOf("FBS-3.1.3")`, et le menu l'offre ;
+    - **ce lot attend l'intégration de #1311 par l'auteur**, sans quoi `wftools.screens` refuse un
+      code que la FBS n'a pas.
 - **L'import des coûts réels** :
   - l'écran des échanges dit la condition `actual_cost_mapping_complete` et les colonnes sans
     intitulé, avec un lien vers la page de la correspondance quand le lecteur peut la consulter ;
@@ -351,6 +373,8 @@ et ses exemples.
 - `playwright.config.ts` remplace `developmentServer()` et `productionServer()` par un seul
   serveur `next start`, sur `E2E_FRONT_PORT`.
   - Le build se fait avant, comme `build-front`, sauf si `E2E_BUILT` dit qu'il est déjà fait.
+  - `E2E_DEV_SERVER=1`, en local seulement, remplace ce serveur par `next dev` pour les parcours.
+    Posée avec `CI`, elle fait échouer le lancement, avec un message qui le dit.
   - En mode service, le serveur écoute sur toutes les interfaces.
 - `make e2e`, `make e2e-measure` et `make e2e-service` construisent le front, puis jouent. En
   local, le cache de Next (`.next/cache`) abrège les builds suivants.
@@ -372,7 +396,10 @@ et ses exemples.
    schémas. Chaque point se relit d'abord sur EP-15 livré.
 4. **Le front de chaque US** après son contrat ; US-0660 en dernier, parce qu'elle peut faire
    revenir au contrat.
-5. **À la livraison**, le contrat est figé (voir la question de la version).
+5. **À la livraison**, le contrat est figé : `info.version` passe à `1.0.0`. La règle d'après
+   s'écrit en tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de
+   domaine passe par une issue « contrat » que l'auteur tranche, et s'inscrit dans
+   `DECISIONS.md`.
 
 ---
 
@@ -389,8 +416,10 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 
 **Critères d'acceptation.**
 
-- propre à l'US : `make e2e` et `make e2e-service` jouent tous leurs parcours contre le front
-  construit (`next build` puis `next start`) ; aucun parcours ne se joue plus contre `next dev` ;
+- propre à l'US : par défaut, `make e2e` et `make e2e-service` jouent tous leurs parcours contre le
+  front construit (`next build` puis `next start`) ;
+- propre à l'US : `E2E_DEV_SERVER=1` rejoue en local les parcours contre `next dev`, et le guide le
+  dit ; posée dans la chaîne, elle fait échouer le lancement (décision de l'auteur du 2026-10-22) ;
 - propre à l'US : dans la chaîne, le front est construit une seule fois par exécution, et chaque part
   des parcours, la mesure de la seconde et la part du service jouent ce même build ;
 - propre à l'US : trois passages successifs du palier complet local, à quatre workers, ne montrent
