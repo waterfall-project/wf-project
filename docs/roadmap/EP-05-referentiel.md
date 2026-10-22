@@ -2,7 +2,7 @@
 id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
 statut: à planifier
-depend_de: EP-03
+depend_de: EP-16
 famille: front, back
 issue:
 ---
@@ -151,7 +151,8 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
 ## Préalables
 
-EP-03 livré : chaque écriture du référentiel est évaluée contre une permission.
+EP-03 livré : chaque écriture du référentiel est évaluée contre une permission. EP-16 livré : le
+contrat que cet EPIC sert est figé (décision de l'auteur du 2026-10-22, au cadrage d'EP-16).
 
 ## Définition de fini
 

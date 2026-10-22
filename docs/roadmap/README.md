@@ -125,7 +125,7 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | en cours | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | à planifier | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | à planifier | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-16 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |

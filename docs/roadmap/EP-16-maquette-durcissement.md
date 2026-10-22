@@ -158,7 +158,221 @@ leur label et leur titre changent au cadrage, et le fichier de leur EPIC les lis
 
 ## Conception
 
-À écrire à l'étape 2 du cadrage.
+EP-16 est un EPIC du front et du contrat : il ne crée **aucune table ni migration** et ne touche
+aucun module du noyau. Le service de chaque point de #1304 va à son EPIC de domaine (« Objet »),
+qui reçoit un contrat déjà écrit. Ce qui suit fixe ce que chaque lot devrait sinon décider seul :
+- les modifications du contrat ;
+- ce que le faux back et le témoin en engendrent ;
+- les modules du front touchés ;
+- le harnais des parcours ;
+- l'ordre de construction.
+
+### Ce que le cadrage décide
+
+- **Le principe** (décision de l'auteur du 2026-10-22) : EP-16 garde tout ce qui touche le contrat
+  ou peut le toucher, et fige le contrat ; le reste va à EP-17 (finitions) ou à EP-13 (navigateurs,
+  dépendances). Exception : #1262, parce qu'il faut une file de fusion stable pour livrer.
+- **Les parcours se jouent contre le front construit, et le préchauffage disparaît** (US-0590).
+  - Le harnais ne démarre plus `next dev`. Un seul serveur `next start` sert les parcours, la mesure
+    de la seconde et les parcours du service, sur le port `E2E_FRONT_PORT`, celui que Keycloak
+    connaît pour son canal de retour. `E2E_PRODUCTION_PORT` disparaît.
+  - Le build est celui de `make build-front`, qui ne joint aucune API pendant la construction
+    (#131). Un même build sert donc le faux back et le vrai service.
+  - Le préchauffage des routes (`e2e/warm-up.ts`, #1145) compilait chaque route au premier appel du
+    serveur de développement. Le front construit n'a plus rien à compiler : le préchauffage est
+    retiré avec ses tests, ce qui solde les points 1 et 3 de #1265.
+  - Écartée : le garder pour sa détection d'une panne en 5xx avant le premier parcours. Le premier
+    parcours la dit tout aussi bien, et le garder ferait vivre un code sans objet.
+  - Point 2 de #1265 : les parcours du service posent `WATERFALL_E2E`. L'avertissement du mode
+    `closed` ne s'écrit donc plus pour eux, et `WATERFALL_AUTH` n'y vaut pas `mock`, si bien que
+    rien d'autre ne change.
+- **Le nom de l'entreprise se range dans `ReferenceSettings`** sous `cost_settings.write`, à côté de
+  la devise (décision de l'auteur du 2026-10-22).
+  - Il prend le compteur commun des paramètres, comme la matrice et les seuils.
+  - Écartée : un réglage dans `Installation`. `getInstallation` se lit sans session, et le nom ne
+    sert qu'aux fichiers exportés.
+- **La correspondance est un objet unique de l'installation**, lu et remplacé entier, avec son
+  compteur, comme les unités de durée (`getDurationUnits`, `setDurationUnits`).
+  - Écartée : une opération par colonne. La règle des doublons porte sur toute la correspondance,
+    et une écriture partielle devrait la rejuger contre le reste.
+  - Une correspondance incomplète s'enregistre : elle est vide à l'installation, et se règle en
+    plusieurs fois. C'est l'import qui la refuse.
+- **Un import de coûts réels analysé s'applique tel qu'il a été analysé**, même si la
+  correspondance change entre-temps. Le compte rendu confirmé est ce qui s'applique (WF-INTF-0080),
+  et une modification de la correspondance ne change aucune ligne déjà importée (WF-REF-0190).
+  Écartée : refuser l'application par un 409, qui ajouterait un refus pour un cas rare.
+- **Le poste se nomme `document_item`**, à côté de `document_number` et de `document_date` :
+  l'ERP parle du poste d'une pièce. Comme le numéro de pièce, il identifie la ligne et n'est jamais
+  un champ d'un écart `updated` (WF-INTF-0140, D-4).
+- **L'élément d'OTP n'est pas exposé à la consultation.**
+  - Une ligne importée est de ce projet, si bien que son élément se reconstruit à partir du code
+    projet et de `subproject_code`.
+  - L'élément d'OTP est une colonne lue : il ne peut pas être aussi une colonne conservée (règle des
+    doublons). Le témoin le retire de ses colonnes conservées.
+  - Écartée : un champ `ActualCostLine.wbs_element`, qui ne dirait rien de plus.
+- **Le code d'un sous-projet lu dans l'élément d'OTP** (`ActualCostLine.subproject_code`) garde sa
+  borne de 50. Une ligne au code inconnu se conserve telle quelle (WF-CRE-0020), et la borne du
+  code d'un sous-projet déclaré ne s'applique qu'à la création.
+- **Les colonnes connues d'une grille** (#1260) : `GridPreferences.known_columns` liste les clés des
+  colonnes que la grille offrait à la dernière écriture de ses préférences.
+  - Une colonne masquée par défaut et absente de cette liste est masquée. Une colonne absente de la
+    liste et non masquée par défaut est montrée.
+  - Écartée : une liste des colonnes affichées, qui masquerait aussi une colonne nouvelle montrée
+    par défaut.
+- **La résolution d'un numéro de ligne** (#1288) est une lecture à part, qui rend le nœud d'un
+  numéro dans la numérotation de toute la structure, quels que soient la recherche et les filtres.
+  - Écartée : un filtre `row_number` de `listNodes`, qui rendrait aussi les ancêtres et les totaux.
+  - L'écriture reste en `predecessor_node_id`.
+- **Une fusion sans révision en cours** (#790, WF-REV-0050) se demande sur le différentiel de la
+  dernière révision marquée.
+  - La commande `merge_structure` y est offerte quand le projet n'a pas de révision en cours.
+  - `mergeCostStructure` crée alors la révision en cours par copie (WF-REV-0010), y fusionne la
+    copie du différentiel et la marque, dans la même tâche de fond.
+  - Le compte rendu (`getStructureMergeReport`) le dit.
+  - Écartée : exiger d'ouvrir d'abord une révision, contraire à WF-REV-0050.
+- **Les paramètres des refus reçoivent un schéma** (#768, point 3). `Problem.params` déclare, comme
+  propriétés facultatives typées, ceux que plusieurs refus partagent : `resource_roles`, `projects`,
+  `tasks`, `estimate_lines`, `subproject`, `columns`, `missing_columns`. Il reste ouvert aux autres,
+  et le client ne les reçoit plus en `unknown`. Écartée : un schéma par code d'erreur
+  (`oneOf`), qui doublerait le catalogue.
+- **Un constat d'US-0640 que les ajustements d'EP-15 ont rendu sans objet se ferme**, avec la
+  décision qui le rend caduc. Par exemple, la tâche rangée ailleurs de #789 que dit déjà
+  `ImportDifference.fields` à `parent` (#1194).
+
+### Les modifications du contrat
+
+Chacune a son entrée dans `docs/api/DECISIONS.md`, sous une section « Le contrat figé (EP-16) »,
+et ses exemples.
+
+- **Les paramètres communs** (US-0600) :
+  - `ReferenceSettings.company_name` est requis, de 1 à 200 caractères, et ne peut pas être blanc ;
+  - `ReferenceSettingsWrite.company_name` est facultatif, sous `cost_settings.write` ;
+  - un refus 422 `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur `/company_name`, et un 403
+    `PERMISSION_MISSING` nommant `cost_settings.write` ;
+  - les exemples `reference_settings_company_updated` et `reference_settings_company_refused`.
+- **Le projet et ses sous-projets** (US-0610) :
+  - `Project.client`, `ProjectCreate.client` et `ProjectUpdate.client` : nullable, de 1 à 300
+    caractères comme le libellé, écrits par `createProject` et `updateProject` ;
+  - `Subproject.code` et ses écritures : `maxLength` passe de 50 à 31, avec le motif des
+    caractères interdits et les deux noms réservés, comparés sans égard à la casse ;
+  - un code trop long est refusé par `VALUE_TOO_LONG`, `params.max_length` à 31 ;
+  - un caractère interdit ou un nom réservé est refusé par un code nouveau,
+    `SUBPROJECT_CODE_INVALID`, `params.forbidden_characters` ou `params.reserved_name` ;
+  - l'exemple `import_remaining_subproject_held` nomme l'onglet par le code.
+- **La correspondance** (US-0620) :
+  - deux opérations : `getActualCostMapping` (`GET /reference/actual-cost-mapping`, sous
+    `cost_settings.read`) et `setActualCostMapping` (`PUT`, sous `cost_settings.write`, la
+    correspondance entière et son compteur, 412 s'il est périmé) ;
+  - le schéma `ActualCostMapping` :
+    - `columns`, les cinq colonnes lues dans un ordre fixe, chacune avec son identifiant
+      (`ActualCostSourceColumn` : `wbs_element`, `document_number`, `document_item`,
+      `document_date`, `amount`), son caractère exigé, rendu par le serveur, et ses intitulés
+      (`labels`, au plus 20, chacun de 1 à 200 caractères) ;
+    - `kept_columns`, les intitulés des colonnes conservées, au plus 50 ;
+    - `is_complete` et `missing_columns`, calculés ;
+    - `lock_version` et `audit` ;
+  - le refus 422 d'un doublon : `DUPLICATE_COLUMN_LABEL`, sur le pointeur de l'intitulé en
+    double, `params.duplicate_of` donnant le pointeur de l'autre ;
+  - la condition `actual_cost_mapping_complete` dans `CommandCondition`, nommée par la commande
+    `import_actual_costs` ;
+  - le 409 `STATE_FORBIDS_OPERATION` d'`openImport` (`params.missing_condition`,
+    `params.columns`) ;
+  - le 422 `FILE_FORMAT_UNREADABLE` d'un fichier de coûts réels :
+    - il porte `params.missing_columns`, chaque colonne exigée absente avec ses intitulés déclarés ;
+    - il ne porte aucune `expected_version` : une extraction de l'ERP n'a pas de version (D-2) ;
+  - `ImportIgnoredKind` gagne `columns` : les colonnes du fichier ni lues ni conservées, nommées
+    par leur intitulé tel que le fichier le porte ;
+  - les exemples : `actual_cost_mapping_empty`, la correspondance du témoin, celle d'une écriture
+    et celle d'un doublon, le projet dont la commande attend la correspondance, les deux refus
+    d'`openImport` et un compte rendu à colonne ignorée.
+- **Le poste** (US-0630) :
+  - `ActualCostLine.document_item`, nullable ;
+  - `ActualCostColumn` gagne `document_item`, qui sert au tri, jamais un champ d'écart ;
+  - `ImportDifference.document_item`, pour une ligne de coût ;
+  - un code nouveau, `DUPLICATE_COST_LINE`, pour une ligne du fichier dont une autre porte la même
+    pièce et le même poste : chacune est rejetée, et `params.rows` nomme les rangs des autres ;
+  - les exemples du compte rendu et de la consultation.
+- **La résolution d'un numéro de ligne** (US-0650) : `resolveRowNumber`
+  (`GET …/structures/{structure_id}/rows/{row_number}`) rend `node_id`, `row_number`, `label` et
+  `kind`, ou un 404 si aucun nœud ne porte ce numéro.
+- **Les colonnes connues** (US-0650) : `GridPreferences.known_columns`, au plus 64 clés, écrit par
+  `updateMyPreferences`.
+- **Les mineurs** (US-0640) : chaque constat, point par point, selon sa proposition, sauf ce que
+  « Ce que le cadrage décide » tranche autrement ; aucune opération nouvelle.
+- **La version du contrat** : voir la question de la validation de la conception. Le relevé de
+  validation la tranchera.
+
+### Le faux back et le témoin
+
+- Les exemples écrits à la main vont dans `fixtures/api` : les paramètres communs, la
+  correspondance, la résolution d'un numéro. Ceux que l'outillage engendre se régénèrent par
+  `make mock-data`, jamais à la main.
+- Le témoin des coûts réels change trois choses :
+  - il donne le poste à ses lignes, deux d'entre elles sur la même pièce ;
+  - ses éléments d'OTP deviennent le code projet suivi de `/code sous-projet`, et perdent le
+    préfixe `WF.` (`mockcosts.py`, C-373) ;
+  - « Élément d'OTP » quitte ses colonnes conservées.
+- La correspondance du témoin déclare ses intitulés, et ses colonnes conservées sont celles du
+  témoin (« Fournisseur », « Texte de commande ») : un test des outils tient les deux d'accord.
+- Les codes de sous-projet du témoin respectent déjà la borne. Le test des outils le vérifie.
+
+### Le front
+
+- **Le nom de l'entreprise** : `reference/settings-forms.tsx` reçoit un formulaire à un champ,
+  rangé avec la devise sur `/reference/costs`, offert selon `cost_settings.write`.
+- **Le client** : `projects/project-form.tsx`, à la création et sur l'écran des paramètres du
+  projet ; aucun autre écran.
+- **Le code d'un sous-projet** : le formulaire du sous-projet dit le motif du 422 par son
+  catalogue, et borne la saisie à 31 caractères.
+- **La correspondance** : une page `/reference/costs/actual-cost-mapping`, sous
+  `components/reference/`.
+  - Les cinq colonnes lues y sont une liste d'intitulés éditable chacune ; les colonnes
+    conservées, une autre.
+  - Une barre dit les colonnes exigées sans intitulé.
+  - L'enregistrement est entier, et un refus se dit au champ par son pointeur.
+  - Son adresse dans le menu dépend de la question 1 de la validation de la conception.
+- **L'import des coûts réels** :
+  - l'écran des échanges dit la condition `actual_cost_mapping_complete` et les colonnes sans
+    intitulé, avec un lien vers la page de la correspondance quand le lecteur peut la consulter ;
+  - il dit aussi les colonnes exigées absentes d'un fichier ;
+  - le compte rendu nomme les colonnes ignorées et les lignes en double.
+- **Le poste** : une colonne « Poste » de la grille des coûts réels, après le numéro de pièce,
+  triable.
+- **US-0650** :
+  - la colonne des prédécesseurs (`planning-grid`) résout un numéro hors des lignes lues par
+    `resolveRowNumber` avant d'écrire ;
+  - `grid/settings.ts` lit et écrit `known_columns`.
+- **US-0660** : les écrans des paramètres de coûts (#1142, points 1 et 2), des échanges (point 3),
+  du lotissement (points 4 à 6) et `i18n/problem.ts` (#779) ; chaque point sur un exemple du
+  contrat.
+
+### Le harnais (US-0590)
+
+- `playwright.config.ts` remplace `developmentServer()` et `productionServer()` par un seul
+  serveur `next start`, sur `E2E_FRONT_PORT`.
+  - Le build se fait avant, comme `build-front`, sauf si `E2E_BUILT` dit qu'il est déjà fait.
+  - En mode service, le serveur écoute sur toutes les interfaces.
+- `make e2e`, `make e2e-measure` et `make e2e-service` construisent le front, puis jouent. En
+  local, le cache de Next (`.next/cache`) abrège les builds suivants.
+- `e2e.yml` gagne un travail `build`, qui lance `make build-front` et téléverse `.next` sans son
+  cache.
+  - Les trois parts des parcours et la mesure le téléchargent et jouent avec `E2E_BUILT`.
+  - `service.yml` construit une fois pour ses parcours.
+- Le guide (« Un parcours de bout en bout ») dit contre quel serveur les parcours se jouent, retire
+  le préchauffage, et réécrit la règle de #1145. Les échecs de #1263 restent tolérés au rejeu
+  isolé jusqu'à EP-17.
+
+### L'ordre de construction
+
+1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent.
+2. **Les contrats ensuite**, avant le front qui les consomme : US-0600 et US-0610 (petits, en un lot
+   de contrat), US-0620 et US-0630 (la correspondance et le poste, qui touchent les mêmes schémas
+   des échanges), US-0650.
+3. **US-0640**, les mineurs du contrat, en parallèle des écrans : ils ne touchent pas les mêmes
+   schémas. Chaque point se relit d'abord sur EP-15 livré.
+4. **Le front de chaque US** après son contrat ; US-0660 en dernier, parce qu'elle peut faire
+   revenir au contrat.
+5. **À la livraison**, le contrat est figé (voir la question de la version).
 
 ---
 
@@ -237,7 +451,8 @@ connaît, **afin que** les fichiers exportés disent de quelle entreprise ils vi
 - propre à l'US : qui porte `cost_settings.write` modifie le nom de l'entreprise à cet écran ; qui
   ne la porte pas le lit sans commande de modification, et une modification qu'il enverrait malgré
   tout est refusée par 403, `PERMISSION_MISSING` nommant `cost_settings.write` ;
-- propre à l'US : un nom vide est refusé par champ (422), et rien n'est écrit.
+- propre à l'US : le nom de l'entreprise est obligatoire ; un nom vide est refusé par champ (422),
+  et rien n'est écrit (décision de l'auteur du 2026-10-22).
 
 **Notes de réalisation.**
 - Décision de l'auteur du 2026-10-22 : le nom se range sous `cost_settings.write`, dans
@@ -296,6 +511,8 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
   - `createProject` et `updateProject` l'écrivent, `getProject` le lit.
   - Le formulaire de création et l'écran des paramètres du projet le saisissent et l'effacent, quel
     que soit l'état du projet, tant que le projet n'est pas terminal.
+  - Aucun autre écran ne le montre : ni la liste des projets, ni le portefeuille (décision de
+    l'auteur du 2026-10-22).
 - propre à l'US : au contrat, le code d'un sous-projet compte au plus 31 caractères, sans `:`, `\`,
   `/`, `?`, `*`, `[` ni `]`, et ne vaut ni « Synthèse » ni « Hors sous-projet ».
   - Un code qui ne l'est pas est refusé par champ (422), avec son motif.
@@ -351,12 +568,17 @@ Waterfall une colonne que nous n'avons pas choisie.
   coûts (FBS-3.1), montre la correspondance.
   - Pour chaque colonne lue (élément d'OTP, numéro de pièce, poste, date de pièce, montant), elle
     montre ses intitulés admis.
-  - Elle montre aussi la liste des colonnes conservées, déclarées une à une.
+  - Elle montre aussi la liste des colonnes conservées, déclarées une à une par leur intitulé.
   - Une correspondance vide dit les quatre colonnes exigées qui n'ont aucun intitulé : toutes sauf
     le poste.
 - propre à l'US : qui porte `cost_settings.write` ajoute, modifie et retire un intitulé, déclare et
   retire une colonne conservée ; qui porte seulement `cost_settings.read` lit la page sans commande
   de modification ;
+- propre à l'US : un intitulé qui, une fois normalisé (sans égard à la casse, aux accents ni aux
+  espaces en bout), en double un autre est refusé par champ (422), et rien n'est écrit. Le doublon
+  peut être entre deux colonnes lues, ou entre une colonne lue et une colonne conservée. Une colonne
+  conservée se déclare par son intitulé et se compare de la même façon (décisions de l'auteur du
+  2026-10-22) ;
 - propre à l'US : tant que l'une des quatre colonnes exigées n'a aucun intitulé, la commande
   `import_actual_costs` d'un projet est indisponible et nomme la condition
   `actual_cost_mapping_complete`.
