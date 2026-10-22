@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -13,7 +13,14 @@ import type { Project } from "@/components/context/reading";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  type FakeTiming,
+  fakeClient,
+  held,
+} from "@/test/fixtures";
 
 import { GeneratePlanning } from "./generate-planning";
 import { ProjectStart } from "./project-start";
@@ -35,8 +42,6 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-type NodesWritten = components["schemas"]["NodesWritten"];
-
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000103";
 const START = `/projects/${PROJECT}`;
@@ -48,8 +53,8 @@ const SKELETON = "POST /projects/{project_id}/revisions/{revision_id}/skeleton";
 const TASK = "GET /tasks/{task_id}";
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers): FakeClient {
-  const client = fakeClient(answers);
+function serve(answers: FakeAnswers, timing?: FakeTiming): FakeClient {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
@@ -187,13 +192,39 @@ describe("the encart « Démarrer le projet »", () => {
     expect(
       screen.getByRole("group", { name: "Zone de dépôt du fichier MS Project" }),
     ).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Plus tard" }));
+    expect(screen.queryByRole("group", { name: "Zone de dépôt du fichier MS Project" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Démarrer le projet" })).toBeNull();
+    // Unfolded again, the zone is closed, as it was left.
+    await userEvent.click(screen.getByRole("button", { name: "Démarrer le projet" }));
+    expect(screen.queryByRole("group", { name: "Zone de dépôt du fichier MS Project" })).toBeNull();
+  });
+
+  it("keeps the fold in memory when the browser refuses the storage of the tab", async () => {
+    serve({});
+    const refused = () => {
+      throw new DOMException("denied", "SecurityError");
+    };
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(refused);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(refused);
+    try {
+      const { unmount } = open(encart());
+      await userEvent.click(screen.getByRole("button", { name: "Plus tard" }));
+      expect(screen.queryByRole("region", { name: "Démarrer le projet" })).toBeNull();
+      unmount();
+      open(encart());
+      expect(screen.queryByRole("region", { name: "Démarrer le projet" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Démarrer le projet" })).toBeVisible();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });
 
 describe("the drop zone", () => {
   /** The encart with its drop zone open, and the fake back serving the import. */
-  async function zone(answers: FakeAnswers = {}) {
-    const client = serve(answers);
+  async function zone(answers: FakeAnswers = {}, timing?: FakeTiming) {
+    const client = serve(answers, timing);
     const view = open(encart());
     await userEvent.click(screen.getByRole("button", { name: "Importer un fichier MS Project" }));
     const group = screen.getByRole("group", { name: "Zone de dépôt du fichier MS Project" });
@@ -240,6 +271,51 @@ describe("the drop zone", () => {
     await waitFor(() => {
       expect(client.calls.map((call) => call.route)).toContain(OPEN);
     });
+  });
+
+  it("says it is sending, says a file dropped meanwhile is not taken, and takes no other once one is sent", async () => {
+    const hold = held();
+    const { client, group } = await zone(IMPORTED, hold.timing);
+    const first = new File(["<Project/>"], "planning.xml", { type: "text/xml" });
+    fireEvent.drop(group, { dataTransfer: { files: [first] } });
+    expect(await within(group).findByRole("status")).toHaveTextContent(
+      "Envoi de « planning.xml »…",
+    );
+    expect(group).toHaveAttribute("aria-busy", "true");
+    fireEvent.drop(group, { dataTransfer: { files: [new File(["x"], "autre.xml")] } });
+    expect(within(group).getByRole("alert")).toHaveTextContent("Un envoi est en cours");
+    hold.release();
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(within(group).getByRole("status")).toHaveTextContent("« planning.xml » est envoyé");
+    });
+    expect(within(group).queryByRole("alert")).toBeNull();
+    const sent = client.calls.length;
+    fireEvent.drop(group, { dataTransfer: { files: [new File(["x"], "autre.xml")] } });
+    expect(client.calls).toHaveLength(sent);
+    expect(within(group).getByRole("button", { name: "Choisir un fichier" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("stays highlighted while a file is dragged over a child of the zone, and is not once it leaves", async () => {
+    const { group } = await zone();
+    const child = within(group).getByRole("button", { name: "Choisir un fichier" });
+    fireEvent.dragOver(group);
+    expect(group.className).toContain("bg-accent");
+    // jsdom's drag events carry no `relatedTarget` of their own: it is given by hand.
+    const leave = (to: Element) => {
+      const event = createEvent.dragLeave(group);
+      Object.defineProperty(event, "relatedTarget", { value: to });
+      fireEvent(group, event);
+    };
+    leave(child);
+    expect(group.className).toContain("bg-accent");
+    leave(document.body);
+    expect(group.className).not.toContain("bg-accent");
   });
 
   it("checks the type of the file before sending anything, and says so", async () => {
@@ -298,7 +374,9 @@ describe("« Engendrer le planning »", () => {
     );
   }
 
-  it("generates the planning on the revision, reads the page anew, and leads to the grid [WF-PRJ-0030-A]", async () => {
+  // What the generation produces (a summary per work package and per post, their two end milestones) is
+  // the back's: the front sends the command and leads to the grid, which this test carries.
+  it("generates the planning on the revision, reads the page anew, and leads to the grid", async () => {
     const client = serve({ [SKELETON]: { example: "skeleton_generated", status: 201 } });
     open(generate());
     await userEvent.click(screen.getByRole("button", { name: "Engendrer le planning" }));
@@ -308,15 +386,6 @@ describe("« Engendrer le planning »", () => {
     expect(client.calls.map((call) => call.route)).toEqual([SKELETON]);
     expect(client.calls[0]?.path).toBe(`${START}/revisions/${REVISION}/skeleton`);
     expect(router.refresh).toHaveBeenCalled();
-    // What the server answers on the default work breakdown: a summary of the lot, a summary of the
-    // post without a leaf, and the two end milestones.
-    const { nodes } = example("skeleton_generated") as NodesWritten;
-    const tasks = nodes.map((node) => node.task);
-    expect(tasks.filter((task) => task?.is_summary === true)).toHaveLength(2);
-    expect(tasks.filter((task) => task?.is_milestone === true)).toHaveLength(2);
-    expect(
-      tasks.filter((task) => task?.is_summary !== true && task?.is_milestone !== true),
-    ).toEqual([]);
   });
 
   it("reads the page anew after a conflict, tells it, and does not lead to the grid", async () => {

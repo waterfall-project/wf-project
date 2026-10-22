@@ -232,6 +232,16 @@ describe("the generation of the planning on the screen of the work breakdown", (
     });
   });
 
+  it("does not hide the offer in silence when the revision in progress is refused: the screen fails, as it does for its context", async () => {
+    server.answers = {
+      ...server.answers,
+      [REVISION]: { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } },
+    };
+    await expect(SettingsPage(at({ start: "skeleton" }))).rejects.toMatchObject({
+      name: "UnexpectedAnswer",
+    });
+  });
+
   it("offers nothing to a session whose revision does not list the skeleton", async () => {
     server.answers = { ...server.answers, [REVISION]: "revision_reader" };
     const found = handed<ComponentProps<typeof GeneratePlanning>>(

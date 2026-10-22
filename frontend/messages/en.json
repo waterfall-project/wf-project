@@ -1068,8 +1068,7 @@
   "generatePlanning": {
     "title": "Generate the planning",
     "lead": "Once the work breakdown is entered, generate the planning: a summary task for each work package and order item, a task for each deliverable and their end milestones.",
-    "label": "Generate the planning",
-    "done": "Planning generated: {tasks, plural, =0 {no task} one {# task} other {# tasks}}."
+    "label": "Generate the planning"
   },
   "projectFacts": {
     "label": "The project",
@@ -2783,7 +2782,10 @@
       "choose": "Choose a file",
       "file": "MS Project file (.xml)",
       "notXml": "This is not an .xml file: an MS Project schedule is exported as XML.",
-      "tooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+      "tooLarge": "The file is larger than {max} MiB, the largest size an import takes.",
+      "sending": "Sending “{file}”…",
+      "sent": "“{file}” is sent: its report is shown on the page.",
+      "busy": "A file is being sent: the file dropped is not taken."
     },
     "report": {
       "title": "Report of the import “{file}”",

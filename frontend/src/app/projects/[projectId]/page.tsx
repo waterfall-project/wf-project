@@ -39,7 +39,6 @@ import {
   type ProjectPageProps,
   type ProjectParams,
   projectAddress,
-  readCurrentRevision,
   readProjectScreen,
 } from "./screen";
 
@@ -114,9 +113,12 @@ export default async function ProjectPage(props: ProjectPageProps) {
   const offers = importOffers(read.project);
   // The address of the screen without a report, its context kept.
   const start = contextAddress(address.pathname, read.context);
-  // The start of the planning: read at the server, from the revision in progress (WF-PRJ-0030).
+  // The start of the planning: read at the server, from the revision in progress, which the list of the revisions carries whole (WF-PRJ-0030).
   const current = read.project.current_revision_id ?? undefined;
-  const startable = startOffers(read.project, await readCurrentRevision(read.project));
+  const startable = startOffers(
+    read.project,
+    revisions.find((listed) => listed.revision_id === read.project.current_revision_id),
+  );
   const breakdown = functionHref(functionOf("project_settings"), read.context);
   const planning =
     current === undefined

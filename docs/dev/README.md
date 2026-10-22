@@ -1717,6 +1717,10 @@ La page d'un projet propose de démarrer son planning par l'encart « Démarrer 
 de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
 `start-offers.ts`) : la révision en cours liste `generate_skeleton` — l'appelant peut modifier le
 planning — sans qu'il lui manque `main_structure_without_tasks` ; le front n'en déduit rien d'autre.
+La page la prend dans la liste de ses révisions, dont chaque élément est une révision entière, sans
+la relire. Ce que la génération produit (une récapitulative par lot et par poste, leurs jalons de fin)
+est l'affaire du back : le front envoie la commande et mène à la grille, et le critère de
+`WF-PRJ-0030-A` sur le résultat se porte au test du back, non à l'encart.
 « Planning automatique depuis le lotissement » mène au lotissement (`settings?start=skeleton`), où
 « Engendrer le planning » (`GeneratePlanning`) appelle `generatePlanningSkeleton`, relit la page
 après la génération comme après un 409 (#819.5, #819.6) et mène à la grille. « Importer un fichier MS

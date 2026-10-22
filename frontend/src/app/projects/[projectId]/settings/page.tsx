@@ -285,10 +285,10 @@ export default async function SettingsPage(props: ProjectPageProps) {
   ]);
   const offers = offersOf(read.project);
   const { update, manage, writes } = offers;
-  const generation = await readGeneration(read, search.get("start") === "skeleton");
-  const [[suggestions, whole], wholeBreakdown] = await Promise.all([
+  const [[suggestions, whole], wholeBreakdown, generation] = await Promise.all([
     readWritable(client, address.projectId, manage, contributors),
     readWholeBreakdown(client, address.projectId, offers.breakdown, breakdown),
+    readGeneration(read, search.get("start") === "skeleton"),
   ]);
   return (
     <>

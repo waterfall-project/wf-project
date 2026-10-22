@@ -8,7 +8,7 @@
  * file, and so is the size, past the largest an import takes (§4.6.2). A file that passes goes the
  * way the form of the screen of the imports and exports sends it (`useOpenImport`): the deposit, the
  * analysis in the tracker of the shell, then the report of the import on the screen, to be applied or
- * abandoned; a refusal is told under the zone (`OutcomeNotice`). The API judges the content.
+ * abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone says that it is sending, says a file dropped meanwhile is not taken, and takes no other once one is sent. The API judges the content.
  */
 "use client";
 
@@ -29,8 +29,11 @@ const EXTENSION = ".xml";
 /** What the zone says of the file given: not an XML file, or one past the largest an import takes. */
 type FileProblem = "notXml" | "tooLarge";
 
+/** What the zone says besides: a file dropped while another is being sent. */
+type DropProblem = FileProblem | "busy";
+
 /** What is wrong with a file before it is sent, if anything. */
-export function fileProblem(file: File): FileProblem | undefined {
+function fileProblem(file: File): FileProblem | undefined {
   if (!file.name.toLowerCase().endsWith(EXTENSION)) {
     return "notXml";
   }
@@ -51,12 +54,19 @@ export function FileDrop({
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
-  const [problem, setProblem] = useState<FileProblem>();
+  const [problem, setProblem] = useState<DropProblem>();
+  // The file being sent, then the file sent: the zone takes no other until the report is shown.
+  const [sending, setSending] = useState<string>();
+  const [sent, setSent] = useState<string>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
 
   const receive = (file: File | undefined) => {
-    if (file === undefined || pending) {
+    if (file === undefined || sent !== undefined) {
+      return;
+    }
+    if (pending) {
+      setProblem("busy");
       return;
     }
     const wrong = fileProblem(file);
@@ -65,9 +75,14 @@ export function FileDrop({
     if (wrong !== undefined) {
       return;
     }
+    setSending(file.name);
     startTransition(async () => {
       const result = await open({ kind: "ms_project_schedule" }, file);
-      if (result.kind !== "done") {
+      setSending(undefined);
+      setProblem(undefined);
+      if (result.kind === "done") {
+        setSent(file.name);
+      } else {
         setOutcome(result);
       }
     });
@@ -88,8 +103,11 @@ export function FileDrop({
         event.preventDefault();
         setOver(true);
       }}
-      onDragLeave={() => {
-        setOver(false);
+      onDragLeave={(event) => {
+        // Moving over a child of the zone leaves the zone for the browser, not for the user.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setOver(false);
+        }
       }}
       onDrop={drop}
       className={`space-y-2 rounded-md border-2 border-dashed p-4 ${over ? "border-ring bg-accent" : ""}`}
@@ -117,10 +135,10 @@ export function FileDrop({
         type="button"
         variant="outline"
         size="sm"
-        aria-disabled={pending ? true : undefined}
+        aria-disabled={pending || sent !== undefined ? true : undefined}
         aria-describedby={problem === undefined ? undefined : `${id}-problem`}
         onClick={() => {
-          if (!pending) {
+          if (!pending && sent === undefined) {
             input.current?.click();
           }
         }}
@@ -128,9 +146,23 @@ export function FileDrop({
         <Upload aria-hidden="true" />
         {t("choose")}
       </Button>
+      {sending === undefined ? null : (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("sending", { file: sending })}
+        </p>
+      )}
+      {sent === undefined ? null : (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("sent", { file: sent })}
+        </p>
+      )}
       {problem === undefined ? null : (
         <p id={`${id}-problem`} role="alert" className="text-sm text-destructive">
-          {problem === "notXml" ? t("notXml") : t("tooLarge", { max: IMPORT_MAX_BYTES / MEBIBYTE })}
+          {problem === "notXml"
+            ? t("notXml")
+            : problem === "busy"
+              ? t("busy")
+              : t("tooLarge", { max: IMPORT_MAX_BYTES / MEBIBYTE })}
         </p>
       )}
       <OutcomeNotice

@@ -42,6 +42,7 @@ test("offers « Engendrer le planning » on the work breakdown reached from the 
   });
   await generate.focus();
   await page.keyboard.press("Enter");
+  // `force`: the button is aria-disabled, not disabled, and Playwright waits for an enabled one.
   await generate.click({ force: true });
   await expect(page).toHaveURL(/\/settings\?start=skeleton$/);
   expect(sent).toEqual([]);

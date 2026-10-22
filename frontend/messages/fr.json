@@ -1068,8 +1068,7 @@
   "generatePlanning": {
     "title": "Engendrer le planning",
     "lead": "Le lotissement saisi, engendrez le planning : une récapitulative par lot et par poste, une tâche par livrable et leurs jalons de fin.",
-    "label": "Engendrer le planning",
-    "done": "Planning engendré : {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}."
+    "label": "Engendrer le planning"
   },
   "projectFacts": {
     "label": "Le projet",
@@ -2783,7 +2782,10 @@
       "choose": "Choisir un fichier",
       "file": "Fichier MS Project (.xml)",
       "notXml": "Ce n’est pas un fichier .xml : un planning MS Project s’exporte en XML.",
-      "tooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+      "tooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet.",
+      "sending": "Envoi de « {file} »…",
+      "sent": "« {file} » est envoyé : son compte rendu s’affiche sur la page.",
+      "busy": "Un envoi est en cours : le fichier déposé n’est pas pris en compte."
     },
     "report": {
       "title": "Compte rendu de l’import « {file} »",

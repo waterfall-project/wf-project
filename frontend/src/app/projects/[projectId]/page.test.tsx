@@ -104,7 +104,6 @@ describe("the imports on the screen of a project without revision", () => {
       ...server.answers,
       "GET /projects/{project_id}": "project",
       "GET /projects/{project_id}/revisions": "revisions",
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     };
     const page = await projectAt();
     expect(page).not.toContain('aria-label="Import a file"');
@@ -127,36 +126,31 @@ describe("the imports on the screen of a project without revision", () => {
 describe("the encart « Démarrer le projet »", () => {
   const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
 
-  /** The page of a project that has a revision in progress, which the server reads as given. */
-  async function withRevision(revision: "revision" | "revision_without_tasks" | "revision_reader") {
+  /**
+   * The page of the witness project, whose revision in progress (102) the list of its revisions
+   * carries whole. No example of the contract lists a revision in progress that offers the skeleton
+   * for a project that has it in progress: the encart shown is tested on the components, against
+   * `revision_without_tasks` (project-start.dom.test.tsx), and the fake back serves the witness.
+   */
+  async function withRevisions(list: "revisions" | "revisions_designation_open") {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project",
-      "GET /projects/{project_id}/revisions": "revisions",
-      [REVISION_READ]: revision,
+      "GET /projects/{project_id}/revisions": list,
     };
     return projectAt();
   }
 
-  it("is shown while the revision in progress lists the skeleton and its main structure has no task, the choices as the server lists them [WF-PRJ-0030-A]", async () => {
-    const page = await withRevision("revision_without_tasks");
-    const encart = /<section aria-label="Start the project"[\s\S]*?<\/section>/.exec(page)?.[0];
-    expect(encart).toBeDefined();
-    expect(text(encart ?? "")).toContain("Automatic planning from the work breakdown");
-    expect(text(encart ?? "")).toContain("Import an MS Project file");
-    expect(text(encart ?? "")).toContain("Later");
-    expect(encart).toContain(`href="/projects/${PRICING}/settings?start=skeleton"`);
-    expect(routes()).toContain(REVISION_READ);
+  it("is no longer shown once the main structure bears a task: the list names main_structure_without_tasks as missing, and no revision is read besides it [WF-PRJ-0030-A]", async () => {
+    const page = await withRevisions("revisions");
+    expect(page).not.toContain('aria-label="Start the project"');
+    expect(routes()).not.toContain(REVISION_READ);
   });
 
-  it("is no longer shown once the main structure bears a task: the server names main_structure_without_tasks as missing [WF-PRJ-0030-A]", async () => {
-    const page = await withRevision("revision");
+  it("is not shown when the revision in progress is not among the revisions listed, and reads no revision either", async () => {
+    const page = await withRevisions("revisions_designation_open");
     expect(page).not.toContain('aria-label="Start the project"');
-  });
-
-  it("is not shown to a session that may not modify the planning: the revision does not list the skeleton", async () => {
-    const page = await withRevision("revision_reader");
-    expect(page).not.toContain('aria-label="Start the project"');
+    expect(routes()).not.toContain(REVISION_READ);
   });
 
   it("is not shown on a project without a revision in progress, and reads no revision", async () => {

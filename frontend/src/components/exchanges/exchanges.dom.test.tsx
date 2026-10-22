@@ -347,10 +347,10 @@ describe("the report of an import", () => {
     ).toBeVisible();
   });
 
-  it("leads to the screen it was given once the application is confirmed, and nowhere when it was given none", async () => {
+  it("leads to the screen it was given only once the task that applies the import has succeeded, not when the application is accepted", async () => {
     serve({
       [APPLY]: { example: "task_import_queued", status: 202 },
-      [TASK]: "task_running",
+      [TASK]: "task_import_succeeded",
     });
     const entry = example("import_analysed") as Import;
     const offers = importOffers(example("project") as Project);
@@ -371,8 +371,15 @@ describe("the report of an import", () => {
       within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
     );
     await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
+    // Accepted, and still applying: the planning is not filled yet.
+    expect(router.push).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(planning);
     });
+    expect(router.push).toHaveBeenCalledOnce();
   });
 
   it("applies nothing when the confirmation is cancelled, and tells a refusal of the application", async () => {
