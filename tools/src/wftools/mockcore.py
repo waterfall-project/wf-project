@@ -4,13 +4,13 @@
 
 The core is described once in ``wftools.mockwitness`` (#287), the thousand tasks drawn about it
 in ``wftools.mockstructure``: here the whole structure, the core first, is dated in hours of work
-on the calendar of each task, its total float and its critical path found, its lines priced and
-its summaries summed (``wftools.mockdating``, WF-PLA-0010, WF-PLA-0100, WF-DEV-0020, WF-DEV-0050),
-and its nodes emitted as the server renders them, numbered from its first row (EP-02/L27, #376).
-The named examples of ``listNodes`` —
-``nodes``, ``nodes_planning``, ``nodes_estimate``, ``nodes_milestone``, ``nodes_risk_occurred``
-— are readings of this one tree, by ``subtree_of``, ``kinds``, ``search`` and the sort of the
-lines under each task (``wftools.mocksort``, #526), and the
+on the calendar of each task, its total float and its critical path found, its lines priced
+(``wftools.mockdating``, WF-PLA-0010, WF-PLA-0100, WF-DEV-0020), its summaries summed
+(WF-DEV-0050) and its lines consumed in the year their task starts, and its nodes emitted as
+the server renders them, numbered from its first row (EP-02/L27, #376). The named examples of
+``listNodes`` — ``nodes``, ``nodes_planning``, ``nodes_estimate``, ``nodes_milestone``,
+``nodes_risk_occurred`` — are readings of this one tree, by ``subtree_of``, ``kinds``,
+``search`` and the sort of the lines under each task (``wftools.mocksort``, #526), and the
 ``dependencies_*`` examples say what its computed values depend on: one identifier, one lineage
 and one figure for each node, whatever the example (EP-02/L21).
 

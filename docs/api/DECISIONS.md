@@ -1747,13 +1747,13 @@ la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 
 ### Les lectures de la grille (EP-02/L21)
 
 **Les exemples nommés de `listNodes` sont des lectures d'un seul arbre, engendrées** (#287 ; C1,
-C14). `wftools.mockcore` date le cœur décrit dans `mockwitness` en heures de travail sur le
+C14). `wftools.mockdating` date le cœur décrit dans `mockwitness` en heures de travail sur le
 calendrier de chaque tâche (`mockcalendar`), à partir du début des études (2 mars 2026) et de ses
 liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin la plus tardive que ses
 successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
 sa fin à cet instant, en jours ouvrés ; une tâche en mode manuel n'a ni marge ni criticité et
 n'impose rien à ses prédécesseurs. Les lignes sont chiffrées au taux de leur catégorie pour l'année
-de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; une tâche somme ses
+de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; `mockcore` fait sommer à une tâche ses
 lignes et ses subordonnées ; l'avancement physique d'une récapitulative est le budget des lignes de
 ses tâches terminées sur celui de son sous-arbre, non calculable sans budget (`no_budgeted_amount`).
 L'avancement se lit aux dates à aujourd'hui, le 3 juin 2026 : les études sont terminées, les pupitres
@@ -2095,7 +2095,7 @@ porteur d'un coût réel (`has_actual_costs`), écrit à la main — `subproject
 générateurs — et confronté aux lignes par le test d'invariants.
 
 **Toute ligne rend son délai de paiement, que la courbe applique** (WF-DEV-0020, WF-IND-0100).
-`estimate_line.payment_delay_days` est rendu par `mockcore` sur chaque ligne du cœur : trente jours
+`estimate_line.payment_delay_days` est donné par `mockdating` (`payment_delay`) et rendu par `mockcore` sur chaque ligne du cœur : trente jours
 sur l'ingénierie de détail et sur les borniers, zéro sur les autres, main-d'œuvre et provision
 comprises. La lecture des indicateurs tire ses délais des nœuds qu'elle rend, et la courbe des
 décaissements les applique : une seule source, que le test d'invariants vérifie ligne à ligne. Les
@@ -2282,8 +2282,8 @@ son code, sans lien (`can_open`, WF-PTF-0030).
 WF-PLA-0010, WF-PLA-0160). `wftools.mockstructure` décrit, comme le cœur l'est dans
 `mockwitness`, en tâches et en lignes, neuf phases tirées après lui — les approvisionnements à la
 réception, les études étant le cœur —, chacune des trois lots, chaque lot ses tâches de travail en
-trois chaînes et un jalon ; `wftools.mockcore` date le tout ensemble, en heures de travail sur le
-calendrier des rôles de chaque tâche, le chiffre et l'émet. Les compteurs du §4.6.2 sont gardés :
+trois chaînes et un jalon ; `wftools.mockdating` date le tout ensemble, en heures de travail sur le
+calendrier des rôles de chaque tâche, le chiffre, et `mockcore` l'émet. Les compteurs du §4.6.2 sont gardés :
 mille tâches, dont les quinze du cœur, et cinq mille lignes, dont ses neuf — cinq sur chacune des
 922 tâches de travail tirées et une sixième sur 381 d'entre elles. **Deux calendriers** : le
 câblage est confié au monteur câbleur, toutes ses heures de main-d'œuvre, et ses 103 tâches
@@ -2451,7 +2451,7 @@ les deux Kanban ne présentent que les tâches du cœur. Leurs résumés le dise
 (`mocktext.CORE_ONLY`, « jusqu'à EP-14/L45b »).
 
 **Le générateur à cette échelle.** Une structure est datée et émise une fois pour une date, des taux
-et une revue précédente donnés (`mockcore.core`, `mockcore.schedule`), une révision lue une fois
+et une revue précédente donnés (`mockcore.core`, `mockdating.schedule`), une révision lue une fois
 (`mockindicators.read`) ; les flux d'une courbe sont sommés d'un coup une fois dépensés en entier et
 lus un à un tant qu'ils courent (`mockcurves.Spread`), les bornes de chacun comptées une fois sur son
 calendrier. `make mock-data` écrit le tout en une quinzaine de secondes.
@@ -5570,7 +5570,7 @@ fermé la modification, le réexamen et la suppression d'un risque, qui n'en dé
 paiement, en jours, qui […] reste saisissable sur toute ligne autre qu'une ligne de provision, qui
 n'en porte pas » ; WF-IND-0100 : « une ligne de provision, qui n'en porte pas, reste à la date de la
 tâche qui la porte »). Le délai quitte les `editable_fields` de la ligne de provision, sa lecture le
-rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockcore.payment_delay`,
+rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockdating.payment_delay`,
 `mockindicators.delays`) ; envoyé, il est refusé par 422, `fields` sur `/payment_delay_days`, motif
 `FIELD_NOT_ACCEPTED`, code nouveau, celui de tout champ qu'un nœud n'accepte pas, ni saisi ni
 calculé pour lui, que le contrat refusait jusqu'ici sans le nommer : un champ d'une autre nature de
@@ -6371,7 +6371,7 @@ chaîne d'une seule liaison est la liaison interdite : le code le plus précis l
 engendrés par `wftools.mockgestures` : `nodes_indent_forbidden`, la mise en service mise en retrait
 sous le montage, la tâche au-dessus d'elle et son prédécesseur ; `nodes_move_cycle_refused`,
 « Documentation 1.1.7 », tâche tirée autour du cœur, déplacée sous « Préparation 1.1.1 », qu'elle
-suit par « Réalisation 1.1.4 ». `mockcore.schedule` refuse les deux structures que ces gestes
+suit par « Réalisation 1.1.4 ». `mockdating.schedule` refuse les deux structures que ces gestes
 laisseraient, comme celle que `predecessors_cycle_refused` laisserait : le faux back ne date pas ce
 que le serveur refuse. `createNode` ne déclare ni l'un ni l'autre (#1167, tranché par l'auteur le
 2026-10-19) : son corps ne porte pas de liaison (`TaskFacetWrite`, sans `predecessors`), et créer un
