@@ -23,12 +23,13 @@ import { serverClient } from "@/api/server";
 import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Revision } from "@/components/context/read-only";
+import type { Project } from "@/components/context/reading";
 import { COMPARISON_FIELDS, COMPARISON_KEY } from "@/components/revisions/comparison-rows";
 import {
   comparedRevisions,
   RevisionComparisonSection,
 } from "@/components/revisions/revision-comparison";
-import { RevisionHistory } from "@/components/revisions/revision-history";
+import { ReferenceDesignation, RevisionHistory } from "@/components/revisions/revision-history";
 import { CostStructureList, RateUpdate } from "@/components/revisions/revision-parts";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -54,14 +55,20 @@ export async function generateMetadata({
 }
 
 /** The title of the screen, and the commands of the revision it reads in at the right. */
-function RevisionsHeader({ revision }: { readonly revision: Revision | undefined }) {
+function RevisionsHeader({
+  revision,
+  project,
+}: {
+  readonly revision: Revision | undefined;
+  readonly project: Project;
+}) {
   const t = useTranslations();
   return (
     <PageHeader
       title={t("functions.revisions")}
       icon={FUNCTION_ICONS.revisions}
       density={FUNCTION_DENSITY.revisions}
-      actions={revision === undefined ? undefined : <RevisionCommands revision={revision} />}
+      actions={<RevisionCommands revision={revision} project={project} />}
     />
   );
 }
@@ -114,8 +121,9 @@ export default async function RevisionsPage(props: ProjectPageProps) {
     <>
       <ContextBanner reading={read} />
       <Screen density={FUNCTION_DENSITY.revisions}>
-        <RevisionsHeader revision={read.revision} />
+        <RevisionsHeader revision={read.revision} project={read.project} />
         <RevisionHistory revisions={revisions} context={read.context} />
+        <ReferenceDesignation revisions={revisions} projectId={address.projectId} />
         <RevisionComparisonSection
           revisions={revisions}
           action={address.pathname}
@@ -125,7 +133,16 @@ export default async function RevisionsPage(props: ProjectPageProps) {
           preferences={preferences}
         />
         {structures === undefined ? null : <CostStructureList structures={structures} />}
-        {rates === undefined ? null : <RateUpdate proposal={rates} />}
+        {rates === undefined || current === undefined ? null : (
+          <RateUpdate
+            proposal={rates}
+            apply={{
+              projectId: address.projectId,
+              revisionId: current.revision_id,
+              lockVersion: current.lock_version,
+            }}
+          />
+        )}
       </Screen>
     </>
   );

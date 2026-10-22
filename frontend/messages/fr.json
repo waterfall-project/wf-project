@@ -1013,6 +1013,31 @@
     "submit": "Marquer",
     "cancel": "Annuler"
   },
+  "revisionCommands": {
+    "create": "Ouvrir une révision en cours",
+    "cancel": "Annuler",
+    "abandon": {
+      "label": "Abandonner la révision en cours",
+      "statement": "Le projet revient à sa dernière révision marquée, et les lignes de la révision en cours sont supprimées. L’abandon est irréversible : il ne s’inscrit pas à l’historique que « Annuler » défait.",
+      "submit": "Confirmer l’abandon",
+      "done": "La révision en cours est abandonnée : le projet est revenu à sa dernière révision marquée."
+    },
+    "designate": {
+      "label": "Désigner comme référence",
+      "statement": "Désigner « {name} » comme référence fixe le budget de référence et la valeur planifiée du projet. Si le projet porte son code projet, il passe à l’état « {state} ».",
+      "submit": "Confirmer la désignation",
+      "done": "« {name} » est la révision de référence : le projet est à l’état « {state} »."
+    },
+    "rateUpdate": {
+      "label": "Appliquer la mise à jour des taux",
+      "statement": "Les taux de la révision en cours sont remplacés par les taux proposés, pour les catégories retenues ; les montants de ses lignes et de ses totaux sont rechiffrés. Une révision marquée garde les taux qu’elle a calculés.",
+      "categories": "Catégories mises à jour",
+      "change": "{category} : {previous} → {proposed}",
+      "noneRetained": "Retenez au moins une catégorie.",
+      "submit": "Confirmer la mise à jour",
+      "done": "{count, plural, one {Les taux d’# catégorie sont mis à jour.} other {Les taux de # catégories sont mis à jour.}}"
+    }
+  },
   "projectList": {
     "count": "{count, plural, one {# projet} other {# projets}}",
     "filter": {
@@ -1150,6 +1175,9 @@
       "notMarked": "Non marquée",
       "open": "Ouvrir",
       "openRevision": "Ouvrir la révision « {name} »"
+    },
+    "designation": {
+      "title": "Désignation de la référence"
     },
     "comparison": {
       "title": "Comparaison de deux révisions",

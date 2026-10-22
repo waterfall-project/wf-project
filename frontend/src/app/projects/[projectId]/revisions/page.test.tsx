@@ -420,13 +420,37 @@ describe("the parts of the revision the screen reads in", () => {
     expect(text(page)).not.toContain("Taux de l’année");
   });
 
+  it("offers the application of the rates under the proposal, and the designation of the reference under the history [WF-REV-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    };
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("available");
+    expect(text(page)).toContain("Désignation de la référence");
+    expect(offered(page, "Désigner comme référence")).toBe("unavailable");
+  });
+
+  it("offers no application of the rates when none is proposed [WF-REV-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update_none",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    };
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
+  });
+
   it("reads nothing of a revision when the address carries none", async () => {
     const page = html(await RevisionsPage(at()));
     expect(calls().map((call) => call.route)).not.toContain(
       "GET /projects/{project_id}/revisions/{revision_id}/structures",
     );
     expect(text(page)).not.toContain("Structures de coûts");
-    expect(page).not.toContain('aria-label="Commandes"');
+    // The commands of the project remain — the opening of a revision —, those of a revision do not.
+    expect(offered(page, "Marquer la révision")).toBe("absent");
+    expect(offered(page, "Ouvrir une révision en cours")).toBe("unavailable");
   });
 });
 
@@ -439,7 +463,7 @@ describe("the commands of the revision the screen reads in", () => {
       "Créer une structure",
       "Fusionner une structure",
       "Marquer la révision",
-      "Abandonner la révision",
+      "Abandonner la révision en cours",
     ]) {
       expect(offered(page, name)).toBe("available");
     }
@@ -459,7 +483,7 @@ describe("the commands of the revision the screen reads in", () => {
       "Créer une structure",
       "Fusionner une structure",
       "Marquer la révision",
-      "Abandonner la révision",
+      "Abandonner la révision en cours",
     ]) {
       expect(offered(page, name)).toBe("unavailable");
     }
@@ -473,8 +497,10 @@ describe("the commands of the revision the screen reads in", () => {
     };
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
     expect(offered(page, "Marquer la révision")).toBe("absent");
-    // The estimate, the one command left them, is offered by its grid: the screen lists none.
-    expect(page).not.toContain('aria-label="Commandes"');
+    // The estimate, the one command left them, is offered by its grid: the screen lists no command
+    // of the revision, and the opening of a revision, which the project lists, alone.
+    expect(offered(page, "Créer une structure")).toBe("absent");
+    expect(offered(page, "Abandonner la révision en cours")).toBe("absent");
   });
 
   it("presents the marking unavailable while a background task runs on the revision, naming the condition", async () => {
