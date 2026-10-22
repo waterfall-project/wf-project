@@ -108,7 +108,8 @@ _BEFORE_MARKING = {
 chronology, and the instant of the last write it had received: the rates of 2026 accepted from the
 revision 101 in progress (C-362, EP-15/US-0490), and the history read on 15 January before the
 offer is designated, where the 101 is still the one that update left (US-0490/L2). A revision
-of such an example marked before that instant says its marking as any other."""
+of such an example marked before that instant says its marking as any other; each renders at least
+one revision still in progress at that instant."""
 
 
 @pytest.fixture(scope="module")
@@ -176,6 +177,8 @@ def test_the_project_its_revisions_and_its_transitions_say_the_instants_of_the_c
     # The project is created before its offer is opened, passes to pricing with it, and is in
     # progress from the reception of the order (C11, #287); every example of its revisions says
     # when each was created and marked, and none is updated after today or before it is created.
+    # Each example read before a marking renders at least one revision still in progress.
+    in_progress = dict.fromkeys(_BEFORE_MARKING, 0)
     for path in sorted(mockwitness.FIXTURES.glob("*.json")):
         value = json.loads(path.read_text(encoding="utf-8"))["value"]
         for each in _audits(value):
@@ -192,11 +195,13 @@ def test_the_project_its_revisions_and_its_transitions_say_the_instants_of_the_c
                     assert created.instant < written, path.name
                     assert (each["status"], each["marked_at"]) == ("draft", None), path.name
                     assert audit["updated_at"] == mockhistory.stamp(written), path.name
+                    in_progress[path.name] += 1
                 elif marked is None:
                     assert (each["status"], each["marked_at"]) == ("draft", None), path.name
                 else:
                     assert each["marked_at"] == mockhistory.stamp(marked.instant), path.name
                     assert audit["updated_at"] == each["marked_at"], path.name
+    assert [name for name, count in in_progress.items() if count == 0] == []
     transitions = mockwitness.fixture("state_transitions")
     assert [(each["to_state"], each["occurred_at"]) for each in transitions] == [
         ("created", mockhistory.stamp(CREATED.instant)),

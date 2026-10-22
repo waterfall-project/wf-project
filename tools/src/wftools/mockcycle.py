@@ -6,18 +6,22 @@
 depuis la dernière désignation, et refusée au-delà » (WF-REV-0040). Today the witness has received
 actual costs and marked the revision 101 since the offer was designated: no revision of
 ``revisions`` offers the designation. ``revisions_designation_open`` reads the history at an
-earlier instant of the chronology, the morning of 15 January 2026, the order received and the
-offer not yet designated (``mockwitness.ORDER_RECEIVED``): no designation has happened, no actual
-cost has arrived, and the offer v1.0, marked on 15 December, lists the designation available.
+earlier instant of the chronology, ``READ_AT``, on 15 January 2026 a minute before the order is
+received and the offer designated (``mockwitness.ORDER_RECEIVED``): no designation has happened,
+no actual cost has arrived, and the offer v1.0, marked on 15 December, lists the designation
+available.
 
 Nothing is written by hand here. The offer is the one ``revisions`` lists, at the same version,
 its designation alone available; the revision 101, then in progress, is the one
-``rate_update_applied`` answers, at the same version — the last write it had received —, so that
-no revision is rendered at one version with two contents (#421).
+``rate_update_applied`` answers, at the same version — the last write it had received. The offer
+is so rendered at its version with one content. The 101 is not: it keeps its version 2 from
+before its marking to after it, ``draft`` here and in ``rate_update_applied``, ``marked`` in
+``revisions`` and ``revisions_marked`` — a known exemption of #421, followed by #1352.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, time
 from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
@@ -28,6 +32,9 @@ if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
 
 DESIGNATION = "designate_reference"
+READ_AT = datetime.combine(ORDER_RECEIVED.on, time(10, 59), UTC)
+"""The instant the history is read at: a minute before the order is received and the offer
+designated, after the update of the rates the revision 101 received last."""
 
 
 def _with_designation_open(revision: JsonObject) -> JsonObject:
@@ -45,7 +52,7 @@ def _with_designation_open(revision: JsonObject) -> JsonObject:
 
 
 def revisions_designation_open() -> JsonObject:
-    """Return what listRevisions answers on 15 January 2026, before the offer is designated.
+    """Return what listRevisions answers at ``READ_AT``, before the offer is designated.
 
     The revision 101, opened on 12 January, then the offer v1.0, from the most recent to the
     oldest; the revision 102 is not opened yet.
@@ -60,15 +67,17 @@ def examples() -> dict[str, JsonObject]:
     """Return the revisions of the witness while its designation is open, by file name."""
     return {
         "revisions_designation_open.json": mocktext.example(
-            f"Les révisions du projet témoin le {mocktext.day(ORDER_RECEIVED.on)}, à la "
-            f"réception de la commande, avant la désignation de "
-            f"{ORDER_RECEIVED.at.hour} h : un instant antérieur de la même chronologie. L'offre "
-            f"v1.0, marquée le 15 décembre pendant le chiffrage, propose sa désignation comme "
-            f"référence, disponible : aucune désignation n'a encore eu lieu, et le projet n'a "
-            f"reçu aucun coût réel (WF-REV-0040). La révision 101, en cours depuis le "
-            f"12 janvier, telle que l'a laissée la mise à jour des taux (rate_update_applied), "
+            f"Les révisions du projet témoin le {mocktext.day(READ_AT.date())} à "
+            f"{READ_AT.hour} h {READ_AT.minute:02d}, juste avant la réception de la commande et "
+            f"la désignation de {ORDER_RECEIVED.at.hour} h : un instant antérieur de la même "
+            f"chronologie. L'offre v1.0, marquée le 15 décembre pendant le chiffrage, propose sa "
+            f"désignation comme référence, disponible : aucune désignation n'a encore eu lieu, et "
+            f"le projet n'a reçu aucun coût réel (WF-REV-0040). La révision 101, en cours depuis "
+            f"le 12 janvier, telle que l'a laissée la mise à jour des taux (rate_update_applied), "
             f"attend son marquage pour être désignée ; la révision courante 102 n'est pas encore "
-            f"ouverte. La désignation qui suit est reference_designated.",
+            f"ouverte. La désignation qui suit est reference_designated. L'offre est celle que "
+            f"liste revisions, à la même version, sa désignation seule changée ; la 101 garde sa "
+            f"version 2 avant et après son marquage, exemption connue de #421 suivie par #1352.",
             revisions_designation_open(),
         ),
     }
