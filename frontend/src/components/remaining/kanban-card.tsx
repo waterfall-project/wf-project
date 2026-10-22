@@ -50,6 +50,9 @@ const ICONS: Readonly<Record<KanbanCommand, LucideIcon>> = {
   enter_remaining: PenLine,
 };
 
+/** The type of the data a card carries when dragged: no text a field would take on a drop. */
+const DRAG_TYPE = "application/x-waterfall-card";
+
 /** What a card tells of the last gesture asked of it: the refusal of the API, or a sentence. */
 export type Notice =
   | { readonly kind: "outcome"; readonly outcome: Outcome<unknown> }
@@ -453,8 +456,11 @@ export function Card({
         }
       }}
       onDragStart={(event) => {
-        event.dataTransfer.setData("text/plain", card.node_id);
+        // A type of its own: the identifier is no text a field where the card is dropped may take.
+        // Firefox starts no drag without data set.
+        event.dataTransfer.setData(DRAG_TYPE, card.node_id);
         event.dataTransfer.effectAllowed = "move";
+        actions.choose(card.node_id);
         actions.drag(card.node_id);
       }}
       onDragEnd={() => {

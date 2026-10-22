@@ -181,6 +181,11 @@ export function Kanban({
     if (writing !== undefined) {
       return;
     }
+    // The date asked on a card is not replaced by another card's: its entry would be lost unseen.
+    if (asking !== undefined && asking.id !== card.node_id) {
+      say(card.node_id, { kind: "said", sentence: t("asking") });
+      return;
+    }
     if (DATED.has(asked.command)) {
       setAsking({ id: card.node_id, gesture: asked });
       setFocusing({ id: card.node_id, form: true });

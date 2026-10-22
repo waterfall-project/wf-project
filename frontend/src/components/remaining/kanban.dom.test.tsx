@@ -144,8 +144,10 @@ function dataTransfer() {
 /** Fire an event of a drag on an element. */
 function drag(type: "dragStart" | "dragOver" | "drop" | "dragEnd", target: HTMLElement) {
   const event = createEvent[type](target);
-  Object.defineProperty(event, "dataTransfer", { value: dataTransfer() });
+  const carried = dataTransfer();
+  Object.defineProperty(event, "dataTransfer", { value: carried });
   fireEvent(target, event);
+  return carried;
 }
 
 /** Drag a card to a column and drop it there. */
@@ -266,7 +268,7 @@ describe("the gestures of the cards of the Kanban", () => {
       expect(document.querySelector("li[tabindex='0']")).toBe(card(label));
     }
 
-    it("reaches every card of the three columns from the first, by the keyboard alone", async () => {
+    it("reaches every card of the three columns from the first, by the keyboard alone [WF-IHM-0100-A]", async () => {
       serve({});
       const columns = columnsOfExample("startable_tasks");
       board(columns);
@@ -345,7 +347,7 @@ describe("the gestures of the cards of the Kanban", () => {
       expect(document.querySelector("li[tabindex='0']")).toBe(document.activeElement);
     });
 
-    it("describes every card by the help of the board, which says that Enter opens the menu of its gestures", () => {
+    it("describes every card by the help of the board, which says that Enter opens the menu of its gestures [WF-IHM-0100-A]", () => {
       serve({});
       board();
       const help = card("Montage des armoires sur site").getAttribute("aria-describedby");
@@ -356,7 +358,7 @@ describe("the gestures of the cards of the Kanban", () => {
       expect(card("Pupitres opérateurs")).toHaveAccessibleDescription(text);
     });
 
-    it("leaves Space alone on a card that lists no gesture: no menu opens, the key is not captured", () => {
+    it("leaves Space alone on a card that lists no gesture: no menu opens, the key is not captured [WF-IHM-0100-A]", () => {
       serve({});
       const columns = columnsOfExample("startable_tasks");
       const bare = columns.completed.map((each, index) =>
@@ -371,7 +373,7 @@ describe("the gestures of the cards of the Kanban", () => {
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     });
 
-    it("leaves the focus where the user put it when the menu is left by a click outside it", async () => {
+    it("leaves the focus where the user put it when the menu is left by a click outside it [WF-IHM-0100-A]", async () => {
       serve({});
       board();
       const label = "Montage des armoires sur site";
@@ -382,7 +384,11 @@ describe("the gestures of the cards of the Kanban", () => {
       await waitFor(() => {
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       });
-      expect(card(label)).not.toHaveFocus();
+      // The focus is not brought back to the card: it stays on the button of the menu, where
+      // Radix leaves it after an interaction outside (a real click would put it where it lands).
+      expect(
+        within(card(label)).getByRole("button", { name: `Gestes de la tâche ${label}` }),
+      ).toHaveFocus();
     });
 
     it("gives the stop of Tab back to the first card when the card chosen leaves the reading", async () => {
@@ -485,7 +491,7 @@ describe("the gestures of the cards of the Kanban", () => {
     ).toBeNull();
   });
 
-  it("carries a card dropped on a column by the gesture it lists, which asks its date first, and the focus follows the card [WF-RAE-0030-A]", async () => {
+  it("carries a card dropped on a column by the gesture it lists, which asks its date first, and the focus follows the card [WF-IHM-0100-A]", async () => {
     const client = serve({ [PROGRESS]: "task_started" });
     board();
     drag("dragStart", card("Montage des armoires sur site"));
@@ -511,7 +517,7 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(column("Démarrées").className).not.toContain("outline-dashed");
   });
 
-  it("makes a card draggable only when it lists a gesture that sends a state, and never while one is written [WF-RAE-0030-A]", async () => {
+  it("makes a card draggable only when it lists a gesture that sends a state, and never while one is written [WF-IHM-0100-A]", async () => {
     const wait = held();
     serve({ [PROGRESS]: "task_started" }, wait.until);
     const columns = columnsOfExample("startable_tasks");
@@ -532,6 +538,110 @@ describe("the gestures of the cards of the Kanban", () => {
     await waitFor(() => {
       expect(card("Pupitres opérateurs")).toHaveAttribute("draggable", "true");
     });
+  });
+
+  it("chooses the card dragged, which a drag with no click on it leaves unchosen, and the focus follows it to its column [WF-IHM-0100-A]", async () => {
+    serve({ [PROGRESS]: "task_started" });
+    board();
+    await userEvent.click(card("Pupitres opérateurs"));
+    expect(card("Pupitres opérateurs")).toHaveAttribute("aria-current", "true");
+    dragTo("Montage des armoires sur site", "Démarrées");
+    const field = await within(card("Montage des armoires sur site")).findByLabelText(
+      "Date de l’événement",
+    );
+    expect(card("Pupitres opérateurs")).not.toHaveAttribute("aria-current", "true");
+    await userEvent.type(field, "{Enter}");
+    await waitFor(() => {
+      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
+    });
+    expect(card("Montage des armoires sur site")).toHaveFocus();
+    expect(card("Montage des armoires sur site")).toHaveAttribute("aria-current", "true");
+  });
+
+  it("does nothing for a card dropped while a gesture is written [WF-IHM-0100-A]", async () => {
+    const wait = held();
+    const client = serve({ [PROGRESS]: "task_started" }, wait.until);
+    board();
+    await choose("Montage des armoires sur site", "Démarrer");
+    await userEvent.click(
+      within(card("Montage des armoires sur site")).getByRole("button", { name: "Démarrer" }),
+    );
+    await waitFor(() => {
+      expect(written(client)).toHaveLength(1);
+    });
+    dragTo("Mise en service", "Démarrées");
+    expect(within(card("Mise en service")).queryByLabelText("Date de l’événement")).toBeNull();
+    expect(within(card("Mise en service")).queryByRole("alert")).toBeNull();
+    expect(written(client)).toHaveLength(1);
+    wait.release();
+    await waitFor(() => {
+      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
+    });
+  });
+
+  it("is not draggable when it asks its date, nor when it lists the remaining to commit alone [WF-IHM-0100-A]", async () => {
+    serve({});
+    const columns = columnsOfExample("startable_tasks");
+    const only = columns.not_started.map((each) =>
+      each.label === "Mise en service"
+        ? { ...each, commands: each.commands.filter((one) => one.command === "enter_remaining") }
+        : each,
+    );
+    board({ ...columns, not_started: only });
+    const alone = card("Mise en service");
+    expect(alone).toHaveAttribute("draggable", "false");
+    await userEvent.click(card("Montage des armoires sur site"));
+    expect(card("Montage des armoires sur site")).toHaveAttribute("draggable", "true");
+    await userEvent.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
+    expect(card("Montage des armoires sur site")).toHaveAttribute("draggable", "false");
+  });
+
+  it("keeps the date asked on a card when another is dropped or carried, and says so on that other [WF-IHM-0100-A]", async () => {
+    const client = serve({ [PROGRESS]: "task_started" });
+    board();
+    const user = userEvent.setup();
+    await user.click(card("Montage des armoires sur site"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const field = await within(card("Montage des armoires sur site")).findByLabelText(
+      "Date de l’événement",
+    );
+    fireEvent.change(field, { target: { value: "2026-06-01" } });
+    const sentence =
+      "Une date est déjà demandée sur une autre tâche : validez-la ou abandonnez-la avant de demander ce geste.";
+    dragTo("Mise en service", "Démarrées");
+    expect(within(card("Mise en service")).getByRole("alert").textContent).toBe(sentence);
+    expect(within(card("Mise en service")).queryByLabelText("Date de l’événement")).toBeNull();
+    expect(
+      within(card("Montage des armoires sur site")).getByLabelText("Date de l’événement"),
+    ).toHaveValue("2026-06-01");
+    // The same by the keys.
+    await user.click(card("Mise en service"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(within(card("Mise en service")).getByRole("alert").textContent).toBe(sentence);
+    expect(
+      within(card("Montage des armoires sur site")).getByLabelText("Date de l’événement"),
+    ).toHaveValue("2026-06-01");
+    expect(written(client)).toEqual([]);
+  });
+
+  it("carries a card by a type of its own, which a field where it is dropped does not take as text [WF-IHM-0100-A]", async () => {
+    serve({ [PROGRESS]: "task_started" });
+    board();
+    const user = userEvent.setup();
+    await user.click(card("Montage des armoires sur site"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const field = await within(card("Montage des armoires sur site")).findByLabelText(
+      "Date de l’événement",
+    );
+    const carried = drag("dragStart", card("Mise en service"));
+    expect(carried.setData).toHaveBeenCalledWith(
+      "application/x-waterfall-card",
+      expect.any(String),
+    );
+    expect(carried.setData).not.toHaveBeenCalledWith("text/plain", expect.anything());
+    drag("drop", field);
+    expect(field).toHaveValue("2026-06-03");
   });
 
   it("reopens a milestone completed to not started and any other task to started, as the card says it [WF-RAE-0030-A]", async () => {

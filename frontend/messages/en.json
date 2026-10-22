@@ -771,7 +771,8 @@
     "dateRequired": "Enter the date of the event.",
     "cancel": "Cancel",
     "noGesture": "No gesture leads this task to the column “{column}”.",
-    "gestureUnavailable": "“{command}” is unavailable. {conditions}"
+    "gestureUnavailable": "“{command}” is unavailable. {conditions}",
+    "asking": "A date is already asked on another task: enter it or give it up before asking this gesture."
   },
   "contextBanner": {
     "label": "Reading context",

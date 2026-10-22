@@ -771,7 +771,8 @@
     "dateRequired": "Saisissez la date de l’événement.",
     "cancel": "Annuler",
     "noGesture": "Aucun geste ne mène cette tâche vers la colonne « {column} ».",
-    "gestureUnavailable": "« {command} » est indisponible. {conditions}"
+    "gestureUnavailable": "« {command} » est indisponible. {conditions}",
+    "asking": "Une date est déjà demandée sur une autre tâche : validez-la ou abandonnez-la avant de demander ce geste."
   },
   "contextBanner": {
     "label": "Contexte de lecture",

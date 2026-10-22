@@ -201,7 +201,7 @@ test("completes a milestone without a line from the Kanban, from its menu, at a 
   await expect(card).toBeFocused();
 });
 
-test("carries a card by a drag and by the keys, the arrows choosing the cards from column to column, and says on the card a gesture it does not list [WF-RAE-0030-A]", async ({
+test("carries a card by a drag and by the keys, the arrows choosing the cards from column to column, and says on the card a gesture it does not list [WF-RAE-0030-A] [WF-IHM-0100-A]", async ({
   page,
 }) => {
   // Aucune commande ne fait passer une tâche démarrée à l'état non démarré: the cards of the
