@@ -100,8 +100,15 @@
           cent chronologies, un nom de grille, de colonne, de filtre, de chronologie ou de tâche
           de plus de 64 caractères, plus de 64 colonnes masquées, largeurs ou tâches placées,
           plus de 20 filtres, un filtre de plus de 500 caractères (`DisplayPreferences`, #874) — :
-          `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Rien n'est
-          enregistré.
+          `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Les cent grilles
+          et les cent chronologies bornent aussi ce que les préférences gardent, une fois la
+          modification fusionnée à ce qu'elles étaient : une modification qui porterait `grids`
+          ou `timelines` au-delà de cent entrées est refusée sur `/grids` ou `/timelines` par
+          `VALUE_TOO_LONG` (#1235) ; une modification qui ne les accroît pas ne l'est jamais pour
+          leur taille. Rien n'est enregistré dans Waterfall. Une réserve : ce refus au-delà de
+          cent entrées, qui se juge sur les préférences du compte verrouillé, vient après que la
+          langue envoyée a été transmise au fournisseur d'identité (WF-INTF-0160), qui a pu la
+          prendre ; choisir de nouveau la langue affichée répare le désaccord.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

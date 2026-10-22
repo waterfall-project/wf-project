@@ -33,9 +33,9 @@
       {"probability_level":4,"severity_level":4,"count":0,"zone":"alert"}
     ],
     "points": [
-      {"risk_id":"01926f3a-7c00-7000-8000-000000000751","label":"Risque de reprise du câblage","probability":"0.4","severity_amount":"1250000.00","severity_ratio":"0.0191","provision_amount":"500000.00","state":"identified","zone":"watch"},
-      {"risk_id":"01926f3a-7c00-7000-8000-000000000752","label":"Retard de livraison des armoires","probability":"0.3","severity_amount":"200.00","severity_ratio":"0.000003","provision_amount":"60.00","state":"occurred","zone":"nominal"},
-      {"risk_id":"01926f3a-7c00-7000-8000-000000000753","label":"Indisponibilité de l'automaticien","probability":"0.05","severity_amount":"12000000.00","severity_ratio":"0.1834","provision_amount":"600000.00","state":"dismissed","zone":"watch"}
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000751","label":"Risque de reprise du câblage","probability":"0.4","severity_amount":"1250000.00","severity_ratio":{"is_computable":true,"value":"0.0191","reason":null},"provision_amount":"500000.00","state":"identified","zone":"watch"},
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000752","label":"Retard de livraison des armoires","probability":"0.3","severity_amount":"200.00","severity_ratio":{"is_computable":true,"value":"0.000003","reason":null},"provision_amount":"60.00","state":"occurred","zone":"nominal"},
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000753","label":"Indisponibilité de l'automaticien","probability":"0.05","severity_amount":"12000000.00","severity_ratio":{"is_computable":true,"value":"0.1834","reason":null},"provision_amount":"600000.00","state":"dismissed","zone":"watch"}
     ],
     "totals": {"identified":"500000.00","occurred":"60.00","dismissed":"600000.00","total":"1100060.00","reserve":"850060.00"}
   }

@@ -974,6 +974,7 @@
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
               hours_beyond_day: { $ref: ../../../fixtures/api/task_hours_beyond_day.json }
+              hours_below_zero: { $ref: ../../../fixtures/api/task_hours_below_zero.json }
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
               attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_work_package.json }
               attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }
@@ -1116,10 +1117,12 @@
   put:
     operationId: setTaskProgress
     tags: [remaining]
-    summary: Démarrer ou terminer une tâche
+    summary: Démarrer, terminer ou rouvrir une tâche
     description: >-
-      La date du geste fait foi et situe la valeur acquise (WF-RAE-0030, WF-IND-0030).
-      Refusé sur une récapitulative, dont l'état est dérivé (WF-PLA-0040).
+      Le geste d'une carte du Kanban, l'état envoyé étant celui que la carte nomme
+      (`KanbanCommandAvailability.progress`). La date du geste fait foi et situe la valeur
+      acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130). Refusé sur une récapitulative, dont
+      l'état est dérivé (WF-PLA-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1133,16 +1136,45 @@
     responses:
       '200':
         description: >-
-          État enregistré ; l'avancement des récapitulatives au-dessus recalculé
-          (`NodesWritten`).
+          État enregistré ; la tâche, une version de plus, et l'avancement des récapitulatives
+          au-dessus recalculé (`NodesWritten`). Les lignes de la tâche ne sont pas rendues : elles
+          ne sont pas écrites, mais ce qu'elles acceptent suit l'état de leur tâche — une ligne
+          d'une tâche démarrée ou terminée dont le sous-projet a reçu des coûts réels ne nomme plus
+          `estimate_line.subproject_id` (WF-PRJ-0050), une ligne d'une tâche terminée n'accepte
+          plus la réestimation (`remaining_entry`, WF-RAE-0040) —, et une grille qui les tient
+          relit les lignes de la tâche (`listNodes`, `subtree_of`) avant d'en offrir une saisie
+          (#1154).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              task_started: { $ref: ../../../fixtures/api/task_started.json }
+              milestone_completed: { $ref: ../../../fixtures/api/milestone_completed.json }
+              task_reopened: { $ref: ../../../fixtures/api/task_reopened.json }
+              milestone_reopened: { $ref: ../../../fixtures/api/milestone_reopened.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          L'état ou la nature de la tâche interdit le geste, rien n'étant écrit :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition
+          qui manque, comme la carte du Kanban la dit (`KanbanCommand`) — `task_is_milestone`,
+          une tâche non démarrée qui n'est pas un jalon envoyée à `completed` ;
+          `task_without_lines`, une tâche qui porte une ligne hors provision envoyée à
+          `completed`, que la saisie de son reste à engager termine (WF-RAE-0040) ;
+          `task_not_milestone`, un jalon envoyé à `started`, qui ne démarre jamais
+          (WF-PLA-0050) ; `completed_milestone`, `not_started` envoyé pour une tâche qui n'est
+          pas un jalon terminé (`reopen_not_started_refused`, WF-RAE-0030) —, puis les conditions
+          de la saisie du reste à engager (`StructureCommand.edit_remaining`) :
+          `project_in_progress`, `no_background_task_running`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              reopen_not_started_refused:
+                $ref: ../../../fixtures/api/task_reopen_not_started_refused.json
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

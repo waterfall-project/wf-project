@@ -290,10 +290,10 @@ def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
     if placed.task.children:
         states = {progress_at(dated, child.number, today) for child in placed.task.children}
         return states.pop() if len(states) == 1 else "started"
-    declared = placed.task.progress
+    declared, on = placed.task.progress, placed.task.declared_on or placed.finish.day
     # A completion declared is a gesture made on the day the task completed: before it, the
     # task reads as its dates say (WF-PLA-0130).
-    if declared is not None and not (declared == "completed" and placed.finish.day > today):
+    if declared is not None and not (declared == "completed" and on > today):
         return declared
     if placed.task.is_milestone:
         # Nothing completes by itself (WF-RAE-0030): a milestone is completed by a gesture
@@ -570,7 +570,8 @@ class _Emitter:
     def _dates_of(self, task: Task, state: str) -> tuple[date | None, date | None]:
         """Return when a task started and when it completed, as far as it has (WF-PLA-0130).
 
-        A task starts on its first day and completes on its last; a milestone goes from not
+        A task starts on its first day and completes on its last, or on the day of the gesture
+        that declared it (``Task.declared_on``); a milestone goes from not
         started to completed and never starts (WF-PLA-0050); a summary starts with the first of
         its subordinates and completes with the last.
         """
@@ -586,11 +587,11 @@ class _Emitter:
             return min(starts, default=None), max(
                 ends, default=None
             ) if state == "completed" else None
-        placed = self.dated[task.number]
-        completed = placed.finish.day if state == "completed" else None
+        placed, on = self.dated[task.number], task.declared_on
+        completed = (on or placed.finish.day) if state == "completed" else None
         if task.is_milestone or state == "not_started":
             return None, completed
-        return placed.start.day, completed
+        return on if on is not None and state == "started" else placed.start.day, completed
 
     def _physical_progress(self, summary: Task) -> JsonObject:
         """Return the physical progress of a summary (WF-IND-0060).

@@ -264,7 +264,9 @@ def task_attached() -> JsonObject:
     The milestone of the deliverable of the post, the report of the factory acceptance, bears
     the post of the one lot of the witness, which the summary above it bears: a leaf may bear a
     post, and the task of the post is in the subtree of the task of its lot (WF-PLA-0170, #817).
-    No other write renders the milestone: two answers never render it at one version (#421).
+    Of the writes here, none other renders the milestone; the Kanban's completion of it
+    (``wftools.mockkanban``, `milestone_completed`) follows this one, one version further: two
+    answers never render it at one version (#421).
     """
     return core_write(amended(CORE, on_task(MILESTONE, bears=FIRST_ITEM)), [MILESTONE])
 

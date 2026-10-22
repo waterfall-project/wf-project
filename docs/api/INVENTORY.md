@@ -174,7 +174,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-IHM-0040, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160, WF-PLA-0170 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-DEV-0040, WF-IHM-0040, WF-PLA-0010, WF-PRJ-0050, WF-RIS-0010 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Remplacer les prédécesseurs d'une tâche | WF-PLA-0030, WF-PLA-0040, WF-PLA-0150, WF-PLA-0160 |
-| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Démarrer ou terminer une tâche | WF-IND-0030, WF-PLA-0040, WF-RAE-0030 |
+| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Démarrer, terminer ou rouvrir une tâche | WF-IND-0030, WF-PLA-0040, WF-PLA-0130, WF-RAE-0030 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Réestimer une ligne | WF-PLA-0130, WF-RAE-0030, WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Inscrire ou retirer une tâche des suivis | WF-PLA-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-DEV-0040, WF-PLA-0020, WF-PLA-0030, WF-PLA-0040, WF-PLA-0150, WF-PLA-0170 |
@@ -194,7 +194,7 @@ Le contrat cite **187 des 211 exigences** de la spécification.
 | GET | `/projects/{project_id}/estimate-indicators/missing-rates` | Taux horaires manquants pour le calcul | WF-CYC-0120, WF-DEV-0010, WF-REV-0060 |
 | GET | `/projects/{project_id}/workload` | Plan de charge du projet | WF-DEV-0070 |
 | GET | `/projects/{project_id}/remaining-indicators` | Indicateurs de reste à engager | WF-IND-0020, WF-RAE-0020 |
-| GET | `/projects/{project_id}/remaining-indicators/startable-tasks` | Tâches du Kanban, par état | WF-PLA-0040, WF-RAE-0030 |
+| GET | `/projects/{project_id}/remaining-indicators/startable-tasks` | Tâches du Kanban, par état | WF-IHM-0090, WF-PLA-0040, WF-RAE-0030 |
 | GET | `/projects/{project_id}/indicators` | Indicateurs de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0080 |
 | GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0020, WF-IND-0090 |
 | GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0100 |

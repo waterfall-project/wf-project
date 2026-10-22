@@ -338,11 +338,12 @@ def matrix_cell(risk: Risk, budget: Decimal) -> JsonObject:
     """Return the cell of a risk in the matrix, and the zone the installation gives the cell.
 
     Its probability on the bounds of probability; its severity, a share of the reference budget,
-    on those of severity (WF-RIS-0040, WF-REF-0160).
+    on those of severity (WF-RIS-0040, WF-REF-0160) — at the lowest level on a budget of nothing,
+    where the share is not computable (#1240).
     """
     settings = fixture("reference_settings")["risk_matrix"]
     probability = level(risk.last.probability, settings["probability_bounds"])
-    severity = level(risk.last.severity / budget, settings["severity_bounds"])
+    severity = level(risk.last.severity / budget, settings["severity_bounds"]) if budget else 1
     count = len(settings["severity_bounds"]) + 1
     zone = settings["zones"][(probability - 1) * count + severity - 1]
     return {"probability_level": probability, "severity_level": severity, "zone": zone}
@@ -353,15 +354,20 @@ def matrix_point(risk: Risk, budget: Decimal) -> JsonObject:
 
     Its probability, its severity in amount and as a share of the budget given, rounded, its
     provision, its state, and the zone of its cell, which classes the exact share (WF-RIS-0040,
-    WF-REF-0160).
+    WF-REF-0160). On a budget of nothing, the share is not computable (#1240).
     """
     last = risk.last
+    ratio: JsonObject = (
+        {"is_computable": True, "value": str(share(last.severity / budget)), "reason": None}
+        if budget
+        else {"is_computable": False, "value": None, "reason": "no_reference_budget"}
+    )
     return {
         "risk_id": universe(risk.number),
         "label": risk.label,
         "probability": str(last.probability),
         "severity_amount": money(last.severity),
-        "severity_ratio": str(share(last.severity / budget)),
+        "severity_ratio": ratio,
         "provision_amount": money(provision(risk)),
         "state": last.state,
         "zone": matrix_cell(risk, budget)["zone"],
@@ -907,6 +913,16 @@ def examples() -> dict[str, JsonObject]:
             f"l'écran filtre par état (#1053) ; et les totaux de provisions "
             "(WF-RIS-0040, WF-REF-0160).",
             read["risk_matrix"],
+        ),
+        "risk_matrix_no_basis.json": mocktext.example(
+            "Variante contrefactuelle : le registre du témoin lu sur une assiette nulle, comme "
+            "sur un projet sans budget de référence dont le devis ne porte encore que des "
+            "provisions. La gravité ne se rapporte à rien : la part de chaque risque n'est pas "
+            "calculable (`no_reference_budget`), et chacun est au niveau de gravité le plus "
+            "bas, compté dans la case de sa probabilité ; le graphique ne trace pas de bulle "
+            "sans ordonnée. Les niveaux, les zones et les totaux de provisions sont ceux de la "
+            "matrice du témoin (WF-RIS-0040, WF-REF-0160, #1240).",
+            matrix(reference_rows(), Decimal(0)),
         ),
         "risk_reviews.json": mocktext.example(
             f"L'historique des réexamens de « {rework.label} », du plus récent au plus ancien : "

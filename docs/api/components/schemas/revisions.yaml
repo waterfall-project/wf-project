@@ -551,12 +551,80 @@ NodeChange:
     réestimé, qui disent ses grandeurs, et son parent, la tâche qui la porte. Le montant d'une
     tâche est celui de ses lignes, qui le disent.
 
-NotStartedTask:
+KanbanTask:
   description: >-
-    Une tâche non démarrée du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et si
-    tous ses prédécesseurs sont terminés.
+    Une tâche du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et les gestes que sa
+    carte offre, que le front ne déduit ni de son état ni de ses lignes (WF-IHM-0090).
   allOf:
     - $ref: '#/Node'
+    - type: object
+      required: [available_commands]
+      properties:
+        available_commands:
+          type: array
+          readOnly: true
+          description: >-
+            Les gestes de la carte que l'appelant a la permission d'exercer — celle de la
+            saisie du reste à engager, `remaining.write`, dont le Kanban relève (FBS-4.5.3) ;
+            sans elle, la liste est vide —, dans l'ordre de `KanbanCommand`, chacun disponible
+            ou non avec les conditions qui lui manquent.
+          items: { $ref: '#/KanbanCommandAvailability' }
+
+KanbanCommand:
+  type: string
+  enum: [start, complete, reopen, enter_remaining]
+  description: >-
+    Les gestes d'une carte du Kanban (WF-RAE-0030). Une carte ne liste que ceux que son état
+    et sa nature admettent ; ceux qu'une condition retient y sont indisponibles, la condition
+    nommée. Une ligne de provision ne compte pas parmi les lignes d'une tâche : elle ne la
+    retient ni de se terminer depuis le Kanban, ni ne la renvoie à la saisie du reste à engager
+    (WF-PLA-0050, WF-RIS-0010).
+
+    `start` passe à démarrée une tâche non démarrée qui n'est pas un jalon : un jalon ne
+    démarre jamais, et la carte d'un jalon ne la liste pas (WF-PLA-0050). Les prédécesseurs
+    n'en sont pas une condition. `complete` termine une tâche non démarrée ou démarrée, à la
+    date saisie (`ProgressUpdate.occurred_on`, WF-PLA-0130) : listée sur toute carte qui n'est
+    pas terminée, elle manque de `task_is_milestone` pour une tâche non démarrée qui n'est pas
+    un jalon — le passage direct de non démarrée à terminée n'est ouvert qu'à un jalon —, et de
+    `task_without_lines` pour une tâche qui porte une ligne hors provision, que la saisie d'un
+    reste à engager nul sur toutes ses lignes termine (WF-RAE-0040), dans cet ordre.
+    `reopen` rouvre une tâche terminée : un jalon redevient non démarré, sa date de
+    terminaison effacée, toute autre tâche redevient démarrée ; listée sur toute carte
+    terminée, et sur elle seule. `enter_remaining` renvoie à la grille de reste à engager, sur
+    la tâche, et n'écrit rien : listée sur la carte d'une tâche non terminée qui porte une
+    ligne hors provision, et sur elle seule — c'est le geste qui la termine, `complete` y
+    manquant de `task_without_lines`, ou qui la réestime avant même qu'elle démarre.
+
+    Après les conditions propres au geste viennent celles de la saisie du reste à engager de
+    la structure principale (`StructureCommand.edit_remaining`), dans le même ordre :
+    `project_in_progress` hors de l'état En cours, `no_background_task_running` pendant un
+    traitement de fond qui écrit dans la révision en cours ou la fige.
+
+KanbanCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions, progress]
+  properties:
+    command: { $ref: '#/KanbanCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque le geste est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+    progress:
+      anyOf: [{ $ref: '#/TaskProgress' }, { type: 'null' }]
+      description: >-
+        L'état que le geste envoie à `setTaskProgress` (`ProgressUpdate.progress`) :
+        `started` pour `start`, `completed` pour `complete`, `not_started` pour la
+        réouverture d'un jalon et `started` pour celle de toute autre tâche ; nul pour
+        `enter_remaining`, qui n'écrit rien. Le front envoie cet état, sans le déduire de la
+        nature de la tâche.
+
+NotStartedTask:
+  description: >-
+    Une tâche non démarrée du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud et ses
+    gestes (`KanbanTask`), et si tous ses prédécesseurs sont terminés.
+  allOf:
+    - $ref: '#/KanbanTask'
     - type: object
       required: [predecessors_completed]
       properties:
@@ -1553,16 +1621,19 @@ ProgressUpdate:
   type: object
   required: [progress, lock_version]
   description: >-
-    Démarre ou termine une tâche. La date est celle du geste par défaut, et la
-    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030). Une tâche terminée
-    se rouvre en la repassant à « démarrée » ; aucun geste ne la ramène à « non
-    démarrée », que le Kanban n'offre pas (WF-RAE-0030). Le passage direct de non
-    démarrée à terminée n'est ouvert qu'à un jalon, et l'opération est refusée sur une
-    récapitulative, dont l'état est dérivé (WF-PLA-0040, WF-PLA-0050).
+    Démarre, termine ou rouvre une tâche, le geste d'une carte du Kanban
+    (`KanbanCommandAvailability.progress`). La date est celle du geste par défaut, et la
+    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130). Une tâche
+    terminée se rouvre : un jalon en le ramenant à « non démarrée », sa date de terminaison
+    effacée — seul cas où une tâche revient à cet état —, toute autre tâche en la repassant à
+    « démarrée » (WF-RAE-0030). `not_started` envoyé pour une tâche qui n'est pas un jalon
+    terminé est refusé par 409, `missing_condition` à `completed_milestone` : une tâche
+    démarrée par erreur se corrige en annulant la saisie (WF-IHM-0110). Le passage direct de
+    non démarrée à terminée n'est ouvert qu'à un jalon, un jalon ne démarre jamais, et
+    l'opération est refusée sur une récapitulative, dont l'état est dérivé (WF-PLA-0040,
+    WF-PLA-0050).
   properties:
-    progress:
-      allOf: [{ $ref: '#/TaskProgress' }]
-      enum: [started, completed]
+    progress: { $ref: '#/TaskProgress' }
     occurred_on: { $ref: ../common.yaml#/PlanningDate }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 

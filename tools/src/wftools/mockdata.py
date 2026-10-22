@@ -84,6 +84,7 @@ from wftools import (
     mockgestures,
     mockhistory,
     mockids,
+    mockkanban,
     mocklists,
     mockportfoliotime,
     mockreference,
@@ -341,6 +342,7 @@ def named() -> dict[str, JsonObject]:
     return {
         **readings(),
         **mockwrites.writes(),
+        **mockkanban.examples(),
         **mockgestures.examples(),
         **mockamendmentwrites.examples(),
         **mockexchanges.examples(),
@@ -404,8 +406,8 @@ def readings() -> dict[str, JsonObject]:
     total = cast("JsonObject", estimate["totals"])
     [provision] = [row.amounts.base for row in rows if row.number == _PROVISION]
     # The Kanban of the whole structure, today and after the wiring declared completed (#528).
-    today = mockcore.startable(rows)
-    gesture = mockcore.startable(mockcore.current(described(wiring_completed())))
+    today = mockkanban.kanban(rows)
+    gesture = mockkanban.kanban(mockcore.current(described(wiring_completed())))
     core = {universe(row.number) for row in rows if row.number < mockwitness.GENERATED}
     return {
         "nodes.json": _example(
@@ -579,8 +581,14 @@ def readings() -> dict[str, JsonObject]:
             f"tâches par état, chaque colonne dans l'ordre du plan : {mocktext.kanban(today, core)}"
             f". La réception usine attend la fin du câblage, et rien ne se termine seul ; les "
             f"pupitres opérateurs sont en mode manuel et en dépassement de fin ; les terminées "
-            f"portent leur date, et le Kanban les rouvre. Jamais une récapitulative, dont l'état "
-            f"dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040).",
+            f"portent leur date, et le Kanban les rouvre. Chaque carte liste ses gestes et l'état "
+            f"que chacun envoie (available_commands) : la réception usine, jalon sans ligne, se "
+            f"termine sans démarrer ; le montage des armoires sur site démarre, et ne se termine "
+            f"que par la saisie de son reste à engager, comme le câblage des armoires, démarré ; "
+            f"les pupitres opérateurs, démarrés sans ligne, se terminent ; une tâche terminée se "
+            f"rouvre démarrée, la réception des études, jalon, non démarrée. Jamais une "
+            f"récapitulative, dont l'état dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040, "
+            f"WF-PLA-0050, WF-IHM-0090).",
             today,
         ),
         "startable_tasks_milestone.json": _example(

@@ -639,6 +639,17 @@ def _loads(plan: JsonObject) -> str:
     return " ; ".join(said)
 
 
+def _totals(plan: JsonObject) -> str:
+    """Say the totals of the months of a workload: their span, the least and the greatest."""
+    totals = _objs(plan["monthly_totals"])
+    hours = [Decimal(cast("str", month["hours"])) for month in totals]
+    return (
+        f"le total de chaque mois, de {_month(totals[0]['month'])} à "
+        f"{_month(totals[-1]['month'])} sans trou, de {mocktext.amount(min(hours))} à "
+        f"{mocktext.amount(max(hours))} h, que le sommet de la barre porte (monthly_totals, #1247)"
+    )
+
+
 def _workload_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     now, filtered = _get(found, "workload"), _get(found, "workload_org_node")
     kept = {cast("str", role["resource_role_id"]) for role in _objs(filtered["roles"])}
@@ -656,11 +667,12 @@ def _workload_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"Le plan de charge du projet sur le reste à engager de la révision en cours, au "
             f"{_TODAY} : par rôle et par mois, les heures des lignes de main-d'œuvre des tâches "
             f"non terminées, chacune étalée sur les heures ouvrées de sa tâche après la date de "
-            f"calcul — aucun mois passé — : {_loads(now)} (WF-DEV-0070)."
+            f"calcul — aucun mois passé — : {_loads(now)} ; et {_totals(now)} (WF-DEV-0070)."
         ),
         "workload_reference_budget": (
             f"Le même plan de charge sur les montants budgétés de la révision de référence, chaque "
-            f"ligne étalée sur toute la durée de sa tâche : {reference} (WF-DEV-0070)."
+            f"ligne étalée sur toute la durée de sa tâche : {reference} ; et "
+            f"{_totals(_get(found, 'workload_reference_budget'))} (WF-DEV-0070)."
         ),
         "workload_marked_remaining": (
             f"Le même plan de charge sur les montants réestimés de la révision marquée "

@@ -1,0 +1,42 @@
+{
+  "summary": "Variante contrefactuelle : le registre du témoin lu sur une assiette nulle, comme sur un projet sans budget de référence dont le devis ne porte encore que des provisions. La gravité ne se rapporte à rien : la part de chaque risque n'est pas calculable (`no_reference_budget`), et chacun est au niveau de gravité le plus bas, compté dans la case de sa probabilité ; le graphique ne trace pas de bulle sans ordonnée. Les niveaux, les zones et les totaux de provisions sont ceux de la matrice du témoin (WF-RIS-0040, WF-REF-0160, #1240).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "probability_levels": [
+      {"level":1,"lower":"0","upper":"0.1"},
+      {"level":2,"lower":"0.1","upper":"0.3"},
+      {"level":3,"lower":"0.3","upper":"0.6"},
+      {"level":4,"lower":"0.6","upper":null}
+    ],
+    "severity_levels": [
+      {"level":1,"lower":"0","upper":"0.01"},
+      {"level":2,"lower":"0.01","upper":"0.05"},
+      {"level":3,"lower":"0.05","upper":"0.1"},
+      {"level":4,"lower":"0.1","upper":null}
+    ],
+    "cells": [
+      {"probability_level":1,"severity_level":1,"count":1,"zone":"nominal"},
+      {"probability_level":1,"severity_level":2,"count":0,"zone":"nominal"},
+      {"probability_level":1,"severity_level":3,"count":0,"zone":"nominal"},
+      {"probability_level":1,"severity_level":4,"count":0,"zone":"watch"},
+      {"probability_level":2,"severity_level":1,"count":0,"zone":"nominal"},
+      {"probability_level":2,"severity_level":2,"count":0,"zone":"nominal"},
+      {"probability_level":2,"severity_level":3,"count":0,"zone":"watch"},
+      {"probability_level":2,"severity_level":4,"count":0,"zone":"watch"},
+      {"probability_level":3,"severity_level":1,"count":2,"zone":"nominal"},
+      {"probability_level":3,"severity_level":2,"count":0,"zone":"watch"},
+      {"probability_level":3,"severity_level":3,"count":0,"zone":"watch"},
+      {"probability_level":3,"severity_level":4,"count":0,"zone":"alert"},
+      {"probability_level":4,"severity_level":1,"count":0,"zone":"watch"},
+      {"probability_level":4,"severity_level":2,"count":0,"zone":"watch"},
+      {"probability_level":4,"severity_level":3,"count":0,"zone":"alert"},
+      {"probability_level":4,"severity_level":4,"count":0,"zone":"alert"}
+    ],
+    "points": [
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000751","label":"Risque de reprise du câblage","probability":"0.4","severity_amount":"1250000.00","severity_ratio":{"is_computable":false,"value":null,"reason":"no_reference_budget"},"provision_amount":"500000.00","state":"identified","zone":"nominal"},
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000752","label":"Retard de livraison des armoires","probability":"0.3","severity_amount":"200.00","severity_ratio":{"is_computable":false,"value":null,"reason":"no_reference_budget"},"provision_amount":"60.00","state":"occurred","zone":"nominal"},
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000753","label":"Indisponibilité de l'automaticien","probability":"0.05","severity_amount":"12000000.00","severity_ratio":{"is_computable":false,"value":null,"reason":"no_reference_budget"},"provision_amount":"600000.00","state":"dismissed","zone":"nominal"}
+    ],
+    "totals": {"identified":"500000.00","occurred":"60.00","dismissed":"600000.00","total":"1100060.00","reserve":"850060.00"}
+  }
+}

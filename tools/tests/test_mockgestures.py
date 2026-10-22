@@ -108,6 +108,7 @@ REFUSALS = {
         "task_date_computed_refused",
         "task_horizon_exceeded",
         "task_hours_beyond_day",
+        "task_hours_below_zero",
     ],
     "setPredecessors": [
         "predecessors_cycle_refused",

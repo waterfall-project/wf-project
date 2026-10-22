@@ -114,6 +114,11 @@ def patch_my_preferences(
     change without a language — a grid, a theme — does not call it; nor does that of an account
     of a directory, whose attributes are the directory's, which the realm federates read only, and
     which the provider mails nothing (WF-ADM-0140).
+
+    A change refused for the size of the preferences once merged (#1235) is refused only once the
+    account is locked, after the provider was told: nothing is written in Waterfall, but the
+    language it carried may already be the provider's. It is the one the caller chose, and the
+    language shown chosen again repairs any disagreement, as above.
     """
     sent = preference_change(body)
     language = sent.get(LANGUAGE)

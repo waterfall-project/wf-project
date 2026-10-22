@@ -442,6 +442,7 @@
       "axisSeverity": "Gravité (% du budget)",
       "counts": "Décompte des risques par case de la matrice, tous états confondus",
       "none": "Aucun risque à tracer pour ce filtre.",
+      "unplotted": "{count, plural, one {# risque n’est pas tracé : sa gravité ne peut pas être rapportée au budget — {reason}} other {# risques ne sont pas tracés : leur gravité ne peut pas être rapportée au budget — {reason}}}",
       "file": "matrice-des-risques",
       "probability": "Probabilité",
       "severity": "Gravité, en part du budget de référence",
@@ -2218,6 +2219,10 @@
       "revision_has_tasks_and_lines": "révision portant au moins une tâche et une ligne de devis",
       "unmerged_amendment_exists": "un avenant non fusionné",
       "task_not_completed": "tâche non terminée",
+      "task_is_milestone": "la tâche est un jalon",
+      "task_not_milestone": "la tâche n'est pas un jalon",
+      "task_without_lines": "tâche sans ligne hors provision",
+      "completed_milestone": "jalon terminé",
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
       "may_create_revision": "avoir la permission de créer une révision",
@@ -2335,6 +2340,12 @@
       "main": "Structure principale",
       "amendment": "Avenant",
       "risk": "Devis de risque"
+    },
+    "KanbanCommand": {
+      "start": "Démarrer",
+      "complete": "Terminer",
+      "reopen": "Rouvrir",
+      "enter_remaining": "Saisir le reste à engager"
     },
     "StructureCommand": {
       "edit_planning": "Modifier le planning",
@@ -2500,12 +2511,6 @@
       "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",
       "own_estimate": "La gravité d’un risque est le total de son devis propre.",
       "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité."
-    },
-    "ProgressUpdate": {
-      "progress": {
-        "started": "Démarrée",
-        "completed": "Terminée"
-      }
     },
     "WorkloadPlan": {
       "basis": {
