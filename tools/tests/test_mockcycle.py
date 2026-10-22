@@ -34,6 +34,7 @@ def examples() -> dict[str, Any]:
 # --- The cycle of the revisions and the amendments (K4, EP-15/US-0490, US-0510) -----------------
 
 _TODAY = mockhistory.stamp(TODAY)
+_DESIGNATION = "designate_reference"
 
 
 def test_the_revision_created_is_the_one_the_project_created_today_reads() -> None:
@@ -236,3 +237,41 @@ def test_the_designation_of_the_current_revision_misses_its_marking_then_its_cor
     assert marked["missing_conditions"] == ["reference_correctable"]
     created = _command(examples["revision_created.json"], "designate_reference")
     assert "reference_correctable" not in created["missing_conditions"]
+
+
+def test_the_history_read_before_the_designation_offers_it_on_one_marked_revision_alone(
+    examples: dict[str, Any],
+) -> None:
+    # revisions_designation_open (US-0490/L2): the history on 15 January, the order received and
+    # the offer not yet designated, before any actual cost — the one example where a marked
+    # revision lists the designation available, for the screen that offers it. Exactly one does,
+    # the offer v1.0, nothing missing; the revision 101, then in progress, misses its marking.
+    items = examples["revisions_designation_open.json"]["items"]
+    offered = [
+        each
+        for each in items
+        if each["status"] == "marked" and _command(each, "designate_reference")["is_available"]
+    ]
+    assert [each["revision_id"] for each in offered] == [mockhistory.OFFER]
+    [offer] = offered
+    assert _command(offer, "designate_reference")["missing_conditions"] == []
+    assert offer["is_reference"] is False
+    assert [each["revision_id"] for each in items] == [mockhistory.REFERENCE, mockhistory.OFFER]
+    current = _command(items[0], "designate_reference")
+    assert (current["is_available"], current["missing_conditions"]) == (False, ["revision_marked"])
+    # An earlier instant of the chronology: no designation yet, and no actual cost.
+    assert all(ORDER_RECEIVED.instant < each.instant for each in mockwitness.COST_IMPORTS)
+    # A revision at one version has one content (#421): the offer is the one revisions lists, its
+    # designation aside, and the 101 the one the update of the rates left.
+    [listed] = [
+        each
+        for each in examples["revisions.json"]["items"]
+        if each["revision_id"] == mockhistory.OFFER
+    ]
+    assert {**offer, "available_commands": None} == {**listed, "available_commands": None}
+    others = [
+        [each for each in revision["available_commands"] if each["command"] != _DESIGNATION]
+        for revision in (offer, listed)
+    ]
+    assert others[0] == others[1]
+    assert items[0] == examples["rate_update_applied.json"]

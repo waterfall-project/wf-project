@@ -123,7 +123,7 @@ export interface Examples {
     200: "startable_tasks" | "startable_tasks_milestone";
   };
   "GET /projects/{project_id}/revisions": {
-    200: "revisions" | "revisions_empty" | "revisions_marked";
+    200: "revisions" | "revisions_designation_open" | "revisions_empty" | "revisions_marked";
   };
   "GET /projects/{project_id}/revisions/comparison": {
     200: "comparison" | "comparison_identical" | "comparison_moved" | "volume/comparison_volume";

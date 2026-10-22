@@ -41,6 +41,7 @@
               witness: { $ref: ../../../fixtures/api/revisions.json }
               empty: { $ref: ../../../fixtures/api/revisions_empty.json }
               marked: { $ref: ../../../fixtures/api/revisions_marked.json }
+              designation_open: { $ref: ../../../fixtures/api/revisions_designation_open.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
