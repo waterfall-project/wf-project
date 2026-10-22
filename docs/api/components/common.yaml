@@ -168,17 +168,17 @@ Problem:
         projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au
         moins `0`, le délai de paiement d'une ligne, au moins `0`, le
         niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde
-        hebdomadaire, au moins `1`, les heures d'un instant de travail envoyé
-        (`/start/hours`, `/finish/hours` de `updateTaskFacet`), au moins `0`, ou la largeur
-        d'une colonne des préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop
-        grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
-        portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et
-        le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`,
-        le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier,
-        au plus `24`, les heures d'un instant de travail envoyé (`/start/hours`,
-        `/finish/hours` de `updateTaskFacet`), au plus les heures que le calendrier de la tâche
-        accorde ce jour-là, `0` un jour sans heure travaillée (#1244), ou le jour d'une
-        sauvegarde hebdomadaire, au plus `7`), `component` (un
+        hebdomadaire, au moins `1`, les heures d'un instant de travail envoyé (`/start/hours`,
+        `/finish/hours` de `updateTaskFacet`), au moins `0`, ou la largeur d'une colonne des
+        préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur
+        trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
+        portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le
+        taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le
+        délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au
+        plus `24`, les heures d'un instant de travail envoyé (`/start/hours`, `/finish/hours` de
+        `updateTaskFacet`), au plus les heures que le calendrier de la tâche accorde ce jour-là, `0`
+        un jour sans heure travaillée (#1244), ou le jour d'une sauvegarde hebdomadaire, au plus
+        `7`), `component` (un
         `PlatformComponent`, WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,

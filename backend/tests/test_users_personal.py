@@ -14,16 +14,23 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from fastapi.testclient import TestClient
+from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, insert, select, update
-from support import ContractClient, bearer, wait_for_a_lock
+from support import ContractClient, bearer, nowhere, wait_for_a_lock
 
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.core.users.interface import image_type
 from waterfall.core.users.personal import merged
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.installation import THE_ROW, Installation
+from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.settings import ServiceSettings
 
 ME = "/api/v1/me"
 PREFERENCES = "/api/v1/me/preferences"
@@ -513,6 +520,48 @@ def test_the_language_of_an_account_of_a_directory_is_not_asked_of_the_provider(
     response = api.patch(PREFERENCES, headers=headers, json={"language": "en"})
     assert response.status_code == 200, response.text
     assert preferences_of(database, user_id) == {"language": "en"}
+
+
+class Told(KeycloakAdmin):
+    """An administration client that notes the languages it is given, as a provider that took them.
+
+    The realm of test answers nothing of the administration API: the language a change carries
+    reaches no provider, and what the API does once it has been told is tried here.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings) -> None:
+        """No language is given yet."""
+        super().__init__(keycloak, settings)
+        self.given: list[tuple[str, str | None]] = []
+
+    def set_locale(self, subject: str, locale: str | None) -> None:
+        """Note the language given to an account, as the provider would hold it."""
+        self.given.append((subject, locale))
+
+
+def test_a_language_told_to_the_provider_stays_there_when_the_size_is_refused_after(
+    contract: OpenAPI,
+    database: Database,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+    realm: TestRealm,
+) -> None:
+    # The size of a table once merged is judged under the lock of the account, after the provider
+    # was told the language (#1235): nothing is written in Waterfall, but the provider has it.
+    told = Told(keycloak, realm_settings)
+    app = create_app(Services(database, keycloak, told, *nowhere()))
+    api = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+    held = {"language": "fr", "timelines": {f"t{rank}": STEERING for rank in range(100)}}
+    user_id, headers = person(database, realm, display_preferences=held)
+    response = api.patch(
+        PREFERENCES, headers=headers, json={"language": "en", "timelines": {"t100": STEERING}}
+    )
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [
+        ("/timelines", "VALUE_TOO_LONG")
+    ]
+    assert [locale for _, locale in told.given] == ["en"]
+    assert preferences_of(database, user_id) == held
 
 
 def test_two_changes_at_once_of_two_grids_each_keep_the_other(
