@@ -161,7 +161,8 @@ Import:
 
 ImportReport:
   type: object
-  required: [read_count, rejected, refusals, differences, ignored, completed_tasks, date_mismatches]
+  required:
+    [read_count, rejected, refusals, differences, ignored, completed_tasks, date_mismatches, signals]
   description: >-
     Compte rendu présenté avant application, et relu après elle : lignes lues, lignes
     rejetées avec leur motif, écarts avec les données existantes (WF-INTF-0080), ce que
@@ -232,6 +233,16 @@ ImportReport:
         fait foi, et l'écart dit que les deux moteurs ne datent pas de même. Vide sur un
         aller-retour sans modification (WF-INTF-0060), et pour les imports Excel.
       items: { $ref: '#/ImportDateMismatch' }
+    signals:
+      type: array
+      description: >-
+        Ce que l'import garde tel que le fichier le porte, et que le compte rendu signale
+        (`ImportSignal`) : d'un planning MS Project, la date d'une tâche manuelle sur un jour sans
+        aucune heure travaillée au calendrier applicable de la tâche — « la même date importée
+        d'un fichier MS Project est gardée et signalée au compte rendu » (WF-PLA-0020 ; #1271,
+        #1289). Une information, pas un motif de confirmation ni de rejet. Vide quand il n'y a
+        rien à signaler, et pour les imports Excel.
+      items: { $ref: '#/ImportSignal' }
     requires_confirmation_reasons:
       type: array
       description: >-
@@ -305,6 +316,38 @@ ImportDateMismatch:
         Les colonnes qui diffèrent, parmi la durée, le début et la fin (`duration`, `start`,
         `finish`), nommées comme les colonnes de la grille de planning.
       items: { $ref: revisions.yaml#/NodeColumn }
+
+ImportSignal:
+  type: object
+  required: [lineage_id, label, column, code, params]
+  description: >-
+    Une valeur du fichier gardée et signalée (`ImportReport.signals`) : la tâche, la colonne qui
+    porte la valeur, et le motif, avec les paramètres qu'il porte dans un refus
+    (`Problem.params`), pour que la saisie et l'import se disent d'une même phrase
+    (WF-ARC-0110). Ainsi `NON_WORKING_DAY`, une date de début ou de fin d'une tâche manuelle sur
+    un jour sans aucune heure travaillée à son calendrier applicable, gardée telle quelle, le
+    début et la fin à `0` heure : `params.date` la date du fichier, `next_working_day` le jour
+    travaillé suivant (WF-PLA-0020, WF-PLA-0010 ; #1271). Une tâche dont le début et la fin
+    tombent l'un et l'autre un jour chômé est signalée deux fois, une par colonne ; un jalon dont
+    le début et la fin sont le même jour chômé l'est aussi deux fois : le signalement suit la
+    cellule, non le jour, comme le refus de la saisie suit le champ.
+  properties:
+    lineage_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: La lignée de la tâche ; nulle pour une tâche que l'import crée.
+    label: { type: string }
+    column:
+      allOf: [{ $ref: revisions.yaml#/NodeColumn }]
+      description: La colonne de la grille de planning qui porte la valeur, `start` ou `finish`.
+    code:
+      allOf: [{ $ref: ../common.yaml#/ErrorCode }, { const: NON_WORKING_DAY }]
+      description: >-
+        Le motif du signalement, un code d'erreur pour que la saisie et l'import se disent d'une
+        même phrase : `NON_WORKING_DAY` seul, tant qu'aucun autre signalement n'existe ; un
+        signalement nouveau élargit cette liste, par une modification du contrat.
+    params:
+      type: object
+      additionalProperties: true
 
 ImportRejection:
   type: object

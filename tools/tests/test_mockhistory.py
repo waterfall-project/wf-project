@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of the witness read through its history: its chronology, its revisions, its risks.
+"""Tests of the witness read through its history: its chronology and its revisions.
 
-They try the simplifications of the fake back against the figures of the witness, not the Vérif
-of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+Its risks are tried apart, in ``test_mockwitnessrisks.py`` (#1299). These tests try the
+simplifications of the fake back against the figures of the witness, not the Vérif of a
+requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import json
@@ -48,9 +49,10 @@ type Node = dict[str, Any]
 WITNESS = universe(1)
 _STAMP = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 _DAY = re.compile(r"^\d{4}-\d\d-\d\d$")
-_PLANNED = {"date", "forecast_date", "from", "to", "as_of"}
+_PLANNED = {"date", "forecast_date", "from", "to", "as_of", "next_working_day"}
 """The keys of the days of planning or of a period, which may run before the installation or past
-today: the dates of a task, a point of a curve or of a milestone tracking, the bounds of a period.
+today: the dates of a task, a point of a curve or of a milestone tracking, the bounds of a period,
+the next working day a date on a day without hours names (#1271).
 Every other day an example carries — a review, an order received, a task started or completed, a
 document, a period of costs — is of the chronology, between the installation and today."""
 

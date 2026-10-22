@@ -256,6 +256,41 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says the day without a working hour in the language of the reader, from the refusal of a start or of a finish [WF-PLA-0020-A]", () => {
+    const refused = example("task_date_non_working_day") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Le samedi 19 décembre n’est pas travaillé sur le " +
+        "calendrier de la tâche ; saisis le lundi 21 décembre.",
+    );
+    // The refusal of a finish (`/finish/date`) carries the same parameters, and reads the same.
+    const finish = {
+      code: "NON_WORKING_DAY",
+      params: { date: "2027-01-16", next_working_day: "2027-01-18" },
+    } as const;
+    expect(say({ code: "VALIDATION_FAILED", fields: [finish] }, "fr")).toContain(
+      "Le samedi 16 janvier n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 18 janvier.",
+    );
+  });
+
+  it("keeps the short sentence alone when the day without a working hour is not fully given", () => {
+    const short = "Date on a day without a working hour.";
+    expect(say({ code: "NON_WORKING_DAY" }, "en")).toBe(short);
+    expect(say({ code: "NON_WORKING_DAY", params: {} }, "en")).toBe(short);
+    expect(
+      say(
+        { code: "NON_WORKING_DAY", params: { date: "2027-01-16", next_working_day: "soon" } },
+        "en",
+      ),
+    ).toBe(short);
+    expect(say({ code: "NON_WORKING_DAY", params: { date: "2027-01-16" } }, "en")).toBe(short);
+    expect(
+      say(
+        { code: "NON_WORKING_DAY", params: { date: 20270116, next_working_day: "2027-01-18" } },
+        "en",
+      ),
+    ).toBe(short);
+  });
+
   it("names the roles a category keeps in labour by their labels and codes, to attach first to another category of labour [WF-REF-0040-A]", () => {
     // Le rattachement […] d'une catégorie […] à laquelle un rôle de ressource est rattaché, à une
     // nature hors main-d'œuvre est refusé : the roles named, which the screen of the costs may not

@@ -373,22 +373,23 @@ def test_the_hours_completed_are_those_of_the_calendar_of_the_role_of_the_task()
 
 def test_hours_sent_past_those_of_their_day_are_refused_on_their_field() -> None:
     # #1244 (WF-PLA-0010, WF-DAT-0100): hours sent are taken as they are, never bounded; past
-    # those the calendar of the task grants that day, they are refused, the bound crossed named,
-    # none on a Saturday.
+    # those the calendar of the task grants that day, they are refused, the bound crossed named.
+    # A day without hours is refused by its date (#1271): the bound is said on a day of work,
+    # never none.
     day, hours = mockgestures.HOURS_BEYOND_DAY
     first, _ = mockgestures.ENTERED_DATES
     granted = manual_on(first, day).calendar.hours_on(day)
-    assert hours > granted == 0
+    assert hours > granted > 0
     refused = gesture("task_hours_beyond_day")
     assert refused["code"] == "VALIDATION_FAILED"
     assert refused["fields"] == [
-        {"pointer": "/finish/hours", "code": "VALUE_OUT_OF_RANGE", "params": {"maximum": "0"}}
+        {"pointer": "/finish/hours", "code": "VALUE_OUT_OF_RANGE", "params": {"maximum": "8"}}
     ]
 
 
-def test_a_manual_date_on_a_day_without_hours_is_kept_at_no_hour() -> None:
-    # #1244: a day the calendar grants no hour is kept as entered, never moved (WF-PLA-0020),
-    # its start and its finish at no hour.
+def test_a_manual_date_imported_on_a_day_without_hours_is_kept_at_no_hour() -> None:
+    # #1271: entered, such a day is refused (``mocknonworking``); imported from MS Project, it is
+    # kept as the file carries it, never moved (WF-PLA-0020), its start and its finish at no hour.
     saturday, sunday = date(2027, 1, 16), date(2027, 1, 17)
     placed = manual_on(saturday, sunday)
     assert placed.calendar.hours_on(saturday) == placed.calendar.hours_on(sunday) == 0

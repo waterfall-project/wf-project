@@ -270,6 +270,24 @@ def test_a_block_refused_in_part_names_each_cell_and_is_never_applied() -> None:
         mockamendmentwrites.paste_applied_amendment(block)
 
 
+def test_a_block_of_another_length_writes_as_many_rows_and_is_judged_by_them() -> None:
+    # #1296: the nodes written are cut on the block pasted, not on the block of the example; a
+    # shorter block is judged and applied, a refused one names its cell, never a bare zip error.
+    first, task, _ = mockamendmentwrites.AMENDMENT_BLOCK
+    two = mockamendmentwrites.paste_targets(2)
+    assert two == mockamendmentwrites.paste_targets()[:2]
+    plan = _json(mockamendmentwrites.paste_plan_amendment((first, task)))
+    assert (plan["accepted"], plan["rejected"]) == (2, [])
+    applied = _json(mockamendmentwrites.paste_applied_amendment((first, task)))
+    assert [node["node_id"] for node in applied["nodes"]] == [own(number) for number in two]
+    unknown = ((first[0], "Catégorie inconnue", first[2], first[3]),)
+    refused = _json(mockamendmentwrites.paste_plan_amendment(unknown))
+    assert refused["rejected"] == [
+        {"row": 0, "column": "cost_category", "code": "UNKNOWN_COST_CATEGORY"}
+    ]
+    assert refused["accepted"] == 0
+
+
 def test_the_block_pasted_on_the_amendment_follows_the_hours_entered() -> None:
     # #421: the paste reads the line at the version the entry left, and leaves the structure one
     # version further still; a node written is not among the ancestors (`NodesWritten`).

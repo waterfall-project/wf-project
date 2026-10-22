@@ -49,8 +49,9 @@ that core or on the structure of a thousand tasks, written beside them by ``wfto
 (EP-02/L22), and those of the gestures of the structure and of the entries of a task, by
 ``wftools.mockgestures`` (EP-15/US-0460) — those of the estimate made on the amendment 2 by
 ``wftools.mockamendmentwrites`` (#1214) —, and the refusals of a paste and of an import, by
-``wftools.mockexchanges`` (EP-15/US-0460); and the answers of the entries of a risk, by
-``wftools.mockriskwrites`` (EP-15/US-0520).
+``wftools.mockexchanges`` (EP-15/US-0460), and those of a date on a day without hours of work,
+refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and the answers of
+the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -87,6 +88,7 @@ from wftools import (
     mockids,
     mockkanban,
     mocklists,
+    mocknonworking,
     mockportfoliotime,
     mockreference,
     mockriskwrites,
@@ -347,6 +349,7 @@ def named() -> dict[str, JsonObject]:
         **mockgestures.examples(),
         **mockamendmentwrites.examples(),
         **mockexchanges.examples(),
+        **mocknonworking.examples(),
         **mockamendment.examples(),
         **mockhistory.examples(),
         **mockcomparisons.examples(),

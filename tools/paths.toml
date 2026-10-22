@@ -256,7 +256,8 @@ by = "make fixtures"
 [[generated]]
 # The volumes, the named examples read from the core of the witness (wftools.mockcore), the
 # answers of the writes of the grids (wftools.mockwrites, wftools.mockgestures,
-# wftools.mockamendmentwrites) and of the gestures of the Kanban (wftools.mockkanban), the
+# wftools.mockamendmentwrites), a date on a day without hours of work refused and imported
+# (wftools.mocknonworking), and the gestures of the Kanban (wftools.mockkanban), the
 # history of the witness (its revisions in wftools.mockhistory, their comparisons in
 # wftools.mockcomparisons, its risks and the entries of a risk in wftools.mockriskwrites), its
 # indicators today
@@ -325,6 +326,7 @@ paths = [
     "fixtures/api/task_description_entered.json",
     "fixtures/api/task_date_computed_refused.json",
     "fixtures/api/task_horizon_exceeded.json",
+    "fixtures/api/task_date_non_working_day.json",
     "fixtures/api/task_hours_beyond_day.json",
     "fixtures/api/task_hours_below_zero.json",
     "fixtures/api/predecessors_entered.json",
@@ -352,6 +354,7 @@ paths = [
     "fixtures/api/paste_applied_partial.json",
     "fixtures/api/paste_plan_subproject_held.json",
     "fixtures/api/import_remaining_subproject_held.json",
+    "fixtures/api/import_planning_non_working_day.json",
     "fixtures/api/import_estimate_main_in_progress.json",
     "fixtures/api/comparison.json",
     "fixtures/api/comparison_moved.json",

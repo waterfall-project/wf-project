@@ -200,6 +200,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
         "ignored": [],
         "completed_tasks": [],
         "date_mismatches": [],
+        "signals": [],
         "requires_confirmation_reasons": [],
     }
 

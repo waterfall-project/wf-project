@@ -405,7 +405,12 @@ def test_each_report_names_the_lineages_of_the_core_by_their_labels(
     ]
     assert reports
     for name, report in reports:
-        named = [*report["differences"], *report["date_mismatches"], *report["completed_tasks"]]
+        named = [
+            *report["differences"],
+            *report["date_mismatches"],
+            *report["completed_tasks"],
+            *report["signals"],
+        ]
         for each in named:
             if each.get("target") == "actual_cost_line":
                 assert each["label"] in documents, name
