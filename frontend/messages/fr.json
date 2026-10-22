@@ -934,6 +934,7 @@
     "chartTitle": "Charge par rôle et par mois",
     "description": "Barres empilées de la charge de chaque rôle de ressource par mois, en heures ; la capacité mensuelle de chaque rôle est dans le tableau des valeurs, en regard de sa charge.",
     "hoursUnit": "{hours} h",
+    "totalSeries": "Total",
     "basis": "Base",
     "markedRevision": "Révision marquée",
     "unnamedRevision": "Révision marquée sans nom",

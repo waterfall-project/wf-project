@@ -934,6 +934,7 @@
     "chartTitle": "Load by role and by month",
     "description": "Stacked bars of the load of each resource role by month, in hours; the monthly capacity of each role is in the table of the values, against its load.",
     "hoursUnit": "{hours} h",
+    "totalSeries": "Total",
     "basis": "Basis",
     "markedRevision": "Marked revision",
     "unnamedRevision": "Unnamed marked revision",
