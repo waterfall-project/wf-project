@@ -1111,6 +1111,7 @@ flowchart LR
     FBS_3_1_Parametres_de_couts["FBS-3.1<br>Paramètres de coûts"]
     FBS_3_1_1_Nature_et_categories_de_couts["FBS-3.1.1<br>Nature et catégories de coûts"]
     FBS_3_1_2_Taux_horaires["FBS-3.1.2<br>Taux horaires"]
+    FBS_3_1_3_Correspondance_de_l_extraction_des_couts_reels["FBS-3.1.3<br>Correspondance de l’extraction des coûts réels"]
     FBS_3_2_Parametres_de_ressources["FBS-3.2<br>Paramètres de ressources"]
     FBS_3_2_1_Arbre_d_organisation["FBS-3.2.1<br>Arbre d’organisation"]
     FBS_3_2_2_Roles_de_ressources["FBS-3.2.2<br>Rôles de ressources"]
@@ -1156,6 +1157,7 @@ flowchart LR
     FBS_3_Parametres_applicatifs --> FBS_3_4_Parametres_d_indicateurs
     FBS_3_1_Parametres_de_couts --> FBS_3_1_1_Nature_et_categories_de_couts
     FBS_3_1_Parametres_de_couts --> FBS_3_1_2_Taux_horaires
+    FBS_3_1_Parametres_de_couts --> FBS_3_1_3_Correspondance_de_l_extraction_des_couts_reels
     FBS_3_2_Parametres_de_ressources --> FBS_3_2_1_Arbre_d_organisation
     FBS_3_2_Parametres_de_ressources --> FBS_3_2_2_Roles_de_ressources
     FBS_3_2_Parametres_de_ressources --> FBS_3_2_3_Calendriers
@@ -1172,7 +1174,7 @@ flowchart LR
     classDef c1 fill:#1ba1e2,stroke:#006EAF
     class FBS_1_Administration,FBS_2_Portefeuille,FBS_3_1_Parametres_de_couts,FBS_3_2_Parametres_de_ressources,FBS_3_3_Parametres_de_risques,FBS_3_4_Parametres_d_indicateurs,FBS_3_Parametres_applicatifs,FBS_4_2_Parametres_de_projets,FBS_4_3_Planification,FBS_4_4_Chiffrage_et_devis,FBS_4_5_Estimation_du_reste_a_engager,FBS_4_6_Gestion_des_risques,FBS_4_8_Indicateurs_projets,FBS_4_Projets,Waterfall c1
     classDef c2 fill:#dae8fc,stroke:#6c8ebf
-    class FBS_1_1_Gestion_des_utilisateurs,FBS_1_2_Gestion_des_roles_d_habilitation,FBS_1_3_Surveillance_de_l_etat_du_systeme,FBS_1_4_Sauvegarde_et_restauration,FBS_1_5_Journal_d_audit,FBS_2_1_Portefeuille_de_projets,FBS_2_2_Plan_de_charge_agrege,FBS_2_3_Performance_du_portefeuille,FBS_2_4_Structure_des_couts_du_portefeuille,FBS_2_5_Risques_du_portefeuille,FBS_2_6_Courbe_en_S_du_portefeuille,FBS_2_7_Sante_du_pilotage,FBS_3_1_1_Nature_et_categories_de_couts,FBS_3_1_2_Taux_horaires,FBS_3_2_1_Arbre_d_organisation,FBS_3_2_2_Roles_de_ressources,FBS_3_2_3_Calendriers,FBS_4_1_Gestion_des_revisions,FBS_4_7_Couts_reels,FBS_4_9_Cycle_de_vie_du_projet c2
+    class FBS_1_1_Gestion_des_utilisateurs,FBS_1_2_Gestion_des_roles_d_habilitation,FBS_1_3_Surveillance_de_l_etat_du_systeme,FBS_1_4_Sauvegarde_et_restauration,FBS_1_5_Journal_d_audit,FBS_2_1_Portefeuille_de_projets,FBS_2_2_Plan_de_charge_agrege,FBS_2_3_Performance_du_portefeuille,FBS_2_4_Structure_des_couts_du_portefeuille,FBS_2_5_Risques_du_portefeuille,FBS_2_6_Courbe_en_S_du_portefeuille,FBS_2_7_Sante_du_pilotage,FBS_3_1_1_Nature_et_categories_de_couts,FBS_3_1_2_Taux_horaires,FBS_3_1_3_Correspondance_de_l_extraction_des_couts_reels,FBS_3_2_1_Arbre_d_organisation,FBS_3_2_2_Roles_de_ressources,FBS_3_2_3_Calendriers,FBS_4_1_Gestion_des_revisions,FBS_4_7_Couts_reels,FBS_4_9_Cycle_de_vie_du_projet c2
 ```
 
 *Figure 9 — Arborescence fonctionnelle*
@@ -1667,7 +1669,7 @@ verification: "Un objet désactivé n’apparaît pas dans la liste par défaut,
 
 #### 3.4.4.1. FBS-3.1 : Paramètres de coûts
 
-Deux paramétrages distincts, souvent confondus. Les natures et les catégories décrivent ce qu’est une dépense : elles servent à la ventiler dans le devis et à la nommer en comptabilité. Les taux horaires disent combien elle coûte, année par année.
+Deux paramétrages distincts, souvent confondus. Les natures et les catégories décrivent ce qu’est une dépense : elles servent à la ventiler dans le devis et à la nommer en comptabilité. Les taux horaires disent combien elle coûte, année par année. La correspondance de l’extraction des coûts réels, elle, dit comment lire les coûts que l’ERP a engagés.
 
 ```yaml exigence
 section: "3.4.4.1"
@@ -1679,18 +1681,6 @@ pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
 corps: "Tous les montants de l’installation sont exprimés dans une devise unique, choisie à l’installation. Waterfall ne convertit aucun montant."
 motif: "La devise ne sert qu’à l’affichage. Gérer plusieurs devises supposerait des taux de change et leur historisation, c’est-à-dire de la gestion financière, que le périmètre exclu écarte."
 verification: "La devise apparaît partout où un montant est affiché ou exporté, et aucun écran ne propose d’en changer ni d’en saisir une seconde."
-```
-
-```yaml exigence
-section: "3.4.4.1"
-id: "WF-REF-0190-A"
-titre: "Correspondance de l’extraction des coûts réels"
-flexibilite: "F0"
-fbs: "FBS-3.1"
-pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Un utilisateur habilité déclare la correspondance entre l’extraction de l’ERP et le format « Coûts réels » (annexe B) : pour chacune des colonnes lues — élément d’OTP, numéro de pièce, poste, date de pièce, montant —, le ou les intitulés qui la désignent dans l’extraction, et les colonnes de l’extraction conservées à titre d’information (WF-CRE-0010). Les intitulés se comparent sans égard à la casse, aux accents ni aux espaces en bout. Le poste est facultatif, les quatre autres colonnes lues sont exigées. Une colonne de l’extraction qui n’est ni lue ni déclarée conservée est ignorée, et le compte rendu de l’import la nomme. La correspondance est vide à l’installation : tant que les quatre colonnes exigées n’ont pas d’intitulé, l’import des coûts réels (WF-INTF-0140) est refusé en nommant la condition manquante. Sa modification vaut pour les imports suivants et ne change aucune ligne déjà importée."
-motif: "L’extraction sort de l’ERP avec ses propres intitulés, qui dépendent de l’ERP, de son paramétrage et de la langue de qui l’extrait : les fixer dans Waterfall obligerait à renommer des colonnes à chaque revue périodique. Déclarer une à une les colonnes conservées fait de chaque donnée copiée de l’ERP un choix de l’entreprise : une extraction porte souvent des colonnes nominatives, comme le nom d’un salarié et le coût de son mois, que le suivi d’un projet n’a pas à connaître (§4.6.1)."
-verification: "Sur une installation neuve, l’import d’un fichier de coûts réels est refusé et nomme la correspondance à régler. Après déclaration de « Elément d’OTP », « Nº pièce référence », « Date de la pièce » et « Val./Devise objet », une extraction dont l’en-tête est « Élément d’OTP » s’importe. Une colonne « Nom Matricule » non déclarée n’est pas conservée, et le compte rendu la nomme ; déclarée conservée, elle est restituée à la consultation des lignes importées ensuite. Une extraction à laquelle manque une colonne exigée est refusée, et le message nomme la colonne attendue."
 ```
 
 ##### 3.4.4.1.1. FBS-3.1.1 : Nature et catégories de coûts
@@ -1751,6 +1741,22 @@ pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
 corps: "Un utilisateur habilité peut ajouter à la grille des taux une colonne pour une année qui n’en a pas encore, et la renseigner. Aucune colonne n’est créée automatiquement."
 motif: "Les taux d’une année nouvelle sont des valeurs constatées, souvent connues après le début de l’année, parfois négociées. Créer la colonne à la demande évite qu’une grille se remplisse de colonnes vides au fil des ans, et laisse l’initiative à qui détient l’information."
 verification: "L’ajout d’une colonne pour une année déjà présente est refusé. Une colonne ajoutée est vide, et les taux des années précédentes sont inchangés."
+```
+
+##### 3.4.4.1.3. FBS-3.1.3 : Correspondance de l’extraction des coûts réels
+
+L’extraction de l’ERP nomme ses colonnes à sa façon : la correspondance dit, pour l’installation, quel intitulé donne chaque colonne lue et quelles colonnes sont conservées (WF-REF-0190).
+
+```yaml exigence
+section: "3.4.4.1.3"
+id: "WF-REF-0190-A"
+titre: "Correspondance de l’extraction des coûts réels"
+flexibilite: "F0"
+fbs: "FBS-3.1.3"
+pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "Un utilisateur habilité déclare la correspondance entre l’extraction de l’ERP et le format « Coûts réels » (annexe B) : pour chacune des colonnes lues — élément d’OTP, numéro de pièce, poste, date de pièce, montant —, le ou les intitulés qui la désignent dans l’extraction, et les colonnes de l’extraction conservées à titre d’information (WF-CRE-0010). Les intitulés se comparent sans égard à la casse, aux accents ni aux espaces en bout. Le poste est facultatif, les quatre autres colonnes lues sont exigées. Une colonne de l’extraction qui n’est ni lue ni déclarée conservée est ignorée, et le compte rendu de l’import la nomme. La correspondance est vide à l’installation : tant que les quatre colonnes exigées n’ont pas d’intitulé, l’import des coûts réels (WF-INTF-0140) est refusé en nommant la condition manquante. Sa modification vaut pour les imports suivants et ne change aucune ligne déjà importée."
+motif: "L’extraction sort de l’ERP avec ses propres intitulés, qui dépendent de l’ERP, de son paramétrage et de la langue de qui l’extrait : les fixer dans Waterfall obligerait à renommer des colonnes à chaque revue périodique. Déclarer une à une les colonnes conservées fait de chaque donnée copiée de l’ERP un choix de l’entreprise : une extraction porte souvent des colonnes nominatives, comme le nom d’un salarié et le coût de son mois, que le suivi d’un projet n’a pas à connaître (§4.6.1)."
+verification: "Sur une installation neuve, l’import d’un fichier de coûts réels est refusé et nomme la correspondance à régler. Après déclaration de « Elément d’OTP », « Nº pièce référence », « Date de la pièce » et « Val./Devise objet », une extraction dont l’en-tête est « Élément d’OTP » s’importe. Une colonne « Nom Matricule » non déclarée n’est pas conservée, et le compte rendu la nomme ; déclarée conservée, elle est restituée à la consultation des lignes importées ensuite. Une extraction à laquelle manque une colonne exigée est refusée, et le message nomme la colonne attendue."
 ```
 
 #### 3.4.4.2. FBS-3.2 : Paramètres de ressources
@@ -4726,7 +4732,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-REF-0160-A | 3.4.4.3 | Matrice de risques | F0 |
 | WF-REF-0170-A | 3.4.4.4 | Seuils d’alerte des indices | F0 |
 | WF-REF-0180-A | 3.4.4.4 | Délai maximal entre deux revues | F0 |
-| WF-REF-0190-A | 3.4.4.1 | Correspondance de l’extraction des coûts réels | F0 |
+| WF-REF-0190-A | 3.4.4.1.3 | Correspondance de l’extraction des coûts réels | F0 |
 | WF-REV-0010-A | 3.4.5.1 | Unicité de la révision en cours | F0 |
 | WF-REV-0020-A | 3.4.5.1 | Marquage d’une révision | F0 |
 | WF-REV-0030-A | 3.4.5.1 | Contenu de l’instantané | F0 |
