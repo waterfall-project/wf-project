@@ -44,6 +44,7 @@ import {
   type CardGesture,
   cardOf,
   COLUMNS,
+  focusOf,
   DATED,
   type KanbanCard,
   type KanbanColumns,
@@ -85,6 +86,12 @@ export function Kanban({
   // another card, and the focus must not be taken from that one.
   const chosen = useRef<string>(undefined);
   const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
+  // The one stop of Tab of the board: the card chosen, else the first card. The arrows go from card
+  // to card (WF-IHM-0100).
+  const tabStop = useMemo(() => {
+    const all = COLUMNS.flatMap(([state]) => shown[state]);
+    return all.find((card) => card.node_id === selected)?.node_id ?? all[0]?.node_id;
+  }, [shown, selected]);
 
   // An answer the columns read since overtake is forgotten, so that a later reading at an older
   // version — a page read before the write was seen — cannot bring it back. Done once the reading
@@ -174,6 +181,7 @@ export function Kanban({
   const actions: CardActions = {
     remaining,
     selected,
+    tabStop,
     writing,
     element: (id, element) => {
       if (element === null) {
@@ -188,6 +196,14 @@ export function Kanban({
     choose: (id) => {
       chosen.current = id;
       setSelected(id);
+    },
+    focusFrom: (id, key) => {
+      const target = focusOf(shown, id, key);
+      if (target === undefined) {
+        return false;
+      }
+      elements.current.get(target)?.focus();
+      return true;
     },
     gesture,
     date: write,

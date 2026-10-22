@@ -218,6 +218,28 @@ describe("the gestures of the cards of the Kanban", () => {
     );
   });
 
+  it("makes the board one stop of Tab, the menu button only on the card chosen, and Enter on the chosen card opens the menu [WF-IHM-0100-A]", async () => {
+    serve({});
+    board();
+    const user = userEvent.setup();
+    const label = "Montage des armoires sur site";
+    // One stop of Tab for the whole board, and the arrows go from card to card.
+    expect(document.querySelectorAll("li[tabindex='0']")).toHaveLength(1);
+    card(label).focus();
+    await user.keyboard("{ArrowDown}");
+    expect(card(label)).not.toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(card(label)).toHaveFocus();
+    const button = await within(card(label)).findByRole("button", {
+      name: `Gestes de la tâche ${label}`,
+    });
+    expect(button).toHaveAttribute("aria-haspopup", "menu");
+    await user.keyboard("{Enter}");
+    expect(
+      await screen.findByRole("menu", { name: `Gestes de la tâche ${label}` }),
+    ).toBeInTheDocument();
+  });
+
   it("starts a task not started at the date entered, and the answer carries it to the started ones [WF-RAE-0030-A]", async () => {
     const client = serve({ [PROGRESS]: "task_started" });
     board();

@@ -101,16 +101,21 @@ function CardDate({ card }: { readonly card: KanbanCard }) {
  * The menu of the gestures of a card: every gesture it lists, available or not — an unavailable one
  * stays in the menu, and names what it lacks (WF-IHM-0090) —, the entry of the remaining to commit a
  * link to the grid on the task. The focus goes where the gesture sends it, not back to the button.
+ * The card opens it too with Enter, Space or the menu key.
  */
 function CardMenu({
   card,
   remaining,
   busy,
+  open,
+  onOpenChange,
   onGesture,
 }: {
   readonly card: KanbanCard;
   readonly remaining: string;
   readonly busy: boolean;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly onGesture: (gesture: CardGesture) => void;
 }) {
   const t = useTranslations("kanban");
@@ -118,7 +123,7 @@ function CardMenu({
   const unmet = useUnmet();
   const chosen = useRef<CardGesture>(undefined);
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -273,10 +278,12 @@ function EventDate({
 export interface CardActions {
   readonly remaining: string;
   readonly selected: string | undefined;
+  readonly tabStop: string | undefined;
   readonly writing: string | undefined;
   readonly element: (id: string, element: HTMLElement | null) => void;
   readonly field: (element: HTMLInputElement | null) => void;
   readonly choose: (id: string) => void;
+  readonly focusFrom: (id: string, key: string) => boolean;
   readonly gesture: (card: KanbanCard, gesture: CardGesture) => void;
   readonly date: (card: KanbanCard, gesture: CardGesture, date: string) => void;
   readonly cancel: (id: string) => void;
@@ -370,17 +377,41 @@ export function Card({
 }) {
   const { selected, writing } = actions;
   const isSelected = selected === card.node_id;
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <li
       ref={(element) => {
         actions.element(card.node_id, element);
       }}
-      tabIndex={0}
+      tabIndex={actions.tabStop === card.node_id ? 0 : -1}
       aria-current={isSelected ? "true" : undefined}
       aria-busy={writing === card.node_id}
       onFocus={(event) => {
         if (event.target === event.currentTarget) {
           actions.choose(card.node_id);
+        }
+      }}
+      onKeyDown={(event) => {
+        const opens =
+          event.key === "Enter" ||
+          event.key === " " ||
+          event.key === "ContextMenu" ||
+          (event.key === "F10" && event.shiftKey);
+        if (
+          event.target !== event.currentTarget ||
+          event.ctrlKey ||
+          event.altKey ||
+          event.metaKey
+        ) {
+          return;
+        }
+        if (!event.shiftKey && actions.focusFrom(card.node_id, event.key)) {
+          event.preventDefault();
+          return;
+        }
+        if (opens && card.commands.length > 0) {
+          event.preventDefault();
+          setMenuOpen(true);
         }
       }}
       className={`space-y-1 rounded-md border bg-card p-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -394,6 +425,8 @@ export function Card({
             card={card}
             remaining={actions.remaining}
             busy={writing !== undefined}
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
             onGesture={(gesture) => {
               actions.gesture(card, gesture);
             }}

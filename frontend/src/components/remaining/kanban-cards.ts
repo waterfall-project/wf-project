@@ -187,3 +187,69 @@ export function remainingHref(pathname: string, card: KanbanCard): string {
     card.state === "not_started",
   );
 }
+
+/** The position of a card in the columns: its column, and its place in it. */
+interface Place {
+  readonly column: number;
+  readonly index: number;
+}
+
+/** Where a card is, among the columns. */
+function placeOf(columns: KanbanColumns, id: string): Place | undefined {
+  for (const [column, [state]] of COLUMNS.entries()) {
+    const index = columns[state].findIndex((card) => card.node_id === id);
+    if (index >= 0) {
+      return { column, index };
+    }
+  }
+  return undefined;
+}
+
+/** The cards of the column at a place of the row of columns; none past its ends. */
+function cardsAt(columns: KanbanColumns, column: number): readonly KanbanCard[] {
+  const state = COLUMNS[column]?.[0];
+  return state === undefined ? [] : columns[state];
+}
+
+/**
+ * The card a sideways arrow leads to: in the nearest column that holds any, at the same place, or
+ * the last card when the column holds fewer.
+ */
+function acrossFrom(columns: KanbanColumns, place: Place, step: 1 | -1): string | undefined {
+  for (let at = place.column + step; at >= 0 && at < COLUMNS.length; at += step) {
+    const cards = cardsAt(columns, at);
+    if (cards.length > 0) {
+      return cards[Math.min(place.index, cards.length - 1)]?.node_id;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The card the arrows, Home and End lead to from a card (WF-IHM-0100): the up and down arrows, Home
+ * and End within its column, the sideways arrows in the nearest column that holds any, at the same
+ * place. None for a key that leads nowhere.
+ */
+export function focusOf(columns: KanbanColumns, id: string, key: string): string | undefined {
+  const place = placeOf(columns, id);
+  if (place === undefined) {
+    return undefined;
+  }
+  const column = cardsAt(columns, place.column);
+  switch (key) {
+    case "ArrowDown":
+      return column[place.index + 1]?.node_id;
+    case "ArrowUp":
+      return column[place.index - 1]?.node_id;
+    case "Home":
+      return column[0]?.node_id;
+    case "End":
+      return column.at(-1)?.node_id;
+    case "ArrowRight":
+      return acrossFrom(columns, place, 1);
+    case "ArrowLeft":
+      return acrossFrom(columns, place, -1);
+    default:
+      return undefined;
+  }
+}
