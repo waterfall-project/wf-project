@@ -133,7 +133,7 @@ EP-04 livré : les tâches vivent dans la structure principale d'une révision e
 
 ## Constats reçus
 
-- #1304, point 7 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
+- #1339, pour #1304, point 7 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - l'import MS Project lit la description d'une tâche dans ses notes, et l'export l'y écrit
     (WF-INTF-0040, WF-INTF-0050) ;
   - l'aller-retour la restitue (WF-INTF-0060) ;

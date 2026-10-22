@@ -4,7 +4,7 @@ titre: Le contrat figé — ses mineurs soldés, la reprise de la spécification
 statut: prêt
 depend_de: EP-15
 famille: front
-issue:
+issue: 1312
 ---
 
 # EP-16 — Maquette et contrat : durcissement
@@ -118,7 +118,8 @@ Les issues à rattacher à l'issue de l'EPIC à son ouverture, chacune sous l'US
 Venus de la reprise de la spécification du 2026-10-22 :
 
 - #1304 — contrat, back, front : ce que la reprise ajoute au modèle — sa part contrat, faux back et
-  écrans (US-0600 à US-0630) ; son service va à EP-04, EP-05, EP-06 et EP-09.
+  écrans (US-0600 à US-0630) ; son service va à EP-04 (#1337), EP-05 (#1338), EP-06
+  (#1339) et EP-09 (#1340), une issue de service par EPIC ouverte au cadrage.
 - #1311 — spec : FBS-3.1.3, une feuille pour la correspondance de l'extraction des coûts réels
   (WF-REF-0190), ouverte au cadrage (validation de la conception, 2026-10-22) ; elle bloque la page
   de la correspondance d'US-0620 jusqu'à son intégration par l'auteur.
@@ -408,7 +409,7 @@ et ses exemples.
 - **statut** : à faire
 - **exigences** : aucune en propre
 - **opérations** : aucune
-- **issue** :
+- **issue** : #1313
 
 **En tant que** développeur, **je veux** que tous les parcours de bout en bout se jouent contre le
 front construit pour la production, en local comme dans la chaîne, **afin que** la file de fusion
@@ -447,7 +448,7 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 - **statut** : à faire
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : `getReferenceSettings`, `updateReferenceSettings`
-- **issue** :
+- **issue** : #1314
 
 **En tant que** manager, **je veux** lire et corriger le nom de l'entreprise que l'installation
 connaît, **afin que** les fichiers exportés disent de quelle entreprise ils viennent.
@@ -499,7 +500,7 @@ connaît, **afin que** les fichiers exportés disent de quelle entreprise ils vi
 - **exigences** : `WF-PRJ-0080-A`, `WF-PRJ-0050-A`
 - **opérations** : `createProject`, `getProject`, `updateProject`, `listProjects`,
   `createSubproject`, `updateSubproject`, `listSubprojects`, `openImport`, `getImport`
-- **issue** :
+- **issue** : #1315
 
 **En tant que** chef de projet, **je veux** nommer le client de mon projet, et que le code d'un
 sous-projet puisse nommer un onglet Excel, **afin que** le devis remis au client le nomme, et que
@@ -563,9 +564,9 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
 
 - **statut** : à faire
 - **exigences** : `WF-REF-0190-A`
-- **opérations** : la lecture et la modification de la correspondance, ajoutées au contrat ;
+- **opérations** : `getActualCostMapping`, `setActualCostMapping`, ajoutées au contrat ;
   `getProject`, `openImport`, `getImport`
-- **issue** :
+- **issue** : #1318
 
 **En tant que** manager, **je veux** déclarer les intitulés sous lesquels l'extraction de notre ERP
 nomme les colonnes que Waterfall lit, et les colonnes qu'il conserve, **afin d'** importer les coûts
@@ -643,7 +644,7 @@ Waterfall une colonne que nous n'avons pas choisie.
 - **exigences** : aucune en propre ; le service clôt WF-INTF-0140, WF-CRE-0010 et WF-DAT-0110 en
   EP-09
 - **opérations** : `listActualCosts`, `getImport`
-- **issue** :
+- **issue** : #1322
 
 **En tant que** chef de projet, **je veux** voir le poste de chaque ligne de coût, **afin de**
 distinguer les postes d'une même pièce de l'ERP, qu'une facture ventilée sur deux éléments d'OTP
@@ -669,9 +670,11 @@ donne en deux lignes.
 
 - **statut** : à faire
 - **exigences** : aucune en propre
-- **opérations** : celles que les constats touchent, sans en ajouter ; la liste se fixe à la
-  conception
-- **issue** :
+- **opérations** : celles que les constats touchent, sans en ajouter — dont `applyPaste`,
+  `createRisk`, `updateRisk`, `updateEstimateLine`, `updateCalendar`, `undoLastChange`,
+  `redoLastUndo`, `createTimeline`, `deleteTimeline`, `setWorkBreakdown`, `getImport`,
+  `getStructureMergeReport`, `mergeCostStructure`
+- **issue** : #1328
 
 **En tant que** développeur, **je veux** solder les mineurs du contrat et du faux back que les
 relectures d'EP-14 ont relevés, **afin que** les EPIC de domaine servent un contrat figé, aux
@@ -704,9 +707,9 @@ exemples complets et aux refus décrits.
 
 - **statut** : à faire
 - **exigences** : aucune en propre
-- **opérations** : la lecture de résolution d'un numéro de ligne, ajoutée au contrat ;
-  `setPredecessors`, `getMe`, `updateMyPreferences`
-- **issue** :
+- **opérations** : `resolveRowNumber`, ajoutée au contrat ; `setPredecessors`, `getMe`,
+  `updateMyPreferences`
+- **issue** : #1325
 
 **En tant que** chef de projet, **je veux** saisir comme prédécesseur le numéro d'une tâche que ma
 recherche a écartée, et ne voir apparaître une colonne nouvelle, masquée par défaut, que si je la
@@ -737,7 +740,7 @@ par une version ne bouscule pas la grille que j'ai réglée.
 - **exigences** : aucune en propre
 - **opérations** : celles des six points de #1142, et celles des saisies que refuse
   `TASK_WITHOUT_WORKING_HOURS`
-- **issue** :
+- **issue** : #1334
 
 **En tant que** chef de projet, **je veux** que les écrans disent les règles que le contrat décrit
 déjà, **afin que** chaque refus et chaque indisponibilité me nomment ce qui les cause.

@@ -95,7 +95,7 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (10) :
 
 ## Constats reçus
 
-- #1304, points 3, 4 et 5 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
+- #1340, pour #1304, points 3, 4 et 5 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - la lecture de l'extraction selon la correspondance qu'EP-05 stocke : le refus tant
     qu'elle est incomplète, la colonne exigée absente nommée, les colonnes ignorées nommées au
     compte rendu, les colonnes conservées restituées (WF-REF-0190, WF-CRE-0010,

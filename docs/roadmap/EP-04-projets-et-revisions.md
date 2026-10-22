@@ -141,7 +141,7 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
 
 ## Constats reçus
 
-- #1304, points 2 et 6 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
+- #1337, pour #1304, points 2 et 6 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - le client d'un projet, facultatif, saisissable à tout moment, exigé par aucune transition
     (WF-PRJ-0080) : la colonne et sa migration ;
   - le code d'un sous-projet borné aux règles d'un nom d'onglet : 31 caractères au plus, sans

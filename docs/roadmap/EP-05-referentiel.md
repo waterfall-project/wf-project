@@ -99,7 +99,7 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
 ## Constats reçus
 
-- #1304, points 1 et 3 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
+- #1338, pour #1304, points 1 et 3 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   le nom de l'entreprise à l'amorçage et dans les paramètres communs, et la correspondance de
   l'extraction des coûts réels, stockée avec ses règles.
 - #351 — un chiffreur sans permission du référentiel ne peut saisir ni catégorie ni rôle :
