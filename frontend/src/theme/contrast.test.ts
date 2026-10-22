@@ -92,6 +92,10 @@ const STATES: Readonly<Record<ProjectState, string>> = {
   abandoned: "state-abandoned",
 };
 
+// The tint of the row of each difference a differential marks, and the mark written on it
+// (`DiffMark`, US-0500).
+const DIFFERENCES = ["diff-added", "diff-removed", "diff-modified"] as const;
+
 // A text, and the backgrounds it is written on.
 const TEXTS: readonly [string, string][] = [
   ["foreground", "background"],
@@ -135,6 +139,12 @@ const TEXTS: readonly [string, string][] = [
   ),
   // The word of the state of a project, on the fill of its badge (#523, WF-IHM-0100).
   ...Object.values(STATES).map((state): [string, string] => [`${state}-foreground`, state]),
+  // The mark of a difference, and the text of the row it tints: the label, the muted number.
+  ...DIFFERENCES.flatMap((tint): [string, string][] => [
+    [`${tint}-mark`, tint],
+    ["foreground", tint],
+    ["muted-foreground", tint],
+  ]),
   // The series of a chart, on the page and on a card, as legible as a text (US-0240).
   ...(["chart-1", "chart-2", "chart-3", "chart-4"] as const).flatMap((series) =>
     (["background", "card"] as const).map((background): [string, string] => [series, background]),

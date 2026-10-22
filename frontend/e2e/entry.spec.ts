@@ -6,25 +6,18 @@ import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { rowAt } from "./scroll";
 
-// The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
-// of §4.6.2, its core first (#376), which the journeys read by marks the generator writes
-// (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py): row 28, the first line
-// drawn after the core, of labour, « Heures d'ingénierie », 74,5 hours, past the rows in view as
-// the grid opens; row 12, the provision of the risk 751, whose quantity and unit disbursement the
-// server computes. A cell validated is written by `updateEstimateLine`, whose first example the
-// fake back serves whatever was written: the line of row 28, its label entered
-// « Heures de câblage », nothing else changed — the fake back keeps nothing of what it is sent,
-// so that each cell entered after it differs from the row answered, and is written. What the
-// grid does with another answer is proven on its own examples by the tests of the grid
-// (`entry.dom.test.tsx`).
-//
 // The estimate is read on the amendment 2 its address names (`structure=`, US-0500), a differential
 // not merged of the current revision, which lists the estimate entered whatever the state of the
 // project (`structures`), where the main structure of the project in progress lists it read only
-// (#1176). The fake back serves the first example of an operation whatever its path: the nodes are
-// those of the first example of `listNodes`, the main structure — it serves `nodes_amendment` for
-// no address —, entered under the commands of the amendment.
-// TODO(#1219): enter the nodes of the amendment once the fake back serves them at its address.
+// (#1176). The fake back serves the nodes of the structure its path names (#1219): the installation
+// on site read on the amendment, `nodes_amendment`, nine rows of the tree, which the journeys read by
+// their position — row 7, the line « Assistance à la reprise des essais », added by the amendment,
+// of labour, 40 hours; row 5, the summary « Essais sur site », whose figures the server computes.
+// A cell validated is written by `updateEstimateLine`, whose first example the fake back serves
+// whatever was written: a line of the witness, which the amendment does not hold — the fake back
+// keeps nothing of what it is sent, so that each cell entered after it differs from the row read,
+// and is written. What the grid does with another answer is proven on its own examples by the
+// tests of the grid (`entry.dom.test.tsx`).
 //
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -111,9 +104,9 @@ async function tabIntoGrid<K extends string>(
   return { grid, at };
 }
 
-/** The first line drawn after the core, and the provision of the core. */
-const LINE = 28;
-const PROVISION = 12;
+/** The line added by the amendment, and the summary it adds, whose figures the server computes. */
+const LINE = 7;
+const SUMMARY = 5;
 
 /** Press keys, one after the other. */
 async function press(page: Page, ...keys: readonly string[]): Promise<void> {
@@ -146,17 +139,17 @@ test("enters a whole line of the estimate without the mouse — label, category,
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, LINE, at.category)).toBeFocused();
   // The category is chosen by the first letters of its name, typed on the cell: its list opens.
-  await page.keyboard.type("Mise en service");
+  await page.keyboard.type("Ingénierie électrique");
   const categories = page.getByRole("combobox", { name: "Catégorie" });
   await expect(categories).toBeFocused();
-  await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000405");
+  await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000402");
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, LINE, at.role)).toBeFocused();
   // The role, from its list opened by Enter.
   await page.keyboard.press("Enter");
-  await page.keyboard.type("Technicien");
+  await page.keyboard.type("Ingénieur");
   await expect(page.getByRole("combobox", { name: "Rôle" })).toHaveValue(
-    "01926f3a-7c00-7000-8000-000000000452",
+    "01926f3a-7c00-7000-8000-000000000451",
   );
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, LINE, at.quantity)).toBeFocused();
@@ -171,23 +164,29 @@ test("enters a whole line of the estimate without the mouse — label, category,
   await expect(next).toBeInViewport();
   // The five cells written, one after the other.
   await expect.poll(() => writes.length).toBe(5);
-  // The line as the server last answered it — the fake back keeps nothing of what it is sent —,
-  // in place of what was typed.
+  // The server answered a line of the witness, which the amendment does not hold — the fake back
+  // keeps nothing of what it is sent —: the line stays as it was read, its mark of an added line
+  // before its number.
   await expect(rowAt(grid, LINE).getByRole("gridcell")).toHaveText([
-    "28",
-    "Heures de câblage",
-    "Ingénierie électrique",
-    "Ingénieur électricien",
+    "+Ajouté",
+    "25",
+    "Assistance à la reprise des essais",
+    "Mise en service",
+    "Technicien de mise en service",
     "1",
-    "74,5",
+    "40",
     "",
     "0",
     "",
-    /5\s960,00$/,
-    /5\s960,00$/,
+    /3\s000,00$/,
+    /3\s000,00$/,
   ]);
-  // No refusal told.
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  // The grid takes the line of the witness for another row than the one written: told, as an
+  // unexpected error of the service, in one alert (`ANOTHER_ROW`, `cell-writes.ts`) — the answer of
+  // the fake back to a write of the amendment, which it cannot give its own.
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    /Erreur inattendue du service/,
+  );
 });
 
 test("leaves a cell at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async ({
@@ -201,26 +200,26 @@ test("leaves a cell at its value before when its entry under way is abandoned [W
   await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("99");
   await page.keyboard.press("Escape");
   await expect(hours.getByRole("textbox")).toHaveCount(0);
-  await expect(hours).toHaveText("74,5");
+  await expect(hours).toHaveText("40");
   await expect(hours).toBeFocused();
 });
 
-test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
+test("traverses the cells of a summary that its node does not accept or the server computes along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
   const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
-  await press(page, ...times("ArrowDown", PROVISION - 1));
-  await expect(rowAt(grid, PROVISION)).toContainText("Provision");
-  await expect(cellAt(grid, PROVISION, at.label)).toBeFocused();
-  // From its label, Tab goes past its quantity and its unit disbursement, which the server
-  // computes, past its category, its role and its effort, which its node does not accept (#219),
-  // past its payment delay, which it does not carry (WF-DEV-0020, EP-14/L42s), and past its
-  // amounts, to the next row. Its sub-project, the one its risk designates (EP-14/L42p), is a
-  // column hidden until shown (US-0480).
+  await press(page, ...times("ArrowDown", SUMMARY - 1));
+  await expect(rowAt(grid, SUMMARY)).toContainText("Essais sur site");
+  await expect(cellAt(grid, SUMMARY, at.label)).toBeFocused();
+  // From its label, Tab goes past its category, its role, its quantity and its effort, which its
+  // node does not accept (#219) — a summary bears no line of its own —, past its payment delay,
+  // which it does not carry (WF-DEV-0020, EP-14/L42s), and past its amounts, which the server
+  // computes from its subordinates, to the next row. Its sub-project is a column hidden until shown
+  // (US-0480).
   await press(page, "Enter", "Tab");
-  await expect(cellAt(grid, PROVISION + 1, at.label)).toBeFocused();
+  await expect(cellAt(grid, SUMMARY + 1, at.label)).toBeFocused();
   for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
-    await expect(cellAt(grid, PROVISION, column)).toHaveAttribute("aria-readonly", "true");
+    await expect(cellAt(grid, SUMMARY, column)).toHaveAttribute("aria-readonly", "true");
   }
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
@@ -236,7 +235,7 @@ test("opens the entry of the effort on a digit typed, and the refusal of the amo
   await page.keyboard.press("7");
   await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("7");
   await page.keyboard.press("Escape");
-  await expect(hours).toHaveText("74,5");
+  await expect(hours).toHaveText("40");
   // Its amount is computed: the arrows reach it, the same digit opens no field but its refusal.
   await press(page, ...times("ArrowRight", at.reference - at.hours));
   const amount = cellAt(grid, LINE, at.reference);

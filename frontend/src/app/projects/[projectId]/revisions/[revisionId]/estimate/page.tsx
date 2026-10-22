@@ -319,6 +319,7 @@ export default async function EstimatePage({
           tasksEditable={screen.commands.has("edit_planning")}
           query={screen.query}
           preferences={screen.preferences}
+          differential={screen.kind === "amendment"}
         />
       </Screen>
     </PendingAddress>

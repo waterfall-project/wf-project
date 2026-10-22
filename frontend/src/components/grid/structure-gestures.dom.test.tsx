@@ -774,3 +774,27 @@ describe("the grids that offer no gesture", () => {
     ]);
   });
 });
+
+describe("the nodes a differential removes", () => {
+  // The installation on site read on the amendment 2 (`nodes_amendment`): the line « Assistance aux
+  // essais de câblage » is removed, read in its place; the line before it is unchanged.
+  const amendment = example("nodes_amendment") as NodeList;
+  const REMOVED = amendment.items.findIndex((each) => each.difference === "removed");
+  const UNCHANGED = amendment.items.findIndex((each) => each.difference === "unchanged");
+
+  it("offers no gesture on a node removed, where the node unchanged before it offers its own (#1185)", async () => {
+    serve({});
+    render(estimateGrid(true, true, amendment));
+    expect(await offered(UNCHANGED)).toEqual(["Insérer une ligne", "Supprimer"]);
+    expect(await offered(REMOVED)).toEqual([]);
+  });
+
+  it("takes neither Insert nor Ctrl+Delete on a node removed, which nothing deletes without confirmation (#1185)", async () => {
+    const client = serve({ [DELETE]: "node_deleted" });
+    render(estimateGrid(true, true, amendment));
+    await activate(REMOVED);
+    await userEvent.keyboard("{Insert}{Alt>}{Insert}{/Alt}{Control>}{Insert}{Delete}{/Control}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(client.calls).toEqual([]);
+  });
+});

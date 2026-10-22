@@ -7,31 +7,29 @@ import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { rowAt, scrollToPosition } from "./scroll";
 
-// The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
-// of §4.6.2, its core first (#376), which the journeys read by marks the generator writes
-// (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py): rows 28 to 30, the first
-// lines drawn after the core, « Heures d'ingénierie », « Heures de mise en service » and
-// « Matériel », past the rows in view as the grid opens. A block pasted is asked
-// of `previewPaste`, whose first example the fake back serves whatever is sent — the three rows
-// accepted, none refused (`paste_plan`) —, and applied by `applyPaste`, whose first example is
-// those three rows written (`paste_applied`). What the front sends is read in the server action
-// the browser posts; what the grid does with a plan that refuses a row is proven on its own
-// example by the tests of the grid (`paste.dom.test.tsx`).
-//
 // The estimate is read on the amendment 2 its address names (`structure=`, US-0500), a differential
 // not merged of the current revision, at its version 2, which lists the estimate entered whatever
 // the state of the project (`structures`), where the main structure of the project in progress
-// lists it read only (#1176). The fake back serves the first example of an operation whatever its
-// path: the nodes are those of the first example of `listNodes`, the main structure — it serves
-// `nodes_amendment` for no address —, pasted on under the commands of the amendment.
-// TODO(#1219): paste on the nodes of the amendment once the fake back serves them at its address.
+// lists it read only (#1176). The fake back serves the nodes of the structure its path names
+// (#1219): the installation on site read on the amendment, `nodes_amendment`, nine rows of the tree,
+// which the journeys read by their position — rows 7 to 9, « Assistance à la reprise des essais »,
+// « Mise en service » and « Mise en service sur site », the first a line added by the amendment,
+// past the first rows. A block pasted is asked of `previewPaste`, whose first example the fake
+// back serves whatever is sent — three rows accepted, none refused (`paste_plan`) —, and applied by
+// `applyPaste`, whose first example is three lines of the witness written (`paste_applied`), which
+// the amendment does not hold. What the front sends is read in the server action the browser posts —
+// the node of the active cell, in the amendment, and its version; what the grid does with a plan
+// that refuses a row, or with rows written, is proven on its own examples by the tests of the grid
+// (`paste.dom.test.tsx`, `paste-applied.dom.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // The amendment 2 « reprise des essais », a differential of the current revision (`structures`).
 const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate?structure=${AMENDMENT}`;
-const LINE_4 = "01926f3a-7c00-7000-8000-000100000028";
-const FIRST = 28;
+// The line « Assistance à la reprise des essais » of the amendment (`nodes_amendment`), the node the
+// block is pasted from, at the position FIRST among the rows.
+const TARGET = "01926f3a-7c00-7000-8000-000000001293";
+const FIRST = 7;
 
 // The columns the journeys read, by their heading (`columnsOf`).
 const COLUMNS = {
@@ -40,7 +38,7 @@ const COLUMNS = {
   reference: "Montant (année de réf.)",
 } as const;
 
-const READ = ["Heures d'ingénierie", "Heures de mise en service", "Matériel"];
+const READ = ["Assistance à la reprise des essais", "Mise en service", "Mise en service sur site"];
 
 // A block of three rows and four columns — label, category, role, quantity —, as a spreadsheet
 // copies it.
@@ -56,7 +54,7 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
 }
 
 /**
- * The labels of the rows 28 to 30 — by the position each cell carries, for the report, a modal
+ * The labels of the rows 7 to 9 — by the position each cell carries, for the report, a modal
  * dialog, hides the grid from the roles while it is open.
  */
 function labels(page: Page): Promise<string[]> {
@@ -68,7 +66,7 @@ function labels(page: Page): Promise<string[]> {
 }
 
 /**
- * Open the estimate hydrated, scrolled to the row 28, its label active; the grid, and where its
+ * Open the estimate hydrated, scrolled to the row 7, its label active; the grid, and where its
  * columns are.
  */
 async function openOnFirstLine(page: Page): Promise<{
@@ -113,7 +111,7 @@ function argumentsWith(posted: readonly Request[], field: string): unknown[] | u
   return data === null || data === undefined ? undefined : (JSON.parse(data) as unknown[]);
 }
 
-test("a block of three rows and four columns pasted from a spreadsheet produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async ({
+test("a block of three rows and four columns pasted from a spreadsheet produces a report before writing, then is written once confirmed, from the node of the amendment and its version", async ({
   page,
 }) => {
   const posted = actions(page);
@@ -126,7 +124,7 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   await expect(dialog).toContainText("Aucune ligne n’est refusée.");
   // The block as copied, from the node and the column of the active cell.
   expect(argumentsWith(posted, "target_column")?.[1]).toEqual({
-    target_node_id: LINE_4,
+    target_node_id: TARGET,
     target_column: "label",
     rows: BLOCK,
   });
@@ -143,15 +141,10 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
     confirmed: true,
     lock_version: 2,
   });
-  // The three rows the server wrote, in place of those read; the focus back on the cell.
-  await expect(cellAt(grid, FIRST, at.label)).toHaveText("Heures de câblage et repérage");
-  expect(await labels(page)).toEqual([
-    "Heures de câblage et repérage",
-    "Heures d'essais",
-    "Matériel de câblage",
-  ]);
-  await expect(cellAt(grid, FIRST + 2, at.quantity)).toHaveText("24");
-  await expect(cellAt(grid, FIRST + 2, at.reference)).toHaveText(/^42\s379,44/);
+  // The rows the server wrote are three lines of the witness, which the amendment does not hold: the
+  // rows read stay as they were — what the grid shows of rows written is proven on its own examples
+  // (`paste-applied.dom.test.tsx`) —, the focus back on the cell.
+  expect(await labels(page)).toEqual(READ);
   await expect(cellAt(grid, FIRST, at.label)).toBeFocused();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
@@ -168,7 +161,7 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(dialog).toContainText("lignes seront écrites.");
   // The front judges nothing of the block: the unknown category leaves as it was copied.
   expect(argumentsWith(posted, "target_column")?.[1]).toEqual({
-    target_node_id: LINE_4,
+    target_node_id: TARGET,
     target_column: "label",
     rows: unknown,
   });
@@ -178,7 +171,7 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(cellAt(grid, FIRST, at.label)).toBeFocused();
   expect(argumentsWith(posted, "paste_id")).toBeUndefined();
   expect(await labels(page)).toEqual(READ);
-  await expect(cellAt(grid, FIRST + 2, at.quantity)).toHaveText("2");
+  await expect(cellAt(grid, FIRST + 2, at.quantity)).toHaveText("1");
 });
 
 test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {

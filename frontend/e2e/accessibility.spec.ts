@@ -4,7 +4,8 @@
  * The minimal accessibility of every screen of the application (US-0200, WF-IHM-0100): those of
  * the table of the functions, drawn from `functions.json` as the links of `screens.spec.ts` are,
  * and those no table names (`routes.ts`), which `src/app/screens.test.ts` holds to the pages of
- * the application. Each screen is opened by its address in a window of 1366 points, then narrowed
+ * the application, and the grids of the planning and of the estimate on a differential, whose marks
+ * tint their rows (US-0500). Each screen is opened by its address in a window of 1366 points, then narrowed
  * to 911 — what a zoom of 150 % leaves of 1366 points, the page reflowed as the browser reflows it
  * when its user zooms; a device scale factor would change the pixels, not the layout. At each
  * width:
@@ -29,7 +30,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { type AxeBreach, axeAudit } from "./axe";
 import { untilHydrated, WORKING } from "./hydration";
-import { type AppScreen, OTHER_SCREENS, tableScreens } from "./routes";
+import { type AppScreen, DIFFERENTIAL_SCREENS, OTHER_SCREENS, tableScreens } from "./routes";
 import { lost, type Walk, walkByTab } from "./tab-walk";
 
 test.describe.configure({ mode: "parallel" });
@@ -112,7 +113,7 @@ function faults(walk: Walk) {
   };
 }
 
-for (const screen of [...tableScreens(), ...OTHER_SCREENS]) {
+for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREENS]) {
   for (const mode of ["light", "dark"] as const) {
     test.describe(`a workstation in ${mode} mode`, () => {
       test.use({ colorScheme: mode });

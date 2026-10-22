@@ -61,6 +61,13 @@ vi.mock("@/components/indicators/milestone-chart", async (original) => {
     },
   };
 });
+// The links that lift a filter of the banner read the address they go on from.
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+  usePathname: () => "/projects/p/revisions/r/indicators",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));

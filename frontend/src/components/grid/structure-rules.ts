@@ -10,7 +10,7 @@
  */
 import type { components } from "@/api/generated/schema";
 
-import type { GridNode, StructurePath } from "./nodes";
+import { type GridNode, isRemoved, type StructurePath } from "./nodes";
 import type { DropPlace } from "./row-selection";
 
 /** The body of a node created. */
@@ -126,9 +126,14 @@ function inRun(nodes: readonly GridNode[]): boolean {
   });
 }
 
-/** Whether the grid lets nodes of a kind move: tasks where it lists tasks, lines where it lists lines. */
+/**
+ * Whether the grid lets nodes move: tasks where it lists tasks, lines where it lists lines, none a
+ * differential removes, which is read in its place and is no more of the structure.
+ */
 function movable(nodes: readonly GridNode[], scope: StructureGestures): boolean {
-  return nodes.every((node) => (node.kind === "task" ? scope.tasks : scope.lines));
+  return nodes.every(
+    (node) => !isRemoved(node) && (node.kind === "task" ? scope.tasks : scope.lines),
+  );
 }
 
 /** A move without the version it carries. */
@@ -149,7 +154,7 @@ function byRank(
     gesture === "up"
       ? siblingAt(first, first.position - 1, rows)
       : siblingAt(last, last.position + 1, rows);
-  if (neighbour?.kind !== first.kind) {
+  if (neighbour?.kind !== first.kind || isRemoved(neighbour)) {
     return undefined;
   }
   return gesture === "up"
@@ -172,7 +177,7 @@ function byLevel(
   }
   if (gesture === "indent") {
     const above = siblingAt(first, first.position - 1, rows);
-    return above?.kind !== "task" || above.task?.is_milestone === true
+    return above?.kind !== "task" || above.task?.is_milestone === true || isRemoved(above)
       ? undefined
       : { node_ids: [], parent_id: above.node_id };
   }
@@ -238,6 +243,11 @@ export function gesturesOn(
 ): readonly Gesture[] {
   if (row === undefined) {
     return scope.tasks ? ["first"] : [];
+  }
+  // A node a differential removes is read in its place: nothing is created beside it nor under it,
+  // it is not deleted, and `movable` keeps it from moving (#1185).
+  if (isRemoved(row)) {
+    return [];
   }
   const deletes = (row.kind === "task" ? scope.tasks : scope.lines) && acted.length <= 1;
   return [
@@ -420,6 +430,7 @@ function dropPlace(
   if (
     first === undefined ||
     tops.some((each) => each.kind !== first.kind) ||
+    isRemoved(target) ||
     within(target, tops, rows)
   ) {
     return undefined;
@@ -437,7 +448,7 @@ function dropPlace(
     };
   }
   const above = siblingAt(target, target.position - 1, rows);
-  return above === undefined || within(above, tops, rows)
+  return above === undefined || isRemoved(above) || within(above, tops, rows)
     ? undefined
     : { parent_id: target.parent_id, after_node_id: above.node_id };
 }

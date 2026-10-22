@@ -54,3 +54,62 @@ def test_the_file_is_rewritten_in_place(tmp_path: Path) -> None:
     bundle.write_text(json.dumps(CONTRACT), encoding="utf-8")
     assert mock.main([str(bundle)]) == 0
     assert "/api/v1/projects" in json.loads(bundle.read_text(encoding="utf-8"))["paths"]
+
+
+STRUCTURES = "/projects/{project_id}/revisions/{revision_id}/structures"
+AMENDMENT = "01926f3a-7c00-7000-8000-000000000203"
+Served = dict[str, dict[str, dict[str, dict[str, dict[str, dict[str, object]]]]]]
+
+
+def amendments_contract() -> dict[str, object]:
+    """Return a contract that lists a main structure and an amendment, and reads their nodes."""
+    listed = [
+        {"structure_id": "main", "kind": "main"},
+        {"structure_id": AMENDMENT, "kind": "amendment"},
+    ]
+    examples = {"witness": {"$ref": "#/x/witness"}, "amendment": {"$ref": "#/x/amendment"}}
+    listing = {"witness": {"$ref": "#/components/examples/structures"}}
+    return {
+        "servers": [{"url": "/api/v1"}],
+        "components": {"examples": {"structures": {"value": listed}}},
+        "paths": {
+            STRUCTURES: {
+                "get": {
+                    "responses": {
+                        "200": {"content": {"application/json": {"examples": listing}}},
+                    }
+                }
+            },
+            f"{STRUCTURES}/{{structure_id}}/nodes": {
+                "get": {
+                    "parameters": [
+                        {"$ref": "#/components/parameters/ProjectId"},
+                        {"$ref": "#/components/parameters/StructureId"},
+                    ],
+                    "responses": {
+                        "200": {"content": {"application/json": {"examples": examples}}},
+                    },
+                },
+                "post": {"parameters": [{"$ref": "#/components/parameters/StructureId"}]},
+            },
+        },
+    }
+
+
+def test_the_nodes_of_an_amendment_are_served_at_its_address_leading_with_its_example() -> None:
+    paths = paths_of(mock.derive(amendments_contract()))
+    served = paths[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"]
+    read = cast("Served", {"": served})[""]
+    examples = read["get"]["responses"]["200"]["content"]["application/json"]["examples"]
+    assert list(examples) == ["amendment", "witness"]
+    assert served["get"]["parameters"] == [{"$ref": "#/components/parameters/ProjectId"}]
+    assert served["post"]["parameters"] == []
+    assert not any("main" in path for path in paths)
+
+
+def test_the_templated_nodes_keep_their_first_example() -> None:
+    paths = paths_of(mock.derive(amendments_contract()))
+    templated = paths[f"/api/v1{STRUCTURES}/{{structure_id}}/nodes"]
+    read = cast("Served", {"": templated})[""]
+    examples = read["get"]["responses"]["200"]["content"]["application/json"]["examples"]
+    assert list(examples) == ["witness", "amendment"]

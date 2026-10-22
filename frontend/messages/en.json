@@ -114,6 +114,7 @@
     },
     "columns": {
       "rowNumber": "No.",
+      "diffMark": "Change",
       "label": "Label",
       "category": "Category",
       "role": "Role",

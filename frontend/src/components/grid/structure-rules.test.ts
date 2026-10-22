@@ -371,3 +371,45 @@ describe("the body of the move of rows dropped", () => {
     expect(dropOf([TRANSPORT], LEAF, "into", offered({ tasks: false }))).toBeUndefined();
   });
 });
+
+describe("the nodes a differential removes", () => {
+  // The installation on site read on the amendment 2: under « Montage des armoires sur site », the
+  // line « Câblage sur site » is unchanged and the line after it is removed, read in its place.
+  const amendment = example("nodes_amendment") as NodeList;
+  /** The node of the amendment with a label. */
+  const inAmendment = (label: string) => {
+    const found = amendment.items.find(
+      (node) => (node.task?.label ?? node.estimate_line?.label) === label,
+    );
+    if (found === undefined) {
+      throw new Error(`no row ${label}`);
+    }
+    return found;
+  };
+  const REMOVED = inAmendment("Assistance aux essais de câblage");
+  const BEFORE = inAmendment("Câblage sur site");
+  const MOUNTING = inAmendment("Montage des armoires sur site");
+  const scope = offered({ rows: amendment.items });
+
+  it("takes no gesture: nothing is created beside it, nothing deleted, nothing moved (#1185)", () => {
+    expect(REMOVED.difference).toBe("removed");
+    expect(gesturesOn(BEFORE, scope)).toEqual(["line", "delete"]);
+    expect(gesturesOn(REMOVED, scope)).toEqual([]);
+    expect(gesturesOn(REMOVED, scope, [REMOVED])).toEqual([]);
+  });
+
+  it("is moved neither alone nor in a selection, nor is the node next to it moved onto it (#1185)", () => {
+    for (const gesture of ["indent", "outdent", "up", "down"] as const) {
+      expect(moveOf(gesture, [REMOVED], scope)).toBeUndefined();
+      expect(moveOf(gesture, [BEFORE, REMOVED], scope)).toBeUndefined();
+    }
+    // The line before it would go down after it, a place that is no more of the structure.
+    expect(moveOf("down", [BEFORE], scope)).toBeUndefined();
+  });
+
+  it("is a place nothing is dropped at, and nothing removed is dropped (#1185)", () => {
+    expect(dropOf([BEFORE], REMOVED, "after", scope)).toBeUndefined();
+    expect(dropOf([BEFORE], REMOVED, "before", scope)).toBeUndefined();
+    expect(dropOf([REMOVED], MOUNTING, "into", scope)).toBeUndefined();
+  });
+});

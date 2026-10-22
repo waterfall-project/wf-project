@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -14,6 +14,16 @@ import { ContextBanner } from "./context-banner";
 import { availableEdits, isReadOnly, type Revision } from "./read-only";
 import type { ContextFilter, Project, ProjectReading, Subproject } from "./reading";
 
+// The server of Next, as far as the links that lift a filter need it: the address they read.
+const page = vi.hoisted(() => ({ pathname: "", search: "" }));
+
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => page.pathname,
+  useSearchParams: () => new URLSearchParams(page.search),
+}));
+
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const MARKED = "01926f3a-7c00-7000-8000-000000000101";
@@ -23,6 +33,8 @@ const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 /** The reading of an address, as the server hands it to the banner, from the examples. */
 function reading(address: string, revisionExample: string | undefined): ProjectReading {
   const [pathname = "", query = ""] = address.split("?");
+  page.pathname = pathname;
+  page.search = query;
   const context = readContext(pathname, new URLSearchParams(query));
   if (context === undefined) {
     throw new Error(`No context at ${address}`);

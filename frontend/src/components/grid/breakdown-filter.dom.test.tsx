@@ -58,6 +58,7 @@ function filter(search: string) {
 
 /** The banner of the planning of the witness, in French, its grid filtered as `search` says. */
 function banner(search: string) {
+  page.search = search;
   const context = readContext(PLANNING, new URLSearchParams(search));
   if (context === undefined) {
     throw new Error(`No context at ${PLANNING}`);

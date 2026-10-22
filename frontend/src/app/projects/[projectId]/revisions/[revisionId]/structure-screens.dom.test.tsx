@@ -43,6 +43,8 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const NODES = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 // The amendment 2 of the current revision (`structures`).
 const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
+// The lot of the witness, as its work breakdown names it.
+const LOT = "01926f3a-7c00-7000-8000-000000000711";
 // The French catalogue sets a no-break space inside quotes.
 const NB = "\u00a0";
 
@@ -119,6 +121,14 @@ async function sortByInflation() {
   );
 }
 
+/** Filter the grid by the lot of the witness, from the choice above it. */
+async function chooseLot() {
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: "Lot ou poste" }),
+    screen.getByRole("option", { name: `Lot${NB}: Lot 1` }),
+  );
+}
+
 /** Choose the amendment 2 in the banner, the main structure read. */
 async function chooseAmendment() {
   await userEvent.click(
@@ -171,6 +181,8 @@ afterEach(() => {
 });
 
 describe("the address the banner and the grid of a screen ask from", () => {
+  // The estimate sorts its lines; the planning keeps the order of its plan and sorts none: the
+  // sort is asked of the estimate alone, and the lot filter, which both have, of each.
   it("chooses the structure from the sort asked and not arrived yet, the sort kept", async () => {
     render(await tree(ESTIMATE, ""));
     const arrive = holdNavigations();
@@ -196,6 +208,53 @@ describe("the address the banner and the grid of a screen ask from", () => {
     });
     await arrive();
   });
+
+  it.each([PLANNING, ESTIMATE])(
+    "chooses the structure from the lot filtered and not arrived yet, the lot kept, on the $name",
+    async (shown) => {
+      render(await tree(shown, ""));
+      const arrive = holdNavigations();
+      await chooseLot();
+      await chooseAmendment();
+      expect(Object.fromEntries(lastAsked())).toEqual({
+        work_package_id: LOT,
+        structure: AMENDMENT,
+      });
+      await arrive();
+    },
+  );
+
+  it.each([PLANNING, ESTIMATE])(
+    "filters by a lot from the structure chosen and not arrived yet, the structure kept, on the $name",
+    async (shown) => {
+      render(await tree(shown, ""));
+      const arrive = holdNavigations();
+      await chooseAmendment();
+      await chooseLot();
+      expect(Object.fromEntries(lastAsked())).toEqual({
+        structure: AMENDMENT,
+        work_package_id: LOT,
+      });
+      await arrive();
+    },
+  );
+});
+
+describe("the marks of a difference", () => {
+  it.each([PLANNING, ESTIMATE])(
+    "head the grid of the $name on a differential, and the grid of the main structure has none (US-0500)",
+    async (shown) => {
+      const { unmount } = render(
+        await tree({ ...shown, nodes: "nodes_amendment" }, `structure=${AMENDMENT}`),
+      );
+      expect(screen.getAllByRole("columnheader")[0]).toHaveAccessibleName("Écart");
+      expect(cell(3, "diff_mark")).toHaveTextContent("-Retiré");
+      expect(cell(4, "diff_mark")).toHaveTextContent("+Ajouté");
+      unmount();
+      render(await tree({ ...shown, nodes: "nodes_amendment" }, ""));
+      expect(screen.queryByRole("columnheader", { name: "Écart" })).not.toBeInTheDocument();
+    },
+  );
 });
 
 describe("the grid of each structure", () => {

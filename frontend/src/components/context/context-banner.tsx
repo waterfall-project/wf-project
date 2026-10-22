@@ -11,7 +11,8 @@
  * its chip: the chip says what it restricts — the grid and not the indicators (#459), every figure
  * of the indicators but the tracking of the milestones, which a sub-project does not have
  * (WF-IND-0020). A grid filtered by a lot or a post of the work breakdown gives its filter, which a
- * chip shows after those of the context, lifted by the address of the screen without it. A grid
+ * chip shows after those of the context, lifted by the address of the screen without it — followed
+ * as a link, or, by a click, from the address last asked (`ChipLift`). A grid
  * that reads the structure its address names — the planning, the estimate (US-0500) — gives it, and
  * the banner names it, its kind besides when it is not the main one — a differential, the own
  * estimate of a risk —, and offers the other structures of the revision to read instead
@@ -25,16 +26,20 @@
  * names it in its side bar and its breadcrumb (`ShowProject`).
  */
 import { Calculator, Filter, Folder, GitBranch, Layers, Lock, X } from "lucide-react";
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
-import type { BreakdownChip, BreakdownParameter } from "@/components/grid/breakdown-filter";
+import {
+  BREAKDOWN_PARAMETERS,
+  type BreakdownChip,
+  type BreakdownParameter,
+} from "@/components/grid/breakdown-filter";
 import { ShowProject } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
 import { formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 import { UNASSIGNED, withoutFilter } from "@/navigation/context";
 
+import { ChipLift } from "./chip-lift";
 import type { Revision } from "./read-only";
 import type { ContextFilter, ProjectReading, Subproject } from "./reading";
 import {
@@ -91,11 +96,15 @@ export type Restrictions = Readonly<
   Partial<Record<ContextFilter["name"] | BreakdownParameter, Restriction>>
 >;
 
-/** A chip of an active filter: its parameter, its text, and the address that lifts it. */
+/**
+ * A chip of an active filter: its parameter, its text, the address of the screen without it, and the
+ * parameters of an address that carry it.
+ */
 interface Chip {
   readonly name: ContextFilter["name"] | BreakdownParameter;
   readonly text: string;
   readonly lift: string;
+  readonly lifts: readonly string[];
 }
 
 const FACT = "flex items-center gap-1.5";
@@ -158,6 +167,7 @@ function useChips(
         withoutFilter(reading.pathname, reading.context, filter.name),
         structure,
       ),
+      lifts: [filter.name],
     })),
     ...(breakdown === undefined
       ? []
@@ -172,6 +182,7 @@ function useChips(
               }),
             ),
             lift: breakdown.lift,
+            lifts: Object.values(BREAKDOWN_PARAMETERS),
           },
         ]),
   ];
@@ -312,20 +323,20 @@ export function ContextBanner({
       ) : null}
       {chips.length === 0 ? null : (
         <ul aria-label={t("contextBanner.filters")} className="ml-auto flex flex-wrap gap-1.5">
-          {chips.map(({ name, text, lift }) => (
+          {chips.map(({ name, text, lift, lifts }) => (
             <li
               key={name}
               className="flex h-6 items-center gap-1.5 rounded-full border bg-background pr-1 pl-2"
             >
               <Filter aria-hidden="true" className={ICON} />
               {text}
-              <Link
+              <ChipLift
                 href={lift}
-                aria-label={t("contextBanner.removeFilter", { filter: text })}
-                className="rounded-full p-0.5 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring"
+                lifts={lifts}
+                label={t("contextBanner.removeFilter", { filter: text })}
               >
                 <X aria-hidden="true" className="size-3" />
-              </Link>
+              </ChipLift>
             </li>
           ))}
         </ul>

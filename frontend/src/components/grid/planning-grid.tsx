@@ -48,6 +48,7 @@ import {
   type NodesWritten,
   nodesWritten,
   type StructurePath,
+  withDifference,
 } from "./nodes";
 import {
   PLANNING_FIELDS,
@@ -111,6 +112,11 @@ export interface PlanningGridProps {
    * cells; none, and the submenu does not offer it.
    */
   readonly timelineCreation?: CommandOffer | undefined;
+  /**
+   * Whether the structure read is a differential, whose nodes bear the difference the server marks:
+   * the grid then has its column of marks (US-0500).
+   */
+  readonly differential?: boolean | undefined;
 }
 
 /** The skeleton generated on a structure: its tasks as the grid reads them, and its version. */
@@ -211,6 +217,7 @@ export function PlanningGrid({
   skeleton,
   timelines,
   timelineCreation,
+  differential,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
@@ -236,7 +243,7 @@ export function PlanningGrid({
   // The totals of the structure a write answers are those of the reading when it narrows nothing
   // but the kinds it renders, which leave the totals as they are.
   const whole = Object.keys(nodeNarrowing(filters)).length === 0;
-  const config = useMemo(() => {
+  const read = useMemo(() => {
     if (editable !== true) {
       return planningGrid(undefined, timelines);
     }
@@ -305,6 +312,7 @@ export function PlanningGrid({
     timelines,
     taskOf,
   ]);
+  const config = useMemo(() => withDifference(read, differential), [read, differential]);
   // The skeleton moves the structure on as any write of the grid does: counted in the account, the
   // gestures wait for it (#1224). The command calls it in its transition, which would hold the count
   // back until the answer: the write is sent, and counted, once out of it.
