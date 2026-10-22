@@ -20,7 +20,7 @@ examples say of them is read from those descriptions:
   risk in its cell of the matrix and give the totals of the provisions (WF-RIS-0040);
 - the register of the risks, a risk alone, the matrix, the reviews of a risk and the coverage of
   the risks (``risks``, ``risk``, ``risk_occurred_detail``, ``risk_matrix``, ``risk_reviews``,
-  ``risk_coverage``), from the risks of ``mockwitness`` and the whole structure read today, 751
+  ``risk_coverage``), from the risks of ``mockwitnessrisks`` and the whole structure read today, 751
   and 753 at its scale (EP-14/L45b).
 
 The formulas are simple and said here, to be replaced by the kernel of EP-07 and EP-08. Each

@@ -1918,7 +1918,7 @@ comme le raccordement des borniers, et l'écart de main-d'œuvre vaut 3 515,00. 
 à la main, donne encore 80,00 de taux précédent à la mise en service : EP-02/L24 l'alignera sur le
 volume (C15 de #287, #232).
 
-**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitness.REGISTER`) : ce que l'utilisateur a
+**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitnessrisks.REGISTER`) : ce que l'utilisateur a
 saisi, leurs réexamens datés — l'identification la première, la survenance la dernière —, la
 ligne de provision qu'ils portent et celle que portait la référence. `risks`, `risk`,
 `risk_occurred_detail`, `risk_matrix`, `risk_reviews` et `risk_coverage` en sont lus : la
@@ -2055,7 +2055,7 @@ EP-02/L26.
 ### Coûts, échanges, tâches, comptes (EP-02/L25)
 
 **Les coûts réels du témoin sont décrits une fois et engendrés** (#287, C3 ; WF-CRE-0010 à
-WF-CRE-0050). `wftools.mockwitness` décrit les six lignes de coût — pièce, date, montant signé,
+WF-CRE-0050). `wftools.mockwitnesscosts` décrit les six lignes de coût — pièce, date, montant signé,
 code de sous-projet lu dans l'OTP s'il en a un, colonnes conservées dans l'ordre que les imports
 déclarent (`PASSTHROUGH`), imports qui les ont apportées, exclusion — et les cinq imports du
 journal, aux instants de la chronologie (3 avril, 4, 6 et 11 mai, 3 juin) ; `wftools.mockcosts` en
@@ -2263,7 +2263,7 @@ précédente : chaque ligne de la révision courante porte ses grandeurs à 101 
 `previous_hours`, `previous_unit_disbursement` — et le montant réestimé qu'elles donnaient,
 `previous_reestimated_amount`. La provision de 751, à 500 aujourd'hui, y était à 250 ; les lignes
 fusionnées par la survenance de 752, absentes de 101, les portent nulles, comme toute lecture d'une
-révision marquée. La description de la référence passe de `mockhistory` à `mockwitness`, que
+révision marquée. La description de la référence passe de `mockhistory` à `mockwitnessrisks`, que
 `mockcore` lit (`mockcore.current`). `remaining.dom.test.tsx`, avec les colonnes des grandeurs
 précédentes qu'EP-02/L36 a ajoutées à la grille, lit des valeurs affichées et leur format — la
 charge précédente de la main-d'œuvre, 12,5, les débours unitaires précédents des borniers,
