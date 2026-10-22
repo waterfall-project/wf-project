@@ -317,7 +317,7 @@ export interface CardActions {
   readonly cancel: (id: string) => void;
   readonly forget: (id: string) => void;
   /** Read the tasks anew, after a reading that did not bring the card answered. */
-  readonly retry: () => void;
+  readonly retry: (id: string) => void;
 }
 
 /** What is asked or told on one card. */
@@ -365,7 +365,7 @@ function CardReading({
   const t = useTranslations("kanban");
   if (reading === "updating") {
     return (
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <LoaderCircle
           aria-hidden="true"
           className="size-3.5 animate-spin motion-reduce:animate-none"
@@ -376,8 +376,8 @@ function CardReading({
   }
   if (reading === "outdated") {
     return (
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {t("outdated")}
+      <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="after:ml-1.5 after:content-['—']">{t("outdated")}</span>
         <Button
           type="button"
           variant="outline"
@@ -405,7 +405,12 @@ function CardAsks({
 }) {
   return (
     <>
-      <CardReading reading={reading} retry={actions.retry} />
+      <CardReading
+        reading={reading}
+        retry={() => {
+          actions.retry(card.node_id);
+        }}
+      />
       {asking === undefined ? null : (
         <EventDate
           gesture={asking.gesture}

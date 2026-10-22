@@ -119,6 +119,38 @@ function labels(name: string): string[] {
     .map((each) => within(each).getByText(/./, { selector: "span.font-medium" }).textContent);
 }
 
+/** The live region of the board, where the moves are announced: not the marks of a card. */
+function announcements(): HTMLElement {
+  const found = screen.getAllByRole("status").find((each) => each.classList.contains("sr-only"));
+  if (found === undefined) {
+    throw new Error("no live region on the board");
+  }
+  return found;
+}
+
+/** The columns read once a task is started, at a version past the answer of the API. */
+function readStarted(...labelsStarted: string[]): KanbanColumns {
+  const read = columnsOfExample("startable_tasks");
+  const tasks = read.not_started.filter((each) => labelsStarted.includes(each.label));
+  if (tasks.length !== labelsStarted.length) {
+    throw new Error("a task is missing from the example");
+  }
+  return {
+    ...read,
+    not_started: read.not_started.filter((each) => !tasks.includes(each)),
+    started: [
+      ...read.started,
+      ...tasks.map((each) => ({ ...each, state: "started" as const, lock_version: 99 })),
+    ],
+  };
+}
+
+/** Start a task through its menu and its date form. */
+async function start(label: string) {
+  await choose(label, "Démarrer");
+  await userEvent.click(within(card(label)).getByRole("button", { name: "Démarrer" }));
+}
+
 /** Choose a card by a click, open the menu of its gestures, and make one. */
 async function choose(label: string, gesture: string | RegExp) {
   const user = userEvent.setup();
@@ -150,10 +182,11 @@ describe("the Kanban once a gesture is answered", () => {
     await userEvent.click(
       within(card("Réception usine")).getByRole("button", { name: "Terminer" }),
     );
-    const status = screen.getByRole("status");
+    const status = announcements();
     await waitFor(() => {
       expect(status).toHaveTextContent("Réception usine : colonne « Terminées ».");
     });
+    const first = status.firstChild;
     const read = columnsOfExample("startable_tasks");
     const [milestone] = read.not_started.filter((each) => each.label === "Réception usine");
     if (milestone === undefined) {
@@ -179,66 +212,101 @@ describe("the Kanban once a gesture is answered", () => {
         },
       ],
     });
-    // From here on, every change of the live region is a sentence told.
-    const told: MutationRecord[] = [];
-    const observer = new MutationObserver((records) => {
-      told.push(...records);
-    });
-    observer.observe(status, { childList: true, characterData: true, subtree: true });
     await choose("Réception usine", "Rouvrir");
+    // The same sentence, told again, is a new node of the region: that is what is announced again.
     await waitFor(() => {
-      expect(told.length).toBeGreaterThan(0);
+      expect(status.firstChild).not.toBe(first);
     });
-    observer.disconnect();
     expect(status).toHaveTextContent("Réception usine : colonne « Terminées ».");
   });
 
-  it("marks the card moved as being updated while the tasks are read anew, and as not up to date, with a way to read them again, when that reading is over without", async () => {
+  it("marks the card moved as updating, then as not up to date with a way to read again [WF-IHM-0090-A]", async () => {
     serve({ [PROGRESS]: "task_started" });
     const waits = holdReadings();
     const { again } = board();
-    await choose("Montage des armoires sur site", "Démarrer");
-    await userEvent.click(
-      within(card("Montage des armoires sur site")).getByRole("button", { name: "Démarrer" }),
-    );
-    const moved = () => within(card("Montage des armoires sur site"));
+    const label = "Montage des armoires sur site";
+    await start(label);
+    const moved = () => within(card(label));
     expect(await moved().findByText("Mise à jour…")).toBeInTheDocument();
+    // The mark is told to assistive technology.
+    expect(moved().getByRole("status")).toHaveTextContent("Mise à jour…");
     expect(moved().queryByRole("button", { name: "Réessayer" })).toBeNull();
     // No other card is marked.
     expect(screen.getAllByText("Mise à jour…")).toHaveLength(1);
     // The reading is over, and the tasks it brought do not hold the answer.
     waits[0]?.release();
     const retry = await moved().findByRole("button", { name: "Réessayer" });
-    expect(moved().getByText(/Non à jour/)).toBeInTheDocument();
+    expect(moved().getByRole("status")).toHaveTextContent(/Non à jour/);
     expect(moved().queryByText("Mise à jour…")).toBeNull();
     expect(router.refresh).toHaveBeenCalledTimes(1);
-    // Read again, the card is being updated anew.
-    // The reading is started in the act, which waits for what it suspends on.
+    // Read again, the card is being updated anew, and the focus is on it, not lost with the button.
+    // Started in the act, which waits for what the reading suspends on: a click by userEvent is
+    // not awaited by its act, and React refuses the suspension there.
     await act(async () => {
       retry.click();
       await Promise.resolve();
     });
     expect(await moved().findByText("Mise à jour…")).toBeInTheDocument();
     expect(router.refresh).toHaveBeenCalledTimes(2);
+    expect(card(label)).toHaveFocus();
     // The tasks read hold the answer: the card is no more marked.
-    const read = columnsOfExample("startable_tasks");
-    const [task] = read.not_started.filter(
-      (each) => each.label === "Montage des armoires sur site",
-    );
-    if (task === undefined) {
-      throw new Error("no task in the example");
-    }
     waits[1]?.release();
     await moved().findByRole("button", { name: "Réessayer" });
-    again({
-      ...read,
-      not_started: read.not_started.filter((each) => each !== task),
-      started: [...read.started, { ...task, state: "started", lock_version: 99 }],
-    });
+    again(readStarted(label));
     await waitFor(() => {
       expect(moved().queryByText(/Non à jour/)).toBeNull();
     });
     expect(moved().queryByText("Mise à jour…")).toBeNull();
-    expect(labels("Démarrées")).toContain("Montage des armoires sur site");
+    expect(labels("Démarrées")).toContain(label);
+  });
+
+  it("never says a card is not up to date when the columns arrive with the end of the reading [WF-IHM-0090-A]", async () => {
+    // The model of the suspended reading is tried against this test only, with no e2e journey.
+    serve({ [PROGRESS]: "task_started" });
+    const waits = holdReadings();
+    const { again } = board();
+    const label = "Montage des armoires sur site";
+    await start(label);
+    const moved = () => within(card(label));
+    expect(await moved().findByText("Mise à jour…")).toBeInTheDocument();
+    expect(screen.queryByText(/Non à jour/)).toBeNull();
+    await act(async () => {
+      again(readStarted(label));
+      waits[0]?.release();
+      await Promise.resolve();
+    });
+    expect(screen.queryByText(/Non à jour/)).toBeNull();
+    expect(moved().queryByText("Mise à jour…")).toBeNull();
+    await waitFor(() => {
+      expect(labels("Démarrées")).toContain(label);
+    });
+    expect(screen.queryByText(/Non à jour/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
+  });
+
+  it("marks as not up to date the card a reading does not reach while another is reached [WF-IHM-0090-A]", async () => {
+    const reached = "Montage des armoires sur site";
+    const missed = "Réception usine";
+    serve({ [PROGRESS]: ["task_started", "milestone_completed"] });
+    const waits = holdReadings();
+    const { again } = board();
+    await start(reached);
+    await within(card(reached)).findByText("Mise à jour…");
+    // The board writes nothing while a reading is under way: the second gesture waits for its end.
+    waits[0]?.release();
+    await within(card(reached)).findByRole("button", { name: "Réessayer" });
+    await choose(missed, /^Terminer/);
+    await userEvent.click(within(card(missed)).getByRole("button", { name: "Terminer" }));
+    await within(card(missed)).findByText("Mise à jour…");
+    // The reading brings the first card at the version answered, and not the second.
+    await act(async () => {
+      again(readStarted(reached));
+      waits[1]?.release();
+      await Promise.resolve();
+    });
+    await within(card(missed)).findByRole("button", { name: "Réessayer" });
+    expect(within(card(missed)).getByText(/Non à jour/)).toBeInTheDocument();
+    expect(within(card(reached)).queryByText(/Non à jour/)).toBeNull();
+    expect(within(card(reached)).queryByText("Mise à jour…")).toBeNull();
   });
 });

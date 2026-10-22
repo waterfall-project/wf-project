@@ -61,7 +61,6 @@ import {
   type KanbanStructure,
   replaced,
   TITLE,
-  unanswered,
 } from "./kanban-cards";
 
 /** The mark of a card: updating while the tasks are read anew, outdated if that reading failed. */
@@ -107,8 +106,8 @@ export function Kanban({
   // Whether the tasks are being read anew, since the answer of a gesture; whether that reading was
   // over without bringing the answers (`failed`).
   const [reading, reread] = useTransition();
-  const [wasReading, setWasReading] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const wasReading = useRef(false);
+  const failed = useSyncExternalStore(book.subscribe, book.lapsed, book.lapsed);
   const [focusing, setFocusing] = useState<{ readonly id: string; readonly form: boolean }>();
   const elements = useRef(new Map<string, HTMLElement>());
   const date = useRef<HTMLInputElement | null>(null);
@@ -116,19 +115,6 @@ export function Kanban({
   // have chosen another card, and the focus must not be taken from that one.
   const chosen = useRef<string>(undefined);
   const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
-  // A reading over that does not hold an answer's version has not reached the card: it is not up to
-  // date, until it is read anew. Judged as the reading ends, from the columns read, never by the
-  // time it takes.
-  if (reading !== wasReading) {
-    setWasReading(reading);
-    if (
-      !reading &&
-      Object.keys(answered).length > 0 &&
-      unanswered(columns, answered) === answered
-    ) {
-      setFailed(true);
-    }
-  }
   // The one stop of Tab of the board: the card chosen, else the first card. The arrows go from card
   // to card (WF-IHM-0100).
   const tabStop = useMemo(() => {
@@ -143,6 +129,22 @@ export function Kanban({
     book.read(columns);
   }, [book, columns]);
 
+  // A reading over that leaves an answer unreached has not brought the card its version: it is not
+  // up to date, until it is read anew. Judged as the reading ends, once the layout effect above has
+  // forgotten the answers the columns read overtake, never by the time the reading takes.
+  useEffect(() => {
+    if (reading) {
+      wasReading.current = true;
+      return;
+    }
+    if (wasReading.current) {
+      wasReading.current = false;
+      if (Object.keys(book.snapshot()).length > 0) {
+        book.lapse();
+      }
+    }
+  }, [book, reading]);
+
   // The focus follows the card moved, which another column mounts anew, or the field of the date.
   useEffect(() => {
     if (focusing === undefined) {
@@ -153,7 +155,7 @@ export function Kanban({
 
   /** Read the tasks anew, the cards answered being marked until it is over. */
   const readAnew = () => {
-    setFailed(false);
+    book.settle();
     reread(() => {
       router.refresh();
     });
@@ -174,7 +176,7 @@ export function Kanban({
       return;
     }
     setWriting(card.node_id);
-    setFailed(false);
+    book.settle();
     setAsking(undefined);
     setFocusing({ id: card.node_id, form: false });
     say(card.node_id, undefined);
@@ -307,7 +309,11 @@ export function Kanban({
       setAsking(undefined);
       setFocusing({ id, form: false });
     },
-    retry: readAnew,
+    retry: (id) => {
+      readAnew();
+      // The button of the retry is gone once the card is marked again: the focus goes to the card.
+      setFocusing({ id, form: false });
+    },
     forget: (id) => {
       say(id, undefined);
       setFocusing({ id, form: false });

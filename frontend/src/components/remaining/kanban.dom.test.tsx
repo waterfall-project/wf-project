@@ -767,7 +767,7 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(labels("Terminées")).not.toContain("Réception usine");
   });
 
-  it("shows an unavailable gesture in the menu with the conditions it lacks, and does nothing when it is chosen, while a gesture the card does not list is not shown [WF-IHM-0090-A]", async () => {
+  it("shows an unavailable gesture in the menu with the conditions it lacks, and does nothing when it is chosen [WF-IHM-0090-A]", async () => {
     const client = serve({});
     board();
     const user = await openMenu("Montage des armoires sur site");
@@ -780,7 +780,7 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(completion).toHaveTextContent(
       "Conditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
     );
-    // The way back to not started is listed by no task started: the menu has no entry for it.
+    // Secondary: a gesture the card does not list is not in the menu at all.
     expect(within(menu).queryByRole("menuitem", { name: /^Rouvrir/ })).toBeNull();
     await user.click(completion);
     expect(
