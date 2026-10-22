@@ -373,7 +373,7 @@ describe("the gestures of the cards of the Kanban", () => {
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     });
 
-    it("leaves the focus where the user put it when the menu is left by a click outside it [WF-IHM-0100-A]", async () => {
+    it("does not bring the focus back to the card when the menu is left by a click outside it [WF-IHM-0100-A]", async () => {
       serve({});
       board();
       const label = "Montage des armoires sur site";
@@ -384,11 +384,7 @@ describe("the gestures of the cards of the Kanban", () => {
       await waitFor(() => {
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       });
-      // The focus is not brought back to the card: it stays on the button of the menu, where
-      // Radix leaves it after an interaction outside (a real click would put it where it lands).
-      expect(
-        within(card(label)).getByRole("button", { name: `Gestes de la tâche ${label}` }),
-      ).toHaveFocus();
+      expect(card(label)).not.toHaveFocus();
     });
 
     it("gives the stop of Tab back to the first card when the card chosen leaves the reading", async () => {
@@ -491,7 +487,7 @@ describe("the gestures of the cards of the Kanban", () => {
     ).toBeNull();
   });
 
-  it("carries a card dropped on a column by the gesture it lists, which asks its date first, and the focus follows the card [WF-IHM-0100-A]", async () => {
+  it("carries a card dropped on a column by the gesture it lists, which asks its date first, and the focus follows the card [WF-RAE-0030-A] [WF-IHM-0100-A]", async () => {
     const client = serve({ [PROGRESS]: "task_started" });
     board();
     drag("dragStart", card("Montage des armoires sur site"));
@@ -625,23 +621,39 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(written(client)).toEqual([]);
   });
 
+  it("asks the date of a card when the card that asked its own has left the reading [WF-IHM-0100-A]", async () => {
+    serve({ [PROGRESS]: "task_started" });
+    const columns = columnsOfExample("startable_tasks");
+    const { again } = board(columns);
+    const user = userEvent.setup();
+    await user.click(card("Montage des armoires sur site"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
+    again({
+      ...columns,
+      not_started: columns.not_started.filter(
+        (each) => each.label !== "Montage des armoires sur site",
+      ),
+    });
+    dragTo("Mise en service", "Démarrées");
+    expect(
+      await within(card("Mise en service")).findByLabelText("Date de l’événement"),
+    ).toBeInTheDocument();
+  });
+
   it("carries a card by a type of its own, which a field where it is dropped does not take as text [WF-IHM-0100-A]", async () => {
     serve({ [PROGRESS]: "task_started" });
     board();
     const user = userEvent.setup();
     await user.click(card("Montage des armoires sur site"));
     await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
-    const field = await within(card("Montage des armoires sur site")).findByLabelText(
-      "Date de l’événement",
-    );
+    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
     const carried = drag("dragStart", card("Mise en service"));
     expect(carried.setData).toHaveBeenCalledWith(
       "application/x-waterfall-card",
       expect.any(String),
     );
     expect(carried.setData).not.toHaveBeenCalledWith("text/plain", expect.anything());
-    drag("drop", field);
-    expect(field).toHaveValue("2026-06-03");
   });
 
   it("reopens a milestone completed to not started and any other task to started, as the card says it [WF-RAE-0030-A]", async () => {

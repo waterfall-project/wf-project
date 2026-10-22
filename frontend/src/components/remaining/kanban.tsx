@@ -182,7 +182,8 @@ export function Kanban({
       return;
     }
     // The date asked on a card is not replaced by another card's: its entry would be lost unseen.
-    if (asking !== undefined && asking.id !== card.node_id) {
+    // A card no more in the reading shows no entry: its request holds nothing back.
+    if (asking !== undefined && asking.id !== card.node_id && cards.has(asking.id)) {
       say(card.node_id, { kind: "said", sentence: t("asking") });
       return;
     }
