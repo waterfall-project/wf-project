@@ -338,19 +338,19 @@
       recherche et le tri s'y appliquent comme à la lecture d'un différentiel : un nœud retiré
       s'y juge sur ses valeurs de la révision de base, comme tout autre nœud sur les siennes, et
       sans tri il reste à la place qu'il avait (#1205).
-      `subtree_of` nomme une tâche de l'arbre rendu, une tâche retirée comprise : la fenêtre
-      est alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur
-      place, des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts
-      de ses lignes retirées. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues,
-      sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ; `meta` dit la structure de
-      la révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme
-      `totals`, et se calcule de même sur les lignes retenues, retirées comprises, quel que
-      soit `kinds` : une lecture sans filtre rend les écarts de toute la structure, celle d'un
-      sous-arbre les siens (`comparison`) ; une ligne déplacée compte dans la fenêtre de son
-      parent dans la révision comparée, pour son écart entier (`amount_deltas`). La grille de la
-      comparaison est celle des structures, avec les mêmes marques que la lecture d'un
-      différentiel. Une paire identique — la même révision deux fois — rend chaque nœud
-      inchangé et aucun écart de montant, jamais un refus.
+      `subtree_of` nomme une tâche de l'arbre rendu, une tâche retirée comprise : la fenêtre est
+      alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur place,
+      des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts de ses lignes
+      retirées. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues,
+      sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ; `meta` dit la structure de la
+      révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme `totals`,
+      et se calcule de même sur les lignes retenues, retirées comprises, quel que soit `kinds` : une
+      lecture sans filtre rend les écarts de toute la structure, celle d'un sous-arbre les siens
+      (`comparison`) ; une ligne déplacée compte dans la fenêtre de son parent dans la révision
+      comparée, pour son écart entier (`amount_deltas`). La grille de la comparaison est celle des
+      structures, avec les mêmes marques que la lecture d'un différentiel. Une paire identique — la
+      même révision deux fois — rend chaque nœud inchangé et aucun écart de montant, jamais un
+      refus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: from_revision_id

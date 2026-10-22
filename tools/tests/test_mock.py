@@ -3,6 +3,7 @@
 """Tests of the variant of the contract the fake back serves."""
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -133,6 +134,52 @@ def test_without_a_nodes_path_the_paths_are_only_prefixed() -> None:
     assert set(paths_of(mock.derive(contract))) == {f"/api/v1{STRUCTURES}"}
 
 
+def test_nodes_served_without_a_listing_of_structures_fail_loudly() -> None:
+    contract = amendments_contract()
+    del paths_of(contract)[STRUCTURES]
+    with pytest.raises(ValueError, match="is not: no amendment to route"):
+        mock.derive(contract)
+
+
+COMPARISON = "/projects/{project_id}/revisions/comparison"
+
+
+def comparison_contract(*, with_volume: bool = True) -> dict[str, object]:
+    """Return a contract that reads the comparison of two revisions, by query, with examples."""
+    examples = {"witness": {"$ref": "#/x/witness"}}
+    if with_volume:
+        examples["volume"] = {"$ref": "#/x/volume"}
+    return {
+        "servers": [{"url": "/api/v1"}],
+        "paths": {
+            COMPARISON: {
+                "get": {
+                    "parameters": [
+                        {"$ref": "#/components/parameters/ProjectId"},
+                        {"name": "from_revision_id", "in": "query"},
+                    ],
+                    "responses": {
+                        "200": {"content": {"application/json": {"examples": examples}}},
+                    },
+                }
+            }
+        },
+    }
+
+
+def test_the_volume_comparison_is_served_at_the_project_of_the_volume_first() -> None:
+    paths = paths_of(mock.derive(comparison_contract()))
+    served = paths[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
+    assert list(examples_of(served)) == ["volume", "witness"]
+    assert served["get"]["parameters"] == [{"name": "from_revision_id", "in": "query"}]
+    assert list(examples_of(paths[f"/api/v1{COMPARISON}"])) == ["witness", "volume"]
+
+
+def test_a_comparison_without_a_volume_example_fails_loudly() -> None:
+    with pytest.raises(ValueError, match="has no example 'volume'"):
+        mock.derive(comparison_contract(with_volume=False))
+
+
 def test_without_an_amendment_example_the_nodes_keep_their_examples() -> None:
     contract = amendments_contract()
     examples_of(paths_of(contract)[NODES]).pop("amendment")
@@ -191,13 +238,19 @@ def test_an_unresolved_reference_fails_loudly() -> None:
         mock.derive(contract)
 
 
-@pytest.mark.skipif(shutil.which("redocly") is None, reason="redocly is not installed")
-def test_the_bundle_of_the_repository_serves_the_amendment_203(tmp_path: Path) -> None:
+def test_the_bundle_of_the_repository_serves_the_amendment_203_and_the_volume(
+    tmp_path: Path,
+) -> None:
     root = Path(__file__).resolve().parents[2]
+    makefile = (root / "Makefile").read_text(encoding="utf-8")
+    version = re.search(r"^REDOCLY_VERSION := (\S+)$", makefile, re.MULTILINE)
+    assert version is not None
     bundle = tmp_path / "contract.json"
     subprocess.run(
         [
-            str(shutil.which("redocly")),
+            str(shutil.which("npx")),
+            "--yes",
+            f"@redocly/cli@{version[1]}",
             "bundle",
             str(root / "docs/api/openapi.yaml"),
             "--ext",
@@ -210,3 +263,4 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203(tmp_path: Path) -
     )
     served = paths_of(mock.derive(json.loads(bundle.read_text(encoding="utf-8"))))
     assert any(path.endswith("0203/nodes") for path in served)
+    assert f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}" in served
