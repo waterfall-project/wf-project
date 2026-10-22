@@ -99,8 +99,8 @@ OPERATIONS = {
     "moveNodes": ("200", ["nodes_moved", "nodes_indented"]),
     "setNodeTracking": ("200", ["node_tracked"]),
     "updateEstimateLine": ("200", ["estimate_line_updated_amendment"]),
-    "previewPaste": ("200", ["paste_plan_amendment"]),
-    "applyPaste": ("200", ["paste_applied_amendment"]),
+    "previewPaste": ("200", ["paste_plan_amendment", "paste_plan_amendment_skipping"]),
+    "applyPaste": ("200", ["paste_applied_amendment", "paste_applied_amendment_skipping"]),
 }
 REFUSALS = {
     "createNode": [

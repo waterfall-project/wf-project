@@ -10,7 +10,8 @@ the amendment 2, « reprise des essais », the differential not merged of the cu
 control station after a subordinate, a selection of two lines moved under another task
 (EP-15/US-0460, #1214); and the cell and the block the journeys enter and paste on it, which the
 fake back serves at the address of the differential: the hours of the line the amendment adds,
-then a block of three rows pasted from it (#1277). As every write of the grids, each answer is the
+then a block of three rows pasted from it (#1277), and a block of two rows that skips the line the
+amendment withdraws, without refusal (#1278). As every write of the grids, each answer is the
 difference between two readings of the differential, before and after the gesture
 (``wftools.mockwrites.written``), each node named by its identifier in the differential
 (``mockamendment.own_id``) and marked against the main structure; never written by hand.
@@ -321,37 +322,55 @@ columns of a line, write nothing (`PastePreview`)."""
 
 AMENDMENT_PASTE = universe(994)
 
+SKIPPING_TARGET = N.WIRING_ON_SITE
+SKIPPING_BLOCK: Block = (
+    ("Câblage sur site", "Ingénierie électrique", "Ingénieur électricien", "2"),
+    ("Essais et reprise sur site", "", "", ""),
+)
+"""A block of two rows pasted on the label of the wiring on site, the line before the one the
+amendment withdraws, the assistance to the trials of wiring: the first row writes the wiring, two
+engineers instead of one; the second skips the line withdrawn, read only at its row, and writes
+the node after it, the trials on site the amendment adds, which takes its label (#1278)."""
 
-def paste_targets(count: int = len(AMENDMENT_BLOCK)) -> list[int]:
+SKIPPING_PASTE = universe(995)
+
+
+def paste_targets(count: int = len(AMENDMENT_BLOCK), target: int = ENTERED_LINE) -> list[int]:
     """Return the nodes the rows of a block write, by their number, in the order of the plan.
 
-    The ``count`` rows of the grid from ENTERED_LINE — those of the block pasted, the block of the
-    example by default —, as the installation is read on the differential, a node withdrawn
-    holding its row (``nodes_amendment``; #1296).
+    The ``count`` rows of the grid from the line ``target`` — those of the block pasted, the block
+    of the example on ENTERED_LINE by default —, as the installation is read on the differential
+    (``nodes_amendment``; #1296). A node withdrawn holds its row, read only: the paste skips it,
+    without refusal, and the row of the block writes the next node that is not (#1278).
     """
     by_id = {mockamendment.own_id(row.number): row.number for row in mockamendment.rows()}
     ids = [
         cast("str", node["node_id"])
         for node in cast("list[Node]", mockamendment.nodes_amendment()["items"])
+        if node["difference"] != "removed"
     ]
-    start = ids.index(mockamendment.own_id(ENTERED_LINE))
+    start = ids.index(mockamendment.own_id(target))
     return [by_id[node_id] for node_id in ids[start : start + count]]
 
 
-def paste_plan_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
+def paste_plan_amendment(
+    block: Block = AMENDMENT_BLOCK, target: int = ENTERED_LINE, paste_id: str = AMENDMENT_PASTE
+) -> JsonObject:
     """Return what previewPaste answers to a block on the amendment: each row judged by its node.
 
     The columns are those of a line from its label (`NodeColumn`). On a line, a category or a role
     the reference data does not name is refused, its row and its column named; on a task, a cell
     past its label that is not empty falls on a column the task does not accept, and is refused;
-    an empty cell writes nothing (WF-IHM-0050). The block of the example by default.
+    an empty cell writes nothing (WF-IHM-0050). A node withdrawn is skipped, not refused (#1278).
+    The block of the example by default.
     """
     columns = node_columns()
     line_columns = ["label", *columns[columns.index("cost_category") :]]
     categories, roles = known()
     kinds = {row.number: row.kind for row in mockamendment.rows()}
     refusals: list[tuple[int, str, str]] = []
-    for index, (number, cells) in enumerate(zip(paste_targets(len(block)), block, strict=True)):
+    targets = paste_targets(len(block), target)
+    for index, (number, cells) in enumerate(zip(targets, block, strict=True)):
         _, category, role, _ = cells
         if kinds[number] == TASK:
             refusals.extend(
@@ -367,7 +386,7 @@ def paste_plan_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
         {"row": row, "column": column, "code": code} for row, column, code in refusals
     ]
     return {
-        "paste_id": AMENDMENT_PASTE,
+        "paste_id": paste_id,
         "accepted": len(block) - len({row for row, _, _ in refusals}),
         "rejected": rejected,
     }
@@ -382,11 +401,35 @@ def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
     label; amounts follow, the budget with them on a differential (WF-REV-0050), and the summaries
     above, and the totals.
     """
-    if paste_plan_amendment(block)["rejected"]:
+    return _applied(block, ENTERED_LINE, entered_roots(), (entered_roots(), [ENTERED_LINE]))
+
+
+def paste_plan_amendment_skipping() -> JsonObject:
+    """Return what previewPaste answers to the block that skips the line the amendment withdraws."""
+    return paste_plan_amendment(SKIPPING_BLOCK, SKIPPING_TARGET, SKIPPING_PASTE)
+
+
+def paste_applied_amendment_skipping() -> JsonObject:
+    """Return what applyPaste answers to the block that skips the line withdrawn, confirmed.
+
+    A write of the differential read today: the wiring and the trials on site one version
+    further, the structure one version further than `structures` lists (#421, #1278).
+    """
+    return _applied(SKIPPING_BLOCK, SKIPPING_TARGET, mockamendment.amendment(), None)
+
+
+def _applied(
+    block: Block,
+    target: int,
+    roots: tuple[Task, ...],
+    following: tuple[Iterable[Task], Sequence[int]] | None,
+) -> JsonObject:
+    """Return what applyPaste answers to a block on the amendment from ``target``, on ``roots``."""
+    if paste_plan_amendment(block, target)["rejected"]:
         message = "the block pasted on the amendment is refused in part"
         raise ValueError(message)
     categories, roles = known()
-    targets = paste_targets(len(block))
+    targets = paste_targets(len(block), target)
     labels = dict(zip(targets, block, strict=True))
 
     def task(each: Task) -> Task:
@@ -404,8 +447,7 @@ def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
             quantity=Decimal(quantity),
         )
 
-    roots = amended(entered_roots(), task, line)
-    answer = amendment_write(roots, targets, following=(entered_roots(), [ENTERED_LINE]))
+    answer = amendment_write(amended(roots, task, line), targets, following=following)
     return {**answer, "rejected": []}
 
 
@@ -569,6 +611,57 @@ def edit_examples() -> dict[str, JsonObject]:
             f"{totals_said(applied)}, et le compteur du différentiel passé à "
             f"{applied['structure_lock_version']}, celui que la saisie laissait plus un ; aucune "
             f"ligne refusée (WF-IHM-0050, WF-REV-0050, #1277).",
+            applied,
+        ),
+        **skipping_examples(),
+    }
+
+
+def skipping_examples() -> dict[str, JsonObject]:
+    """Return the named examples of the block that skips the line the amendment withdraws (#1278).
+
+    Named examples beside the ``amendment`` ones, which the fake back serves first at the address
+    of the differential (``wftools.mock``).
+    """
+    rows = {row.number: row for row in mockamendment.rows()}
+    [removed_label] = [
+        cast("str", node[node["kind"]]["label"])
+        for node in cast("list[Node]", mockamendment.nodes_amendment()["items"])
+        if node["difference"] == "removed"
+    ]
+    on = (
+        f"Sur l'« {mockamendment.structure('amendment')['label']} », différentiel non fusionné "
+        f"de la révision courante, dont le devis se saisit quel que soit l'état du projet "
+        f"(WF-DEV-0050)"
+    )
+    plan, applied = paste_plan_amendment_skipping(), paste_applied_amendment_skipping()
+    wiring, trials = paste_targets(len(SKIPPING_BLOCK), SKIPPING_TARGET)
+    written = {cast("str", node["node_id"]): node for node in _nodes(applied)}
+    pasted = cast("Node", written[mockamendment.own_id(wiring)]["estimate_line"])
+    block = (
+        f"un bloc de deux lignes et quatre colonnes — libellé, catégorie, rôle, quantité — collé "
+        f"sur le libellé de « {rows[wiring].label} », la ligne qui précède « {removed_label} », "
+        f"que l'avenant retire et que la grille montre à sa place, en lecture seule"
+    )
+    return {
+        "paste_plan_amendment_skipping.json": mocktext.example(
+            f"{on}, {block} : la première ligne du bloc écrit « {rows[wiring].label} » ; la "
+            f"seconde saute la ligne retirée, sans refus, et écrit le nœud suivant, la tâche "
+            f"« {rows[trials].label} » que l'avenant ajoute, qui ne prend que son libellé, ses "
+            f"trois cellules vides n'écrivant rien. Les {plan['accepted']} lignes seront "
+            f"écrites, aucune n'est refusée ; rien n'est encore écrit (WF-IHM-0050, #1278).",
+            plan,
+        ),
+        "paste_applied_amendment_skipping.json": mocktext.example(
+            f"{on}, le bloc qui saute la ligne retirée appliqué "
+            f"(paste_plan_amendment_skipping) : « {rows[wiring].label} », dont la quantité "
+            f"passe à {pasted['quantity']} et le montant à {money_said(pasted['base_amount'])}, "
+            f"et la tâche « {rows[trials].label} » renommée « {SKIPPING_BLOCK[1][0]} », une "
+            f"version de plus chacune ; « {removed_label} », retirée, n'est pas écrite. Avec "
+            f"elles, leurs ancêtres, {tasks_said(applied, 'ancestors')}, dont le montant suit, "
+            f"{totals_said(applied)}, et le compteur du différentiel passé à "
+            f"{applied['structure_lock_version']} ; aucune ligne refusée (WF-IHM-0050, "
+            f"WF-REV-0050, #1278).",
             applied,
         ),
     }

@@ -1723,7 +1723,14 @@ PastePreview:
     ligne de devis collée sur son libellé : la catégorie, le rôle, la quantité, la charge,
     le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la
     description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la
-    grille à la même distance sous le nœud visé, dans l'ordre du plan. Aucune cellule n'est
+    grille à la même distance sous le nœud visé, dans l'ordre du plan. Sur un différentiel, les
+    nœuds qu'il retire, que sa lecture rend à leur place en lecture seule (`NodeDifference`), ne
+    comptent pas : le collage les saute, sans refus, et la ligne du bloc qui serait tombée sur l'un
+    d'eux écrit le nœud suivant qui n'est pas retiré, les lignes suivantes du bloc les nœuds
+    d'après — un bloc de deux lignes collé sur la ligne qui précède une ligne retirée écrit cette
+    ligne, puis le nœud qui suit la ligne retirée (décision de l'auteur du 2026-10-22, #1278).
+    `PastePlan.accepted` et `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds
+    sautés. Aucune cellule n'est
     décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas est refusée, la
     ligne et la colonne nommées (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien —
     un champ calculé pour ce nœud par `COMPUTED_VALUE`, un champ que sa nature refuse ou une

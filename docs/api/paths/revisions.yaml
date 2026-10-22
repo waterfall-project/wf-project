@@ -1416,7 +1416,10 @@
       non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par
       sa ligne et sa colonne (`PastePreview`), et le sous-projet d'une ligne d'une tâche démarrée
       ou terminée ne quitte pas un sous-projet qui a reçu des coûts réels
-      (`SUBPROJECT_HAS_ACTUAL_COSTS`, `PasteRejection`, WF-PRJ-0050).
+      (`SUBPROJECT_HAS_ACTUAL_COSTS`, `PasteRejection`, WF-PRJ-0050). Sur un différentiel, un
+      bloc qui couvre des nœuds que le différentiel retire, rendus à leur place en lecture
+      seule (`NodeDifference`), saute ces nœuds et remplit les suivants, sans refus : chaque
+      ligne du bloc écrit le nœud suivant qui n'est pas retiré (`PastePreview`, #1278).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1437,6 +1440,7 @@
               unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
               subproject_held: { $ref: ../../../fixtures/api/paste_plan_subproject_held.json }
               amendment: { $ref: ../../../fixtures/api/paste_plan_amendment.json }
+              amendment_skipping: { $ref: ../../../fixtures/api/paste_plan_amendment_skipping.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1465,7 +1469,9 @@
       le compteur de la structure, refusé par 412 s'il est périmé, et rend le compteur suivant avec
       les nœuds écrits, leurs ancêtres et les totaux, et les refus de l'aperçu, ligne par ligne,
       que la confirmation n'a pas écrits (`PasteApplied`, WF-IHM-0110) : un succès partiel se lit
-      à ce que `rejected` n'est pas vide.
+      à ce que `rejected` n'est pas vide. Sur un différentiel, les nœuds qu'il retire, que le bloc
+      couvre, sont sautés sans refus et ne sont jamais écrits : les lignes du bloc écrivent les
+      nœuds suivants, comme l'aperçu les a jugés (`PastePreview`, #1278).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1487,6 +1493,7 @@
               applied: { $ref: ../../../fixtures/api/paste_applied.json }
               partial: { $ref: ../../../fixtures/api/paste_applied_partial.json }
               amendment: { $ref: ../../../fixtures/api/paste_applied_amendment.json }
+              amendment_skipping: { $ref: ../../../fixtures/api/paste_applied_amendment_skipping.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
