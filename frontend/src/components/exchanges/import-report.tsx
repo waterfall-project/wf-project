@@ -187,10 +187,12 @@ export interface ImportReportProps {
   readonly entry: Import;
   readonly offer: CommandOffer | undefined;
   readonly start: string;
+  /** Where the screen leads once the import is applied — the planning it fills, if it is one. */
+  readonly then?: string | undefined;
 }
 
 /** Render the report of an import, and offer to apply or abandon it. */
-export function ImportReport({ projectId, entry, offer, start }: ImportReportProps) {
+export function ImportReport({ projectId, entry, offer, start, then }: ImportReportProps) {
   const t = useTranslations();
   const title = t("exchanges.report.title", { file: entry.filename });
   return (
@@ -235,6 +237,7 @@ export function ImportReport({ projectId, entry, offer, start }: ImportReportPro
         offer={offer}
         steps={IMPORT_STEPS[entry.status]}
         start={start}
+        then={then}
       />
     </section>
   );

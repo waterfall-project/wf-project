@@ -122,3 +122,40 @@ describe("the imports on the screen of a project without revision", () => {
     expect(text(page)).not.toContain("Import an MS Project schedule");
   });
 });
+
+describe("the encart « Démarrer le projet »", () => {
+  const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
+
+  /**
+   * The page of the witness project, whose revision in progress (102) the list of its revisions
+   * carries whole. No example of the contract lists a revision in progress that offers the skeleton
+   * for a project that has it in progress: the encart shown is tested on the components, against
+   * `revision_without_tasks` (project-start.dom.test.tsx), and the fake back serves the witness.
+   */
+  async function withRevisions(list: "revisions" | "revisions_designation_open") {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project",
+      "GET /projects/{project_id}/revisions": list,
+    };
+    return projectAt();
+  }
+
+  it("is no longer shown once the main structure bears a task: the list names main_structure_without_tasks as missing, and no revision is read besides it [WF-PRJ-0030-A]", async () => {
+    const page = await withRevisions("revisions");
+    expect(page).not.toContain('aria-label="Start the project"');
+    expect(routes()).not.toContain(REVISION_READ);
+  });
+
+  it("is not shown when the revision in progress is not among the revisions listed, and reads no revision either", async () => {
+    const page = await withRevisions("revisions_designation_open");
+    expect(page).not.toContain('aria-label="Start the project"');
+    expect(routes()).not.toContain(REVISION_READ);
+  });
+
+  it("is not shown on a project without a revision in progress, and reads no revision", async () => {
+    const page = await projectAt();
+    expect(page).not.toContain('aria-label="Start the project"');
+    expect(routes()).not.toContain(REVISION_READ);
+  });
+});

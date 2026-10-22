@@ -241,6 +241,25 @@ export function useTrackTask(): TrackTask {
 }
 
 /**
+ * Run `then` once, when the task named has succeeded — never when it failed or its follow-up was
+ * interrupted —, for the screen that started it and still shows: a task that ends while the user
+ * is elsewhere leads nowhere. `task_id` is none until a task was started.
+ */
+export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
+  const { log } = useTracker();
+  const done = useRef<string>(undefined);
+  const succeeded =
+    taskId !== undefined &&
+    log.some((line) => line.task.task_id === taskId && line.end === "succeeded");
+  useEffect(() => {
+    if (succeeded && done.current !== taskId) {
+      done.current = taskId;
+      then();
+    }
+  }, [succeeded, taskId, then]);
+}
+
+/**
  * The function that forgets every task the tracker follows, what the tab kept of them for a
  * reload, and the history of the messages: signing out leaves nothing of the session to the next
  * user of the tab.

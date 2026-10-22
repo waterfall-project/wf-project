@@ -1058,6 +1058,21 @@
     },
     "periodRefused": "La liste n’est pas lue : le serveur refuse la période demandée."
   },
+  "projectStart": {
+    "title": "Démarrer le projet",
+    "lead": "La structure principale de la révision en cours n’a aucune tâche. Démarrez le planning de l’une de ces façons.",
+    "skeleton": "Planning automatique depuis le lotissement",
+    "skeletonHint": "Saisissez le lotissement, puis engendrez le planning.",
+    "import": "Importer un fichier MS Project",
+    "importHint": "Déposez un fichier .xml : son compte rendu précède l’application.",
+    "later": "Plus tard",
+    "reopen": "Démarrer le projet"
+  },
+  "generatePlanning": {
+    "title": "Engendrer le planning",
+    "lead": "Le lotissement saisi, engendrez le planning : une récapitulative par lot et par poste, une tâche par livrable et leurs jalons de fin.",
+    "label": "Engendrer le planning"
+  },
   "projectFacts": {
     "label": "Le projet",
     "settings": "Paramètres du projet",
@@ -2763,6 +2778,17 @@
       "periodFrom": "Du",
       "periodTo": "Au",
       "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+    },
+    "drop": {
+      "title": "Zone de dépôt du fichier MS Project",
+      "hint": "Glissez un fichier .xml ici, ou choisissez-le. {max} Mio au plus.",
+      "choose": "Choisir un fichier",
+      "file": "Fichier MS Project (.xml)",
+      "notXml": "Ce n’est pas un fichier .xml : un planning MS Project s’exporte en XML.",
+      "tooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet.",
+      "sending": "Envoi de « {file} »…",
+      "sent": "« {file} » est envoyé : son compte rendu s’affiche sur la page.",
+      "busy": "Un envoi est en cours : le fichier déposé n’est pas pris en compte."
     },
     "report": {
       "title": "Compte rendu de l’import « {file} »",

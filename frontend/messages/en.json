@@ -1058,6 +1058,21 @@
     },
     "periodRefused": "The list is not read: the server refuses the period asked."
   },
+  "projectStart": {
+    "title": "Start the project",
+    "lead": "The main structure of the current revision has no task. Start the planning one of these ways.",
+    "skeleton": "Automatic planning from the work breakdown",
+    "skeletonHint": "Enter the work breakdown, then generate the planning.",
+    "import": "Import an MS Project file",
+    "importHint": "Drop an .xml file: its report comes before it is applied.",
+    "later": "Later",
+    "reopen": "Start the project"
+  },
+  "generatePlanning": {
+    "title": "Generate the planning",
+    "lead": "Once the work breakdown is entered, generate the planning: a summary task for each work package and order item, a task for each deliverable and their end milestones.",
+    "label": "Generate the planning"
+  },
   "projectFacts": {
     "label": "The project",
     "settings": "Project settings",
@@ -2763,6 +2778,17 @@
       "periodFrom": "From",
       "periodTo": "To",
       "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+    },
+    "drop": {
+      "title": "Drop zone for the MS Project file",
+      "hint": "Drag an .xml file here, or choose it. {max} MiB at most.",
+      "choose": "Choose a file",
+      "file": "MS Project file (.xml)",
+      "notXml": "This is not an .xml file: an MS Project schedule is exported as XML.",
+      "tooLarge": "The file is larger than {max} MiB, the largest size an import takes.",
+      "sending": "Sending “{file}”…",
+      "sent": "“{file}” is sent: its report is shown on the page.",
+      "busy": "A file is being sent: the file dropped is not taken."
     },
     "report": {
       "title": "Report of the import “{file}”",
