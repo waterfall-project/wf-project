@@ -129,7 +129,7 @@ afterEach(() => {
 roomForCharts();
 
 describe("the workload of a project", () => {
-  it("stacks the load of each role by month in bars, as the API gave them, and draws no capacity, no ratio nor total [WF-DEV-0070-A]", async () => {
+  it("stacks the load of each role by month in bars, as the API gave them, and draws no capacity nor ratio, the total of each month at the top of its bar [WF-DEV-0070-A]", async () => {
     workload();
     const image = screen.getByRole("img", {
       name: /^Stacked bars of the load of each resource role/,
@@ -153,12 +153,27 @@ describe("the workload of a project", () => {
       ["2026-06-01T00:00:00Z", "1465.75"],
       ["2026-07-01T00:00:00Z", "2622.38"],
     ]);
-    // The bars alone: the capacity of each role, that of the whole installation, is in the table,
-    // in regard of its load, never drawn — a line that would crush the bars (#375, option b).
-    expect(series.map((each) => each.type)).toEqual(["bar", "bar", "bar"]);
-    // One stack, a bar a month divided by role; the plan of a project gets no total of its months
-    // from the contract, and sums nothing here.
-    expect(series.map((each) => (each as BarSeriesOption).stack)).toEqual(["load", "load", "load"]);
+    // The bars and the totals alone: the capacity of each role, that of the whole installation, is
+    // in the table, in regard of its load, never drawn — a line that would crush the bars (#375,
+    // option b).
+    expect(series.map((each) => each.type)).toEqual(["bar", "bar", "bar", "line"]);
+    // One stack, a bar a month divided by role.
+    expect(series.slice(0, 3).map((each) => (each as BarSeriesOption).stack)).toEqual([
+      "load",
+      "load",
+      "load",
+    ]);
+    // The total of a month is the server's, drawn as the label of an invisible line, never a sum.
+    const total = series[3] as LineSeriesOption;
+    expect(total).toMatchObject({ type: "line", name: "Total", silent: true });
+    expect(total.data).toEqual(
+      WORKLOAD.monthly_totals.map((each) => [`${each.month}-01T00:00:00Z`, each.hours]),
+    );
+    const label = total.label?.formatter as (point: unknown) => string;
+    const [first] = WORKLOAD.monthly_totals;
+    expect(label({ value: [`${first?.month ?? ""}-01T00:00:00Z`, first?.hours] })).toBe(
+      new Intl.NumberFormat("en", { minimumFractionDigits: 2 }).format(Number(first?.hours)),
+    );
     // Its months on an axis in UTC, June 2026 to August 2029: a tick every six months over so
     // long a range, from the first of 2026 to the first of 2030.
     expect(option.useUTC).toBe(true);
@@ -234,6 +249,7 @@ describe("the workload of a project", () => {
       "Ingénieur électricien",
       "Technicien de mise en service",
       "Monteur câbleur",
+      "Total",
     ]);
     expect(option.animation).toBe(false);
     expect(canvas.images).toEqual([{ type: "png", pixelRatio: 2, backgroundColor: BACKGROUND }]);

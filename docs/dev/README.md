@@ -614,9 +614,9 @@ légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les
 chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; un plan de
 charge est un histogramme empilé (`stackedRoles` de `workload/stacked-load.ts` : une barre par mois,
 divisée par rôle, les motifs gardés), dont l'infobulle d'un mois liste les rôles et leurs heures
-(`monthTooltip`, libellés échappés) ; celui du projet n'a ni droite de capacité (#375) ni total de
-mois, le contrat n'en rendant pas, celui du portefeuille porte le total de chaque mois que le
-serveur rend (`monthly_totals`, `monthTotals`) au sommet de sa barre et, en pointillés, la capacité
+(`monthTooltip`, libellés échappés) ; celui du projet n'a pas de droite de capacité (#375) mais porte au sommet
+de chaque barre le total du mois que le serveur rend (`monthly_totals`, `monthTotals`), comme celui
+du portefeuille qui porte aussi, en pointillés, la capacité
 du périmètre (`capacity_monthly_hours`), la table des rôles, de leur taux et de leurs signaux étant
 sous le graphique ; les liens vers le plan de charge ouvrent une base (`basis`,
 `workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis `reference_budget`

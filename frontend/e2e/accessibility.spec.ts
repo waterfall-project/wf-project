@@ -151,6 +151,35 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
     });
   }
 
+  if (screen.route === "/projects/[projectId]/revisions/[revisionId]/risks") {
+    for (const mode of ["light", "dark"] as const) {
+      test.describe(`a workstation in ${mode} mode, the matrix unfolded`, () => {
+        test.use({ colorScheme: mode });
+
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the matrix of the risks unfolded: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA, at 1366 and at 911 points [WF-IHM-0100-A]`, async ({
+          page,
+        }) => {
+          await open(page, screen);
+          // The matrix starts folded behind its command, which says so.
+          const toggle = page.getByRole("button", { name: "Graphique", exact: true });
+          await expect(toggle).toHaveAttribute("aria-expanded", "false");
+          await toggle.click();
+          await expect(toggle).toHaveAttribute("aria-expanded", "true");
+          await expect(
+            page.getByRole("img", { name: /^Nuage de bulles des risques/ }).locator("svg"),
+          ).toBeVisible();
+          for (const size of WINDOWS) {
+            await resize(page, size);
+            const { breaches } = await axeAudit(page);
+            expect
+              .soft(breaches, `${String(size.width)} points: axe's rules for WCAG A and AA`)
+              .toEqual([]);
+          }
+        });
+      });
+    }
+  }
+
   test(`${screen.code} ${screen.route}: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({
     page,
   }) => {
