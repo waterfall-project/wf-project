@@ -24,7 +24,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mocktext, mockwitness
+from wftools import REPOSITORY, mockcore, mockdating, mocktext, mockwitness
 from wftools.mockids import universe
 from wftools.mockstructure import (
     CATEGORY_LABELS,
@@ -192,7 +192,7 @@ def on_line(number: int, **changes: Any) -> Callable[[Line], Line | None]:
     """
 
     def entered(each: Line) -> Line:
-        budgeted = mockcore.price(each, REFERENCE_YEAR).budgeted
+        budgeted = mockdating.price(each, REFERENCE_YEAR).budgeted
         return replace(each, budgeted=budgeted, **changes)
 
     return lambda each: entered(each) if each.number == number else each
@@ -422,7 +422,7 @@ def volume_write(
 
 def task_lengthened() -> JsonObject:
     """Return what updateTaskFacet answers when the duration of LENGTHENED grows by its days."""
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if each.label == LENGTHENED]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if each.label == LENGTHENED]
     roots = amended(described(), on_task(task.number, days=task.days + LENGTHENED_BY))
     return volume_write(roots, [task.number])
 
@@ -523,7 +523,7 @@ def pasted(block: Sequence[Sequence[str]]) -> tuple[tuple[Task, ...], list[int],
     that write left it (WF-IHM-0050).
     """
     entered = amended(described(), line=on_line(LINE, label=ENTERED))
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
     rejected = cast("list[JsonObject]", paste_plan(block, PASTES[0])["rejected"])
     refused = {cast("int", each["row"]) for each in rejected}
     rows = list(zip(_numbers(task.lines[: len(block)]), block, strict=True))
