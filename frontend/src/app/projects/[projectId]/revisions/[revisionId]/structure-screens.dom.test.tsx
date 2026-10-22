@@ -258,18 +258,29 @@ describe("the chip that lifts a filter of the banner", () => {
     await arrive();
   });
 
-  it("lifts both parameters of the lot and keeps the structure read", async () => {
-    render(
-      await tree(
-        { ...ESTIMATE, nodes: "nodes_amendment" },
-        `structure=${AMENDMENT}&work_package_id=${LOT}&order_item_id=${LOT}`,
-      ),
-    );
+  it("lifts the lot of the planning, which sorts nothing, and leaves its address without any", async () => {
+    render(await tree(PLANNING, `work_package_id=${LOT}`));
     const arrive = holdNavigations();
     await liftFilter();
-    expect(Object.fromEntries(lastAsked())).toEqual({ structure: AMENDMENT });
+    expect(Object.fromEntries(lastAsked())).toEqual({});
     await arrive();
   });
+
+  it.each([PLANNING, ESTIMATE])(
+    "lifts both parameters of the lot and keeps the structure read, on the $name",
+    async (shown) => {
+      render(
+        await tree(
+          { ...shown, nodes: "nodes_amendment" },
+          `structure=${AMENDMENT}&work_package_id=${LOT}&order_item_id=${LOT}`,
+        ),
+      );
+      const arrive = holdNavigations();
+      await liftFilter();
+      expect(Object.fromEntries(lastAsked())).toEqual({ structure: AMENDMENT });
+      await arrive();
+    },
+  );
 });
 
 describe("the marks of a difference", () => {

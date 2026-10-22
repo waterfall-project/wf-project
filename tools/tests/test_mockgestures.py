@@ -98,6 +98,9 @@ OPERATIONS = {
     "deleteNode": ("200", ["node_summary_deleted"]),
     "moveNodes": ("200", ["nodes_moved", "nodes_indented"]),
     "setNodeTracking": ("200", ["node_tracked"]),
+    "updateEstimateLine": ("200", ["estimate_line_updated_amendment"]),
+    "previewPaste": ("200", ["paste_plan_amendment"]),
+    "applyPaste": ("200", ["paste_applied_amendment"]),
 }
 REFUSALS = {
     "createNode": [

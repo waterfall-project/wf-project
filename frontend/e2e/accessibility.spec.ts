@@ -19,6 +19,8 @@
  *   wearing its indicator of the focus, comes back to the first without being caught on the way
  *   (`walkByTab`), and reaches at 911 points every element it reached at 1366 (`lost`).
  *
+ * The matrix of the risks, unfolded behind its command, is audited too, in both modes.
+ *
  * What these tests leave unproven is written in the note of US-0200 (EP-14): what a gesture opens
  * — a dialog, a menu, the editor of a cell — is not walked, nor what a closed `details` holds.
  *
@@ -149,6 +151,44 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
         }
       });
     });
+  }
+
+  if (screen.route === "/projects/[projectId]/revisions/[revisionId]/risks") {
+    for (const mode of ["light", "dark"] as const) {
+      test.describe(`a workstation in ${mode} mode, the matrix unfolded`, () => {
+        test.use({ colorScheme: mode });
+
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the matrix of the risks unfolded: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA, at 1366 and at 911 points [WF-IHM-0100-A]`, async ({
+          page,
+        }) => {
+          await open(page, screen);
+          await expect(page.locator("html")).not.toHaveAttribute("data-theme");
+          await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+          // The matrix starts folded behind its command, which says so.
+          const toggle = page.getByRole("button", { name: "Graphique", exact: true });
+          await expect(toggle).toHaveAttribute("aria-expanded", "false");
+          await toggle.click();
+          await expect(toggle).toHaveAttribute("aria-expanded", "true");
+          await expect(
+            page.getByRole("img", { name: /^Nuage de bulles des risques/ }).locator("svg"),
+          ).toBeVisible();
+          for (const size of WINDOWS) {
+            await resize(page, size);
+            const { breaches, unmeasured } = await axeAudit(page);
+            const reasons = Object.entries(unmeasured).map(
+              ([reason, count]) => `${reason}: ${String(count)}`,
+            );
+            test.info().annotations.push({
+              type: "contrast left unmeasured by axe",
+              description: `${String(size.width)} points: ${reasons.length === 0 ? "none" : reasons.join(", ")}`,
+            });
+            expect
+              .soft(breaches, `${String(size.width)} points: axe's rules for WCAG A and AA`)
+              .toEqual([]);
+          }
+        });
+      });
+    }
   }
 
   test(`${screen.code} ${screen.route}: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({

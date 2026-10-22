@@ -83,7 +83,8 @@ def written(
     not summaries, whose amount corrected for inflation or year of consumption changed, but those
     the ancestors render whole; the ancestors of the nodes written, those they had before a move
     with those they have after, of the node deleted — read before, as it is gone after — and of
-    the tasks redated, whole. Each list in the order of the plan, each node once (`NodesWritten`).
+    the tasks redated, whole, but those written. Each list in the order of the plan, each node once
+    (`NodesWritten`).
     """
     was, now = _by_id(before), _by_id(after)
     existing = [node_id for node_id in writes if node_id in was]
@@ -94,7 +95,9 @@ def written(
         and _is_activity(node)
         and _changed(node["task"], was[node_id]["task"], SCHEDULE)
     ]
-    above = _ancestors(now, [*writes, *moved]) | _ancestors(was, [*existing, *deleted])
+    above = (_ancestors(now, [*writes, *moved]) | _ancestors(was, [*existing, *deleted])) - {
+        *writes
+    }
     reinflated: list[JsonValue] = []
     for node_id, node in now.items():
         if node_id in writes or node_id in above or not (_is_activity(node) or _is_line(node)):
@@ -468,7 +471,7 @@ PASTES = (universe(991), universe(992))
 TOO_WIDE_CORRELATION = universe(973)
 
 
-def _known() -> tuple[dict[str, str], dict[str, str]]:
+def known() -> tuple[dict[str, str], dict[str, str]]:
     """Return the categories and the roles of the universe by their label."""
     roles = {role["label"]: role["resource_role_id"] for role in fixture("resource_roles")["items"]}
     return {label: key for key, label in CATEGORY_LABELS.items()}, roles
@@ -480,7 +483,7 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
     A category or a role the reference data does not name is refused, its row and its column
     named; an empty role writes nothing (WF-IHM-0050).
     """
-    categories, roles = _known()
+    categories, roles = known()
     rejected: list[JsonValue] = []
     for row, (_, category, role, _) in enumerate(block):
         if category not in categories:
@@ -528,7 +531,7 @@ def pasted(block: Sequence[Sequence[str]]) -> tuple[tuple[Task, ...], list[int],
     refused = {cast("int", each["row"]) for each in rejected}
     rows = list(zip(_numbers(task.lines[: len(block)]), block, strict=True))
     targets = [number for row, (number, _) in enumerate(rows) if row not in refused]
-    categories, roles = _known()
+    categories, roles = known()
     roots = entered
     for number, (label, category, role, quantity) in (
         pair for row, pair in enumerate(rows) if row not in refused

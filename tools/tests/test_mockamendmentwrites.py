@@ -207,3 +207,93 @@ def test_a_deletion_sent_with_a_stale_counter_names_the_counter_the_move_left(
     assert stale["params"] == {"expected_lock_version": line["lock_version"]}
     assert read[line["node_id"]]["lock_version"] < line["lock_version"]
     assert mockamendmentwrites.MOVED_LINES[0] in _summary("node_delete_stale")
+
+
+def test_the_hours_entered_on_the_amendment_rewrite_its_line_and_climb_to_its_ancestors(
+    read: dict[str, Node], totals: dict[str, Any]
+) -> None:
+    # #1277: the cell the journeys enter on the amendment answers the line of the amendment, at
+    # the address of the differential. Its budget follows its quantities on a differential, which
+    # the merge draws its budget from (WF-REV-0050); no date moves.
+    updated = gesture("estimate_line_updated_amendment")
+    [line] = updated["nodes"]
+    was = read[own(mockamendmentwrites.ENTERED_LINE)]
+    assert (line["node_id"], line["lock_version"]) == (was["node_id"], was["lock_version"] + 1)
+    facet = line["estimate_line"]
+    assert Decimal(facet["hours"]) == mockamendmentwrites.ENTERED_HOURS
+    grown = Decimal(facet["base_amount"]) - Decimal(was["estimate_line"]["base_amount"])
+    assert grown > 0
+    assert facet["budgeted_amount"] == facet["base_amount"]
+    assert [node["node_id"] for node in updated["ancestors"]] == [
+        own(N.INSTALLATION),
+        own(N.SITE_TESTS),
+        own(N.TESTS_RESUMED),
+    ]
+    assert (updated["rescheduled"], updated["reinflated"]) == ([], [])
+    assert Decimal(updated["totals"]["base_amount"]) == Decimal(totals["base_amount"]) + grown
+    amendment = _json(mockamendment.structure("amendment"))
+    assert updated["structure_lock_version"] == amendment["lock_version"] + 1
+
+
+def test_the_block_pasted_on_the_amendment_writes_the_rows_under_its_line_in_the_grid() -> None:
+    # #1277: the rows of the block write the rows of the grid at the same distance under the line
+    # pasted on, as the installation is read on the differential (`nodes_amendment`): the rows 7
+    # to 9 of its reading, the line the amendment adds, the commissioning and its line.
+    items = _json(mockamendment.nodes_amendment())["items"]
+    rows = [node["node_id"] for node in items[6:9]]
+    assert rows == [own(number) for number in mockamendmentwrites.paste_targets()]
+    assert rows[0] == own(mockamendmentwrites.ENTERED_LINE)
+    assert [node["kind"] for node in items[6:9]] == ["estimate_line", "task", "estimate_line"]
+    plan = gesture("paste_plan_amendment")
+    assert (plan["accepted"], plan["rejected"]) == (3, [])
+    assert plan["paste_id"] != _json(mockwitness.fixture("paste_plan"))["paste_id"]
+
+
+def test_a_block_refused_in_part_names_each_cell_and_is_never_applied() -> None:
+    # A cell past the label of the task falls on a column it does not accept; on a line, a
+    # category, then a role, the reference data does not name (WF-IHM-0050). Such a block is
+    # previewed, never applied: the generator refuses to write its answer.
+    first, task, last = mockamendmentwrites.AMENDMENT_BLOCK
+    block = (
+        (first[0], "Catégorie inconnue", first[2], first[3]),
+        (task[0], "", "", "4"),
+        (last[0], last[1], "Rôle inconnu", last[3]),
+    )
+    plan = _json(mockamendmentwrites.paste_plan_amendment(block))
+    assert plan["rejected"] == [
+        {"row": 0, "column": "cost_category", "code": "UNKNOWN_COST_CATEGORY"},
+        {"row": 1, "column": "quantity", "code": "FIELD_NOT_ACCEPTED"},
+        {"row": 2, "column": "resource_role", "code": "UNKNOWN_RESOURCE_ROLE"},
+    ]
+    assert plan["accepted"] == 0
+    with pytest.raises(ValueError, match="refused in part"):
+        mockamendmentwrites.paste_applied_amendment(block)
+
+
+def test_the_block_pasted_on_the_amendment_follows_the_hours_entered() -> None:
+    # #421: the paste reads the line at the version the entry left, and leaves the structure one
+    # version further still; a node written is not among the ancestors (`NodesWritten`).
+    updated = gesture("estimate_line_updated_amendment")
+    applied = gesture("paste_applied_amendment")
+    versions = {node["node_id"]: node["lock_version"] for node in applied["nodes"]}
+    [line] = updated["nodes"]
+    assert versions == {
+        line["node_id"]: line["lock_version"] + 1,
+        own(N.COMMISSIONING): 2,
+        own(N.COMMISSIONING_LINE): 2,
+    }
+    assert applied["structure_lock_version"] == updated["structure_lock_version"] + 1
+    assert not set(versions) & {node["node_id"] for node in applied["ancestors"]}
+    labels = [node[node["kind"]]["label"] for node in applied["nodes"]]
+    assert labels == [row[0] for row in mockamendmentwrites.AMENDMENT_BLOCK]
+    pasted = applied["nodes"][0]["estimate_line"]
+    assert (pasted["quantity"], pasted["hours"]) == ("2", line["estimate_line"]["hours"])
+    assert applied["rejected"] == []
+
+
+def test_every_task_read_on_the_amendment_accepts_its_predecessors_but_one_removed() -> None:
+    # #1257: the cell of the predecessors follows `editable_fields`, as every other cell; a node
+    # removed from a differential is read only.
+    for node in _json(mockamendment.nodes_amendment())["items"]:
+        accepts = "task.predecessors" in node["editable_fields"]
+        assert accepts == (node["kind"] == "task" and node["difference"] != "removed"), node

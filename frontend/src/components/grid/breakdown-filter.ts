@@ -74,7 +74,8 @@ export interface BreakdownChip {
 }
 
 /**
- * The chip of the filter the address names, its item found among `items` — none given when the work breakdown could not be read.
+ * The chip of the filter the address names, its item found among `items` — none given when the
+ * work breakdown could not be read.
  */
 export function breakdownChip(
   filter: BreakdownFilter | undefined,

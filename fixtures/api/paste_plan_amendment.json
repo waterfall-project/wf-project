@@ -1,0 +1,9 @@
+{
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), un bloc de trois lignes et quatre colonnes — libellé, catégorie, rôle, quantité — collé sur le libellé de « Assistance à la reprise des essais » : chaque ligne du bloc écrit la ligne de la grille à la même distance sous elle, la tâche « Mise en service » puis sa ligne ; la tâche ne prend que son libellé, ses trois cellules vides n'écrivant rien. Les 3 lignes seront écrites, aucune n'est refusée ; rien n'est encore écrit (WF-IHM-0050, #1277).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "paste_id": "01926f3a-7c00-7000-8000-000000000994",
+    "accepted": 3,
+    "rejected": []
+  }
+}

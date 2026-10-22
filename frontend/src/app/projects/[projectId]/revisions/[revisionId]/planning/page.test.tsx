@@ -241,7 +241,7 @@ describe("the planning whose work breakdown the API refuses", () => {
       expect(read?.query.get("order_item_id")).toBe(ITEM);
       const chips = /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
       expect(chips).toContain(ITEM);
-      expect(chips).toContain("Remove the filter");
+      expect(chips).toContain(`aria-label="Remove the filter “Order item: ${ITEM}”"`);
     },
   );
 

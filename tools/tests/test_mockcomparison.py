@@ -175,3 +175,31 @@ def test_the_volume_of_the_comparison_stays_under_its_bound() -> None:
     # fields of the screen, or nodes rendered whole, would make it grow past its bound.
     written = mockdata.render(mockhistory.comparison_volume()).encode("utf-8")
     assert len(written) < VOLUME_BOUND
+
+
+def test_the_moved_variant_bears_a_task_moved_under_another_summary_marked_modified() -> None:
+    # The criterion « une tâche déplacée sous une autre récapitulative est présentée modifiée »
+    # (WF-REV-0080-A) is read by the front on an example (#1105): the commissioning, under the
+    # control station in the counterfactual offer, is rendered once under the installation on
+    # site, modified by its parent alone; the window keeps the totals and the deltas of the first.
+    rows = mockhistory.reference_rows()
+    example = mockhistory.comparison_moved(rows)
+    first = cast("Node", mockhistory.comparison_example(rows)["value"])
+    moved = cast("Node", example["value"])
+    items = cast("list[Node]", moved["items"])
+    [task] = [node for node in items if "parent" in node["changes"]]
+    assert (task["node_id"], task["kind"], task["difference"], task["changes"]) == (
+        universe(N.COMMISSIONING),
+        "task",
+        "modified",
+        ["parent"],
+    )
+    assert task["parent_id"] == universe(N.INSTALLATION)
+    ids = [node["node_id"] for node in items]
+    assert ids.count(universe(N.COMMISSIONING)) == 1
+    assert set(ids) == {node["node_id"] for node in first["items"]}
+    rest = ("from_revision_id", "to_revision_id", "totals", "meta", "amount_deltas")
+    assert {key: moved[key] for key in rest} == {key: first[key] for key in rest}
+    summary = str(example["summary"])
+    assert summary.startswith("Variante contrefactuelle : ")
+    assert "« Mise en service » sous la récapitulative « Poste de commande »" in summary

@@ -52,6 +52,7 @@
         "editable_fields": [
           "task.label",
           "task.description",
+          "task.predecessors",
           "task.order_item_id",
           "task.work_package_id",
           "task.tracking"
@@ -107,6 +108,7 @@
         "editable_fields": [
           "task.label",
           "task.description",
+          "task.predecessors",
           "task.order_item_id",
           "task.work_package_id",
           "task.tracking"
@@ -160,6 +162,7 @@
           "task.description",
           "task.scheduling_mode",
           "task.progress",
+          "task.predecessors",
           "task.order_item_id",
           "task.work_package_id",
           "task.tracking"
@@ -223,6 +226,7 @@
           "task.description",
           "task.scheduling_mode",
           "task.progress",
+          "task.predecessors",
           "task.order_item_id",
           "task.work_package_id",
           "task.tracking"

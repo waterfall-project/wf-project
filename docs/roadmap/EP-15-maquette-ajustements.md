@@ -706,8 +706,8 @@ la grille ni la souris.
   début et fin d'une tâche manuelle — sont gardées par `editable_fields` et `edit_planning`, écrites
   par `updateTaskFacet`, au clavier seul (WF-IHM-0040) ; la validation de la dernière cellule place
   le curseur sur la ligne suivante ;
-- propre à l'US : la colonne des prédécesseurs s'écrit par `setPredecessors` ; une ligne inconnue ou
-  une liaison qui sortirait une tâche de son lot (WF-PLA-0170) est refusée à la cellule ;
+- propre à l'US : la colonne des prédécesseurs s'écrit par `setPredecessors` ; une ligne inconnue
+  est refusée à la cellule ;
 - propre à l'US : le Gantt suit les lignes écrites et redatées.
 
 **Notes de réalisation.** Les codes des types de liaison dans la langue de l'interface — FD, DD,
@@ -867,7 +867,7 @@ du planning — et ne déduit rien (#1058). Les libellés du lotissement sont ce
 
 ## US-0500 — Lire la structure choisie, voir un différentiel comme un diff
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0020-A`, `WF-REV-0080-A`, `WF-REV-0100-A`
 - **opérations** : `listCostStructures`, `listNodes`, `compareRevisions`, `listRevisions`
 - **issue** : #1101

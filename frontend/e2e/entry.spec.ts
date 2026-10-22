@@ -6,28 +6,22 @@ import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { rowAt } from "./scroll";
 
-// The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
-// of §4.6.2, its core first (#376), which the journeys read by marks the generator writes
-// (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py): row 28, the first line
-// drawn after the core, of labour, « Heures d'ingénierie », 74,5 hours, past the rows in view as
-// the grid opens; row 12, the provision of the risk 751, whose quantity and unit disbursement the
-// server computes. A cell validated is written by `updateEstimateLine`, whose first example the
-// fake back serves whatever was written: the line of row 28, its label entered
-// « Heures de câblage », nothing else changed — the fake back keeps nothing of what it is sent,
-// so that each cell entered after it differs from the row answered, and is written. What the
-// grid does with another answer is proven on its own examples by the tests of the grid
-// (`entry.dom.test.tsx`).
+// The journeys that write read the amendment 2 (US-0500), a differential not merged of the current
+// revision, whose estimate is entered whatever the state of the project (WF-DEV-0050), on its
+// nodes, `nodes_amendment`, nine rows of the tree: row 7, the line « Assistance à la reprise des
+// essais », added by the amendment, of labour, 40 hours; row 5, the summary « Essais sur site »,
+// whose figures the server computes. A cell validated is written by `updateEstimateLine`, whose
+// `amendment` example the fake back serves on the path of the amendment whatever was written
+// (#1277): the line of row 7 with its hours at 48, nothing else changed — the fake back keeps
+// nothing of what it is sent, so that each cell entered after it differs from the row answered, and
+// is written. What the grid does with another answer is proven on its own examples by the tests of
+// the grid (`entry.dom.test.tsx`).
 //
-// The main structure of the project in progress lists the estimate read only (#1176), so that the
-// journeys that write read it on the own estimate of the risk of the rewiring (`structure=`, the
-// structure 204 of `structures`), which lists the estimate entered and which the fake back serves
-// the first example of `listNodes` at — only the paths of the differentials are served their own
-// (#1219). The journeys that write nothing read the amendment 2 (US-0500), a differential not merged
-// of the current revision, on its nodes, `nodes_amendment`, nine rows of the tree: row 7, the line
-// « Assistance à la reprise des essais », added by the amendment, of labour, 40 hours; row 5, the
-// summary « Essais sur site », whose figures the server computes.
-// TODO(#1277): enter the amendment too once the contract gives `updateEstimateLine` an example for
-// it; the fake back answers it a node of the witness, which the grid takes for another row.
+// The provision of the risk (row 12 of the witness, whose quantity and unit disbursement the server
+// computes) is read on the own estimate of the risk of the rewiring (`structure=`, the structure 204
+// of `structures`), which the fake back serves the first example of `listNodes` at — only the paths
+// of the differentials are served their own (#1219): the amendment holds no provision, and the
+// examples of the writes of the other differentials are EP-16's.
 //
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -80,14 +74,14 @@ interface Screen<K extends string> {
   readonly first: NoInfer<K>;
 }
 
-const ESTIMATE_SCREEN: Screen<keyof typeof COLUMNS> = {
+const OWN_SCREEN: Screen<keyof typeof COLUMNS> = {
   path: `${ESTIMATE}?structure=${OWN}`,
   grid: "Grille de devis",
   columns: COLUMNS,
   first: "label",
 };
 const AMENDMENT_SCREEN: Screen<keyof typeof COLUMNS> = {
-  ...ESTIMATE_SCREEN,
+  ...OWN_SCREEN,
   path: `${ESTIMATE}?structure=${AMENDMENT}`,
 };
 
@@ -120,11 +114,11 @@ async function tabIntoGrid<K extends string>(
   return { grid, at };
 }
 
-/** The first line drawn after the core, and the provision of the core, of the witness. */
-const LINE = 28;
+/** The provision of the core, of the witness. */
 const PROVISION = 12;
 /** The line added by the amendment, and the summary it adds, whose figures the server computes. */
-const AMENDMENT_LINE = 7;
+const LINE = 7;
+const AMENDMENT_LINE = LINE;
 const SUMMARY = 5;
 
 /** Press keys, one after the other. */
@@ -142,7 +136,7 @@ function times(key: string, count: number): string[] {
 test("enters a whole line of the estimate without the mouse — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
+  const { grid, at } = await tabIntoGrid(page, AMENDMENT_SCREEN);
   // Each cell validated leaves by a server action of its own.
   const writes: string[] = [];
   page.on("request", (request) => {
@@ -158,17 +152,17 @@ test("enters a whole line of the estimate without the mouse — label, category,
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, LINE, at.category)).toBeFocused();
   // The category is chosen by the first letters of its name, typed on the cell: its list opens.
-  await page.keyboard.type("Mise en service");
+  await page.keyboard.type("Ingénierie");
   const categories = page.getByRole("combobox", { name: "Catégorie" });
   await expect(categories).toBeFocused();
-  await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000405");
+  await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000402");
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, LINE, at.role)).toBeFocused();
   // The role, from its list opened by Enter.
   await page.keyboard.press("Enter");
-  await page.keyboard.type("Technicien");
+  await page.keyboard.type("Ingénieur");
   await expect(page.getByRole("combobox", { name: "Rôle" })).toHaveValue(
-    "01926f3a-7c00-7000-8000-000000000452",
+    "01926f3a-7c00-7000-8000-000000000451",
   );
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, LINE, at.quantity)).toBeFocused();
@@ -186,17 +180,18 @@ test("enters a whole line of the estimate without the mouse — label, category,
   // The line as the server last answered it — the fake back keeps nothing of what it is sent —,
   // in place of what was typed.
   await expect(rowAt(grid, LINE).getByRole("gridcell")).toHaveText([
-    "28",
-    "Heures de câblage",
-    "Ingénierie électrique",
-    "Ingénieur électricien",
+    "+Ajouté",
+    "25",
+    "Assistance à la reprise des essais",
+    "Mise en service",
+    "Technicien de mise en service",
     "1",
-    "74,5",
+    "48",
     "",
     "0",
     "",
-    /5\s960,00$/,
-    /5\s960,00$/,
+    /3\s600,00$/,
+    /3\s600,00$/,
   ]);
   // No refusal told.
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
@@ -244,7 +239,7 @@ test("traverses the cells of a summary that its node does not accept or the serv
 test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const { grid, at } = await tabIntoGrid(page, ESTIMATE_SCREEN);
+  const { grid, at } = await tabIntoGrid(page, OWN_SCREEN);
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");
   await expect(cellAt(grid, PROVISION, at.label)).toBeFocused();

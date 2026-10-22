@@ -90,14 +90,18 @@ def test_two_examples_never_render_one_node_at_one_version_with_two_contents() -
     }
 
 
-def test_the_paste_follows_the_label_entered_and_the_reestimate_the_hours_entered() -> None:
+def test_each_paste_and_the_reestimate_follow_the_entry_before_them() -> None:
     entered, applied = (
         mockwitness.fixture(name) for name in ("estimate_line_entered", "paste_applied")
     )
     updated, reestimated = (
         mockwitness.fixture(name) for name in ("estimate_line_updated", "remaining_reestimated")
     )
-    for first, then in ((entered, applied), (updated, reestimated)):
+    amended, pasted = (
+        mockwitness.fixture(name)
+        for name in ("estimate_line_updated_amendment", "paste_applied_amendment")
+    )
+    for first, then in ((entered, applied), (updated, reestimated), (amended, pasted)):
         line = first["nodes"][0]
         follow = next(node for node in then["nodes"] if node["node_id"] == line["node_id"])
         assert follow["lock_version"] == line["lock_version"] + 1

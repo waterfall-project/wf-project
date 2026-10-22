@@ -12,11 +12,17 @@ Three differences, and only these, so that the fake back answers what the contra
   exactly as it will call the real service;
 - no operation requires a bearer token: the fake back answers whoever calls it, as the account
   the mock-up starts from, and authentication is the real service's (EP-03);
-- the nodes of a differential structure are read at the address of that structure: Prism serves
-  the first example of an operation whatever the path, so the path of each structure of kind
-  ``amendment`` that the first example of ``listCostStructures`` lists is repeated with its
-  identifier written in, and ``listNodes`` there leads with its example ``amendment`` (#1219).
-  Prism prefers a path with no parameter to a templated one.
+- the nodes of a differential structure are read, and its estimate entered and pasted, at the
+  address of that structure: Prism serves the first example of an operation whatever the path, so
+  the paths of ``listNodes``, ``updateEstimateLine``, ``previewPaste`` and ``applyPaste`` are
+  repeated for each structure of kind ``amendment`` that the first example of
+  ``listCostStructures`` lists, its identifier written in, and each operation there leads with its
+  example ``amendment`` (#1219, #1277). Prism ranks a path by its segments written in, ahead of
+  one that templates them;
+- the comparison of the volume is read at the address of a project of the volume: Prism serves
+  the first example of ``compareRevisions`` and cannot route on its query (``from_revision_id``,
+  ``to_revision_id``), so the path of the comparison is repeated for the project of the volume
+  with its identifier written in, leading with its example ``volume`` (US-0500/L4, #1201).
 
 No response is written here: responses are the examples of the contract.
 
@@ -30,6 +36,8 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
+from wftools.mockids import PROJECTS, identifier
+
 
 def derive(contract: dict[str, object]) -> dict[str, object]:
     """Return the variant of a bundled contract the fake back serves."""
@@ -42,27 +50,66 @@ def derive(contract: dict[str, object]) -> dict[str, object]:
     }
     derived = {key: value for key, value in contract.items() if key != "security"}
     derived["servers"] = [{"url": "/"}]
-    derived["paths"] = _with_amendment_nodes(contract, cast("Json", derived_paths), prefix)
+    derived["paths"] = _with_literal_paths(contract, cast("Json", derived_paths), prefix)
     return derived
 
 
 STRUCTURES_PATH = "/projects/{project_id}/revisions/{revision_id}/structures"
 NODES_PATH = STRUCTURES_PATH + "/{structure_id}/nodes"
+AMENDMENT_PATHS = (
+    NODES_PATH,
+    NODES_PATH + "/{node_id}/estimate-line",
+    NODES_PATH + "/paste-preview",
+    NODES_PATH + "/paste",
+)
+"""The paths served at the address of each differential: its nodes read, its estimate entered and
+pasted (#1219, #1277). The others — its gestures, its planning — answer as the main structure's."""
 AMENDMENT_EXAMPLE = "amendment"
 HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 STRUCTURE_PARAMETER = "#/components/parameters/StructureId"
+COMPARISON_PATH = "/projects/{project_id}/revisions/comparison"
+PROJECT_PARAMETER = "#/components/parameters/ProjectId"
+VOLUME_EXAMPLE = "volume"
+VOLUME_PROJECT = identifier(PROJECTS, 300)
 
 type Json = dict[str, Any]
 
 
+def _with_literal_paths(contract: Json, paths: Json, prefix: str) -> Json:
+    """Return the paths, plus those the fake back serves at a literal address (#1219, #1201)."""
+    return _with_volume_comparison(_with_amendment_nodes(contract, paths, prefix), prefix)
+
+
+def _with_volume_comparison(paths: Json, prefix: str) -> Json:
+    """Return the paths, plus the comparison at the address of the project of the volume.
+
+    A comparison path whose operation lists no example ``volume`` is an error: the fake back
+    would be asked for the volume and silently answer the witness.
+    """
+    comparison = paths.get(prefix + COMPARISON_PATH)
+    if comparison is None:
+        return paths
+    served = _at_a_literal(comparison, PROJECT_PARAMETER, VOLUME_EXAMPLE)
+    if VOLUME_EXAMPLE not in _examples(served.get("get", {})):
+        message = f"{COMPARISON_PATH} has no example {VOLUME_EXAMPLE!r}: no volume to serve"
+        raise ValueError(message)
+    address = COMPARISON_PATH.replace("{project_id}", VOLUME_PROJECT)
+    return {**paths, prefix + address: served}
+
+
 def _with_amendment_nodes(contract: Json, paths: Json, prefix: str) -> Json:
-    """Return the paths, plus the nodes of each differential structure at its own address."""
-    nodes = paths.get(prefix + NODES_PATH)
-    if nodes is None:
+    """Return the paths, plus those of each differential structure at its own address."""
+    if prefix + NODES_PATH not in paths:
         return paths
     served = dict(paths)
     for structure in _amendment_structures(contract, paths.get(prefix + STRUCTURES_PATH)):
-        served[prefix + NODES_PATH.replace("{structure_id}", structure)] = _at_a_structure(nodes)
+        for path in AMENDMENT_PATHS:
+            if prefix + path not in paths:
+                continue
+            address = path.replace("{structure_id}", structure)
+            served[prefix + address] = _at_a_literal(
+                paths[prefix + path], STRUCTURE_PARAMETER, AMENDMENT_EXAMPLE
+            )
     return served
 
 
@@ -88,11 +135,12 @@ def _examples(operation: Json) -> Json:
 def _amendment_structures(contract: Json, path: Json | None) -> list[str]:
     """Return the identifiers of the differential structures the first listing example names.
 
-    A listing that exists and names none is an error: the fake back would serve the nodes of an
-    amendment its guide promises, and silently serve the wrong ones.
+    A listing that is missing, or that names none, is an error: the fake back would serve the
+    nodes of an amendment its guide promises, and silently serve the wrong ones.
     """
     if path is None:
-        return []
+        message = f"{NODES_PATH} is served but {STRUCTURES_PATH} is not: no amendment to route"
+        raise ValueError(message)
     examples = list(_examples(path.get("get", {})).values())
     first = _resolved(contract, cast("Json", examples[0])) if examples else {}
     listed = first.get("value")
@@ -107,16 +155,11 @@ def _amendment_structures(contract: Json, path: Json | None) -> list[str]:
     return found
 
 
-def _is_structure_parameter(parameter: Json) -> bool:
-    """Tell whether a parameter is the structure identifier."""
-    return parameter.get("$ref") == STRUCTURE_PARAMETER
+def _at_a_literal(path: Json, parameter: str, example: str) -> Json:
+    """Return a path without one of its parameters, the example named first where it is listed.
 
-
-def _at_a_structure(path: Json) -> Json:
-    """Return the path of the nodes without its structure parameter, the amendment example first.
-
-    Only the HTTP methods are rewritten; the parameters declared on the path itself lose the
-    structure too. A path with no ``get`` has no example to lead with.
+    Only the HTTP methods are rewritten; the parameters declared on the path itself lose it too.
+    Each method whose answer 200 lists the example leads with it; the others keep their order.
     """
     served: Json = {}
     for key, value in path.items():
@@ -124,22 +167,22 @@ def _at_a_structure(path: Json) -> Json:
             parameters = value.get("parameters", [])
             served[key] = {
                 **value,
-                "parameters": [item for item in parameters if not _is_structure_parameter(item)],
+                "parameters": [item for item in parameters if item.get("$ref") != parameter],
             }
         elif key == "parameters":
-            served[key] = [item for item in value if not _is_structure_parameter(item)]
+            served[key] = [item for item in value if item.get("$ref") != parameter]
         else:
             served[key] = value
-    read = served.get("get")
-    if read is None:
-        return served
-    examples = _examples(read)
-    if AMENDMENT_EXAMPLE in examples:
-        reordered = {AMENDMENT_EXAMPLE: examples[AMENDMENT_EXAMPLE]} | examples
-        response = read["responses"]["200"]
+    for key in HTTP_METHODS & served.keys():
+        operation = served[key]
+        examples = _examples(operation)
+        if example not in examples:
+            continue
+        reordered = {example: examples[example]} | examples
+        response = operation["responses"]["200"]
         media = response["content"]["application/json"]
-        read["responses"] = {
-            **read["responses"],
+        operation["responses"] = {
+            **operation["responses"],
             "200": {
                 **response,
                 "content": {"application/json": {**media, "examples": reordered}},
