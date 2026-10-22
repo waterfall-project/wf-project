@@ -19,7 +19,10 @@
  * left arrow carry it to the neighbouring column, the equivalent of the drag (WF-IHM-0100). A task
  * is started or completed on a date the user enters, the day's by default. The answer of the API
  * replaces the card in the column of its new state, and the focus follows it; a refusal is told on
- * the card, and the gesture a card does not list to a column is told on it too. The screen offers no
+ * the card, and the gesture a card does not list to a column is told on it too. The card moved says
+ * it is being updated while the tasks are read anew, and that it is not up to date, with a way to
+ * read them again, when that reading is over without having brought its answer (the principle of
+ * the busy state of the grids, #1224). The screen offers no
  * gesture the card does not list, and deduces none of the nature of the task or of its lines.
  */
 "use client";
@@ -44,7 +47,7 @@ import { useHeldCommand } from "@/components/commands/held";
 
 import type { TaskProgress } from "./address";
 import { AnsweredCards } from "./kanban-answers";
-import { type Asking, Card, type CardActions, type Notice } from "./kanban-card";
+import { type Asking, Card, type CardActions, type CardState, type Notice } from "./kanban-card";
 import {
   type CardGesture,
   cardOf,
@@ -58,7 +61,16 @@ import {
   type KanbanStructure,
   replaced,
   TITLE,
+  unanswered,
 } from "./kanban-cards";
+
+/** The mark of a card: updating while the tasks are read anew, outdated if that reading failed. */
+function readingOf(answer: KanbanCard | undefined, failed: boolean): CardState["reading"] {
+  if (answer === undefined) {
+    return undefined;
+  }
+  return failed ? "outdated" : "updating";
+}
 
 /**
  * Render the Kanban of the start of the tasks: its three columns, each a list of cards, and the
@@ -89,7 +101,14 @@ export function Kanban({
   const [writing, setWriting] = useState<string>();
   const [asking, setAsking] = useState<Asking>();
   const [notices, setNotices] = useState<Readonly<Record<string, Notice>>>({});
-  const [announced, setAnnounced] = useState("");
+  // The sentence told, and how many were: the same sentence told again is a new node of the live
+  // region, so that it is announced again.
+  const [announced, setAnnounced] = useState({ text: "", count: 0 });
+  // Whether the tasks are being read anew, since the answer of a gesture; whether that reading was
+  // over without bringing the answers (`failed`).
+  const [reading, reread] = useTransition();
+  const [wasReading, setWasReading] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [focusing, setFocusing] = useState<{ readonly id: string; readonly form: boolean }>();
   const elements = useRef(new Map<string, HTMLElement>());
   const date = useRef<HTMLInputElement | null>(null);
@@ -97,6 +116,19 @@ export function Kanban({
   // have chosen another card, and the focus must not be taken from that one.
   const chosen = useRef<string>(undefined);
   const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
+  // A reading over that does not hold an answer's version has not reached the card: it is not up to
+  // date, until it is read anew. Judged as the reading ends, from the columns read, never by the
+  // time it takes.
+  if (reading !== wasReading) {
+    setWasReading(reading);
+    if (
+      !reading &&
+      Object.keys(answered).length > 0 &&
+      unanswered(columns, answered) === answered
+    ) {
+      setFailed(true);
+    }
+  }
   // The one stop of Tab of the board: the card chosen, else the first card. The arrows go from card
   // to card (WF-IHM-0100).
   const tabStop = useMemo(() => {
@@ -119,6 +151,14 @@ export function Kanban({
     (focusing.form ? date.current : elements.current.get(focusing.id))?.focus();
   }, [focusing]);
 
+  /** Read the tasks anew, the cards answered being marked until it is over. */
+  const readAnew = () => {
+    setFailed(false);
+    reread(() => {
+      router.refresh();
+    });
+  };
+
   const titleOf = (state: TaskProgress) => t(TITLE[state]);
   const say = (id: string, notice: Notice | undefined) => {
     setNotices((now) => {
@@ -134,6 +174,7 @@ export function Kanban({
       return;
     }
     setWriting(card.node_id);
+    setFailed(false);
     setAsking(undefined);
     setFocusing({ id: card.node_id, form: false });
     say(card.node_id, undefined);
@@ -157,7 +198,7 @@ export function Kanban({
         // A task the API refuses for its state, or for a version past, is no more what the card
         // shows: the tasks are read anew.
         if (outcome.kind === "conflict" || outcome.kind === "stale") {
-          router.refresh();
+          readAnew();
         }
         return;
       }
@@ -165,14 +206,17 @@ export function Kanban({
       const state = node?.task?.progress;
       if (node !== undefined && state !== undefined) {
         book.answer(cardOf(node, state));
-        setAnnounced(t("moved", { label: card.label, column: titleOf(state) }));
+        setAnnounced(({ count }) => ({
+          text: t("moved", { label: card.label, column: titleOf(state) }),
+          count: count + 1,
+        }));
       } else {
         // The answer does not say where the task is: the card stays, and says so, rather than
         // announce a move nobody saw.
         say(card.node_id, { kind: "said", sentence: t("unplaced", { label: card.label }) });
       }
       // The tasks are read anew either way: the card answered lists no gesture until they are.
-      router.refresh();
+      readAnew();
     });
   };
 
@@ -263,6 +307,7 @@ export function Kanban({
       setAsking(undefined);
       setFocusing({ id, form: false });
     },
+    retry: readAnew,
     forget: (id) => {
       say(id, undefined);
       setFocusing({ id, form: false });
@@ -287,7 +332,7 @@ export function Kanban({
         {t("keys")}
       </p>
       <p role="status" className="sr-only">
-        {announced}
+        {announced.count === 0 ? null : <span key={announced.count}>{announced.text}</span>}
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         {COLUMNS.map(([state, title]) => {
@@ -326,6 +371,7 @@ export function Kanban({
                       state={{
                         notice: notices[card.node_id],
                         asking: asking?.id === card.node_id ? asking : undefined,
+                        reading: readingOf(answered[card.node_id], failed),
                       }}
                     />
                   ))}

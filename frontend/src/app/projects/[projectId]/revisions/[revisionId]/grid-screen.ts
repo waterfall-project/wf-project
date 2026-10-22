@@ -198,6 +198,18 @@ export interface GridScreen<Row> {
 type CostStructure = components["schemas"]["CostStructure"];
 
 /**
+ * The main structure of a revision, among those it lists. A revision without one, which the
+ * contract rules out, is an unexpected answer, not an empty screen.
+ */
+export function mainStructure(structures: readonly CostStructure[]): CostStructure {
+  const main = structures.find((structure) => structure.kind === "main");
+  if (main === undefined) {
+    throw new UnexpectedAnswer("listCostStructures", 200);
+  }
+  return main;
+}
+
+/**
  * The structure of the revision a grid reads, among those it lists: the one the address names, for
  * a grid that reads it (`chooses`), the main one when it names none — and for any other grid. A
  * structure the address names that the revision does not list is not found. A revision without a
@@ -208,10 +220,7 @@ function readStructure(
   { address }: GridAddress,
   chooses: boolean,
 ): CostStructure {
-  const main = structures.find((structure) => structure.kind === "main");
-  if (main === undefined) {
-    throw new UnexpectedAnswer("listCostStructures", 200);
-  }
+  const main = mainStructure(structures);
   const named = chooses ? address.get(STRUCTURE_PARAMETER) : null;
   if (named === null || named === "") {
     return main;

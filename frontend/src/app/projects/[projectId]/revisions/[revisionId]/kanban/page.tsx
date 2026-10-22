@@ -14,7 +14,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { readOrFail, UnexpectedAnswer } from "@/api/problem";
+import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
@@ -29,7 +29,7 @@ import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
 
 import { screenMetadata } from "../../../../../title";
-import { gridAddress } from "../grid-screen";
+import { gridAddress, mainStructure } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
 /** Title the tab with the leaf, and with the project. */
@@ -96,10 +96,7 @@ async function readBoard(
       }),
     ),
   ]);
-  const main = structures.find((structure) => structure.kind === "main");
-  if (main === undefined) {
-    throw new UnexpectedAnswer("listCostStructures", 200);
-  }
+  const main = mainStructure(structures);
   return {
     columns: columnsOf(tasks),
     structure: { ...path, structure_id: main.structure_id },

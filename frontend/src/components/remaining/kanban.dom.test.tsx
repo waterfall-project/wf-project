@@ -385,6 +385,10 @@ describe("the gestures of the cards of the Kanban", () => {
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       });
       expect(card(label)).not.toHaveFocus();
+      // The menu being modal, the focus goes back to its button, not to the card.
+      expect(
+        within(card(label)).getByRole("button", { name: `Gestes de la tâche ${label}` }),
+      ).toHaveFocus();
     });
 
     it("gives the stop of Tab back to the first card when the card chosen leaves the reading", async () => {
@@ -641,13 +645,9 @@ describe("the gestures of the cards of the Kanban", () => {
     ).toBeInTheDocument();
   });
 
-  it("carries a card by a type of its own, which a field where it is dropped does not take as text [WF-IHM-0100-A]", async () => {
+  it("carries a card by a type of its own, not as text [WF-IHM-0100-A]", () => {
     serve({ [PROGRESS]: "task_started" });
     board();
-    const user = userEvent.setup();
-    await user.click(card("Montage des armoires sur site"));
-    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
-    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
     const carried = drag("dragStart", card("Mise en service"));
     expect(carried.setData).toHaveBeenCalledWith(
       "application/x-waterfall-card",
@@ -765,6 +765,28 @@ describe("the gestures of the cards of the Kanban", () => {
     again(old);
     expect(labels("Non démarrées")).toContain("Réception usine");
     expect(labels("Terminées")).not.toContain("Réception usine");
+  });
+
+  it("shows an unavailable gesture in the menu with the conditions it lacks, and does nothing when it is chosen, while a gesture the card does not list is not shown [WF-IHM-0090-A]", async () => {
+    const client = serve({});
+    board();
+    const user = await openMenu("Montage des armoires sur site");
+    const menu = screen.getByRole("menu", {
+      name: "Gestes de la tâche Montage des armoires sur site",
+    });
+    // The completion of this task cannot be made now: it is shown, with what is lacking.
+    const completion = within(menu).getByRole("menuitem", { name: /^Terminer/ });
+    expect(completion).toHaveAttribute("aria-disabled", "true");
+    expect(completion).toHaveTextContent(
+      "Conditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
+    );
+    // The way back to not started is listed by no task started: the menu has no entry for it.
+    expect(within(menu).queryByRole("menuitem", { name: /^Rouvrir/ })).toBeNull();
+    await user.click(completion);
+    expect(
+      within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
+    ).toBeNull();
+    expect(written(client)).toEqual([]);
   });
 
   it("signals a milestone to complete by a text and an icon once its predecessors are completed, and it stays not started [WF-RAE-0030-A]", () => {
