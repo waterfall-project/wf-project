@@ -21,7 +21,7 @@ c'est le fichier qu'on relira dans cinq ans.
 **Les EPIC couvrent tout l'horizon ; les US ne sont détaillées qu'un EPIC à l'avance.**
 Détailler aujourd'hui les US de la dernière tranche coûterait le prix de les réécrire :
 ce que le premier incrément apprend change le découpage du suivant. Ce qui est fixé pour
-tout l'horizon, ce sont les 211 exigences — pas leur découpage en travaux.
+tout l'horizon, ce sont les 212 exigences — pas leur découpage en travaux.
 
 ## Organisation
 

@@ -670,6 +670,11 @@ la grille ni la souris.
   signalée dans la grille et dans le Gantt, avec ce prédécesseur ; la retarder au-delà de cette fin,
   ou raccourcir le prédécesseur, fait disparaître le signalement. » : le signalement se lit (EP-02) ;
   son apparition et sa disparition sont du service — EP-06.
+- `WF-PLA-0020-A` — « Sur un calendrier du lundi au vendredi, la date de début d’une tâche manuelle
+  saisie un samedi est refusée, et le refus nomme le lundi suivant ; la même date importée d’un
+  fichier MS Project est gardée et signalée au compte rendu. » : saisie — le refus est dit à la
+  cellule et nomme le jour travaillé suivant, sur l'exemple du faux back (US-0470/L3, #1285, #1289)
+  ; importée — EP-06.
 - `WF-PLA-0030-A` — « Les quatre types et un décalage négatif sont importés, saisis et exportés
   sans perte. » : saisis — la colonne des prédécesseurs accepte « 3FD+2 j ; 5DD », les quatre types
   et un décalage négatif ou en pourcentage, analysés dans la langue de l'interface ; importés et
@@ -702,6 +707,9 @@ la grille ni la souris.
   dans une révision en cours vaut quatorze heures, et ses dates sont recalculées ; dans une révision
   marquée, elle vaut toujours seize heures. » : le formulaire des unités (US-0570) le dit ; le
   recalcul est du service — EP-06.
+- `WF-PLA-0160-A` — « En anglais, « 1 j » et « 1 d » valent chacun un jour ; « 3 », saisi sans
+  suffixe, vaut trois jours. » : l'analyse des suffixes au front, ceux du catalogue de la langue
+  courante compris (US-0470/L1, #1243).
 - propre à l'US : les cellules saisissables — libellé, description, mode, durée avec son unité,
   début et fin d'une tâche manuelle — sont gardées par `editable_fields` et `edit_planning`, écrites
   par `updateTaskFacet`, au clavier seul (WF-IHM-0040) ; la validation de la dernière cellule place
@@ -754,6 +762,9 @@ et ma ventilation par sous-projet sans quitter la grille.
 - écart : `WF-PRJ-0050-A` — « La suppression d’un sous-projet que porte une ligne de devis de la
   révision en cours est refusée ; elle aboutit une fois cette ligne passée à un autre
   sous-projet. » : la seconde moitié demande le service — EP-04.
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet de code « SP/01 », « Synthèse » ou de
+  plus de trente et un caractères est refusée. » : la borne du code est au contrat et au service —
+  #1304.
 - propre à l'US : le sous-menu « Sous-projet » est exclusif (boutons radio) : « Aucun sous-projet »
   et chaque sous-projet du projet, celui de la ligne coché ; il n'est offert que si la ligne nomme
   `estimate_line.subproject_id` dans `editable_fields` — une ligne de provision ne l'offre pas ;
@@ -1034,6 +1045,10 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
 - écart : `WF-RIS-0010-A` — « Un risque déclaré sur le sous-projet S2 porte sa provision au reste à
   engager de S2 ; sans sous-projet désigné, elle compte hors sous-projet. » : le sous-projet se
   choisit au formulaire, facultatif ; le reste à engager est du service — EP-08 et EP-09.
+- écart : `WF-RIS-0010-A` — « Un risque écarté qui redevient identifié porte sa provision sur la
+  tâche qu’il désignait ; si cette tâche a été supprimée entre-temps, sur la première tâche de
+  premier niveau. » : le contrat le dit de `reviewRisk` (US-0570/L1, #1237) ; le choix de la tâche
+  est du service — EP-08.
 - `WF-RIS-0020-A` — « Les transitions entre identifié et écarté sont possibles dans les deux
   sens. » : par « Réexaminer », l'état retenu parmi ceux que le risque liste.
 - `WF-RIS-0020-A` — « Toute transition depuis l’état survenu est refusée. » : un risque survenu n'a
