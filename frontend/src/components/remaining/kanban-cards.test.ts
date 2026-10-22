@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import { example } from "@/test/fixtures";
 
 import {
+  carriedTo,
   columnsOf,
   focusOf,
+  gestureToward,
   type KanbanCard,
   type KanbanColumns,
   remainingHref,
@@ -37,6 +39,31 @@ describe("the cards of the Kanban", () => {
       ["enter_remaining", null],
     ]);
     expect(named("Études de détail").state).toBe("completed");
+  });
+
+  it("finds the gesture that leads a card to a state among those it lists, never by its nature", () => {
+    expect(gestureToward(named("Réception usine"), "completed")?.command).toBe("complete");
+    // A milestone completed reopens to not started, any other task to started.
+    expect(gestureToward(named("Réception des études"), "not_started")?.command).toBe("reopen");
+    expect(gestureToward(named("Études de détail"), "started")?.command).toBe("reopen");
+    // None leads a task started, or a task completed that is no milestone, to not started.
+    expect(gestureToward(named("Câblage des armoires"), "not_started")).toBeUndefined();
+    expect(gestureToward(named("Études de détail"), "not_started")).toBeUndefined();
+    // The gesture that lacks conditions is found all the same, so that the card can say why.
+    expect(gestureToward(named("Montage des armoires sur site"), "completed")?.is_available).toBe(
+      false,
+    );
+  });
+
+  it("carries a card to the neighbouring column by a sideways arrow, none past the ends", () => {
+    const first = COLUMNS.not_started[0]?.node_id ?? "";
+    const last = COLUMNS.completed[0]?.node_id ?? "";
+    expect(carriedTo(COLUMNS, first, "ArrowRight")).toBe("started");
+    expect(carriedTo(COLUMNS, last, "ArrowLeft")).toBe("started");
+    expect(carriedTo(COLUMNS, first, "ArrowLeft")).toBeUndefined();
+    expect(carriedTo(COLUMNS, last, "ArrowRight")).toBeUndefined();
+    expect(carriedTo(COLUMNS, first, "ArrowDown")).toBeUndefined();
+    expect(carriedTo(COLUMNS, "unknown", "ArrowRight")).toBeUndefined();
   });
 
   it("puts the card answered in the column of its state, in the order of the plan, unless the columns read hold it as recent", () => {

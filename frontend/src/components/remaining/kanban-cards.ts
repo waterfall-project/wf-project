@@ -176,6 +176,16 @@ export function replaced(
 }
 
 /**
+ * The gesture of a card that leads it to a column, as the API lists it: the one available when there
+ * is one, else the one that lacks conditions; none when no gesture sends the card to that state —
+ * the screen does not say which should (WF-IHM-0090).
+ */
+export function gestureToward(card: KanbanCard, state: TaskProgress): CardGesture | undefined {
+  const leading = card.commands.filter((gesture) => gesture.progress === state);
+  return leading.find((gesture) => gesture.is_available) ?? leading[0];
+}
+
+/**
  * The address of the grid of the remaining to commit on a task: its label searched, and the tasks
  * not started shown too when the task is not started — the grid shows the lines of the tasks
  * started alone otherwise (WF-RAE-0040).
@@ -249,6 +259,29 @@ export function focusOf(columns: KanbanColumns, id: string, key: string): string
       return acrossFrom(columns, place, 1);
     case "ArrowLeft":
       return acrossFrom(columns, place, -1);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * The column Shift and a sideways arrow carry a card to (WF-IHM-0100): the neighbouring one, the
+ * equivalent of the drag. None past the ends, for another key, or for a card the columns do not hold.
+ */
+export function carriedTo(
+  columns: KanbanColumns,
+  id: string,
+  key: string,
+): TaskProgress | undefined {
+  const place = placeOf(columns, id);
+  if (place === undefined) {
+    return undefined;
+  }
+  switch (key) {
+    case "ArrowRight":
+      return COLUMNS[place.column + 1]?.[0];
+    case "ArrowLeft":
+      return COLUMNS[place.column - 1]?.[0];
     default:
       return undefined;
   }

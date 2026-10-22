@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -136,6 +136,28 @@ function written(client: FakeClient): unknown[] {
   return client.calls.filter((call) => call.route === PROGRESS).map((call) => call.body);
 }
 
+/** What a drag carries, as far as the Kanban reads and writes it. */
+function dataTransfer() {
+  return { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
+}
+
+/** Fire an event of a drag on an element. */
+function drag(type: "dragStart" | "dragOver" | "drop" | "dragEnd", target: HTMLElement) {
+  const event = createEvent[type](target);
+  const carried = dataTransfer();
+  Object.defineProperty(event, "dataTransfer", { value: carried });
+  fireEvent(target, event);
+  return carried;
+}
+
+/** Drag a card to a column and drop it there. */
+function dragTo(label: string, name: string) {
+  drag("dragStart", card(label));
+  drag("dragOver", column(name));
+  drag("drop", column(name));
+  drag("dragEnd", card(label));
+}
+
 beforeEach(() => {
   router.refresh.mockReset();
   failing.on = false;
@@ -246,12 +268,16 @@ describe("the gestures of the cards of the Kanban", () => {
       expect(document.querySelector("li[tabindex='0']")).toBe(card(label));
     }
 
-    it("reaches every card of the three columns from the first, by the keyboard alone", async () => {
+    it("reaches every card of the three columns from the first, by the keyboard alone [WF-IHM-0100-A]", async () => {
       serve({});
       const columns = columnsOfExample("startable_tasks");
       board(columns);
       const user = userEvent.setup();
       const names = (state: keyof KanbanColumns) => columns[state].map((each) => each.label);
+      // The walk means nothing over an empty column: the three hold cards.
+      for (const state of ["not_started", "started", "completed"] as const) {
+        expect(names(state).length).toBeGreaterThan(0);
+      }
       const first = names("not_started")[0] ?? "";
       expect(document.querySelector("li[tabindex='0']")).toBe(card(first));
       card(first).focus();
@@ -319,6 +345,46 @@ describe("the gestures of the cards of the Kanban", () => {
       expect(card(label)).not.toHaveFocus();
       expect(document.activeElement?.tagName).toBe("LI");
       expect(document.querySelector("li[tabindex='0']")).toBe(document.activeElement);
+    });
+
+    it("describes every card by the help of the board, which says that Enter opens the menu of its gestures [WF-IHM-0100-A]", () => {
+      serve({});
+      board();
+      const help = card("Montage des armoires sur site").getAttribute("aria-describedby");
+      expect(help).not.toBeNull();
+      const text = document.getElementById(help ?? "")?.textContent ?? "";
+      expect(text).toContain("Entrée : ouvrir le menu de ses gestes");
+      expect(text).toContain("Maj + flèche droite ou gauche");
+      expect(card("Pupitres opérateurs")).toHaveAccessibleDescription(text);
+    });
+
+    it("leaves Space alone on a card that lists no gesture: no menu opens, the key is not captured [WF-IHM-0100-A]", () => {
+      serve({});
+      const columns = columnsOfExample("startable_tasks");
+      const bare = columns.completed.map((each, index) =>
+        index === 0 ? { ...each, commands: [] } : each,
+      );
+      board({ ...columns, completed: bare });
+      const target = card(bare[0]?.label ?? "");
+      target.focus();
+      // fireEvent returns false when the default was prevented.
+      expect(fireEvent.keyDown(target, { key: " " })).toBe(true);
+      expect(fireEvent.keyDown(target, { key: "Enter" })).toBe(true);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("does not bring the focus back to the card when the menu is left by a click outside it [WF-IHM-0100-A]", async () => {
+      serve({});
+      board();
+      const label = "Montage des armoires sur site";
+      card(label).focus();
+      await userEvent.keyboard("{Enter}");
+      await screen.findByRole("menu");
+      fireEvent.pointerDown(document.body);
+      await waitFor(() => {
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      });
+      expect(card(label)).not.toHaveFocus();
     });
 
     it("gives the stop of Tab back to the first card when the card chosen leaves the reading", async () => {
@@ -390,6 +456,206 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(written(client)).toEqual([]);
   });
 
+  it("says on the card that no gesture leads a task started to not started, dropped or carried by the keys, and writes nothing [WF-RAE-0030-A]", async () => {
+    // Aucune commande ne fait passer une tâche démarrée à l'état non démarré.
+    const client = serve({ [PROGRESS]: "task_started" });
+    board();
+    const user = userEvent.setup();
+    dragTo("Câblage des armoires", "Non démarrées");
+    expect(within(card("Câblage des armoires")).getByRole("alert").textContent).toBe(
+      "Aucun geste ne mène cette tâche vers la colonne « Non démarrées ».",
+    );
+    // The same by the keys, Shift and the left arrow.
+    await user.click(card("Câblage des armoires"));
+    await user.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+    expect(within(card("Câblage des armoires")).getByRole("alert")).toBeVisible();
+    expect(written(client)).toEqual([]);
+    expect(labels("Démarrées")).toContain("Câblage des armoires");
+  });
+
+  it("says on the card why a gesture a drop asks is unavailable, and writes nothing [WF-IHM-0090-A]", () => {
+    const client = serve({});
+    board();
+    // The completion of a task not started lacks conditions: dropped on the completed ones, it says so.
+    dragTo("Montage des armoires sur site", "Terminées");
+    expect(within(card("Montage des armoires sur site")).getByRole("alert").textContent).toBe(
+      "« Terminer » est indisponible. Conditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
+    );
+    expect(client.calls.filter((each) => each.route === PROGRESS)).toEqual([]);
+    expect(
+      within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
+    ).toBeNull();
+  });
+
+  it("carries a card dropped on a column by the gesture it lists, which asks its date first, and the focus follows the card [WF-RAE-0030-A] [WF-IHM-0100-A]", async () => {
+    const client = serve({ [PROGRESS]: "task_started" });
+    board();
+    drag("dragStart", card("Montage des armoires sur site"));
+    // Only a column the card has an available gesture to is marked as a place to drop it.
+    expect(column("Démarrées").className).toContain("outline-dashed");
+    expect(column("Terminées").className).not.toContain("outline-dashed");
+    drag("dragOver", column("Démarrées"));
+    drag("drop", column("Démarrées"));
+    drag("dragEnd", card("Montage des armoires sur site"));
+    const field = await within(card("Montage des armoires sur site")).findByLabelText(
+      "Date de l’événement",
+    );
+    expect(field).toHaveFocus();
+    expect(written(client)).toEqual([]);
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
+    });
+    expect(written(client)).toEqual([
+      { progress: "started", occurred_on: "2026-06-03", lock_version: 1 },
+    ]);
+    expect(card("Montage des armoires sur site")).toHaveFocus();
+    expect(column("Démarrées").className).not.toContain("outline-dashed");
+  });
+
+  it("makes a card draggable only when it lists a gesture that sends a state, and never while one is written [WF-IHM-0100-A]", async () => {
+    const wait = held();
+    serve({ [PROGRESS]: "task_started" }, wait.until);
+    const columns = columnsOfExample("startable_tasks");
+    const bare = columns.completed.map((each, index) =>
+      index === 0 ? { ...each, commands: [] } : each,
+    );
+    board({ ...columns, completed: bare });
+    expect(card(bare[0]?.label ?? "")).toHaveAttribute("draggable", "false");
+    expect(card("Pupitres opérateurs")).toHaveAttribute("draggable", "true");
+    await choose("Montage des armoires sur site", "Démarrer");
+    await userEvent.click(
+      within(card("Montage des armoires sur site")).getByRole("button", { name: "Démarrer" }),
+    );
+    await waitFor(() => {
+      expect(card("Pupitres opérateurs")).toHaveAttribute("draggable", "false");
+    });
+    wait.release();
+    await waitFor(() => {
+      expect(card("Pupitres opérateurs")).toHaveAttribute("draggable", "true");
+    });
+  });
+
+  it("chooses the card dragged, which a drag with no click on it leaves unchosen, and the focus follows it to its column [WF-IHM-0100-A]", async () => {
+    serve({ [PROGRESS]: "task_started" });
+    board();
+    await userEvent.click(card("Pupitres opérateurs"));
+    expect(card("Pupitres opérateurs")).toHaveAttribute("aria-current", "true");
+    dragTo("Montage des armoires sur site", "Démarrées");
+    const field = await within(card("Montage des armoires sur site")).findByLabelText(
+      "Date de l’événement",
+    );
+    expect(card("Pupitres opérateurs")).not.toHaveAttribute("aria-current", "true");
+    await userEvent.type(field, "{Enter}");
+    await waitFor(() => {
+      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
+    });
+    expect(card("Montage des armoires sur site")).toHaveFocus();
+    expect(card("Montage des armoires sur site")).toHaveAttribute("aria-current", "true");
+  });
+
+  it("does nothing for a card dropped while a gesture is written [WF-IHM-0100-A]", async () => {
+    const wait = held();
+    const client = serve({ [PROGRESS]: "task_started" }, wait.until);
+    board();
+    await choose("Montage des armoires sur site", "Démarrer");
+    await userEvent.click(
+      within(card("Montage des armoires sur site")).getByRole("button", { name: "Démarrer" }),
+    );
+    await waitFor(() => {
+      expect(written(client)).toHaveLength(1);
+    });
+    dragTo("Mise en service", "Démarrées");
+    expect(within(card("Mise en service")).queryByLabelText("Date de l’événement")).toBeNull();
+    expect(within(card("Mise en service")).queryByRole("alert")).toBeNull();
+    expect(written(client)).toHaveLength(1);
+    wait.release();
+    await waitFor(() => {
+      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
+    });
+  });
+
+  it("is not draggable when it asks its date, nor when it lists the remaining to commit alone [WF-IHM-0100-A]", async () => {
+    serve({});
+    const columns = columnsOfExample("startable_tasks");
+    const only = columns.not_started.map((each) =>
+      each.label === "Mise en service"
+        ? { ...each, commands: each.commands.filter((one) => one.command === "enter_remaining") }
+        : each,
+    );
+    board({ ...columns, not_started: only });
+    const alone = card("Mise en service");
+    expect(alone).toHaveAttribute("draggable", "false");
+    await userEvent.click(card("Montage des armoires sur site"));
+    expect(card("Montage des armoires sur site")).toHaveAttribute("draggable", "true");
+    await userEvent.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
+    expect(card("Montage des armoires sur site")).toHaveAttribute("draggable", "false");
+  });
+
+  it("keeps the date asked on a card when another is dropped or carried, and says so on that other [WF-IHM-0100-A]", async () => {
+    const client = serve({ [PROGRESS]: "task_started" });
+    board();
+    const user = userEvent.setup();
+    await user.click(card("Montage des armoires sur site"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const field = await within(card("Montage des armoires sur site")).findByLabelText(
+      "Date de l’événement",
+    );
+    fireEvent.change(field, { target: { value: "2026-06-01" } });
+    const sentence =
+      "Une date est déjà demandée sur une autre tâche : validez-la ou abandonnez-la avant de demander ce geste.";
+    dragTo("Mise en service", "Démarrées");
+    expect(within(card("Mise en service")).getByRole("alert").textContent).toBe(sentence);
+    expect(within(card("Mise en service")).queryByLabelText("Date de l’événement")).toBeNull();
+    expect(
+      within(card("Montage des armoires sur site")).getByLabelText("Date de l’événement"),
+    ).toHaveValue("2026-06-01");
+    // The same by the keys.
+    await user.click(card("Mise en service"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(within(card("Mise en service")).getByRole("alert").textContent).toBe(sentence);
+    expect(
+      within(card("Montage des armoires sur site")).getByLabelText("Date de l’événement"),
+    ).toHaveValue("2026-06-01");
+    expect(written(client)).toEqual([]);
+  });
+
+  it("asks the date of a card when the card that asked its own has left the reading [WF-IHM-0100-A]", async () => {
+    serve({ [PROGRESS]: "task_started" });
+    const columns = columnsOfExample("startable_tasks");
+    const { again } = board(columns);
+    const user = userEvent.setup();
+    await user.click(card("Montage des armoires sur site"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
+    again({
+      ...columns,
+      not_started: columns.not_started.filter(
+        (each) => each.label !== "Montage des armoires sur site",
+      ),
+    });
+    dragTo("Mise en service", "Démarrées");
+    expect(
+      await within(card("Mise en service")).findByLabelText("Date de l’événement"),
+    ).toBeInTheDocument();
+  });
+
+  it("carries a card by a type of its own, which a field where it is dropped does not take as text [WF-IHM-0100-A]", async () => {
+    serve({ [PROGRESS]: "task_started" });
+    board();
+    const user = userEvent.setup();
+    await user.click(card("Montage des armoires sur site"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
+    const carried = drag("dragStart", card("Mise en service"));
+    expect(carried.setData).toHaveBeenCalledWith(
+      "application/x-waterfall-card",
+      expect.any(String),
+    );
+    expect(carried.setData).not.toHaveBeenCalledWith("text/plain", expect.anything());
+  });
+
   it("reopens a milestone completed to not started and any other task to started, as the card says it [WF-RAE-0030-A]", async () => {
     // Aucune commande ne fait passer une tâche démarrée à l'état non démarré : seul un jalon
     // terminé revient à non démarré.
@@ -409,7 +675,7 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(card("Études de détail")).toHaveFocus();
   });
 
-  it("tells the refusal of the API on the card, which stays where it was, and lets it be dismissed", async () => {
+  it("tells the refusal of the API on the card, which stays where it was, and lets it be dismissed [WF-IHM-0090-A]", async () => {
     serve({ [PROGRESS]: REFUSED });
     board();
     await choose("Études de détail", "Rouvrir");
@@ -455,12 +721,22 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
-  it("reads the tasks anew when the API refuses a gesture for the state of the task", async () => {
+  it("reads the tasks anew when the API refuses a gesture for the state of the task [WF-IHM-0090-A]", async () => {
     serve({ [PROGRESS]: REFUSED });
     board();
     await choose("Études de détail", "Rouvrir");
     await within(card("Études de détail")).findByRole("alert");
     expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the tasks anew when the API refuses a gesture for a version past, and tells it on the card [WF-IHM-0090-A]", async () => {
+    // The twin of the 409: the node changed since the card was read.
+    serve({ [PROGRESS]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
+    board();
+    await choose("Études de détail", "Rouvrir");
+    await within(card("Études de détail")).findByRole("alert");
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(labels("Terminées")).toContain("Études de détail");
   });
 
   it("forgets an answer once the tasks read hold its version, which a reading at an older version does not bring back", async () => {
@@ -633,6 +909,34 @@ describe("the choice of a card", () => {
     await user.click(await screen.findByRole("menuitem", { name: "Démarrer" }));
     await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
     await user.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
+    });
+    expect(written(client)).toEqual([
+      { progress: "started", occurred_on: "2026-06-03", lock_version: 1 },
+    ]);
+    expect(card("Montage des armoires sur site")).toHaveFocus();
+  });
+
+  it("carries a card to the neighbouring column by Shift and a sideways arrow, the equivalent of the drag, and asks the date first [WF-IHM-0100-A]", async () => {
+    const client = serve({ [PROGRESS]: "task_started" });
+    board();
+    const user = userEvent.setup();
+    await user.click(card("Montage des armoires sur site"));
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const field = await within(card("Montage des armoires sur site")).findByLabelText(
+      "Date de l’événement",
+    );
+    expect(field).toHaveFocus();
+    // Escape gives the card up and the focus back to it, writing nothing.
+    await user.keyboard("{Escape}");
+    expect(
+      within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
+    ).toBeNull();
+    expect(card("Montage des armoires sur site")).toHaveFocus();
+    expect(written(client)).toEqual([]);
+    // Asked again, the Enter of the form writes it.
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}{Enter}");
     await waitFor(() => {
       expect(labels("Démarrées")).toContain("Montage des armoires sur site");
     });

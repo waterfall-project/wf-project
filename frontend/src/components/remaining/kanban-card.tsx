@@ -50,6 +50,9 @@ const ICONS: Readonly<Record<KanbanCommand, LucideIcon>> = {
   enter_remaining: PenLine,
 };
 
+/** The type of the data a card carries when dragged: no text a field would take on a drop. */
+const DRAG_TYPE = "application/x-waterfall-card";
+
 /** What a card tells of the last gesture asked of it: the refusal of the API, or a sentence. */
 export type Notice =
   | { readonly kind: "outcome"; readonly outcome: Outcome<unknown> }
@@ -125,6 +128,8 @@ function CardMenu({
   const commands = useTranslations("enums.KanbanCommand");
   const unmet = useUnmet();
   const chosen = useRef<CardGesture>(undefined);
+  // Whether the menu was left by a click or a touch outside it: the focus then stays where it went.
+  const outside = useRef(false);
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -142,7 +147,12 @@ function CardMenu({
       <DropdownMenuContent
         align="start"
         aria-label={t("gestures", { label: card.label })}
+        onInteractOutside={() => {
+          outside.current = true;
+        }}
         onCloseAutoFocus={(event) => {
+          const left = outside.current;
+          outside.current = false;
           // The gesture waits for the menu to be gone: its focus trap would pull the focus back.
           const gesture = chosen.current;
           if (gesture !== undefined) {
@@ -151,10 +161,13 @@ function CardMenu({
             onGesture(gesture);
             return;
           }
-          // Closed with no gesture: the focus goes back to the card, not to the button of the menu,
-          // so that the arrows go on from it.
-          event.preventDefault();
-          onDismiss();
+          // Closed from the keyboard with no gesture: the focus goes back to the card, not to the
+          // button of the menu, so that the arrows go on from it. Left by an interaction outside,
+          // the guard of Radix keeps the focus where the user put it.
+          if (!left) {
+            event.preventDefault();
+            onDismiss();
+          }
         }}
       >
         {card.commands.map((gesture) => {
@@ -285,13 +298,19 @@ function EventDate({
 /** What the board hands a card: what is chosen, asked, told, and the gestures it makes. */
 export interface CardActions {
   readonly remaining: string;
+  /** The identifier of the help of the board, which every card is described by. */
+  readonly hint: string;
   readonly selected: string | undefined;
   readonly tabStop: string | undefined;
+  readonly dragged: string | undefined;
   readonly writing: string | undefined;
   readonly element: (id: string, element: HTMLElement | null) => void;
   readonly field: (element: HTMLInputElement | null) => void;
   readonly choose: (id: string) => void;
   readonly focusFrom: (id: string, key: string) => boolean;
+  /** Carry the card to the column a sideways arrow leads to; whether the key was one. */
+  readonly carryFrom: (card: KanbanCard, key: string) => boolean;
+  readonly drag: (id: string | undefined) => void;
   readonly gesture: (card: KanbanCard, gesture: CardGesture) => void;
   readonly date: (card: KanbanCard, gesture: CardGesture, date: string) => void;
   readonly cancel: (id: string) => void;
@@ -373,6 +392,13 @@ function CardAsks({
   );
 }
 
+/** Whether a card is dragged: it lists a gesture that sends a state, and nothing is under way. */
+function isDraggable(card: KanbanCard, writing: string | undefined, asked: boolean): boolean {
+  return (
+    writing === undefined && !asked && card.commands.some((gesture) => gesture.progress !== null)
+  );
+}
+
 /** A card of the Kanban: a task, and whether it is a milestone to complete, as the API says. */
 export function Card({
   card,
@@ -383,7 +409,7 @@ export function Card({
   readonly actions: CardActions;
   readonly state: CardState;
 }) {
-  const { selected, writing } = actions;
+  const { selected, dragged, writing } = actions;
   const isSelected = selected === card.node_id;
   const [menuOpen, setMenuOpen] = useState(false);
   const item = useRef<HTMLLIElement | null>(null);
@@ -395,7 +421,9 @@ export function Card({
       }}
       tabIndex={actions.tabStop === card.node_id ? 0 : -1}
       aria-current={isSelected ? "true" : undefined}
+      aria-describedby={actions.hint}
       aria-busy={writing === card.node_id}
+      draggable={isDraggable(card, writing, state.asking !== undefined)}
       onFocus={(event) => {
         if (event.target === event.currentTarget) {
           actions.choose(card.node_id);
@@ -415,7 +443,10 @@ export function Card({
         ) {
           return;
         }
-        if (!event.shiftKey && actions.focusFrom(card.node_id, event.key)) {
+        const handled = event.shiftKey
+          ? actions.carryFrom(card, event.key)
+          : actions.focusFrom(card.node_id, event.key);
+        if (handled) {
           event.preventDefault();
           return;
         }
@@ -424,9 +455,20 @@ export function Card({
           setMenuOpen(true);
         }
       }}
+      onDragStart={(event) => {
+        // A type of its own: the identifier is no text a field where the card is dropped may take.
+        // Firefox starts no drag without data set.
+        event.dataTransfer.setData(DRAG_TYPE, card.node_id);
+        event.dataTransfer.effectAllowed = "move";
+        actions.choose(card.node_id);
+        actions.drag(card.node_id);
+      }}
+      onDragEnd={() => {
+        actions.drag(undefined);
+      }}
       className={`space-y-1 rounded-md border bg-card p-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         isSelected ? "border-primary ring-1 ring-primary" : ""
-      }`}
+      } ${dragged === card.node_id ? "opacity-50" : ""}`}
     >
       <CardTitle card={card} />
       {isSelected && card.commands.length > 0 ? (

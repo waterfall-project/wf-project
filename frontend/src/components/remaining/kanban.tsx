@@ -12,20 +12,24 @@
  * (WF-IHM-0070), which nothing does by itself. A task is started or it is not: no percentage shows,
  * nor is entered (US-0230).
  *
- * A card is chosen by a click and makes, by its menu, the gestures its task lists
- * (`available_commands`, WF-IHM-0090): start, complete, reopen, or enter the remaining to commit,
- * which leads to the grid of the remaining to commit on that task. A task is started or completed on
- * a date the user enters, the day's by default. The answer of the API replaces the card in the
- * column of its new state, and the focus follows it; a refusal is told on the card. The screen
- * offers no gesture the card does not list, and deduces none of the nature of the task or of its
- * lines.
+ * A card is chosen — by a click, by the arrows from card to card and from column to column — and
+ * makes the gestures its task lists (`available_commands`, WF-IHM-0090): start, complete, reopen,
+ * or enter the remaining to commit, which leads to the grid of the remaining to commit on that task.
+ * It makes them by dragging it to a column, by its menu, or at the keyboard — Shift and the right or
+ * left arrow carry it to the neighbouring column, the equivalent of the drag (WF-IHM-0100). A task
+ * is started or completed on a date the user enters, the day's by default. The answer of the API
+ * replaces the card in the column of its new state, and the focus follows it; a refusal is told on
+ * the card, and the gesture a card does not list to a column is told on it too. The screen offers no
+ * gesture the card does not list, and deduces none of the nature of the task or of its lines.
  */
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type DragEvent,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -35,6 +39,7 @@ import {
 } from "react";
 
 import { setTaskProgress } from "@/api/actions/nodes";
+import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 
 import type { TaskProgress } from "./address";
@@ -43,9 +48,11 @@ import { type Asking, Card, type CardActions, type Notice } from "./kanban-card"
 import {
   type CardGesture,
   cardOf,
+  carriedTo,
   COLUMNS,
-  focusOf,
   DATED,
+  focusOf,
+  gestureToward,
   type KanbanCard,
   type KanbanColumns,
   type KanbanStructure,
@@ -69,12 +76,16 @@ export function Kanban({
   readonly remaining: string;
 }) {
   const t = useTranslations("kanban");
+  const commands = useTranslations("enums.KanbanCommand");
+  const unmet = useUnmet();
   const router = useRouter();
+  const hint = useId();
   const held = useHeldCommand();
   const [, startTransition] = useTransition();
   const [book] = useState(() => new AnsweredCards());
   const answered = useSyncExternalStore(book.subscribe, book.snapshot, book.snapshot);
   const [selected, setSelected] = useState<string>();
+  const [dragged, setDragged] = useState<string>();
   const [writing, setWriting] = useState<string>();
   const [asking, setAsking] = useState<Asking>();
   const [notices, setNotices] = useState<Readonly<Record<string, Notice>>>({});
@@ -82,8 +93,8 @@ export function Kanban({
   const [focusing, setFocusing] = useState<{ readonly id: string; readonly form: boolean }>();
   const elements = useRef(new Map<string, HTMLElement>());
   const date = useRef<HTMLInputElement | null>(null);
-  // The card chosen now, set at the very moment it is: an answer comes back after the user may have chosen
-  // another card, and the focus must not be taken from that one.
+  // The card chosen now, set at the very moment it is: an answer comes back after the user may
+  // have chosen another card, and the focus must not be taken from that one.
   const chosen = useRef<string>(undefined);
   const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
   // The one stop of Tab of the board: the card chosen, else the first card. The arrows go from card
@@ -170,6 +181,12 @@ export function Kanban({
     if (writing !== undefined) {
       return;
     }
+    // The date asked on a card is not replaced by another card's: its entry would be lost unseen.
+    // A card no more in the reading shows no entry: its request holds nothing back.
+    if (asking !== undefined && asking.id !== card.node_id && cards.has(asking.id)) {
+      say(card.node_id, { kind: "said", sentence: t("asking") });
+      return;
+    }
     if (DATED.has(asked.command)) {
       setAsking({ id: card.node_id, gesture: asked });
       setFocusing({ id: card.node_id, form: true });
@@ -178,10 +195,36 @@ export function Kanban({
     write(card, asked, undefined);
   };
 
+  /** Carry a card to a column — dropped on it, or by the keys: the gesture it lists, or why not. */
+  const carry = (card: KanbanCard, state: TaskProgress) => {
+    if (card.state === state || writing !== undefined) {
+      return;
+    }
+    const leading = gestureToward(card, state);
+    if (leading === undefined) {
+      say(card.node_id, { kind: "said", sentence: t("noGesture", { column: titleOf(state) }) });
+      return;
+    }
+    if (!leading.is_available) {
+      say(card.node_id, {
+        kind: "said",
+        sentence: t("gestureUnavailable", {
+          command: commands(leading.command),
+          conditions: unmet(leading),
+        }),
+      });
+      return;
+    }
+    say(card.node_id, undefined);
+    gesture(card, leading);
+  };
+
   const actions: CardActions = {
     remaining,
+    hint,
     selected,
     tabStop,
+    dragged,
     writing,
     element: (id, element) => {
       if (element === null) {
@@ -205,6 +248,15 @@ export function Kanban({
       elements.current.get(target)?.focus();
       return true;
     },
+    carryFrom: (card, key) => {
+      const state = carriedTo(shown, card.node_id, key);
+      if (state === undefined) {
+        return false;
+      }
+      carry(card, state);
+      return true;
+    },
+    drag: setDragged,
     gesture,
     date: write,
     cancel: (id) => {
@@ -217,16 +269,50 @@ export function Kanban({
     },
   };
 
+  const cards = new Map(
+    COLUMNS.flatMap(([state]) => shown[state].map((card) => [card.node_id, card] as const)),
+  );
+  const moving = dragged === undefined ? undefined : cards.get(dragged);
+  const drop = (event: DragEvent<HTMLElement>, state: TaskProgress) => {
+    event.preventDefault();
+    setDragged(undefined);
+    if (moving !== undefined) {
+      carry(moving, state);
+    }
+  };
+
   return (
     <div className="space-y-3">
+      <p id={hint} className="text-xs text-muted-foreground">
+        {t("keys")}
+      </p>
       <p role="status" className="sr-only">
         {announced}
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         {COLUMNS.map(([state, title]) => {
           const listed = shown[state];
+          const reachable =
+            moving !== undefined &&
+            moving.state !== state &&
+            gestureToward(moving, state)?.is_available === true;
           return (
-            <section key={state} aria-label={t(title)} className="space-y-2 rounded-md">
+            <section
+              key={state}
+              aria-label={t(title)}
+              onDragOver={(event) => {
+                if (moving !== undefined) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }
+              }}
+              onDrop={(event) => {
+                drop(event, state);
+              }}
+              className={`space-y-2 rounded-md ${
+                reachable ? "outline-2 outline-dashed outline-offset-4 outline-ring" : ""
+              }`}
+            >
               <h2 className="text-sm font-semibold">{t(title)}</h2>
               {listed.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("empty")}</p>

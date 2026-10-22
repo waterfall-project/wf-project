@@ -1037,10 +1037,19 @@ démarrées et les terminées avec leur date, telles que les rend
 signalé à terminer (`predecessors_completed`, un texte et une icône) ; aucun pourcentage. La page
 découpe les cartes (`kanban-cards.ts` : ce que la carte montre et ses gestes, jamais le nœud entier
 d'un millier de tâches) et lit la structure principale de la révision (`listCostStructures`), où les
-gestes s'écrivent. Une carte se choisit au clic et fait les gestes que sa tâche liste
-(`available_commands`, jamais déduits de la nature de la tâche ni de ses lignes) par son menu, qui
-garde les gestes indisponibles avec leurs conditions ; l'état qu'un geste envoie est celui que la
-carte liste avec lui (`progress`).
+gestes s'écrivent. Une carte se choisit au clic ou aux flèches (haut et bas dans la colonne, gauche
+et droite d'une colonne à l'autre ; un seul arrêt de tabulation) et fait les gestes que sa tâche
+liste (`available_commands`, jamais déduits de la nature de la tâche ni de ses lignes) : par son
+menu, qui garde les gestes indisponibles avec leurs conditions, par glisser-déposer sur une
+colonne, ou au clavier — Maj et flèche droite ou gauche portent la carte à la colonne voisine,
+et à elle seule : un glisser vers une colonne plus loin n'a pas de touche. Le menu de la carte,
+ouvert par Entrée, offre tous les gestes que la tâche liste : c'est lui l'équivalent clavier
+complet du glisser (WF-IHM-0100). Le glisser pose un type qui lui est propre
+(`application/x-waterfall-card`), non `text/plain`, qu'un champ de texte où l'on dépose
+insérerait. Le geste qui mène à l'état de la colonne visée est celui que la carte liste avec cet
+état (`progress`) ; sans lui, la carte le dit. Une carte qui demande sa date n'est pas
+glissable, et aucune autre demande ne s'ouvre tant qu'elle l'attend : la saisie n'est jamais
+perdue en silence.
 Démarrer et terminer demandent la date de l'événement, celle du jour proposée ; « Saisir le reste à
 engager » est un lien vers la grille du reste à engager, cherchée sur le libellé de la tâche
 (`remainingHref`). La réponse de `setTaskProgress` remplace la carte dans la colonne de son nouvel
