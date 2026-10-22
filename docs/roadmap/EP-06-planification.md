@@ -39,7 +39,8 @@ planning d'un projet vient souvent de MS Project (motif de WF-INTF-0040).
   l'arborescence ;
 - les chronologies nommées, l'inscription des tâches et des jalons, et l'export PNG ;
 - le squelette de planning engendré du lotissement ;
-- l'import et l'export MS Project (FLX-01, FLX-02) et leur réversibilité ;
+- l'import et l'export MS Project (FLX-01, FLX-02) et leur réversibilité, la description d'une
+  tâche passant par ses notes dans les deux sens (C-375) ;
 - la mécanique d'import en deux temps — analyse, compte rendu, confirmation, application en une
   transaction, expiration, fichier en transit sur le stockage objet qu'EP-03 a posé —, que les
   imports du devis (EP-07), du reste à engager et des coûts réels (EP-09) reprennent ;
@@ -132,6 +133,11 @@ EP-04 livré : les tâches vivent dans la structure principale d'une révision e
 
 ## Constats reçus
 
+- #1304, point 7 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
+  - l'import MS Project lit la description d'une tâche dans ses notes, et l'export l'y écrit
+    (WF-INTF-0040, WF-INTF-0050) ;
+  - l'aller-retour la restitue (WF-INTF-0060) ;
+  - le contrat la porte déjà (`description` de la facette de la tâche).
 - #196 [EP-06] US-0120 : le recalcul qui suit une saisie tient la seconde du §4.6.2 — écart
   déclaré par US-0120 d'EP-02 : il n'y a pas de recalcul sur le faux back ; la mesure, contre le
   vrai service, du temps entre la validation d'une cellule de la grille (`updateEstimateLine`,
