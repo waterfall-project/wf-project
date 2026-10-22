@@ -24,7 +24,9 @@
  * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
  * of the envelope: the smallest or the largest value a field admits (`minimum`, `maximum`) is said
  * with the refusal, and a form says the refusal of each field at the field, by the same sentence
- * (`problemMessage` of the field's code and parameters). The
+ * (`problemMessage` of the field's code and parameters); the day a date entered falls on without a
+ * working hour, and the working day that follows (`date`, `next_working_day`), are written as days
+ * of the week in the language of the reader — the server names them, the front computes nothing. The
  * decoder of the envelope (`src/api/problem.ts`) classes a refusal by its status, and the
  * notice of its outcome (`OutcomeNotice`) writes it with this sentence.
  */
@@ -33,7 +35,7 @@ import { createTranslator } from "next-intl";
 import type { components } from "@/api/generated/schema";
 
 import type { Catalogue } from "./catalogues";
-import { formatDecimal, formatLocale } from "./format";
+import { formatDecimal, formatLocale, formatPlanningDay, isPlanningDate } from "./format";
 import type { Locale } from "./locale";
 
 /**
@@ -293,6 +295,21 @@ const DETAILS: readonly Reader[] = [
   },
   // The sub-project a line of a started task does not leave, because it received actual costs, by
   // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
+  // The day a date entered falls on without an hour worked, and the working day that follows, both
+  // given by the server and written in the language of the reader (`NON_WORKING_DAY`, WF-PLA-0020).
+  ({ date, next_working_day }, _label, locale) =>
+    typeof date === "string" &&
+    typeof next_working_day === "string" &&
+    isPlanningDate(date) &&
+    isPlanningDate(next_working_day)
+      ? [
+          "non_working_day",
+          {
+            date: formatPlanningDay(date, locale),
+            next: formatPlanningDay(next_working_day, locale),
+          },
+        ]
+      : undefined,
   ({ subproject }) =>
     isLabelled(subproject) ? ["subproject", { label: subproject.label }] : undefined,
   ({ state, state_enum }, label) => {

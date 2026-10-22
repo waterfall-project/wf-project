@@ -335,6 +335,38 @@ describe("the cells of a task entered in the grid of the planning", () => {
     expect(cellAt(desks, "finish")).toHaveAttribute("aria-invalid", "true");
     expect(cellAt(desks, "finish")).toHaveTextContent("24/04/2026");
   });
+
+  it.each([
+    {
+      locale: "fr",
+      said: /^Date sur un jour sans heure travaillée\. Le samedi 19 décembre n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 21 décembre\.$/,
+    },
+    {
+      locale: "en",
+      said: /^Date on a day without a working hour\. Saturday,? 19 December is not worked on the calendar of the task; enter Monday,? 21 December\.$/,
+    },
+  ] as const)(
+    "refuses the start of a manual task on a day without a working hour, naming the next working day in $locale, and writes nothing [WF-PLA-0020-A]",
+    async ({ locale, said }) => {
+      const problem = example("task_date_non_working_day") as Problem & { readonly status: 422 };
+      const client = serve({ [TASK]: { problem } });
+      render(grid(planning, { locale }));
+      const desks = rowOf(planning, "Pupitres opérateurs");
+      const kept = cellAt(desks, "start").textContent;
+      // The Saturday of the example, 19 December 2026, typed in the order both languages write.
+      await retype(await entered(desks, "start"), "19/12/2026");
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        new RegExp(said.source.slice(1, -1)),
+      );
+      expect(cellAt(desks, "start")).toHaveAttribute("aria-invalid", "true");
+      expect(cellAt(desks, "start")).toHaveAccessibleDescription(said);
+      // Nothing is applied: the cell keeps what the server read, after one write, refused.
+      expect(cellAt(desks, "start").textContent).toBe(kept);
+      expect(written(client).map(({ body }) => body)).toEqual([
+        { start: { date: "2026-12-19" }, lock_version: 1 },
+      ]);
+    },
+  );
 });
 
 describe("the predecessors of a task entered in the grid of the planning", () => {

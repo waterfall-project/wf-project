@@ -18,6 +18,7 @@ import {
   formatPercent,
   formatMonth,
   formatPlanningDate,
+  formatPlanningDay,
   formatShare,
   formatTimestamp,
   localTimeOfDay,
@@ -335,6 +336,12 @@ describe("a planning date", () => {
     expect(formatPlanningDate("2026-06-30", "en", "long")).toBe("30 June 2026");
     expect(formatPlanningDate("2026-06-30", "fr", "short")).toBe("30/06/2026");
     expect(formatPlanningDate("2026-06-30", "en")).toBe("30 Jun 2026");
+  });
+
+  it("names a day of planning by its weekday, in the language, whatever the zone [WF-PLA-0020-A]", () => {
+    expect(formatPlanningDay("2026-12-19", "fr")).toBe("samedi 19 décembre");
+    expect(formatPlanningDay("2026-12-21", "en")).toMatch(/^Monday,? 21 December$/);
+    expect(() => formatPlanningDay("2026-02-30", "fr")).toThrow(RangeError);
   });
 
   it("is the zone a naive reading would get wrong", () => {

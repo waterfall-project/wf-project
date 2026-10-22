@@ -412,6 +412,23 @@ export function formatPlanningDate(
   return dateFormat(locale, { dateStyle, timeZone: TIME_ZONE }).format(midnight);
 }
 
+/**
+ * Format a `PlanningDate` as the day it is, by its weekday, its day and its month — « samedi 19
+ * décembre » —, in the language given: a sentence that names a day of the week to enter again
+ * leaves the year to the date the reader typed.
+ */
+export function formatPlanningDay(value: PlanningDate, locale: Locale): string {
+  if (!isPlanningDate(value)) {
+    throw new RangeError(`Not a date of the contract: ${JSON.stringify(value)}`);
+  }
+  return dateFormat(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: TIME_ZONE,
+  }).format(new Date(`${value}T00:00:00Z`));
+}
+
 // A month of the contract: `2026-04`, as `WorkloadPlan` and `CashOutMonth` give it.
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
