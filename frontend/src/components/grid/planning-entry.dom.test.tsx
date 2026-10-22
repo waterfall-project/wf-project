@@ -189,14 +189,14 @@ describe("the cells of a task entered in the grid of the planning", () => {
     expect(start).toHaveValue("21/12/2026");
     await retype(start, "04/01/2027");
     expect(await within(cellAt(commissioning, "finish")).findByText("15/01/2027")).toBeVisible();
-    await retype(await entered(commissioning, "finish"), "16/01/2027");
+    await retype(await entered(commissioning, "finish"), "14/01/2027");
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(3);
     });
     expect(written(client)).toEqual([
       { node, body: { scheduling_mode: "manual", lock_version: 1 } },
       { node, body: { start: { date: "2027-01-04" }, lock_version: 2 } },
-      { node, body: { finish: { date: "2027-01-16" }, lock_version: 3 } },
+      { node, body: { finish: { date: "2027-01-14" }, lock_version: 3 } },
     ]);
   });
 

@@ -293,8 +293,6 @@ const DETAILS: readonly Reader[] = [
     const named = itemsOf(cycle, isLabelled).map(({ label }) => say("taskName", { label }));
     return named.length === 0 ? undefined : ["cycle", { tasks: conjunction(named, locale) }];
   },
-  // The sub-project a line of a started task does not leave, because it received actual costs, by
-  // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
   // The day a date entered falls on without an hour worked, and the working day that follows, both
   // given by the server and written in the language of the reader (`NON_WORKING_DAY`, WF-PLA-0020).
   ({ date, next_working_day }, _label, locale) =>
@@ -310,6 +308,8 @@ const DETAILS: readonly Reader[] = [
           },
         ]
       : undefined,
+  // The sub-project a line of a started task does not leave, because it received actual costs, by
+  // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
   ({ subproject }) =>
     isLabelled(subproject) ? ["subproject", { label: subproject.label }] : undefined,
   ({ state, state_enum }, label) => {
