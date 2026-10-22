@@ -13,6 +13,7 @@ import {
   Diamond,
   Ellipsis,
   Flag,
+  LoaderCircle,
   type LucideIcon,
   PenLine,
   Play,
@@ -315,12 +316,16 @@ export interface CardActions {
   readonly date: (card: KanbanCard, gesture: CardGesture, date: string) => void;
   readonly cancel: (id: string) => void;
   readonly forget: (id: string) => void;
+  /** Read the tasks anew, after a reading that did not bring the card answered. */
+  readonly retry: (id: string) => void;
 }
 
 /** What is asked or told on one card. */
 export interface CardState {
   readonly asking: Asking | undefined;
   readonly notice: Notice | undefined;
+  /** The card answered a gesture: being updated, or not up to date once the reading is over. */
+  readonly reading: "updating" | "outdated" | undefined;
 }
 
 /** The title of a card: its number, the mark of a milestone, its label, and when it ends. */
@@ -349,11 +354,50 @@ function CardTitle({ card }: { readonly card: KanbanCard }) {
   );
 }
 
+/** The mark of a card answered: the tasks are being read anew, or that reading did not reach it. */
+function CardReading({
+  reading,
+  retry,
+}: {
+  readonly reading: CardState["reading"];
+  readonly retry: () => void;
+}) {
+  const t = useTranslations("kanban");
+  if (reading === "updating") {
+    return (
+      <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <LoaderCircle
+          aria-hidden="true"
+          className="size-3.5 animate-spin motion-reduce:animate-none"
+        />
+        {t("updating")}
+      </p>
+    );
+  }
+  if (reading === "outdated") {
+    return (
+      <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="after:ml-1.5 after:content-['—']">{t("outdated")}</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-6 px-2 text-xs"
+          onClick={retry}
+        >
+          {t("retry")}
+        </Button>
+      </p>
+    );
+  }
+  return null;
+}
+
 /** What the card asks or tells besides its title: the date of the event asked, or a refusal. */
 function CardAsks({
   card,
   actions,
-  state: { asking, notice },
+  state: { asking, notice, reading },
 }: {
   readonly card: KanbanCard;
   readonly actions: CardActions;
@@ -361,6 +405,12 @@ function CardAsks({
 }) {
   return (
     <>
+      <CardReading
+        reading={reading}
+        retry={() => {
+          actions.retry(card.node_id);
+        }}
+      />
       {asking === undefined ? null : (
         <EventDate
           gesture={asking.gesture}

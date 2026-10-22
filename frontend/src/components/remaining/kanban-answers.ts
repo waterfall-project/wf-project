@@ -15,10 +15,14 @@ export type Answered = Readonly<Record<string, KanbanCard>>;
 /** The answers of the gestures of a Kanban, and who listens to them. */
 export class AnsweredCards {
   private cards: Answered = {};
+  private outdated = false;
   private readonly listeners = new Set<() => void>();
 
   /** The answers now; the same object until they change. */
   readonly snapshot = (): Answered => this.cards;
+
+  /** Whether a reading ended without bringing an answer's version; the same until it changes. */
+  readonly lapsed = (): boolean => this.outdated;
 
   /** Listen to the changes of the answers; give the way to stop. */
   readonly subscribe = (listener: () => void): (() => void) => {
@@ -38,13 +42,35 @@ export class AnsweredCards {
     this.set(unanswered(columns, this.cards));
   };
 
+  /** A reading ended with an answer unreached: the cards answered are not up to date. */
+  readonly lapse = (): void => {
+    this.mark(true);
+  };
+
+  /** The tasks are read anew, or a gesture is made: the cards answered are no more outdated. */
+  readonly settle = (): void => {
+    this.mark(false);
+  };
+
+  private mark(outdated: boolean): void {
+    if (outdated === this.outdated) {
+      return;
+    }
+    this.outdated = outdated;
+    this.notify();
+  }
+
+  private notify(): void {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
   private set(next: Answered): void {
     if (next === this.cards) {
       return;
     }
     this.cards = next;
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.notify();
   }
 }
