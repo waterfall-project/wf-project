@@ -7210,7 +7210,13 @@ suivant ; la même date importée d'un fichier MS Project est gardée et signal�
   `ImportReport.signals`, toujours rendu comme les autres : un `ImportSignal` par date — la
   tâche (`lineage_id`, `label`), la colonne (`start`, `finish`), et le même motif avec les mêmes
   paramètres, pour que la saisie et l'import se disent d'une même phrase (WF-ARC-0110). Ni rejet
-  ni confirmation : WF-PLA-0020 garde la date.
+  ni confirmation : WF-PLA-0020 garde la date. Le signalement suit la cellule, non le jour, comme
+  le refus de la saisie suit le champ : un jalon dont le début et la fin tombent le même jour
+  chômé est signalé deux fois, `start` et `finish`, comme une tâche dont les deux dates sont
+  chômées — les deux cellules de la grille portent la date, et un seul
+  signalement laisserait l'une sans motif. `ImportSignal.code` est tenu à `NON_WORKING_DAY`
+  (`const` à côté d'`ErrorCode`), seul signalement qui existe : un autre élargira la liste par
+  une modification du contrat. Les modèles engendrés du service n'en gardent que `ErrorCode`.
 
 Écartés : un code d'heure (`VALUE_OUT_OF_RANGE` sur `/start/hours`), qui ne dit pas la vraie cause
 — le jour, non ses heures (défaut n° 10 du guide) — ni le jour suivant ; reporter la date au jour

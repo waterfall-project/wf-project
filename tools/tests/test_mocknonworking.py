@@ -17,6 +17,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 import pytest
+import yaml
 
 from wftools import REPOSITORY, mockcore, mockdata, mockdating, mocknonworking, mockwitness
 from wftools.mockcalendar import Calendar
@@ -70,6 +71,8 @@ def test_the_commissioning_works_from_monday_to_friday() -> None:
         *[Decimal(8)] * 5,
     ]
     assert SATURDAY.weekday() == 5
+    # The Saturday before the Monday the commissioning starts on today, as its summary says.
+    assert mockdating.schedule(described())[N.COMMISSIONING].start.day == MONDAY
 
 
 def test_a_start_entered_on_a_saturday_is_refused_naming_the_next_monday() -> None:
@@ -134,6 +137,31 @@ def test_the_same_date_imported_is_kept_and_signalled_naming_the_next_monday() -
     assert (placed.start.day, placed.start.hours) == (SATURDAY, 0)
     assert placed.finish.day == mockdating.schedule(described())[N.COMMISSIONING].finish.day
     assert report["read_count"] == len(mockdating.tasks_in_order(described()))
+
+
+def test_a_milestone_on_a_day_without_hours_is_signalled_once_per_column() -> None:
+    # The signal follows the cell, not the day (ImportSignal, DECISIONS.md, #1271): a milestone
+    # whose start and finish are the same Saturday is signalled twice, like a task whose two
+    # dates are; a day of work is not signalled.
+    lineage = mockcore.lineage(N.COMMISSIONING)
+    params = {"date": SATURDAY.isoformat(), "next_working_day": MONDAY.isoformat()}
+    assert _json(mocknonworking.signals(lineage, "Jalon", (SATURDAY, SATURDAY))) == [
+        {
+            "lineage_id": lineage,
+            "label": "Jalon",
+            "column": column,
+            "code": "NON_WORKING_DAY",
+            "params": params,
+        }
+        for column in ("start", "finish")
+    ]
+    assert mocknonworking.signals(lineage, "Jalon", (MONDAY, MONDAY)) == []
+
+
+def test_the_contract_holds_the_code_of_a_signal_to_the_one_signal_there_is() -> None:
+    text = (REPOSITORY / "docs/api/components/schemas/exchanges.yaml").read_text(encoding="utf-8")
+    code = yaml.safe_load(text)["ImportSignal"]["properties"]["code"]
+    assert {"const": mocknonworking.CODE} in code["allOf"]
 
 
 def test_the_calendars_of_the_file_are_ignored_and_named() -> None:

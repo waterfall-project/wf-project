@@ -5118,14 +5118,15 @@ export interface components {
             /** @description Les colonnes qui diffèrent, parmi la durée, le début et la fin (`duration`, `start`, `finish`), nommées comme les colonnes de la grille de planning. */
             fields: components["schemas"]["NodeColumn"][];
         };
-        /** @description Une valeur du fichier gardée et signalée (`ImportReport.signals`) : la tâche, la colonne qui porte la valeur, et le motif, avec les paramètres qu'il porte dans un refus (`Problem.params`), pour que la saisie et l'import se disent d'une même phrase (WF-ARC-0110). Ainsi `NON_WORKING_DAY`, une date de début ou de fin d'une tâche manuelle sur un jour sans aucune heure travaillée à son calendrier applicable, gardée telle quelle, le début et la fin à `0` heure : `params.date` la date du fichier, `next_working_day` le jour travaillé suivant (WF-PLA-0020, WF-PLA-0010 ; #1271). Une tâche dont le début et la fin tombent l'un et l'autre un jour chômé est signalée deux fois, une par colonne. */
+        /** @description Une valeur du fichier gardée et signalée (`ImportReport.signals`) : la tâche, la colonne qui porte la valeur, et le motif, avec les paramètres qu'il porte dans un refus (`Problem.params`), pour que la saisie et l'import se disent d'une même phrase (WF-ARC-0110). Ainsi `NON_WORKING_DAY`, une date de début ou de fin d'une tâche manuelle sur un jour sans aucune heure travaillée à son calendrier applicable, gardée telle quelle, le début et la fin à `0` heure : `params.date` la date du fichier, `next_working_day` le jour travaillé suivant (WF-PLA-0020, WF-PLA-0010 ; #1271). Une tâche dont le début et la fin tombent l'un et l'autre un jour chômé est signalée deux fois, une par colonne ; un jalon dont le début et la fin sont le même jour chômé l'est aussi deux fois : le signalement suit la cellule, non le jour, comme le refus de la saisie suit le champ. */
         ImportSignal: {
             /** @description La lignée de la tâche ; nulle pour une tâche que l'import crée. */
             lineage_id: components["schemas"]["Uuid"] | null;
             label: string;
             /** @description La colonne de la grille de planning qui porte la valeur, `start` ou `finish`. */
             column: components["schemas"]["NodeColumn"];
-            code: components["schemas"]["ErrorCode"];
+            /** @description Le motif du signalement, un code d'erreur pour que la saisie et l'import se disent d'une même phrase : `NON_WORKING_DAY` seul, tant qu'aucun autre signalement n'existe ; un signalement nouveau élargit cette liste, par une modification du contrat. */
+            code: components["schemas"]["ErrorCode"] & "NON_WORKING_DAY";
             params: {
                 [key: string]: unknown;
             };

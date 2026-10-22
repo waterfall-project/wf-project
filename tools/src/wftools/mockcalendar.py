@@ -97,7 +97,9 @@ class Calendar:
         return self.week[day.weekday()]
 
     def next_working_day(self, day: date) -> date:
-        """Return the first day after a day that grants hours of work: within a week, always.
+        """Return the first day after a day that grants hours of work.
+
+        Within a week; raises if the week has no hour.
 
         What a date entered on a day without hours of work names, refused (WF-PLA-0020, #1271).
         """

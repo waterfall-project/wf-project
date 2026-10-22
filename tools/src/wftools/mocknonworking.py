@@ -119,6 +119,30 @@ def calendars_ignored() -> JsonObject:
     return {"kind": "calendars", "count": len(labels), "labels": cast("list[JsonValue]", labels)}
 
 
+def signals(lineage: str, label: str, dates: tuple[date, date]) -> list[JsonValue]:
+    """Return the signals of the start and finish of a task in the file, one per column.
+
+    A column whose day has no hour of work is signalled by the motive and the parameters of the
+    refusal of the entry. The signal follows the cell, not the day, as the refusal follows the
+    field: a milestone whose start and finish fall on the same such day is signalled twice, like
+    a task whose two dates do (#1271).
+    """
+    found: list[JsonValue] = []
+    for column, day in zip(("start", "finish"), dates, strict=True):
+        params = judged(day)
+        if params is not None:
+            found.append(
+                {
+                    "lineage_id": lineage,
+                    "label": label,
+                    "column": column,
+                    "code": CODE,
+                    "params": params,
+                }
+            )
+    return found
+
+
 def import_report() -> JsonObject:
     """Return the report of the planning exported today, the commissioning made manual in it.
 
@@ -138,19 +162,6 @@ def import_report() -> JsonObject:
         if node[column]["date"] != day.isoformat()
     ]
     lineage, label = mockcore.lineage(N.COMMISSIONING), rows[N.COMMISSIONING].label
-    signals: list[JsonValue] = []
-    for column, day in (("start", first), ("finish", last)):
-        params = judged(day)
-        if params is not None:
-            signals.append(
-                {
-                    "lineage_id": lineage,
-                    "label": label,
-                    "column": column,
-                    "code": CODE,
-                    "params": params,
-                }
-            )
     return {
         "format_version": None,
         "read_count": len(mockdating.tasks_in_order(described())),
@@ -169,7 +180,7 @@ def import_report() -> JsonObject:
         "ignored": [calendars_ignored()],
         "completed_tasks": [],
         "date_mismatches": [],
-        "signals": signals,
+        "signals": signals(lineage, label, (first, last)),
         "requires_confirmation_reasons": [],
     }
 

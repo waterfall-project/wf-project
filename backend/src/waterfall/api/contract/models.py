@@ -4764,7 +4764,12 @@ class ImportSignal(ContractModel):
             description="La colonne de la grille de planning qui porte la valeur, `start` ou `finish`."
         ),
     ]
-    code: ErrorCode
+    code: Annotated[
+        ErrorCode,
+        Field(
+            description="Le motif du signalement, un code d'erreur pour que la saisie et l'import se disent d'une même phrase : `NON_WORKING_DAY` seul, tant qu'aucun autre signalement n'existe ; un signalement nouveau élargit cette liste, par une modification du contrat."
+        ),
+    ]
     params: dict[str, Any]
 
 
