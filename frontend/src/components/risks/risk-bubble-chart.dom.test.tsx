@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ScatterSeriesOption } from "echarts/charts";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -83,6 +83,11 @@ const PALETTE: ChartPalette = {
   zones: { nominal: "zone-nominal", watch: "zone-watch", alert: "zone-alert" },
   font: "sans-serif",
 };
+
+/** The ratio of a point, which the examples of the matrix give computable. */
+function ratioOf(point: RiskMatrix["points"][number]): string | null | undefined {
+  return point.severity_ratio.value;
+}
 
 const MATRIX = example("risk_matrix") as RiskMatrix;
 const RISKS = example("volume/portfolio_risks") as Schemas["PortfolioRisks"];
@@ -296,13 +301,82 @@ describe("the risk matrix as a bubble chart", () => {
     expect((drawn().option?.yAxis as { max: number }).max).toBe(reference);
   });
 
+  /** The count the table of the counts gives at a level of probability and the first of severity. */
+  function countAtLowestSeverity(probabilityLevel: number): string {
+    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    // Two rows of heads, then the levels of probability from the highest down to the first.
+    const row = rows.at(2 + (MATRIX.probability_levels.length - probabilityLevel));
+    if (row === undefined) {
+      throw new Error("no such row in the table of the counts");
+    }
+    const [first] = within(row).getAllByRole("cell");
+    return (first?.textContent ?? "").trim();
+  }
+
   it("draws no bubble for a risk whose ratio the server could not compute, its cell still counting it", () => {
     // #1240: on a base of nought, the ratio is not computable and the risk is at the lowest level
     // of severity; the chart has no ordinate for it, and computes none.
-    project([], example("risk_matrix_no_basis") as RiskMatrix);
-    const { bubbles, zones } = drawn();
+    const noBasis = example("risk_matrix_no_basis") as RiskMatrix;
+    project([], noBasis);
+    const { bubbles, option, zones } = drawn();
     expect(bubbles.map((each) => each.data)).toEqual([[], [], []]);
     expect(zones?.markArea?.data).toHaveLength(16);
+    // The lowest level of severity holds the risks at probabilities 0.4 and 0.3 (level 3), and 0.05 (level 1).
+    expect(countAtLowestSeverity(3)).toBe("2");
+    expect(countAtLowestSeverity(1)).toBe("1");
+    // No ratio to lay out: the top of the axis is the one of the last level alone, a number.
+    expect((option?.yAxis as { max: number }).max).toBeCloseTo(0.15);
+  });
+
+  it("says how many risks have no bubble, and why, and no more once every risk has a share", () => {
+    project([], example("risk_matrix_no_basis") as RiskMatrix);
+    expect(
+      screen.getByText(
+        "3 risks are not drawn: their severity cannot be set as a share of the budget — No reference budget.",
+      ),
+    ).toBeInTheDocument();
+    cleanup();
+    project();
+    expect(screen.queryByText(/are not drawn|is not drawn/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the bubble of a risk with a share beside a risk without one, which it counts apart", () => {
+    const top = MATRIX.points.reduce((a, b) => (Number(ratioOf(b)) > Number(ratioOf(a)) ? b : a));
+    project([], {
+      ...MATRIX,
+      points: MATRIX.points.map((point) =>
+        point === top
+          ? {
+              ...point,
+              severity_ratio: {
+                is_computable: false,
+                value: null,
+                reason: "no_reference_budget",
+              },
+            }
+          : point,
+      ),
+    });
+    const ids = drawn().bubbles.flatMap((each) =>
+      (each.data as { id: string }[]).map(({ id }) => id),
+    );
+    expect(ids.sort()).toEqual(
+      MATRIX.points
+        .filter((point) => point !== top)
+        .map((point) => point.risk_id)
+        .sort(),
+    );
+    expect(
+      screen.getByText(
+        "1 risk is not drawn: its severity cannot be set as a share of the budget — No reference budget.",
+      ),
+    ).toBeInTheDocument();
+    // The highest ratio is gone from the axis, which falls back on the last level and stays a number.
+    const max = (drawn().option?.yAxis as { max: number }).max;
+    expect(max).toBeCloseTo(0.15);
+    // The tooltip of the risk without a bubble says nothing.
+    const tooltip = drawn().option?.tooltip as { formatter: (params: unknown) => string };
+    expect(tooltip.formatter({ data: { id: top.risk_id } })).toBe("");
   });
 
   it("says so when the filter leaves nothing to draw, and still draws the zones", () => {

@@ -42,6 +42,7 @@ import { riskHref, type RiskState } from "./address";
 import { type RiskMatrix, RiskCountsTable } from "./risk-matrix";
 
 type Point = components["schemas"]["RiskMatrixPoint"];
+type Reason = NonNullable<Point["severity_ratio"]["reason"]>;
 type Level = components["schemas"]["RiskMatrixLevel"];
 type AlertZone = components["schemas"]["AlertZone"];
 
@@ -113,6 +114,22 @@ function ratioOf({ severity_ratio: ratio }: Point): string | undefined {
   return ratio.is_computable ? (ratio.value ?? undefined) : undefined;
 }
 
+/**
+ * The risks without a bubble, counted by the reason their ratio is missing — none when the server
+ * gave no reason — in the order the points come: the chart says how many, and why, and computes
+ * nothing of them.
+ */
+function unplotted(points: readonly Point[]): readonly (readonly [Reason | null, number])[] {
+  const counts = new Map<Reason | null, number>();
+  for (const point of points) {
+    if (ratioOf(point) === undefined) {
+      const reason = point.severity_ratio.reason ?? null;
+      counts.set(reason, (counts.get(reason) ?? 0) + 1);
+    }
+  }
+  return [...counts];
+}
+
 /** The risks the chart draws: those in the states asked, every one when none is. */
 function shownPoints(points: readonly Point[], states: readonly RiskState[]): readonly Point[] {
   return states.length === 0 ? points : points.filter(({ state }) => states.includes(state));
@@ -146,6 +163,7 @@ export function RiskBubbleChart({
   const t = useTranslations();
   const locale = useLocale();
   const points = useMemo(() => shownPoints(matrix.points, states), [matrix.points, states]);
+  const missing = useMemo(() => unplotted(points), [points]);
   const open = useCallback(
     (id: string) => {
       const point = points.find((each) => each.risk_id === id);
@@ -278,12 +296,13 @@ export function RiskBubbleChart({
           formatter: (params) => {
             const each = Array.isArray(params) ? params[0] : params;
             const point = points.find(({ risk_id: id }) => id === dataId(each?.data));
-            if (point === undefined) {
+            // No bubble for a risk without a ratio, hence no tooltip for it.
+            const ratio = point === undefined ? undefined : ratioOf(point);
+            if (point === undefined || ratio === undefined) {
               return "";
             }
             const line = (name: string, value: string) =>
               `${escapeHtml(name)} : ${escapeHtml(value)}`;
-            const ratio = ratioOf(point);
             return [
               `<b>${escapeHtml(point.label)}</b>`,
               ...(point.project_label === undefined
@@ -292,9 +311,7 @@ export function RiskBubbleChart({
               line(t("risks.matrix.tooltip.probability"), formatPercent(point.probability, locale)),
               line(
                 t("risks.matrix.tooltip.severity"),
-                ratio === undefined
-                  ? formatMoney(point.severity_amount, locale)
-                  : `${formatMoney(point.severity_amount, locale)} (${formatPercent(ratio, locale)})`,
+                `${formatMoney(point.severity_amount, locale)} (${formatPercent(ratio, locale)})`,
               ),
               line(
                 t("risks.matrix.tooltip.provision"),
@@ -354,7 +371,21 @@ export function RiskBubbleChart({
       note={
         points.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("risks.matrix.none")}</p>
-        ) : undefined
+        ) : missing.length === 0 ? undefined : (
+          <>
+            {missing.map(([reason, count]) => (
+              <p key={reason ?? ""} className="text-sm text-muted-foreground">
+                {t("risks.matrix.unplotted", {
+                  count,
+                  reason:
+                    reason === null
+                      ? t("indicator.notComputable")
+                      : t(`enums.NotComputableReason.${reason}`),
+                })}
+              </p>
+            ))}
+          </>
+        )
       }
       option={option}
       exported={exported}

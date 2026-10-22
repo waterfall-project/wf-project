@@ -441,6 +441,7 @@
       "axisSeverity": "Gravité (% du budget)",
       "counts": "Décompte des risques par case de la matrice, tous états confondus",
       "none": "Aucun risque à tracer pour ce filtre.",
+      "unplotted": "{count, plural, one {# risque n’est pas tracé : sa gravité ne peut pas être rapportée au budget — {reason}} other {# risques ne sont pas tracés : leur gravité ne peut pas être rapportée au budget — {reason}}}",
       "file": "matrice-des-risques",
       "probability": "Probabilité",
       "severity": "Gravité, en part du budget de référence",
