@@ -187,6 +187,48 @@ describe("the workload of a project", () => {
     ]);
   });
 
+  it("draws its axis of months from the totals of the server, not from the roles [WF-DEV-0070-A]", async () => {
+    // A variant of the example, not an answer of the fake back: the totals run one month past the
+    // last month of the example, which moves the upper bound of the axis, a tick every six months, to July 2030.
+    expect(WORKLOAD.monthly_totals.at(-1)?.month).toBe("2029-08");
+    workload((plan) => ({
+      ...plan,
+      monthly_totals: [...plan.monthly_totals, { month: "2030-02", hours: "10.00" }],
+    }));
+    const image = screen.getByRole("img", {
+      name: /^Stacked bars of the load of each resource role/,
+    });
+    await waitFor(() => {
+      expect(getInstanceByDom(image)).toBeDefined();
+    });
+    const option = getInstanceByDom(image)?.getOption() as ChartOption;
+    const [xAxis] = option.xAxis as { min: number; max: number }[];
+    expect([xAxis?.min, xAxis?.max].map((bound) => new Date(bound ?? NaN).toISOString())).toEqual([
+      "2026-01-01T00:00:00.000Z",
+      "2030-07-01T00:00:00.000Z",
+    ]);
+  });
+
+  it("draws an axis without bounds nor ticks when the server gives no total [WF-DEV-0070-A]", async () => {
+    // A variant of the example, not an answer of the fake back: no total at all.
+    workload((plan) => ({ ...plan, monthly_totals: [] }));
+    const image = screen.getByRole("img", {
+      name: /^Stacked bars of the load of each resource role/,
+    });
+    await waitFor(() => {
+      expect(getInstanceByDom(image)).toBeDefined();
+    });
+    const option = getInstanceByDom(image)?.getOption() as ChartOption;
+    const [xAxis] = option.xAxis as {
+      min?: unknown;
+      max?: unknown;
+      axisLabel: { customValues: number[] };
+    }[];
+    expect(xAxis?.min).toBeUndefined();
+    expect(xAxis?.max).toBeUndefined();
+    expect(xAxis?.axisLabel.customValues).toEqual([]);
+  });
+
   it("lists each month of each role, its capacity in regard of its load, and its zone by the one signal, a role without load said so — no ratio [WF-DEV-0070-A] [WF-IHM-0070-A]", () => {
     // La capacité de chaque rôle est affichée : in the table, against the load of each month; the
     // plan of a project presents no ratio of its load to it (#375, option b).
@@ -245,7 +287,9 @@ describe("the workload of a project", () => {
     // provenance, and their margins (12 + 24 + 6 + 16 + 14) —, drawn at once.
     expect(option.legend).toMatchObject({ top: 72, selectedMode: false });
     expect(option.grid).toMatchObject({ top: 48 + 72 });
-    expect((option.series as BarSeriesOption[]).map((each) => each.name)).toEqual([
+    expect(
+      (option.series as (BarSeriesOption | LineSeriesOption)[]).map((each) => each.name),
+    ).toEqual([
       "Ingénieur électricien",
       "Technicien de mise en service",
       "Monteur câbleur",
