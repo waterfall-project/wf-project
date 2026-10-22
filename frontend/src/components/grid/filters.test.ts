@@ -14,6 +14,7 @@ import {
   refusedBounds,
   refusedSides,
   valuesHref,
+  withoutParameters,
 } from "./filters";
 
 const ORIGINS = ["local", "directory", "identity_provider"] as const;
@@ -43,6 +44,14 @@ describe("the filters of a list in the address", () => {
     expect(valuesHref("/p", new URLSearchParams(), zones, ["alert", "nominal", "watch"])).toBe(
       "/p?zones=nominal%2Cwatch%2Calert",
     );
+  });
+
+  it("lift every parameter a filter is read from, the rest of the query kept", () => {
+    const query = new URLSearchParams("work_package_id=a&order_item_id=b&sort_by=label&q=x");
+    expect(withoutParameters("/x", query, ["work_package_id", "order_item_id"])).toBe(
+      "/x?sort_by=label&q=x",
+    );
+    expect(withoutParameters("/x", new URLSearchParams("as_of=d"), ["as_of"])).toBe("/x");
   });
 
   it("set one filter, or lift it, the page of a list the server does not page kept as it is", () => {

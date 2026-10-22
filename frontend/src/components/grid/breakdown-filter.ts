@@ -13,7 +13,6 @@
  */
 import { isUuid, type SearchParameters } from "@/navigation/context";
 
-import { filterHref } from "./filters";
 import type { NodeFilters } from "./nodes";
 import type { BreakdownItem, BreakdownKind } from "./planning-attachment";
 
@@ -67,23 +66,19 @@ export interface BreakdownChoices {
 /**
  * The filter active, as the banner of the context shows it (WF-IHM-0020): the lot or the post —
  * none found when the work breakdown does not have it, the identifier of the address shown —, and
- * the address of the same screen without it, the rest of its query — search, sort, context — kept.
+ * its parameters being those a link lifts it by (`BREAKDOWN_PARAMETERS`).
  */
 export interface BreakdownChip {
   readonly filter: BreakdownFilter;
   readonly item: BreakdownItem | undefined;
-  readonly lift: string;
 }
 
 /**
- * The chip of the filter the address names, lifted by the address of `pathname` without it, its
- * item found among `items` — none given when the work breakdown could not be read.
+ * The chip of the filter the address names, its item found among `items` — none given when the work breakdown could not be read.
  */
 export function breakdownChip(
   filter: BreakdownFilter | undefined,
   items: readonly BreakdownItem[] | undefined,
-  pathname: string,
-  query: URLSearchParams,
 ): BreakdownChip | undefined {
   if (filter === undefined) {
     return undefined;
@@ -91,7 +86,5 @@ export function breakdownChip(
   return {
     filter,
     item: items?.find((item) => item.id === filter.value && item.kind === filter.kind),
-    // Both parameters lifted: one the filter does not read would take its place.
-    lift: filterHref(pathname, query, filter.name, undefined, Object.values(BREAKDOWN_PARAMETERS)),
   };
 }

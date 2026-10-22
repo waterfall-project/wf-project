@@ -844,7 +844,7 @@ describe("the banner of the reading context on the witness path", () => {
     expect(text(html)).toMatch(
       /^Project Modernisation du poste de commande Revision Current revision Draft Structure Structure principale Subproject: No subproject Costing and estimate /,
     );
-    expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/estimate"`);
+    expect(html).toContain('aria-label="Remove the filter “Subproject: No subproject”"');
   });
 
   it("is not found for a revision the API does not find, as the other screens of a project", async () => {

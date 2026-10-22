@@ -163,20 +163,6 @@ export function contextAddress(pathname: string, context: ProjectContext): strin
 /** A filter the address of a context may carry: `subproject_id` or `as_of`. */
 export type ContextParameter = (typeof CONTEXT_PARAMETERS)[number];
 
-/**
- * The address of the same screen with one filter lifted: the revision and the other filter
- * kept, as a link that removes it from the address.
- */
-export function withoutFilter(
-  pathname: string,
-  context: ProjectContext,
-  name: ContextParameter,
-): string {
-  const parameters = new URLSearchParams(context.parameters);
-  parameters.delete(name);
-  return contextAddress(pathname, { ...context, parameters });
-}
-
 /** The search parameters of a page, as Next hands them to it: a repeated one counts once. */
 export type PageSearchParams = Readonly<Record<string, string | readonly string[] | undefined>>;
 

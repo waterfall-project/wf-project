@@ -80,15 +80,3 @@ export function structureHref(
     structure.kind === "main" ? undefined : structure.structure_id,
   );
 }
-
-/**
- * An address of the same screen that keeps the structure read: a filter of the context lifted by
- * the banner leaves the grid on the structure it reads, rather than taking it back to the main one.
- */
-export function keepingStructure(href: string, choices: StructureChoices | undefined): string {
-  if (choices === undefined) {
-    return href;
-  }
-  const [pathname = "", query = ""] = href.split("?", 2);
-  return structureHref(pathname, new URLSearchParams(query), choices.read);
-}

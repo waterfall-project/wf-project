@@ -240,6 +240,38 @@ describe("the address the banner and the grid of a screen ask from", () => {
   );
 });
 
+describe("the chip that lifts a filter of the banner", () => {
+  /** Lift the filter of the chip, which the only one of the address shown. */
+  async function liftFilter() {
+    await userEvent.click(screen.getByRole("link", { name: /^Lever le filtre/ }));
+  }
+
+  it("lifts the lot from the sort asked and not arrived yet, the sort kept", async () => {
+    render(await tree(ESTIMATE, `work_package_id=${LOT}`));
+    const arrive = holdNavigations();
+    await sortByInflation();
+    await liftFilter();
+    expect(Object.fromEntries(lastAsked())).toEqual({
+      sort_by: "inflated_amount",
+      sort_order: "asc",
+    });
+    await arrive();
+  });
+
+  it("lifts both parameters of the lot and keeps the structure read", async () => {
+    render(
+      await tree(
+        { ...ESTIMATE, nodes: "nodes_amendment" },
+        `structure=${AMENDMENT}&work_package_id=${LOT}&order_item_id=${LOT}`,
+      ),
+    );
+    const arrive = holdNavigations();
+    await liftFilter();
+    expect(Object.fromEntries(lastAsked())).toEqual({ structure: AMENDMENT });
+    await arrive();
+  });
+});
+
 describe("the marks of a difference", () => {
   it.each([PLANNING, ESTIMATE])(
     "head the grid of the $name on a differential, and the grid of the main structure has none (US-0500)",

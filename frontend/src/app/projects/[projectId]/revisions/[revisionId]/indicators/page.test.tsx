@@ -231,7 +231,7 @@ describe("the screen of the indicators of a project", () => {
     expect(cost.slice(0, cost.indexOf("Evolution"))).not.toContain("text-signal-");
   });
 
-  it("shows the sub-project and the date its indicators are read for as chips, each lifted by a link that keeps the other [WF-IHM-0020-A]", async () => {
+  it("shows the sub-project and the date its indicators are read for as chips, each with a link that lifts it [WF-IHM-0020-A]", async () => {
     // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres : the screen reads its
     // indicators for both, and its banner shows both (#302).
     const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-05-31" })));
@@ -239,11 +239,13 @@ describe("the screen of the indicators of a project", () => {
     expect(text(banner)).toContain(
       "Subproject: SP-CMD — Poste de commande, except the milestone tracking Calculation date: 31 May 2026",
     );
-    const screen = `/projects/${PROJECT}/revisions/${REVISION}/indicators`;
+    // The address each link leads to is the client's, from the address shown (`context-banner.dom.test.tsx`).
     expect(
-      [...banner.matchAll(/href="([^"]*)"/g)].map((m) => m[1]?.replaceAll("&amp;", "&")),
-    ).toEqual([`${screen}?as_of=2026-05-31`, `${screen}?subproject_id=${SUBPROJECT}`]);
-    expect(banner).toContain('aria-label="Remove the filter “Calculation date: 31 May 2026”"');
+      [...banner.matchAll(/aria-label="(Remove the filter [^"]*)"/g)].map((m) => m[1]),
+    ).toEqual([
+      "Remove the filter “Subproject: SP-CMD — Poste de commande, except the milestone tracking”",
+      "Remove the filter “Calculation date: 31 May 2026”",
+    ]);
   });
 
   it("reads the evolution of the indices and the cumulative costs for the sub-project the banner shows, and says the tracking of the milestones covers the whole project [WF-IHM-0020-A]", async () => {

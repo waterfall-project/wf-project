@@ -50,7 +50,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
-import { type PageSearchParams, searchQuery } from "@/navigation/context";
+import type { PageSearchParams } from "@/navigation/context";
 import { estimateBasis, onBasis } from "@/components/workload/workload-basis";
 import { functionHref, leafOf } from "@/navigation/functions";
 import { type Permission, requestSession } from "@/session/request";
@@ -281,12 +281,7 @@ export default async function EstimatePage({
         reading={screen.reading}
         restricts={RESTRICTS}
         structure={screen.structures}
-        breakdown={breakdownChip(
-          screen.breakdownFilter,
-          screen.breakdown?.items,
-          at.pathname,
-          searchQuery(search),
-        )}
+        breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
       />
       <Screen density={FUNCTION_DENSITY.estimate} fill>
         <EstimateHeader

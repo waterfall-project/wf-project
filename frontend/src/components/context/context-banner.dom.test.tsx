@@ -188,6 +188,16 @@ describe("the banner of the reading context", () => {
     );
   });
 
+  it("lifts a filter from the whole query of the address shown, the sort and the search kept [WF-IHM-0020-A]", () => {
+    // The href is the one a click goes on from (usePendingLink): the query as the grid reads it,
+    // minus the parameters of the filter.
+    const address = `${REMAINING}?subproject_id=${SUBPROJECT}&as_of=2026-05-31&sort_by=label&q=pump`;
+    banner(reading(address, "revision"), "en");
+    expect(
+      screen.getByRole("link", { name: /^Remove the filter “Calculation date/ }),
+    ).toHaveAttribute("href", `${REMAINING}?subproject_id=${SUBPROJECT}&sort_by=label&q=pump`);
+  });
+
   it("names a sub-project the project lacks, and a date that is none, as the address gives them", () => {
     const unknown = "01926f3a-7c00-7000-8000-000000000899";
     banner(reading(`${REMAINING}?subproject_id=${unknown}&as_of=2026-02-30`, "revision"), "en");

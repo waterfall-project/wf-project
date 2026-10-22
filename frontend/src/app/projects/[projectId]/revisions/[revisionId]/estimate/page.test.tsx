@@ -259,7 +259,9 @@ describe("the filter of the estimate by a lot or a post", () => {
     expect(grids.estimate.at(-1)?.filters).toMatchObject({ work_package_id: LOT });
     expect(page).toContain(`<option value="${LOT}" selected="">Work package: Lot 1</option>`);
     expect(page).toContain("Work package: Lot 1, on the grid only");
-    expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/estimate"`);
+    expect(page).toContain(
+      'aria-label="Remove the filter “Work package: Lot 1, on the grid only”"',
+    );
   });
 
   it("opens without the filter when the API refuses the work breakdown, the grid read whole", async () => {

@@ -33,6 +33,23 @@ export function readValues<Value extends string>(
 }
 
 /**
+ * The address of the same screen without the parameters `names`, the rest of its query kept: a
+ * filter read from several parameters, lifted whole.
+ */
+export function withoutParameters(
+  pathname: string,
+  query: URLSearchParams,
+  names: readonly string[],
+): string {
+  const next = new URLSearchParams(query);
+  for (const name of names) {
+    next.delete(name);
+  }
+  const text = next.toString();
+  return text === "" ? pathname : `${pathname}?${text}`;
+}
+
+/**
  * The address of the same screen with one filter set — or lifted, for none or an empty value —, the
  * rest of its query kept, and back to the first page of each list the server pages that it reads
  * (`pages`, the parameter of its page, or of the pages of the lists of a screen).

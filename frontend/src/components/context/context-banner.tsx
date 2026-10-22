@@ -11,8 +11,8 @@
  * its chip: the chip says what it restricts — the grid and not the indicators (#459), every figure
  * of the indicators but the tracking of the milestones, which a sub-project does not have
  * (WF-IND-0020). A grid filtered by a lot or a post of the work breakdown gives its filter, which a
- * chip shows after those of the context, lifted by the address of the screen without it — followed
- * as a link, or, by a click, from the address last asked (`ChipLift`). A grid
+ * chip shows after those of the context, lifted by a link (`ChipLift`) that is the address shown without it, or, by a click, the address last
+ * asked. A grid
  * that reads the structure its address names — the planning, the estimate (US-0500) — gives it, and
  * the banner names it, its kind besides when it is not the main one — a differential, the own
  * estimate of a risk —, and offers the other structures of the revision to read instead
@@ -37,17 +37,12 @@ import { ShowProject } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
 import { formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
-import { UNASSIGNED, withoutFilter } from "@/navigation/context";
+import { UNASSIGNED } from "@/navigation/context";
 
 import { ChipLift } from "./chip-lift";
 import type { Revision } from "./read-only";
 import type { ContextFilter, ProjectReading, Subproject } from "./reading";
-import {
-  keepingStructure,
-  type ListedStructure,
-  runsOfKind,
-  type StructureChoices,
-} from "./structure";
+import { type ListedStructure, runsOfKind, type StructureChoices } from "./structure";
 import { StructureChoice } from "./structure-choice";
 
 /**
@@ -97,13 +92,12 @@ export type Restrictions = Readonly<
 >;
 
 /**
- * A chip of an active filter: its parameter, its text, the address of the screen without it, and the
- * parameters of an address that carry it.
+ * A chip of an active filter: its parameter, its text, and the parameters of an address that carry
+ * it.
  */
 interface Chip {
   readonly name: ContextFilter["name"] | BreakdownParameter;
   readonly text: string;
-  readonly lift: string;
   readonly lifts: readonly string[];
 }
 
@@ -144,7 +138,6 @@ function useChips(
   reading: ProjectReading,
   restricts: Restrictions,
   breakdown: BreakdownChip | undefined,
-  structure: StructureChoices | undefined,
 ): Chip[] {
   const t = useTranslations();
   const locale = useLocale();
@@ -163,10 +156,6 @@ function useChips(
     ...reading.filters.map((filter) => ({
       name: filter.name,
       text: restricted(filter.name, named(filter)),
-      lift: keepingStructure(
-        withoutFilter(reading.pathname, reading.context, filter.name),
-        structure,
-      ),
       lifts: [filter.name],
     })),
     ...(breakdown === undefined
@@ -181,7 +170,6 @@ function useChips(
                 label: breakdown.item?.label ?? breakdown.filter.value,
               }),
             ),
-            lift: breakdown.lift,
             lifts: Object.values(BREAKDOWN_PARAMETERS),
           },
         ]),
@@ -286,7 +274,7 @@ export function ContextBanner({
   structure,
 }: ContextBannerProps) {
   const t = useTranslations();
-  const chips = useChips(reading, restricts, breakdown, structure);
+  const chips = useChips(reading, restricts, breakdown);
   const { project, revision, readOnly } = reading;
   return (
     <section
@@ -323,18 +311,14 @@ export function ContextBanner({
       ) : null}
       {chips.length === 0 ? null : (
         <ul aria-label={t("contextBanner.filters")} className="ml-auto flex flex-wrap gap-1.5">
-          {chips.map(({ name, text, lift, lifts }) => (
+          {chips.map(({ name, text, lifts }) => (
             <li
               key={name}
               className="flex h-6 items-center gap-1.5 rounded-full border bg-background pr-1 pl-2"
             >
               <Filter aria-hidden="true" className={ICON} />
               {text}
-              <ChipLift
-                href={lift}
-                lifts={lifts}
-                label={t("contextBanner.removeFilter", { filter: text })}
-              >
+              <ChipLift lifts={lifts} label={t("contextBanner.removeFilter", { filter: text })}>
                 <X aria-hidden="true" className="size-3" />
               </ChipLift>
             </li>

@@ -80,8 +80,6 @@ function banner(search: string) {
         breakdown={breakdownChip(
           readBreakdownFilter(new URLSearchParams(search)),
           choices(search).items,
-          PLANNING,
-          new URLSearchParams(search),
         )}
       />
     </NextIntlClientProvider>,

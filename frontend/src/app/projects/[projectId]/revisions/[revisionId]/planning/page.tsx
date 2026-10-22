@@ -50,7 +50,7 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
-import { type PageSearchParams, type ProjectContext, searchQuery } from "@/navigation/context";
+import type { PageSearchParams, ProjectContext } from "@/navigation/context";
 import { functionHref, leafOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../../../../title";
@@ -167,12 +167,7 @@ export default async function PlanningPage({
       <ContextBanner
         reading={screen.reading}
         structure={screen.structures}
-        breakdown={breakdownChip(
-          screen.breakdownFilter,
-          screen.breakdown?.items,
-          at.pathname,
-          searchQuery(search),
-        )}
+        breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
       />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />

@@ -169,14 +169,15 @@ describe("the mark of a difference", () => {
   });
 
   it("keeps the predecessors of a task a differential removes read only, where those of the others are entered", () => {
-    // The task « Reprise des essais de câblage », added by the amendment, read as if it were removed.
+    // The task « Reprise des essais de câblage », added by the amendment, read as the contract renders
+    // a removed node: in place, with no field it accepts (`editable_fields` empty).
     const removed: NodeList = {
       ...amendment,
       items: amendment.items
         .filter((each) => each.kind === "task")
         .map((each) =>
           each.task?.label === "Reprise des essais de câblage"
-            ? { ...each, difference: "removed" as const }
+            ? { ...each, difference: "removed" as const, editable_fields: [] }
             : each,
         ),
     };
