@@ -53,7 +53,6 @@ import {
 import { COMPUTED_FLOAT, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
-  isRemoved,
   LABEL_COLUMN,
   NODE_TREE,
   type NodeKind,
@@ -474,9 +473,9 @@ function taskColumn(
 /**
  * The column of the predecessors, entered through `predecessors`: the links of a task that was read
  * with its task, typed as « 3FD+2 j ; 5DD » in the language, the whole list sent in place of the
- * task's (`setPredecessors`). The contract names no editable field for them (`editable_fields`): the
- * structure lists `edit_planning`, and the server refuses what it must (WF-PLA-0030, WF-PLA-0040) —
- * but for a task a differential removes, which is read only.
+ * task's (`setPredecessors`). The cell follows the node (`editable_fields`, `task.predecessors`,
+ * #1257): every task names it, and none a differential removes, which is read only; the server
+ * refuses what it must (WF-PLA-0030, WF-PLA-0040).
  */
 function predecessorsColumn(
   column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
@@ -490,8 +489,7 @@ function predecessorsColumn(
         parse: (text, locale) => parsePredecessors(text, locale, predecessors),
         text: (value, locale) => predecessorsText(value, locale, predecessors),
       },
-      // Not a task a differential removes, read in its place and written no more (#1257).
-      in: (node) => node.task != null && !isRemoved(node),
+      in: (node) => node.task != null && node.editable_fields.includes("task.predecessors"),
       value: (node) => predecessorsValue(node.predecessors),
       write: async (node, value) => {
         const links = value === null ? [] : predecessorsOf(value);

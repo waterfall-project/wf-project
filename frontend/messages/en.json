@@ -2409,6 +2409,7 @@
         "start": "Task start",
         "finish": "Task finish",
         "progress": "Task progress",
+        "predecessors": "Task predecessors",
         "order_item_id": "Task order item",
         "work_package_id": "Task work package",
         "tracking": "Task timelines"

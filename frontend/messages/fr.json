@@ -2409,6 +2409,7 @@
         "start": "Début de la tâche",
         "finish": "Fin de la tâche",
         "progress": "Avancement de la tâche",
+        "predecessors": "Prédécesseurs de la tâche",
         "order_item_id": "Poste de la tâche",
         "work_package_id": "Lot de la tâche",
         "tracking": "Chronologies de la tâche"

@@ -61,3 +61,35 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(deltas.getByRole("row")).toHaveCount(6);
   await expect(deltas.getByRole("row").nth(1)).toContainText("3 300,00");
 });
+
+// The comparison of the volume: the project 300 is served the offer compared to the reference over
+// the whole structure of the witness, 5 999 nodes read unfiltered, with `fields` reduced to what the
+// screen shows (`comparison_volume`, #1201). The bound of 15 seconds of the criterion of US-0500 is
+// proven on it: the grid is up with its marks, from the address opened, under `WORKING`.
+const VOLUME_PROJECT = "01926f3a-7c00-7000-8000-000300000300";
+const FROM = "01926f3a-7c00-7000-8000-000000000100";
+const TO = "01926f3a-7c00-7000-8000-000000000101";
+
+test("the comparison of the whole structure, 5 999 nodes, shows its grid with its marks under the bound of a screen of grid [WF-REV-0080-A]", async ({
+  page,
+}) => {
+  test.slow();
+  const started = Date.now();
+  await openHydrated(
+    page,
+    `/projects/${VOLUME_PROJECT}/revisions?from_revision_id=${FROM}&to_revision_id=${TO}`,
+  );
+  const nodes = page.getByRole("main").getByRole("grid", { name: "Nœuds comparés" });
+  // The first rows of the plan, each with the mark the server gives it.
+  await expect(nodes.getByRole("row", { name: /Études de détail/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(nodes.getByRole("row", { name: /Études$/ }).first()).toContainText("Modifié", {
+    timeout: WORKING,
+  });
+  // The whole structure is the grid's, the rows drawn being those in view.
+  await expect(nodes).toHaveAttribute("aria-rowcount", /^6\d{3}$/);
+  const elapsed = Date.now() - started;
+  test.info().annotations.push({ type: "duration", description: `${elapsed.toString()} ms` });
+  expect(elapsed).toBeLessThan(WORKING);
+});

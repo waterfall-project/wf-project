@@ -872,7 +872,8 @@ dans les deux modes (`contrast.test.ts`), et les grilles du planning et du devis
 des écrans du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`, `e2e/routes.ts`). Un nœud retiré se lit
 et ne se touche pas : aucun geste de structure ne lui est offert, ni « Insérer » ni « Supprimer » ni
 Ctrl+Suppr, il ne se déplace pas, rien ne se dépose à côté de lui (`isRemoved`, `structure-rules.ts`,
-#1185), et la cellule des prédécesseurs d'une tâche retirée n'est pas saisissable (#1257).
+#1185), et la cellule des prédécesseurs suit `editable_fields` (`task.predecessors`) : celle d'une tâche
+retirée, qui ne le nomme pas, n'est pas saisissable (#1257).
 
 La comparaison de deux révisions (`/revisions?from_revision_id=…&to_revision_id=…`) est la même
 grille, en lecture seule (`comparison-grid.tsx`, `components/revisions/`) : les nœuds de
@@ -943,9 +944,7 @@ qui le dit, sans rien envoyer. Un refus du serveur se dit à la cellule par son 
 liaisons, avec les tâches qu'elle traverse (`cycle`, `problemDetails`), une liaison entre une
 récapitulative et sa subordonnée, un projet qui dépasserait quinze ans —, et les lignes écrites, avec
 les tâches que le serveur redate, prennent la place des lignes lues, le Gantt suivant ; le front ne
-date rien. Le refus d'une liaison qui sortirait une tâche de son lot n'est pas tenu à la cellule,
-faute d'exigence et de code au contrat de `setPredecessors` : la question est ouverte en #1256.
-La validation de la dernière cellule saisissable
+date rien. La validation de la dernière cellule saisissable
 d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée.
 Toute écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ
 (`byField` de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API
@@ -2248,6 +2247,16 @@ ajoutée saisie, et un bloc collé sur ses lignes 7 à 9, aperçu puis appliqué
 les laisse en gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du
 chemin. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme ceux de la
 principale ; les avenants 212 et 213 et les structures de risque ne sont pas aiguillés (EP-16).
+**Où jouent les parcours d'écriture.** La structure principale du projet en cours liste le devis en
+lecture seule (#1176) : un parcours qui écrit le devis ne le lit donc pas là. Celui de la saisie
+d'une ligne (`entry.spec.ts`) et celui du collage (`paste.spec.ts`) jouent sur l'avenant 2, structure
+203, dont le faux back sert les trois exemples `amendment` ; le collage y retrouve `[WF-IHM-0050-A]`,
+les trois lignes du bloc de `paste_applied_amendment` écrites après la confirmation. Les parcours
+qui n'ont pas d'exemple propre à l'avenant restent sur la structure qui les sert, le devis propre
+du risque du recâblage (structure 204, qui reçoit le premier exemple de chaque opération) : le
+collage d'une catégorie inconnue, le collage d'un bloc trop large, et la ligne de provision, que
+l'avenant ne porte pas. Un parcours qui écrit sur un autre différentiel attend ses exemples, à
+EP-16.
 Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
 en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
 (`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
