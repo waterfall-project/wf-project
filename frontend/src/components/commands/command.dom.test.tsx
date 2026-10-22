@@ -103,8 +103,7 @@ describe("a command of a screen", () => {
       "Créer une structure",
       "Fusionner une structure",
       "Marquer la révision",
-      "Désigner comme référence",
-      "Abandonner la révision",
+      "Abandonner la révision en cours",
     ]);
   });
 
@@ -206,7 +205,7 @@ describe("a command of a revision", () => {
     for (const name of [
       "Créer une structure",
       "Fusionner une structure",
-      "Abandonner la révision",
+      "Abandonner la révision en cours",
     ]) {
       expect(screen.getByRole("button", { name })).not.toHaveAttribute("aria-disabled");
     }
@@ -216,7 +215,7 @@ describe("a command of a revision", () => {
     for (const name of [
       "Créer une structure",
       "Fusionner une structure",
-      "Abandonner la révision",
+      "Abandonner la révision en cours",
     ]) {
       const edit = screen.getByRole("button", { name });
       expect(edit).toHaveAttribute("aria-disabled", "true");

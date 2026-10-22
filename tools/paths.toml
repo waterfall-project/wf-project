@@ -258,7 +258,8 @@ by = "make fixtures"
 # answers of the writes of the grids (wftools.mockwrites, wftools.mockgestures,
 # wftools.mockamendmentwrites), a date on a day without hours of work refused and imported
 # (wftools.mocknonworking), and the gestures of the Kanban (wftools.mockkanban), the
-# history of the witness (its revisions in wftools.mockhistory, their comparisons in
+# history of the witness (its revisions in wftools.mockhistory, read while the designation of
+# its reference is open in wftools.mockcycle, their comparisons in
 # wftools.mockcomparisons, its risks and the entries of a risk in wftools.mockriskwrites), its
 # indicators today
 # (wftools.mocktoday), its actual costs with the journal of their imports (wftools.mockcosts), and
@@ -345,6 +346,7 @@ paths = [
     "fixtures/api/paste_applied_amendment.json",
     "fixtures/api/node_create_horizon_exceeded.json",
     "fixtures/api/node_tracked.json",
+    "fixtures/api/revisions_designation_open.json",
     "fixtures/api/node_tracking_milestone_refused.json",
     "fixtures/api/estimate_line_entered.json",
     "fixtures/api/paste_plan.json",

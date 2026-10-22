@@ -51,7 +51,8 @@ that core or on the structure of a thousand tasks, written beside them by ``wfto
 ``wftools.mockamendmentwrites`` (#1214) —, and the refusals of a paste and of an import, by
 ``wftools.mockexchanges`` (EP-15/US-0460), and those of a date on a day without hours of work,
 refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and the answers of
-the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520).
+the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the revisions of the
+witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -82,6 +83,7 @@ from wftools import (
     mockcomparisons,
     mockcore,
     mockcosts,
+    mockcycle,
     mockexchanges,
     mockgestures,
     mockhistory,
@@ -352,6 +354,7 @@ def named() -> dict[str, JsonObject]:
         **mocknonworking.examples(),
         **mockamendment.examples(),
         **mockhistory.examples(),
+        **mockcycle.examples(),
         **mockcomparisons.examples(),
         **mockriskwrites.examples(),
         **mocktoday.examples(),

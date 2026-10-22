@@ -6825,6 +6825,25 @@ révision n'est pas marquée (C-362).
 - **`mergeCostStructure`** a l'exemple de son 412 : `merge_report_stale`, dont
   `expected_lock_version` est le compteur courant du différentiel.
 
+**La désignation proposée a son exemple** (US-0490/L2, WF-REV-0040). Aujourd'hui, aucune révision
+du témoin ne propose sa désignation : il a reçu des coûts réels et marqué la 101 depuis celle de
+l'offre. Le Vérif — « proposée tant que le projet n'a ni coût réel ni révision marquée depuis la
+dernière désignation » — n'avait donc aucun exemple du côté où elle l'est.
+`revisions_designation_open`, de `listRevisions`, lit l'historique à un instant antérieur de la
+même chronologie : le 15 janvier 2026 à 10 h 59 (`mockcycle.READ_AT`), juste avant la réception de
+la commande et la désignation de 11 h (`reference_designated`), sans coût réel encore. L'offre
+v1.0 y liste `designate_reference` disponible, et c'est la seule révision marquée. La 101, alors
+en cours, attend son marquage ; la 102 n'est pas ouverte. L'exemple est engendré par
+`wftools.mockcycle` : l'offre est celle que liste `revisions`, à la même version, sa seule
+désignation changée, et la 101 celle que rend `rate_update_applied`, sa dernière écriture.
+L'égalité de #421 — une révision rendue à une version n'a qu'un contenu — tient pour l'offre 100.
+Elle ne tient pas pour la 101 : elle garde sa version 2 avant et après son marquage, `draft` ici
+et dans `rate_update_applied`, `marked` dans `revisions` et `revisions_marked`. C'est une exemption
+connue, suivie par #1352. `test_mockcycle.py` le tient, et n'admet que cette exemption parmi les
+révisions qu'au moins deux exemples rendent à une même version ; `test_mockhistory.py` date la 101
+de la mise à jour des taux, comme dans `rate_update_applied`. Écartée : une variante
+contrefactuelle du témoin aujourd'hui, qui aurait contredit ses coûts réels.
+
 **Un avenant non fusionné empêche d'en ouvrir un autre** (#1061, #1195). `create_structure` est
 indisponible sur la révision courante 102, qui porte l'avenant 2. La condition qui manque est
 nouvelle, `no_unmerged_amendment`. C'est le contraire d'`unmerged_amendment_exists`, qui manque à

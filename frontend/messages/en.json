@@ -1017,6 +1017,31 @@
     "submit": "Mark",
     "cancel": "Cancel"
   },
+  "revisionCommands": {
+    "create": "Open a current revision",
+    "cancel": "Cancel",
+    "abandon": {
+      "label": "Abandon the current revision",
+      "statement": "The project returns to its last marked revision, and the lines of the current revision are deleted. The abandon is irreversible: it is not in the history that “Undo” reverts.",
+      "submit": "Confirm the abandon",
+      "done": "The current revision is abandoned: the project is back to its last marked revision."
+    },
+    "designate": {
+      "label": "Designate as reference",
+      "statement": "Designating “{name}” as the reference fixes the reference budget and the planned value of the project. If the project bears its project code, it goes to the state “{state}”.",
+      "submit": "Confirm the designation",
+      "done": "“{name}” is the reference revision: the project is in the state “{state}”."
+    },
+    "rateUpdate": {
+      "label": "Apply the rate update",
+      "statement": "The rates of the current revision are replaced by the proposed rates, for the categories retained; the amounts of its lines and of its totals are calculated anew. A marked revision keeps the rates it calculated.",
+      "categories": "Categories updated",
+      "change": "{category}: {previous} → {proposed}",
+      "noneRetained": "Retain at least one category.",
+      "submit": "Confirm the update",
+      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}"
+    }
+  },
   "projectList": {
     "count": "{count, plural, one {# project} other {# projects}}",
     "filter": {
@@ -1154,6 +1179,9 @@
       "notMarked": "Not marked",
       "open": "Open",
       "openRevision": "Open the revision “{name}”"
+    },
+    "designation": {
+      "title": "Designation of the reference"
     },
     "comparison": {
       "title": "Comparison of two revisions",

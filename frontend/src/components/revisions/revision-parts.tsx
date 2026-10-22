@@ -8,8 +8,9 @@
  * category, each with its previous rate, the proposed one and where the latter comes from — the
  * rate of the reference, or the previous rate projected by inflation (WF-REV-0060).
  *
- * Every figure is the API's, formatted from its exact string. Nothing is offered to create,
- * merge or apply: those commands belong to the forms of their domain. A name the API leaves out
+ * Every figure is the API's, formatted from its exact string. The proposal ends with the command that
+ * applies it (`ApplyRateUpdateCommand`); nothing is offered to create or merge a structure: those
+ * commands belong to the forms of their domain. A name the API leaves out
  * is said missing, never replaced by an identifier.
  */
 import { BadgeCheck, Coins, FileDiff, Layers, type LucideIcon, ShieldAlert } from "lucide-react";
@@ -20,6 +21,8 @@ import { CELL, ICON, ListSection, ListTable } from "@/components/projects/projec
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatMoney } from "@/i18n/format";
+
+import { ApplyRateUpdateCommand, type ApplyRateUpdateProps } from "./rate-update-command";
 
 /** A cost structure of a revision. */
 export type CostStructure = components["schemas"]["CostStructure"];
@@ -82,40 +85,60 @@ export function CostStructureList({
  * Render the rate update the API proposes for the current revision, category by category, or
  * that the reference has not changed and none is proposed.
  */
-export function RateUpdate({ proposal }: { readonly proposal: RateUpdateProposal }) {
+export function RateUpdate({
+  proposal,
+  apply,
+}: {
+  readonly proposal: RateUpdateProposal;
+  /** The revision the update applies to, the version read; none, and nothing is offered. */
+  readonly apply?: Omit<ApplyRateUpdateProps, "categories" | "name"> | undefined;
+}) {
   const t = useTranslations("revisionScreen.rateUpdate");
   const source = useTranslations("enums.RateUpdateProposal.categories.source");
+  const banner = useTranslations("contextBanner");
   const locale = useLocale();
   const { categories } = proposal;
   return (
-    <ListSection
-      title={t("title")}
-      icon={Coins}
-      empty={categories.length === 0 ? t("none") : undefined}
-    >
-      <div className="space-y-1 text-sm text-muted-foreground">
-        {proposal.target_year === undefined ? null : (
-          <p>{t("year", { year: proposal.target_year.toString() })}</p>
-        )}
-        <p>{t("notImposed")}</p>
-      </div>
-      <ListTable
-        label={t("title")}
-        columns={[t("category"), t("previous"), t("proposed"), t("source")]}
+    <div className="space-y-2">
+      <ListSection
+        title={t("title")}
+        icon={Coins}
+        empty={categories.length === 0 ? t("none") : undefined}
       >
-        {categories.map((category) => (
-          <TableRow key={category.cost_category_id}>
-            <TableCell className={CELL}>{category.label}</TableCell>
-            <TableCell className={AMOUNT}>
-              {formatMoney(category.previous_amount, locale)}
-            </TableCell>
-            <TableCell className={AMOUNT}>
-              {formatMoney(category.proposed_amount, locale)}
-            </TableCell>
-            <TableCell className={CELL}>{source(category.source)}</TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
-    </ListSection>
+        <div className="space-y-1 text-sm text-muted-foreground">
+          {proposal.target_year === undefined ? null : (
+            <p>{t("year", { year: proposal.target_year.toString() })}</p>
+          )}
+          <p>{t("notImposed")}</p>
+        </div>
+        <ListTable
+          label={t("title")}
+          columns={[t("category"), t("previous"), t("proposed"), t("source")]}
+        >
+          {categories.map((category) => (
+            <TableRow key={category.cost_category_id}>
+              <TableCell className={CELL}>{category.label}</TableCell>
+              <TableCell className={AMOUNT}>
+                {formatMoney(category.previous_amount, locale)}
+              </TableCell>
+              <TableCell className={AMOUNT}>
+                {formatMoney(category.proposed_amount, locale)}
+              </TableCell>
+              <TableCell className={CELL}>{source(category.source)}</TableCell>
+            </TableRow>
+          ))}
+        </ListTable>
+      </ListSection>
+      {/* Beside the section, not in it: once applied, the section says no update is proposed, and the
+          command is not in the way, but what it told stays. */}
+      {apply === undefined ? null : (
+        <ApplyRateUpdateCommand
+          key={apply.revisionId}
+          {...apply}
+          name={banner("currentRevision")}
+          categories={categories}
+        />
+      )}
+    </div>
   );
 }

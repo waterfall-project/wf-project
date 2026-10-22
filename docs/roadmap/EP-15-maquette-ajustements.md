@@ -786,7 +786,7 @@ décident à la conception ; le service n'est pas concerné avant EP-04 et EP-09
 
 ## US-0490 — Du projet créé au projet En cours
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PRJ-0030-A`, `WF-REV-0010-A`, `WF-REV-0040-A`, `WF-CYC-0030-A`,
   `WF-REV-0060-A`
 - **opérations** : `getProject`, `getRevision`, `listRevisions`, `createRevision`,
