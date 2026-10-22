@@ -3,14 +3,15 @@
 /**
  * The warm-up of the paths against a server on a real socket, which answers as told by the address
  * asked: a page, a redirect, a refusal, an error of the server, a connection dropped unanswered —
- * every time, or the first time only —, an answer that is not HTTP, or a page held until the test
- * lets it go.
+ * every time, or the first time only, then a page, an error of the server or an answer that is not
+ * HTTP —, an answer that is not HTTP, or a page held until the test lets it go; and the rule that
+ * tells a dropped connection from any other failure.
  */
 import { createServer, type Server, type Socket } from "node:net";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { warm } from "../../e2e/warm-up";
+import { isDropped, warm } from "../../e2e/warm-up";
 
 /** What the server answers, by the address asked; any other, a page. */
 const STATUSES = new Map([
@@ -18,7 +19,11 @@ const STATUSES = new Map([
   ["/refused", 405],
   ["/broken", 500],
   ["/down", 503],
+  ["/dropped-then-broken", 500],
 ]);
+
+/** The addresses whose connection is dropped the first time they are asked, and only then. */
+const DROPPED_ONCE = new Set(["/dropped-once", "/dropped-then-broken", "/dropped-then-garbled"]);
 
 let server: Server | undefined;
 /** The sockets the server opened, destroyed with it. */
@@ -50,9 +55,9 @@ async function serve(): Promise<{ address: string; asked: string[] }> {
       const url = /^[A-Z]+ (\S+) HTTP\/1\.1\r$/m.exec(chunk.toString("latin1"))?.[1] ?? "";
       const first = !asked.includes(url);
       asked.push(url);
-      if (url === "/dropped" || (url === "/dropped-once" && first)) {
+      if (url === "/dropped" || (DROPPED_ONCE.has(url) && first)) {
         socket.destroy();
-      } else if (url === "/garbled") {
+      } else if (url === "/garbled" || url === "/dropped-then-garbled") {
         socket.end("garbled\r\n\r\n");
       } else if (url === "/held") {
         void held.then(() => socket.end(answer(200)));
@@ -106,7 +111,7 @@ describe("the warm-up of the paths (#1145)", () => {
     const message = await warming.catch((error: unknown) => String(error));
     expect(message).toContain("/broken answered 500");
     expect(message).toContain("/down answered 503");
-    expect(message).toContain("/dropped failed again: ");
+    expect(message).toMatch(/\/dropped failed again: .*\nfirst dropped: .*socket hang up/s);
     // Every address asked all the same, the dropped one twice, and each error written once.
     expect(asked).toHaveLength(7);
     expect(
@@ -145,9 +150,31 @@ describe("the warm-up of the paths (#1145)", () => {
     const { address, asked } = await serve();
     const warming = warm(address, ["/dropped", "/a"]);
     await expect(warming).rejects.toThrow(
-      /^Warm-up: 1 of 2 routes in error:\n\/dropped failed again: /,
+      /^Warm-up: 1 of 2 routes in error:\n\/dropped failed again: .*socket hang up.*\nfirst dropped: .*socket hang up/s,
     );
     expect(asked.filter((url) => url === "/dropped")).toHaveLength(2);
+    expect(warnings).toHaveBeenCalledOnce();
+  });
+
+  it("fails on an error of the server answered once dropped, after asking it twice", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { address, asked } = await serve();
+    await expect(warm(address, ["/dropped-then-broken"])).rejects.toThrow(
+      new Error("Warm-up: 1 of 1 routes in error:\n/dropped-then-broken answered 500"),
+    );
+    expect(asked).toEqual(["/dropped-then-broken", "/dropped-then-broken"]);
+    expect(warnings).toHaveBeenCalledOnce();
+  });
+
+  it("fails on another failure once dropped, keeping the message of the drop", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { address, asked } = await serve();
+    await expect(warm(address, ["/dropped-then-garbled"])).rejects.toThrow(
+      /^Warm-up: 1 of 1 routes in error:\n\/dropped-then-garbled failed again: .*Parse Error.*\nfirst dropped: .*socket hang up/s,
+    );
+    expect(asked).toEqual(["/dropped-then-garbled", "/dropped-then-garbled"]);
     expect(warnings).toHaveBeenCalledOnce();
   });
 
@@ -161,5 +188,23 @@ describe("the warm-up of the paths (#1145)", () => {
     expect(message).toMatch(/\/garbled failed: /);
     expect([...asked].sort()).toEqual(["/broken", "/down", "/garbled"]);
     expect(warnings).not.toHaveBeenCalled();
+  });
+});
+
+describe("a connection the server dropped (#1301)", () => {
+  it.each(["read ECONNRESET", "write EPIPE", "apiRequestContext.get: socket hang up"])(
+    "is told by %j",
+    (message) => {
+      expect(isDropped(message)).toBe(true);
+    },
+  );
+
+  it.each([
+    "connect ECONNREFUSED 127.0.0.1:3000",
+    "apiRequestContext.get: Timeout 180000ms exceeded.",
+    "apiRequestContext.get: Parse Error: Expected HTTP/",
+    "socket hang upside",
+  ])("is not told by %j", (message) => {
+    expect(isDropped(message)).toBe(false);
   });
 });

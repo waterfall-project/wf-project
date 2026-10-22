@@ -2958,16 +2958,18 @@ Redis — ;
 fois, la redirection non suivie ; ce qu'une route répond reste aux parcours. Une connexion que le
 serveur coupe (`ECONNRESET`, `EPIPE`, `socket hang up`), ce que fait le serveur de développement
 sous charge, n'est pas une erreur de l'écran : la route est redemandée une fois, et la sortie
-l'écrit (#1301). Mais une erreur du serveur — un statut de 500 ou plus, jamais redemandé, ou aucune
-réponse, une seconde coupure comprise — s'écrit dans la sortie au moment où elle survient, et fait échouer le lancement une fois toutes les routes demandées, en nommant chaque adresse
-en cause : un écran qui ne compile pas se voit là, pas dans chaque parcours. Le préchauffage écrit
-sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois passages du 2026-10-21, pour les
-38 écrans d'alors. Il ne précède ni la
-mesure jouée seule (`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques
-écrans de l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans
-session enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un
-projet que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui
-compile lui-même ce qu'il atteint.
+l'écrit (#1301) ; un serveur qui redémarre refuse la connexion (`ECONNREFUSED`), ce qui n'est pas
+une coupure. Une erreur du serveur — un statut de 500 ou plus, jamais redemandé, ou aucune réponse,
+une seconde coupure comprise, dont l'erreur garde le message de la première — s'écrit dans la
+sortie au moment où elle survient. Elle fait échouer le lancement une fois toutes les routes
+demandées, en nommant chaque adresse en cause : un écran qui ne compile pas se voit là, pas dans
+chaque parcours. Le préchauffage écrit sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois
+passages du 2026-10-21, pour les 38 écrans d'alors. Il ne précède ni la mesure jouée seule
+(`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques écrans de
+l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans session
+enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un projet
+que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui compile
+lui-même ce qu'il atteint.
 
 Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
 (`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
