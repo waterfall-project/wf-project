@@ -569,7 +569,7 @@ describe("« Modifier » a risk", () => {
     );
   });
 
-  it("shows the provision fixed when the risk lists `update_provision` unavailable, says what it lacks, and sends none of it", async () => {
+  it("shows the provision fixed when the risk lists `update_provision` unavailable, says what it lacks, and sends none of it [WF-RIS-0010-A]", async () => {
     const client = serve();
     render(modify(FROZEN));
     await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
@@ -591,7 +591,7 @@ describe("« Modifier » a risk", () => {
     expect(body).toMatchObject({ lock_version: CREATED.lock_version, probability: "0.2" });
   });
 
-  it("keeps the category deactivated since the risk was declared among the choices, said so, and asks another only when the user chooses it", async () => {
+  it("keeps the category deactivated since the risk was declared among the choices, said so, and asks another only when the user chooses it [WF-RIS-0010-A]", async () => {
     const client = serve();
     const deactivated: Risk = { ...CREATED, provision_cost_category_is_active: false };
     render(modify(deactivated, { ...OPTIONS, categories: [CONTRACTUAL] }));
@@ -677,4 +677,150 @@ describe("« Modifier » a risk", () => {
     });
     expect(client.calls[1]?.body).toMatchObject({ lock_version: UPDATED.lock_version });
   });
+  it.each([
+    [
+      "tasks",
+      (options: ProvisionOptions): ProvisionOptions => ({ ...options, tasks: [] }),
+      "Tâche de la provision",
+      "provision_task_id",
+      "Sous-projet",
+    ],
+    [
+      "sub-projects",
+      (options: ProvisionOptions): ProvisionOptions => ({ ...options, subprojects: [] }),
+      "Sous-projet",
+      "provision_subproject_id",
+      "Tâche de la provision",
+    ],
+    [
+      "categories",
+      (options: ProvisionOptions): ProvisionOptions => ({ ...options, categories: [] }),
+      "Catégorie",
+      "provision_cost_category_id",
+      "Tâche de la provision",
+    ],
+  ] satisfies [string, (options: ProvisionOptions) => ProvisionOptions, string, string, string][])(
+    "opens the form without the field of the %s the session may not read, and sends it without that field",
+    async (_name, refuse, absent, key, present) => {
+      const client = serve();
+      render(modify(CREATED, refuse(OPTIONS)));
+      await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
+      const form = screen.getByRole("dialog");
+      expect(within(form).queryByRole("combobox", { name: absent })).toBeNull();
+      expect(within(form).getByRole("combobox", { name: present })).toBeInTheDocument();
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      await vi.waitFor(() => {
+        expect(client.calls).toHaveLength(1);
+      });
+      expect(written(client)).not.toHaveProperty(key);
+    },
+  );
+
+  it("tells the refusal of the server to the provision of a risk it finds frozen under the form, which stays open with its entry [WF-RIS-0010-A]", async () => {
+    const client = serve({
+      [UPDATE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } },
+    });
+    render(modify());
+    await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
+    const form = screen.getByRole("dialog");
+    await userEvent.selectOptions(within(form).getByRole("combobox", { name: "Catégorie" }), [
+      CONTRACTUAL.id,
+    ]);
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      /Condition non remplie\s: risque identifié\./,
+    );
+    expect(client.calls).toHaveLength(1);
+    expect(within(form).getByRole("combobox", { name: "Catégorie" })).toHaveValue(CONTRACTUAL.id);
+    expect(announced()).not.toContain("Risque « Indisponibilité de la grue de levage » modifié.");
+  });
+
+  // `updateRisk` documents no 422 example: the one of `createRisk` stands for it, the fields being
+  // those of the declaration.
+  it("says the bound of the probability at its field in percentages, the server naming it in the ratio [WF-RIS-0010-A]", async () => {
+    serve({
+      [UPDATE]: {
+        problem: example("risk_probability_out_of_range") as Problem & { status: 422 },
+      },
+    });
+    render(modify());
+    await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
+    const form = screen.getByRole("dialog");
+    const probability = within(form).getByRole("textbox", { name: "Probabilité (%)" });
+    await userEvent.clear(probability);
+    await userEvent.type(probability, "120");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(probability).toHaveAccessibleDescription(/100/);
+    });
+    expect(probability).not.toHaveAccessibleDescription(/\b1\b/);
+    expect(probability).toHaveFocus();
+    expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  it.each([
+    [
+      "tells the risk modified once answered, and keeps the answer in the detail",
+      "success",
+      /Risque « Indisponibilité de la grue de levage » modifié\./,
+    ],
+    [
+      "tells the service out of reach once the action is rejected",
+      "rejected",
+      /Le service est injoignable/,
+    ],
+    [
+      "tells the condition the server finds unmet once it refuses",
+      "refused",
+      /Condition non remplie\s: risque identifié\./,
+    ],
+  ] satisfies [string, "success" | "rejected" | "refused", RegExp][])(
+    "keeps the modification waiting while a write of the dialog closed is under way, %s, then frees it (défaut n° 24)",
+    async (_name, kind, said) => {
+      const { timing, until, release } = held();
+      if (kind === "rejected") {
+        failing.until = until;
+      }
+      const client = serve(
+        kind === "refused"
+          ? { [UPDATE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } } }
+          : {},
+        timing,
+      );
+      render(modify());
+      const command = () => screen.getByRole("button", { name: "Modifier" });
+      await userEvent.click(command());
+      const form = screen.getByRole("dialog");
+      await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+      if (kind !== "rejected") {
+        await vi.waitFor(() => {
+          expect(client.calls).toHaveLength(1);
+        });
+      }
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      await vi.waitFor(() => {
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+      expect(command()).toHaveAttribute("aria-disabled", "true");
+      expect(command()).toHaveAccessibleDescription("Enregistrement en cours…");
+      release();
+      expect(await screen.findByText(said)).toBeInTheDocument();
+      // The user closed the form: the answer does not open it again.
+      expect(screen.queryByRole("dialog")).toBeNull();
+      await vi.waitFor(() => {
+        expect(command()).not.toHaveAttribute("aria-disabled");
+      });
+      // The service is back: the write the rejected action never made reaches the fake back.
+      failing.until = undefined;
+      await userEvent.click(command());
+      const reopened = screen.getByRole("dialog");
+      await userEvent.click(within(reopened).getByRole("button", { name: "Enregistrer" }));
+      await vi.waitFor(() => {
+        expect(client.calls).toHaveLength(kind === "rejected" ? 1 : 2);
+      });
+      // Written from the version the answer brought; from the version read when none came.
+      const version = kind === "success" ? UPDATED.lock_version : CREATED.lock_version;
+      expect(client.calls.at(-1)?.body).toMatchObject({ lock_version: version });
+    },
+  );
 });

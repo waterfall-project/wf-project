@@ -281,7 +281,7 @@ export default async function RisksPage({
             </div>
             {detail === undefined ? null : (
               <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
-                <RiskDetail {...detail} projectId={at.revision.projectId} options={options} />
+                <RiskDetail {...detail} projectId={at.revision.projectId} options={choices} />
               </aside>
             )}
           </div>

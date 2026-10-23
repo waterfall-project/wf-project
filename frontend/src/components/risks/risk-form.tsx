@@ -127,7 +127,8 @@ function asked(
  * What the form asks of the provision, when it may be written: the category among more than one —
  * one alone is retained without being asked —, the category the risk holds among them when it is no
  * longer active, said deactivated; the sub-project and the task, when the project has any, the task the
- * risk holds among them, listed or not: a choice of none would move the line.
+ * risk holds among them, listed or not: a choice of none would move the line. A list the session
+ * may not read comes empty, and is neither asked nor sent: the task held does not make it a list.
  */
 function askedOf(
   risk: Risk | undefined,
@@ -140,7 +141,10 @@ function askedOf(
       : { id: risk.provision_cost_category_id, label: heldLabel };
   const task = risk?.provision_task;
   const tasks =
-    task === undefined || task === null || options.tasks.some(({ id }) => id === task.node_id)
+    task === undefined ||
+    task === null ||
+    options.tasks.length === 0 ||
+    options.tasks.some(({ id }) => id === task.node_id)
       ? options.tasks
       : [...options.tasks, { id: task.node_id, label: task.label }];
   return {
