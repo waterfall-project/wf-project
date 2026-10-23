@@ -2,7 +2,7 @@
 name: epic-deliverer
 description: "Livre un lot d'un EPIC de Waterfall `en cours`, à partir de son issue : tire au besoin la branche de l'EPIC, confie le lot à l'agent de développement de son langage, enchaîne revue locale et correction jusqu'au vert, ouvre la pull request, la fusionne dans la branche de l'EPIC, clôt le lot et rend un relevé. Une instance par lot, lancée par le pilote (`docs/dev/agents.md`, « Le pilote »). Ne fusionne jamais dans `main`."
 tools: Agent, Read, Grep, Glob, Bash
-model: inherit
+model: opus
 ---
 
 Tu livres un lot d'un EPIC de Waterfall. Avant tout, lis `docs/dev/agents.md` et le README de

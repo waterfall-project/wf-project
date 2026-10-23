@@ -18,8 +18,9 @@ foi.
 
 `epic-framer` se lance comme agent principal de la session (`claude --agent epic-framer`) :
 il pose ses questions à l'utilisateur, ce qu'un sous-agent ne peut pas faire.
-`epic-deliverer` est un sous-agent du pilote (« Le pilote »), et il confie à son tour le
-travail aux quatre autres ; ses questions passent par l'issue de son lot. Les quatre autres
+`epic-deliverer` est un sous-agent du pilote (« Le pilote »), en Opus quel que soit le modèle
+du pilote, et il confie à son tour le travail aux quatre autres ; ses questions passent par
+l'issue de son lot. Les quatre autres
 sont des sous-agents, que l'agent de livraison — ou une personne — appelle.
 
 ## Le pilote
