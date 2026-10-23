@@ -6974,12 +6974,42 @@ et de la saisie des risques :
 - jugée sur la révision que l'ouverture créerait, une copie de la dernière révision marquée
   (WF-REV-0010) : `main_structure_without_tasks` manque quand sa structure principale comporte
   une tâche, comme `at_least_one_task` à `declare_risk` quand elle n'en comporte aucune ;
-- ses conditions dans cet ordre : `project_not_terminal`, `main_structure_without_tasks`,
-  `no_background_task_running`, puis `may_create_revision` à qui ne peut pas ouvrir la
-  révision. La condition propre vient avant le traitement de fond, comme sur la révision ;
-  l'état terminal d'abord, qu'aucune action ne lève, et la permission de créer en dernier,
-  comme pour les imports et `declare_risk`. C'est l'exception du 2026-10-05
+- ses conditions dans l'ordre de `declare_risk`, sa sœur au niveau du projet : celles de l'état
+  d'abord, `project_not_terminal` puis `no_background_task_running`, puis la condition propre,
+  `main_structure_without_tasks`, puis `may_create_revision` à qui ne peut pas ouvrir la
+  révision, comme pour les imports et `declare_risk`. C'est l'exception du 2026-10-05
   (`Project.available_commands`), étendue à cette commande.
+
+**L'ordre des conditions** (relecture 1 du lot). La première rédaction mettait la condition
+propre avant le traitement de fond, « comme sur la révision » (`RevisionCommand.generate_skeleton`,
+EP-14/L42k). Sur le projet, l'ordre de `declare_risk` l'emporte : la structure jugée n'existe pas
+encore, c'est celle de la révision qu'une ouverture créerait, et un traitement de fond qui court
+est justement en train d'en créer une autre ; nommer `main_structure_without_tasks` à ce moment
+dirait un état que la fin du traitement rendra faux, comme `at_least_one_task` à `declare_risk`
+inviterait à une saisie elle-même refusée (EP-14/L42s). Sur la révision, la structure existe et
+l'ordre de L42k reste, celui du 409 de `generatePlanningSkeleton`. Le front ne lit que la présence
+de `main_structure_without_tasks`, et l'ordre ne change rien à l'encart.
+
+**`no_background_task_running` sur un projet sans révision en cours** (relecture 1 du lot). La
+condition est atteignable, et elle reste. L'application d'un import de planning, de devis ou de
+reste à engager écrit en une seule transaction (`applyImport`, WF-INTF-0080) et crée la révision
+en cours au besoin (WF-INTF-0090) ; le traitement d'une survenance la crée de même au préalable
+(`declareRiskOccurrence`, WF-RIS-0060). Pendant ces traitements, confiés au worker, le projet lu
+n'a pas encore de révision en cours, et ce sont eux qui la créent : ouvrir une révision et y
+engendrer le squelette se heurterait à la leur — `createRevision` refusé par
+`CURRENT_REVISION_EXISTS` à leur fin, ou leur révision refusée à la sienne. C'est le cas qui fait
+déjà nommer la condition aux imports, à `edit_risks` et à `declare_risk` que porte un projet sans
+révision en cours ; `CommandCondition` le dit désormais pour les quatre. Aucun exemple ne le
+montre : le témoin abandonné n'a ni import ni survenance qui court. Écarté : retirer la condition,
+ce qui aurait fait de `generate_skeleton` la seule commande du projet sans révision qui ne la
+nomme pas.
+
+**Le refus de `createRevision`** (relecture 1 du lot). Son 409 n'avait pas d'exemple, et le test
+de l'encart en inventait un, `STATE_FORBIDS_OPERATION`, quand le code est
+`CURRENT_REVISION_EXISTS`, sans paramètre, au catalogue depuis EP-02. L'exemple
+`current_revision_exists` (corrélation 1308, seconde suite) le donne : une seconde ouverture sur
+le projet créé aujourd'hui, demandée depuis un écran lu avant que sa révision 103 ne s'ouvre. Le
+409 le décrit, et `tools/tests/test_mockstart.py` le tient.
 
 L'encart s'offre ainsi quand le projet liste `generate_skeleton` sans
 `main_structure_without_tasks`, ou, avec une révision en cours, quand celle-ci la liste ainsi,

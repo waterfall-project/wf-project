@@ -863,9 +863,10 @@ montre tout le cycle, de la création à la réalisation.
   principale de la révision en cours n'a aucune tâche, pour qui peut modifier le planning — et
   aussi dès la création du projet, sur un projet sans révision, où « Engendrer le planning » ouvre
   la révision puis engendre le squelette (décision de l'auteur du 2026-10-23, #1358, lot
-  US-0490/L4) —, avec trois choix : « Planning automatique depuis le lotissement », qui mène à la saisie du lotissement et à
-  « Engendrer le planning » ; « Importer un fichier MS Project », une zone de dépôt accessible qui
-  réemploie l'import de FBS-4.3.4 ; « Plus tard », qui replie l'encart pour la session ;
+  US-0490/L4) —, avec trois choix : « Planning automatique depuis le lotissement », qui mène à
+  la saisie du lotissement et à « Engendrer le planning » ; « Importer un fichier MS Project »,
+  une zone de dépôt accessible qui réemploie l'import de FBS-4.3.4 ; « Plus tard », qui replie
+  l'encart pour la session ;
 - propre à l'US : « Abandonner la révision en cours » demande une confirmation qui dit que le projet
   revient à sa dernière révision marquée, et qu'elle est irréversible (WF-IHM-0110) ; « Désigner
   comme référence » demande une confirmation qui dit ce que la désignation fixe — le budget de

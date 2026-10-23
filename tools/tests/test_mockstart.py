@@ -23,11 +23,12 @@ SKELETON = "generate_skeleton"
 WITHOUT_TASKS = "main_structure_without_tasks"
 ORDER = [
     "project_not_terminal",
-    WITHOUT_TASKS,
     "no_background_task_running",
+    WITHOUT_TASKS,
     "may_create_revision",
 ]
-"""The conditions of the command of the project, in the order the contract says them."""
+"""The conditions of the command of the project, in the order the contract says them: those of the
+state first, as for `declare_risk`, then its own, then the permission to open the revision."""
 
 CREATED, PRICING, WITNESS = universe(3), universe(2), universe(1)
 WITH_TASKS = {WITNESS}
@@ -160,3 +161,39 @@ def test_the_contract_says_the_command_its_conditions_and_the_writes_it_chains()
     assert "(`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010" in conditions
     decisions = (API / "DECISIONS.md").read_text(encoding="utf-8")
     assert "## L'encart « Démarrer le projet » sur un projet sans révision" in decisions
+
+
+def test_the_opening_refused_says_the_revision_in_progress_by_its_code() -> None:
+    # A second opening on the project created today, asked from a screen read before its revision
+    # 103 opened, is refused by the code of the catalogue, without parameter: the screen reads the
+    # project again (WF-REV-0010).
+    refused = fixture("current_revision_exists")
+    assert refused == {
+        "code": "CURRENT_REVISION_EXISTS",
+        "status": 409,
+        "correlation_id": universe(1308),
+    }
+    summary = _summary("current_revision_exists")
+    assert "WF-REV-0010" in summary
+    assert "revision_created" in summary
+    paths = (API / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    block = paths.split("operationId: createRevision\n", 1)[1].split("operationId:", 1)[0]
+    said = block.split("'409':", 1)[1].split("'422':", 1)[0]
+    example = "../../../fixtures/api/current_revision_exists.json"
+    assert f"current_revision_exists: {{ $ref: {example} }}" in said
+    assert "`CURRENT_REVISION_EXISTS`" in _flat(said)
+
+
+def test_the_project_without_a_revision_names_the_background_task_that_creates_one() -> None:
+    # The application of an import and the processing of an occurrence create the revision in
+    # progress (WF-INTF-0090, WF-RIS-0060): meanwhile the project names the condition to the
+    # commands it bears that would create or open that revision, the skeleton among them.
+    conditions = _schema("projects.yaml", "CommandCondition")
+    said = conditions.split("Un projet sans révision en cours en a une qui naît", 1)[1]
+    said = said.split("L'analyse d'un import", 1)[0]
+    for command in ("`edit_risks`", "`declare_risk`", f"`{SKELETON}`"):
+        assert command in said, command
+    decisions = _flat((API / "DECISIONS.md").read_text(encoding="utf-8"))
+    assert "**`no_background_task_running` sur un projet sans révision en cours**" in decisions
+    assert "**L'ordre des conditions** (relecture 1 du lot)" in decisions
+    assert "`current_revision_exists` (corrélation 1308, seconde suite)" in decisions
