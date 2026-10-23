@@ -253,6 +253,20 @@ export function MergeAmendmentCommand({
   const [name, setName] = useState("");
   const [followed, setFollowed] = useState<Merged>();
   const [reference, setReference] = useState<{ readonly version: string }>();
+  const revisions = useRef<HTMLAnchorElement>(null);
+  // The follow-up does not survive a full reload of the page, and need not: `merged`, read anew
+  // by the next render, says the amendment is merged and the command is no more presented.
+  // Once the page read again has taken the command away, the button that held the focus is gone:
+  // the focus goes to the way on that the reference notice offers, if it fell on the page.
+  useEffect(() => {
+    if (
+      merged &&
+      reference !== undefined &&
+      (document.activeElement === document.body || document.activeElement === null)
+    ) {
+      revisions.current?.focus();
+    }
+  }, [merged, reference]);
   const read = report?.kind === "done" ? report.data : undefined;
   const merge: AmendmentMerge | undefined =
     read === undefined
@@ -321,7 +335,7 @@ export function MergeAmendmentCommand({
         title={reference === undefined ? undefined : t("reference", reference)}
         of={reference}
       >
-        <Link href={`/projects/${projectId}/revisions`} className="underline">
+        <Link ref={revisions} href={`/projects/${projectId}/revisions`} className="underline">
           {t("seeRevisions")}
         </Link>
       </DoneNotice>

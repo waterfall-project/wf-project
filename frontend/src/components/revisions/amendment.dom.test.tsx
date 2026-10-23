@@ -10,6 +10,7 @@ import type { components } from "@/api/generated/schema";
 import { findOffer } from "@/components/commands/offer";
 import { RevisionCommands } from "@/components/commands/object-commands";
 import type { Revision } from "@/components/context/read-only";
+import { forgetMessages } from "@/components/notices/message-history";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -52,16 +53,20 @@ function serve(answers: FakeAnswers): FakeClient {
 }
 
 /** The revision of the contract, in the shell that follows the tasks, with what is beside it. */
-function open(children: React.ReactNode) {
-  return render(
+function shell(children: React.ReactNode) {
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
         <TasksButton />
         <TaskPanel />
         <main>{children}</main>
       </TaskTracker>
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+function open(children: React.ReactNode) {
+  return render(shell(children));
 }
 
 /** The merge of the amendment 2, as the revision lists it. */
@@ -103,6 +108,7 @@ beforeEach(() => {
   router.push.mockClear();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   window.sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -172,7 +178,7 @@ describe("the contractualisation of an amendment", () => {
     const client = serve({
       [REPORT]: "structure_merge_report",
       [MERGE]: { example: "task_merge_queued", status: 202 },
-      [TASK]: ["task_running", "task_succeeded"],
+      [TASK]: ["task_merge_running", "task_merge_succeeded"],
     });
     open(merging());
     const form = await openMerge();
@@ -187,6 +193,15 @@ describe("the contractualisation of an amendment", () => {
     const table = within(form).getByRole("table", { name: /écarts/i });
     expect(within(table).getByText("Essais sur site")).toBeVisible();
     expect(within(table).getByText("Assistance aux essais de câblage")).toBeVisible();
+    // The mark is doubled by a word: each change keeps an accessible name beside its character.
+    const rowOf = (label: string) => within(table).getByRole("row", { name: new RegExp(label) });
+    expect(within(rowOf("Essais sur site")).getAllByRole("cell")[0]).toHaveAccessibleName("Ajouté");
+    expect(
+      within(rowOf("Assistance aux essais de câblage")).getAllByRole("cell")[0],
+    ).toHaveAccessibleName("Retiré");
+    expect(within(rowOf("Mise en service sur site")).getAllByRole("cell")[0]).toHaveAccessibleName(
+      "Modifié",
+    );
     await expectAccessible(form);
 
     // Without a version name, the confirmation is not given.
@@ -223,11 +238,65 @@ describe("the contractualisation of an amendment", () => {
     const told = await screen.findAllByText(/« Avenant 2 » est la nouvelle révision de référence/);
     expect(told.length).toBeGreaterThan(0);
     expect(router.refresh).toHaveBeenCalled();
+    // The task is followed by the identifier the queue gave it (…948), which its reads bear.
+    const reads = client.calls.filter((call) => call.route === TASK);
+    expect(reads.length).toBeGreaterThan(0);
+    for (const one of reads) {
+      expect(one.path).toBe("/tasks/01926f3a-7c00-7000-8000-000000000948");
+    }
     closeTasks();
     expect(screen.getByRole("link", { name: "Voir les révisions" })).toHaveAttribute(
       "href",
       `/projects/${PROJECT}/revisions`,
     );
+  });
+
+  it("gives the focus to the way on once the reference is told and the command is taken away [WF-REV-0050-A]", async () => {
+    serve({
+      [REPORT]: "structure_merge_report",
+      [MERGE]: { example: "task_merge_queued", status: 202 },
+      [TASK]: ["task_merge_running", "task_merge_succeeded"],
+    });
+    const page = open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Nom de version" }),
+      "Avenant 2",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la fusion" }));
+    await tick();
+    await tick();
+    await screen.findAllByText(/« Avenant 2 » est la nouvelle révision de référence/);
+    expect(router.refresh).toHaveBeenCalled();
+    // The page read again lists the amendment as merged: the button that held the focus is gone.
+    page.rerender(shell(merging(true)));
+    expect(screen.queryByRole("button", { name: "Contractualiser l’avenant" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Voir les révisions" })).toHaveFocus();
+  });
+
+  it("tells no reference when the merge fails, does not read the page again, and keeps the command offered [WF-REV-0050-A]", async () => {
+    serve({
+      [REPORT]: "structure_merge_report",
+      [MERGE]: { example: "task_merge_queued", status: 202 },
+      [TASK]: ["task_failed"],
+    });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Nom de version" }),
+      "Avenant 2",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la fusion" }));
+    await tick();
+    await tick();
+    expect(within(tasksRegion()).getByText("Échouée")).toBeVisible();
+    closeTasks();
+    expect(screen.queryByText(/nouvelle révision de référence/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "Voir les révisions" })).toBeNull();
+    expect(router.refresh).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Contractualiser l’avenant" })).toBeVisible();
   });
 
   it("names the started task the merge will complete [WF-REV-0050-A]", async () => {

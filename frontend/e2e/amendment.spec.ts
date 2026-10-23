@@ -10,8 +10,9 @@ import { openHydrated, WORKING } from "./hydration";
 // leads the screen to the grid of the planning on it; the fake back lists the amendment 2 of the
 // current revision at the structure 203 (`structures`), which the journeys that follow open at its
 // address: a task added in its grid, then the amendment contractualised, its report read
-// (`structure_merge_report`), the version name asked, the merge followed in « Tâches de fond » and
-// the new reference told. What the front sends is proven by `amendment.dom.test.tsx`.
+// (`structure_merge_report`), the version name asked and the merge followed in « Tâches de fond »; its
+// end and the new reference are read in `amendment.dom.test.tsx`, the fake back reading every task
+// by its first example. What the front sends is proven by `amendment.dom.test.tsx`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
@@ -54,7 +55,7 @@ test("adds a task in the grid of the amendment, said and read anew", async ({ pa
   await expect(page.getByText(/créée\./).first()).toBeVisible({ timeout: WORKING });
 });
 
-test("contractualises the amendment: the report read with its marks, the version name asked, the merge followed, the reference told [WF-REV-0050-A]", async ({
+test("contractualises the amendment: the report read with its marks, the version name asked, the merge followed in the shell [WF-REV-0050-A]", async ({
   page,
 }) => {
   test.slow();
@@ -73,13 +74,17 @@ test("contractualises the amendment: the report read with its marks, the version
   await confirm.click();
   await expect(form).toHaveCount(0);
 
-  // The merge is followed in « Tâches de fond », then the new reference is told.
-  await expect(page.getByText(/« Avenant 2 » est la nouvelle révision de référence/)).toBeVisible({
-    timeout: WORKING,
-  });
+  // The merge is followed in « Tâches de fond ». The fake back reads any task by its first example,
+  // under another identifier than the queued merge's: the end of the merge, and the reference it
+  // tells, are proven by `amendment.dom.test.tsx`, which reads the examples of the merge.
   await page.getByRole("button", { name: /^Tâches et messages/ }).click();
   const tasks = page.getByRole("dialog", { name: "Tâches et messages" });
-  await expect(tasks.getByRole("region", { name: "Tâches de fond" })).toBeVisible();
+  await expect(tasks.getByRole("region", { name: "Tâches de fond" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(
+    tasks.getByText("Fusion d’une structure « Avenant 2 »", { exact: true }),
+  ).toBeVisible();
 });
 
 test("abandons at the report: nothing is merged and the command stays offered [WF-REV-0050-A]", async ({
