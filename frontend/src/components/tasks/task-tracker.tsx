@@ -243,14 +243,17 @@ export function useTrackTask(): TrackTask {
 /**
  * Run `then` once, when the task named has succeeded — never when it failed or its follow-up was
  * interrupted —, for the screen that started it and still shows: a task that ends while the user
- * is elsewhere leads nowhere. `task_id` is none until a task was started.
+ * is elsewhere leads nowhere. `task_id` is none until a task was started. The task is named by the
+ * identifier it was handed over under, which is also the key it is followed under: the one the
+ * API reads it by, once it runs, is the same.
  */
 export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
-  const { log } = useTracker();
+  const { log, tasks } = useTracker();
   const done = useRef<string>(undefined);
   const succeeded =
     taskId !== undefined &&
-    log.some((line) => line.task.task_id === taskId && line.end === "succeeded");
+    (log.some((line) => line.task.task_id === taskId && line.end === "succeeded") ||
+      tasks.some((entry) => entry.key === taskId && entry.task.status === "succeeded"));
   useEffect(() => {
     if (succeeded && done.current !== taskId) {
       done.current = taskId;
