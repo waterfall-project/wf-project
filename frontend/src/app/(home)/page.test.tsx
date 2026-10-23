@@ -61,6 +61,26 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -111,6 +131,7 @@ function listQuery(): Record<string, string> {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.props = [];
   server.clients = [];
   server.unreachable = false;
@@ -450,5 +471,14 @@ describe("the home, the size of the pages of the list of projects", () => {
       .flatMap((client) => client.calls)
       .find((each) => each.route === "GET /projects");
     expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+
+  it("reads the page size kept by the account when the address asks none [WF-IHM-0060-A]", async () => {
+    kept.grids = { projects: { page_size: 25 } };
+    await home({});
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /projects");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
   });
 });

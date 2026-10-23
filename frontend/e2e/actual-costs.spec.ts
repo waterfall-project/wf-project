@@ -81,7 +81,7 @@ test("chooses the number of rows per page of the actual costs, carried by the ad
 }) => {
   test.slow();
   await openHydrated(page, `${COSTS}?in_tracked_scope=false&offset=50`);
-  const size = page.getByRole("combobox", { name: "Lignes par page" });
+  const size = page.getByRole("combobox", { name: "Lignes par page", exact: true });
   await expect(size).toBeInViewport();
   await expect(size).toHaveValue("50");
   await expect(size.getByRole("option")).toHaveText(["10", "25", "50", "100"]);

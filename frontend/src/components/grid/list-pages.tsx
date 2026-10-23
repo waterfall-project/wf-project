@@ -58,7 +58,11 @@ const NAMED = "reference.pages";
 
 /** How the pages of a list are named: by texts of their own, or by the title of their list. */
 type Naming =
-  | { readonly texts: ListTexts; readonly title?: never }
+  | {
+      readonly texts: ListTexts;
+      /** Names the choice of « Lignes par page » when the screen holds several. */
+      readonly title?: string;
+    }
   | {
       /** The title of the list, which names its pages among those of the screen. */
       readonly title: string;

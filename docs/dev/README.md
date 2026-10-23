@@ -825,9 +825,10 @@ au-dessus, les pages en dessous. Le plancher ne remonte pas plus haut : une enve
 peut rester plus basse que le cadre, ce que la page absorbe en défilant, tant que rien ne la suit.
 Un écran qui a du contenu sous l'enveloppe de sa grille, hors de la chaîne qui la contient — fût-ce
 seulement dans une fenêtre étroite, où le contenu voisin se range dessous (les coûts réels, les
-risques, les coûts du référentiel) —, ne remplit pas la fenêtre là où il l'a dessous (`fillWide`,
-`lg:min-h-0`), de même que `/admin/backups` et le référentiel des ressources ne la remplissent pas :
-la grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les dix
+risques) —, ne remplit pas la fenêtre là où il l'a dessous (`fillWide`,
+`lg:min-h-0`), de même que `/admin/backups` et le référentiel des ressources et des coûts, qui empilent leurs
+grilles, ne la remplissent pas :
+la grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les neuf
 écrans qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre
 ne chevauche rien. La barre et le bouton « Colonnes » ont la largeur du cadre de la table, telle que
 le navigateur la pose (barres de défilement comprises, `frame-width.ts`), sans la dépasser, et jamais
@@ -1086,7 +1087,9 @@ colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
 (`passthrough.<colonne>`), chaque colonne triée par le serveur — les colonnes conservées sont
 celles de toutes les lignes retenues, dans l'ordre où le serveur les nomme
 (`meta.passthrough_columns`, #414) : les mêmes d'une page à l'autre — ; et le journal des imports,
-paginé à part (`imports_offset`). Quand le projet liste l'exclusion de ses lignes
+paginé à part (`imports_offset`, `imports_limit`), avec son « Lignes par page » et sa clé de grille
+(`cost_imports`, `KeptListSize` de `grid/kept-list-size.tsx`, qui enregistre la taille comme une grille
+dense : le journal n'est pas une grille). Les imports d'un projet (`imports`) font de même. Quand le projet liste l'exclusion de ses lignes
 (`exclude_cost_lines`), le numéro de pièce d'une ligne est un lien hors de la tabulation, que la
 grille suit à Entrée, vers la même adresse nommant la ligne (`line`) : sa place dans le périmètre
 suivi s'y montre (`CostLineScope`), avec la commande qui l'exclut, sur le motif saisi, ou la
@@ -1104,7 +1107,7 @@ en attente —, il mène à leur première page.
 Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
 US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
 de l'installation et présentent la grille des taux horaires — une configuration de plus de la
-grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, son état, une colonne par
+grille dense (`rate-grid.tsx`), la troisième section de l'écran, sous les natures et les catégories, une ligne par catégorie de main-d'œuvre, son état, une colonne par
 année de toute la grille, quelle que soit la page, dont l'en-tête est l'année elle-même
 (`GridColumn.heading`) —, cherchée, filtrée par état et sur les bornes du taux d'une année
 (`RateFilterBar`, #545), triée et paginée par le serveur sous les noms du contrat (`search`,
@@ -1120,12 +1123,12 @@ que la colonne est celle de la grille, vide, à sa place parmi les années, jusq
 saisie d'une de ses cellules écrive ce premier taux, et elle se retire tant qu'aucun taux n'y est
 saisi ni en cours d'écriture ; une année déjà présente, ou hors des bornes de `Year`, est refusée
 dans la page ; la colonne ajoutée se trie comme les autres, le serveur laissant l'ordre du code
-pour une année sans taux. À côté, les natures et les catégories de coût, deux grilles denses
+pour une année sans taux. Au-dessus d'elle, les natures puis les catégories de coût, deux grilles denses
 (`cost-grids.tsx`, #510), triées sur chaque colonne, cherchées, filtrées — les natures par type
 (`kinds`, `ValuesFilter`) et par état, les catégories par nature, offerte parmi toutes celles que la
-session lit, et par état — et paginées par le serveur — l'écran ne
-remplit la fenêtre qu'à partir de la grande largeur (`Screen`, `fillWide`) : en fenêtre étroite, la
-grille et les listes s'empilent et la page défile. Les paramètres de ressources présentent trois
+session lit, et par état — et paginées par le serveur — les trois
+sections s'empilent comme celles des paramètres de ressources, dans une page qui défile (`Screen`
+sans `fill`, US-0570/L3, #1044), chaque grille plafonnée à la fenêtre (`max-h-svh` de `DenseGrid`). Les paramètres de ressources présentent trois
 grilles denses (#301, #511, #533) : l'organisation, une grille arborescente qui ne se trie pas et
 ne se pagine pas, dans l'ordre de `listOrgNodes`, chaque nœud par son libellé décalé de sa
 profondeur (`level`), qui plie ce qui est sous lui comme les grilles de tâches (`GridTree.parent`,
@@ -1136,9 +1139,10 @@ serveur sur chacune de leurs colonnes, cherchés par lui sur le libellé et le c
 (`code`, comme celui des nœuds), par nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
 calendrier (`calendar_id`) — chacun offert parmi tous ceux que la session lit, lus comme une liste
 de choix (#303), les catégories absentes quand l'API les refuse — et par état, et paginés ; les
-calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, filtrés par
-état et paginés. Les colonnes de nombres se bornent (#545, WF-IHM-0130) : les heures mensuelles et
-l'effectif d'un rôle, les heures de chaque jour d'un calendrier, le taux d'une année de la grille des
+calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, cherchés,
+filtrés par état et paginés, sans filtre sur les heures de leurs jours (WF-IHM-0130-A, #1047). Les
+colonnes de nombres se bornent (#545, WF-IHM-0130) : les heures mensuelles et l'effectif d'un rôle,
+le taux d'une année de la grille des
 taux — l'année choisie parmi celles de la grille, écrite avec ses bornes (`rate_year`) —, sous la
 convention du contrat pour toute liste, `<colonne>_min` et `<colonne>_max`, incluses
 (`docs/api/DECISIONS.md`). Le filtre est un composant de la grille, réutilisable pour les montants
@@ -1166,7 +1170,13 @@ page part de la dernière adresse demandée, et mène à la première page quand
 autrement que celle montrée — le tri d'une autre liste de l'écran n'y comptant pas (`ListPages` de
 `components/grid/list-pages.tsx`, nommé d'après sa liste, la seule règle de « même liste » de
 `readingOf`) ; la ligne des totaux dit combien le serveur en retient (`meta.total`). Les
-unités de durée suivent. Les paramètres des risques présentent les bornes de la matrice et la zone
+unités de durée suivent : trois constantes, que la commande « Modifier les unités de durée » —
+offerte à qui porte `resource_settings.write`, comme les calendriers — ouvre en formulaire
+(`DurationUnitSettings` de `settings-forms.tsx`, `setDurationUnits`), en décimaux de la langue ; le
+refus (422) se dit au champ, la version périmée (412) propose de relire, la réponse prend la place des
+valeurs lues, et une phrase sous les champs dit que le changement vaut pour tous les projets, les
+plannings des révisions en cours étant recalculés et une révision marquée gardant ses heures
+(WF-PLA-0160, WF-REF-0130, #1049). Les paramètres des risques présentent les bornes de la matrice et la zone
 de chaque case, placée par son rang dans l'ordre du contrat, ceux des indicateurs les seuils des
 indices et le délai entre deux revues : des matrices de taille fixe, qui restent des tables
 simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). Un objet rattaché se nomme

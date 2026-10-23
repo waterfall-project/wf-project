@@ -382,6 +382,45 @@ describe("the report of an import", () => {
     expect(router.push).toHaveBeenCalledOnce();
   });
 
+  it("leads nowhere when the user left the report before the task that applies the import succeeded", async () => {
+    serve({
+      [APPLY]: { example: "task_import_queued", status: 202 },
+      [TASK]: "task_import_succeeded",
+    });
+    const entry = example("import_analysed") as Import;
+    const offers = importOffers(example("project") as Project);
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    const view = open(
+      <ImportReport
+        projectId={PROJECT}
+        entry={entry}
+        offer={offers[entry.kind]}
+        start={START}
+        then={planning}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
+    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    await userEvent.click(
+      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
+    // The user goes elsewhere: the report is gone, the tracker stays and follows the task.
+    view.rerender(shell(<p>Ailleurs</p>));
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(within(tasks()).getByText(/Application d’un import/)).toBeVisible();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    // The task did succeed, the report not being there to lead anywhere.
+    await waitFor(() => {
+      expect(screen.getByRole("log")).toHaveTextContent("Tâche terminée : Application d’un import");
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it("applies nothing when the confirmation is cancelled, and tells a refusal of the application", async () => {
     const client = serve({
       [APPLY]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } },

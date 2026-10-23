@@ -241,22 +241,46 @@ export function useTrackTask(): TrackTask {
 }
 
 /**
+ * Run `then` once the task named has ended in the way asked (`succeeded`, or `unsuccessful`: failed,
+ * or its follow-up interrupted). `task_id` is none until a task was started.
+ */
+function useWhenTaskEnded(
+  taskId: string | undefined,
+  way: "succeeded" | "unsuccessful",
+  then: () => void,
+): void {
+  const { log } = useTracker();
+  const done = useRef<string>(undefined);
+  const ended =
+    taskId !== undefined &&
+    log.some(
+      // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
+      (line) =>
+        line.task.task_id === taskId && (line.end === "succeeded") === (way === "succeeded"),
+    );
+  useEffect(() => {
+    if (ended && done.current !== taskId) {
+      done.current = taskId;
+      then();
+    }
+  }, [ended, taskId, then]);
+}
+
+/**
  * Run `then` once, when the task named has succeeded — never when it failed or its follow-up was
  * interrupted —, for the screen that started it and still shows: a task that ends while the user
  * is elsewhere leads nowhere. `task_id` is none until a task was started.
  */
 export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
-  const { log } = useTracker();
-  const done = useRef<string>(undefined);
-  const succeeded =
-    taskId !== undefined &&
-    log.some((line) => line.task.task_id === taskId && line.end === "succeeded");
-  useEffect(() => {
-    if (succeeded && done.current !== taskId) {
-      done.current = taskId;
-      then();
-    }
-  }, [succeeded, taskId, then]);
+  useWhenTaskEnded(taskId, "succeeded", then);
+}
+
+/**
+ * Run `then` once, when the task named has failed or its follow-up was interrupted — never when it
+ * succeeded: what waited for its end is freed. `task_id` is none until a task was started.
+ */
+export function useWhenTaskFails(taskId: string | undefined, then: () => void): void {
+  useWhenTaskEnded(taskId, "unsuccessful", then);
 }
 
 /**

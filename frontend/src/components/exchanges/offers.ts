@@ -15,7 +15,7 @@ import type { components } from "@/api/generated/schema";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
 import type { Revision } from "@/components/context/read-only";
-import { OFFSET } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, OFFSET } from "@/components/grid/query";
 import type { PagedList } from "@/navigation/pages";
 
 type ExchangeKind = components["schemas"]["ExchangeKind"];
@@ -136,8 +136,15 @@ export const IMPORT_MAX_BYTES = 10 * MEBIBYTE;
 /** The parameter of the address that names the page of the imports of the project. */
 export const EXCHANGES_PAGE = OFFSET;
 
-/** The imports of a project, which read nothing of the address but their page. */
-export const EXCHANGES_LIST: PagedList = { page: EXCHANGES_PAGE, reads: [] };
+/** The key the imports of a project keep their preferences under (WF-IHM-0060). */
+export const IMPORT_GRID_KEY = "imports";
+
+/** The imports of a project, which read nothing of the address but their page and its size. */
+export const EXCHANGES_LIST: PagedList = {
+  page: EXCHANGES_PAGE,
+  size: CONTRACT_ADDRESS.limit,
+  reads: [CONTRACT_ADDRESS.limit],
+};
 
 /** The parameter of the address that names the import whose report the screen shows. */
 export const IMPORT_PARAMETER = "import";

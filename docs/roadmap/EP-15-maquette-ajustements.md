@@ -1334,7 +1334,7 @@ exigence WF-IHM nouvelle (décision de l'auteur au cadrage, 2026-10-18, réponse
 
 ## US-0570 — Le référentiel et les grilles paginées
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : `listCalendars`, `getDurationUnits`, `setDurationUnits`, `getMe`,
   `updateMyPreferences`, `listUsers`, `listAccessRoles`, `listBackups`, `listAuditEvents`,
@@ -1396,6 +1396,10 @@ et 100, une autre valeur refusée par 422 `VALUE_OUT_OF_RANGE` ; les quatorze pa
 exemples manquants de `setDurationUnits` — succès, constante nulle (422), version périmée (412).
 US-0110, US-0400 (préférences), US-0240 et US-0360 (calendriers) portent déjà ces phrases en écart
 vers #1045 et #1047.
+Les deux journaux d'imports (décision #1267) offrent aussi « Lignes par page » : le journal des
+coûts réels sous la clé de grille `cost_imports` et l'adresse `imports_limit`, les imports du projet
+sous la clé `imports` et l'adresse `limit` ; la taille est gardée par grille, l'une sans changer
+l'autre, et leur taille par défaut passe à 50.
 
 ## US-0580 — L'aide en ligne et les infobulles
 

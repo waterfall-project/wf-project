@@ -1419,6 +1419,7 @@
       "hint": "Le libellé et les heures travaillées de chacun des sept jours, du lundi au dimanche, sont requis ; rien d’autre n’est demandé."
     },
     "rates": {
+      "title": "Taux horaires",
       "caption": "{count, plural, one {# catégorie} other {# catégories}}, taux horaires en {currency}",
       "addYear": {
         "label": "Ajouter une année à la grille",
@@ -1521,6 +1522,12 @@
       "probability": "Bornes de probabilité (%)",
       "severity": "Bornes de gravité (% du budget de référence)",
       "saved": "Matrice de risques enregistrée."
+    },
+    "durationUnitsForm": {
+      "modify": "Modifier les unités de durée",
+      "hint": "Les heures par jour, les heures par semaine et les jours par mois, chacune strictement positive.",
+      "saved": "Unités de durée enregistrées.",
+      "effect": "Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées."
     },
     "indicatorForm": {
       "modify": "Modifier les seuils et le délai",

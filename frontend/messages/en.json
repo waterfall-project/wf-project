@@ -1419,6 +1419,7 @@
       "hint": "The label and the hours worked on each of the seven days, from Monday to Sunday, are required; nothing else is asked."
     },
     "rates": {
+      "title": "Hourly rates",
       "caption": "{count, plural, one {# category} other {# categories}}, hourly rates in {currency}",
       "addYear": {
         "label": "Add a year to the grid",
@@ -1521,6 +1522,12 @@
       "probability": "Bounds of probability (%)",
       "severity": "Bounds of severity (% of the reference budget)",
       "saved": "Risk matrix saved."
+    },
+    "durationUnitsForm": {
+      "modify": "Modify the units of duration",
+      "hint": "The hours per day, the hours per week and the days per month, each strictly positive.",
+      "saved": "Units of duration saved.",
+      "effect": "The change applies to every project: the schedules of the revisions in progress are recalculated; a marked revision keeps the hours it calculated."
     },
     "indicatorForm": {
       "modify": "Modify the thresholds and the delay",
