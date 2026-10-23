@@ -153,9 +153,28 @@ describe("the encart « Démarrer le projet »", () => {
     expect(routes()).not.toContain(REVISION_READ);
   });
 
-  it("is not shown on a project without a revision in progress, and reads no revision", async () => {
+  it("is shown from the creation on a project without a revision, as the project lists the skeleton, and reads no revision [WF-PRJ-0030-A]", async () => {
+    const page = await projectAt();
+    expect(page).toContain('aria-label="Start the project"');
+    expect(text(page)).toContain("Automatic planning from the work breakdown");
+    expect(routes()).not.toContain(REVISION_READ);
+  });
+
+  it("is not shown on a project without a revision whose skeleton the project lists unavailable, the last marked revision bearing tasks [WF-PRJ-0030-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_without_current_revision",
+    };
     const page = await projectAt();
     expect(page).not.toContain('aria-label="Start the project"');
-    expect(routes()).not.toContain(REVISION_READ);
+  });
+
+  it("is not shown to an estimator, whom the project does not list the skeleton to [WF-PRJ-0030-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing_estimator",
+    };
+    const page = await projectAt();
+    expect(page).not.toContain('aria-label="Start the project"');
   });
 });

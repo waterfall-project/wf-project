@@ -95,6 +95,11 @@
             ]
           },
           {
+            "command": "generate_skeleton",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
             "command": "import_planning",
             "is_available": true,
             "missing_conditions": []

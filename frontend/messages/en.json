@@ -2293,6 +2293,7 @@
       "manage_contributors": "Manage contributors",
       "manage_timelines": "Manage timelines",
       "create_revision": "Create a revision",
+      "generate_skeleton": "Generate the schedule skeleton",
       "complete": "Complete the project",
       "lose": "Declare the project lost",
       "abandon": "Abandon the project",

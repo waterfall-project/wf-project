@@ -207,6 +207,50 @@ def test_a_comparison_without_a_volume_example_fails_loudly() -> None:
         mock.derive(comparison_contract(with_volume=False))
 
 
+PROJECT = "/projects/{project_id}"
+
+
+def created_contract(*, with_created: bool = True) -> dict[str, object]:
+    """Return a contract that reads a project and its revisions, the witness first."""
+    project = {"witness": {"$ref": "#/x/witness"}}
+    if with_created:
+        project["created"] = {"$ref": "#/x/created"}
+    revisions = {"witness": {"$ref": "#/x/revisions"}, "empty": {"$ref": "#/x/empty"}}
+
+    def read(examples: dict[str, dict[str, str]]) -> dict[str, object]:
+        return {
+            "parameters": [{"$ref": "#/components/parameters/ProjectId"}],
+            "responses": {"200": {"content": {"application/json": {"examples": examples}}}},
+        }
+
+    return {
+        "servers": [{"url": "/api/v1"}],
+        "paths": {
+            PROJECT: {"get": read(project), "patch": {"parameters": []}},
+            f"{PROJECT}/revisions": {"get": read(revisions)},
+        },
+    }
+
+
+def test_the_project_created_is_read_at_its_address_without_a_revision() -> None:
+    # EP-15/US-0490/L4: the page of the project the creation answers reads it, and its revisions
+    # — none —, at its own address, where the template keeps the witness first.
+    paths = paths_of(mock.derive(created_contract()))
+    at = f"/api/v1{PROJECT.replace('{project_id}', mock.CREATED_PROJECT)}"
+    assert mock.CREATED_PROJECT == "01926f3a-7c00-7000-8000-000000000003"
+    assert list(examples_of(paths[at])) == ["created", "witness"]
+    assert paths[at]["get"]["parameters"] == []
+    assert "patch" in paths[at]
+    assert list(examples_of(paths[f"{at}/revisions"])) == ["empty", "witness"]
+    assert list(examples_of(paths[f"/api/v1{PROJECT}"])) == ["witness", "created"]
+    assert not any(path.endswith(("/next-state", "/work-breakdown")) for path in paths)
+
+
+def test_a_reading_of_the_project_without_its_created_example_fails_loudly() -> None:
+    with pytest.raises(ValueError, match="has no example 'created'"):
+        mock.derive(created_contract(with_created=False))
+
+
 def test_without_an_amendment_example_the_nodes_keep_their_examples() -> None:
     contract = amendments_contract()
     examples_of(paths_of(contract)[NODES]).pop("amendment")
@@ -265,7 +309,7 @@ def test_an_unresolved_reference_fails_loudly() -> None:
         mock.derive(contract)
 
 
-def test_the_bundle_of_the_repository_serves_the_amendment_203_and_the_volume(
+def test_the_bundle_of_the_repository_serves_the_amendment_203_the_volume_and_the_created(
     tmp_path: Path,
 ) -> None:
     root = Path(__file__).resolve().parents[2]
@@ -301,3 +345,10 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203_and_the_volume(
     volume = served[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
     assert next(iter(examples_of(volume))) == "volume"
     assert next(iter(examples_of(served[f"/api/v1{COMPARISON}"]))) == "witness"
+    created = f"/api/v1{PROJECT.replace('{project_id}', mock.CREATED_PROJECT)}"
+    for path, example in mock.CREATED_PATHS.items():
+        literal = f"/api/v1{path.replace('{project_id}', mock.CREATED_PROJECT)}"
+        assert next(iter(examples_of(served[literal]))) == example, path
+    opening = cast("dict[str, Any]", served[f"{created}/revisions"]["post"])
+    assert "201" in opening["responses"]
+    assert next(iter(examples_of(served[f"/api/v1{PROJECT}"]))) == "witness"

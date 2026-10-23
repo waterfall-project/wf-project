@@ -57,6 +57,10 @@
       marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). La révision retient pour année
       de référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
       révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
+      C'est la première des deux écritures du squelette de planning sur un projet sans révision
+      en cours, que le projet dit d'avance (`ProjectCommand.generate_skeleton`) : la révision
+      rendue liste `generate_skeleton`, et `generatePlanningSkeleton` s'y applique
+      (EP-15/US-0490/L4).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -77,10 +81,16 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: Une révision en cours existe déjà (WF-REV-0010).
+        description: >-
+          Une révision en cours existe déjà : `CURRENT_REVISION_EXISTS`, sans paramètre
+          (WF-REV-0010). Une ouverture demandée depuis un écran lu avant qu'une autre ne
+          l'ouvre — la première des deux écritures du squelette de planning sur un projet qui
+          n'en avait pas — reçoit ce refus, et l'écran relit le projet (EP-15/US-0490/L4).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              current_revision_exists: { $ref: ../../../fixtures/api/current_revision_exists.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1593,10 +1603,14 @@
       lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne
       supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170). La
       révision dit d'avance si la génération est proposée (`RevisionCommand.generate_skeleton`) ;
-      refusée sur une révision marquée ou un projet terminal, par 403, comme toute saisie
-      (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres : elle rend les tâches
-      créées, les totaux et le compteur de la structure (`NodesWritten`), pour que la grille
-      vide se remplisse et que la saisie suivante porte le bon compteur (WF-IHM-0110).
+      sur un projet sans révision en cours, c'est le projet qui le dit
+      (`ProjectCommand.generate_skeleton`), et la génération n'ouvre pas la révision : l'écran
+      l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la révision rendue
+      (EP-15/US-0490/L4) ; refusée sur une révision marquée ou un projet terminal, par 403,
+      comme toute saisie (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres :
+      elle rend les tâches créées, les totaux et le compteur de la structure (`NodesWritten`),
+      pour que la grille vide se remplisse et que la saisie suivante porte le bon compteur
+      (WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

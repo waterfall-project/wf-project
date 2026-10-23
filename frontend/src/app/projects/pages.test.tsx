@@ -889,7 +889,8 @@ describe("the empty states of the shell", () => {
       "Revisions This project has no revision yet. Go to the revisions of the project",
     );
     expect(links(html)).toContain(`/projects/${PRICING}/revisions`);
-    expect(html).not.toContain("<ul");
+    // No revision is listed: the only links to a revision are none.
+    expect(links(html).filter((href) => href.includes("/revisions/"))).toEqual([]);
   });
 
   it("does not offer the way to the revisions to a session that may not read them", async () => {

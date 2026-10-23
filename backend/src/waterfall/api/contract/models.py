@@ -1960,6 +1960,7 @@ class ProjectCommand(StrEnum):
     declare_risk_occurrence = "declare_risk_occurrence"
     import_actual_costs = "import_actual_costs"
     exclude_cost_lines = "exclude_cost_lines"
+    generate_skeleton = "generate_skeleton"
     import_planning = "import_planning"
     import_estimate = "import_estimate"
     import_remaining = "import_remaining"
@@ -2020,7 +2021,7 @@ class Project(ContractModel):
     available_commands: Annotated[
         list[ProjectCommandAvailability],
         Field(
-            description="Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. Seule exception, décidée par l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas celle de créer une révision, indisponible, `may_create_revision` manquante."
+            description="Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. Seule exception, décidée par l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas celle de créer une révision, indisponible, `may_create_revision` manquante ; la génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la permission du planning (EP-15/US-0490/L4)."
         ),
     ]
     audit: Audit

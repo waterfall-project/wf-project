@@ -133,7 +133,9 @@ RevisionCommand:
     un marquage, un import, le traitement d'une survenance de risque ou une fusion. Sur une
     révision marquée, elle ne manque que de `revision_draft`, comme `merge_structure`. Elle ne
     se dit d'aucun différentiel ni d'aucun devis propre d'un risque : c'est une commande de la
-    révision, que l'opération applique à sa structure principale.
+    révision, que l'opération applique à sa structure principale. Tant que le projet n'a pas de
+    révision en cours, c'est le projet qui la porte (`ProjectCommand.generate_skeleton`), la
+    révision s'ouvrant d'abord (EP-15/US-0490/L4).
 
 RevisionCommandAvailability:
   type: object

@@ -9,6 +9,7 @@ import type { components } from "@/api/generated/schema";
 import type { Project } from "@/components/context/reading";
 import { GeneratePlanning } from "@/components/projects/generate-planning";
 import { TransitionList } from "@/components/projects/project-tables";
+import { OPENED_REVISION } from "@/components/projects/start-offers";
 import {
   ContributorList,
   SubprojectList,
@@ -240,6 +241,19 @@ describe("the generation of the planning on the screen of the work breakdown", (
     await expect(SettingsPage(at({ start: "skeleton" }))).rejects.toMatchObject({
       name: "UnexpectedAnswer",
     });
+  });
+
+  it("offers it as the project lists it when there is no revision in progress, the planning to lead to waiting for the revision the generation opens [WF-PRJ-0030-A]", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_created" };
+    const found = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at()),
+      GeneratePlanning,
+    );
+    expect(found?.props.offer).toMatchObject({ command: "generate_skeleton", is_available: true });
+    expect(found?.props.revisionId).toBeUndefined();
+    expect(found?.props.planningHref).toBe(
+      `/projects/${PROJECT}/revisions/${OPENED_REVISION}/planning`,
+    );
   });
 
   it("offers nothing to a session whose revision does not list the skeleton", async () => {

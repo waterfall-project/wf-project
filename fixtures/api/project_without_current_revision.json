@@ -1,5 +1,5 @@
 {
-  "summary": "Le même projet en cours, sa révision courante abandonnée aujourd'hui à 14 h 05 : il garde sa révision de référence marquée, n'a plus de révision en cours, et porte lui-même la saisie des risques, comme les imports — la première saisie créera la révision en cours (WF-RIS-0020, WF-INTF-0090) ; une révision peut de nouveau être ouverte.",
+  "summary": "Le même projet en cours, sa révision courante abandonnée aujourd'hui à 14 h 05 : il garde sa révision de référence marquée, n'a plus de révision en cours, et porte lui-même la saisie des risques, comme les imports — la première saisie créera la révision en cours (WF-RIS-0020, WF-INTF-0090) ; une révision peut de nouveau être ouverte. Le squelette de planning ne s'y engendrerait pas : la révision ouverte copierait la dernière révision marquée, dont la structure principale porte des tâches (generate_skeleton, main_structure_without_tasks manquante, WF-PRJ-0030, WF-REV-0010).",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
     "label": "Modernisation du poste de commande",
@@ -85,6 +85,13 @@
         "command": "exclude_cost_lines",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "generate_skeleton",
+        "is_available": false,
+        "missing_conditions": [
+          "main_structure_without_tasks"
+        ]
       },
       {
         "command": "import_planning",

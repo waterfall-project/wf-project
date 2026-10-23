@@ -860,10 +860,13 @@ montre tout le cycle, de la création à la réalisation.
   catégorie. » : la commande est offerte depuis la révision en cours ; le rechiffrage est du
   service — EP-07.
 - propre à l'US : la page du projet porte l'encart « Démarrer le projet » tant que la structure
-  principale de la révision en cours n'a aucune tâche, pour qui peut modifier le planning, avec trois
-  choix : « Planning automatique depuis le lotissement », qui mène à la saisie du lotissement et à
-  « Engendrer le planning » ; « Importer un fichier MS Project », une zone de dépôt accessible qui
-  réemploie l'import de FBS-4.3.4 ; « Plus tard », qui replie l'encart pour la session ;
+  principale de la révision en cours n'a aucune tâche, pour qui peut modifier le planning — et
+  aussi dès la création du projet, sur un projet sans révision, où « Engendrer le planning » ouvre
+  la révision puis engendre le squelette (décision de l'auteur du 2026-10-23, #1358, lot
+  US-0490/L4) —, avec trois choix : « Planning automatique depuis le lotissement », qui mène à
+  la saisie du lotissement et à « Engendrer le planning » ; « Importer un fichier MS Project »,
+  une zone de dépôt accessible qui réemploie l'import de FBS-4.3.4 ; « Plus tard », qui replie
+  l'encart pour la session ;
 - propre à l'US : « Abandonner la révision en cours » demande une confirmation qui dit que le projet
   revient à sa dernière révision marquée, et qu'elle est irréversible (WF-IHM-0110) ; « Désigner
   comme référence » demande une confirmation qui dit ce que la désignation fixe — le budget de
@@ -874,7 +877,8 @@ montre tout le cycle, de la création à la réalisation.
 **Notes de réalisation.** La spécification corrigée dit l'abandon hors de l'annulation (C-363,
 WF-IHM-0110) et la mise à jour refusée acceptable ensuite (C-362, WF-REV-0060). L'encart lit sa
 condition au serveur — la structure vide, et la révision qui liste `generate_skeleton` ou l'import
-du planning — et ne déduit rien (#1058). Les libellés du lotissement sont ceux d'US-0450.
+du planning, ou, sans révision, le projet qui liste `generate_skeleton` — et ne déduit rien (#1058,
+#1358). Les libellés du lotissement sont ceux d'US-0450.
 
 ## US-0500 — Lire la structure choisie, voir un différentiel comme un diff
 
@@ -1149,7 +1153,7 @@ poignée ; l'échelle et le zoom ; la frise.
 ## US-0540 — Les gestes du Kanban
 
 - **statut** : fini
-- **exigences** : `WF-RAE-0030-A`
+- **exigences** : `WF-RAE-0030-A`, `WF-IHM-0090-A`
 - **opérations** : `listStartableTasks`, `setTaskProgress`
 - **issue** : #1128
 
@@ -1179,6 +1183,15 @@ la vue qui les répartit par état.
   EP-02 ; EP-09 clôt.
 - écart : `WF-RAE-0030-A` — « Un jalon terminé que l’on rouvre est non démarré et ne contribue plus à
   la valeur acquise. » : l'état est rendu par le serveur ; la valeur acquise est d'EP-09 et EP-10.
+- `WF-IHM-0090-A` — « Sur un projet en chiffrage, la commande de terminaison est présentée
+  indisponible en nommant la condition manquante. » : sur la carte du Kanban, un geste que l'état
+  de la tâche rend momentanément impossible est présenté indisponible avec la condition qui lui
+  manque, comme le serveur la liste (`available_commands`), et un refus de l'API se dit sur la
+  carte.
+- écart : `WF-IHM-0090-A` — « Un utilisateur sans la permission de marquer une révision ne voit pas
+  cette commande. » : les permissions sont d'EP-02 et d'EP-14.
+- écart : `WF-IHM-0090-A` — « Un refus de saisie sur un projet dont l'utilisateur n'est pas
+  contributeur nomme cette condition. » : les contributeurs sont d'EP-02 et d'EP-14.
 - propre à l'US : une carte se sélectionne au clic ou au clavier, de carte en carte et de colonne en
   colonne ; les gestes se font par glisser-déposer entre colonnes, par un menu de la carte ou au
   clavier ; la réponse remplace la carte dans sa colonne ; un refus est dit sur la carte ; le focus

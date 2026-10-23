@@ -6959,6 +6959,101 @@ collage dont la cellule visée est elle-même sur un nœud retiré, qui ne nomme
 (`editable_fields` vide), n'est pas tranché ici. Écarté : un refus de la ligne du bloc tombée sur un
 nœud retiré, que la décision écarte.
 
+## L'encart « Démarrer le projet » sur un projet sans révision (EP-15/US-0490/L4, #1358)
+
+**Ce que le front lit.** Décision de l'auteur du 2026-10-23 sur #1358 : l'encart paraît dès la
+création d'un projet, quand il n'a encore aucune révision (`current_revision_id` nul). Le front ne
+déduit rien : il lui faut savoir, d'une lecture du projet, si le squelette s'engendrerait et si
+l'appelant peut écrire le planning. `create_revision` ne le dit pas : elle est gardée par
+`revisions.write`, et ne dit rien de la structure que la révision ouverte copierait. Le projet
+porte donc une commande nouvelle, `ProjectCommand.generate_skeleton`, sur le modèle des imports
+et de la saisie des risques :
+- listée tant que le projet n'a pas de révision en cours, à qui a la permission du planning,
+  `planning.write`, comme `RevisionCommand.generate_skeleton`, et juste avant les imports ; dès
+  qu'une révision est en cours, c'est elle qui la liste, et le projet ne la liste plus ;
+- jugée sur la révision que l'ouverture créerait, une copie de la dernière révision marquée
+  (WF-REV-0010) : `main_structure_without_tasks` manque quand sa structure principale comporte
+  une tâche, comme `at_least_one_task` à `declare_risk` quand elle n'en comporte aucune ;
+- ses conditions dans l'ordre de `declare_risk`, sa sœur au niveau du projet : celles de l'état
+  d'abord, `project_not_terminal` puis `no_background_task_running`, puis la condition propre,
+  `main_structure_without_tasks`, puis `may_create_revision` à qui ne peut pas ouvrir la
+  révision, comme pour les imports et `declare_risk`. C'est l'exception du 2026-10-05
+  (`Project.available_commands`), étendue à cette commande.
+
+**L'ordre des conditions** (relecture 1 du lot). La première rédaction mettait la condition
+propre avant le traitement de fond, « comme sur la révision » (`RevisionCommand.generate_skeleton`,
+EP-14/L42k). Sur le projet, l'ordre de `declare_risk` l'emporte : la structure jugée n'existe pas
+encore, c'est celle de la révision qu'une ouverture créerait, et un traitement de fond qui court
+est justement en train d'en créer une autre ; nommer `main_structure_without_tasks` à ce moment
+dirait un état que la fin du traitement rendra faux, comme `at_least_one_task` à `declare_risk`
+inviterait à une saisie elle-même refusée (EP-14/L42s). Sur la révision, la structure existe et
+l'ordre de L42k reste, celui du 409 de `generatePlanningSkeleton`. Le front ne lit que la présence
+de `main_structure_without_tasks`, et l'ordre ne change rien à l'encart.
+
+**`no_background_task_running` sur un projet sans révision en cours** (relecture 1 du lot). La
+condition est atteignable, et elle reste. L'application d'un import de planning, de devis ou de
+reste à engager écrit en une seule transaction (`applyImport`, WF-INTF-0080) et crée la révision
+en cours au besoin (WF-INTF-0090) ; le traitement d'une survenance la crée de même au préalable
+(`declareRiskOccurrence`, WF-RIS-0060). Pendant ces traitements, confiés au worker, le projet lu
+n'a pas encore de révision en cours, et ce sont eux qui la créent : ouvrir une révision et y
+engendrer le squelette se heurterait à la leur — `createRevision` refusé par
+`CURRENT_REVISION_EXISTS` à leur fin, ou leur révision refusée à la sienne. C'est le cas qui fait
+déjà nommer la condition aux imports, à `edit_risks` et à `declare_risk` que porte un projet sans
+révision en cours ; `CommandCondition` le dit désormais pour les quatre. Aucun exemple ne le
+montre : le témoin abandonné n'a ni import ni survenance qui court. Écarté : retirer la condition,
+ce qui aurait fait de `generate_skeleton` la seule commande du projet sans révision qui ne la
+nomme pas.
+
+**Le refus de `createRevision`** (relecture 1 du lot). Son 409 n'avait pas d'exemple, et le test
+de l'encart en inventait un, `STATE_FORBIDS_OPERATION`, quand le code est
+`CURRENT_REVISION_EXISTS`, sans paramètre, au catalogue depuis EP-02. L'exemple
+`current_revision_exists` (corrélation 1308, seconde suite) le donne : une seconde ouverture sur
+le projet créé aujourd'hui, demandée depuis un écran lu avant que sa révision 103 ne s'ouvre. Le
+409 le décrit, et `tools/tests/test_mockstart.py` le tient.
+
+L'encart s'offre ainsi quand le projet liste `generate_skeleton` sans
+`main_structure_without_tasks`, ou, avec une révision en cours, quand celle-ci la liste ainsi,
+comme jusqu'ici. Le choix du fichier MS Project suit `import_planning`, que le projet liste déjà.
+
+**Ce que chaque choix appelle.** La spécification ne fait créer la révision en cours que par un
+import (« Lorsque le projet n'en comporte pas, l'import en crée une », WF-INTF-0040) et par une
+saisie des risques (WF-RIS-0020) ; WF-PRJ-0030 ne le dit pas de la génération. La voie la plus
+sobre est retenue : aucune opération nouvelle, et la génération n'ouvre pas la révision.
+- **Lotissement puis squelette.** Le lotissement est une donnée du projet, saisi sans révision
+  (`setWorkBreakdown`, `update_work_breakdown`). « Engendrer le planning » ouvre la révision en
+  cours (`createRevision`, sans corps obligatoire), puis engendre le squelette sur la révision
+  rendue (`generatePlanningSkeleton`), qui liste `generate_skeleton`. Si la génération est
+  refusée, la révision reste ouverte, sa structure vide : l'encart la relit et l'offre de
+  nouveau, ce qui est l'état d'avant cette décision. Un 409 de `createRevision` — une révision
+  ouverte entre-temps — se relit de même.
+- **Fichier MS Project.** `uploadFile` puis `openImport` `ms_project_schedule`, comme l'écran
+  FBS-4.3.4 : l'import crée la révision (WF-INTF-0040), rien ne change au contrat.
+
+Les descriptions de `ProjectCommand`, `RevisionCommand.generate_skeleton`, `CommandCondition`
+(`may_create_revision`, `main_structure_without_tasks`), `createRevision` et
+`generatePlanningSkeleton` le disent. Écartés : faire ouvrir la révision par la génération, ou
+une opération du projet qui engendre, que la spécification ne prévoit pas et qui aurait donné deux
+chemins pour une même génération ; lire `create_revision`, qui ne dit ni la permission du
+planning ni la structure copiée.
+
+**Les exemples.** Écrits à la main, comme le projet. `project_created` (le projet créé
+aujourd'hui, sans révision), `project_pricing` et l'offre de `projects` (en chiffrage, sans
+révision marquée) listent `generate_skeleton` disponible ; `project_without_current_revision` (le
+témoin, sa révision courante abandonnée) l'indisponible, `main_structure_without_tasks` manquante,
+sa dernière révision marquée portant des tâches. `project_pricing_estimator` ne la liste pas : le
+chiffreur n'a pas `planning.write`. Les lectures triées et filtrées de l'accueil suivent
+(`make mock-data`). Le parcours se lit ensuite sur les exemples qui existent : `revision_created`,
+la révision 103 ouverte à 14 h 05 et qui liste `generate_skeleton` disponible, puis
+`skeleton_generated`. `tools/tests/test_mockstart.py` les tient.
+
+**Le faux back sert le projet créé à son adresse** (`wftools.mock`, `CREATED_PATHS`). Prism sert
+le premier exemple d'une opération quel que soit le chemin : la page du projet …003, où mène la
+création (`createProject`, `created`), aurait lu le témoin. Quatre chemins sont répétés, son
+identifiant écrit, chacun menant par l'exemple qui le décrit : `getProject` par `created`,
+`getProjectNextState` par `created`, `listRevisions` par `empty`, `getWorkBreakdown` par
+`default`. Un chemin dont la lecture n'a pas cet exemple fait échouer la dérivation. Le parcours
+de bout en bout qui créait un projet et lisait le témoin à sa place lit désormais le projet créé.
+
 ## La déclaration d'un risque désigne la tâche de sa provision, et les saisies du risque ont leurs exemples (EP-15/US-0520)
 
 **La tâche de la provision se désigne** (partie K5 de la conception d'EP-15, #786 ; US-0520/L1).

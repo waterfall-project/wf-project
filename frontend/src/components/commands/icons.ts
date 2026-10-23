@@ -50,6 +50,8 @@ export const PROJECT_COMMAND_ICONS: Readonly<
   // The timelines of the project, which show its milestones and tasks inscribed (EP-14/L42k).
   manage_timelines: Milestone,
   create_revision: GitBranchPlus,
+  // The skeleton of a project without revision, which opens it first: the icon of the revision's.
+  generate_skeleton: Workflow,
   complete: CircleCheckBig,
   lose: CircleX,
   abandon: Ban,

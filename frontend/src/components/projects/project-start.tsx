@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The encart « Démarrer le projet » of the page of a project (US-0490, #1058): shown while the main
- * structure of the revision in progress bears no task, for whoever may modify the planning — the page
- * reads both from the server (`startOffers`) and renders it only then. Three choices. « Planning
+ * structure of the revision in progress bears no task — or, from the creation of the project, while
+ * it has no revision (#1358) —, for whoever may modify the planning: the page reads both from the
+ * server (`startOffers`) and renders it only then. Three choices. « Planning
  * automatique depuis le lotissement » leads to the work breakdown of the project, in entry, where the
  * planning is generated (`GeneratePlanning`): the order of WF-PRJ-0030, the work breakdown first,
  * then the skeleton; unavailable, it says what it lacks (WF-IHM-0090). « Importer un fichier MS

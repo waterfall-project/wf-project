@@ -170,9 +170,12 @@ test("creates a project from the home, then modifies the identity of a project o
   // The screen of the project the server created — which the fake back serves as the witness.
   await expect(page).toHaveURL(CREATED, { timeout: WORKING });
   await expect(main.getByRole("heading", { level: 1 })).toHaveText(
-    "Modernisation du poste de commande",
+    "Rénovation du poste de livraison",
   );
+  // No revision yet: the encart that starts the planning is there from the creation (#1358).
+  await expect(main.getByRole("region", { name: "Démarrer le projet" })).toBeVisible();
 
+  // The modification is played on the witness: the fake back keeps nothing of what is written.
   await openHydrated(page, `${PROJECT}/settings`);
   await main.getByRole("button", { name: "Modifier le projet" }).click();
   const identity = page.getByRole("dialog", {
