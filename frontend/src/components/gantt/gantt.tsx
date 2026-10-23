@@ -44,6 +44,7 @@ import {
 
 import { FoldToggle } from "@/components/grid/fold";
 import { Button } from "@/components/ui/button";
+import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { formatLocale, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
@@ -235,21 +236,29 @@ export function GanttRows({
   );
 }
 
-/** The commands of the zoom of the Gantt, in the bar of its grid. */
+/** The commands of the zoom of the Gantt, their icon, their step, and whether each goes anywhere. */
+function zoomCommands(view: GanttView) {
+  return [
+    { key: "zoomIn", icon: <ZoomIn aria-hidden="true" />, step: 1, offered: view.can.in },
+    { key: "zoomOut", icon: <ZoomOut aria-hidden="true" />, step: -1, offered: view.can.out },
+    { key: "fit", icon: <Expand aria-hidden="true" />, step: "fit", offered: view.zoom !== "fit" },
+  ] as const;
+}
+
+/**
+ * The commands of the zoom of the Gantt, in the bar of its grid, from a window wide enough to hold
+ * them on its line (`xl`); narrower, the bar has no room left for them — they are in the menu of a
+ * cell (`GanttZoomItems`) and on the keys, as the gestures of the work breakdown are.
+ */
 export function GanttZoom() {
   const t = useTranslations("gantt");
   const view = use(GanttContext);
   if (view === undefined) {
     return null;
   }
-  const commands = [
-    { key: "zoomIn", icon: <ZoomIn aria-hidden="true" />, step: 1, offered: view.can.in },
-    { key: "zoomOut", icon: <ZoomOut aria-hidden="true" />, step: -1, offered: view.can.out },
-    { key: "fit", icon: <Expand aria-hidden="true" />, step: "fit", offered: view.zoom !== "fit" },
-  ] as const;
   return (
-    <div role="group" aria-label={t("zoom")} className="flex gap-1">
-      {commands.map((command) => (
+    <div role="group" aria-label={t("zoom")} className="hidden gap-1 xl:flex">
+      {zoomCommands(view).map((command) => (
         <Button
           key={command.key}
           type="button"
@@ -267,6 +276,35 @@ export function GanttZoom() {
         </Button>
       ))}
     </div>
+  );
+}
+
+/**
+ * The commands of the zoom of the Gantt, in the menu of a cell of its grid: after a separator when
+ * other commands come before them.
+ */
+export function GanttZoomItems({ separated }: { readonly separated: boolean }) {
+  const t = useTranslations("gantt");
+  const view = use(GanttContext);
+  if (view === undefined) {
+    return null;
+  }
+  return (
+    <>
+      {separated ? <ContextMenuSeparator /> : null}
+      {zoomCommands(view).map((command) => (
+        <ContextMenuItem
+          key={command.key}
+          disabled={!command.offered}
+          onSelect={() => {
+            view.zoomTo(command.step);
+          }}
+        >
+          {command.icon}
+          {t(command.key)}
+        </ContextMenuItem>
+      ))}
+    </>
   );
 }
 

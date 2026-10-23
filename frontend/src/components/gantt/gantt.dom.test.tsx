@@ -279,6 +279,19 @@ describe("the Gantt of the planning", () => {
     expect(server.client?.calls).toEqual([]);
   });
 
+  it("zooms by the menu of a cell too, where a narrow bar has no room for its buttons [WF-PLA-0090-A]", async () => {
+    renderPlanning();
+    fireEvent.contextMenu(ganttOf("Études"), { clientX: 300, clientY: 200 });
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Ajuster au projet" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Zoom avant" }));
+    expect(ganttOf("Études").querySelector("svg")?.style.width).not.toBe("");
+    expect(server.client?.calls).toEqual([]);
+  });
+
   // aucune exigence : propre à l'US (US-0530, la molette sur le Gantt zoomé).
   it("lets a wheel mostly downward scroll the grid, though it drifts aside, and scrolls itself by a wheel across", async () => {
     renderPlanning();

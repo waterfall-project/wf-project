@@ -34,7 +34,7 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { GanttRows, GanttZoom } from "@/components/gantt/gantt";
+import { GanttRows, GanttZoom, GanttZoomItems } from "@/components/gantt/gantt";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
@@ -63,6 +63,7 @@ import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
 import { useStructureVersion } from "./structure-version";
+import type { RowCommands } from "./undo-commands";
 
 /** What the grid of the planning shows. */
 export interface PlanningGridProps {
@@ -368,6 +369,20 @@ export function PlanningGrid({
     account,
     choices,
   );
+  // The zoom of the Gantt in the menu of a cell, after the gestures: the bar of a narrow window has no
+  // room for its buttons (`GanttZoom`).
+  const zoomed: RowCommands<PlanningNode> =
+    gestures === undefined
+      ? { bar: () => null, menu: () => <GanttZoomItems separated={false} /> }
+      : {
+          ...gestures,
+          menu: (row, opened) => (
+            <>
+              {gestures.menu(row, opened)}
+              <GanttZoomItems separated />
+            </>
+          ),
+        };
   const offered = nodes.items.length === 0 || ours !== undefined;
   return (
     <>
@@ -385,7 +400,7 @@ export function PlanningGrid({
         foldScope={structure.revision_id}
         narrowing={nodeNarrowing(filters)}
         undoable={undoable}
-        commands={gestures}
+        commands={zoomed}
         around={(rows, table) => (
           <GanttRows rows={rows} scope={`${config.key}:${structure.revision_id}`}>
             {table}
