@@ -33,7 +33,7 @@
  */
 import { Contrast, Zap } from "lucide-react";
 
-import { GanttAxis, GanttCell } from "@/components/gantt/gantt";
+import { GanttAxis, GanttCell, GanttZoom } from "@/components/gantt/gantt";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -261,6 +261,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       value: () => undefined,
       render: (node) => <GanttCell row={node} />,
       axis: (width) => <GanttAxis width={width} />,
+      corner: () => <GanttZoom />,
     },
   ],
 };

@@ -65,10 +65,14 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
   // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its thirteen headers,
-  // the number and the twelve columns, none holds a button, none says a sort.
+  // the number and the twelve columns, none holds a button but the three of the zoom in that of the
+  // Gantt, none says a sort.
   const headers = grid.getByRole("columnheader");
   await expect(headers).toHaveCount(13);
-  await expect(headers.getByRole("button")).toHaveCount(0);
+  await expect(headers.getByRole("button")).toHaveCount(3);
+  await expect(
+    headers.getByRole("group", { name: "Zoom du Gantt" }).getByRole("button"),
+  ).toHaveCount(3);
   for (const header of await headers.all()) {
     await expect(header).not.toHaveAttribute("aria-sort");
   }

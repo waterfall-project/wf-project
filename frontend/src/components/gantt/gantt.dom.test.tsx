@@ -255,24 +255,31 @@ describe("the Gantt of the planning", () => {
     );
   });
 
-  it("zooms by the bar, by Ctrl and plus or minus in the grid, by Ctrl and the wheel on the Gantt, and modifies no task [WF-PLA-0090-A]", async () => {
+  it("zooms by the buttons of its header, by Ctrl and plus or minus in the grid, by Ctrl and the wheel on the Gantt, and modifies no task [WF-PLA-0090-A]", async () => {
     renderPlanning();
     const header = screen.getAllByRole("columnheader").at(-1);
-    await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    if (header === undefined) {
+      throw new Error("no header");
+    }
+    // In the corner of the header of the Gantt, out of its name and of the order of tabulation.
+    const zoomIn = within(header).getByRole("button", { name: "Zoom avant" });
+    expect(zoomIn).toHaveAttribute("tabindex", "-1");
+    expect(header).toHaveAccessibleName("Gantt");
+    await userEvent.click(zoomIn);
     // The weeks over their days, the drawing wider than its column, which scrolls it.
-    expect(header?.textContent).toContain("9 mars 2026");
+    expect(header.textContent).toContain("9 mars 2026");
     expect(ganttOf("Études").querySelector("svg")).toHaveStyle({ width: "1464px" });
     expect(screen.getByRole("button", { name: "Zoom avant" })).toBeDisabled();
     ganttOf("Études").focus();
     await userEvent.keyboard("{Control>}-{/Control}");
-    expect(header?.textContent).toContain("avril 2026");
+    expect(header.textContent).toContain("avril 2026");
     expect(ganttOf("Études").querySelector("svg")).toHaveStyle({ width: "366px" });
     // happy-dom keeps no modifier key of a wheel event: Ctrl is held by hand.
     const wheel = new WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true });
     Object.defineProperty(wheel, "ctrlKey", { value: true });
     fireEvent(ganttOf("Études").querySelector("svg") ?? document.body, wheel);
     expect(wheel.defaultPrevented).toBe(true);
-    expect(header?.textContent).toContain("T1 2026");
+    expect(header.textContent).toContain("T1 2026");
     await userEvent.click(screen.getByRole("button", { name: "Ajuster au projet" }));
     expect(ganttOf("Études").querySelector("svg")?.style.width).toBe("");
     // Nothing is written: the grid asked the server nothing, its preferences included.

@@ -19,8 +19,8 @@
  * modifies no task.
  *
  * Its axis has two rows, in the language of the interface, at one of the levels of its scale
- * (`scale.ts`, US-0530). It opens fitted to the project, and zooms in and out by the commands of the
- * bar of the grid (`GanttZoom`), by Ctrl and plus or minus in the grid, and by Ctrl and the wheel on
+ * (`scale.ts`, US-0530). It opens fitted to the project, and zooms in and out by the commands in the
+ * corner of its header (`GanttZoom`) and in the menu of a cell (`GanttZoomItems`), by Ctrl and plus or minus in the grid, and by Ctrl and the wheel on
  * the Gantt; zoomed, its drawing scrolls in its own frame — the axis with the bars, by the scroll bar
  * of its header or the wheel —, the date at its centre kept. Neither zooming nor scrolling modifies a
  * task (WF-PLA-0090).
@@ -246,9 +246,11 @@ function zoomCommands(view: GanttView) {
 }
 
 /**
- * The commands of the zoom of the Gantt, in the bar of its grid, from a window wide enough to hold
- * them on its line (`xl`); narrower, the bar has no room left for them — they are in the menu of a
- * cell (`GanttZoomItems`) and on the keys, as the gestures of the work breakdown are.
+ * The commands of the zoom of the Gantt, icons in the upper right corner of its header, over the
+ * end of the axis and away from the handle on its left edge: seen at every width, the column being
+ * pinned at the end. Out of the order of tabulation, as the button and the handle of a header — the
+ * grid is one stop (WF-IHM-0100) —, the keyboard zooming by Ctrl and plus or minus in the grid, or by
+ * the menu of a cell (`GanttZoomItems`).
  */
 export function GanttZoom() {
   const t = useTranslations("gantt");
@@ -257,14 +259,19 @@ export function GanttZoom() {
     return null;
   }
   return (
-    <div role="group" aria-label={t("zoom")} className="hidden gap-1 xl:flex">
+    <div
+      role="group"
+      aria-label={t("zoom")}
+      className="absolute top-0.5 right-1 z-10 flex gap-0.5 rounded-sm bg-background/90"
+    >
       {zoomCommands(view).map((command) => (
         <Button
           key={command.key}
           type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 px-2"
+          variant="ghost"
+          size="icon"
+          tabIndex={-1}
+          className="size-5 [&_svg]:size-3.5"
           aria-label={t(command.key)}
           title={t(command.key)}
           disabled={!command.offered}

@@ -34,7 +34,7 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { GanttRows, GanttZoom, GanttZoomItems } from "@/components/gantt/gantt";
+import { GanttRows, GanttZoomItems } from "@/components/gantt/gantt";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
@@ -369,8 +369,8 @@ export function PlanningGrid({
     account,
     choices,
   );
-  // The zoom of the Gantt in the menu of a cell, after the gestures: the bar of a narrow window has no
-  // room for its buttons (`GanttZoom`).
+  // The zoom of the Gantt in the menu of a cell too, after the gestures, as its buttons in the header
+  // of the Gantt (`GanttZoom`).
   const zoomed: RowCommands<PlanningNode> =
     gestures === undefined
       ? { bar: () => null, menu: () => <GanttZoomItems separated={false} /> }
@@ -406,7 +406,6 @@ export function PlanningGrid({
             {table}
           </GanttRows>
         )}
-        tools={<GanttZoom />}
       />
     </>
   );

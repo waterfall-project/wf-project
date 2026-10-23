@@ -184,8 +184,6 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * around the grid, never a prop of each row (défaut n° 14).
    */
   readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
-  /** What the screen adds to the bar of the grid, before its own tools: the zoom of the Gantt. */
-  readonly tools?: ReactNode;
   /**
    * What the folds of a tree are kept for in the session, besides the grid: the revision it reads.
    */
@@ -536,7 +534,6 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   dependencies,
   undoable,
   around,
-  tools,
   foldScope,
   narrowing,
   commands,
@@ -803,7 +800,6 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         undoable={undoable}
         outline={folding.outline}
         commands={screenCommands.bar(cursor.active.row)}
-        tools={tools}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),

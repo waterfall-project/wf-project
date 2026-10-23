@@ -129,6 +129,11 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * of the Gantt —; its heading then names it to the readers of the screen alone.
    */
   readonly axis?: (width: number) => ReactNode;
+  /**
+   * What its header holds in its corner besides its heading — the zoom of the Gantt —: out of the
+   * name of the header and, as its button and handle, out of the order of tabulation.
+   */
+  readonly corner?: () => ReactNode;
 }
 
 /** The unit of a duration, kept as it was entered (WF-PLA-0160). */
