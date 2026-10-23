@@ -120,6 +120,8 @@ afterEach(() => {
 });
 
 describe("« Réexaminer » a risk", () => {
+  // The dated line of the history comes from the example `risk_reviews_reviewed`: that the review
+  // produces this date is for the back to prove, the fake back keeping no state.
   it("confirms a risk with no change, and the history of its reviews shows the review dated [WF-RIS-0010-A]", async () => {
     const client = serve();
     const { rerender } = render(detail(IDENTIFIED));

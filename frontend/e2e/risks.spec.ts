@@ -231,7 +231,7 @@ test("exports the matrix as a PNG image named after the project and its revision
   expect(download?.suggestedFilename()).toBe("matrice-des-risques-PRJ-001.png");
 });
 
-test("plays the cycle of a risk: identify it, price its own estimate, review it, declare it occurred", async ({
+test("walks the screens of the cycle of a risk: identify it, open an estimate, review it, declare it occurred, without pricing anything", async ({
   page,
 }) => {
   // The fake back keeps no state: it serves the first example of each answer — the risk declared

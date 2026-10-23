@@ -25,6 +25,8 @@ import { type Risk, RiskDetail } from "./risk-detail";
 // router the screen leaves a risk deleted by.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+// The query of the address, which a test sets before it renders.
+const address = vi.hoisted(() => ({ query: "risk=01926f3a-7c00-7000-8000-000000000751" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
@@ -32,7 +34,7 @@ vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => "/projects/01926f3a-7c00-7000-8000-000000000001/revisions/r/risks",
-  useSearchParams: () => new URLSearchParams("risk=01926f3a-7c00-7000-8000-000000000751"),
+  useSearchParams: () => new URLSearchParams(address.query),
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -81,6 +83,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   router.push.mockClear();
   router.refresh.mockClear();
+  address.query = "risk=01926f3a-7c00-7000-8000-000000000751";
 });
 
 describe("« Supprimer le risque »", () => {
@@ -135,6 +138,25 @@ describe("« Supprimer le risque »", () => {
     expect(
       screen.getAllByText("Risque « Risque de reprise du câblage » supprimé."),
     ).not.toHaveLength(0);
+  });
+
+  it("leaves the detail for the address that keeps the sort and drops the risk shown", async () => {
+    address.query =
+      "sort_by=provision_amount&sort_order=asc&risk=01926f3a-7c00-7000-8000-000000000751";
+    serve({ [DELETE]: { status: 204 } });
+    render(detail(UNCITED));
+    await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
+    await userEvent.click(
+      within(screen.getByRole("form", { name: "Supprimer le risque" })).getByRole("button", {
+        name: "Supprimer le risque",
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalledOnce();
+    });
+    expect(router.push).toHaveBeenCalledWith(
+      "/projects/01926f3a-7c00-7000-8000-000000000001/revisions/r/risks?sort_by=provision_amount&sort_order=asc",
+    );
   });
 });
 
