@@ -590,7 +590,8 @@ sa nature quand ce n'est pas la principale, et offre les autres de la révision
 (`StructureChoice`) ; ce paramètre est celui de la grille : les liens entre fonctions ne le portent
 que du planning au devis et du devis au planning, qui lisent la même structure, et jamais vers un
 autre écran, qui retombe sur la principale (`readsStructure`, `navigation/context.ts`, #1220). La
-grille se monte par structure (`key`), et le squelette ne s'offre que sur la principale (US-0500). `readOnly` —
+grille se monte par structure (`key`), et le squelette ne s'offre que sur la principale
+(US-0500). `readOnly` —
 révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
 valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
