@@ -7,7 +7,7 @@
  * the server, as in its own tests; what it composes is client parts, whose sharing only a render
  * in a document shows.
  */
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { type ReactNode, startTransition } from "react";
@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import EstimatePage from "./estimate/page";
 import type { RevisionParams } from "./page";
@@ -23,11 +23,20 @@ import PlanningPage from "./planning/page";
 
 // The server of Next, as far as the screens need it: the fake back, a client for each call; the
 // router, whose navigations a test holds; and the address the browser shows.
-const server = vi.hoisted((): { answers: FakeAnswers } => ({ answers: {} }));
+const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
+  answers: {},
+  clients: [],
+}));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 const page = vi.hoisted(() => ({ pathname: "", search: "" }));
 
-vi.mock("@/api/server", () => ({ serverClient: () => fakeClient(server.answers) }));
+vi.mock("@/api/server", () => ({
+  serverClient: () => {
+    const client = fakeClient(server.answers);
+    server.clients.push(client);
+    return client;
+  },
+}));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -156,6 +165,7 @@ function cell(row: number, column: string): HTMLElement {
 
 beforeEach(() => {
   router.push.mockReset();
+  server.clients = [];
   server.answers = {
     "GET /me": "me",
     "GET /projects/{project_id}": "project",
@@ -314,4 +324,82 @@ describe("the grid of each structure", () => {
       expect(cell(2, "label")).toHaveAttribute("tabindex", "-1");
     },
   );
+});
+
+describe("the own estimate of a risk", () => {
+  const CREATE =
+    "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
+  // The own estimate of « Risque de reprise du câblage » (`structures`).
+  const OWN = "01926f3a-7c00-7000-8000-000000000204";
+
+  /** The gestures of structure the menu of the cell of the label of a row offers. */
+  async function offeredAt(row: number): Promise<string[]> {
+    fireEvent.contextMenu(cell(row, "label"), { clientX: 300, clientY: 200 });
+    const menu = await screen.findByRole("menu", { name: "Menu de la cellule" });
+    const names = within(menu)
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent)
+      .filter((text) => /Insérer|Supprimer/.test(text));
+    await userEvent.keyboard("{Escape}");
+    return names;
+  }
+
+  /** The row of an estimate line, which the menu offers to insert a line beside. */
+  async function lineRow(): Promise<number> {
+    for (let row = 0; row < 12; row += 1) {
+      if ((await offeredAt(row)).includes("Insérer une ligne")) {
+        return row;
+      }
+    }
+    throw new Error("no line to insert beside");
+  }
+
+  it("is entered from the structure of the risk, which lists `edit_estimate` available, never from the project in progress it belongs to: the gestures of the estimate of a project in pricing, written on the structure of the risk [WF-RIS-0030-A]", async () => {
+    // The main structure of a project in progress lists `edit_estimate` unavailable
+    // (`project_before_in_progress`): its grid offers nothing to write.
+    const main = render(await tree(ESTIMATE, ""));
+    expect(await offeredAt(0)).toEqual([]);
+    main.unmount();
+    // The own estimate of a risk of the same project lists it available: it offers the gestures of
+    // the estimate of a project in pricing, whose main structure lists it too. Read from the
+    // project in progress, the grid would offer none.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_without_tasks",
+    };
+    const ofPricing = render(await tree(ESTIMATE, ""));
+    const row = await lineRow();
+    const gestures = await offeredAt(row);
+    ofPricing.unmount();
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+      // The revision lists `edit_estimate` unavailable: only the structure of the risk says.
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_offer",
+      [CREATE]: { example: "node_created", status: 201 },
+    };
+    render(await tree(ESTIMATE, `structure=${OWN}`));
+    expect(await offeredAt(row)).toEqual(gestures);
+    expect(gestures).toContain("Insérer une ligne");
+    fireEvent.contextMenu(cell(row, "label"), { clientX: 300, clientY: 200 });
+    await userEvent.click(
+      within(await screen.findByRole("menu", { name: "Menu de la cellule" })).getByRole(
+        "menuitem",
+        {
+          name: "Insérer une ligne",
+        },
+      ),
+    );
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Libellé" }), {
+      target: { value: "Note de calcul des protections" },
+    });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Créer" }));
+    await screen.findByText(/Note de calcul des protections.* créée\./);
+    const written = server.clients
+      .flatMap((client) => client.calls)
+      .filter((call) => call.route === CREATE)
+      .map((call) => call.path);
+    expect(written).toEqual([`/projects/${PROJECT}/revisions/${REVISION}/structures/${OWN}/nodes`]);
+  });
 });
