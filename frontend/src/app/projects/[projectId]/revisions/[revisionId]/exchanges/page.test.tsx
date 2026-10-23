@@ -24,6 +24,26 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The session of the contract, some of the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
@@ -91,6 +111,7 @@ function calls(route: string): string[] {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -321,4 +342,19 @@ describe("the screen of the imports and exports", () => {
     };
     await expect(exchangesAt({ import: IMPORT })).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
   });
+
+  it.each([
+    ["no limit in the address", {}, "25"],
+    ["a limit in the address, which wins over the preference", { limit: "10" }, "10"],
+  ])(
+    "reads the journal of the imports with the page size kept, %s [WF-IHM-0060-A]",
+    async (_name, search, limit) => {
+      kept.grids = { imports: { page_size: 25 } };
+      await exchangesAt(search);
+      const call = server.clients
+        .flatMap((client) => client.calls)
+        .find((each) => each.route === IMPORTS);
+      expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+    },
+  );
 });

@@ -254,6 +254,7 @@ function useWhenTaskEnded(
   const ended =
     taskId !== undefined &&
     log.some(
+      // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
       (line) =>
         line.task.task_id === taskId && (line.end === "succeeded") === (way === "succeeded"),
     );

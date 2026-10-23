@@ -41,6 +41,8 @@ vi.mock("@/api/server", () => ({
 }));
 // The session of the contract, some of its permissions withdrawn for a test: no account of the
 // witness modifies the settings of the resources without reading those of the costs.
+// The sizes of pages the account keeps, set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
 const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
@@ -52,6 +54,10 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
             permissions: session.permissions.filter(
               (permission) => !withdrawn.permissions.includes(permission),
             ),
@@ -157,6 +163,7 @@ function queriesOf(route: string): Record<string, string>[] {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   server.clients = [];
   withdrawn.permissions = [];
   server.answers = {
@@ -651,6 +658,21 @@ describe("the settings of the resources, the size of the pages", () => {
           .filter((each) => each.route === route);
         expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
       }
+    },
+  );
+
+  it.each([
+    ["the resource roles", "GET /reference/resource-roles", "resource_roles"],
+    ["the calendars", "GET /reference/calendars", "calendars"],
+  ])(
+    "reads the page size kept for %s when the address asks none [WF-IHM-0060-A]",
+    async (_name, route, key) => {
+      kept.grids = { [key]: { page_size: 25 } };
+      await resourcesAt({});
+      const call = server.clients
+        .flatMap((client) => client.calls)
+        .filter((each) => each.route === route);
+      expect(Object.fromEntries(call[0]?.query ?? []).limit).toBe("25");
     },
   );
 });

@@ -31,6 +31,26 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The session of the contract, some of the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 // The grid renders as it would, and keeps what its page handed it.
 const grids = vi.hoisted((): { costs: CostsGridProps[] } => ({ costs: [] }));
 vi.mock("@/components/costs/costs-grid", async (original) => {
@@ -94,6 +114,7 @@ function queryOf(route: string): Record<string, string> {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.costs = [];
   server.clients = [];
   server.answers = {
@@ -378,5 +399,16 @@ describe("the actual costs, the size of the pages", () => {
       .flatMap((client) => client.calls)
       .find((each) => each.route === COSTS);
     expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+});
+
+describe("the journal of the imports, the size of the pages", () => {
+  it.each([
+    ["no limit in the address", {}, "25"],
+    ["a limit in the address, which wins over the preference", { imports_limit: "10" }, "10"],
+  ])("reads it with the page size kept, %s [WF-IHM-0060-A]", async (_name, search, limit) => {
+    kept.grids = { cost_imports: { page_size: 25 } };
+    await costsAt(search);
+    expect(queryOf(IMPORTS).limit).toBe(limit);
   });
 });

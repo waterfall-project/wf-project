@@ -414,6 +414,10 @@ describe("the report of an import", () => {
       expect(within(tasks()).getByText(/Application d’un import/)).toBeVisible();
     });
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    // The task did succeed, the report not being there to lead anywhere.
+    await waitFor(() => {
+      expect(screen.getByRole("log")).toHaveTextContent("Tâche terminée : Application d’un import");
+    });
     expect(router.push).not.toHaveBeenCalled();
   });
 

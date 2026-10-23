@@ -61,6 +61,26 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => navigation.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));
@@ -147,6 +167,7 @@ function rows(markup: string, table: string): string[] {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.rates = [];
   server.clients = [];
   server.answers = {
@@ -570,6 +591,20 @@ describe("the settings of the costs, the size of the pages", () => {
         const [call] = callsTo(route);
         expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
       }
+    },
+  );
+
+  it.each([
+    ["the rates", RATES, "hourly_rates"],
+    ["the natures", "GET /reference/cost-types", "cost_types"],
+    ["the categories", "GET /reference/cost-categories", "cost_categories"],
+  ])(
+    "reads the page size kept for %s when the address asks none [WF-IHM-0060-A]",
+    async (_name, route, key) => {
+      kept.grids = { [key]: { page_size: 25 } };
+      await costsAt({});
+      const call = callsTo(route);
+      expect(Object.fromEntries(call[0]?.query ?? []).limit).toBe("25");
     },
   );
 });

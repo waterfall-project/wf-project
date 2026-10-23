@@ -45,6 +45,7 @@ import {
 } from "@/components/exchanges/offers";
 import { readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
+import type { GridPreferences } from "@/components/grid/settings";
 import { ICON } from "@/components/projects/project-tables";
 import { LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -69,9 +70,9 @@ export async function generateMetadata({
 async function readImports(
   { revision, address }: GridAddress,
   offset: number,
-  kept: number | undefined,
+  kept: Promise<GridPreferences | undefined>,
 ) {
-  const { size } = readGridQuery(address, [], undefined, CONTRACT_ADDRESS, kept);
+  const { size } = readGridQuery(address, [], undefined, CONTRACT_ADDRESS, (await kept)?.page_size);
   return readOrFail("listImports", () =>
     serverClient().GET("/projects/{project_id}/imports", {
       params: {
@@ -134,18 +135,22 @@ export default async function ExchangesPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "exchanges");
   const offset = readPage(at.address, EXCHANGES_PAGE);
-  const session = await requestSession();
-  const preferences = session?.display_preferences?.grids?.[IMPORT_GRID_KEY] ?? undefined;
-  const [reading, imports, shown] = await Promise.all([
+  const session = requestSession();
+  const preferences = session.then(
+    (account) => account?.display_preferences?.grids?.[IMPORT_GRID_KEY] ?? undefined,
+  );
+  const [reading, imports, shown, account, kept] = await Promise.all([
     // The imports take neither a sub-project nor a date: the banner shows no filter (#302).
     readProjectContext(at.pathname, at.context, []),
-    readImports(at, offset, preferences?.page_size),
+    readImports(at, offset, preferences),
     readShownImport(revision.projectId, at.address),
+    session,
+    preferences,
   ]);
   if (reading === "not_found") {
     notFound();
   }
-  const readsPlanning = session?.permissions.includes("planning.read") === true;
+  const readsPlanning = account?.permissions.includes("planning.read") === true;
   if (!readsPlanning && !listsAnImport(reading.project)) {
     notFound();
   }
@@ -181,11 +186,7 @@ export default async function ExchangesPage({
               page={imports.meta}
               shown={imports.items.length}
             />
-            <KeptListSize
-              gridKey={IMPORT_GRID_KEY}
-              address={CONTRACT_ADDRESS}
-              preferences={preferences}
-            />
+            <KeptListSize gridKey={IMPORT_GRID_KEY} address={CONTRACT_ADDRESS} preferences={kept} />
           </ImportList>
         </PendingAddress>
         <ExportPart revision={revision} offers={exportOffers(reading.revision)} />

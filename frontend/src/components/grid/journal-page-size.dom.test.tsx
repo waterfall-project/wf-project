@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -122,16 +122,51 @@ describe("the number of rows per page of the journal of the imports of actual co
     unmount();
     page.search = "";
     render(costJournal(50));
-    await new Promise((settle) => setTimeout(settle, 50));
+    // The effects having run and their calls settled, nothing was sent.
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(writes()).toEqual([]);
   });
 });
 
 describe("the number of rows per page of the imports of a project", () => {
-  it("is offered beside the pages, written in the address as `limit`, and kept apart from the other journal's [WF-IHM-0060-A]", async () => {
+  it("is offered beside the pages, written in the address as `limit` [WF-IHM-0060-A]", async () => {
     render(projectImports(50));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Lignes par page" }), "100");
     expect(router.push).toHaveBeenLastCalledWith("/screen?limit=100", { scroll: false });
+  });
+
+  it("is kept apart from the other journal's, in the address and in the settings of the grids, when both are shown [WF-IHM-0060-A]", async () => {
+    page.search = "imports_limit=25&limit=10";
+    render(
+      <>
+        {costJournal(25)}
+        {projectImports(10)}
+      </>,
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", {
+        name: "Lignes par page de «\u00a0Journal des imports\u00a0»",
+      }),
+      "50",
+    );
+    expect(router.push).toHaveBeenLastCalledWith("/screen?imports_limit=50&limit=10", {
+      scroll: false,
+    });
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Lignes par page" }), "100");
+    expect(router.push).toHaveBeenLastCalledWith("/screen?imports_limit=25&limit=100", {
+      scroll: false,
+    });
+    await waitFor(() => {
+      expect(writes()).toHaveLength(2);
+    });
+    expect(writes().map(({ body }) => body)).toEqual(
+      expect.arrayContaining([
+        { grids: { [COST_IMPORT_GRID_KEY]: { page_size: 25 } } },
+        { grids: { [IMPORT_GRID_KEY]: { page_size: 10 } } },
+      ]),
+    );
   });
 
   it("is recorded under the key of the imports once the address shows it [WF-IHM-0060-A]", async () => {

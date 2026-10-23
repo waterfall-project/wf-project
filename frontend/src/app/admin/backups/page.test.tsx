@@ -52,6 +52,8 @@ vi.mock("next/navigation", async (original) => ({
 // The session of the contract, some of its permissions withdrawn for a test: no example lacks the
 // modification of the backups alone, and one would ripple through the accounts, the roles and the
 // journal of the witness.
+// The sizes of pages the account keeps, set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
 const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
@@ -63,6 +65,10 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
             permissions: session.permissions.filter(
               (permission) => !withdrawn.permissions.includes(permission),
             ),
@@ -99,6 +105,7 @@ function queriesOf(route: string) {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   withdrawn.permissions = [];
   shown.path = "/admin/backups";
   server.clients = [];
@@ -456,5 +463,14 @@ describe("the backups, the size of the pages", () => {
       .flatMap((client) => client.calls)
       .find((each) => each.route === "GET /backups");
     expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+
+  it("reads the page size kept by the account when the address asks none [WF-IHM-0060-A]", async () => {
+    kept.grids = { backups: { page_size: 25 } };
+    await BackupsPage(searched({}));
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /backups");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
   });
 });
