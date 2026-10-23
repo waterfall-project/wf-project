@@ -1149,7 +1149,7 @@ poignée ; l'échelle et le zoom ; la frise.
 ## US-0540 — Les gestes du Kanban
 
 - **statut** : fini
-- **exigences** : `WF-RAE-0030-A`
+- **exigences** : `WF-RAE-0030-A`, `WF-IHM-0090-A`
 - **opérations** : `listStartableTasks`, `setTaskProgress`
 - **issue** : #1128
 
@@ -1179,6 +1179,15 @@ la vue qui les répartit par état.
   EP-02 ; EP-09 clôt.
 - écart : `WF-RAE-0030-A` — « Un jalon terminé que l’on rouvre est non démarré et ne contribue plus à
   la valeur acquise. » : l'état est rendu par le serveur ; la valeur acquise est d'EP-09 et EP-10.
+- `WF-IHM-0090-A` — « Sur un projet en chiffrage, la commande de terminaison est présentée
+  indisponible en nommant la condition manquante. » : sur la carte du Kanban, un geste que l'état
+  de la tâche rend momentanément impossible est présenté indisponible avec la condition qui lui
+  manque, comme le serveur la liste (`available_commands`), et un refus de l'API se dit sur la
+  carte.
+- écart : `WF-IHM-0090-A` — « Un utilisateur sans la permission de marquer une révision ne voit pas
+  cette commande. » : les permissions sont d'EP-02 et d'EP-14.
+- écart : `WF-IHM-0090-A` — « Un refus de saisie sur un projet dont l'utilisateur n'est pas
+  contributeur nomme cette condition. » : les contributeurs sont d'EP-02 et d'EP-14.
 - propre à l'US : une carte se sélectionne au clic ou au clavier, de carte en carte et de colonne en
   colonne ; les gestes se font par glisser-déposer entre colonnes, par un menu de la carte ou au
   clavier ; la réponse remplace la carte dans sa colonne ; un refus est dit sur la carte ; le focus
