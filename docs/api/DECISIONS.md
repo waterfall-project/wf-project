@@ -7498,6 +7498,33 @@ Les quatre exemples `workload*` le portent ; le front le dessine en US-0550/L5 (
 `maximum` aux heures du jour. Le type `Hours` est un décimal signé, qui n'interdit pas le négatif :
 la borne `minimum` reste, et a son exemple, `task_hours_below_zero`, un début envoyé à `-1` heure.
 
+## L'état replié d'un graphique est une préférence d'affichage, par graphique (EP-15/US-0550/L6)
+
+Décision de l'auteur du 2026-10-22 sur #1275, point 1 : la matrice des risques de l'écran d'un
+projet démarre repliée (#1252), et son dépliage se garde dans les préférences de l'utilisateur.
+
+**Une table par graphique, comme les grilles et les chronologies.** `DisplayPreferences.charts`,
+une table par nom de graphique de `ChartPreferences` — `folded`, un booléen exigé —, bornée comme
+`grids` et `timelines` (#874, #1235) : cent graphiques, des noms de 64 caractères au plus,
+`VALUE_TOO_LONG` sur `/charts` au-delà, y compris une fois la modification fusionnée. Une
+modification ne remplace que les graphiques qu'elle nomme ; un graphique à `null` retrouve l'état
+que son écran lui donne d'abord, et un graphique absent le prend aussi. `charts` à `null` et
+`folded` nul ou absent sont refusés par `VALIDATION_FAILED` à leur pointeur, comme les autres
+réglages qui ne le sont jamais. Le nom est celui du graphique sur son écran, comme celui d'une
+grille : `risk_matrix`, la matrice de l'écran des risques d'un projet, une seule préférence pour
+tous les projets — l'écran se retrouve tel que l'utilisateur l'a laissé, quel que soit le projet
+ouvert. Le back sert le champ sans table ni migration : `waterfall.core.users.personal` fusionne
+`charts` graphique par graphique, et `waterfall.api.me` en refuse le nul. Exemples
+`preferences_risk_matrix_unfolded`, dernier des réponses de `updateMyPreferences`, et
+`me_grid_settings`, qui porte la matrice dépliée ; `tools/tests/test_mockbounds.py` tient les noms
+et les états des exemples.
+
+Écartés : un booléen à la racine des préférences (`risk_matrix_folded`), qui obligerait un champ
+nouveau du contrat pour chaque graphique qui se replie ; un état par projet, une table par
+`project_id`, que la décision ne demande pas et qui ferait redéplier la matrice à chaque projet
+ouvert ; et une table par écran plutôt que par graphique, qui confondrait deux graphiques d'un même
+écran.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -45,6 +45,8 @@ USERS_GRID = {"hidden_columns": ["origin"], "column_widths": {"email": 240}, "so
 ROLES_GRID = {"column_widths": {"label": 180}, "filters": {"is_predefined": "true"}}
 # The layout of a timeline: the lane of each task placed, by its node (EP-15/US-0530).
 STEERING = {"lanes": {"n1": 0, "n2": 1}}
+# The state of a chart its screen folds: here unfolded (EP-15/US-0550).
+UNFOLDED = {"folded": False}
 
 
 def person(database: Database, realm: TestRealm, *roles: UUID, **columns: object) -> Any:
@@ -220,6 +222,26 @@ def test_the_layout_of_a_timeline_is_kept_by_timeline_and_forgotten_when_sent_nu
     assert preferences_of(database, user_id) == forgotten.json()
 
 
+@pytest.mark.requirement("WF-ADM-0040-A")
+def test_the_state_of_a_chart_is_kept_by_chart_and_forgotten_when_sent_null(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # The risk matrix of a project unfolded is found unfolded again, on every project, until the
+    # person folds it or forgets it: it then starts as its screen has it (EP-15/US-0550, #1252).
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    response = api.patch(PREFERENCES, headers=headers, json={"charts": {"risk_matrix": UNFOLDED}})
+    assert response.status_code == 200, response.text
+    assert response.json() == {"theme": "dark", "charts": {"risk_matrix": UNFOLDED}}
+    assert api.get(ME, headers=headers).json()["display_preferences"]["charts"] == {
+        "risk_matrix": UNFOLDED
+    }
+    folded = api.patch(PREFERENCES, headers=headers, json={"charts": {"other": {"folded": True}}})
+    assert folded.json()["charts"] == {"risk_matrix": UNFOLDED, "other": {"folded": True}}
+    forgotten = api.patch(PREFERENCES, headers=headers, json={"charts": {"risk_matrix": None}})
+    assert forgotten.json() == {"theme": "dark", "charts": {"other": {"folded": True}}}
+    assert preferences_of(database, user_id) == forgotten.json()
+
+
 @pytest.mark.parametrize(
     ("sent", "pointer"),
     [
@@ -232,6 +254,9 @@ def test_the_layout_of_a_timeline_is_kept_by_timeline_and_forgotten_when_sent_nu
         ({"timelines": None}, "/timelines"),
         ({"timelines": {"t1": {"lanes": None}}}, "/timelines/t1/lanes"),
         ({"timelines": {"t1": {}}}, "/timelines/t1/lanes"),
+        ({"charts": None}, "/charts"),
+        ({"charts": {"risk_matrix": {"folded": None}}}, "/charts/risk_matrix/folded"),
+        ({"charts": {"risk_matrix": {}}}, "/charts/risk_matrix/folded"),
         (
             {"grids": {"users": {"column_widths": {"email": 19}}}},
             "/grids/users/column_widths/email",
@@ -287,6 +312,8 @@ BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
     ),
     ({"timelines": {LONG: None}}, ("/timelines", "VALUE_TOO_LONG")),
     ({"timelines": {"t1": {"lanes": {LONG: 0}}}}, ("/timelines/t1/lanes", "VALUE_TOO_LONG")),
+    ({"charts": {f"c{rank}": None for rank in range(101)}}, ("/charts", "VALUE_TOO_LONG")),
+    ({"charts": {LONG: None}}, ("/charts", "VALUE_TOO_LONG")),
 ]
 
 
@@ -306,7 +333,7 @@ def test_preferences_that_pass_a_bound_are_refused_and_nothing_is_written(
     assert preferences_of(database, user_id) == {"theme": "dark"}
 
 
-@pytest.mark.parametrize("table", ["timelines", "grids"])
+@pytest.mark.parametrize("table", ["timelines", "grids", "charts"])
 def test_a_table_the_changes_would_take_past_a_hundred_entries_is_refused_and_kept(
     api: ContractClient, database: Database, realm: TestRealm, table: str
 ) -> None:
@@ -314,7 +341,7 @@ def test_a_table_the_changes_would_take_past_a_hundred_entries_is_refused_and_ke
     # more: the second change would hold a hundred and one, and is refused on the table, nothing
     # written; forty, the hundred, are written.
     def entries(first: int, count: int) -> dict[str, Any]:
-        entry = STEERING if table == "timelines" else USERS_GRID
+        entry = {"timelines": STEERING, "charts": UNFOLDED}.get(table, USERS_GRID)
         return {f"e{rank}": entry for rank in range(first, first + count)}
 
     user_id, headers = person(database, realm)
