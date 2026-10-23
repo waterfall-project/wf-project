@@ -377,6 +377,24 @@ def test_the_examples_keep_the_lines_per_page_and_the_lanes_of_the_timelines_adm
     assert {"me_grid_settings.json", "preferences_timeline_lanes.json"} <= set(lanes)
 
 
+CHARTS = {"risk_matrix"}
+"""The charts a screen folds, by the name the preferences keep them under (EP-15/US-0550)."""
+
+
+def test_the_examples_keep_the_state_of_a_chart_by_its_name_folded_or_not() -> None:
+    # A chart the screen folds keeps its state by its name, `folded` a boolean, always sent.
+    schema = schema_text(API / "components" / "schemas" / "access.yaml", "ChartPreferences")
+    assert "required: [folded]" in schema
+    kept: list[str] = []
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        for entry in _walk(json.loads(path.read_text(encoding="utf-8"))["value"]):
+            for name, chart in cast("dict[str, Any]", entry.get("charts") or {}).items():
+                assert name in CHARTS, path.name
+                assert isinstance(chart["folded"], bool), path.name
+                kept.append(path.name)
+    assert {"me_grid_settings.json", "preferences_risk_matrix_unfolded.json"} <= set(kept)
+
+
 def test_a_value_out_of_range_without_its_bound_is_only_a_number_of_lines_per_page() -> None:
     # `VALUE_OUT_OF_RANGE` names the bound crossed, an admitted value; only an integer that is none
     # of the four numbers of lines per page has none to name (#1045). A bound that excludes its

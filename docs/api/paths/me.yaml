@@ -66,8 +66,9 @@
       Préférences personnelles, cantonnées à la présentation ; nul ne modifie celles
       d'un autre (WF-ADM-0040). La langue en fait partie et s'applique sans
       reconnexion (WF-INTF-0160), comme le nombre de lignes par page de chaque table plate
-      (`GridPreferences.page_size`, WF-IHM-0060) et la disposition de chaque chronologie en
-      frise (`timelines`, WF-PLA-0140).
+      (`GridPreferences.page_size`, WF-IHM-0060), la disposition de chaque chronologie en
+      frise (`timelines`, WF-PLA-0140) et l'état replié ou déplié de chaque graphique
+      (`charts`, EP-15/US-0550).
     requestBody:
       required: true
       content:
@@ -84,6 +85,7 @@
               dark: { $ref: ../../../fixtures/api/preferences_dark.json }
               page_size: { $ref: ../../../fixtures/api/preferences_page_size.json }
               timeline_lanes: { $ref: ../../../fixtures/api/preferences_timeline_lanes.json }
+              risk_matrix_unfolded: { $ref: ../../../fixtures/api/preferences_risk_matrix_unfolded.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '422':
@@ -96,15 +98,15 @@
           `/timelines/<chronologie>/lanes/<tâche>` par `VALUE_OUT_OF_RANGE`,
           `fields[].params.minimum` à `0`. Un nombre de lignes par page autre que 10, 25, 50 ou
           100 (`GridPreferences`, C-351) : `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`,
-          sans paramètre. Une préférence plus grande que ses bornes — plus de cent grilles ou de
-          cent chronologies, un nom de grille, de colonne, de filtre, de chronologie ou de tâche
-          de plus de 64 caractères, plus de 64 colonnes masquées, largeurs ou tâches placées,
+          sans paramètre. Une préférence plus grande que ses bornes — plus de cent grilles, de
+          cent chronologies ou de cent graphiques, un nom de grille, de colonne, de filtre, de
+          chronologie, de tâche ou de graphique de plus de 64 caractères, plus de 64 colonnes masquées, largeurs ou tâches placées,
           plus de 20 filtres, un filtre de plus de 500 caractères (`DisplayPreferences`, #874) — :
-          `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Les cent grilles
-          et les cent chronologies bornent aussi ce que les préférences gardent, une fois la
-          modification fusionnée à ce qu'elles étaient : une modification qui porterait `grids`
-          ou `timelines` au-delà de cent entrées est refusée sur `/grids` ou `/timelines` par
-          `VALUE_TOO_LONG` (#1235) ; une modification qui ne les accroît pas ne l'est jamais pour
+          `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Les cent grilles,
+          chronologies et graphiques bornent aussi ce que les préférences gardent, une fois la
+          modification fusionnée à ce qu'elles étaient : une modification qui porterait `grids`,
+          `timelines` ou `charts` au-delà de cent entrées est refusée sur `/grids`, `/timelines`
+          ou `/charts` par `VALUE_TOO_LONG` (#1235) ; une modification qui ne les accroît pas ne l'est jamais pour
           leur taille. Rien n'est enregistré dans Waterfall. Une réserve : ce refus au-delà de
           cent entrées, qui se juge sur les préférences du compte verrouillé, vient après que la
           langue envoyée a été transmise au fournisseur d'identité (WF-INTF-0160), qui a pu la

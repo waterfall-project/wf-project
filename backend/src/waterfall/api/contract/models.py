@@ -534,6 +534,15 @@ class TimelinePreferences(ContractModel):
     ]
 
 
+class ChartPreferences(ContractModel):
+    folded: Annotated[
+        bool,
+        Field(
+            description="Replié (`true`) ou déplié (`false`). Exigé : un graphique qui retrouve l'état de son écran s'envoie à `null`, entier."
+        ),
+    ]
+
+
 class Language1(StrEnum):
     default = "default"
     fr = "fr"
@@ -568,6 +577,13 @@ class DisplayPreferences(ContractModel):
         dict[Annotated[str, StringConstraints(max_length=64)], TimelinePreferences | None] | None,
         Field(
             description="La disposition de chaque chronologie que l'utilisateur a arrangée, par son `timeline_id` : une préférence d'affichage, propre à chacun (WF-ADM-0040, WF-PLA-0140).",
+            max_length=100,
+        ),
+    ] = None
+    charts: Annotated[
+        dict[Annotated[str, StringConstraints(max_length=64)], ChartPreferences | None] | None,
+        Field(
+            description="L'état de chaque graphique que l'utilisateur a replié ou déplié, par le nom du graphique sur son écran — `risk_matrix`, la matrice des risques de l'écran d'un projet, la même pour tous ses projets : une préférence d'affichage, propre à chacun (WF-ADM-0040, EP-15/US-0550).",
             max_length=100,
         ),
     ] = None

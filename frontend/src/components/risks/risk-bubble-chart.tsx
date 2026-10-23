@@ -33,6 +33,9 @@ import {
   escapeHtml,
   useProvenance,
 } from "@/components/chart/chart";
+import { updateChartPreferences } from "@/api/actions/preferences";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { useKeptWriter } from "@/components/grid/settings";
 import { usePendingAddress } from "@/components/grid/pending-address";
 import { formatMoney, formatPercent, formatLocale } from "@/i18n/format";
 import type { PortfolioScope } from "@/components/portfolio/address";
@@ -60,6 +63,9 @@ const STATE_STYLE: Readonly<
   occurred: { rank: 1, symbol: "diamond" },
   dismissed: { rank: 2, symbol: "triangle" },
 };
+
+/** The name the state of the matrix of a project is kept under: one for all the projects. */
+const CHART_KEY = "risk_matrix";
 
 /** The stroke of the sides of each zone, a second mark of the zone beside its name. */
 const ZONE_STROKE: Readonly<Record<AlertZone, "solid" | "dashed" | "dotted">> = {
@@ -150,6 +156,8 @@ export interface RiskBubbleChartProps {
   readonly onOpen: (point: Point) => void;
   /** Whether the drawing starts folded, to keep the grid of the screen in its window. */
   readonly folded?: boolean;
+  /** Called with the state a command gave the drawing, when the chart can be folded. */
+  readonly onFold?: (folded: boolean) => void;
 }
 
 /** Render the bubble chart of the matrix, and under it the count of its cells. */
@@ -158,7 +166,8 @@ export function RiskBubbleChart({
   states,
   exported,
   onOpen,
-  folded = false,
+  folded,
+  onFold,
 }: RiskBubbleChartProps) {
   const t = useTranslations();
   const locale = useLocale();
@@ -390,7 +399,8 @@ export function RiskBubbleChart({
       option={option}
       exported={exported}
       onPoint={open}
-      folded={folded}
+      {...(folded === undefined ? {} : { folded })}
+      {...(onFold === undefined ? {} : { onFold })}
     >
       <RiskCountsTable matrix={matrix} />
     </Chart>
@@ -406,6 +416,8 @@ export interface ProjectRiskMatrixProps {
   readonly provenance: ChartProvenance;
   /** The instant the revision is computed at (`context.computed_at`). */
   readonly computedAt: string;
+  /** Whether the drawing starts folded: the state the account kept, folded when it kept none. */
+  readonly folded: boolean;
 }
 
 /** Render the matrix of the risks of a project: a bubble opens the detail of its risk. */
@@ -414,21 +426,31 @@ export function ProjectRiskMatrix({
   states,
   provenance,
   computedAt,
+  folded,
 }: ProjectRiskMatrixProps) {
   const t = useTranslations("risks.matrix");
   const pathname = usePathname();
   const { request } = usePendingAddress();
   const exported = useProvenance(provenance, t("title"), computedAt, t("file"));
+  // The state is kept as soon as it is given, without waiting for the answer; a refusal is told.
+  const { record, flush, outcome, clear } = useKeptWriter(CHART_KEY, updateChartPreferences);
   return (
-    <RiskBubbleChart
-      matrix={matrix}
-      states={states}
-      exported={exported}
-      folded
-      onOpen={(point) => {
-        request((query) => riskHref(pathname, query, point.risk_id));
-      }}
-    />
+    <>
+      <RiskBubbleChart
+        matrix={matrix}
+        states={states}
+        exported={exported}
+        folded={folded}
+        onFold={(now) => {
+          record({ folded: now });
+          flush();
+        }}
+        onOpen={(point) => {
+          request((query) => riskHref(pathname, query, point.risk_id));
+        }}
+      />
+      <OutcomeNotice outcome={outcome} onClear={clear} dismissible />
+    </>
   );
 }
 

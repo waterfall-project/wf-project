@@ -228,7 +228,7 @@ export interface Examples {
     200: "backup_released" | "backup_retained";
   };
   "PATCH /me/preferences": {
-    200: "preferences" | "preferences_dark" | "preferences_page_size" | "preferences_timeline_lanes";
+    200: "preferences" | "preferences_dark" | "preferences_page_size" | "preferences_risk_matrix_unfolded" | "preferences_timeline_lanes";
   };
   "PATCH /projects/{project_id}": {
     200: "project_updated";

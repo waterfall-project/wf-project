@@ -118,15 +118,18 @@ export function recordedPreferences(
 }
 
 /** What the writer of the settings gives the grid. */
-export interface SettingsWriter {
+export type SettingsWriter = KeptWriter<GridPreferences>;
+
+/** What a writer of preferences gives its screen, whatever the preferences it keeps (`P`). */
+export interface KeptWriter<P> {
   /** Record preferences once the user pauses — or once the page is shown, if it is awaited. */
-  readonly record: (preferences: GridPreferences) => void;
+  readonly record: (preferences: P) => void;
   /**
    * Record preferences once the page shows what they go with (`shown`), built then — from the
    * settings of that moment —, whatever waited dropped: they replace it. Left, hidden or gone
    * before, the page writes them as it writes what waits.
    */
-  readonly recordShown: (build: () => GridPreferences) => void;
+  readonly recordShown: (build: () => P) => void;
   /** The page shows what it was asked: record at once what awaited it, if anything. */
   readonly shown: () => void;
   /** Record at once what waits, if anything. */
@@ -139,23 +142,34 @@ export interface SettingsWriter {
 
 /** Record the settings of a grid under its key: after a pause, or once the page is shown. */
 export function useSettingsWriter(grid: string): SettingsWriter {
+  return useKeptWriter(grid, updateGridPreferences);
+}
+
+/**
+ * Record the preferences of one key — a grid, a chart — with the action that writes them: after a
+ * pause, or once the page is shown, the outcome of the last write alone being told.
+ */
+export function useKeptWriter<P>(
+  grid: string,
+  write: (key: string, preferences: P) => Promise<Settled>,
+): KeptWriter<P> {
   const [outcome, setOutcome] = useState<Settled>();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // What waits, built as it is written; and whether it awaits the page shown rather than a pause.
-  const waiting = useRef<() => GridPreferences>(undefined);
+  const waiting = useRef<() => P>(undefined);
   const awaitsPage = useRef(false);
   const latest = useRef(0);
 
   const send = useCallback(
-    async (sent: GridPreferences) => {
+    async (sent: P) => {
       latest.current += 1;
-      const write = latest.current;
-      const result = await updateGridPreferences(grid, sent);
-      if (write === latest.current) {
+      const order = latest.current;
+      const result = await write(grid, sent);
+      if (order === latest.current) {
         setOutcome(result.kind === "done" ? undefined : result);
       }
     },
-    [grid],
+    [grid, write],
   );
 
   const flush = useCallback(() => {
@@ -187,7 +201,7 @@ export function useSettingsWriter(grid: string): SettingsWriter {
   }, [flush]);
 
   const record = useCallback(
-    (preferences: GridPreferences) => {
+    (preferences: P) => {
       // Awaiting the page, what waits is built once it is shown, from the settings of then: this
       // change among them.
       if (awaitsPage.current) {
@@ -199,7 +213,7 @@ export function useSettingsWriter(grid: string): SettingsWriter {
     },
     [flush],
   );
-  const recordShown = useCallback((build: () => GridPreferences) => {
+  const recordShown = useCallback((build: () => P) => {
     clearTimeout(timer.current);
     waiting.current = build;
     awaitsPage.current = true;

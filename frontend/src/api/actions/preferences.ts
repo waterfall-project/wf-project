@@ -15,6 +15,7 @@ import { serverClient } from "@/api/server";
 
 type DisplayPreferences = components["schemas"]["DisplayPreferences"];
 type GridPreferences = components["schemas"]["GridPreferences"];
+type ChartPreferences = components["schemas"]["ChartPreferences"];
 
 /**
  * Record a display preference of the account, and render the page again: the next render
@@ -65,6 +66,22 @@ export async function updateGridPreferences(
   return settled(
     await decode(() =>
       serverClient().PATCH("/me/preferences", { body: { grids: { [grid]: preferences } } }),
+    ),
+  );
+}
+
+/**
+ * Record the state of one chart — folded or unfolded — under its name, which the API replaces
+ * alone among the charts (EP-15/US-0550). The page is not rendered again: the chart already shows
+ * the state it records.
+ */
+export async function updateChartPreferences(
+  chart: string,
+  preferences: ChartPreferences,
+): Promise<Settled> {
+  return settled(
+    await decode(() =>
+      serverClient().PATCH("/me/preferences", { body: { charts: { [chart]: preferences } } }),
     ),
   );
 }

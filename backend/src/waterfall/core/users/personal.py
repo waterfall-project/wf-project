@@ -20,9 +20,10 @@ from waterfall.core.users.accounts import lock_account
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.errors import FieldError, UnprocessableError
 
-# The settings of each grid, by the name of the grid (WF-IHM-0060), and the layout of each
-# timeline, by its identifier (WF-PLA-0140): tables whose entries a change replaces one by one.
-TABLES = ("grids", "timelines")
+# The settings of each grid, by the name of the grid (WF-IHM-0060), the layout of each timeline,
+# by its identifier (WF-PLA-0140), and the state of each chart, folded or not, by the name of the
+# chart (EP-15/US-0550): tables whose entries a change replaces one by one.
+TABLES = ("grids", "timelines", "charts")
 # The entries a table holds at most, once a change applies as when it is sent (#874, #1235).
 MOST_ENTRIES = 100
 VALIDATION_FAILED = "VALIDATION_FAILED"
@@ -37,7 +38,8 @@ def merged(current: Mapping[str, Any], sent: Mapping[str, Any]) -> dict[str, Any
     """Give the preferences once a change applies: only what it carries changes.
 
     In ``grids``, only the grids it names, each replaced whole; a grid sent ``None`` is forgotten,
-    and finds its settings by default again. So in ``timelines``, by timeline (EP-15/US-0530).
+    and finds its settings by default again. So in ``timelines``, by timeline (EP-15/US-0530), and
+    in ``charts``, by chart (EP-15/US-0550).
 
     The preferences are read with the account at each request: a table grows by successive
     changes no further than one change may carry, a hundred entries, and a change that would take

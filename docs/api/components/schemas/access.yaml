@@ -266,9 +266,12 @@ DisplayPreferences:
     La disposition de chaque chronologie l'est de même dans `timelines`, par chronologie
     (WF-PLA-0140, EP-15/US-0530) : une modification ne remplace que les chronologies qu'elle
     nomme, chacune entière, et une chronologie à `null` retrouve sa disposition automatique.
+    L'état de chaque graphique l'est de même dans `charts`, par graphique (EP-15/US-0550) : une
+    modification ne remplace que les graphiques qu'elle nomme, et un graphique à `null` retrouve
+    l'état que son écran lui donne d'abord.
     Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
-    (#874) — cent grilles et cent chronologies au plus, des noms de grille, de colonne, de
-    filtre, de chronologie et de tâche de 64 caractères au plus ; par grille, 64 colonnes
+    (#874) — cent grilles, cent chronologies et cent graphiques au plus, des noms de grille, de
+    colonne, de filtre, de chronologie, de tâche et de graphique de 64 caractères au plus ; par grille, 64 colonnes
     masquées ou élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au
     plus ; par chronologie, 64 tâches placées au plus. Une préférence qui passe une borne est
     refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
@@ -306,6 +309,31 @@ DisplayPreferences:
       propertyNames: { maxLength: 64 }
       additionalProperties:
         anyOf: [{ $ref: '#/TimelinePreferences' }, { type: 'null' }]
+    charts:
+      type: object
+      description: >-
+        L'état de chaque graphique que l'utilisateur a replié ou déplié, par le nom du graphique
+        sur son écran — `risk_matrix`, la matrice des risques de l'écran d'un projet, la même
+        pour tous ses projets : une préférence d'affichage, propre à chacun (WF-ADM-0040,
+        EP-15/US-0550).
+      maxProperties: 100
+      propertyNames: { maxLength: 64 }
+      additionalProperties:
+        anyOf: [{ $ref: '#/ChartPreferences' }, { type: 'null' }]
+
+ChartPreferences:
+  type: object
+  required: [folded]
+  description: >-
+    L'état d'un graphique qui se replie (EP-15/US-0550) : replié, l'écran n'en montre que le
+    titre et le bouton qui le déplie ; un graphique absent des préférences prend l'état que son
+    écran lui donne d'abord — replié pour la matrice des risques d'un projet (#1252).
+  properties:
+    folded:
+      type: boolean
+      description: >-
+        Replié (`true`) ou déplié (`false`). Exigé : un graphique qui retrouve l'état de son
+        écran s'envoie à `null`, entier.
 
 TimelinePreferences:
   type: object
