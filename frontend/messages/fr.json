@@ -1093,6 +1093,14 @@
     "winProbability": "Probabilité de gain",
     "revisions": "Révisions"
   },
+  "riskForm": {
+    "identify": "Identifier un risque",
+    "identifyHint": "Le risque ouvre son devis propre, où se chiffrent ses tâches et ses lignes ; sa provision, calculée, se range sur une tâche de la structure principale.",
+    "identified": "Risque « {name} » identifié.",
+    "probability": "Probabilité (%)",
+    "task": "Tâche de la provision",
+    "firstTask": "Première tâche de premier niveau"
+  },
   "projectForm": {
     "create": "Créer un projet",
     "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",

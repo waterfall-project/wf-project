@@ -999,8 +999,17 @@ une colonne à côté de la grille qui garde de quoi le lire (la page défile da
 retirée à la survenance, avec la catégorie et le sous-projet que le risque désigne pour elle, par les
 libellés que le serveur résout — la catégorie dite désactivée quand elle ou sa nature l'est
 (`provision_cost_category_is_active`), la provision hors sous-projet quand il n'en désigne aucun
-(EP-14/L42p) —, historique des réexamens. L'écran ne déclare, ne modifie ni ne réexamine aucun
-risque : la maquette n'en a pas le formulaire. Le libellé d'un risque est un lien hors de la
+(EP-14/L42p) —, historique des réexamens. « Identifier un risque » (`risk-commands.tsx`), dans
+l'en-tête de l'écran, suit `declare_risk` comme la révision de la route le liste : absente, rien ; indisponible,
+décrite par la condition qui manque (`at_least_one_task`, `active_provision_category`) ; disponible, elle ouvre
+le formulaire `risk-form.tsx` (`ReferenceForm`) — libellé, description, actions de mitigation, probabilité en
+pourcentage envoyée en rapport, catégorie de la provision demandée seulement quand plusieurs catégories actives
+de type provision se proposent, sous-projet et tâche porteuse facultatifs, lus par la page quand une commande
+les demande (`provision-options.ts`) —, dit le 409 sous le formulaire et, la création faite, ouvre le devis
+propre du risque (`structure_id`) dans la grille de devis, pour une session qui lit le devis. La commande attend,
+inactive, qu'une écriture de son formulaire fermé soit répondue (défaut n° 24 de `typescript.md`). La
+modification, le réexamen, la suppression et la survenance viennent avec US-0520/L2b et L3 ; le registre ne se
+pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 

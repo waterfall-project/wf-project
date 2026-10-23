@@ -53,6 +53,7 @@ import type { Project } from "@/components/context/reading";
 import { noteMessage } from "@/components/notices/message-history";
 import { useSaid } from "@/components/notices/said";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
+import { inPercent } from "@/components/reference/in-percent";
 import { Reactivations } from "@/components/reference/reactivation";
 import {
   type Draft,
@@ -62,7 +63,7 @@ import {
   WritingNote,
 } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
-import { editablePercent, percentRatio, ratioPercent } from "@/i18n/format";
+import { editablePercent, percentRatio } from "@/i18n/format";
 
 import { SettingsFacts } from "./project-facts";
 
@@ -72,9 +73,6 @@ const CODE_LENGTH = 50;
 
 /** The rates of a project, entered as percentages, which the server bounds as ratios (EP-14/L42i). */
 const RATES: ReadonlySet<string> = new Set(["/inflation_rate", "/win_probability"]);
-
-/** The bounds a refusal by field may name. */
-const BOUNDS: ReadonlySet<string> = new Set(["minimum", "maximum"]);
 
 /** An optional text as the contract writes it: none when left empty. */
 function orNull(value: string | undefined): string | null {
@@ -173,30 +171,6 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
 }
 
 /**
- * A refusal of the rates as the form says it: each bound the server names in a ratio (`1`), said in
- * the percentage the field enters (`100`); any other answer as it is.
- */
-function inPercent(answer: Outcome<Project>): Outcome<Project> {
-  if (!("problem" in answer) || answer.problem.fields === undefined) {
-    return answer;
-  }
-  const fields = answer.problem.fields.map((field) =>
-    RATES.has(field.pointer) && field.params !== undefined
-      ? {
-          ...field,
-          params: Object.fromEntries(
-            Object.entries(field.params).map(([key, value]) => [
-              key,
-              BOUNDS.has(key) && typeof value === "string" ? (ratioPercent(value) ?? value) : value,
-            ]),
-          ),
-        }
-      : field,
-  );
-  return { ...answer, problem: { ...answer.problem, fields } };
-}
-
-/**
  * The field of the probability of winning, as the project lists its command
  * (`update_win_probability`): a number, available; shown fixed otherwise, the conditions it lacks
  * said under it.
@@ -284,7 +258,7 @@ function UpdateForm({
       answering={(answer) =>
         answer.kind === "done" && answer.data.project_id !== project.project_id
           ? ANOTHER_OBJECT
-          : inPercent(answer)
+          : inPercent(answer, RATES)
       }
       onDone={onDone}
       onWriting={onWriting}

@@ -17,9 +17,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { readValues } from "@/components/grid/filters";
@@ -29,6 +31,8 @@ import { readRisk, RISK_STATES, type RiskState, STATES } from "@/components/risk
 import { FiguresGrid } from "@/components/figures-card";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
+import { readProvisionOptions } from "@/components/risks/provision-options";
+import { IdentifyRisk } from "@/components/risks/risk-commands";
 import { RiskDetail } from "@/components/risks/risk-detail";
 import {
   RISK_GRID,
@@ -44,6 +48,7 @@ import { RiskStateFilter } from "@/components/risks/state-filter";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
+import { functionHref, functionOf } from "@/navigation/functions";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
@@ -134,8 +139,8 @@ async function readDetail({ revision }: GridAddress, risk: string | undefined) {
   return { risk: read, reviews };
 }
 
-/** The title of the screen, and how many risks the grid holds. */
-function RisksHeader({ count }: { readonly count: number }) {
+/** The title of the screen, how many risks the grid holds, and its commands. */
+function RisksHeader({ count, actions }: { readonly count: number; readonly actions: ReactNode }) {
   const t = useTranslations();
   return (
     <PageHeader
@@ -143,6 +148,7 @@ function RisksHeader({ count }: { readonly count: number }) {
       icon={FUNCTION_ICONS.risks}
       density={FUNCTION_DENSITY.risks}
       subtitle={t("risks.summary", { risks: count })}
+      actions={actions}
     />
   );
 }
@@ -193,30 +199,62 @@ export default async function RisksPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "risks");
   const states = readValues(at.address, STATES, RISK_STATES);
-  const settings = requestSession().then(
-    (session) => session?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
+  const session = requestSession();
+  const settings = session.then(
+    (kept) => kept?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
   );
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
-  const [reading, risks, coverage, matrix, detail, preferences, query] = await Promise.all([
-    // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
-    readProjectContext(at.pathname, at.context, []),
-    readRisks(at, states, asked),
-    readCoverage(at),
-    readMatrix(at),
-    readDetail(at, readRisk(at.address)),
-    settings,
-    asked,
-  ]);
-  if (reading === "not_found") {
+  // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
+  const reading = readProjectContext(at.pathname, at.context, []);
+  // « Identifier un risque » as the revision lists `declare_risk`: the choices of the provision are
+  // read as soon as the revision is, beside the other reads, when the command is available.
+  const declare = reading.then((read) =>
+    read === "not_found" || read.revision === undefined
+      ? undefined
+      : findOffer(read.revision.available_commands, "declare_risk"),
+  );
+  const options = declare.then((offer) =>
+    offer?.is_available === true
+      ? readProvisionOptions(at.revision.projectId, at.revision.revisionId)
+      : undefined,
+  );
+  const [read, risks, coverage, matrix, detail, preferences, query, offer, choices, kept] =
+    await Promise.all([
+      reading,
+      readRisks(at, states, asked),
+      readCoverage(at),
+      readMatrix(at),
+      readDetail(at, readRisk(at.address)),
+      settings,
+      asked,
+      declare,
+      options,
+      session,
+    ]);
+  if (read === "not_found") {
     notFound();
   }
+  // The own estimate of a risk opens in the estimate of the revision, for a session that reads it.
+  const estimate = kept?.permissions.includes("estimate.read")
+    ? functionHref(functionOf("estimate"), at.context)
+    : undefined;
   return (
     <>
-      <ContextBanner reading={reading} />
+      <ContextBanner reading={read} />
       {/* The filter, the grid and the links compose the changes they make to the address. */}
       <PendingAddress>
         <Screen density={FUNCTION_DENSITY.risks} fillWide>
-          <RisksHeader count={risks.items.length} />
+          <RisksHeader
+            count={risks.items.length}
+            actions={
+              <IdentifyRisk
+                projectId={at.revision.projectId}
+                offer={offer}
+                options={choices}
+                estimate={estimate}
+              />
+            }
+          />
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <FiguresGrid className="min-w-0 grow basis-[40rem]">
               <ProvisionSummary totals={risks.totals} />
@@ -225,7 +263,7 @@ export default async function RisksPage({
             <RiskStateFilter states={states} />
           </div>
           <RiskMatrixSection
-            reading={reading}
+            reading={read}
             matrix={matrix}
             states={states}
             computedAt={coverage.context.computed_at}

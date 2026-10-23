@@ -7007,6 +7007,11 @@ hors de cette partie, tranchés par l'auteur le 2026-10-21 (#1227) et portés pa
   réexamen.
 - `risk_provision_task_refused` (422) : une provision désignée sur la « Reprise des essais de
   câblage », que seul l'avenant 2 porte (corrélation 1193).
+- `risk_probability_out_of_range` (422) : une probabilité de 120, un pourcentage envoyé pour un
+  rapport, refusée sur `/probability` par `VALUE_OUT_OF_RANGE`, `params.maximum` à `1`
+  (corrélation 1306). Celui-là est écrit à la main, hors de `paths.toml` : un refus statique, que
+  rien du témoin ne fait varier, comme `project_rates_out_of_range`. Le front s'en sert pour dire
+  la borne en pourcentage ; le schéma la dit sur `RiskWrite.probability`.
 
 Le résumé de `risk_created` s'ouvre par « Variante contrefactuelle », comme le veut la convention
 de #1196 (#1228).
@@ -7134,7 +7139,8 @@ ses exemples : le back ne sert pas encore `moveNodes`.
 **Les corrélations écrites à la main ouvrent une nouvelle plage** (#1228). La famille
 « corrélations, suite » (1010-1199) étant presque épuisée, « corrélations, seconde suite »
 (1300-1599, `wftools.mockids`) la prolonge après les nœuds de l'avenant 2 ; les exemples de ce lot
-l'emploient, de 1300 à 1304.
+l'emploient, de 1300 à 1304. Les suivantes la prennent après eux : 1305 pour
+`task_hours_beyond_day` (US-0470/L2), 1306 pour `risk_probability_out_of_range` (US-0520/L2).
 
 ## Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550)
 
