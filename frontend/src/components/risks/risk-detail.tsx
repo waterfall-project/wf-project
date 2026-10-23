@@ -159,8 +159,8 @@ export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProp
         </h2>
         <CloseRiskDetail />
       </div>
-      {/* Keyed by the risk: the form, the answer and the status of a risk never outlive it. */}
-      <ModifyRisk key={risk.risk_id} projectId={projectId} risk={risk} options={options} />
+      {/* Keeps by risk what a write leaves; the form and the status of a risk never outlive it. */}
+      <ModifyRisk projectId={projectId} risk={risk} options={options} />
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <Fact name={t("grid.columns.state")}>{t(`enums.RiskState.${risk.state}`)}</Fact>
         <Fact name={t("grid.columns.probability")}>{formatPercent(risk.probability, locale)}</Fact>

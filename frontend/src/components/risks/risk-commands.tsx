@@ -20,8 +20,8 @@
  * and saying why, while a write of their form is under way — its dialog closed — (défaut n° 24 de
  * `typescript.md`): a form opened anew would write from the version the answer is about to replace.
  * An answer closes the opening it was sent from, never one opened since, and leads away only from
- * the screen it was sent from. The modification answered is shown in the detail while it is newer
- * than the risk read; the page is read anew.
+ * the screen it was sent from. The modification answered is shown by the command and its form while it
+ * is newer than the risk read; the page is read anew.
  *
  * Every prop is data, never a function: a server component hands it over (défaut n° 12 de
  * `typescript.md`). The address of the estimate is the base the structure is added to.
@@ -66,9 +66,15 @@ function estimateOf(base: string, structure: string): string {
  * The form a command opens, and what it keeps of its openings: how many there were, which is open,
  * whether a write is under way, and the control to give the focus back to once it has closed.
  */
-function useRiskDialog() {
+function useRiskDialog(kept?: {
+  readonly writing: boolean;
+  readonly setWriting: (writing: boolean) => void;
+}) {
   const [open, setOpen] = useState<number>();
-  const [writing, setWriting] = useState(false);
+  const [ownWriting, setOwnWriting] = useState(false);
+  // The state of the write is the caller's when it must outlive the dialog's screen.
+  const writing = kept?.writing ?? ownWriting;
+  const setWriting = kept?.setWriting ?? setOwnWriting;
   // How many times the form was opened: what tells an opening from the next.
   const openings = useRef(0);
   // The opening that is open, set as it opens and closes — never in an effect, which a late answer
@@ -245,17 +251,68 @@ export function ModifyRisk({
   /** What the provision is chosen among; read while the risk lists `update` available. */
   readonly options: ProvisionOptions | undefined;
 }) {
+  // What a write of a risk leaves — that it is under way, the answer it brought — outlives the form
+  // and the detail of the risk, by risk: the detail shown again finds the command waiting, and
+  // writes from the version answered, never from the one read before (défaut n° 24 de
+  // `typescript.md`). The dialog and the status are those of the risk shown alone.
+  const [writes, setWrites] = useState<Readonly<Record<string, Write>>>({});
+  const id = risk.risk_id;
+  const write = writes[id];
+  return (
+    <ModifyRiskShown
+      key={id}
+      projectId={projectId}
+      risk={risk}
+      options={options}
+      writing={write?.writing ?? false}
+      answered={write?.answered}
+      onWriting={(writing) => {
+        setWrites((before) => ({ ...before, [id]: { ...before[id], writing } }));
+      }}
+      onAnswered={(answer) => {
+        setWrites((before) => {
+          const held = before[id]?.answered;
+          return held === undefined || held.lock_version < answer.lock_version
+            ? { ...before, [id]: { writing: before[id]?.writing ?? false, answered: answer } }
+            : before;
+        });
+      }}
+    />
+  );
+}
+
+/** What the writes of a risk leave: whether one is under way, and the latest answer. */
+interface Write {
+  readonly writing: boolean;
+  readonly answered?: Risk | undefined;
+}
+
+/** « Modifier » of the risk shown: its dialog and its status are its own, and end with it. */
+function ModifyRiskShown({
+  projectId,
+  risk,
+  options,
+  writing,
+  answered,
+  onWriting,
+  onAnswered,
+}: {
+  readonly projectId: string;
+  readonly risk: Risk;
+  readonly options: ProvisionOptions | undefined;
+  readonly writing: boolean;
+  readonly answered: Risk | undefined;
+  readonly onWriting: (writing: boolean) => void;
+  readonly onAnswered: (answer: Risk) => void;
+}) {
   const t = useTranslations("riskForm");
   const unmet = useUnmet();
-  const dialog = useRiskDialog();
+  const dialog = useRiskDialog({ writing, setWriting: onWriting });
   const [said, say] = useSaid();
-  const [answered, setAnswered] = useState<Risk>();
   const { open, current } = dialog;
   // The answer is shown while newer than the risk read: a form opened again writes from its version.
   const shown =
-    answered?.risk_id === risk.risk_id && answered.lock_version > risk.lock_version
-      ? answered
-      : risk;
+    answered !== undefined && answered.lock_version > risk.lock_version ? answered : risk;
   const provision = findOffer(shown.available_commands, "update_provision");
   return (
     <Reactivations reads={[]}>
@@ -283,9 +340,7 @@ export function ModifyRisk({
           }
           options={options ?? NO_OPTIONS}
           onDone={(answer) => {
-            setAnswered((before) =>
-              before === undefined || before.lock_version < answer.lock_version ? answer : before,
-            );
+            onAnswered(answer);
             say(t("saved", { name: answer.label }), { object: answer.label });
             if (current.current === open) {
               dialog.close();
