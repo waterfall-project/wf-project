@@ -83,6 +83,9 @@ beforeEach(() => {
 const STEERING = "01926f3a-7c00-7000-8000-000000001000";
 const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
 
+/** The accessible name of the rectangle of the commissioning, in a lane. */
+const COMMISSIONING = 'aria-label="Mise en service, from 21/12/2026 to 01/01/2027, lane LANE"';
+
 /** The timelines at the query given. */
 async function timelinesAt(search: Record<string, string> = {}) {
   return html(
@@ -152,12 +155,19 @@ describe("the screen of the timelines", () => {
       );
     };
     // Stacked automatically for an account that placed nothing: nothing to give back.
-    expect(restack(await timelinesAt())).toContain('disabled=""');
+    const stacked = await timelinesAt();
+    expect(restack(stacked)).toContain('disabled=""');
+    expect(stacked).toContain(COMMISSIONING.replace("LANE", "1"));
     server.clients = [];
     server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
-    const placed = restack(await timelinesAt());
+    const page = await timelinesAt();
+    const placed = restack(page);
     expect(placed).toContain("<button");
     expect(placed).not.toContain('disabled=""');
+    // The lane the account kept for the commissioning, read from its preferences for this timeline,
+    // is the one drawn — the second, where the automatic layout draws it in the first.
+    expect(page).toContain(COMMISSIONING.replace("LANE", "2"));
+    expect(page).not.toContain(COMMISSIONING.replace("LANE", "1"));
   });
 
   it("offers the commands of the timelines as the project lists `manage_timelines`, and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
