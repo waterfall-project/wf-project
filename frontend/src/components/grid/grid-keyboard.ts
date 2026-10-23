@@ -566,16 +566,16 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
 
 /**
  * Focus a cell, and bring it into view as little as it takes. A cell of a column pinned at the
- * start is where it sticks, and no scroll brings it into view sideways: its row is brought into
- * the window, which the grid may overflow (#183). The others come out from under the pinned
- * columns, the header and the totals (`scroll-padding` of the element that scrolls), which the
- * scroll of a focus does not always heed. A header sticks to the top of the grid, within the
- * padding its rows come out of: it is brought into view sideways alone, the rows left where they
- * are.
+ * start or at the end is where it sticks, and no scroll brings it into view sideways: its row is
+ * brought into the window, which the grid may overflow (#183). The others come out from under the
+ * pinned columns — the Gantt at the end included, however wide (US-0530) —, the header and the
+ * totals (`scroll-padding` of the element that scrolls), which the scroll of a focus does not
+ * always heed. A header sticks to the top of the grid, within the padding its rows come out of: it
+ * is brought into view sideways alone, the rows left where they are.
  */
 function focusRendered(cell: HTMLElement, scroller: HTMLElement | null): void {
   cell.focus({ preventScroll: true });
-  const pinned = cell.style.left !== "";
+  const pinned = cell.style.left !== "" || cell.style.right !== "";
   if (positionOf(cell)?.row === HEADER_ROW) {
     if (!pinned && scroller !== null) {
       revealSideways(cell, scroller);
@@ -587,13 +587,21 @@ function focusRendered(cell: HTMLElement, scroller: HTMLElement | null): void {
   }
 }
 
-/** Scroll the grid sideways as little as it takes for a cell to come out from under the pinned. */
+/**
+ * Scroll the grid sideways as little as it takes for a cell to come out from under the pinned, at
+ * the start and at the end.
+ */
 function revealSideways(cell: HTMLElement, scroller: HTMLElement): void {
   const box = cell.getBoundingClientRect();
   const view = scroller.getBoundingClientRect();
-  const padding = Number.parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart);
-  const start = view.left + scroller.clientLeft + (Number.isNaN(padding) ? 0 : padding);
-  const end = view.left + scroller.clientLeft + scroller.clientWidth;
+  const style = getComputedStyle(scroller);
+  const padding = (side: string) => {
+    const value = Number.parseFloat(side);
+    return Number.isNaN(value) ? 0 : value;
+  };
+  const start = view.left + scroller.clientLeft + padding(style.scrollPaddingInlineStart);
+  const end =
+    view.left + scroller.clientLeft + scroller.clientWidth - padding(style.scrollPaddingInlineEnd);
   if (box.left < start) {
     scroller.scrollLeft -= start - box.left;
   } else if (box.right > end) {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { MAX_WIDTH, MIN_WIDTH } from "./columns";
+import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
 import { initialSettings, keptPageSize, recordedPreferences } from "./settings";
@@ -47,6 +47,16 @@ describe("the settings a grid starts from", () => {
       ESTIMATE_GRID.columns,
     );
     expect(settings.sizing).toEqual({ label: MIN_WIDTH, hours: MAX_WIDTH, quantity: 90 });
+  });
+
+  it("keep the Gantt, pinned at the end, wider than any other column, up to what a window holds", () => {
+    const wide = initialSettings(
+      { column_widths: { gantt: 1200, label: 1200 } },
+      PLANNING_GRID.columns,
+    );
+    expect(wide.sizing).toEqual({ gantt: 1200, label: MAX_WIDTH });
+    const huge = initialSettings({ column_widths: { gantt: 99_999 } }, PLANNING_GRID.columns);
+    expect(huge.sizing).toEqual({ gantt: WIDEST });
   });
 });
 

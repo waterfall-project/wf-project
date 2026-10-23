@@ -899,7 +899,14 @@ d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
 La grille de planning présente aussi la description d'une tâche et l'avancement physique d'une
 récapitulative, un pourcentage calculé ou non calculable, son motif en titre ; puis le Gantt
-(FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule. Chaque cellule
+(FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule, épinglée à
+droite (`GridColumn.pinned: "end"`, `pinning.ts`, US-0530) : elle glisse sur les colonnes qui la
+précèdent quand elle s'élargit, et la grille les fait défiler hors de dessous elle
+(`scroll-padding-inline-end`). Sa poignée, sur son bord gauche — la souris, ou Maj et les flèches,
+la flèche gauche l'élargissant —, règle sa largeur, celle de `gantt` dans `column_widths`, et ne
+modifie aucune tâche, d'un minimum jusqu'à la place du cadre à sa plus grande largeur
+(`useFrameRoom`), moins les colonnes épinglées en tête et la plus large des autres, où se montre la
+cellule active (`endMaxOf`). Chaque cellule
 dessine en SVG la ligne de sa tâche — sa barre, les morceaux des liaisons qui la quittent, la longent
 ou l'atteignent, les mois de l'axe — : le dessin est aligné ligne à ligne sur la grille, rendu avec
 ses seules lignes visibles, et suit la largeur de sa colonne, en part de cette largeur. La

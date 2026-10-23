@@ -5,7 +5,12 @@
  * column, the icon that stands for it, named by it —; the Σ that marks a column the server
  * computes whole (WF-IHM-0030), as each of its cells bears it; the sort, when the server sorts
  * it — a button; `aria-sort` on the column sorted, and on it alone —; and the handle that widens
- * it, by the pointer or by the arrows of the keyboard, a separator whose value is the width.
+ * it, by the pointer or by the arrows of the keyboard, a separator whose value is the width. The
+ * column pinned at the end, the Gantt, has it on its left edge, where it splits the table from the
+ * Gantt: dragged to the left, or moved by the left arrow, it widens the Gantt over the columns
+ * before it, up to the room of the frame less the columns pinned at the start (US-0530) and the
+ * widest column between, where an active cell shows (`endMaxOf`). It
+ * changes a display preference alone, never a task (WF-PLA-0090).
  *
  * The header is a row of the grid, which its arrows move along (`useGridKeyboard`): the active one
  * is the one stop of the grid in the order of tabulation, its button and handle out of it
@@ -17,7 +22,7 @@
 import type { RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, Sigma } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, useId } from "react";
+import { type KeyboardEvent, type PointerEvent, useId, useRef } from "react";
 
 import { TableHead } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
@@ -32,6 +37,7 @@ import {
 } from "./columns";
 import type { CellPosition } from "./grid-keyboard";
 import type { GridHeader, GridTable } from "./grid-table";
+import type { Pinning } from "./pinning";
 
 /** How far an arrow of the keyboard moves the width of a column, in pixels. */
 export const RESIZE_STEP = 16;
@@ -53,8 +59,8 @@ export interface HeaderCellProps<Row extends RowData> {
   readonly header: GridHeader<Row>;
   /** The column of the configuration; none for the row numbers. */
   readonly column: HeaderColumn | undefined;
-  /** The classes that pin it, and its offset from the start. */
-  readonly pinning: { readonly className: string; readonly left: number | undefined };
+  /** The classes that pin it, and its offset from the start or from the end. */
+  readonly pinning: Pinning;
   /** Its place in the grid, in the row of the header. */
   readonly position: CellPosition;
   /** Whether it is the active cell of the grid, the one stop of the tabulation. */
@@ -72,9 +78,30 @@ function SortIcon({ state }: { readonly state: false | "asc" | "desc" }) {
   return <ArrowUpDown aria-hidden="true" className="size-3 shrink-0 opacity-50" />;
 }
 
+/** Whether a column is pinned at the end, its handle on its left edge. */
+function endPinned<Row extends RowData>(header: GridHeader<Row>): boolean {
+  return header.column.getIsPinned() === "end";
+}
+
+/** The widest a column gets: the room of the frame, for the column pinned at the end. */
+function widestOf<Row extends RowData>(header: GridHeader<Row>): number {
+  return header.column.columnDef.maxSize ?? MAX_WIDTH;
+}
+
+/** Give a column a width, within its bounds. */
+function sizeTo<Row extends RowData>(
+  table: GridTable<Row>,
+  header: GridHeader<Row>,
+  width: number,
+): void {
+  const bounded = Math.min(widestOf(header), Math.max(MIN_WIDTH, Math.round(width)));
+  table.setColumnSizing((sizing) => ({ ...sizing, [header.column.id]: bounded }));
+}
+
 /**
  * Narrow or widen a column by a step of the keyboard, within its bounds, for the left or the
- * right arrow: whether the key was one of them.
+ * right arrow — the left one widening the column pinned at the end, whose handle is on its left
+ * edge: whether the key was one of them.
  */
 function resizeBy<Row extends RowData>(
   table: GridTable<Row>,
@@ -85,14 +112,46 @@ function resizeBy<Row extends RowData>(
   if (step === undefined) {
     return false;
   }
-  const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, header.getSize() + step));
-  table.setColumnSizing((sizing) => ({ ...sizing, [header.column.id]: width }));
+  sizeTo(table, header, header.getSize() + (endPinned(header) ? -step : step));
   return true;
 }
 
 /**
+ * The drag of the handle of the column pinned at the end, on its left edge: the column widens by
+ * as much as the pointer goes left of where it was pressed. The pointer is captured, so that the
+ * drag goes on over the rows.
+ */
+function useSplitDrag<Row extends RowData>(table: GridTable<Row>, header: GridHeader<Row>) {
+  const from = useRef<{ readonly x: number; readonly width: number } | undefined>(undefined);
+  return {
+    onPointerDown: (event: PointerEvent<HTMLElement>) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.currentTarget.setPointerCapture(event.pointerId);
+      event.currentTarget.focus({ preventScroll: true });
+      from.current = { x: event.clientX, width: header.getSize() };
+      event.preventDefault();
+    },
+    onPointerMove: (event: PointerEvent<HTMLElement>) => {
+      const start = from.current;
+      if (start !== undefined) {
+        sizeTo(table, header, start.width + start.x - event.clientX);
+      }
+    },
+    onPointerUp: () => {
+      from.current = undefined;
+    },
+    onPointerCancel: () => {
+      from.current = undefined;
+    },
+  };
+}
+
+/**
  * The handle that widens a column: dragged, or moved by the arrows once it has the focus — which
- * the pointer gives it; out of the order of tabulation, the header widening its column itself.
+ * the pointer gives it; out of the order of tabulation, the header widening its column itself. That
+ * of the column pinned at the end is on its left edge, and splits the table from it.
  */
 function ResizeHandle<Row extends RowData>({
   table,
@@ -106,6 +165,8 @@ function ResizeHandle<Row extends RowData>({
   const t = useTranslations("grid");
   const size = header.getSize();
   const start = header.getResizeHandler();
+  const split = useSplitDrag(table, header);
+  const end = endPinned(header);
   const resize = (event: KeyboardEvent) => {
     if (resizeBy(table, header, event.key)) {
       event.preventDefault();
@@ -118,13 +179,13 @@ function ResizeHandle<Row extends RowData>({
       aria-label={t("resize", { column: label })}
       aria-valuenow={size}
       aria-valuemin={MIN_WIDTH}
-      aria-valuemax={MAX_WIDTH}
+      aria-valuemax={widestOf(header)}
       tabIndex={-1}
-      onMouseDown={start}
-      onTouchStart={start}
+      {...(end ? split : { onMouseDown: start, onTouchStart: start })}
       onKeyDown={resize}
       className={cn(
-        "absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none select-none",
+        "absolute top-0 h-full w-1.5 cursor-col-resize touch-none select-none",
+        end ? "left-0" : "right-0",
         "hover:bg-border focus-visible:bg-ring focus-visible:outline-none",
         header.column.getIsResizing() ? "bg-ring" : null,
       )}
@@ -230,7 +291,7 @@ export function HeaderCell<Row extends RowData>({
       data-column={position.column}
       tabIndex={active ? 0 : -1}
       onKeyDown={onKeyDown}
-      style={{ left: pinning.left }}
+      style={{ left: pinning.left, right: pinning.right }}
       className={cn(
         "relative h-8 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         pinning.className,
