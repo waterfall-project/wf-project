@@ -1128,7 +1128,26 @@
     "probability": "Probability (%)",
     "task": "Task of the provision",
     "firstTask": "First task of the first level",
-    "saved": "Risk “{name}” modified."
+    "saved": "Risk “{name}” modified.",
+    "review": "Review",
+    "reviewTitle": "Review “{name}”",
+    "reviewHint": "The review is dated today: confirming it with no change still produces one, added to the history. The severity and the provision are computed again.",
+    "retainedState": "State retained",
+    "categoryOnReturn": "Asked on the return to the identified state: the category the risk designated is no longer active.",
+    "reviewed": "Risk “{name}” reviewed."
+  },
+  "riskDelete": {
+    "label": "Delete the risk",
+    "statement": "The risk is deleted with its own estimate and its line of provision. A risk cited by a marked revision cannot be deleted: it is dismissed by a review.",
+    "submit": "Delete the risk",
+    "done": "Risk “{name}” deleted."
+  },
+  "riskOccurrence": {
+    "label": "Declare occurred",
+    "statement": "The own estimate of the risk is merged into the main structure of the current revision, with a nil budgeted amount, and its line of provision is withdrawn from the remaining to commit. The declaration is final: a risk occurred is no longer modified.",
+    "submit": "Declare the risk occurred",
+    "queued": "The occurrence of “{name}” is handed to the background processing; it is followed in “Background tasks”.",
+    "succeeded": "The occurrence of “{name}” is done: its own estimate is merged into the main structure."
   },
   "projectForm": {
     "create": "Create a project",

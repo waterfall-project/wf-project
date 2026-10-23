@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
+import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollPageToGrid, withinBox } from "./scroll";
 
@@ -228,4 +229,61 @@ test("exports the matrix as a PNG image named after the project and its revision
     ]);
   }).toPass({ timeout: WORKING });
   expect(download?.suggestedFilename()).toBe("matrice-des-risques-PRJ-001.png");
+});
+
+test("plays the cycle of a risk: identify it, price its own estimate, review it, declare it occurred", async ({
+  page,
+}) => {
+  // The fake back keeps no state: it serves the first example of each answer — the risk declared
+  // (754, its own structure 208), then the risk of rewiring for the detail, its review confirmed
+  // and its occurrence queued — so that the steps are played one after the other from the screens
+  // they lead to, never from one another's effects (#1350).
+  test.slow();
+  await compile(page.request, `/projects/${PROJECT}/revisions/${REVISION}/estimate`);
+  await openHydrated(page, RISKS);
+
+  // Identify: the form, then the own estimate of the risk in the grid of the estimate, to price.
+  await page.getByRole("button", { name: "Identifier un risque" }).click();
+  const identify = page.getByRole("dialog", { name: "Identifier un risque" });
+  await identify.getByRole("textbox", { name: "Libellé" }).fill("Indisponibilité de la grue");
+  await identify.getByRole("textbox", { name: "Probabilité (%)" }).fill("20");
+  await identify.getByRole("button", { name: "Créer" }).click();
+  await expect(page).toHaveURL(/\/estimate\?.*structure=01926f3a-7c00-7000-8000-000000000208/, {
+    timeout: WORKING,
+  });
+  // The structure 208 is a counterfactual no read of the fake back knows (the screen says it is not
+  // found): the own estimate that is priced is that of the risk of rewiring, its structure 204.
+  await openHydrated(
+    page,
+    `/projects/${PROJECT}/revisions/${REVISION}/estimate?structure=01926f3a-7c00-7000-8000-000000000204`,
+  );
+  await expect(page.getByRole("treegrid", { name: "Grille de devis" })).toBeVisible({
+    timeout: WORKING,
+  });
+
+  // Review: confirmed with no change, the status says it.
+  await openHydrated(page, `${RISKS}?risk=${CABLING}`);
+  const detail = page.getByRole("region", { name: "Risque de reprise du câblage" });
+  await detail.getByRole("button", { name: "Réexaminer" }).click();
+  const review = page.getByRole("dialog", { name: "Réexaminer « Risque de reprise du câblage »" });
+  await expect(review.getByRole("textbox", { name: "Probabilité (%)" })).toHaveValue("40");
+  await review.getByRole("button", { name: "Réexaminer" }).click();
+  await expect(detail.getByRole("status").filter({ hasText: "réexaminé" })).toHaveText(
+    "Risque « Risque de reprise du câblage » réexaminé.",
+  );
+
+  // A risk a marked revision cites is not deleted: the command says why.
+  await expect(detail.getByRole("button", { name: "Supprimer le risque" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+
+  // Declare occurred: the confirmation says the provision withdrawn, then the task is queued.
+  await detail.getByRole("button", { name: "Déclarer survenu" }).click();
+  const declare = detail.getByRole("form", { name: "Déclarer survenu" });
+  await expect(declare).toContainText("sa ligne de provision est retirée du reste à engager");
+  await declare.getByRole("button", { name: "Déclarer le risque survenu" }).click();
+  await expect(
+    detail.getByText(/La survenance de « Risque de reprise du câblage » est confiée/),
+  ).toBeVisible();
 });

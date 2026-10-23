@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The commands of the risks that open the form of a risk (US-0520, WF-IHM-0090): « Identifier un
- * risque » on the screen of the risks, and « Modifier » in the detail of a risk.
+ * risque » on the screen of the risks, and, in the detail of a risk, « Modifier » with the commands
+ * that go with it (`RiskCommands`: « Réexaminer », « Déclarer survenu », « Supprimer le risque »).
  *
  * « Identifier un risque » follows `declare_risk` as the revision lists it: absent, nothing is
  * offered; listed, available or not, it is shown — unavailable, `aria-disabled` and described by the
@@ -31,21 +32,22 @@
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactElement, type Ref, useEffect, useId, useRef, useState } from "react";
+import { useState } from "react";
 
 import type { components } from "@/api/generated/schema";
-import { Command, useUnmet } from "@/components/commands/command";
+import { useUnmet } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
-import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { STRUCTURE_PARAMETER } from "@/components/context/structure";
 import { filterHref } from "@/components/grid/filters";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";
-import { WritingNote } from "@/components/reference/reference-form";
-import { Button } from "@/components/ui/button";
 
 import type { ProvisionOptions } from "./provision-choices";
+import { OpensForm, Status, useRiskDialog } from "./risk-dialog";
 import { RiskForm } from "./risk-form";
+import { DeclareOccurrence, DeleteRisk } from "./risk-lifecycle";
+import { ReviewRisk } from "./risk-review";
 
 /** A risk, as the contract gives it. */
 type Risk = components["schemas"]["Risk"];
@@ -60,116 +62,6 @@ const NO_OPTIONS: ProvisionOptions = { categories: [], subprojects: [], tasks: [
 function estimateOf(base: string, structure: string): string {
   const [path = "", query = ""] = base.split("?");
   return filterHref(path, new URLSearchParams(query), STRUCTURE_PARAMETER, structure);
-}
-
-/**
- * The form a command opens, and what it keeps of its openings: how many there were, which is open,
- * whether a write is under way, and the control to give the focus back to once it has closed.
- */
-function useRiskDialog(kept?: {
-  readonly writing: boolean;
-  readonly setWriting: (writing: boolean) => void;
-}) {
-  const [open, setOpen] = useState<number>();
-  const [ownWriting, setOwnWriting] = useState(false);
-  // The state of the write is the caller's when it must outlive the dialog's screen.
-  const writing = kept?.writing ?? ownWriting;
-  const setWriting = kept?.setWriting ?? setOwnWriting;
-  // How many times the form was opened: what tells an opening from the next.
-  const openings = useRef(0);
-  // The opening that is open, set as it opens and closes — never in an effect, which a late answer
-  // would pass before.
-  const current = useRef<number>(undefined);
-  // Whether the screen the form was opened on is still shown, which a declaration answered leads from.
-  const shown = useRef(true);
-  const trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    shown.current = true;
-    return () => {
-      shown.current = false;
-    };
-  }, []);
-  return {
-    open,
-    writing,
-    setWriting,
-    trigger,
-    shown,
-    current,
-    opening: () => {
-      if (writing) {
-        return;
-      }
-      openings.current += 1;
-      current.current = openings.current;
-      setOpen(openings.current);
-    },
-    close: () => {
-      current.current = undefined;
-      setOpen(undefined);
-    },
-  };
-}
-
-/**
- * A command that opens a form, as its object lists it: nothing when absent; the plain unavailable
- * command with the conditions it lacks; available, a button that opens, inactive and described by
- * « Enregistrement en cours… » while a write of the form is under way.
- */
-function OpensForm({
-  offer,
-  label,
-  icon,
-  writing,
-  trigger,
-  onOpen,
-}: {
-  readonly offer: CommandOffer | undefined;
-  readonly label: string;
-  readonly icon: ReactElement;
-  readonly writing: boolean;
-  readonly trigger: Ref<HTMLButtonElement>;
-  readonly onOpen: () => void;
-}) {
-  const why = useId();
-  if (offer === undefined) {
-    return null;
-  }
-  if (!offer.is_available) {
-    return <Command offer={offer} label={label} icon={icon} />;
-  }
-  return (
-    <div className="space-y-1">
-      <Button
-        ref={trigger}
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-disabled={writing ? true : undefined}
-        aria-busy={writing}
-        aria-describedby={writing ? why : undefined}
-        className={UNAVAILABLE}
-        onClick={onOpen}
-      >
-        {icon}
-        {label}
-      </Button>
-      <WritingNote id={why} writing={writing} />
-    </div>
-  );
-}
-
-/** The status the last write of a command said, read out by a reader of the screen. */
-function Status({
-  said,
-}: {
-  readonly said: { readonly text: string; readonly count: number } | undefined;
-}) {
-  return (
-    <p role="status" aria-live="polite" className="text-sm text-muted-foreground empty:sr-only">
-      {said === undefined ? null : <span key={said.count}>{said.text}</span>}
-    </p>
-  );
 }
 
 /**
@@ -238,46 +130,68 @@ export function IdentifyRisk({
 }
 
 /**
- * « Modifier », in the detail of a risk, as the risk lists `update`, and its form; the category, the
- * sub-project and the task of its provision follow `update_provision`.
+ * The commands of the detail of a risk — « Modifier », « Réexaminer », « Déclarer survenu » and
+ * « Supprimer le risque » — as the risk lists them. What a write of a risk leaves — that it is under
+ * way, the answer it brought — outlives the form and the detail of the risk, by risk, for the
+ * modification and the review alike, both writing from the version of the risk: the detail shown
+ * again finds the commands waiting, and writes from the version answered, never from the one read
+ * before (défaut n° 24 de `typescript.md`). The risk the commands present is the answer while it is
+ * newer than the risk read, so that the commands a review changes — a risk dismissed no longer
+ * declared occurred — follow it before the page is read anew. The dialogs and the statuses are those
+ * of the risk shown alone.
  */
-export function ModifyRisk({
+export function RiskCommands({
   projectId,
   risk,
   options,
 }: {
   readonly projectId: string;
   readonly risk: Risk;
-  /** What the provision is chosen among; read while the risk lists `update` available. */
+  /** What the provision is chosen among; read while the risk lists `update` or `review` available. */
   readonly options: ProvisionOptions | undefined;
 }) {
-  // What a write of a risk leaves — that it is under way, the answer it brought — outlives the form
-  // and the detail of the risk, by risk: the detail shown again finds the command waiting, and
-  // writes from the version answered, never from the one read before (défaut n° 24 de
-  // `typescript.md`). The dialog and the status are those of the risk shown alone.
   const [writes, setWrites] = useState<Readonly<Record<string, Write>>>({});
   const id = risk.risk_id;
   const write = writes[id];
+  const answered = write?.answered;
+  const shown =
+    answered !== undefined && answered.lock_version > risk.lock_version ? answered : risk;
+  const onWriting = (writing: boolean) => {
+    setWrites((before) => ({ ...before, [id]: { ...before[id], writing } }));
+  };
+  const onAnswered = (answer: Risk) => {
+    setWrites((before) => {
+      const held = before[id]?.answered;
+      return held === undefined || held.lock_version < answer.lock_version
+        ? { ...before, [id]: { writing: before[id]?.writing ?? false, answered: answer } }
+        : before;
+    });
+  };
   return (
-    <ModifyRiskShown
-      key={id}
-      projectId={projectId}
-      risk={risk}
-      options={options}
-      writing={write?.writing ?? false}
-      answered={write?.answered}
-      onWriting={(writing) => {
-        setWrites((before) => ({ ...before, [id]: { ...before[id], writing } }));
-      }}
-      onAnswered={(answer) => {
-        setWrites((before) => {
-          const held = before[id]?.answered;
-          return held === undefined || held.lock_version < answer.lock_version
-            ? { ...before, [id]: { writing: before[id]?.writing ?? false, answered: answer } }
-            : before;
-        });
-      }}
-    />
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-start gap-2">
+        <ModifyRiskShown
+          key={`modify-${id}`}
+          projectId={projectId}
+          risk={shown}
+          options={options}
+          writing={write?.writing ?? false}
+          onWriting={onWriting}
+          onAnswered={onAnswered}
+        />
+        <ReviewRisk
+          key={`review-${id}`}
+          projectId={projectId}
+          risk={shown}
+          options={options}
+          writing={write?.writing ?? false}
+          onWriting={onWriting}
+          onAnswered={onAnswered}
+        />
+      </div>
+      <DeclareOccurrence key={`declare-${id}`} projectId={projectId} risk={shown} />
+      <DeleteRisk key={`delete-${id}`} projectId={projectId} risk={shown} />
+    </div>
   );
 }
 
@@ -293,7 +207,6 @@ function ModifyRiskShown({
   risk,
   options,
   writing,
-  answered,
   onWriting,
   onAnswered,
 }: {
@@ -301,7 +214,6 @@ function ModifyRiskShown({
   readonly risk: Risk;
   readonly options: ProvisionOptions | undefined;
   readonly writing: boolean;
-  readonly answered: Risk | undefined;
   readonly onWriting: (writing: boolean) => void;
   readonly onAnswered: (answer: Risk) => void;
 }) {
@@ -310,16 +222,13 @@ function ModifyRiskShown({
   const dialog = useRiskDialog({ writing, setWriting: onWriting });
   const [said, say] = useSaid();
   const { open, current } = dialog;
-  // The answer is shown while newer than the risk read: a form opened again writes from its version.
-  const shown =
-    answered !== undefined && answered.lock_version > risk.lock_version ? answered : risk;
-  const provision = findOffer(shown.available_commands, "update_provision");
+  const provision = findOffer(risk.available_commands, "update_provision");
   return (
     <Reactivations reads={[]}>
       <div className="flex flex-wrap items-start gap-2">
         <Status said={said} />
         <OpensForm
-          offer={findOffer(shown.available_commands, "update")}
+          offer={findOffer(risk.available_commands, "update")}
           label={t("modify")}
           icon={<Pencil aria-hidden="true" />}
           writing={dialog.writing}
@@ -331,7 +240,7 @@ function ModifyRiskShown({
         <RiskForm
           key={open}
           projectId={projectId}
-          risk={shown}
+          risk={risk}
           provisionOpen={provision?.is_available === true}
           unmet={
             provision === undefined || provision.missing_conditions.length === 0

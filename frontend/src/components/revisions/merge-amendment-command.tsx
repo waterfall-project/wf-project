@@ -18,7 +18,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
@@ -32,7 +31,7 @@ import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-n
 import { Differences } from "@/components/exchanges/import-report";
 import { DiffMark } from "@/components/grid/diff-mark";
 import { DoneNotice } from "@/components/notices/done-notice";
-import { useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
+import { Following } from "@/components/tasks/following";
 import { problemMessage } from "@/i18n/problem";
 
 type Report = components["schemas"]["StructureMergeReport"];
@@ -206,34 +205,6 @@ interface Merged {
   readonly command: () => Promise<Outcome<BackgroundTask>>;
 }
 
-/**
- * Hand the merge to the tracker of the shell, once, and wait for its end: it is mounted by the
- * confirmation alone, so that a screen that offers the command needs the tracker only to follow a
- * merge. When the task has succeeded the screen is read again, and tells the reference.
- */
-function Following({
-  merged,
-  onSucceeded,
-}: {
-  readonly merged: Merged;
-  readonly onSucceeded: (version: string) => void;
-}) {
-  const router = useRouter();
-  const track = useTrackTask();
-  const handed = useRef(false);
-  useEffect(() => {
-    if (!handed.current) {
-      handed.current = true;
-      track(merged.task, { command: merged.command, subject: merged.version });
-    }
-  }, [track, merged]);
-  useWhenTaskSucceeds(merged.task.task_id, () => {
-    onSucceeded(merged.version);
-    router.refresh();
-  });
-  return null;
-}
-
 /** Offer the contractualisation of the amendment a grid reads, as the revision lists it. */
 export function MergeAmendmentCommand({
   offer,
@@ -325,9 +296,11 @@ export function MergeAmendmentCommand({
       {followed === undefined ? null : (
         <Following
           key={followed.task.task_id}
-          merged={followed}
-          onSucceeded={(version) => {
-            setReference({ version });
+          task={followed.task}
+          subject={followed.version}
+          command={followed.command}
+          onSucceeded={() => {
+            setReference({ version: followed.version });
           }}
         />
       )}

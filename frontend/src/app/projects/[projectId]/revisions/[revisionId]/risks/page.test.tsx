@@ -302,7 +302,7 @@ describe("the screen of the risks", () => {
     expect(queryOf(REVIEWS)).toEqual({ revision_id: REVISION });
     const said = text(page);
     expect(said).toContain(
-      "Risque de reprise du câblage Modify State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
+      "Risque de reprise du câblage Modify Review Declare occurred Delete the risk Unmet condition: risk cited by no marked revision. State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
     );
     expect(said).toContain(
       "Description Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
@@ -454,6 +454,18 @@ describe("the commands of the risks", () => {
     const page = await risksAt({ risk: CABLING });
     expect(page).toContain("Modify</button>");
     expect(callsTo(NODES)).toHaveLength(1);
+  });
+
+  it("reads nothing for the forms of a risk occurred, which lists no command of entry available, on a revision that offers no declaration either", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_without_tasks",
+      [RISK]: "risk_occurred_detail",
+    };
+    const page = await risksAt({ risk: CABLING });
+    expect(page).toContain("Review</button>");
+    expect(callsTo(CATEGORIES)).toEqual([]);
+    expect(callsTo(NODES)).toEqual([]);
   });
 
   it("hands the detail the choices of the provision it read: the categories of the type, the sub-projects, the tasks of the main structure", async () => {

@@ -22,7 +22,7 @@ import {
 } from "@/test/fixtures";
 
 import type { ProvisionOptions } from "./provision-choices";
-import { IdentifyRisk, ModifyRisk } from "./risk-commands";
+import { IdentifyRisk, RiskCommands } from "./risk-commands";
 import { type Risk, RiskDetail } from "./risk-detail";
 
 // The server of Next, as far as the commands need it: the fake back, the page read anew once a write
@@ -143,7 +143,7 @@ function modify(risk: Risk = CREATED, options: ProvisionOptions = OPTIONS) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <ModifyRisk projectId={PROJECT} risk={risk} options={options} />
+        <RiskCommands projectId={PROJECT} risk={risk} options={options} />
       </PendingAddress>
     </NextIntlClientProvider>
   );
@@ -384,7 +384,7 @@ describe("« Identifier un risque »", () => {
     },
   );
 
-  it("says the bound of the probability at its field in percentages, the server naming it in the ratio [WF-RIS-0010-A]", async () => {
+  it("says the bound of the probability at its field in percentages, the server naming it in the ratio", async () => {
     serve({
       [CREATE]: {
         problem: example("risk_probability_out_of_range") as Problem & { status: 422 },
