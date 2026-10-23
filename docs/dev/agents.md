@@ -40,11 +40,10 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   quand elle a rendu la main. Un livreur qui enchaînait les lots gardait des centaines de
   milliers de tokens de contexte, que chaque attente de plus de cinq minutes faisait réécrire
   en entier : la moitié du forfait de la semaine du 2026-10-19.
-- **Deux livreurs au plus en même temps**, sur des lots qui ne partagent aucun fichier et
-  qu'aucune dépendance ne relie, chacun dans son worktree : au-delà, les tests de plusieurs
-  agents saturent la mémoire du poste. Les paliers complets et les parcours de bout en bout ne
-  tournent qu'un à la fois sur le poste : le Makefile les fait attendre leur tour
-  (`HEAVY_LOCK`).
+- **Un livreur à la fois**, dans son worktree : le poste s'est effondré trois fois sous les
+  tests de plusieurs agents (2026-10-19, 21 et 22). Par sûreté, les exécutions lourdes — tests
+  entiers, couverture, construction du front, parcours de bout en bout — attendent aussi leur
+  tour derrière un verrou du Makefile (`HEAVY_LOCK`).
 - **Les questions.** Un livreur ne parle pas à l'utilisateur : une question bloquante devient
   un commentaire de l'issue du lot, et le lot passe `question` dans le tableau. Le pilote passe
   à un autre lot. Le jour, de 6 h à 20 h, il prévient l'utilisateur par une notification ; la

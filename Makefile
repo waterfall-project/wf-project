@@ -87,7 +87,7 @@ SHARD ?=
 # takes by itself on a loaded workstation, where paths fail by a timeout (#736). Empty, its own.
 WORKERS ?=
 # One heavy run at a time on the workstation: the whole tests of a side, their coverage, the
-# end-to-end paths. Several agents running them side by side ran out of memory (2026-10). A run of
+# production build of the front, the end-to-end paths. Several agents running them side by side ran out of memory (2026-10). A run of
 # one file (TESTS) does not wait; on a runner of the chain, alone, the lock is always free. `env`
 # keeps the variables set before the command a command of their own once behind flock.
 HEAVY_LOCK ?= $(or $(XDG_RUNTIME_DIR),/tmp)/waterfall-heavy.lock
@@ -405,7 +405,7 @@ test-front: install-front ## Unit tests of the front (TESTS=<file> runs one file
 
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
 build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
-	@$(PNPM) build
+	@$(PNPM_HEAVY) build
 
 # What the last production build of the front prerendered, read from the manifest it wrote, without
 # Docker: build-front's in the fast tier, that of the measure of the paths in the full one, which

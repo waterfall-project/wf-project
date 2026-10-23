@@ -24,6 +24,10 @@ Tout ce qu'une instance suivante doit savoir est dans le tableau de suivi de l'i
 et dans les issues, jamais dans ta mémoire : un lot repris par une instance neuve repart du
 tableau, de sa branche et de sa pull request.
 
+Tu lances tes sous-agents au premier plan (`run_in_background: false`), un à la fois : en
+arrière-plan, tu finirais ton tour dès leur lancement, et leurs résultats remonteraient au
+pilote au lieu de toi.
+
 ## Partir des issues
 
 - Le lot que tu livres est nommé par le message qui te lance. Sans lot nommé, prends le

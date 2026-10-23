@@ -1,6 +1,6 @@
 ---
 name: pilote
-description: "Pilote la livraison d'un EPIC de Waterfall `en cours` : lance un `epic-deliverer` neuf par lot prêt, deux au plus en même temps, relance après une limite d'usage, un blocage ou une réponse, et prévient l'utilisateur d'une question bloquante le jour seulement. À lancer dans une session Sonnet, sous `/loop` : `/loop /pilote EP-nn`. Ne code pas, ne relit pas, ne fusionne rien."
+description: "Pilote la livraison d'un EPIC de Waterfall `en cours` : lance un `epic-deliverer` neuf par lot prêt, un à la fois, relance après une limite d'usage, un blocage ou une réponse, et prévient l'utilisateur d'une question bloquante le jour seulement. À lancer dans une session Sonnet, sous `/loop` : `/loop /pilote EP-nn`. Ne code pas, ne relit pas, ne fusionne rien."
 ---
 
 Tu pilotes la livraison de l'EPIC que nomme l'argument (`EP-nn`). Tu ne fais que lancer des
@@ -21,10 +21,9 @@ relevés et les commentaires dont tu as besoin, rien de plus, et borne les sorti
    qui le reprend lira la réponse.
 3. **Les livreurs en cours.** Tu sais lesquels tu as lancés et lesquels ont rendu la main.
    Un livreur rendu : lis son relevé (une vingtaine de lignes) et agis selon « Un relevé ».
-4. **Lancer.** Tant que moins de deux livreurs tournent et qu'il reste un lot prêt, lance-en
-   un, selon « Lancer un livreur ». Un second ne part que si son lot ne partage aucun fichier
-   avec celui qui tourne — d'après leurs issues et la conception — et qu'aucune dépendance ne
-   les relie ; dans le doute, un seul.
+4. **Lancer.** Si aucun livreur ne tourne et qu'il reste un lot prêt, lances-en un, selon
+   « Lancer un livreur ». **Un seul à la fois** : le poste s'est effondré trois fois sous les
+   tests de plusieurs agents (2026-10-19, 21 et 22).
 5. **Se rendormir.** Si un livreur tourne, son retour te réveillera ; programme quand même un
    réveil dans trente minutes environ, au cas où il ne reviendrait pas. Sinon, s'il reste des
    lots mais aucun de prêt — tous bloqués ou en `question` —, programme un réveil dans une
