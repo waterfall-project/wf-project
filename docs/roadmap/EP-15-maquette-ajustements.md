@@ -1128,7 +1128,9 @@ de plusieurs années comme une tâche de quelques jours, et présenter une chron
   (`DisplayPreferences.timelines`), contre le service d'EP-03.
 - propre à l'US : la colonne du Gantt est épinglée à droite, une poignée de séparation sur son bord
   gauche règle sa largeur — à la souris et au clavier, Maj et les flèches — entre un minimum et la
-  largeur du cadre moins les colonnes épinglées en tête ; les colonnes recouvertes restent
+  largeur du cadre moins les colonnes épinglées en tête et la plus large colonne affichée entre
+  les deux, pour qu'une cellule active recouverte puisse toujours se montrer (WCAG 2.4.11, #1389) ;
+  les colonnes recouvertes restent
   atteignables par le défilement, les colonnes d'identification restent visibles (WF-IHM-0060), et
   la cellule active recouverte fait défiler la table pour se montrer ; la largeur est celle de la
   colonne `gantt` dans `GridPreferences.column_widths` ;

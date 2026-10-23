@@ -49,6 +49,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useOptimistic,
   useRef,
   useState,
@@ -123,6 +124,7 @@ import {
   useRowSelection,
 } from "./row-selection";
 import {
+  endedColumns,
   type GridPreferences,
   initialSettings,
   keptPageSize,
@@ -182,6 +184,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * around the grid, never a prop of each row (défaut n° 14).
    */
   readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
+  /** What the screen adds to the bar of the grid, before its own tools: the zoom of the Gantt. */
+  readonly tools?: ReactNode;
   /**
    * What the folds of a tree are kept for in the session, besides the grid: the revision it reads.
    */
@@ -532,6 +536,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   dependencies,
   undoable,
   around,
+  tools,
   foldScope,
   narrowing,
   commands,
@@ -549,6 +554,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // The size of its pages the account keeps for the grid: the session's, then the last one chosen.
   const [keptSize, setKeptSize] = useState(keptPageSize(preferences));
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
+  const ended = useMemo(() => endedColumns(config.columns), [config.columns]);
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
@@ -563,11 +569,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           keptSort.current,
           filters,
           keptSize,
+          ended,
         ),
       );
       shown();
     },
-    [keptSize, preferences, recordShown, shown],
+    [ended, keptSize, preferences, recordShown, shown],
   );
   const kept = useKeptFilters(config, preferences, recordFilters);
   // The size of the pages the address asks, recorded as the filters are (`kept-size.ts`).
@@ -581,11 +588,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           keptSort.current,
           kept.current,
           size,
+          ended,
         ),
       );
       shown();
     },
-    [kept, preferences, recordShown, shown],
+    [ended, kept, preferences, recordShown, shown],
   );
   useKeptPageSize(config.address, keptSize, recordSize, config.paged === true);
   const scroller = useRef<HTMLDivElement>(null);
@@ -621,6 +629,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         keptSort.current,
         kept.current,
         keptSize,
+        ended,
       ),
     );
   };
@@ -660,7 +669,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       setSettings(next);
       currentSettings.current = next;
       writer.record(
-        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize),
+        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, ended),
       );
     },
   });
@@ -794,6 +803,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         undoable={undoable}
         outline={folding.outline}
         commands={screenCommands.bar(cursor.active.row)}
+        tools={tools}
         grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),

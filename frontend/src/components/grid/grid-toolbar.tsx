@@ -103,6 +103,8 @@ export interface GridToolbarProps {
   readonly width?: string | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
+  /** What the screen adds before the tools of the grid, at the end of the bar. */
+  readonly tools?: ReactNode;
 }
 
 /**
@@ -219,6 +221,7 @@ export function GridToolbar({
   grid,
   width,
   commands,
+  tools,
 }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
   return (
@@ -231,6 +234,7 @@ export function GridToolbar({
         <SearchField search={search} onSearch={onSearch} grid={grid} />
       )}
       <div className="flex-1" />
+      {tools}
       {undoable === true ? <UndoCommands /> : null}
       {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>

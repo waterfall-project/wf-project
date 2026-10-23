@@ -59,6 +59,11 @@ function bounded(width: number, max: number): number {
   return Math.min(max, Math.max(MIN_WIDTH, Math.round(width)));
 }
 
+/** The keys of the columns a grid pins at its end, bounded by the room of their frame. */
+export function endedColumns(columns: readonly SettledColumn[]): ReadonlySet<string> {
+  return new Set(columns.filter((c) => c.pinned === "end").map((column) => column.key));
+}
+
 /**
  * The settings a grid starts with, from the preferences the session read: the columns it has
  * and may hide, the widths of the columns it has. A key of another version of the grid is left
@@ -72,7 +77,7 @@ export function initialSettings(
 ): GridSettings {
   const hideable = new Set(columns.filter((column) => column.pinned !== true).map((c) => c.key));
   const known = new Set(columns.map((column) => column.key));
-  const ended = new Set(columns.filter((c) => c.pinned === "end").map((column) => column.key));
+  const ended = endedColumns(columns);
   const kept =
     preferences?.hidden_columns ??
     columns.filter((column) => column.hidden === true).map((column) => column.key);
@@ -99,7 +104,8 @@ export type KeptGridSort = GridPreferences["sort"];
  * asked, or the one the account kept, as it came —, the filters to keep — those the page last
  * showed (`kept-filters.ts`), or, for a grid whose screen keeps none, those the account kept, as
  * they came —, the size of its pages, the one chosen last, and what the account kept of it besides, as
- * it came: the grid is replaced whole.
+ * it came: the grid is replaced whole. Each width is bounded as the reading bounds it — the room of
+ * a window for a column pinned at the end (`ended`), the widest column for the others.
  */
 export function recordedPreferences(
   preferences: GridPreferences | undefined,
@@ -107,6 +113,7 @@ export function recordedPreferences(
   sort: KeptGridSort,
   filters?: Readonly<Record<string, string>>,
   size?: number,
+  ended: ReadonlySet<string> = new Set(),
 ): GridPreferences {
   const recorded: GridPreferences = {
     ...preferences,
@@ -114,8 +121,10 @@ export function recordedPreferences(
       .filter(([, visible]) => !visible)
       .map(([key]) => key),
     column_widths: Object.fromEntries(
-      // The grid bounds each width it changes (`useGridTable`); none wider than a window holds.
-      Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width, WIDEST)]),
+      Object.entries(settings.sizing).map(([key, width]) => [
+        key,
+        bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH),
+      ]),
     ),
   };
   const sized = pageSizeOf(size);

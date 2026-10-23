@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
-import { initialSettings, keptPageSize, recordedPreferences } from "./settings";
+import { endedColumns, initialSettings, keptPageSize, recordedPreferences } from "./settings";
 
 describe("the settings a grid starts from", () => {
   it("are the columns the grid hides, and no width, without preferences", () => {
@@ -57,6 +57,19 @@ describe("the settings a grid starts from", () => {
     expect(wide.sizing).toEqual({ gantt: 1200, label: MAX_WIDTH });
     const huge = initialSettings({ column_widths: { gantt: 99_999 } }, PLANNING_GRID.columns);
     expect(huge.sizing).toEqual({ gantt: WIDEST });
+    // Recorded within the bounds it is read within (#1390).
+    const sizing = { gantt: 1200, label: 1200 };
+    const ended = endedColumns(PLANNING_GRID.columns);
+    expect(
+      recordedPreferences(
+        undefined,
+        { visibility: {}, sizing },
+        undefined,
+        undefined,
+        undefined,
+        ended,
+      ).column_widths,
+    ).toEqual(wide.sizing);
   });
 });
 

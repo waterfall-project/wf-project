@@ -390,7 +390,13 @@
     "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille."
   },
   "gantt": {
-    "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}"
+    "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}",
+    "zoom": "Zoom du Gantt",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "fit": "Ajuster au projet",
+    "quarter": "T{quarter} {year}",
+    "quarterShort": "T{quarter}"
   },
   "taskTree": {
     "summary": "Les tâches récapitulatives, sous le projet, jusqu’au niveau choisi — en lecture.",

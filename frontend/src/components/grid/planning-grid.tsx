@@ -34,7 +34,7 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { GanttRows } from "@/components/gantt/gantt";
+import { GanttRows, GanttZoom } from "@/components/gantt/gantt";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
@@ -386,7 +386,12 @@ export function PlanningGrid({
         narrowing={nodeNarrowing(filters)}
         undoable={undoable}
         commands={gestures}
-        around={(rows, table) => <GanttRows rows={rows}>{table}</GanttRows>}
+        around={(rows, table) => (
+          <GanttRows rows={rows} scope={`${config.key}:${structure.revision_id}`}>
+            {table}
+          </GanttRows>
+        )}
+        tools={<GanttZoom />}
       />
     </>
   );
