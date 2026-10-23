@@ -1090,9 +1090,13 @@
     "identify": "Identify a risk",
     "identifyHint": "The risk opens its own estimate, where its tasks and lines are costed; its provision, computed, is carried by a task of the main structure.",
     "identified": "Risk “{name}” identified.",
+    "modify": "Modify",
+    "modifyTitle": "Modify “{name}”",
+    "modifyHint": "The severity and the provision are computed from the own estimate and the probability: they are not entered.",
     "probability": "Probability (%)",
     "task": "Task of the provision",
-    "firstTask": "First task of the first level"
+    "firstTask": "First task of the first level",
+    "saved": "Risk “{name}” modified."
   },
   "projectForm": {
     "create": "Create a project",

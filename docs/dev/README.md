@@ -1005,10 +1005,11 @@ le formulaire `risk-form.tsx` (`ReferenceForm`) — libellé, description, actio
 pourcentage envoyée en rapport, catégorie de la provision demandée seulement quand plusieurs catégories actives
 de type provision se proposent, sous-projet et tâche porteuse facultatifs, lus par la page quand une commande
 les demande (`provision-options.ts`) —, dit le 409 sous le formulaire et, la création faite, ouvre le devis
-propre du risque (`structure_id`) dans la grille de devis, pour une session qui lit le devis. La commande attend,
-inactive, qu'une écriture de son formulaire fermé soit répondue (défaut n° 24 de `typescript.md`). La
-modification, le réexamen, la suppression et la survenance viennent avec US-0520/L2b et L3 ; le registre ne se
-pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
+propre du risque (`structure_id`) dans la grille de devis, pour une session qui lit le devis. « Modifier »,
+dans le détail, suit `update`, et la provision `update_provision` : indisponible, la catégorie, le sous-projet et
+la tâche se montrent fixes et ne sont pas envoyés. Les deux commandes attendent, inactives, qu'une écriture de
+leur formulaire fermé soit répondue (défaut n° 24 de `typescript.md`). Le réexamen, la suppression et la
+survenance viennent avec US-0520/L3 ; le registre ne se pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 

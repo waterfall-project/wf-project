@@ -288,7 +288,7 @@ describe("the screen of the risks", () => {
     expect(queryOf(REVIEWS)).toEqual({ revision_id: REVISION });
     const said = text(page);
     expect(said).toContain(
-      "Risque de reprise du câblage State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
+      "Risque de reprise du câblage Modify State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
     );
     expect(said).toContain(
       "Description Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
@@ -337,7 +337,7 @@ describe("the screen of the risks", () => {
     const risk: Risk = { ...(example("risk") as Risk), provision_cost_category_is_active: false };
     const detail = renderToStaticMarkup(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
-        <RiskDetail risk={risk} reviews={[]} />
+        <RiskDetail risk={risk} reviews={[]} projectId="01926f3a-7c00-7000-8000-000000000001" />
       </NextIntlClientProvider>,
     );
     expect(text(detail)).toContain("Category Provisions pour risques (deactivated)");
@@ -416,5 +416,11 @@ describe("the commands of the risks", () => {
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
     };
     expect(command(await risksAt())).toBe("");
+  });
+
+  it("offers « Modify » in the detail of a risk, and reads the choices of its provision", async () => {
+    const page = await risksAt({ risk: CABLING });
+    expect(page).toContain("Modify</button>");
+    expect(callsTo(NODES)).toHaveLength(1);
   });
 });
