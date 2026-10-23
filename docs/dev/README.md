@@ -977,8 +977,27 @@ leur écran, où son en-tête mène : l'arborescence de
 tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
-(FBS-4.3.1, `…/timelines`), une par lien (`timeline`), leurs tâches sur l'axe qu'elles partagent,
-dessinées comme le Gantt ; elles se créent par leur nom et la chronologie montrée se supprime après
+(FBS-4.3.1, `…/timelines`), une par lien (`timeline`), chacune une frise à couloirs, distincte du
+Gantt (`gantt/timeline-chart.tsx`, US-0530, #1068) : sur l'axe du Gantt, à ses niveaux et à son zoom
+(`GanttRows`, `GanttAxis`), une tâche est un rectangle de son début à sa fin, son nom tronqué et
+entier dans l'infobulle et le nom accessible — la tâche, ses dates, son couloir —, un jalon une ligne
+verticale sur toute la hauteur, son nom et sa date au pied. Les rectangles s'empilent en couloirs
+(`lanes.ts`, un calcul de présentation) : chacun dans celui où l'utilisateur l'a placé tant qu'il
+y tient, les autres, dans l'ordre du plan, au premier couloir où ils n'en chevauchent aucun, les
+couloirs vides refermés. Un rectangle se glisse à la souris d'un couloir à l'autre, ou se déplace par
+Alt et les flèches haut et bas sur celui que le clavier désigne — la frise est un seul arrêt de
+tabulation, les flèches gauche et droite passant d'un rectangle à l'autre (`aria-activedescendant`).
+Un couloir où il en chevaucherait un autre est refusé, le refus dit, et rien ne bouge ; sous le
+dernier couloir s'en offre toujours un vide, jamais au-dessus d'un autre, et le clavier vise le plus
+proche couloir où le rectangle tient, passant ceux où il chevaucherait, pour atteindre tout ce
+qu'atteint la souris. La disposition est une préférence d'affichage par chronologie
+(`DisplayPreferences.timelines`, WF-ADM-0040), écrite après une pause comme les réglages d'une grille
+(`useKeptWriter`, `updateTimelinePreferences`) : les couloirs de tous les rectangles montrés, le
+déplacé d'abord, dans la borne de 64 du contrat, pour qu'un déplacement ne déplace rien d'autre ;
+« Disposition automatique » l'oublie (`null`). La lecture en table, sous la frise, dit chaque tâche,
+ses dates et son couloir ; l'export PNG redessine la frise telle que disposée par `exportPng` (une
+série `custom` d'ECharts), avec le nom de la chronologie, le projet, la révision et l'instant où la
+page a lu les tâches, la lecture du planning ne portant pas de date de calcul ; elles se créent par leur nom et la chronologie montrée se supprime après
 confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
 demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
 chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,

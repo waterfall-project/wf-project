@@ -418,7 +418,25 @@
     "deleteNamed": "Supprimer la chronologie « {label} »",
     "deleteTitle": "Supprimer la chronologie « {label} » ?",
     "deleteHint": "La chronologie et ses inscriptions seront supprimées ; les tâches et les jalons gardent leurs dates.",
-    "deleted": "Chronologie « {label} » supprimée."
+    "deleted": "Chronologie « {label} » supprimée.",
+    "chart": {
+      "name": "Frise de la chronologie « {name} »",
+      "hint": "Les flèches gauche et droite passent d’une tâche à l’autre ; Alt et les flèches haut et bas la changent de couloir. Une tâche se glisse aussi à la souris.",
+      "task": "{task}, du {start} au {finish}, couloir {lane}",
+      "milestone": "{task}, jalon le {date}",
+      "moved": "« {task} » est dans le couloir {lane}.",
+      "overlap": "« {task} » chevaucherait « {other} » dans le couloir {lane} : elle reste dans le couloir {from}.",
+      "top": "« {task} » est déjà dans le premier couloir.",
+      "bottom": "« {task} » est seule dans le dernier couloir.",
+      "restack": "Disposition automatique",
+      "restacked": "Les tâches de la chronologie sont rangées automatiquement.",
+      "zoom": "Zoom de la chronologie",
+      "table": "Lecture en table",
+      "lane": "Couloir",
+      "milestoneLane": "Jalon",
+      "undrawn": "Sans dates",
+      "file": "chronologie"
+    }
   },
   "remainingGrid": {
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",

@@ -1153,7 +1153,12 @@ de plusieurs années comme une tâche de quelques jours, et présenter une chron
 entrée portant le couloir de chaque tâche (`lanes`), bornée comme `grids` — avec ses exemples et son
 entrée de `DECISIONS.md` ; rien d'autre n'y change. Le refus ou l'ouverture d'un couloir quand un
 rectangle en chevaucherait un autre se tranche au lot (#1068). Trois lots : l'épinglage et la
-poignée ; l'échelle et le zoom ; la frise.
+poignée ; l'échelle et le zoom ; la frise. Tranché par US-0530/L3 : le déplacement vers un couloir
+où le rectangle en chevaucherait un autre est refusé, dit, et rien ne bouge ; aucun couloir ne
+s'ouvre au-dessus d'un autre, un couloir vide s'offrant toujours sous le dernier, et le clavier vise
+le plus proche couloir où le rectangle tient. Un jalon, ligne sur toute la hauteur, n'a pas de
+couloir. L'export nomme l'instant de la lecture, la lecture du planning ne portant pas de date de
+calcul (#1404).
 
 ## US-0540 — Les gestes du Kanban
 

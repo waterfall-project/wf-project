@@ -68,7 +68,7 @@ import {
 import { useKeptZoom } from "./zoom";
 
 /** The Gantt of the grid around: its layout, the level of its scale, where its drawing scrolls. */
-interface GanttView {
+export interface GanttView {
   readonly layout: GanttLayout;
   /** The level of the scale shown, and whether it is the whole project fitted to the column. */
   readonly level: number;
@@ -91,6 +91,11 @@ interface GanttView {
 
 /** The Gantt of the grid around, if any. */
 const GanttContext = createContext<GanttView | undefined>(undefined);
+
+/** The Gantt around — its layout, its level, its scroll —, for a drawing on its axis: the timeline. */
+export function useGanttView(): GanttView | undefined {
+  return use(GanttContext);
+}
 
 /** A share of the axis as a length of SVG: a percentage of the width of the cell. */
 function percent(share: number): string {
@@ -223,7 +228,10 @@ export function GanttRows({
           onKeyDown={(event) => {
             const step = keyZoom(event);
             const target = event.target instanceof Element ? event.target : undefined;
-            if (step !== undefined && target?.closest('[role="treegrid"]') != null) {
+            if (
+              step !== undefined &&
+              target?.closest('[role="treegrid"], [data-timeline]') != null
+            ) {
               event.preventDefault();
               zoomTo(step);
             }
@@ -237,7 +245,7 @@ export function GanttRows({
 }
 
 /** The commands of the zoom of the Gantt, their icon, their step, and whether each goes anywhere. */
-function zoomCommands(view: GanttView) {
+export function zoomCommands(view: GanttView) {
   return [
     { key: "zoomIn", icon: <ZoomIn aria-hidden="true" />, step: 1, offered: view.can.in },
     { key: "zoomOut", icon: <ZoomOut aria-hidden="true" />, step: -1, offered: view.can.out },
