@@ -171,28 +171,3 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   await expect(commissioning(1)).toBeVisible();
   await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
 });
-
-test("exports the frieze of a timeline as a PNG image, named after the project [WF-PLA-0140-A]", async ({
-  page,
-}) => {
-  // L'export produit un fichier PNG de la chronologie affichée.
-  test.slow();
-  await openHydrated(page, `${IN_REVISION}/timelines`);
-  const figure = page.getByRole("figure", { name: "Comité de pilotage" });
-  await expect(figure).toBeVisible({ timeout: WORKING });
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    figure.getByRole("button", { name: "Exporter en PNG" }).click(),
-  ]);
-  expect(download.suggestedFilename()).toBe("chronologie-PRJ-001.png");
-  const stream = await download.createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk as Buffer);
-  }
-  // The signature of a PNG, then the width and the height of its header, twice as dense as the
-  // screen.
-  const image = Buffer.concat(chunks);
-  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-  expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
-});

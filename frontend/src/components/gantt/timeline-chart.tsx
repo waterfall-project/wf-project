@@ -18,14 +18,10 @@
  * The frieze is one stop of the keyboard, named after the timeline, which moves among its rectangles
  * by the left and right arrows (`aria-activedescendant`); each rectangle and each milestone is named
  * by its task, its dates and its lane, and the table under the frieze reads the same (WF-IHM-0100).
- * It is exported as a PNG image as it is laid out, with the name of the timeline, the project, the
- * revision and the date of the reading (WF-IHM-0130), drawn anew on a canvas as every chart is
- * (`exportPng`).
  */
 "use client";
 
-import type { CustomSeriesOption } from "echarts/charts";
-import { ImageDown, Rows3 } from "lucide-react";
+import { Rows3 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   type KeyboardEvent,
@@ -39,16 +35,6 @@ import {
 
 import type { components } from "@/api/generated/schema";
 import { updateTimelinePreferences } from "@/api/actions/preferences";
-import {
-  type ChartOption,
-  type ChartPalette,
-  type ChartProvenance,
-  exportPng,
-  Probes,
-  readPalette,
-  timeAxis,
-  useProvenance,
-} from "@/components/chart/chart";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useKeptWriter } from "@/components/grid/settings";
 import { Button } from "@/components/ui/button";
@@ -60,14 +46,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatLocale, formatPlanningDate } from "@/i18n/format";
+import { formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
 import { GanttAxis, GanttRows, useGanttView, zoomCommands } from "./gantt";
 import {
   type LaneMove,
   laneCount,
-  type Lanes,
   type LaneSpan,
   keptLanes,
   movedBy,
@@ -127,7 +112,7 @@ function drawnOf(tasks: readonly TimelineTask[], locale: Locale) {
   return { rectangles, milestones };
 }
 
-/** What the frieze is given: its timeline, its tasks, the lanes kept, where it comes from. */
+/** What the frieze is given: its timeline, its tasks, the lanes kept. */
 export interface TimelineChartProps {
   /** The name of the timeline. */
   readonly name: string;
@@ -137,10 +122,6 @@ export interface TimelineChartProps {
   readonly tasks: readonly TimelineTask[];
   /** The lanes the account kept for it; none, stacked automatically. */
   readonly kept: Readonly<Record<string, number>> | undefined;
-  /** The project and the revision, which the exported image names. */
-  readonly provenance: ChartProvenance;
-  /** The instant the tasks were read at, which the exported image names. */
-  readonly readAt: string;
   /** The scope the level of the zoom is kept under for the session. */
   readonly scope: string;
 }
@@ -152,104 +133,6 @@ export function TimelineChart(props: TimelineChartProps) {
       <Frieze {...props} />
     </GanttRows>
   );
-}
-
-/**
- * The option of the exported image: the rectangles in their lanes as the frieze lays them out, the
- * milestones across, on an axis of time in UTC — dates of planning have no time zone.
- */
-function friezeOption(
-  palette: ChartPalette,
-  locale: Locale,
-  drawn: { readonly rectangles: readonly Drawn[]; readonly milestones: readonly Drawn[] },
-  lanes: Lanes,
-  bounds: readonly [number, number],
-): ChartOption {
-  const count = Math.max(laneCount(lanes), 1);
-  const font = (size: number) => `${String(size)}px ${palette.font}`;
-  const rectangle: NonNullable<CustomSeriesOption["renderItem"]> = (params, api) => {
-    const lane = Number(api.value(2));
-    const [x0 = 0, y0 = 0] = api.coord([api.value(0), lane]);
-    const [x1 = 0, y1 = 0] = api.coord([api.value(1), lane + 1]);
-    return {
-      type: "group",
-      children: [
-        {
-          type: "rect",
-          shape: { x: x0, y: y0 + INSET, width: Math.max(x1 - x0, 2), height: y1 - y0 - 2 * INSET },
-          style: { fill: palette.background, stroke: palette.series[0] ?? palette.mark },
-        },
-        {
-          type: "text",
-          x: x0 + 4,
-          y: (y0 + y1) / 2,
-          style: {
-            text: drawn.rectangles[params.dataIndex]?.label ?? "",
-            width: Math.max(x1 - x0 - 8, 0),
-            overflow: "truncate",
-            fill: palette.mark,
-            font: font(11),
-            verticalAlign: "middle",
-          },
-        },
-      ],
-    };
-  };
-  const milestone: NonNullable<CustomSeriesOption["renderItem"]> = (params, api) => {
-    const each = drawn.milestones[params.dataIndex];
-    const [x = 0, top = 0] = api.coord([api.value(0), 0]);
-    const [, bottom = 0] = api.coord([api.value(0), count]);
-    return {
-      type: "group",
-      children: [
-        {
-          type: "line",
-          shape: { x1: x, y1: top, x2: x, y2: bottom },
-          style: { stroke: palette.mark, lineDash: [4, 3] },
-        },
-        {
-          type: "text",
-          x,
-          y: bottom + 4,
-          style: {
-            text: `${each?.label ?? ""}\n${each?.finish ?? ""}`,
-            width: MILESTONE_NAME,
-            overflow: "truncate",
-            align: "center",
-            fill: palette.mark,
-            font: font(10),
-          },
-        },
-      ],
-    };
-  };
-  return {
-    useUTC: true,
-    textStyle: { fontFamily: palette.font, color: palette.text },
-    grid: { left: 16, right: 16, top: 16, bottom: 32 + FOOT },
-    xAxis: timeAxis(
-      palette,
-      formatLocale(locale),
-      bounds.map((time) => new Date(time).toISOString()),
-      true,
-    ),
-    yAxis: { type: "value", min: 0, max: count, inverse: true, show: false },
-    series: [
-      {
-        type: "custom",
-        clip: true,
-        data: drawn.rectangles.map((each) => [each.from, each.to, lanes.get(each.id) ?? 0]),
-        encode: { x: [0, 1], y: 2 },
-        renderItem: rectangle,
-      },
-      {
-        type: "custom",
-        data: drawn.milestones.map((each) => [each.to, 0]),
-        encode: { x: 0, y: 1 },
-        renderItem: milestone,
-      },
-    ],
-  };
 }
 
 /** What a move says, or nothing for one that changes nothing. */
@@ -278,10 +161,9 @@ function said(
 }
 
 /** The frieze, in the Gantt around it: its commands, its axis, its drawing, its table. */
-function Frieze({ name, timeline, tasks, kept, provenance, readAt }: TimelineChartProps) {
+function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
   const t = useTranslations("timelines.chart");
   const tz = useTranslations("gantt");
-  const tc = useTranslations("chart");
   const tg = useTranslations("grid.columns");
   const locale = useLocale();
   const view = useGanttView();
@@ -294,11 +176,9 @@ function Frieze({ name, timeline, tasks, kept, provenance, readAt }: TimelineCha
   const [drag, setDrag] = useState<{ readonly id: string; readonly lane: number }>();
   const [message, setMessage] = useState<string>();
   const writer = useKeptWriter<TimelinePreferences | null>(timeline, updateTimelinePreferences);
-  const exported = useProvenance(provenance, name, readAt, t("file"));
   const ids = useId();
   const frame = useRef<HTMLDivElement>(null);
   const drawing = useRef<SVGSVGElement>(null);
-  const probes = useRef<HTMLSpanElement>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
     const element = frame.current;
@@ -397,16 +277,8 @@ function Frieze({ name, timeline, tasks, kept, provenance, readAt }: TimelineCha
   const shownLanes = Math.max(count + (drag === undefined ? 0 : 1), 1);
   const foot = drawn.milestones.length === 0 ? 0 : FOOT;
   const height = shownLanes * LANE + foot;
-  const first = view.layout.ticks[0] ?? 0;
-  const last = view.layout.ticks.at(-1) ?? first;
   const refused =
     drag !== undefined && movedTo(spans, lanes, drag.id, drag.lane).kind === "overlap";
-  const exportImage = () => {
-    if (probes.current !== null) {
-      const palette = readPalette(probes.current);
-      exportPng(friezeOption(palette, locale, drawn, lanes, [first, last]), palette, exported());
-    }
-  };
   const laneName = (id: string) => (lanes.get(id) ?? 0) + 1;
 
   return (
@@ -445,18 +317,11 @@ function Frieze({ name, timeline, tasks, kept, provenance, readAt }: TimelineCha
             <Rows3 aria-hidden="true" />
             {t("restack")}
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={exportImage}>
-            <ImageDown aria-hidden="true" />
-            {tc("exportPng")}
-          </Button>
         </span>
       </figcaption>
       <p id={`${ids}hint`} className="text-xs text-muted-foreground">
         {t("hint")}
       </p>
-      <span ref={probes} hidden>
-        <Probes />
-      </span>
       <div className="rounded-md border">
         <div className="relative h-9 border-b">
           <GanttAxis width={Math.max(width, 0)} />

@@ -6,7 +6,7 @@
  * (WF-IHM-0020); the named timelines of the project (`listTimelines`), each a link that writes the
  * address (`timeline`) — the first when the address names none the project has —; and the tasks of
  * the revision inscribed to the one shown, drawn as a frieze in the lanes the account keeps for it
- * (`TimelineChart`, `DisplayPreferences.timelines`), exported with the instant they were read at. The
+ * (`TimelineChart`, `DisplayPreferences.timelines`). The
  * timelines are created and deleted as the project lists `manage_timelines` (`TimelineChoice`,
  * EP-14/L44f), the screen saying then that the fake back keeps none of it (`MockupNotice`), and the
  * tasks of a timeline deleted giving way with it (`TimelineBody`); the inscriptions are read, never
@@ -68,15 +68,12 @@ const TIMELINE_FIELDS = {
 } as const;
 
 /**
- * What the frieze of the timeline shown needs besides its tasks: the reading context, which names
- * the project and the revision in its exported image, the lanes the account keeps for it, and the
- * instant its tasks were read at — the planning a reading gives carries no date of calculation of
- * its own.
+ * What the frieze of the timeline shown needs besides its tasks: the reading context, which scopes
+ * its zoom, and the lanes the account keeps for it.
  */
 interface TimelineDrawing {
   readonly reading: ProjectReading;
   readonly kept: Readonly<Record<string, number>> | undefined;
-  readonly readAt: string;
 }
 
 /**
@@ -113,12 +110,6 @@ function TimelinesScreen({
           timeline={shown.timeline_id}
           tasks={tasks}
           kept={drawing.kept}
-          provenance={{
-            project: drawing.reading.project.label,
-            code: drawing.reading.project.code ?? drawing.reading.project.project_id,
-            revision: drawing.reading.revision?.version_name ?? t("contextBanner.currentRevision"),
-          }}
-          readAt={drawing.readAt}
           scope={`timelines:${drawing.reading.revision?.revision_id ?? project}`}
         />
       );
@@ -196,7 +187,6 @@ export default async function TimelinesPage({
   const shown = timelines.find((timeline) => timeline.timeline_id === asked) ?? timelines[0];
   const { reading, tasks }: { reading: ProjectReading; tasks: readonly TimelineTask[] } =
     shown === undefined ? { reading: context, tasks: [] } : await readInscribed(at, shown);
-  const readAt = new Date().toISOString();
   const kept =
     shown === undefined
       ? undefined
@@ -219,7 +209,7 @@ export default async function TimelinesPage({
         hrefs={Object.fromEntries(
           timelines.map((timeline) => [timeline.timeline_id, href(timeline)]),
         )}
-        drawing={{ reading, kept, readAt }}
+        drawing={{ reading, kept }}
       />
     </>
   );

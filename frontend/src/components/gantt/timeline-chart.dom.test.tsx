@@ -6,10 +6,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
-import type { ChartOption } from "@/components/chart/chart";
 import { WRITE_DELAY } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -22,31 +20,7 @@ const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } =
 }));
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
-/** What the instance out of the screen was handed for the exported image. */
-const canvas = vi.hoisted(() => ({ options: [] as unknown[] }));
-
-// The image is drawn on a canvas, which the simulated document does not paint: an instance in its
-// place records what it is asked to draw.
-vi.mock("echarts/core", async (actual) => {
-  const echarts = await actual<typeof import("echarts/core")>();
-  return {
-    ...echarts,
-    init: (...args: Parameters<typeof echarts.init>) => {
-      if (args[2]?.renderer !== "canvas") {
-        return echarts.init(...args);
-      }
-      return {
-        setOption: (option: unknown) => canvas.options.push(option),
-        getDataURL: () => "data:image/png;base64,iVBORw0KGgo=",
-        dispose: () => undefined,
-      };
-    },
-  };
-});
-
 const STEERING = "01926f3a-7c00-7000-8000-000000001000";
-const PROJECT = "Modernisation du poste de commande";
-const READ_AT = "2026-06-03T08:30:00Z";
 
 /** The rows of the studies and of the control station of the core, by their number in the plan. */
 function rows(...numbers: number[]): TimelineTask[] {
@@ -79,8 +53,6 @@ function renderFrieze(
         timeline={STEERING}
         tasks={tasks}
         kept={kept}
-        provenance={{ project: PROJECT, code: "PRJ-001", revision: "Révision en cours" }}
-        readAt={READ_AT}
         scope="timelines:test"
       />
     </NextIntlClientProvider>,
@@ -113,10 +85,8 @@ function node(number: number): string {
 
 beforeEach(() => {
   window.sessionStorage.clear();
-  canvas.options = [];
   server.client = fakeClient({ "PATCH /me/preferences": "preferences_timeline_lanes" });
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1000);
-  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
@@ -162,8 +132,8 @@ describe("the frieze of a timeline", () => {
   it("moves a rectangle down by Alt and the down arrow, past a lane where it would overlap, and records the lanes shown after a pause", async () => {
     const user = userEvent.setup();
     renderFrieze();
-    // After the zoom in and out and the export — the automatic layout is already shown.
-    for (let press = 0; press < 4; press += 1) {
+    // After the zoom in and out — the automatic layout is already shown.
+    for (let press = 0; press < 3; press += 1) {
       await user.tab();
     }
     expect(frieze()).toHaveFocus();
@@ -271,26 +241,5 @@ describe("the frieze of a timeline", () => {
       ["8", "Poste de commande", "04/05/2026", "30/06/2026", "1"],
     ]);
     await expectAccessible(container);
-  });
-});
-
-describe("the export of the frieze", () => {
-  it("draws a PNG image of the frieze as it is laid out, with the name of the timeline, the project, the revision and the date of the reading [WF-PLA-0140-A]", async () => {
-    // L'export produit un fichier PNG de la chronologie affichée.
-    const user = userEvent.setup();
-    renderFrieze();
-    fireEvent.keyDown(frieze(), { key: "End" });
-    fireEvent.keyDown(frieze(), { key: "ArrowDown", altKey: true });
-    await user.click(screen.getByRole("button", { name: "Exporter en PNG" }));
-    expect(canvas.options).toHaveLength(1);
-    const option = canvas.options[0] as ChartOption;
-    expect(option.title).toMatchObject({
-      text: `Comité de pilotage — ${PROJECT}`,
-      subtext: `Révision : Révision en cours · Calculé le ${formatTimestamp(READ_AT, "fr")}`,
-    });
-    const [boxes, milestones] = option.series as { data: number[][] }[];
-    // The lanes as laid out: the control station moved down to the second lane.
-    expect(boxes?.data.map((box) => box[2])).toEqual([0, 1, 1, 2, 1]);
-    expect(milestones?.data).toHaveLength(1);
   });
 });

@@ -995,9 +995,7 @@ qu'atteint la souris. La disposition est une préférence d'affichage par chrono
 (`useKeptWriter`, `updateTimelinePreferences`) : les couloirs de tous les rectangles montrés, le
 déplacé d'abord, dans la borne de 64 du contrat, pour qu'un déplacement ne déplace rien d'autre ;
 « Disposition automatique » l'oublie (`null`). La lecture en table, sous la frise, dit chaque tâche,
-ses dates et son couloir ; l'export PNG redessine la frise telle que disposée par `exportPng` (une
-série `custom` d'ECharts), avec le nom de la chronologie, le projet, la révision et l'instant où la
-page a lu les tâches, la lecture du planning ne portant pas de date de calcul ; elles se créent par leur nom et la chronologie montrée se supprime après
+ses dates et son couloir ; elles se créent par leur nom et la chronologie montrée se supprime après
 confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
 demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
 chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,

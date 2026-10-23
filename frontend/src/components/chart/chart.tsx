@@ -26,8 +26,6 @@
 import {
   BarChart,
   type BarSeriesOption,
-  CustomChart,
-  type CustomSeriesOption,
   LineChart,
   type LineSeriesOption,
   ScatterChart,
@@ -71,7 +69,6 @@ register([
   LineChart,
   BarChart,
   ScatterChart,
-  CustomChart,
   GridComponent,
   LegendComponent,
   MarkAreaComponent,
@@ -85,13 +82,12 @@ register([
 
 /**
  * What a chart of the application may draw: lines, bars and points on a grid, a legend, marked
- * lines and areas, a tooltip; and the shapes of a drawing of its own — the rectangles of a timeline.
+ * lines and areas, a tooltip.
  */
 export type ChartOption = ComposeOption<
   | LineSeriesOption
   | BarSeriesOption
   | ScatterSeriesOption
-  | CustomSeriesOption
   | GridComponentOption
   | LegendComponentOption
   | MarkAreaComponentOption
@@ -206,7 +202,7 @@ export function planningInstant(date: string): string {
 }
 
 /** Read the palette from the probes, as the document shows them now. */
-export function readPalette(probes: HTMLElement): ChartPalette {
+function readPalette(probes: HTMLElement): ChartPalette {
   const colour = (name: string) => {
     const probe = probes.querySelector(`[data-probe="${name}"]`);
     return probe === null ? "" : getComputedStyle(probe).color;
@@ -286,11 +282,8 @@ export function dataId(data: unknown): string | undefined {
     : undefined;
 }
 
-/**
- * The probes of the tokens, to put in a hidden element: each takes the colour of one, which
- * `readPalette` reads.
- */
-export function Probes() {
+/** The probes of the tokens, hidden: each takes the colour of one. */
+function Probes() {
   const singles = (["text", "mark", "axis", "grid", "background"] as const).map((name) => (
     <span key={name} data-probe={name} className={PROBES[name]} />
   ));

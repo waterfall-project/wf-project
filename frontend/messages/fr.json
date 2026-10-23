@@ -434,8 +434,7 @@
       "table": "Lecture en table",
       "lane": "Couloir",
       "milestoneLane": "Jalon",
-      "undrawn": "Sans dates",
-      "file": "chronologie"
+      "undrawn": "Sans dates"
     }
   },
   "remainingGrid": {

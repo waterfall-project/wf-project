@@ -1157,8 +1157,7 @@ poignée ; l'échelle et le zoom ; la frise. Tranché par US-0530/L3 : le dépla
 où le rectangle en chevaucherait un autre est refusé, dit, et rien ne bouge ; aucun couloir ne
 s'ouvre au-dessus d'un autre, un couloir vide s'offrant toujours sous le dernier, et le clavier vise
 le plus proche couloir où le rectangle tient. Un jalon, ligne sur toute la hauteur, n'a pas de
-couloir. L'export nomme l'instant de la lecture, la lecture du planning ne portant pas de date de
-calcul (#1404).
+couloir. L'export PNG de la frise est livré par US-0530/L3b.
 
 ## US-0540 — Les gestes du Kanban
 
