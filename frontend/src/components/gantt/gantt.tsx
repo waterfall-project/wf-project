@@ -164,7 +164,8 @@ export function GanttRows({
     setOffset(kept);
   }, [width, frame]);
   // Ctrl and the wheel zoom on the Gantt, the wheel across scrolls it: the page neither zooms nor
-  // scrolls aside, which a passive listener — React's — could not prevent.
+  // scrolls aside, which a passive listener — React's — could not prevent. A gesture mostly
+  // downward passes, though it drifts aside on a touchpad: the grid scrolls down.
   const wheel = useRef<(event: WheelEvent) => void>(() => undefined);
   useEffect(() => {
     wheel.current = (event) => {
@@ -174,7 +175,10 @@ export function GanttRows({
       if (event.ctrlKey && event.deltaY !== 0) {
         event.preventDefault();
         zoomTo(event.deltaY < 0 ? 1 : -1);
-      } else if (width !== undefined && (event.shiftKey || event.deltaX !== 0)) {
+      } else if (
+        width !== undefined &&
+        (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY))
+      ) {
         event.preventDefault();
         scroller.current?.scrollBy({ left: event.deltaX === 0 ? event.deltaY : event.deltaX });
       }

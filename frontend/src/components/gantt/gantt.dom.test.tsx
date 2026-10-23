@@ -279,6 +279,38 @@ describe("the Gantt of the planning", () => {
     expect(server.client?.calls).toEqual([]);
   });
 
+  // aucune exigence : propre à l'US (US-0530, la molette sur le Gantt zoomé).
+  it("lets a wheel mostly downward scroll the grid, though it drifts aside, and scrolls itself by a wheel across", async () => {
+    renderPlanning();
+    await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    const drawing = ganttOf("Études").querySelector("svg") ?? document.body;
+    const down = new WheelEvent("wheel", {
+      deltaY: 100,
+      deltaX: 3,
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(drawing, down);
+    expect(down.defaultPrevented).toBe(false);
+    const across = new WheelEvent("wheel", {
+      deltaY: 3,
+      deltaX: 100,
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(drawing, across);
+    expect(across.defaultPrevented).toBe(true);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, la molette sur le Gantt zoomé).
+  it("removes its wheel listener when it unmounts", () => {
+    const removed = vi.spyOn(HTMLElement.prototype, "removeEventListener");
+    const { unmount } = renderPlanning();
+    unmount();
+    expect(removed.mock.calls.some(([type]) => type === "wheel")).toBe(true);
+    removed.mockRestore();
+  });
+
   // aucune exigence : propre à l'US (US-0530, le niveau gardé pour la session).
   it("keeps its level for the session, by grid and by revision, and opens fitted to the project", async () => {
     const first = renderPlanning();
