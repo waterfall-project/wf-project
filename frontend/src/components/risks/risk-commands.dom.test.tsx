@@ -210,6 +210,41 @@ describe("« Identifier un risque »", () => {
     },
   );
 
+  it.each([
+    [
+      "tasks",
+      { ...ONLY_ONE, tasks: [] },
+      "Tâche de la provision",
+      "provision_task_id",
+      "Sous-projet",
+    ],
+    [
+      "sub-projects",
+      { ...ONLY_ONE, subprojects: [] },
+      "Sous-projet",
+      "provision_subproject_id",
+      "Tâche de la provision",
+    ],
+  ] satisfies [string, ProvisionOptions, string, string, string][])(
+    "opens the form without the field of the %s the session may not read, and sends it without that field",
+    async (_name, options, absent, key, present) => {
+      const client = serve();
+      render(identify(AVAILABLE, options));
+      await userEvent.click(identifyCommand());
+      const form = screen.getByRole("dialog", { name: "Identifier un risque" });
+      expect(within(form).queryByRole("combobox", { name: absent })).toBeNull();
+      expect(within(form).getByRole("combobox", { name: present })).toBeInTheDocument();
+      await fill(form, "Retard de livraison", "40");
+      await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+      await vi.waitFor(() => {
+        expect(client.calls).toHaveLength(1);
+      });
+      const body = written(client) as Record<string, unknown>;
+      expect(body).not.toHaveProperty(key);
+      expect(body).toMatchObject({ label: "Retard de livraison", probability: "0.4" });
+    },
+  );
+
   it("opens the own estimate of the risk in the grid of the estimate, the reading context kept, once it is declared", async () => {
     serve();
     render(identify());
