@@ -75,6 +75,9 @@ export function GeneratePlanning({
         return opened;
       }
       target = opened.data.revision_id;
+      // Not stopped when the screen was left meanwhile: the revision is open, and the skeleton is
+      // generated on it all the same, so that the user does not find an open revision whose
+      // structure was left empty. Only the page is left alone (`here`): no reading anew, no lead.
     }
     const outcome = await generatePlanningSkeleton(projectId, target);
     if (!here.current) {

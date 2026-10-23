@@ -213,7 +213,7 @@ async function readGeneration(read: ProjectReading, fromStart: boolean): Promise
   });
   return planningHref === undefined ? null : (
     <GeneratePlanning
-      key={read.project.project_id}
+      key={`${read.project.project_id}:generate`}
       projectId={read.project.project_id}
       revisionId={revision?.revision_id}
       offer={offer}

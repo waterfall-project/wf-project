@@ -147,7 +147,33 @@ describe("what the page offers on a project without revision", () => {
     expect(startOffers(project, undefined)).toBeUndefined();
   });
 
-  it("offers nothing to the estimator, who may not modify the planning and whom the project does not list it to [WF-PRJ-0030-A]", () => {
+  it("offers the skeleton again, from the revision, once the opening succeeded and the generation was refused: the page read anew lists the revision, not the project [WF-PRJ-0030-A]", () => {
+    // `revision_created`, then the page read anew: the project bears its revision in progress
+    // (`project_revision_opened`) and no longer lists the skeleton itself; the revision does.
+    const opened = example("project_revision_opened") as Project;
+    const revision = example("revision_created") as Revision;
+    expect(opened.current_revision_id).toBe(revision.revision_id);
+    expect(opened.available_commands.map((offer) => offer.command)).not.toContain(
+      "generate_skeleton",
+    );
+    const offers = startOffers(opened, revision);
+    expect(offers?.skeleton).toEqual(
+      revision.available_commands.find((offer) => offer.command === "generate_skeleton"),
+    );
+    expect(offers?.skeleton).toMatchObject({ is_available: true });
+    serve({});
+    open(
+      <ProjectStart
+        projectId={PROJECT}
+        offers={offers ?? offered()}
+        breakdownHref={BREAKDOWN}
+        start={START}
+      />,
+    );
+    expect(screen.getByRole("region", { name: "Démarrer le projet" })).toBeVisible();
+  });
+
+  it("offers nothing to the estimator, who may not modify the planning and whom the project does not list it to", () => {
     const project = example("project_pricing_estimator") as Project;
     expect(project.available_commands.map((c) => c.command)).not.toContain("generate_skeleton");
     expect(startOffers(project, undefined)).toBeUndefined();
@@ -541,7 +567,7 @@ describe("« Engendrer le planning » on a project without revision", () => {
     expect(router.refresh).toHaveBeenCalled();
   });
 
-  it("reads the page anew when the generation is refused, the revision staying open, and keeps the focus on the command [WF-PRJ-0030-A]", async () => {
+  it("reads the page anew when the generation is refused, the revision staying open, and keeps the focus on the command", async () => {
     serve({
       [CREATE]: { example: "revision_created", status: 201 },
       [SKELETON]: {
@@ -563,25 +589,21 @@ describe("« Engendrer le planning » on a project without revision", () => {
     expect(command).toHaveFocus();
   });
 
-  it("reads the page anew after a conflict of the opening, generates nothing, and tells it [WF-PRJ-0030-A]", async () => {
-    const client = serve({
-      [CREATE]: {
-        problem: {
-          code: "STATE_FORBIDS_OPERATION",
-          status: 409 as const,
-          params: { missing_condition: "no_current_revision" },
-        },
-      },
-    });
+  it("reads the page anew after a conflict of the opening, generates nothing, and tells it", async () => {
+    // The refusal of the contract: a revision opened meanwhile (`current_revision_exists`).
+    const refusal = example("current_revision_exists") as components["schemas"]["Problem"];
+    expect(refusal.code).toBe("CURRENT_REVISION_EXISTS");
+    const client = serve({ [CREATE]: { problem: { ...refusal, status: 409 as const } } });
     open(generate());
     await userEvent.click(screen.getByRole("button", { name: "Engendrer le planning" }));
-    expect(await screen.findByRole("alert")).toBeVisible();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(CATALOGUES.fr.errors.CURRENT_REVISION_EXISTS);
     expect(client.calls.map((call) => call.route)).toEqual([CREATE]);
     expect(router.refresh).toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("does not lead anywhere when the answer comes once the screen is left [WF-PRJ-0030-A]", async () => {
+  it("goes on to generate when the screen is left before the opening ends, and neither reads the page anew nor leads anywhere", async () => {
     const hold = held();
     const client = serve(
       {
@@ -597,9 +619,11 @@ describe("« Engendrer le planning » on a project without revision", () => {
     });
     unmount();
     hold.release();
+    // What leaves after the screen: the generation on the revision the opening answered, nothing else.
     await waitFor(() => {
-      expect(client.calls.map((call) => call.route)).toContain(SKELETON);
+      expect(client.calls.map((call) => call.route)).toEqual([CREATE, SKELETON]);
     });
+    expect(client.calls[1]?.path).toBe(`${START}/revisions/${REVISION}/skeleton`);
     await act(async () => {
       await hold.until;
     });
