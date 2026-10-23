@@ -4446,7 +4446,9 @@ class State(StrEnum):
 
 
 class RiskReviewWrite(ContractModel):
-    probability: Percent
+    probability: Annotated[
+        Percent, Field(description="De `0` à `1` inclus, un rapport (WF-RIS-0010).")
+    ]
     state: State
     provision_cost_category_id: Annotated[
         Uuid | None,

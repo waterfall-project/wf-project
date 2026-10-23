@@ -298,7 +298,9 @@ RiskReviewWrite:
     choisie au retour comprise (WF-IHM-0110, WF-RIS-0020). La tâche qui porte la ligne recréée
     est dite par `reviewRisk` (#1227).
   properties:
-    probability: { $ref: ../common.yaml#/Percent }
+    probability:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: De `0` à `1` inclus, un rapport (WF-RIS-0010).
     state:
       type: string
       enum: [identified, dismissed]

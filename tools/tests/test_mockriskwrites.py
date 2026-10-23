@@ -25,14 +25,18 @@ from wftools.mockids import universe
 from wftools.mockwitness import TODAY, N
 from wftools.mockwitnessrisks import DELIVERY_DELAY, REGISTER
 
-CITED = {
-    ("risks.yaml", "createRisk", "201"): "risk_created",
-    ("risks.yaml", "updateRisk", "200"): "risk_updated",
-    ("risks.yaml", "reviewRisk", "201"): "risk_reviewed",
-    ("risks.yaml", "declareRiskOccurrence", "202"): "task_occurrence_queued",
-    ("risks.yaml", "createRisk", "422"): "risk_provision_task_refused",
-    ("revisions.yaml", "moveNodes", "422"): "nodes_move_provision_refused",
-}
+CITED = (
+    ("risks.yaml", "createRisk", "201", "risk_created"),
+    ("risks.yaml", "updateRisk", "200", "risk_updated"),
+    ("risks.yaml", "reviewRisk", "201", "risk_reviewed"),
+    ("risks.yaml", "reviewRisk", "201", "risk_dismissed"),
+    ("risks.yaml", "reviewRisk", "201", "risk_reidentified"),
+    ("risks.yaml", "listRiskReviews", "200", "risk_reviews_reviewed"),
+    ("risks.yaml", "declareRiskOccurrence", "202", "task_occurrence_queued"),
+    ("risks.yaml", "createRisk", "422", "risk_provision_task_refused"),
+    ("revisions.yaml", "moveNodes", "422", "nodes_move_provision_refused"),
+)
+"""Each example of the entries of a risk, under the answer of the operation that cites it."""
 
 
 @functools.cache
@@ -57,9 +61,9 @@ def _response(paths: str, operation: str, status: str) -> str:
 
 
 def test_each_entry_of_a_risk_is_an_example_the_contract_cites_under_its_answer() -> None:
-    for (paths, operation, status), name in CITED.items():
+    for paths, operation, status, name in CITED:
         assert f"fixtures/api/{name}.json" in _response(paths, operation, status), name
-    assert {f"{name}.json" for name in CITED.values()} == set(mockriskwrites.examples())
+    assert {f"{name}.json" for *_, name in CITED} == set(mockriskwrites.examples())
 
 
 def test_the_task_of_a_provision_is_the_parent_of_its_line_while_the_risk_is_identified() -> None:
@@ -115,6 +119,82 @@ def test_a_risk_confirmed_without_change_is_reviewed_today_and_one_version_furth
     assert {key: value for key, value in reviewed.items() if key not in changed} == {
         key: value for key, value in read.items() if key not in changed
     }
+
+
+def test_the_reviews_read_after_the_confirmation_begin_with_the_review_of_today() -> None:
+    read, after = example("risk_reviews")["value"], example("risk_reviews_reviewed")["value"]
+    reviewed = example("risk_reviewed")["value"]
+    [today, *before] = after
+    assert before == read
+    assert today["reviewed_on"] == reviewed["last_review_on"] == TODAY.date().isoformat()
+    kept = ("probability", "severity", "state")
+    assert [today[key] for key in kept] == [read[0][key] for key in kept]
+    assert [today[key] for key in kept] == [reviewed[key] for key in kept]
+
+
+def test_a_risk_dismissed_today_bears_no_provision_and_is_a_declared_counterfactual() -> None:
+    # #421: the witness confirms 751 today at the version the dismissal would give it.
+    read, dismissed = example("risk")["value"], example("risk_dismissed")["value"]
+    assert example("risk_dismissed")["summary"].startswith("Variante contrefactuelle : ")
+    assert dismissed["lock_version"] == example("risk_reviewed")["value"]["lock_version"]
+    assert dismissed["lock_version"] == read["lock_version"] + 1
+    assert (read["state"], dismissed["state"]) == ("identified", "dismissed")
+    assert (dismissed["provision_node_id"], dismissed["provision_task"]) == (None, None)
+    kept = ("probability", "severity", "provision_cost_category_id", "structure_id")
+    assert [dismissed[key] for key in kept] == [read[key] for key in kept]
+    assert dismissed["last_review_on"] == TODAY.date().isoformat()
+    commands = dismissed["available_commands"]
+    missing = {each["command"]: each["missing_conditions"] for each in commands}
+    assert missing == {
+        "update": [],
+        "update_provision": ["risk_identified"],
+        "review": [],
+        "declare_occurrence": ["risk_identified"],
+        "delete": ["risk_not_cited"],
+    }
+
+
+def test_a_dismissed_risk_identified_again_recreates_its_line_on_the_task_it_designated() -> None:
+    # #1227: the line recreated is borne by the task the risk designated, still one of the main
+    # structure; its category still active, none is asked.
+    items = {item["risk_id"]: item for item in example("risks")["value"]["items"]}
+    read = items[universe(mockwitnessrisks.AUTOMATION_ENGINEER.number)]
+    returned = example("risk_reidentified")["value"]
+    assert (read["state"], returned["state"]) == ("dismissed", "identified")
+    assert returned["lock_version"] == read["lock_version"] + 1
+    assert read["provision_cost_category_is_active"] is True
+    assert returned["provision_cost_category_id"] == read["provision_cost_category_id"]
+    rows = {row.number: row for row in mockcore.current()}
+    assert returned["provision_task"] == {
+        "node_id": universe(N.COMMISSIONING),
+        "label": rows[N.COMMISSIONING].label,
+    }
+    # Its line is a node of its own, which no reading of the witness renders (#421).
+    line = universe(mockriskwrites.REIDENTIFIED_LINE)
+    assert returned["provision_node_id"] == line
+    assert mockriskwrites.REIDENTIFIED_LINE not in rows
+    others = [
+        path.name
+        for path in mockwitness.FIXTURES.rglob("*.json")
+        if path.name != "risk_reidentified.json" and line in path.read_text(encoding="utf-8")
+    ]
+    assert others == []
+    assert all(
+        each["is_available"] is (each["command"] != "delete")
+        for each in returned["available_commands"]
+    )
+
+
+def test_the_answers_of_a_review_come_after_those_prism_serves_first() -> None:
+    # Prism serves the first example of an answer: the confirmation, and the reviews as the
+    # witness reads them.
+    for operation, status, first, then in (
+        ("reviewRisk", "201", "risk_reviewed", ("risk_dismissed", "risk_reidentified")),
+        ("listRiskReviews", "200", "risk_reviews", ("risk_reviews_reviewed",)),
+    ):
+        said = _response("risks.yaml", operation, status)
+        for name in then:
+            assert said.index(f"/{first}.json") < said.index(f"/{name}.json"), name
 
 
 def test_the_occurrence_queued_is_the_one_of_the_delay_of_the_cabinets() -> None:

@@ -4936,6 +4936,7 @@ export interface components {
         };
         /** @description La confirmation sans modification produit un réexamen daté (WF-RIS-0010). Un risque écarté qui redevient identifié recrée sa ligne de provision avec la catégorie qu'il désignait si elle est encore active ; sinon la catégorie est demandée, comme à la déclaration (`provision_cost_category_id`), ce que `Risk.provision_cost_category_is_active` dit d'avance. Sans aucune catégorie active de type provision pour risques, ce retour est refusé par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category` (WF-RIS-0010). Il se fait hors sous-projet quand le sous-projet que le risque désignait a été supprimé depuis, la désignation passée à nul (décision de l'auteur, #732). Son annulation rend au risque son état précédent et la catégorie qu'il désignait avant ce retour, la catégorie choisie au retour comprise (WF-IHM-0110, WF-RIS-0020). La tâche qui porte la ligne recréée est dite par `reviewRisk` (#1227). */
         RiskReviewWrite: {
+            /** @description De `0` à `1` inclus, un rapport (WF-RIS-0010). */
             probability: components["schemas"]["Percent"];
             /** @enum {string} */
             state: "identified" | "dismissed";
@@ -10929,7 +10930,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            /** @description `VALIDATION_FAILED`, `fields` désignant `/provision_cost_category_id` quand un risque écarté redevient identifié et que la catégorie qu'il désignait n'est plus active, par les motifs de la déclaration (`createRisk`). Rien n'est écrit. */
+            /** @description `VALIDATION_FAILED`, `fields` désignant `/provision_cost_category_id` quand un risque écarté redevient identifié et que la catégorie qu'il désignait n'est plus active, par les motifs de la déclaration (`createRisk`) ; `/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme à la déclaration (`RiskReviewWrite.probability`, WF-RIS-0010). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
