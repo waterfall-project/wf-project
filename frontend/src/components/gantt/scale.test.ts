@@ -8,6 +8,7 @@ import {
   DAY,
   fittedLevel,
   levelsWith,
+  revealedOffset,
   SCALE_LEVELS,
   scaleTicks,
   widthAt,
@@ -91,5 +92,15 @@ describe("the scale of the Gantt", () => {
     expect(centredOffset(0.01, 1440, 400)).toBe(0);
     expect(centredOffset(0.99, 1440, 400)).toBe(1040);
     expect(centredOffset(0.5, 300, 400)).toBe(0);
+  });
+
+  it("scrolls the least that brings a stretch into the frame", () => {
+    // A frame of 400 over 1440, scrolled by 500: it shows 500 to 900.
+    expect(revealedOffset({ from: 0.4, to: 0.5 }, 1440, 400, 500)).toBe(500);
+    expect(revealedOffset({ from: 0.1, to: 0.2 }, 1440, 400, 500)).toBe(144);
+    expect(revealedOffset({ from: 0.7, to: 0.8 }, 1440, 400, 500)).toBe(752);
+    expect(revealedOffset({ from: 0.2, to: 0.9 }, 1440, 400, 500)).toBe(288);
+    expect(revealedOffset({ from: 0.95, to: 1 }, 1440, 400, 500)).toBe(1040);
+    expect(revealedOffset({ from: 0, to: 0.1 }, 300, 400, 0)).toBe(0);
   });
 });

@@ -135,7 +135,7 @@ focus, un contour ou un anneau qu'il ne porte pas sans lui, sur lui ou sur la bo
 son contenu, peint au-dessus de ce qu'il contient et que nulle boîte qui défile ne coupe. Une liste
 dont les cellules ne prennent pas le focus a la boîte où elle défile dans l'ordre du clavier, un
 groupe nommé comme elle, son focus un contour tracé à l'intérieur de son bord (`list` de `Table`,
-que `ListTable` et `TimelineTable` posent ; `scrollingList` pour une autre boîte, les valeurs d'une
+que `ListTable` et la lecture en table d'une chronologie (`TimelineChart`) posent ; `scrollingList` pour une autre boîte, les valeurs d'une
 courbe) : plus large que sa boîte, elle défile alors aux flèches dans tous les navigateurs — Safari
 ne rend pas focalisable de lui-même un conteneur qui défile.
 

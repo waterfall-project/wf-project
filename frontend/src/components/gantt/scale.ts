@@ -128,6 +128,28 @@ export function centredOffset(centre: number, width: number, frame: number): num
   return Math.round(Math.min(Math.max(centre * width - frame / 2, 0), Math.max(width - frame, 0)));
 }
 
+/**
+ * The offset that brings a stretch of the axis — two shares of its width — into the frame, moving
+ * the least: unchanged when it is wholly in view, its start at the edge when it is cut on that side
+ * or wider than the frame, its end at the edge when it is cut on the other.
+ */
+export function revealedOffset(
+  span: { readonly from: number; readonly to: number },
+  width: number,
+  frame: number,
+  offset: number,
+): number {
+  const from = span.from * width;
+  const to = span.to * width;
+  let target = offset;
+  if (from < offset || to - from > frame) {
+    target = from;
+  } else if (to > offset + frame) {
+    target = to - frame;
+  }
+  return Math.round(Math.min(Math.max(target, 0), Math.max(width - frame, 0)));
+}
+
 /** The level a zoom in or out reaches from the one shown, within those offered. */
 export function zoomed(zoom: Zoom, fitted: number, step: 1 | -1, levels: number): number {
   const from = zoom === "fit" ? fitted : zoom;

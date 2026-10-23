@@ -418,7 +418,24 @@
     "deleteNamed": "Delete the timeline “{label}”",
     "deleteTitle": "Delete the timeline “{label}”?",
     "deleteHint": "The timeline and its inscriptions will be deleted; the tasks and milestones keep their dates.",
-    "deleted": "Timeline “{label}” deleted."
+    "deleted": "Timeline “{label}” deleted.",
+    "chart": {
+      "name": "Frieze of the timeline “{name}”",
+      "hint": "The left and right arrows go from one task to the next; Alt and the up and down arrows move it to another lane. A task may be dragged with the mouse too.",
+      "task": "{task}, from {start} to {finish}, lane {lane}",
+      "milestone": "{task}, milestone on {date}",
+      "moved": "“{task}” is in lane {lane}.",
+      "overlap": "“{task}” would overlap “{other}” in lane {lane}: it stays in lane {from}.",
+      "top": "“{task}” is already in the first lane.",
+      "bottom": "“{task}” is alone in the last lane.",
+      "restack": "Automatic layout",
+      "restacked": "The tasks of the timeline are laid out automatically.",
+      "zoom": "Timeline zoom",
+      "table": "Read as a table",
+      "lane": "Lane",
+      "milestoneLane": "Milestone",
+      "undrawn": "No dates"
+    }
   },
   "remainingGrid": {
     "finishOverdue": "Started task past its finish",

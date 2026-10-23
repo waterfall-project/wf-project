@@ -16,6 +16,7 @@ import { serverClient } from "@/api/server";
 type DisplayPreferences = components["schemas"]["DisplayPreferences"];
 type GridPreferences = components["schemas"]["GridPreferences"];
 type ChartPreferences = components["schemas"]["ChartPreferences"];
+type TimelinePreferences = components["schemas"]["TimelinePreferences"];
 
 /**
  * Record a display preference of the account, and render the page again: the next render
@@ -82,6 +83,22 @@ export async function updateChartPreferences(
   return settled(
     await decode(() =>
       serverClient().PATCH("/me/preferences", { body: { charts: { [chart]: preferences } } }),
+    ),
+  );
+}
+
+/**
+ * Record the lanes of one timeline under its identifier, which the API replaces whole and alone
+ * among the timelines — `null` gives it back its automatic stacking (WF-PLA-0140, WF-ADM-0040).
+ * The page is not rendered again: the frieze already shows the lanes it records.
+ */
+export async function updateTimelinePreferences(
+  timeline: string,
+  preferences: TimelinePreferences | null,
+): Promise<Settled> {
+  return settled(
+    await decode(() =>
+      serverClient().PATCH("/me/preferences", { body: { timelines: { [timeline]: preferences } } }),
     ),
   );
 }

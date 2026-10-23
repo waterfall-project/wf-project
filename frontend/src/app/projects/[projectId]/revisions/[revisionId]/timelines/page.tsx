@@ -5,7 +5,8 @@
  * screen of its own, whose head leads here in the same context: the banner of its reading context
  * (WF-IHM-0020); the named timelines of the project (`listTimelines`), each a link that writes the
  * address (`timeline`) — the first when the address names none the project has —; and the tasks of
- * the revision inscribed to the one shown, drawn on their axis of time (`TimelineTable`). The
+ * the revision inscribed to the one shown, drawn as a frieze in the lanes the account keeps for it
+ * (`TimelineChart`, `DisplayPreferences.timelines`). The
  * timelines are created and deleted as the project lists `manage_timelines` (`TimelineChoice`,
  * EP-14/L44f), the screen saying then that the fake back keeps none of it (`MockupNotice`), and the
  * tasks of a timeline deleted giving way with it (`TimelineBody`); the inscriptions are read, never
@@ -26,7 +27,8 @@ import { serverClient } from "@/api/server";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
-import { inscribedTo, type TimelineTask, TimelineTable } from "@/components/gantt/timeline";
+import { inscribedTo, type TimelineTask } from "@/components/gantt/timeline";
+import { TimelineChart } from "@/components/gantt/timeline-chart";
 import {
   TimelineBody,
   TimelineChoice,
@@ -36,6 +38,7 @@ import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-displa
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
+import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
@@ -65,6 +68,15 @@ const TIMELINE_FIELDS = {
 } as const;
 
 /**
+ * What the frieze of the timeline shown needs besides its tasks: the reading context, which scopes
+ * its zoom, and the lanes the account keeps for it.
+ */
+interface TimelineDrawing {
+  readonly reading: ProjectReading;
+  readonly kept: Readonly<Record<string, number>> | undefined;
+}
+
+/**
  * The head of the screen — the timelines and their commands, as the project lists `manage_timelines`
  * —, and the tasks of the one shown, drawn here and given way once it is deleted (`TimelineBody`).
  */
@@ -75,6 +87,7 @@ function TimelinesScreen({
   shown,
   tasks,
   hrefs,
+  drawing,
 }: {
   readonly project: string;
   readonly offer: CommandOffer | undefined;
@@ -82,6 +95,7 @@ function TimelinesScreen({
   readonly shown: Timeline | undefined;
   readonly tasks: readonly TimelineTask[];
   readonly hrefs: Readonly<Record<string, string>>;
+  readonly drawing: TimelineDrawing;
 }) {
   const t = useTranslations();
   let body: ReactNode = null;
@@ -90,7 +104,14 @@ function TimelinesScreen({
       tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("timelines.empty")}</p>
       ) : (
-        <TimelineTable name={shown.label} tasks={tasks} />
+        <TimelineChart
+          key={shown.timeline_id}
+          name={shown.label}
+          timeline={shown.timeline_id}
+          tasks={tasks}
+          kept={drawing.kept}
+          scope={`timelines:${drawing.reading.revision?.revision_id ?? project}`}
+        />
       );
   }
   return (
@@ -150,13 +171,14 @@ export default async function TimelinesPage({
   const at = gridAddress(revision, search, "timelines");
   // The reading context is read with the timelines: a project without a timeline reads no task,
   // and its banner shows no filter, none of its reads taking one (#302).
-  const [timelines, context] = await Promise.all([
+  const [timelines, context, session] = await Promise.all([
     readOrFail("listTimelines", () =>
       serverClient().GET("/projects/{project_id}/timelines", {
         params: { path: { project_id: revision.projectId } },
       }),
     ),
     readProjectContext(at.pathname, at.context, []),
+    requestSession(),
   ]);
   if (context === "not_found") {
     notFound();
@@ -165,6 +187,10 @@ export default async function TimelinesPage({
   const shown = timelines.find((timeline) => timeline.timeline_id === asked) ?? timelines[0];
   const { reading, tasks }: { reading: ProjectReading; tasks: readonly TimelineTask[] } =
     shown === undefined ? { reading: context, tasks: [] } : await readInscribed(at, shown);
+  const kept =
+    shown === undefined
+      ? undefined
+      : (session?.display_preferences?.timelines?.[shown.timeline_id]?.lanes ?? undefined);
   const query = searchQuery(search);
   const href = (timeline: Timeline) => {
     const next = new URLSearchParams(query);
@@ -183,6 +209,7 @@ export default async function TimelinesPage({
         hrefs={Object.fromEntries(
           timelines.map((timeline) => [timeline.timeline_id, href(timeline)]),
         )}
+        drawing={{ reading, kept }}
       />
     </>
   );

@@ -83,6 +83,9 @@ beforeEach(() => {
 const STEERING = "01926f3a-7c00-7000-8000-000000001000";
 const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
 
+/** The accessible name of the rectangle of the commissioning, in a lane. */
+const COMMISSIONING = 'aria-label="Mise en service, from 21/12/2026 to 01/01/2027, lane LANE"';
+
 /** The timelines at the query given. */
 async function timelinesAt(search: Record<string, string> = {}) {
   return html(
@@ -105,12 +108,15 @@ describe("the screen of the timelines", () => {
     const page = await timelinesAt({ subproject_id: SUBPROJECT });
     expect(page).toMatch(/aria-current="true"[^>]*>Comité de pilotage</);
     expect(page).toContain(`href="${SCREEN}?subproject_id=${SUBPROJECT}&amp;timeline=${CUSTOMER}"`);
-    const table = page.slice(page.indexOf('aria-label="Comité de pilotage"'));
+    const table = page.slice(page.indexOf("<table"));
+    // The reading as a table of the frieze: each task, its dates and its lane.
     expect(text(table)).toContain(
-      "1 Études 02/03/2026 24/04/2026 6 Réception des études 24/04/2026 24/04/2026 " +
-        "18 Réception usine 30/06/2026 30/06/2026 23 Mise en service",
+      "1 Études 02/03/2026 24/04/2026 1 6 Réception des études 24/04/2026 24/04/2026 Milestone " +
+        "18 Réception usine 30/06/2026 30/06/2026 Milestone 23 Mise en service 21/12/2026 01/01/2027 1",
     );
-    expect(table).toContain('aria-label="Milestone on 24/04/2026 — critical"');
+    // The frieze: a rectangle for each task, a line for each milestone, each named.
+    expect(page).toContain('aria-label="Études, from 02/03/2026 to 24/04/2026, lane 1"');
+    expect(page).toContain('aria-label="Réception des études, milestone on 24/04/2026"');
     // The server selects the tasks of the timeline shown, for the sub-project the banner shows.
     const { fields, ...query } = queryOf(NODES) ?? {};
     expect(query).toEqual({ kinds: "task", subproject_id: SUBPROJECT, timeline_id: STEERING });
@@ -123,9 +129,7 @@ describe("the screen of the timelines", () => {
     const page = await timelinesAt({ timeline: CUSTOMER });
     expect(page).toMatch(/aria-current="true"[^>]*>Revue client</);
     expect(queryOf(NODES)).toMatchObject({ timeline_id: CUSTOMER });
-    expect(text(page.slice(page.indexOf('aria-label="Revue client"')))).toContain(
-      "6 Réception des études",
-    );
+    expect(text(page.slice(page.indexOf("<table")))).toContain("6 Réception des études");
   });
 
   it("keeps the tasks inscribed to the timeline of an answer that holds more, as the fake back renders it [WF-PLA-0140-A]", async () => {
@@ -133,12 +137,35 @@ describe("the screen of the timelines", () => {
     // two receptions alone, the core read whole.
     server.answers = { ...server.answers, [NODES]: "nodes_core" };
     const page = await timelinesAt({ timeline: CUSTOMER });
-    // The table, and the group it scrolls in, both bear the name of the timeline.
-    const table = text(page.slice(page.indexOf('aria-label="Revue client"')));
+    // The reading as a table of the frieze, which names every task inscribed.
+    const table = text(page.slice(page.indexOf("<table")));
     expect(table).toContain("6 Réception des études");
     expect(table).toContain("18 Réception usine");
     expect(table).not.toContain("Études 02/03/2026");
     expect(table).not.toContain("Mise en service");
+  });
+
+  it("hands the frieze the lanes the account keeps for the timeline shown", async () => {
+    // The opening tag of the command that gives back the automatic layout.
+    const restack = (page: string) => {
+      const at = page.indexOf("Automatic layout");
+      return page.slice(
+        page.lastIndexOf("<button", at),
+        page.indexOf(">", page.lastIndexOf("<button", at)),
+      );
+    };
+    // Stacked automatically for an account that placed nothing: nothing to give back.
+    const stacked = await timelinesAt();
+    expect(restack(stacked)).toContain('disabled=""');
+    expect(stacked).toContain(COMMISSIONING.replace("LANE", "1"));
+    server.clients = [];
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    const page = await timelinesAt();
+    const placed = restack(page);
+    expect(placed).toContain("<button");
+    expect(placed).not.toContain('disabled=""');
+    // The lanes kept concern milestones only: the drawing stays the automatic stacking (the drawn lane: #1406).
+    expect(page).toContain(COMMISSIONING.replace("LANE", "1"));
   });
 
   it("offers the commands of the timelines as the project lists `manage_timelines`, and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
