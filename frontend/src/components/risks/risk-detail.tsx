@@ -22,9 +22,7 @@ import { Actor, CELL, ICON, ListTable } from "@/components/projects/project-tabl
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatPercent, formatPlanningDate } from "@/i18n/format";
 
-import type { ProvisionOptions } from "./provision-choices";
 import { CloseRiskDetail } from "./risk-cells";
-import { ModifyRisk } from "./risk-commands";
 
 /** A risk, as the contract gives it. */
 export type Risk = components["schemas"]["Risk"];
@@ -139,13 +137,10 @@ function Reviews({ reviews }: { readonly reviews: readonly RiskReview[] }) {
 export interface RiskDetailProps {
   readonly risk: Risk;
   readonly reviews: readonly RiskReview[];
-  readonly projectId: string;
-  /** What the provision is chosen among, read while the risk lists `update` available. */
-  readonly options?: ProvisionOptions | undefined;
 }
 
 /** Render the detail of a risk. */
-export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProps) {
+export function RiskDetail({ risk, reviews }: RiskDetailProps) {
   const t = useTranslations();
   const locale = useLocale();
   // Named by its label, not by its heading: an identifier of a server component may meet one of
@@ -159,8 +154,6 @@ export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProp
         </h2>
         <CloseRiskDetail />
       </div>
-      {/* Keyed by the risk: the form, the answer and the status of a risk never outlive it. */}
-      <ModifyRisk key={risk.risk_id} projectId={projectId} risk={risk} options={options} />
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <Fact name={t("grid.columns.state")}>{t(`enums.RiskState.${risk.state}`)}</Fact>
         <Fact name={t("grid.columns.probability")}>{formatPercent(risk.probability, locale)}</Fact>

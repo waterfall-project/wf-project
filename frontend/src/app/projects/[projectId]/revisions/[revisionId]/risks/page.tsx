@@ -217,15 +217,14 @@ export default async function RisksPage({
   if (reading === "not_found") {
     notFound();
   }
-  // « Identifier un risque » as the revision lists `declare_risk`, and the modification of the risk
-  // shown, as it lists `update`: the choices of the provision are read when either is available.
+  // « Identifier un risque » as the revision lists `declare_risk`: the choices of the provision are
+  // read when it is available.
   const declare =
     reading.revision === undefined
       ? undefined
       : findOffer(reading.revision.available_commands, "declare_risk");
-  const modifiable = findOffer(detail?.risk.available_commands ?? [], "update")?.is_available;
   const options =
-    declare?.is_available === true || modifiable === true
+    declare?.is_available === true
       ? await readProvisionOptions(at.revision.projectId, at.revision.revisionId)
       : undefined;
   // The own estimate of a risk opens in the estimate of the revision, for a session that reads it.
@@ -272,7 +271,7 @@ export default async function RisksPage({
             </div>
             {detail === undefined ? null : (
               <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
-                <RiskDetail {...detail} projectId={at.revision.projectId} options={options} />
+                <RiskDetail {...detail} />
               </aside>
             )}
           </div>

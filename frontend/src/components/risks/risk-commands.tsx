@@ -1,42 +1,37 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The commands of the risks that open the form of a risk (US-0520, WF-IHM-0090): « Identifier un
- * risque » on the screen of the risks, and « Modifier » in the detail of a risk.
+ * The command that opens the form of a risk (US-0520, WF-IHM-0090): « Identifier un risque » on the
+ * screen of the risks.
  *
- * « Identifier un risque » follows `declare_risk` as the revision lists it: absent, nothing is
- * offered; listed, available or not, it is shown — unavailable, `aria-disabled` and described by the
- * conditions it lacks: the revision marked, a processing under way, no task in the main structure
- * (`at_least_one_task`), no active category of the type provision for risks
- * (`active_provision_category`, WF-RIS-0010) —, a press saying nothing more than the description.
- * The declaration is made by the form (`RiskForm`); the server judges it all the same, and a 409 it
- * opposes is told under the form, which stays open. Once declared, the risk opens its estimate of its
- * own — the structure the server names (`structure_id`) — in the grid of the estimate, where the
- * gestures of the structure apply (WF-RIS-0030, US-0500, US-0460), for a session that may read the
- * estimate; for another, the screen says the risk declared and stays.
+ * It follows `declare_risk` as the revision lists it: absent, nothing is offered; listed, available
+ * or not, it is shown — unavailable, `aria-disabled` and described by the conditions it lacks: the
+ * revision marked, a processing under way, no task in the main structure (`at_least_one_task`), no
+ * active category of the type provision for risks (`active_provision_category`, WF-RIS-0010) —, a
+ * press saying nothing more than the description. The declaration is made by the form (`RiskForm`);
+ * the server judges it all the same, and a 409 it opposes is told under the form, which stays open.
+ * Once declared, the risk opens its estimate of its own — the structure the server names
+ * (`structure_id`) — in the grid of the estimate, where the gestures of the structure apply
+ * (WF-RIS-0030, US-0500, US-0460), for a session that may read the estimate; for another, the screen
+ * says the risk declared and stays.
  *
- * « Modifier » follows `update` as the risk lists it, and the form `update_provision` for the
- * category, the sub-project and the task of its provision (`RiskForm`). Both commands wait, inactive
- * and saying why, while a write of their form is under way — its dialog closed — (défaut n° 24 de
- * `typescript.md`): a form opened anew would write from the version the answer is about to replace.
+ * The command waits, inactive and saying why, while a write of its form is under way — its dialog
+ * closed — (défaut n° 24 de `typescript.md`): a form opened anew would declare the same risk twice.
  * An answer closes the opening it was sent from, never one opened since, and leads away only from
- * the screen it was sent from. The modification answered is shown in the detail while it is newer
- * than the risk read; the page is read anew.
+ * the screen it was sent from.
  *
  * Every prop is data, never a function: a server component hands it over (défaut n° 12 de
  * `typescript.md`). The address of the estimate is the base the structure is added to.
  */
 "use client";
 
-import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactElement, type Ref, useEffect, useId, useRef, useState } from "react";
 
-import type { components } from "@/api/generated/schema";
-import { Command, useUnmet } from "@/components/commands/command";
+import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
-import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { STRUCTURE_PARAMETER } from "@/components/context/structure";
 import { filterHref } from "@/components/grid/filters";
 import { useSaid } from "@/components/notices/said";
@@ -46,9 +41,6 @@ import { Button } from "@/components/ui/button";
 
 import type { ProvisionOptions } from "./provision-choices";
 import { RiskForm } from "./risk-form";
-
-/** A risk, as the contract gives it. */
-type Risk = components["schemas"]["Risk"];
 
 /** The choices of a provision when the screen read none: the form asks nothing of the provision. */
 const NO_OPTIONS: ProvisionOptions = { categories: [], subprojects: [], tasks: [] };
@@ -206,9 +198,6 @@ export function IdentifyRisk({
         <RiskForm
           key={open}
           projectId={projectId}
-          risk={undefined}
-          provisionOpen
-          unmet={undefined}
           options={options ?? NO_OPTIONS}
           onDone={(risk) => {
             say(t("identified", { name: risk.label }), { object: risk.label });
@@ -220,75 +209,6 @@ export function IdentifyRisk({
             dialog.close();
             if (shown.current && estimate !== undefined) {
               router.push(estimateOf(estimate, risk.structure_id));
-            }
-          }}
-          onWriting={dialog.setWriting}
-          onClose={dialog.close}
-          onClosed={() => dialog.trigger.current?.focus()}
-        />
-      )}
-    </Reactivations>
-  );
-}
-
-/**
- * « Modifier », in the detail of a risk, as the risk lists `update`, and its form; the category, the
- * sub-project and the task of its provision follow `update_provision`.
- */
-export function ModifyRisk({
-  projectId,
-  risk,
-  options,
-}: {
-  readonly projectId: string;
-  readonly risk: Risk;
-  /** What the provision is chosen among; read while the risk lists `update` available. */
-  readonly options: ProvisionOptions | undefined;
-}) {
-  const t = useTranslations("riskForm");
-  const unmet = useUnmet();
-  const dialog = useRiskDialog();
-  const [said, say] = useSaid();
-  const [answered, setAnswered] = useState<Risk>();
-  const { open, current } = dialog;
-  // The answer is shown while newer than the risk read: a form opened again writes from its version.
-  const shown =
-    answered?.risk_id === risk.risk_id && answered.lock_version > risk.lock_version
-      ? answered
-      : risk;
-  const provision = findOffer(shown.available_commands, "update_provision");
-  return (
-    <Reactivations reads={[]}>
-      <div className="flex flex-wrap items-start gap-2">
-        <Status said={said} />
-        <OpensForm
-          offer={findOffer(shown.available_commands, "update")}
-          label={t("modify")}
-          icon={<Pencil aria-hidden="true" />}
-          writing={dialog.writing}
-          trigger={dialog.trigger}
-          onOpen={dialog.opening}
-        />
-      </div>
-      {open === undefined ? null : (
-        <RiskForm
-          key={open}
-          projectId={projectId}
-          risk={shown}
-          provisionOpen={provision?.is_available === true}
-          unmet={
-            provision === undefined || provision.missing_conditions.length === 0
-              ? undefined
-              : unmet(provision)
-          }
-          options={options ?? NO_OPTIONS}
-          onDone={(answer) => {
-            setAnswered((before) =>
-              before === undefined || before.lock_version < answer.lock_version ? answer : before,
-            );
-            say(t("saved", { name: answer.label }), { object: answer.label });
-            if (current.current === open) {
-              dialog.close();
             }
           }}
           onWriting={dialog.setWriting}
