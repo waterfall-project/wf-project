@@ -57,6 +57,10 @@
       marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). La révision retient pour année
       de référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
       révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
+      C'est la première des deux écritures du squelette de planning sur un projet sans révision
+      en cours, que le projet dit d'avance (`ProjectCommand.generate_skeleton`) : la révision
+      rendue liste `generate_skeleton`, et `generatePlanningSkeleton` s'y applique
+      (EP-15/US-0490/L4).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -1593,7 +1597,10 @@
       lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne
       supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170). La
       révision dit d'avance si la génération est proposée (`RevisionCommand.generate_skeleton`) ;
-      refusée sur une révision marquée ou un projet terminal, par 403, comme toute saisie
+      sur un projet sans révision en cours, c'est le projet qui le dit
+      (`ProjectCommand.generate_skeleton`), et la génération n'ouvre pas la révision : l'écran
+      l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la révision rendue
+      (EP-15/US-0490/L4) ; refusée sur une révision marquée ou un projet terminal, par 403, comme toute saisie
       (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres : elle rend les tâches
       créées, les totaux et le compteur de la structure (`NodesWritten`), pour que la grille
       vide se remplisse et que la saisie suivante porte le bon compteur (WF-IHM-0110).

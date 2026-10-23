@@ -5,7 +5,7 @@
 Usage: ``python -m wftools.mock BUNDLE``, where BUNDLE is the contract bundled as JSON; the
 file is rewritten in place.
 
-Three differences, and only these, so that the fake back answers what the contract says:
+These differences, and only these, so that the fake back answers what the contract says:
 
 - every path is prefixed with the path of the contract's server, ``/api/v1``: Prism serves
   paths at the root and ignores a relative server, and the front must call the fake back
@@ -22,7 +22,13 @@ Three differences, and only these, so that the fake back answers what the contra
 - the comparison of the volume is read at the address of a project of the volume: Prism serves
   the first example of ``compareRevisions`` and cannot route on its query (``from_revision_id``,
   ``to_revision_id``), so the path of the comparison is repeated for the project of the volume
-  with its identifier written in, leading with its example ``volume`` (US-0500/L4, #1201).
+  with its identifier written in, leading with its example ``volume`` (US-0500/L4, #1201);
+- the project created today is read at its own address: the creation answers it
+  (``createProject``, example ``created``) and the front opens its page, which Prism would
+  otherwise answer as the witness. Its reading, its next state, its revisions — none — and its
+  work breakdown — the default — are repeated with its identifier written in, each leading with
+  the example that describes it, so that the page offers to start its planning
+  (EP-15/US-0490/L4).
 
 No response is written here: responses are the examples of the contract.
 
@@ -36,7 +42,7 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
-from wftools.mockids import PROJECTS, identifier
+from wftools.mockids import PROJECTS, identifier, universe
 
 
 def derive(contract: dict[str, object]) -> dict[str, object]:
@@ -71,13 +77,42 @@ COMPARISON_PATH = "/projects/{project_id}/revisions/comparison"
 PROJECT_PARAMETER = "#/components/parameters/ProjectId"
 VOLUME_EXAMPLE = "volume"
 VOLUME_PROJECT = identifier(PROJECTS, 300)
+CREATED_PROJECT = universe(3)
+CREATED_PATHS = {
+    "/projects/{project_id}": "created",
+    "/projects/{project_id}/next-state": "created",
+    "/projects/{project_id}/revisions": "empty",
+    "/projects/{project_id}/work-breakdown": "default",
+}
+"""The readings of the project created today served at its address, each with the example that
+describes it: no revision, the work breakdown by default (EP-15/US-0490/L4)."""
 
 type Json = dict[str, Any]
 
 
 def _with_literal_paths(contract: Json, paths: Json, prefix: str) -> Json:
     """Return the paths, plus those the fake back serves at a literal address (#1219, #1201)."""
-    return _with_volume_comparison(_with_amendment_nodes(contract, paths, prefix), prefix)
+    served = _with_volume_comparison(_with_amendment_nodes(contract, paths, prefix), prefix)
+    return _with_created_project(served, prefix)
+
+
+def _with_created_project(paths: Json, prefix: str) -> Json:
+    """Return the paths, plus the readings of the project created today at its own address.
+
+    A path the contract has whose reading lists no such example is an error: the fake back would
+    be asked for the project created and silently answer the witness.
+    """
+    served = dict(paths)
+    for path, example in CREATED_PATHS.items():
+        item = paths.get(prefix + path)
+        if item is None:
+            continue
+        literal = _at_a_literal(item, PROJECT_PARAMETER, example)
+        if example not in _examples(literal.get("get", {})):
+            message = f"{path} has no example {example!r}: no project created to serve"
+            raise ValueError(message)
+        served[prefix + path.replace("{project_id}", CREATED_PROJECT)] = literal
+    return served
 
 
 def _with_volume_comparison(paths: Json, prefix: str) -> Json:

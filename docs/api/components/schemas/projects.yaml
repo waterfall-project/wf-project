@@ -61,7 +61,9 @@ Project:
         commande absente de la liste n'est pas présentée. Seule exception, décidée par
         l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un
         devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas
-        celle de créer une révision, indisponible, `may_create_revision` manquante.
+        celle de créer une révision, indisponible, `may_create_revision` manquante ; la
+        génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la
+        permission du planning (EP-15/US-0490/L4).
       items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -117,7 +119,9 @@ CommandCondition:
     commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager
     (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la
     déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s) et la déclaration d'un
-    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à
+    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) ; et pour une commande qui
+    demande d'ouvrir la révision d'abord : la génération du squelette de planning
+    (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4). Trois conditions tiennent à
     l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred`
     manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune
     transition ne part ; `risk_identified` à la déclaration de survenance et au changement de la
@@ -224,7 +228,10 @@ CommandCondition:
     (`RevisionCommand.generate_skeleton`) dès que la structure principale de la révision comporte
     une tâche : « Elle n'est plus proposée dès que la structure principale comporte une tâche »
     (Vérif de WF-PRJ-0030) ; `generatePlanningSkeleton` nomme dans son 409 la première qui
-    manque, dans l'ordre où la commande les liste (EP-14/L42k).
+    manque, dans l'ordre où la commande les liste (EP-14/L42k). Sur un projet sans révision en
+    cours (`ProjectCommand.generate_skeleton`), elle se juge sur la révision que son ouverture
+    créerait : elle manque quand la structure principale de la dernière révision marquée, que
+    cette ouverture copierait, comporte une tâche (WF-REV-0010 ; EP-15/US-0490/L4).
     `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche
     terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
     et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
@@ -325,6 +332,7 @@ ProjectCommand:
     - declare_risk_occurrence
     - import_actual_costs
     - exclude_cost_lines
+    - generate_skeleton
     - import_planning
     - import_estimate
     - import_remaining
@@ -371,6 +379,19 @@ ProjectCommand:
     `may_create_revision`. La révision que la déclaration créerait copie la dernière révision
     marquée, et n'a aucune tâche si le projet n'a aucune révision marquée, `at_least_one_task`
     manquant alors (WF-REV-0010, WF-RIS-0010 ; EP-14/L42s).
+    `generate_skeleton` dit d'avance, tant que le projet n'a pas de révision en cours, si le
+    squelette de planning s'engendrerait sur la révision que l'on ouvrirait (WF-PRJ-0030,
+    WF-REV-0010) : c'est ce que lit l'offre de démarrer le planning d'un projet tout juste créé
+    (EP-15/US-0490/L4). Elle est gardée par la permission du planning, `planning.write`, comme
+    `RevisionCommand.generate_skeleton`, et listée juste avant les imports ; dès qu'une révision
+    est en cours, elle n'est plus listée sur le projet, mais sur elle. La génération n'ouvre pas
+    la révision : l'écran l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la
+    révision que la création rend (`generatePlanningSkeleton`), qui liste à son tour
+    `generate_skeleton`. Ses conditions, dans cet ordre : `project_not_terminal`, sur lequel
+    aucune révision ne s'ouvre (WF-CYC-0100) ; `main_structure_without_tasks`, jugée sur la
+    révision que l'ouverture créerait — une copie de la dernière révision marquée, sans tâche si
+    le projet n'en a aucune —, puis `no_background_task_running`, comme sur la révision ; puis
+    `may_create_revision` à qui n'a pas la permission de l'ouvrir (`revisions.write`).
 
 ProjectCommandAvailability:
   type: object

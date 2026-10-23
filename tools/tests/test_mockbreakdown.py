@@ -240,9 +240,10 @@ def test_the_project_created_today_carries_the_revision_opened_without_task() ->
     assert opened["audit"]["updated_at"] >= revision["audit"]["created_at"]
     for key in ("created_at", "created_by"):
         assert opened["audit"][key] == created["audit"][key], key
-    # Its commands are those of the project created, but the entry of the risks and the
-    # declaration of one, which pass to the revision in progress (WF-RIS-0020; EP-14/L42s), a
-    # revision to create, which it has, and the loss, open in pricing (WF-CYC-0060).
+    # Its commands are those of the project created, but the entry of the risks, the declaration
+    # of one and the skeleton, which pass to the revision in progress (WF-RIS-0020; EP-14/L42s;
+    # EP-15/US-0490/L4), a revision to create, which it has, and the loss, open in pricing
+    # (WF-CYC-0060).
     changed: dict[str, tuple[bool, list[str]]] = {
         "create_revision": (False, ["no_current_revision"]),
         "lose": (True, []),
@@ -250,9 +251,10 @@ def test_the_project_created_today_carries_the_revision_opened_without_task() ->
     expected = [
         (command, *changed.get(command, (available, missing)))
         for command, available, missing in _commands(created)
-        if command not in ("edit_risks", "declare_risk")
+        if command not in ("edit_risks", "declare_risk", SKELETON)
     ]
     assert _commands(opened) == expected
+    assert (SKELETON, True, []) in _commands(revision)
     assert ("edit_risks", True, []) in _commands(revision)
     assert ("declare_risk", False, ["at_least_one_task"]) in _commands(revision)
 
