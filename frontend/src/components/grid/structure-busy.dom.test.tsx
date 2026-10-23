@@ -131,7 +131,13 @@ function moves(client: FakeClient): unknown[] {
   return client.calls.filter((call) => call.route === MOVE).map((call) => call.body);
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  // The test before may end with a menu open: its unmount, at the cleanup, leaves a timer of the
+  // focus scope of Radix, which gives the focus back to the page when it fires. Let it fire before
+  // the test begins, else it takes the focus from the first cell this one activates (#1224).
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   window.sessionStorage.clear();
   forgetMessages();
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
