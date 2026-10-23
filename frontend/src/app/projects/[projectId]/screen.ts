@@ -10,7 +10,14 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 
-import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import { refusalOf } from "@/api/problem";
+import type { Revision } from "@/components/context/read-only";
+import {
+  type Project,
+  type ProjectReading,
+  readProjectContext,
+  readRevision,
+} from "@/components/context/reading";
 import {
   type PageSearchParams,
   pageSearch,
@@ -64,4 +71,23 @@ export async function readProjectScreen(address: ProjectAddress): Promise<Projec
     notFound();
   }
   return read;
+}
+
+/**
+ * The revision in progress of a project, which « Engendrer le planning » reads; none for a project
+ * without one, for one the API does not find, and for an API out of reach. Any other refusal throws
+ * `UnexpectedAnswer`, as the reading of the context does: a 5xx never hides the offer in silence.
+ */
+export async function readCurrentRevision(project: Project): Promise<Revision | undefined> {
+  if (project.current_revision_id == null) {
+    return undefined;
+  }
+  const answer = await readRevision(project.project_id, project.current_revision_id);
+  if (answer === undefined || answer.response.status === 404) {
+    return undefined;
+  }
+  if (!answer.response.ok) {
+    throw refusalOf("getRevision", answer.response.status, answer.error);
+  }
+  return answer.data;
 }

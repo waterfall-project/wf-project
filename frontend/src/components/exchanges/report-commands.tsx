@@ -13,7 +13,15 @@
 import { Ban, CheckCheck, FileCheck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
+import {
+  type SubmitEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { abandonFileImport, applyFileImport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
@@ -21,7 +29,7 @@ import { Command } from "@/components/commands/command";
 import { commandIcon } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { useTrackTask } from "@/components/tasks/task-tracker";
+import { useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import { shownImport } from "./offers";
@@ -38,6 +46,11 @@ export interface ReportCommandsProps {
   readonly steps: { readonly apply: boolean; readonly abandon: boolean };
   /** The address of the screen, its context kept, before any import was shown. */
   readonly start: string;
+  /**
+   * Where the screen leads once the task that applies the import has succeeded — the planning an
+   * import of a schedule fills, from the start of a project —; none, and the screen stays.
+   */
+  readonly then?: string | undefined;
 }
 
 /** The confirmation of the application, asked in the page before anything is applied. */
@@ -46,9 +59,12 @@ function ConfirmForm({
   projectId,
   importId,
   filename,
+  onApplied,
   onClose,
 }: Pick<ReportCommandsProps, "projectId" | "importId" | "filename"> & {
   readonly id: string;
+  /** The application is accepted: the task that applies the import is followed. */
+  readonly onApplied: (taskId: string) => void;
   readonly onClose: () => void;
 }) {
   const t = useTranslations("exchanges.report");
@@ -70,6 +86,7 @@ function ConfirmForm({
       if (result.kind === "done") {
         track(result.data, { command, subject: filename });
         onClose();
+        onApplied(result.data.task_id);
       } else {
         setOutcome(result);
       }
@@ -104,6 +121,21 @@ function ConfirmForm({
   );
 }
 
+/**
+ * The import applies in a task: lead on to `then` once the task has succeeded, not while the planning
+ * is still being filled. Rendered once the application is accepted, within the tracker of the shell.
+ */
+function LeadOnWhenApplied({ taskId, then }: { readonly taskId: string; readonly then: string }) {
+  const router = useRouter();
+  useWhenTaskSucceeds(
+    taskId,
+    useCallback(() => {
+      router.push(then);
+    }, [then, router]),
+  );
+  return null;
+}
+
 /** Offer to apply the import, once confirmed, and to abandon it. */
 export function ReportCommands({
   projectId,
@@ -112,11 +144,13 @@ export function ReportCommands({
   offer,
   steps,
   start,
+  then,
 }: ReportCommandsProps) {
   const t = useTranslations("exchanges.report");
   const router = useRouter();
   const form = useId();
   const [open, setOpen] = useState(false);
+  const [applying, setApplying] = useState<string>();
   const button = useRef<HTMLButtonElement>(null);
   const close = () => {
     setOpen(false);
@@ -154,12 +188,16 @@ export function ReportCommands({
           action={abandon}
         />
       </div>
+      {applying === undefined || then === undefined ? null : (
+        <LeadOnWhenApplied taskId={applying} then={then} />
+      )}
       {open && steps.apply && offer?.is_available === true ? (
         <ConfirmForm
           id={form}
           projectId={projectId}
           importId={importId}
           filename={filename}
+          onApplied={setApplying}
           onClose={close}
         />
       ) : null}

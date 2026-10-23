@@ -23,7 +23,7 @@ async function openAmendment(page: Page): Promise<void> {
   await openHydrated(page, `${IN_REVISION}/planning?structure=${AMENDMENT}`);
 }
 
-test("prepares an amendment from the current revision: a label asked, the differential created and opened in the planning [WF-REV-0100-A]", async ({
+test("prepares an amendment from the current revision: a label asked, the differential created and opened in the planning", async ({
   page,
 }) => {
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
@@ -37,9 +37,7 @@ test("prepares an amendment from the current revision: a label asked, the differ
   });
 });
 
-test("adds a task in the grid of the amendment, said and read anew [WF-REV-0100-A]", async ({
-  page,
-}) => {
+test("adds a task in the grid of the amendment, said and read anew", async ({ page }) => {
   test.slow();
   await openAmendment(page);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });

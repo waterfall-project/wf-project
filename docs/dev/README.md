@@ -587,10 +587,10 @@ par défaut, un différentiel d'avenant, le devis propre d'un risque —, que la
 (`listCostStructures`), une autre étant introuvable ; le reste à engager, les chronologies et
 l'arborescence, la seule principale (`GridReading.chooses`). Le bandeau nomme la structure lue,
 sa nature quand ce n'est pas la principale, et offre les autres de la révision
-(`StructureChoice`) ; ce paramètre est celui de la grille : les liens entre fonctions ne le portent que
-du planning au devis et du devis au planning, qui lisent la même structure, et jamais vers un autre
-écran, qui retombe sur la principale (`readsStructure`, `navigation/context.ts`, #1220). La grille se monte par structure (`key`), et le squelette ne s'offre que sur la
-principale (US-0500). `readOnly` —
+(`StructureChoice`) ; ce paramètre est celui de la grille : les liens entre fonctions ne le portent
+que du planning au devis et du devis au planning, qui lisent la même structure, et jamais vers un
+autre écran, qui retombe sur la principale (`readsStructure`, `navigation/context.ts`, #1220). La
+grille se monte par structure (`key`), et le squelette ne s'offre que sur la principale (US-0500). `readOnly` —
 révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
 valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
@@ -1713,6 +1713,27 @@ le refus dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un
 et l'ôte de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont
 l'adresse change (#416).
 
+La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
+(`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
+de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
+`start-offers.ts`) : la révision en cours liste `generate_skeleton` — l'appelant peut modifier le
+planning — sans qu'il lui manque `main_structure_without_tasks` ; le front n'en déduit rien d'autre.
+La page la prend dans la liste de ses révisions, dont chaque élément est une révision entière, sans
+la relire. Ce que la génération produit (une récapitulative par lot et par poste, leurs jalons de fin)
+est l'affaire du back : le front envoie la commande et mène à la grille, et le critère de
+`WF-PRJ-0030-A` sur le résultat se porte au test du back, non à l'encart.
+« Planning automatique depuis le lotissement » mène au lotissement (`settings?start=skeleton`), où
+« Engendrer le planning » (`GeneratePlanning`) appelle `generatePlanningSkeleton`, relit la page
+après la génération comme après un 409 (#819.5, #819.6) et mène à la grille. « Importer un fichier MS
+Project » ouvre la zone de dépôt (`FileDrop`, `components/exchanges/file-drop.tsx`) : un bouton qui
+ouvre le sélecteur, la zone nommée et décrite, le type (`.xml`) et la taille vérifiés avant l'envoi ;
+elle envoie comme le formulaire de l'écran des imports (`useOpenImport`, `open-import.ts`), le compte
+rendu s'affichant sur la page, et l'application confirmée mène à la grille. « Plus tard » replie
+l'encart pour la session de l'onglet (`start-fold.ts`, `sessionStorage`) ; un bouton le rouvre. Le
+faux back, sans état, sert au témoin une structure à mille tâches : l'encart n'y paraît jamais, et les
+deux parcours de bout en bout (lotissement puis génération ; dépôt puis compte rendu) ne se jouent
+qu'aux tests des composants, contre les exemples du contrat (`project-start.dom.test.tsx`, #1350).
+
 ### Les écrans du portefeuille
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
@@ -1769,8 +1790,9 @@ un bloc dont une ligne ne tomberait pas sur celle que le serveur écrit : le ser
 lignes du plan sous la ligne visée, que la grille connaît par leur numéro dans toute la structure
 (`row_number`), non les lignes affichées après elle. Une seule garde compare, de la cible à la
 dernière ligne du bloc, le numéro de chaque ligne affichée à celui qu'elle aurait dans l'ordre du
-plan — sur un différentiel, le serveur saute les nœuds que l'avenant retire et remplit les
-suivants : la garde ne compte ni leur rang ni leur ligne, comme l'aperçu (#1278) — — une grille qui colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
+plan (sur un différentiel, le serveur saute les nœuds que l'avenant retire et remplit les
+suivants : la garde ne compte ni leur rang ni leur ligne, comme l'aperçu, #1278) — une grille qui
+colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
 (`fold.tsx`), déplacée par un tri, cachée par la recherche ou un filtre, ou au-delà de la dernière
 ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527).
 Sinon `previewPaste` rend le plan, que

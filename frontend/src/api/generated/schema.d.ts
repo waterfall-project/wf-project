@@ -4540,7 +4540,7 @@ export interface components {
         };
         /** @description Le refus d'une ligne d'un bloc collé, que l'aperçu annonce et que la confirmation redit : la ligne, et, quand il tient à une cellule, sa colonne, avec son motif (WF-IHM-0050). Une cellule de la colonne `work_breakdown` collée sur une tâche d'un différentiel ou du devis propre d'un risque est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` : le rattachement n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche de la structure principale, elle suit les règles du rattachement (`TaskFacetUpdate`), et `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` porte dans `params` la tâche du lot et celles des postes (`work_package_task`, `order_item_tasks`), comme le refus d'une cellule (EP-14/L42s). Une cellule de la colonne `subproject` collée sur une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels — une ligne qui ne nomme pas `estimate_line.subproject_id` dans `editable_fields` —, est refusée par `SUBPROJECT_HAS_ACTUAL_COSTS` si elle nomme un autre sous-projet, `params.subproject` nommant le sous-projet que la ligne ne peut pas quitter (`subproject_id`, `label`), comme `updateEstimateLine` ; une cellule qui nomme le sous-projet de la ligne ne la déplace pas, et n'est pas refusée, ni une cellule vide, qui n'écrit rien (`PastePreview`) (WF-PRJ-0050 ; C-359, #1152). */
         PasteRejection: {
-            /** @description La ligne du bloc refusée, comptée de zéro. */
+            /** @description La ligne du bloc refusée, comptée de zéro. C'est une ligne du bloc, jamais un nœud : sur un différentiel, les nœuds retirés que le collage saute ne la décalent pas, et aucun refus ne les nomme (`PastePreview`, #1278). */
             row: number;
             /** @description La colonne de la cellule refusée ; absente quand le refus porte sur la ligne entière. */
             column?: components["schemas"]["NodeColumn"];
@@ -4552,7 +4552,7 @@ export interface components {
         /** @description Ce qu'un collage écrira et ce qu'il refusera, chaque refus avec son motif et, quand il tient à une cellule, sa colonne (WF-IHM-0050). Une ligne du bloc dont une cellule est refusée est refusée entière : confirmé, le collage écrit les autres lignes et non celle-ci (`applyPaste`, `PasteApplied`) ; abandonné, il n'écrit rien. */
         PastePlan: {
             paste_id: components["schemas"]["Uuid"];
-            /** @description Le nombre de lignes du bloc que la confirmation écrira. */
+            /** @description Le nombre de lignes du bloc que la confirmation écrira. Sur un différentiel, un nœud retiré que le collage saute n'y est pas compté, et n'est pas refusé non plus : chaque ligne du bloc écrit le nœud suivant qui n'est pas retiré (`PastePreview`, #1278). */
             accepted: number;
             /** @description Les refus, dans l'ordre des lignes du bloc puis des colonnes ; une ligne refusée par plusieurs cellules y paraît pour chacune. */
             rejected: components["schemas"]["PasteRejection"][];

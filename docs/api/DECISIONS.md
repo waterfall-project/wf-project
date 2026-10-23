@@ -6931,25 +6931,25 @@ contrefactuelle » : la seconde est une lecture contrefactuelle, et non la suite
 
 **Un collage saute les nœuds qu'un différentiel retire** (décision de l'auteur du 2026-10-22,
 #1278 ; US-0510). La lecture d'un différentiel rend ses nœuds retirés à leur place, en lecture
-seule (`NodeDifference`), et `PastePreview` voulait que chaque ligne du bloc écrive « la ligne de
-la grille à la même distance sous le nœud visé » : un bloc qui couvrait une ligne retirée serait
-tombé sur un nœud que rien n'écrit. Un tel bloc saute les nœuds retirés et remplit les suivants,
-sans refus : chaque ligne du bloc écrit le nœud suivant qui n'est pas retiré, et
-`PastePlan.accepted` comme `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds
-sautés. `previewPaste`, `applyPaste` et `PastePreview` le disent. Deux exemples engendrés par
-`wftools.mockamendmentwrites`, sur l'avenant 2 (structure 203), le montrent : un bloc de deux
-lignes collé sur le libellé du « Câblage sur site » (nœud 1263), la ligne qui précède
-l'« Assistance aux essais de câblage » que l'avenant retire (1264), aperçu
+seule (`NodeDifference`), et `PastePreview` voulait que chaque ligne du bloc écrive « la ligne de la
+grille à la même distance sous le nœud visé » : un bloc qui couvrait une ligne retirée serait tombé
+sur un nœud que rien n'écrit. Un tel bloc saute les nœuds retirés et remplit les suivants, sans
+refus : chaque ligne du bloc écrit le nœud suivant qui n'est pas retiré, et `PastePlan.accepted`
+comme `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds sautés. `previewPaste`,
+`applyPaste` et `PastePreview` le disent, et `PastePlan.accepted` comme `PasteRejection.row` y
+renvoient. Deux exemples engendrés par `wftools.mockamendmentwrites`, sur l'avenant 2 (structure
+203), le montrent : un bloc de deux lignes collé sur le libellé du « Câblage sur site » (nœud 1263),
+la ligne qui précède l'« Assistance aux essais de câblage » que l'avenant retire (1264), aperçu
 (`paste_plan_amendment_skipping`, deux lignes acceptées, aucun refus, collage 995) puis appliqué
 (`paste_applied_amendment_skipping`) : le câblage passe à deux ingénieurs, et la seconde ligne,
 sautant la ligne retirée, renomme les « Essais sur site » que l'avenant ajoute (1291) ; les deux
 nœuds écrits à leur version 2, le compteur du différentiel à 3, comme toute écriture qui suit sa
-lecture (#421). C'est le seul endroit de `nodes_amendment` où une ligne retirée en précède
-d'autres. `wftools.mockamendmentwrites.paste_targets` écarte désormais les nœuds retirés ; le
-bloc des parcours, sur les lignes 7 à 9, n'en couvre aucun, et son exemple ne change pas. Ce que
-devient un collage dont la cellule visée est elle-même sur un nœud retiré, qui ne nomme aucun
-champ (`editable_fields` vide), n'est pas tranché ici. Écarté : un
-refus de la ligne du bloc tombée sur un nœud retiré, que la décision écarte.
+lecture (#421). C'est le seul endroit de `nodes_amendment` où une ligne retirée en précède d'autres.
+`wftools.mockamendmentwrites.paste_targets` écarte désormais les nœuds retirés ; le bloc des
+parcours, sur les lignes 7 à 9, n'en couvre aucun, et son exemple ne change pas. Ce que devient un
+collage dont la cellule visée est elle-même sur un nœud retiré, qui ne nomme aucun champ
+(`editable_fields` vide), n'est pas tranché ici. Écarté : un refus de la ligne du bloc tombée sur un
+nœud retiré, que la décision écarte.
 
 ## La déclaration d'un risque désigne la tâche de sa provision, et les saisies du risque ont leurs exemples (EP-15/US-0520)
 

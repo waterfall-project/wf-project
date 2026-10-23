@@ -14,28 +14,24 @@
 "use client";
 
 import { FileSearch, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
-import { type ExchangeKind, openFileImport } from "@/api/actions/exchanges";
+import type { ExchangeKind } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { useHeldCommand } from "@/components/commands/held";
-import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import {
   EXCHANGE_KINDS,
   IMPORT_COMMAND,
   IMPORT_MAX_BYTES,
-  importHref,
   type ImportOffers,
   MEBIBYTE,
-  shownScreen,
 } from "./offers";
+import { useOpenImport } from "./open-import";
 
 /** The field of a date. */
 const DATE = "h-8 rounded-md border border-input bg-background px-2 text-foreground";
@@ -103,8 +99,7 @@ type FileProblem = "missing" | "tooLarge";
 /** Ask the file to import, deposit it, open its analysis, and show the report of the import. */
 function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   const t = useTranslations("exchanges.import");
-  const track = useTrackTask();
-  const router = useRouter();
+  const open = useOpenImport(projectId, start);
   const field = useId();
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<FileProblem>();
@@ -112,7 +107,6 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   const [to, setTo] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
-  const held = useHeldCommand();
   useEffect(() => {
     input.current?.focus();
   }, []);
@@ -131,27 +125,17 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
       input.current?.focus();
       return;
     }
-    const form = new FormData();
-    form.set("file", file);
     const asked =
       kind === "actual_costs"
         ? { kind, period_from: from === "" ? null : from, period_to: to === "" ? null : to }
         : { kind };
     startTransition(async () => {
-      const result = await held(openFileImport(projectId, asked, form));
-      if (result.kind !== "done") {
+      const result = await open(asked, file);
+      if (result.kind === "done") {
+        onClose();
+      } else {
         setOutcome(result);
-        return;
       }
-      const opened = result.data;
-      if (opened.task !== undefined) {
-        track(opened.task, { subject: opened.filename });
-      }
-      // The report is shown only if the screen is still the one the file was sent from.
-      if (shownScreen() === start.split("?")[0]) {
-        router.push(importHref(start, opened.import_id));
-      }
-      onClose();
     });
   };
 

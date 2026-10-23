@@ -25,6 +25,8 @@ import { ImportReport } from "@/components/exchanges/import-report";
 import { importOffers } from "@/components/exchanges/offers";
 import { readShownImport } from "@/components/exchanges/shown-import";
 import { ProjectFacts } from "@/components/projects/project-facts";
+import { ProjectStart } from "@/components/projects/project-start";
+import { startOffers } from "@/components/projects/start-offers";
 import { type NamedRevision, useRevisionName } from "@/components/revisions/revision-history";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { NoRevisions } from "@/components/system/empty-states";
@@ -111,12 +113,35 @@ export default async function ProjectPage(props: ProjectPageProps) {
   const offers = importOffers(read.project);
   // The address of the screen without a report, its context kept.
   const start = contextAddress(address.pathname, read.context);
+  // The start of the planning: read at the server, from the revision in progress, which the list of the revisions carries whole (WF-PRJ-0030).
+  const current = read.project.current_revision_id ?? undefined;
+  const startable = startOffers(
+    read.project,
+    revisions.find((listed) => listed.revision_id === read.project.current_revision_id),
+  );
+  const breakdown = functionHref(functionOf("project_settings"), read.context);
+  const planning =
+    current === undefined
+      ? undefined
+      : functionHref(functionOf("planning"), {
+          ...read.context,
+          revisionId: current,
+          revisionInPath: true,
+        });
   return (
     <>
       <ContextBanner reading={read} />
       <Screen>
         <PageHeader title={read.project.label} icon={FolderOpen} />
         <ProjectFacts project={read.project} />
+        {startable === undefined || breakdown === undefined ? null : (
+          <ProjectStart
+            projectId={address.projectId}
+            offers={startable}
+            breakdownHref={`${breakdown}${breakdown.includes("?") ? "&" : "?"}start=skeleton`}
+            start={start}
+          />
+        )}
         <Revisions
           projectId={address.projectId}
           revisions={revisions}
@@ -130,6 +155,7 @@ export default async function ProjectPage(props: ProjectPageProps) {
             entry={shown}
             offer={offers[shown.kind]}
             start={start}
+            then={shown.kind === "ms_project_schedule" ? planning : undefined}
           />
         )}
         {revisions.length === 0 ? (

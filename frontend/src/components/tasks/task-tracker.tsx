@@ -241,33 +241,22 @@ export function useTrackTask(): TrackTask {
 }
 
 /**
- * Do something once the task a screen handed over has succeeded — the merge of an amendment, whose
- * screen then shows the reference it produced. The task is the one handed over, by the reference it
- * was handed over under (a relaunch keeps it); once, however many times the tracker reads it
- * afterwards; and not at all when the task failed or was dismissed: the entry of the tracker tells
- * its end. `then` may change from one render to the next.
+ * Run `then` once, when the task named has succeeded — never when it failed or its follow-up was
+ * interrupted —, for the screen that started it and still shows: a task that ends while the user
+ * is elsewhere leads nowhere. `task_id` is none until a task was started.
  */
-export function useWhenTaskSucceeds(
-  key: string | undefined,
-  then: (task: BackgroundTask) => void,
-): void {
-  const { store } = inTracker(useContext(StateContext));
-  const task = useSyncExternalStore(
-    store.subscribe,
-    () => store.read().tracking.tasks.find((tracked) => tracked.key === key)?.task,
-    () => undefined,
-  );
-  const latest = useRef(then);
+export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
+  const { log } = useTracker();
   const done = useRef<string>(undefined);
+  const succeeded =
+    taskId !== undefined &&
+    log.some((line) => line.task.task_id === taskId && line.end === "succeeded");
   useEffect(() => {
-    latest.current = then;
-  });
-  useEffect(() => {
-    if (key !== undefined && task?.status === "succeeded" && done.current !== key) {
-      done.current = key;
-      latest.current(task);
+    if (succeeded && done.current !== taskId) {
+      done.current = taskId;
+      then();
     }
-  }, [key, task]);
+  }, [succeeded, taskId, then]);
 }
 
 /**

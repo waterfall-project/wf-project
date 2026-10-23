@@ -110,7 +110,7 @@ afterEach(() => {
 });
 
 describe("the preparation of an amendment", () => {
-  it("is offered as the revision lists it, asks a label, creates the differential and opens it in the grid of the planning [WF-REV-0100-A]", async () => {
+  it("is offered as the revision lists it, asks a label, creates the differential and opens it in the grid of the planning", async () => {
     const client = serve({ [CREATE]: { example: "amendment_created", status: 201 } });
     open(<RevisionCommands revision={example("revision") as Revision} />);
     await userEvent.click(screen.getByRole("button", { name: "Préparer un avenant" }));
@@ -130,7 +130,7 @@ describe("the preparation of an amendment", () => {
     );
   });
 
-  it("is unavailable on a revision marked, naming its condition, and sends nothing [WF-REV-0100-A]", async () => {
+  it("is unavailable on a revision marked, naming its condition, and sends nothing", async () => {
     const client = serve({});
     open(<RevisionCommands revision={example("revision_marked") as Revision} />);
     const command = screen.getByRole("button", { name: "Préparer un avenant" });
@@ -138,6 +138,31 @@ describe("the preparation of an amendment", () => {
     await userEvent.click(command);
     expect(screen.queryByRole("form")).toBeNull();
     expect(client.calls).toEqual([]);
+  });
+
+  it("tells the refusal of a revision no longer the current one, keeps the form and its label, and leads nowhere", async () => {
+    const client = serve({
+      [CREATE]: {
+        problem: {
+          code: "STATE_FORBIDS_OPERATION",
+          status: 409 as const,
+          params: { missing_condition: "revision_current" },
+        },
+      },
+    });
+    open(<RevisionCommands revision={example("revision") as Revision} />);
+    await userEvent.click(screen.getByRole("button", { name: "Préparer un avenant" }));
+    const form = screen.getByRole("form", { name: "Préparer un avenant" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Libellé de l’avenant" }),
+      "Avenant 3",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Créer l’avenant" }));
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(bodies(client, CREATE)).toHaveLength(1);
+    expect(screen.getByRole("form", { name: "Préparer un avenant" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Libellé de l’avenant" })).toHaveValue("Avenant 3");
+    expect(router.push).not.toHaveBeenCalled();
   });
 });
 
