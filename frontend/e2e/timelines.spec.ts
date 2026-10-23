@@ -171,3 +171,34 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   await expect(commissioning(1)).toBeVisible();
   await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
 });
+
+test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold [WF-IHM-0100-A]", async ({
+  page,
+}) => {
+  // Le focus reste visible.
+  test.slow();
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
+  await expect(frieze).toBeVisible({ timeout: WORKING });
+  const commissioning = page.getByRole("img", { name: /^Mise en service, du 21\/12\/2026/ });
+  await expect(commissioning).toBeVisible();
+  // Fitted to the project, the rectangle of eleven days is narrow: its name is cut on the screen,
+  // and whole in its accessible name and its text.
+  await expect(commissioning).toHaveText("Mise en service");
+  expect(await commissioning.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(
+    true,
+  );
+  // Zoomed in until the axis outgrows the frame, the first rectangle is in view and the last is not.
+  const zoomIn = page.getByRole("button", { name: "Zoom avant" });
+  // The finest level is the day: the button is disabled once it is reached.
+  while (await zoomIn.isEnabled()) {
+    await zoomIn.click();
+  }
+  await frieze.focus();
+  await page.keyboard.press("Home");
+  await expect(page.getByRole("img", { name: /^Études, du 02\/03\/2026/ })).toBeInViewport();
+  await expect(commissioning).not.toBeInViewport();
+  // End makes the last active, and the axis scrolls to it.
+  await page.keyboard.press("End");
+  await expect(commissioning).toBeInViewport({ ratio: 1 });
+});

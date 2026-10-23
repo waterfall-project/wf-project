@@ -59,6 +59,7 @@ import {
   centredOffset,
   fittedLevel,
   levelsWith,
+  revealedOffset,
   SCALE_LEVELS,
   scaleTicks,
   widthAt,
@@ -86,6 +87,8 @@ export interface GanttView {
   readonly framed: (width: number) => void;
   /** Zoom in or out a level, or fit the project; whether each goes anywhere. */
   readonly zoomTo: (step: 1 | -1 | "fit") => void;
+  /** Scroll the drawing to bring a stretch of the axis, two shares of its width, into view. */
+  readonly reveal: (from: number, to: number) => void;
   readonly can: { readonly in: boolean; readonly out: boolean };
 }
 
@@ -98,7 +101,7 @@ export function useGanttView(): GanttView | undefined {
 }
 
 /** A share of the axis as a length of SVG: a percentage of the width of the cell. */
-function percent(share: number): string {
+export function percent(share: number): string {
   return `${(share * 100).toFixed(3)}%`;
 }
 
@@ -158,6 +161,14 @@ export function GanttRows({
     centre.current = (offset + frame / 2) / Math.max(width ?? frame, 1);
     setZoom(step === "fit" ? "fit" : zoomed(zoom, fitted, step, levels));
   };
+  const reveal = (from: number, to: number) => {
+    if (width === undefined || scroller.current === null) {
+      return;
+    }
+    const kept = revealedOffset({ from, to }, width, frame, offset);
+    scroller.current.scrollLeft = kept;
+    setOffset(kept);
+  };
   useLayoutEffect(() => {
     if (centre.current === undefined) {
       return;
@@ -215,6 +226,7 @@ export function GanttRows({
     scrolled: setOffset,
     framed: setFrame,
     zoomTo,
+    reveal,
     can: { in: level < levels - 1 || zoom === "fit", out: level > 0 || zoom === "fit" },
   };
   return (

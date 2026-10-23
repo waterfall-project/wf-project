@@ -166,8 +166,8 @@ export function movedBy(
 
 /**
  * The lanes a timeline keeps once a rectangle is moved: those it shows, the moved one first, then
- * those the user had placed, then the others in the order of the plan — as many as the preference
- * holds, beyond which the last are stacked again automatically.
+ * those the user had placed, then the others in the order of the plan. The frieze keeps them all;
+ * `sentLanes` takes the part the preference holds.
  */
 export function keptLanes(
   spans: readonly LaneSpan[],
@@ -183,7 +183,14 @@ export function keptLanes(
   };
   const ordered = spans
     .map((span, at) => ({ id: span.id, at }))
-    .sort((one, other) => rank(one.id) - rank(other.id) || one.at - other.at)
-    .slice(0, KEPT_LANES);
+    .sort((one, other) => rank(one.id) - rank(other.id) || one.at - other.at);
   return Object.fromEntries(ordered.map(({ id }) => [id, lanes.get(id) ?? 0]));
+}
+
+/**
+ * The lanes sent to the account: the first of those kept — as many as the preference holds, beyond
+ * which the last are stacked again automatically, once the page is read anew.
+ */
+export function sentLanes(kept: Readonly<Record<string, number>>): Record<string, number> {
+  return Object.fromEntries(Object.entries(kept).slice(0, KEPT_LANES));
 }

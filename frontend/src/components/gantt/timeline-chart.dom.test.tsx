@@ -34,6 +34,15 @@ function rows(...numbers: number[]): TimelineTask[] {
   });
 }
 
+/** The row of the core with a number in the plan. */
+function rowOf(number: number): TimelineTask {
+  const [row] = rows(number);
+  if (row === undefined) {
+    throw new Error(`no row ${String(number)}`);
+  }
+  return row;
+}
+
 // The studies, the detailed studies, the design review, the reception of the studies — a
 // milestone —, the design file and the control station. Stacked in the order of the plan: the
 // studies in the first lane, the detailed studies and the design review in the second, the design
@@ -41,12 +50,9 @@ function rows(...numbers: number[]): TimelineTask[] {
 // the first, after the studies.
 const STUDIES = rows(1, 2, 5, 6, 7, 8);
 
-/** Render the frieze of the steering committee over tasks, the lanes kept given. */
-function renderFrieze(
-  tasks: readonly TimelineTask[] = STUDIES,
-  kept?: Readonly<Record<string, number>>,
-) {
-  return render(
+/** The frieze of the steering committee over tasks, the lanes kept given. */
+function friezeOf(tasks: readonly TimelineTask[], kept?: Readonly<Record<string, number>>) {
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <TimelineChart
         name="Comité de pilotage"
@@ -55,8 +61,40 @@ function renderFrieze(
         kept={kept}
         scope="timelines:test"
       />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** Render the frieze of the steering committee over tasks, the lanes kept given. */
+function renderFrieze(
+  tasks: readonly TimelineTask[] = STUDIES,
+  kept?: Readonly<Record<string, number>>,
+) {
+  return render(friezeOf(tasks, kept));
+}
+
+/** A task of the core with other dates, an identity and a name of its own. */
+function dated(
+  row: TimelineTask,
+  nodeId: string,
+  label: string,
+  start: string,
+  finish = start,
+): TimelineTask {
+  const task = row.task;
+  if (task?.start == null || task.finish == null) {
+    throw new Error("a row without dates");
+  }
+  return {
+    ...row,
+    node_id: nodeId,
+    task: {
+      ...task,
+      label,
+      start: { ...task.start, date: start },
+      finish: { ...task.finish, date: finish },
+    },
+  };
 }
 
 /** The frieze, the one stop of the keyboard. */
@@ -108,7 +146,6 @@ describe("the frieze of a timeline", () => {
     expect(rectangle("Poste de commande")).toHaveAccessibleName(/couloir 1$/);
     // The name is cut short by the rectangle, and whole in its tooltip.
     const named = rectangle("Dossier de conception");
-    expect(named).toHaveClass("truncate");
     expect(named).toHaveAttribute("title", "Dossier de conception");
     expect(named).toHaveTextContent("Dossier de conception");
   });
@@ -121,6 +158,25 @@ describe("the frieze of a timeline", () => {
     expect(milestone.querySelector("line")).not.toBeNull();
     expect(milestone).toHaveTextContent("Réception des études");
     expect(milestone).toHaveTextContent("24/04/2026");
+    // Far from the edges of the axis, its name is centred on its line.
+    expect(milestone.querySelector("foreignObject")).toHaveAttribute("x", "-64");
+  });
+
+  // aucune exigence : propre à l'US (US-0530, le nom d'un jalon au bord de l'axe).
+  it("holds the name of a milestone at the edge of the axis within the frame, anchored inwards", () => {
+    const studies = rowOf(1);
+    const milestone = rowOf(6);
+    renderFrieze([
+      studies,
+      dated(milestone, "01926f3a-7c00-7000-8000-00000000a001", "Ouverture", "2026-03-02"),
+      dated(milestone, "01926f3a-7c00-7000-8000-00000000a002", "Clôture", "2026-07-30"),
+    ]);
+    const first = screen.getByRole("img", { name: /^Ouverture, jalon/ });
+    const last = screen.getByRole("img", { name: /^Clôture, jalon/ });
+    expect(first.querySelector("foreignObject")).toHaveAttribute("x", "0");
+    expect(first.querySelector("foreignObject > div")).toHaveClass("text-left");
+    expect(last.querySelector("foreignObject")).toHaveAttribute("x", "-128");
+    expect(last.querySelector("foreignObject > div")).toHaveClass("text-right");
   });
 
   it("keeps the lanes the account placed the rectangles in, and stacks the others around them", () => {
@@ -241,5 +297,119 @@ describe("the frieze of a timeline", () => {
       ["8", "Poste de commande", "04/05/2026", "30/06/2026", "1"],
     ]);
     await expectAccessible(container);
+  });
+
+  it("scrolls the axis to the rectangle the keyboard reaches, so that the focus stays in view [WF-IHM-0100-A]", async () => {
+    // Le focus reste visible.
+    const user = userEvent.setup();
+    const { container } = renderFrieze();
+    await user.click(screen.getByRole("button", { name: "Zoom avant" }));
+    await user.click(screen.getByRole("button", { name: "Zoom avant" }));
+    const axis = container.querySelector<HTMLElement>(".overflow-x-auto");
+    const drawing = container.querySelector<SVGElement>("figure svg.block");
+    expect(axis).not.toBeNull();
+    frieze().focus();
+    // The zoom centred the axis: Home brings the first rectangle back in view.
+    await user.keyboard("{Home}");
+    const atFirst = axis?.scrollLeft ?? -1;
+    expect(atFirst).toBeLessThan(100);
+    // The last rectangle lies beyond the frame of a zoomed axis: End scrolls to it.
+    await user.keyboard("{End}");
+    expect(frieze()).toHaveAttribute("aria-activedescendant", rectangle("Poste de commande").id);
+    const scrolled = axis?.scrollLeft ?? 0;
+    expect(scrolled).toBeGreaterThan(0);
+    expect(drawing?.style.transform).toBe(`translateX(-${String(scrolled)}px)`);
+    // Home brings the first back, and Alt and an arrow keep the active one in view too.
+    await user.keyboard("{Home}");
+    expect(axis?.scrollLeft).toBe(atFirst);
+    await user.keyboard("{End}");
+    if (axis !== null) {
+      axis.scrollLeft = 0;
+    }
+    fireEvent.keyDown(frieze(), { key: "ArrowDown", altKey: true });
+    expect(axis?.scrollLeft).toBe(scrolled);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, l'avis relu d'un refus répété).
+  it("says again a refusal that repeats, the sentence replaced in the live region", () => {
+    renderFrieze();
+    frieze().focus();
+    fireEvent.keyDown(frieze(), { key: "Home" });
+    fireEvent.keyDown(frieze(), { key: "ArrowUp", altKey: true });
+    const first = screen.getByText("« Études » est déjà dans le premier couloir.");
+    fireEvent.keyDown(frieze(), { key: "ArrowUp", altKey: true });
+    const second = screen.getByText("« Études » est déjà dans le premier couloir.");
+    expect(second).not.toBe(first);
+    expect(first).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toContainElement(second);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, les couloirs au-delà de ce que le compte garde).
+  it("keeps every lane on the screen past the sixty-four the account keeps, and sends sixty-four", async () => {
+    const template = rowOf(1);
+    const day = (n: number) => new Date(Date.UTC(2026, 0, 1 + 2 * n)).toISOString().slice(0, 10);
+    const node = (n: number) => `01926f3a-7c00-7000-8000-${String(n).padStart(12, "0")}`;
+    // Seventy tasks that overlap none: 64 of them placed in the second lane, the others stacked.
+    const many = Array.from({ length: 70 }, (_, n) =>
+      dated(template, node(n + 1), `Tâche ${String(n + 1)}`, day(n)),
+    );
+    const placed = Object.fromEntries(many.slice(0, 64).map((each) => [each.node_id, 1]));
+    renderFrieze(many, placed);
+    const lane = (n: number) =>
+      screen.getByRole("img", { name: new RegExp(`^Tâche ${String(n)}, du `) });
+    expect(lane(64)).toHaveAccessibleName(/couloir 2$/);
+    expect(lane(66)).toHaveAccessibleName(/couloir 1$/);
+    frieze().focus();
+    fireEvent.keyDown(frieze(), { key: "End" });
+    for (let press = 0; press < 5; press += 1) {
+      fireEvent.keyDown(frieze(), { key: "ArrowLeft" });
+    }
+    expect(frieze()).toHaveAttribute("aria-activedescendant", lane(65).id);
+    fireEvent.keyDown(frieze(), { key: "ArrowDown", altKey: true });
+    expect(lane(65)).toHaveAccessibleName(/couloir 2$/);
+    // The others stay where they were drawn.
+    expect(lane(64)).toHaveAccessibleName(/couloir 2$/);
+    expect(lane(66)).toHaveAccessibleName(/couloir 1$/);
+    expect(lane(1)).toHaveAccessibleName(/couloir 2$/);
+    await waitFor(
+      () => {
+        expect(recorded()).toHaveLength(1);
+      },
+      { timeout: WRITE_DELAY * 4 },
+    );
+    expect(Object.keys((recorded()[0] as { lanes: object }).lanes)).toHaveLength(64);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, le rectangle actif d'une frise qui change de tâches).
+  it("keeps the keyboard alive when the tasks change under the rectangle it was on", () => {
+    const { rerender } = renderFrieze([]);
+    rerender(friezeOf(STUDIES));
+    expect(frieze()).toHaveAttribute("aria-activedescendant", rectangle("Études").id);
+    frieze().focus();
+    fireEvent.keyDown(frieze(), { key: "ArrowRight" });
+    expect(frieze()).toHaveAttribute("aria-activedescendant", rectangle("Études de détail").id);
+    // The task the keyboard was on is read out of the timeline: the first of the others is active.
+    rerender(friezeOf(rows(7, 8)));
+    expect(frieze()).toHaveAttribute(
+      "aria-activedescendant",
+      rectangle("Dossier de conception").id,
+    );
+    fireEvent.keyDown(frieze(), { key: "ArrowRight" });
+    expect(frieze()).toHaveAttribute("aria-activedescendant", rectangle("Poste de commande").id);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, un glisser qu'Échap abandonne).
+  it("gives up a drag at Escape: the rectangle goes back to its lane and nothing is written", async () => {
+    renderFrieze();
+    const file = rectangle("Dossier de conception");
+    fireEvent.pointerDown(file, { button: 0, pointerId: 1, clientY: 2 * 32 + 10 });
+    fireEvent.pointerMove(file, { pointerId: 1, clientY: 3 * 32 + 10 });
+    fireEvent.keyDown(frieze(), { key: "Escape" });
+    fireEvent.pointerMove(file, { pointerId: 1, clientY: 3 * 32 + 10 });
+    fireEvent.pointerUp(file, { pointerId: 1, clientY: 3 * 32 + 10 });
+    expect(rectangle("Dossier de conception")).toHaveAccessibleName(/couloir 3$/);
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await new Promise((resolve) => setTimeout(resolve, WRITE_DELAY * 2));
+    expect(recorded()).toEqual([]);
   });
 });

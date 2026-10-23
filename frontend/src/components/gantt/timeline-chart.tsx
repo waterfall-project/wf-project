@@ -11,12 +11,12 @@
  * The rectangles lie in lanes (`lanes.ts`): stacked automatically, in the order of the plan, unless
  * the user placed them, and moved from lane to lane by dragging them with the mouse, or by Alt and
  * the up and down arrows on the rectangle the keyboard is on. A move into a lane where the rectangle
- * would overlap another is refused, said, and nothing moves. The lanes are a display preference of
+ * would overlap another is refused, said, and nothing moves; Escape gives up a drag. The lanes are a display preference of
  * each user, by timeline (`DisplayPreferences.timelines`, WF-ADM-0040), recorded after a pause as the
  * settings of a grid are; moving a lane modifies no task.
  *
  * The frieze is one stop of the keyboard, named after the timeline, which moves among its rectangles
- * by the left and right arrows (`aria-activedescendant`); each rectangle and each milestone is named
+ * by the left and right arrows (`aria-activedescendant`), the axis scrolling to keep it in view; each rectangle and each milestone is named
  * by its task, its dates and its lane, and the table under the frieze reads the same (WF-IHM-0100).
  */
 "use client";
@@ -49,7 +49,7 @@ import {
 import { formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
-import { GanttAxis, GanttRows, useGanttView, zoomCommands } from "./gantt";
+import { GanttAxis, GanttRows, percent, useGanttView, zoomCommands } from "./gantt";
 import {
   type LaneMove,
   laneCount,
@@ -57,6 +57,7 @@ import {
   keptLanes,
   movedBy,
   movedTo,
+  sentLanes,
   stackLanes,
 } from "./lanes";
 import { finishTime, startTime } from "./layout";
@@ -75,9 +76,18 @@ const FOOT = 36;
 /** The width a name of a milestone takes at most, centred on its line. */
 const MILESTONE_NAME = 128;
 
-/** A share of the axis as a length of SVG: a percentage of the width of the drawing. */
-function percent(share: number): string {
-  return `${(share * 100).toFixed(3)}%`;
+/**
+ * Where the name of a milestone stands against its line, `at` pixels into an axis of `room`: centred
+ * on it, but held within the frame near the edges — written inwards, from the line.
+ */
+function nameAnchor(at: number, room: number): { readonly shift: number; readonly align: string } {
+  if (at < MILESTONE_NAME / 2) {
+    return { shift: 0, align: "text-left" };
+  }
+  if (room - at < MILESTONE_NAME / 2) {
+    return { shift: -MILESTONE_NAME, align: "text-right" };
+  }
+  return { shift: -MILESTONE_NAME / 2, align: "text-center" };
 }
 
 /** What the frieze draws of a task: its rectangle or its line, and how it is named. */
@@ -172,9 +182,13 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
   const [placed, setPlaced] = useState(kept);
   const lanes = useMemo(() => stackLanes(spans, placed), [spans, placed]);
   const count = laneCount(lanes);
-  const [active, setActive] = useState(spans[0]?.id);
+  const [chosen, setActive] = useState(spans[0]?.id);
+  // The rectangle the keyboard is on, the first when the one chosen is no longer among the tasks.
+  const active = spans.some((span) => span.id === chosen) ? chosen : spans[0]?.id;
   const [drag, setDrag] = useState<{ readonly id: string; readonly lane: number }>();
-  const [message, setMessage] = useState<string>();
+  // What was said last, counted: the same sentence said twice is replaced in the live region, and
+  // so read again.
+  const [message, setMessage] = useState<{ readonly text: string; readonly count: number }>();
   const writer = useKeptWriter<TimelinePreferences | null>(timeline, updateTimelinePreferences);
   const ids = useId();
   const frame = useRef<HTMLDivElement>(null);
@@ -196,6 +210,16 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
   }, []);
 
   const labelOf = (id: string) => drawn.rectangles.find((each) => each.id === id)?.label ?? id;
+  const say = (text: string) => {
+    setMessage((last) => ({ text, count: (last?.count ?? 0) + 1 }));
+  };
+  // Scroll the axis to bring a rectangle into the frame, so that the focus stays seen.
+  const show = (id: string | undefined) => {
+    const span = spans.find((each) => each.id === id);
+    if (view !== undefined && span !== undefined) {
+      view.reveal(view.layout.at(span.from), view.layout.at(span.to));
+    }
+  };
   const apply = (id: string, move: LaneMove) => {
     const task = drawn.rectangles.find((each) => each.id === id);
     if (task === undefined) {
@@ -203,23 +227,32 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
     }
     const sentence = said(t, move, task, lanes.get(id) ?? 0, labelOf);
     if (sentence !== undefined) {
-      setMessage(sentence);
+      say(sentence);
     }
     if (move.kind === "moved") {
       const recorded = keptLanes(spans, move.lanes, id, placed);
       setPlaced(recorded);
-      writer.record({ lanes: recorded });
+      writer.record({ lanes: sentLanes(recorded) });
     }
   };
   const restack = () => {
     setPlaced(undefined);
     writer.record(null);
-    setMessage(t("restacked"));
+    say(t("restacked"));
   };
   const laneAt = (clientY: number) =>
     Math.floor((clientY - (drawing.current?.getBoundingClientRect().top ?? 0)) / LANE);
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && drag !== undefined) {
+      // A drag given up: the rectangle goes back to its lane, and nothing is written.
+      event.preventDefault();
+      setDrag(undefined);
+    } else {
+      moveByKey(event);
+    }
+  };
+  const moveByKey = (event: KeyboardEvent) => {
     const at = spans.findIndex((span) => span.id === active);
     if (at === -1) {
       return;
@@ -228,6 +261,7 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
     if (event.altKey && step !== undefined) {
       event.preventDefault();
       apply(spans[at]?.id ?? "", movedBy(spans, lanes, spans[at]?.id ?? "", step));
+      show(active);
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -241,7 +275,9 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
     }[event.key];
     if (next !== undefined) {
       event.preventDefault();
-      setActive(spans[Math.min(Math.max(next, 0), spans.length - 1)]?.id);
+      const reached = spans[Math.min(Math.max(next, 0), spans.length - 1)]?.id;
+      setActive(reached);
+      show(reached);
     }
   };
   const pointer = (id: string) => ({
@@ -370,38 +406,45 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
                   strokeDasharray="2 4"
                 />
               ))}
-              {drawn.milestones.map((each) => (
-                <svg
-                  key={each.id}
-                  x={percent(view.layout.at(each.to))}
-                  overflow="visible"
-                  role="img"
-                  aria-label={t("milestone", { task: each.label, date: each.finish })}
-                >
-                  <title>{each.label}</title>
-                  <line
-                    x1="0"
-                    x2="0"
-                    y1="0"
-                    y2={shownLanes * LANE}
-                    className="stroke-foreground"
-                    strokeDasharray="4 3"
-                  />
-                  <foreignObject
-                    x={-MILESTONE_NAME / 2}
-                    y={shownLanes * LANE + 2}
-                    width={MILESTONE_NAME}
-                    height={FOOT - 4}
+              {drawn.milestones.map((each) => {
+                // The name is centred on its line, but held within the frame near its edges.
+                const { shift, align } = nameAnchor(
+                  view.layout.at(each.to) * (view.width ?? width),
+                  view.width ?? width,
+                );
+                return (
+                  <svg
+                    key={each.id}
+                    x={percent(view.layout.at(each.to))}
+                    overflow="visible"
+                    role="img"
+                    aria-label={t("milestone", { task: each.label, date: each.finish })}
                   >
-                    <div className="truncate text-center text-[10px] leading-4 text-foreground">
-                      {each.label}
-                    </div>
-                    <div className="text-center text-[10px] leading-4 text-muted-foreground">
-                      {each.finish}
-                    </div>
-                  </foreignObject>
-                </svg>
-              ))}
+                    <title>{each.label}</title>
+                    <line
+                      x1="0"
+                      x2="0"
+                      y1="0"
+                      y2={shownLanes * LANE}
+                      className="stroke-foreground"
+                      strokeDasharray="4 3"
+                    />
+                    <foreignObject
+                      x={shift}
+                      y={shownLanes * LANE + 2}
+                      width={MILESTONE_NAME}
+                      height={FOOT - 4}
+                    >
+                      <div className={`truncate ${align} text-[10px] leading-4 text-foreground`}>
+                        {each.label}
+                      </div>
+                      <div className={`${align} text-[10px] leading-4 text-muted-foreground`}>
+                        {each.finish}
+                      </div>
+                    </foreignObject>
+                  </svg>
+                );
+              })}
               {drawn.rectangles.map((each) => {
                 const dragged = drag?.id === each.id;
                 const lane = dragged ? drag.lane : (lanes.get(each.id) ?? 0);
@@ -442,7 +485,7 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
         </div>
       </div>
       <p role="status" aria-live="polite" className="min-h-5 text-sm">
-        {message}
+        {message === undefined ? null : <span key={message.count}>{message.text}</span>}
       </p>
       <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} dismissible />
       <details className="text-sm">

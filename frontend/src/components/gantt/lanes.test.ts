@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { KEPT_LANES, keptLanes, type LaneSpan, movedBy, movedTo, stackLanes } from "./lanes";
+import {
+  KEPT_LANES,
+  keptLanes,
+  type LaneSpan,
+  movedBy,
+  movedTo,
+  sentLanes,
+  stackLanes,
+} from "./lanes";
 
 /** A rectangle from a day to another, its finish excluded. */
 function span(id: string, from: number, to: number): LaneSpan {
@@ -110,13 +118,14 @@ describe("the lanes a timeline keeps", () => {
     expect(keptLanes(SPANS, lanes, "C", undefined)).toEqual({ A: 0, B: 1, C: 1, D: 0 });
   });
 
-  it("keeps the moved rectangle first, then those placed, within the bound of the contract", () => {
+  it("keeps every rectangle, the moved one first then those placed, and sends the bound of the contract", () => {
     const many = Array.from({ length: KEPT_LANES + 2 }, (_, at) =>
       span(`T${String(at)}`, at * 10, at * 10 + 5),
     );
     const lanes = stackLanes(many, { T65: 0 });
     const kept = keptLanes(many, lanes, "T64", { T65: 0 });
-    expect(Object.keys(kept)).toHaveLength(KEPT_LANES);
+    expect(Object.keys(kept)).toHaveLength(KEPT_LANES + 2);
+    expect(Object.keys(sentLanes(kept))).toEqual(Object.keys(kept).slice(0, KEPT_LANES));
     expect(Object.keys(kept).slice(0, 3)).toEqual(["T64", "T65", "T0"]);
   });
 });
