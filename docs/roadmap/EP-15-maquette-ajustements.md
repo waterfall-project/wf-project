@@ -995,7 +995,7 @@ qu'EP-14/L42s a écrits au contrat (`DECISIONS.md`, « Le compte rendu préalabl
 
 ## US-0520 — Identifier un risque, chiffrer son devis propre, le réexaminer, le déclarer survenu
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0010-A`, `WF-RIS-0020-A`, `WF-RIS-0030-A`
 - **opérations** : `createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`,
   `declareRiskOccurrence`, `getRisk`, `listRisks`, `listRiskReviews`, `listCostStructures`,

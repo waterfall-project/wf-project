@@ -60,6 +60,10 @@ const MATRIX = "GET /projects/{project_id}/risks/matrix";
 const COVERAGE = "GET /projects/{project_id}/risks/coverage";
 const RISK = "GET /projects/{project_id}/risks/{risk_id}";
 const REVIEWS = "GET /projects/{project_id}/risks/{risk_id}/reviews";
+const CATEGORIES = "GET /reference/cost-categories";
+const SUBPROJECTS = "GET /projects/{project_id}/subprojects";
+const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+const NODES = `${STRUCTURES}/{structure_id}/nodes` as const;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -108,6 +112,11 @@ beforeEach(() => {
     [COVERAGE]: "risk_coverage",
     [RISK]: "risk",
     [REVIEWS]: "risk_reviews",
+    // What the form of a risk chooses its provision among, read while the declaration is available.
+    [CATEGORIES]: "volume/cost_categories",
+    [SUBPROJECTS]: "subprojects",
+    [STRUCTURES]: "structures",
+    [NODES]: "nodes",
   };
 });
 
@@ -279,7 +288,7 @@ describe("the screen of the risks", () => {
     expect(queryOf(REVIEWS)).toEqual({ revision_id: REVISION });
     const said = text(page);
     expect(said).toContain(
-      "Risque de reprise du câblage State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
+      "Risque de reprise du câblage Modify State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
     );
     expect(said).toContain(
       "Description Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
@@ -328,7 +337,7 @@ describe("the screen of the risks", () => {
     const risk: Risk = { ...(example("risk") as Risk), provision_cost_category_is_active: false };
     const detail = renderToStaticMarkup(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
-        <RiskDetail risk={risk} reviews={[]} />
+        <RiskDetail risk={risk} reviews={[]} projectId="01926f3a-7c00-7000-8000-000000000001" />
       </NextIntlClientProvider>,
     );
     expect(text(detail)).toContain("Category Provisions pour risques (deactivated)");
@@ -367,5 +376,51 @@ describe("the screen of the risks", () => {
     });
     server.answers = { ...server.answers, "GET /projects/{project_id}": NOT_FOUND };
     await expect(risksAt()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+  });
+});
+
+describe("the commands of the risks", () => {
+  /** The command that identifies a risk in the markup of the page, and its tag. */
+  function command(page: string): string {
+    return /<button[^>]*>(?:(?!<\/button>).)*Identify a risk<\/button>/s.exec(page)?.[0] ?? "";
+  }
+
+  it("offers « Identify a risk » as the revision lists `declare_risk`, and reads what the provision is chosen among [WF-RIS-0010-A]", async () => {
+    const page = await risksAt();
+    expect(command(page)).not.toBe("");
+    expect(command(page)).not.toContain(`aria-disabled="true"`);
+    // The active categories of the type provision, the sub-projects, and the tasks of the main
+    // structure of the revision: read once each.
+    expect(callsTo(CATEGORIES)).toHaveLength(1);
+    expect(callsTo(SUBPROJECTS)).toHaveLength(1);
+    expect(callsTo(NODES)).toHaveLength(1);
+    expect(callsTo(NODES)[0]?.path).toContain(`/revisions/${REVISION}/structures/`);
+    expect(Object.fromEntries(callsTo(NODES)[0]?.query ?? [])).toMatchObject({ kinds: "task" });
+  });
+
+  it("offers it unavailable on a revision without a task, described by the condition it lacks, and reads nothing for a form it cannot open [WF-RIS-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_without_tasks",
+    };
+    const page = await risksAt();
+    expect(command(page)).toContain('aria-disabled="true"');
+    expect(text(page)).toContain("Unmet condition: at least one task.");
+    expect(callsTo(CATEGORIES)).toEqual([]);
+    expect(callsTo(NODES)).toEqual([]);
+  });
+
+  it("offers nothing to a caller whose revision lists no declaration", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
+    };
+    expect(command(await risksAt())).toBe("");
+  });
+
+  it("offers « Modify » in the detail of a risk, and reads the choices of its provision", async () => {
+    const page = await risksAt({ risk: CABLING });
+    expect(page).toContain("Modify</button>");
+    expect(callsTo(NODES)).toHaveLength(1);
   });
 });

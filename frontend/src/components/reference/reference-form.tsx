@@ -74,6 +74,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import { isPlanningDate, parseDecimal } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
@@ -93,11 +94,12 @@ export interface FormField {
   readonly name: string;
   readonly label: string;
   /**
-   * A text, a number, a whole number — a count, sent as its digits, a sign kept: its bounds are the
+   * A text, a text of several lines, a number, a whole number — a count, sent as its digits, a sign kept: its bounds are the
    * server's (#678) —, a date of planning, a time of day — `HH:MM` —, a choice, or a value shown
    * fixed — read-only, by the text of its choice.
    */
-  readonly control: "text" | "number" | "whole" | "date" | "time" | "choice" | "fixed";
+  readonly control:
+    "text" | "multiline" | "number" | "whole" | "date" | "time" | "choice" | "fixed";
   /**
    * Whether the field may not be left empty: always, or as what the form holds says — the frequency
    * of a schedule on, not of a suspended one.
@@ -172,7 +174,13 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
    * when neither the list nor the refusal does (`takenByAnother`).
    */
   readonly kind:
-    ListForm["kind"] | "project" | "subproject" | "timeline" | "settings" | "backup_schedule";
+    | ListForm["kind"]
+    | "project"
+    | "subproject"
+    | "timeline"
+    | "settings"
+    | "backup_schedule"
+    | "risk";
   readonly title: string;
   readonly hint: string;
   /** Whether the form creates an object rather than modifies one. */
@@ -338,10 +346,13 @@ function grouped(fields: readonly FormField[]): [FormField, ...FormField[]][] {
   return parts;
 }
 
+/** The element a control of a field is. */
+type ControlElement = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
 /** What every control of a field takes: its identity, its value, what describes it, its change. */
 interface ControlProps {
   readonly id: string;
-  readonly ref: (element: HTMLInputElement | HTMLSelectElement | null) => void;
+  readonly ref: (element: ControlElement | null) => void;
   readonly value: string;
   readonly "aria-required": true | undefined;
   readonly "aria-invalid": true | undefined;
@@ -392,6 +403,9 @@ function FieldControl({
       </NativeSelect>
     );
   }
+  if (control === "multiline") {
+    return <Textarea {...props} maxLength={maxLength} />;
+  }
   if (control === "fixed") {
     const shown = choices.find(([option]) => option === props.value)?.[1] ?? props.value;
     return <Input {...props} readOnly value={shown} />;
@@ -440,7 +454,7 @@ export function ReferenceForm<T = ReferenceObject>({
   const own = useHeldCommand();
   const held = list?.held ?? own;
   const noteRefusal = useNoteRefusal();
-  const controls = useRef<Partial<Record<string, HTMLInputElement | HTMLSelectElement | null>>>({});
+  const controls = useRef<Partial<Record<string, ControlElement | null>>>({});
   const open = useRef(true);
   useEffect(() => {
     open.current = true;
@@ -535,7 +549,7 @@ export function ReferenceForm<T = ReferenceObject>({
     const own = `${id}-${name}`;
     const props: ControlProps = {
       id: own,
-      ref: (element: HTMLInputElement | HTMLSelectElement | null) => {
+      ref: (element: ControlElement | null) => {
         controls.current[name] = element;
       },
       value: draft[name] ?? "",

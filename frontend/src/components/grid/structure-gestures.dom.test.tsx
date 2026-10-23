@@ -708,6 +708,50 @@ describe("the keys of the gestures", () => {
   });
 });
 
+describe("the own estimate of a risk", () => {
+  // The structure of the own estimate of « Risque de reprise du câblage », which lists
+  // `edit_estimate` available whatever the phase of the project (`structures`).
+  const OWN = { ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000204" };
+
+  /** The grid of the estimate over a structure, entered, in French. */
+  function over(structure: typeof STRUCTURE) {
+    return (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <EstimateGrid
+          nodes={estimate}
+          structure={structure}
+          structureVersion={1}
+          reference={estimateReference()}
+          editable
+          tasksEditable
+          query={NO_QUERY}
+          filters={{}}
+          preferences={undefined}
+        />
+      </NextIntlClientProvider>
+    );
+  }
+
+  it("offers the gestures of the estimate of the project, and writes them on the structure of the risk [WF-RIS-0030-A]", async () => {
+    serve({});
+    const main = render(over(STRUCTURE));
+    const ofProject = [await offered(TASK), await offered(LINE)];
+    main.unmount();
+    const client = serve({ [CREATE]: { example: "node_created", status: 201 } });
+    render(over(OWN));
+    // The same gestures on the same rows: a risk is costed as the project is.
+    expect([await offered(TASK), await offered(LINE)]).toEqual(ofProject);
+    expect(ofProject.flat()).toContain("Insérer une ligne");
+    await choose(TASK, "Insérer au-dessous");
+    await create("Note de calcul des protections");
+    await screen.findByText("« Note de calcul des protections » créée.");
+    // Written on the structure of the risk, not on the main one.
+    expect(client.calls.filter((call) => call.route === CREATE).map((call) => call.path)).toEqual([
+      `/projects/${OWN.project_id}/revisions/${OWN.revision_id}/structures/${OWN.structure_id}/nodes`,
+    ]);
+  });
+});
+
 describe("the grids that offer no gesture", () => {
   it("offers none in the estimate the structure does not list available: no menu item, no key [WF-DEV-0050-A]", async () => {
     const client = serve({});
