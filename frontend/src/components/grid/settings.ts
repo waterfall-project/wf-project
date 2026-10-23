@@ -24,7 +24,7 @@ import { updateGridPreferences } from "@/api/actions/preferences";
 import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
 
-import { MAX_WIDTH, MIN_WIDTH } from "./columns";
+import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { pageSizeOf } from "./query";
 
 /** The settings of a grid, as the account keeps them. */
@@ -47,13 +47,16 @@ export const WRITE_DELAY = 500;
  */
 interface SettledColumn {
   readonly key: string;
-  readonly pinned?: boolean;
+  readonly pinned?: boolean | "end";
   readonly hidden?: boolean;
 }
 
-/** A width within the bounds of the grid. */
-function bounded(width: number): number {
-  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width)));
+/**
+ * A width within the bounds of the grid: those of any column, or, for the column pinned at the
+ * end, whose bound is the room of its frame, the widest a window holds (`WIDEST`).
+ */
+function bounded(width: number, max: number): number {
+  return Math.min(max, Math.max(MIN_WIDTH, Math.round(width)));
 }
 
 /**
@@ -69,6 +72,7 @@ export function initialSettings(
 ): GridSettings {
   const hideable = new Set(columns.filter((column) => column.pinned !== true).map((c) => c.key));
   const known = new Set(columns.map((column) => column.key));
+  const ended = new Set(columns.filter((c) => c.pinned === "end").map((column) => column.key));
   const kept =
     preferences?.hidden_columns ??
     columns.filter((column) => column.hidden === true).map((column) => column.key);
@@ -76,7 +80,9 @@ export function initialSettings(
   const widths = Object.entries(preferences?.column_widths ?? {}).filter(([key]) => known.has(key));
   return {
     visibility: Object.fromEntries(hidden.map((key) => [key, false])),
-    sizing: Object.fromEntries(widths.map(([key, width]) => [key, bounded(width)])),
+    sizing: Object.fromEntries(
+      widths.map(([key, width]) => [key, bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH)]),
+    ),
   };
 }
 
@@ -108,7 +114,8 @@ export function recordedPreferences(
       .filter(([, visible]) => !visible)
       .map(([key]) => key),
     column_widths: Object.fromEntries(
-      Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width)]),
+      // The grid bounds each width it changes (`useGridTable`); none wider than a window holds.
+      Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width, WIDEST)]),
     ),
   };
   const sized = pageSizeOf(size);

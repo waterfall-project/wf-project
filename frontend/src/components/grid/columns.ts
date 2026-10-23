@@ -77,10 +77,13 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   /** How its cells are entered from the keyboard (WF-IHM-0040); none, and no cell of it is. */
   readonly entry?: CellEntry<Row, Totals> | undefined;
   /**
-   * The identifying column: it stays at the start when the grid scrolls sideways, and cannot
-   * be hidden. The first of them carries the tree, when the grid has one.
+   * The identifying column (`true`): it stays at the start when the grid scrolls sideways, and
+   * cannot be hidden. The first of them carries the tree, when the grid has one. Or the column that
+   * stays at the end (`"end"`), the Gantt: it slides over the columns before it as it widens, by the
+   * handle on its left edge, up to the room of the frame less the identifying columns and the widest
+   * other column (US-0530, `endMaxOf`).
    */
-  readonly pinned?: boolean;
+  readonly pinned?: boolean | "end";
   /**
    * Whether it starts hidden, for an account that has kept no choice of columns: it is shown by the
    * menu of the columns (US-0480). A pinned column is never hidden.
@@ -441,6 +444,12 @@ export const MIN_WIDTH = 40;
 
 /** The widest a column gets. */
 export const MAX_WIDTH = 800;
+
+/**
+ * The widest a column pinned at the end gets, the room of its frame unknown: that of a window of
+ * 4K. The room, once measured, bounds it.
+ */
+export const WIDEST = 3840;
 
 /** What names a column: its label in the catalogue, and the heading the answer gives it, if any. */
 export interface ColumnName {

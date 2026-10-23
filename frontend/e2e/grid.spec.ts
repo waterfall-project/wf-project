@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, type Request, test } from "@playwright/test";
+import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
 import {
   rowAt,
@@ -29,6 +29,8 @@ const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 // The remaining to commit, which the session may enter on the project in progress, where the
 // estimate is read only (WF-DEV-0050, WF-RAE-0040).
 const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
+// The planning, whose Gantt is pinned at the end of its grid (US-0530).
+const PLANNING = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
 
 /** The rows of the answer, and the header and totals around them. */
 const ROW_COUNT = "6002";
@@ -235,6 +237,70 @@ test.describe("on a narrow window", () => {
       await expect(pinned).toBeInViewport({ ratio: 1 });
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
     }
+  });
+
+  test("pins the Gantt of the planning at the end, its handle widening it over the columns before it, each of which the active cell scrolls out from under it", async ({
+    page,
+  }) => {
+    await openHydrated(page, PLANNING);
+    const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+    const box = scroller(planning);
+    const gantt = planning.getByRole("columnheader", { name: "Gantt" });
+    const label = planning.getByRole("columnheader", { name: "Libellé" });
+    const handle = planning.getByRole("separator", { name: "Largeur de la colonne Gantt" });
+    // The right edge of the rows of the frame, and that of a cell.
+    const edge = () =>
+      box.evaluate(
+        (frame) => frame.getBoundingClientRect().left + frame.clientLeft + frame.clientWidth,
+      );
+    const rightOf = async (cell: Locator) => {
+      const bounds = await cell.boundingBox();
+      return (bounds?.x ?? 0) + (bounds?.width ?? 0);
+    };
+    await expect(gantt).toBeInViewport();
+    expect(await rightOf(gantt)).toBeCloseTo(await edge(), 0);
+
+    // Dragged to the left as far as it goes, the Gantt takes its widest, against the right edge of
+    // the frame: the row numbers and the label stay uncovered, and the widest column between them.
+    const grip = await handle.boundingBox();
+    const y = (grip?.y ?? 0) + (grip?.height ?? 0) / 2;
+    await page.mouse.move((grip?.x ?? 0) + 2, y);
+    await page.mouse.down();
+    await page.mouse.move(0, y, { steps: 5 });
+    await page.mouse.up();
+    const widest = await handle.getAttribute("aria-valuemax");
+    await expect(handle).toHaveAttribute("aria-valuenow", widest ?? "");
+    expect(await rightOf(gantt)).toBeCloseTo(await edge(), 0);
+    const left = (await gantt.boundingBox())?.x ?? 0;
+    expect(left - (await rightOf(label))).toBeCloseTo(160, -1);
+
+    // From the label of the first row, the arrows reach each column the Gantt covers: the grid
+    // scrolls it out from under the Gantt, and nothing covers the active cell, the Gantt last.
+    await planning
+      .getByRole("row", { name: /^1 .*Études/ })
+      .getByRole("gridcell")
+      .nth(1)
+      .click();
+    const active = page.locator(":focus");
+    const covered = () =>
+      active.evaluate((cell) => {
+        const bounds = cell.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2,
+        );
+        return hit === null || !cell.contains(hit);
+      });
+    const reached: string[] = [];
+    for (let step = 0; step < 20 && !reached.includes("gantt"); step += 1) {
+      await page.keyboard.press("ArrowRight");
+      await expect(active).toHaveAttribute("data-row", "0");
+      const column = (await active.getAttribute("data-column")) ?? "";
+      expect(await covered(), `the active cell of ${column}`).toBe(false);
+      reached.push(column);
+    }
+    expect(reached).toContain("description");
+    expect(reached.at(-1)).toBe("gantt");
   });
 });
 

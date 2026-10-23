@@ -201,8 +201,12 @@ describe("the cells of a task entered in the grid of the planning", () => {
   });
 
   it("sends a date entered alone, with no hours, and shows what the server answered (#1244)", async () => {
-    // The front knows no calendar: the date goes without hours, the body of task_dates_sent, and the
-    // server completes them — task_dates_entered, whose finish the cell then shows.
+    // It cites no requirement: no Vérif says how a date travels — the one of WF-PLA-0020 that the
+    // dates of a manual task are entered is proved above —, only the contract does (#1244, #1272).
+    // The front knows no calendar: each date goes without hours, as in the body of task_dates_sent,
+    // and the server completes them — task_dates_entered, whose finish the cell then shows. The
+    // grid writes a cell at a time: the finish goes alone, with the counter the answer to the start
+    // left (3), never with the start in one body at `lock_version` 2 as task_dates_sent does.
     const hold = held();
     const client = serve({ [TASK]: "task_dates_entered" }, hold.until);
     const manual = structuredClone(nested);
@@ -226,6 +230,11 @@ describe("the cells of a task entered in the grid of the planning", () => {
     expect(written(client)[0]?.body).toEqual({ start: { date: "2027-01-04" }, lock_version: 1 });
     hold.release();
     expect(await within(cellAt(commissioning, "finish")).findByText("15/01/2027")).toBeVisible();
+    await retype(await entered(commissioning, "finish"), "14/01/2027");
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(2);
+    });
+    expect(written(client)[1]?.body).toEqual({ finish: { date: "2027-01-14" }, lock_version: 3 });
   });
 
   it.each([
@@ -485,7 +494,8 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     });
   });
 
-  it("empties the predecessors of a task by a blank text, and writes nothing for the links it already has [WF-PLA-0030-A]", async () => {
+  // No requirement: the Vérif of WF-PLA-0030 says nothing of a list of links emptied (#1272).
+  it("empties the predecessors of a task by a blank text, and writes nothing for the links it already has", async () => {
     const client = serve({ [PREDECESSORS]: "predecessor_set" });
     render(grid(nested));
     const mounting = rowOf(nested, "Montage des armoires sur site");
@@ -560,7 +570,8 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     },
   );
 
-  it("enters no predecessors in a grid read only [WF-PLA-0030-A]", () => {
+  // No requirement: the Vérif of WF-PLA-0030 says nothing of a grid read only (#1272).
+  it("enters no predecessors in a grid read only", () => {
     serve({});
     render(grid(planning, { editable: false }));
     expect(cellAt(rowOf(planning, "Réception des études"), "predecessors")).toHaveAttribute(

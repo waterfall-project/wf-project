@@ -112,6 +112,7 @@ import { useKeptPageSize } from "./kept-size";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
+import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
@@ -193,25 +194,6 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
   /** The commands the screen gives the rows of the grid; none for a grid it writes nothing from. */
   readonly commands?: RowCommands<Row> | undefined;
-}
-
-/** How a cell of a column is pinned: its classes, and its offset from the start. */
-interface Pinning {
-  readonly className: string;
-  readonly left: number | undefined;
-}
-
-/** How a column of the table is pinned, at a layer above the cells it slides over. */
-function pinningOf<Row extends RowData>(table: GridTable<Row>, id: string, layer: string): Pinning {
-  const column = table.getColumn(id);
-  if (column?.getIsPinned() !== "start") {
-    return { className: "", left: undefined };
-  }
-  const last = table.getStartVisibleLeafColumns().at(-1)?.id === id;
-  return {
-    className: cn("sticky", layer, last ? "border-r" : null),
-    left: column.getStart("start"),
-  };
 }
 
 /**
@@ -371,7 +353,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
         computed,
         cellKeys(cells.menu, { folds, keys: cells.foldKeys }, position.column, config.columns[0]),
       )}
-      style={{ left: pinning.left }}
+      style={{ left: pinning.left, right: pinning.right }}
       className={cn(
         "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         pinning.className,
@@ -473,7 +455,7 @@ function TotalsRow<Row extends RowData, Sort extends string, Totals>({
         return (
           <TableCell
             key={column.id}
-            style={{ left: pinning.left }}
+            style={{ left: pinning.left, right: pinning.right }}
             className={cn(
               "sticky bottom-0 z-20 overflow-hidden border-t border-b-0 bg-muted font-semibold text-ellipsis",
               pinning.className,
@@ -502,11 +484,6 @@ function Spacer({ height, span }: { readonly height: number; readonly span: numb
 /** Whether the grid is busy: reading a sort or a search anew, or a command of its screen waiting. */
 function gridBusy(reading: boolean, commands: { readonly busy: boolean }): boolean {
   return reading || commands.busy;
-}
-
-/** The width of the columns pinned at the start, which the other columns slide under. */
-function pinnedWidth<Row extends RowData>(table: GridTable<Row>): number {
-  return table.getStartVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
 }
 
 /**
@@ -613,6 +590,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   useKeptPageSize(config.address, keptSize, recordSize, config.paged === true);
   const scroller = useRef<HTMLDivElement>(null);
   const frameWidth = useFrameWidth(scroller);
+  const room = useFrameRoom(scroller);
   const rowHeight = ROW_REM * useRootFontSize();
 
   // The address the last navigation of the grid — or of its screen — asked for: a search entered
@@ -677,6 +655,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     sort,
     onSort: changeSort,
     settings,
+    room,
     onSettings: (next) => {
       setSettings(next);
       currentSettings.current = next;
@@ -875,8 +854,8 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,
-        // the pinned columns to its start: a cell the focus brings into view comes out from under
-        // them. A refusal whose row scrolls out of view closes.
+        // the pinned columns to its start and to its end: a cell the focus brings into view comes out
+        // from under them. A refusal whose row scrolls out of view closes.
         container={{
           ref: scroller,
           className: "w-fit max-w-full max-h-svh rounded-md border",
@@ -884,6 +863,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
             minHeight: floorOf(model.length),
             scrollPaddingBlock: edge,
             scrollPaddingInlineStart: pinnedWidth(table),
+            scrollPaddingInlineEnd: endPinnedWidth(table),
           },
           onScroll: keyboard.followScroll,
         }}

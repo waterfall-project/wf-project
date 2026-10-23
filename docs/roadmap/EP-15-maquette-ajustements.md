@@ -1100,7 +1100,7 @@ trois lots : les formulaires et le devis propre ; le réexamen, la suppression e
 
 ## US-0530 — Le Gantt épinglé et zoomé, la chronologie en frise
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0090-A`, `WF-PLA-0140-A`
 - **opérations** : `listNodes`, `listTimelines`, `getMe`, `updateMyPreferences`,
   `getDurationUnits`

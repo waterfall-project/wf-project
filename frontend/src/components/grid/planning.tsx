@@ -255,6 +255,8 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "gantt",
       format: "text",
       width: 400,
+      // At the end, over the columns before it as it widens, as in Microsoft Project (US-0530).
+      pinned: "end",
       // No column of the contract, nor a value shown: the cell draws the row of the task.
       value: () => undefined,
       render: (node) => <GanttCell row={node} />,
