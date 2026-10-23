@@ -65,10 +65,14 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
   // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its thirteen headers,
-  // the number and the twelve columns, none holds a button, none says a sort.
+  // the number and the twelve columns, none holds a button but the three of the zoom in that of the
+  // Gantt, none says a sort.
   const headers = grid.getByRole("columnheader");
   await expect(headers).toHaveCount(13);
-  await expect(headers.getByRole("button")).toHaveCount(0);
+  await expect(headers.getByRole("button")).toHaveCount(3);
+  await expect(
+    headers.getByRole("group", { name: "Zoom du Gantt" }).getByRole("button"),
+  ).toHaveCount(3);
   for (const header of await headers.all()) {
     await expect(header).not.toHaveAttribute("aria-sort");
   }
@@ -266,8 +270,10 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   await openHydrated(page, `${IN_REVISION}/planning`);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { gantt: "Gantt" });
-  // Its axis, in its header, the months of the plan.
-  await expect(grid.getByRole("columnheader", { name: "Gantt" })).toContainText("janv. 27");
+  // Its axis, in its header, fitted to the plan: its years over their quarters.
+  const axis = grid.getByRole("columnheader", { name: "Gantt" });
+  await expect(axis).toContainText("2027");
+  await expect(axis).toContainText("T3");
   // Each bar by the dates the API gives, on the row of its task.
   const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
   const bar = completed.getByRole("gridcell").nth(at.gantt).getByRole("img");
@@ -292,6 +298,19 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
     await page.keyboard.press(key);
   }
   await expect(grid.getByRole("textbox")).toHaveCount(0);
+  await expect(criticalBar).toHaveAccessibleName("Du 01/07/2026 au 16/07/2026 — critique");
+
+  // Nor does the zoom: Ctrl and plus in the grid, Ctrl and the wheel on the Gantt, the bar.
+  await page.keyboard.press("Control+=");
+  await expect(axis).toContainText("juil.");
+  await cell.hover();
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.up("Control");
+  await expect(axis).toContainText("juillet 2026");
+  await page.getByRole("button", { name: "Zoom arrière" }).click();
+  await page.getByRole("button", { name: "Ajuster au projet" }).click();
+  await expect(axis).toContainText("T3");
   await expect(criticalBar).toHaveAccessibleName("Du 01/07/2026 au 16/07/2026 — critique");
   expect(sent).toEqual([]);
 });

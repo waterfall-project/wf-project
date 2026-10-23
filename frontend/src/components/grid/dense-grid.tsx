@@ -49,6 +49,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useOptimistic,
   useRef,
   useState,
@@ -123,6 +124,7 @@ import {
   useRowSelection,
 } from "./row-selection";
 import {
+  endedColumns,
   type GridPreferences,
   initialSettings,
   keptPageSize,
@@ -549,6 +551,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // The size of its pages the account keeps for the grid: the session's, then the last one chosen.
   const [keptSize, setKeptSize] = useState(keptPageSize(preferences));
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
+  const ended = useMemo(() => endedColumns(config.columns), [config.columns]);
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
@@ -563,11 +566,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           keptSort.current,
           filters,
           keptSize,
+          ended,
         ),
       );
       shown();
     },
-    [keptSize, preferences, recordShown, shown],
+    [ended, keptSize, preferences, recordShown, shown],
   );
   const kept = useKeptFilters(config, preferences, recordFilters);
   // The size of the pages the address asks, recorded as the filters are (`kept-size.ts`).
@@ -581,11 +585,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           keptSort.current,
           kept.current,
           size,
+          ended,
         ),
       );
       shown();
     },
-    [kept, preferences, recordShown, shown],
+    [ended, kept, preferences, recordShown, shown],
   );
   useKeptPageSize(config.address, keptSize, recordSize, config.paged === true);
   const scroller = useRef<HTMLDivElement>(null);
@@ -621,6 +626,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         keptSort.current,
         kept.current,
         keptSize,
+        ended,
       ),
     );
   };
@@ -660,7 +666,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       setSettings(next);
       currentSettings.current = next;
       writer.record(
-        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize),
+        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, ended),
       );
     },
   });

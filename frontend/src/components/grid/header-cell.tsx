@@ -22,7 +22,7 @@
 import type { RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, Sigma } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, type PointerEvent, useId, useRef } from "react";
+import { type KeyboardEvent, type PointerEvent, type ReactNode, useId, useRef } from "react";
 
 import { TableHead } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
@@ -48,7 +48,7 @@ const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
 /** What a header reads of its column: whether the server computes it whole, not its rows. */
 type HeaderColumn = Pick<
   GridColumn<unknown, string, unknown>,
-  "label" | "format" | "align" | "icon" | "axis"
+  "label" | "format" | "align" | "icon" | "axis" | "corner"
 > & {
   readonly computed?: { readonly whole: boolean };
 };
@@ -235,6 +235,11 @@ function Heading({
   );
 }
 
+/** What a header holds in its corner besides its heading: the zoom of the Gantt; mostly nothing. */
+function cornerOf(column: HeaderColumn | undefined): ReactNode {
+  return column?.corner?.();
+}
+
 /** Render a header of a grid. */
 export function HeaderCell<Row extends RowData>({
   table,
@@ -316,6 +321,7 @@ export function HeaderCell<Row extends RowData>({
       ) : (
         heading
       )}
+      {cornerOf(column)}
       {resizes ? <ResizeHandle table={table} header={header} label={label} /> : null}
     </TableHead>
   );

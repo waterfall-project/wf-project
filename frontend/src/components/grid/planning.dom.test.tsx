@@ -313,7 +313,12 @@ describe("the grid of the planning", () => {
       PLANNING_GRID.columns.filter((column) => column.hidden !== true).length + 1,
     );
     for (const header of headers) {
-      expect(within(header).queryByRole("button")).toBeNull();
+      // No button sorts it: the header of the Gantt holds those of its zoom alone.
+      expect(
+        within(header)
+          .queryAllByRole("button")
+          .filter((button) => button.closest('[role="group"]') === null),
+      ).toEqual([]);
       expect(header).not.toHaveAttribute("aria-sort");
       expect(header.getAttribute("aria-keyshortcuts") ?? "").not.toContain("Enter");
     }

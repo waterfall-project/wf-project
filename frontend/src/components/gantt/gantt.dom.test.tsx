@@ -87,6 +87,7 @@ function recordedWidths(): unknown[] {
 }
 
 beforeEach(() => {
+  window.sessionStorage.clear();
   router.push.mockReset();
   server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
@@ -100,13 +101,27 @@ afterEach(() => {
 });
 
 describe("the Gantt of the planning", () => {
-  it("is the last column of the grid, its axis the months of the tasks, named by its heading", () => {
+  // aucune exigence : propre à l'US (US-0530, l'axe à deux rangées).
+  it("is the last column of the grid, its axis the months over the weeks of the tasks, named by its heading", () => {
     renderPlanning();
     const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
     const headers = within(grid).getAllByRole("columnheader");
     expect(headers.at(-1)).toHaveAccessibleName("Gantt");
-    expect(headers.at(-1)?.textContent).toContain("mars 26");
-    expect(headers.at(-1)?.textContent).toContain("avr. 26");
+    // Fitted to the project, two months in 400 points: the months over the Mondays of the weeks.
+    const axis = [...(headers.at(-1)?.querySelectorAll("text") ?? [])].map((t) => t.textContent);
+    expect(axis).toEqual([
+      "mars 2026",
+      "avril 2026",
+      "2",
+      "9",
+      "16",
+      "23",
+      "30",
+      "6",
+      "13",
+      "20",
+      "27",
+    ]);
   });
 
   it("names each bar by the dates the API gives, a milestone by its day, the critical path in words [WF-PLA-0090-A]", () => {
@@ -172,7 +187,7 @@ describe("the Gantt of the planning", () => {
       "Milestone on 24/04/2026 — critical",
     );
     const headers = screen.getAllByRole("columnheader");
-    expect(headers.at(-1)?.textContent).toContain("Mar 26");
+    expect(headers.at(-1)?.textContent).toContain("March 2026");
   });
 
   it("draws nothing outside a grid of the planning", () => {
@@ -184,6 +199,7 @@ describe("the Gantt of the planning", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  // aucune exigence : propre à l'US (US-0530, la colonne du Gantt épinglée et sa poignée).
   it("is pinned at the end of the grid, over the columns before it, which scroll out from under it", () => {
     renderPlanning();
     const header = screen.getAllByRole("columnheader").at(-1);
@@ -204,6 +220,7 @@ describe("the Gantt of the planning", () => {
     expect(splitHandle()).toHaveClass("left-0");
   });
 
+  // aucune exigence : propre à l'US (US-0530, la colonne du Gantt épinglée et sa poignée).
   it("widens by its handle up to the room of the frame less the columns pinned at the start and the widest between, and narrows down to the narrowest column", () => {
     renderPlanning();
     const handle = splitHandle();
@@ -224,6 +241,7 @@ describe("the Gantt of the planning", () => {
     expect(handle).toHaveAttribute("aria-valuenow", "40");
   });
 
+  // aucune exigence : propre à l'US (US-0530, la colonne du Gantt épinglée et sa poignée).
   it("widens by Shift and the left arrow on its header, narrows by the right, and keeps its width in the preferences of the grid", async () => {
     renderPlanning();
     screen.getAllByRole("columnheader").at(-1)?.focus();
@@ -235,6 +253,96 @@ describe("the Gantt of the planning", () => {
       },
       { timeout: WRITE_DELAY * 4 },
     );
+  });
+
+  it("zooms by the buttons of its header, by Ctrl and plus or minus in the grid, by Ctrl and the wheel on the Gantt, and modifies no task [WF-PLA-0090-A]", async () => {
+    renderPlanning();
+    const header = screen.getAllByRole("columnheader").at(-1);
+    if (header === undefined) {
+      throw new Error("no header");
+    }
+    // In the corner of the header of the Gantt, out of its name and of the order of tabulation.
+    const zoomIn = within(header).getByRole("button", { name: "Zoom avant" });
+    expect(zoomIn).toHaveAttribute("tabindex", "-1");
+    expect(header).toHaveAccessibleName("Gantt");
+    await userEvent.click(zoomIn);
+    // The weeks over their days, the drawing wider than its column, which scrolls it.
+    expect(header.textContent).toContain("9 mars 2026");
+    expect(ganttOf("Études").querySelector("svg")).toHaveStyle({ width: "1464px" });
+    expect(screen.getByRole("button", { name: "Zoom avant" })).toBeDisabled();
+    ganttOf("Études").focus();
+    await userEvent.keyboard("{Control>}-{/Control}");
+    expect(header.textContent).toContain("avril 2026");
+    expect(ganttOf("Études").querySelector("svg")).toHaveStyle({ width: "366px" });
+    // happy-dom keeps no modifier key of a wheel event: Ctrl is held by hand.
+    const wheel = new WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true });
+    Object.defineProperty(wheel, "ctrlKey", { value: true });
+    fireEvent(ganttOf("Études").querySelector("svg") ?? document.body, wheel);
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(header.textContent).toContain("T1 2026");
+    await userEvent.click(screen.getByRole("button", { name: "Ajuster au projet" }));
+    expect(ganttOf("Études").querySelector("svg")?.style.width).toBe("");
+    // Nothing is written: the grid asked the server nothing, its preferences included.
+    expect(server.client?.calls).toEqual([]);
+  });
+
+  it("zooms by the menu of a cell too, where a narrow bar has no room for its buttons [WF-PLA-0090-A]", async () => {
+    renderPlanning();
+    fireEvent.contextMenu(ganttOf("Études"), { clientX: 300, clientY: 200 });
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Ajuster au projet" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Zoom avant" }));
+    expect(ganttOf("Études").querySelector("svg")?.style.width).not.toBe("");
+    expect(server.client?.calls).toEqual([]);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, la molette sur le Gantt zoomé).
+  it("lets a wheel mostly downward scroll the grid, though it drifts aside, and scrolls itself by a wheel across", async () => {
+    renderPlanning();
+    await userEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    const drawing = ganttOf("Études").querySelector("svg") ?? document.body;
+    const down = new WheelEvent("wheel", {
+      deltaY: 100,
+      deltaX: 3,
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(drawing, down);
+    expect(down.defaultPrevented).toBe(false);
+    const across = new WheelEvent("wheel", {
+      deltaY: 3,
+      deltaX: 100,
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(drawing, across);
+    expect(across.defaultPrevented).toBe(true);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, la molette sur le Gantt zoomé).
+  it("removes its wheel listener when it unmounts", () => {
+    const removed = vi.spyOn(HTMLElement.prototype, "removeEventListener");
+    const { unmount } = renderPlanning();
+    unmount();
+    expect(removed.mock.calls.some(([type]) => type === "wheel")).toBe(true);
+    removed.mockRestore();
+  });
+
+  // aucune exigence : propre à l'US (US-0530, le niveau gardé pour la session).
+  it("keeps its level for the session, by grid and by revision, and opens fitted to the project", async () => {
+    const first = renderPlanning();
+    expect(screen.getByRole("button", { name: "Ajuster au projet" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Zoom arrière" }));
+    first.unmount();
+    renderPlanning();
+    expect(screen.getAllByRole("columnheader").at(-1)?.textContent).toContain("T1 2026");
+    expect(screen.getByRole("button", { name: "Ajuster au projet" })).toBeEnabled();
+    expect(
+      window.sessionStorage.getItem(`waterfall.gantt.zoom.planning:${STRUCTURE.revision_id}`),
+    ).toBe("1");
   });
 
   it("is accessible", async () => {
