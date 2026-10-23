@@ -1122,9 +1122,13 @@
     "identify": "Identifier un risque",
     "identifyHint": "Le risque ouvre son devis propre, où se chiffrent ses tâches et ses lignes ; sa provision, calculée, se range sur une tâche de la structure principale.",
     "identified": "Risque « {name} » identifié.",
+    "modify": "Modifier",
+    "modifyTitle": "Modifier « {name} »",
+    "modifyHint": "La gravité et la provision se calculent à partir du devis propre et de la probabilité : elles ne se saisissent pas.",
     "probability": "Probabilité (%)",
     "task": "Tâche de la provision",
-    "firstTask": "Première tâche de premier niveau"
+    "firstTask": "Première tâche de premier niveau",
+    "saved": "Risque « {name} » modifié."
   },
   "projectForm": {
     "create": "Créer un projet",

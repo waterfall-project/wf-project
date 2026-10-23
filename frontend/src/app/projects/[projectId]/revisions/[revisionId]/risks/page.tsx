@@ -206,15 +206,18 @@ export default async function RisksPage({
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
   // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
   const reading = readProjectContext(at.pathname, at.context, []);
-  // « Identifier un risque » as the revision lists `declare_risk`: the choices of the provision are
-  // read as soon as the revision is, beside the other reads, when the command is available.
+  // « Identifier un risque » as the revision lists `declare_risk`, and the modification of the risk
+  // shown, as it lists `update`: the choices of the provision are read as soon as the revision and
+  // the risk are, beside the other reads, when either command is available.
   const declare = reading.then((read) =>
     read === "not_found" || read.revision === undefined
       ? undefined
       : findOffer(read.revision.available_commands, "declare_risk"),
   );
-  const options = declare.then((offer) =>
-    offer?.is_available === true
+  const shown = readDetail(at, readRisk(at.address));
+  const options = Promise.all([declare, shown]).then(([offer, read]) =>
+    offer?.is_available === true ||
+    findOffer(read?.risk.available_commands ?? [], "update")?.is_available === true
       ? readProvisionOptions(at.revision.projectId, at.revision.revisionId)
       : undefined,
   );
@@ -224,7 +227,7 @@ export default async function RisksPage({
       readRisks(at, states, asked),
       readCoverage(at),
       readMatrix(at),
-      readDetail(at, readRisk(at.address)),
+      shown,
       settings,
       asked,
       declare,
@@ -278,7 +281,7 @@ export default async function RisksPage({
             </div>
             {detail === undefined ? null : (
               <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
-                <RiskDetail {...detail} />
+                <RiskDetail {...detail} projectId={at.revision.projectId} options={choices} />
               </aside>
             )}
           </div>

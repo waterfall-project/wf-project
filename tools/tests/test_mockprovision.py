@@ -155,16 +155,42 @@ def test_the_refused_declaration_names_a_labour_category_and_a_subproject_unknow
 def test_the_probability_sent_as_a_percent_is_refused_with_the_bound_it_crosses() -> None:
     # Written by hand, like its sibling above: 120 sent for a ratio, refused at its maximum,
     # which the front says as a percent (WF-RIS-0010).
+    # Its correlation is its own: test_each_correlation_is_told_by_one_example_alone
+    # (test_mockuniverse.py) reads every fixture, those written by hand included.
     refused = fixture("risk_probability_out_of_range")
+    assert set(refused) == {"code", "status", "fields", "correlation_id"}
     assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
     assert refused["fields"] == [
         {"pointer": "/probability", "code": "VALUE_OUT_OF_RANGE", "params": {"maximum": "1"}}
     ]
+    assert refused["correlation_id"] == universe(1306)
     assert "WF-RIS-0010" in _summary("risk_probability_out_of_range")
     said = _block("createRisk", "422")
     assert said.index("fixtures/api/risk_provision_task_refused.json") < said.index(
         "fixtures/api/risk_probability_out_of_range.json"
     )
+    assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
+
+
+def test_the_probability_sent_as_a_percent_is_refused_alike_when_the_risk_is_modified() -> None:
+    # The change says the bound of the declaration, by an example of its own, which the fake
+    # client of the front serves to it alone (#1371).
+    declared = fixture("risk_probability_out_of_range")
+    modified = fixture("risk_update_probability_out_of_range")
+    assert set(modified) == set(declared)
+    assert (modified["status"], modified["code"], modified["fields"]) == (
+        declared["status"],
+        declared["code"],
+        declared["fields"],
+    )
+    assert modified["correlation_id"] == universe(1307)
+    summary = _summary("risk_update_probability_out_of_range")
+    assert summary.startswith("Un risque modifié")
+    assert "WF-RIS-0010" in summary
+    said = _block("updateRisk", "422")
+    assert "fixtures/api/risk_update_probability_out_of_range.json" in said
+    assert "fixtures/api/risk_probability_out_of_range.json" not in said
+    assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
 
 
 def test_the_provision_of_a_dismissed_risk_is_refused_by_the_condition_its_command_misses() -> None:

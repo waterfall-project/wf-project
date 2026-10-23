@@ -22,3 +22,17 @@ export interface ProvisionOptions {
   /** The tasks of the main structure of the revision. */
   readonly tasks: readonly ProvisionChoice[];
 }
+
+/**
+ * The categories the form offers for a risk: the active ones, and the one the risk holds already
+ * when it is no longer among them (`held`, with its label) — kept so that a modification which does
+ * not change the category can show it, and a risk coming back asks for another.
+ */
+export function categoryChoices(
+  categories: readonly ProvisionChoice[],
+  held: ProvisionChoice | undefined,
+): readonly ProvisionChoice[] {
+  return held === undefined || categories.some(({ id }) => id === held.id)
+    ? categories
+    : [...categories, held];
+}

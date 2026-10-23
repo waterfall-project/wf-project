@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type Risk, RiskDetail } from "@/components/risks/risk-detail";
+import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/risk-detail";
 import type { RisksGridProps } from "@/components/risks/risks-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
@@ -35,6 +35,19 @@ vi.mock("@/components/risks/risks-grid", async (original) => {
     RisksGrid: (props: RisksGridProps) => {
       grids.risks.push(props);
       return createElement(actual.RisksGrid, props);
+    },
+  };
+});
+// The detail renders as it would, and keeps what its page handed it.
+const details = vi.hoisted((): { props: RiskDetailProps[] } => ({ props: [] }));
+vi.mock("@/components/risks/risk-detail", async (original) => {
+  const actual = await original<typeof import("@/components/risks/risk-detail")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    RiskDetail: (props: RiskDetailProps) => {
+      details.props.push(props);
+      return createElement(actual.RiskDetail, props);
     },
   };
 });
@@ -101,6 +114,7 @@ function queryOf(route: string): Record<string, string> {
 
 beforeEach(() => {
   grids.risks = [];
+  details.props = [];
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -288,7 +302,7 @@ describe("the screen of the risks", () => {
     expect(queryOf(REVIEWS)).toEqual({ revision_id: REVISION });
     const said = text(page);
     expect(said).toContain(
-      "Risque de reprise du câblage State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
+      "Risque de reprise du câblage Modify State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
     );
     expect(said).toContain(
       "Description Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
@@ -337,7 +351,7 @@ describe("the screen of the risks", () => {
     const risk: Risk = { ...(example("risk") as Risk), provision_cost_category_is_active: false };
     const detail = renderToStaticMarkup(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
-        <RiskDetail risk={risk} reviews={[]} />
+        <RiskDetail risk={risk} reviews={[]} projectId="01926f3a-7c00-7000-8000-000000000001" />
       </NextIntlClientProvider>,
     );
     expect(text(detail)).toContain("Category Provisions pour risques (deactivated)");
@@ -434,5 +448,19 @@ describe("the commands of the risks", () => {
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
     };
     expect(command(await risksAt())).toBe("");
+  });
+
+  it("offers « Modify » in the detail of a risk, and reads the choices of its provision", async () => {
+    const page = await risksAt({ risk: CABLING });
+    expect(page).toContain("Modify</button>");
+    expect(callsTo(NODES)).toHaveLength(1);
+  });
+
+  it("hands the detail the choices of the provision it read: the categories of the type, the sub-projects, the tasks of the main structure", async () => {
+    await risksAt({ risk: CABLING });
+    const handed = details.props.at(-1)?.options;
+    expect(handed?.categories.length).toBeGreaterThan(0);
+    expect(handed?.subprojects.length).toBeGreaterThan(0);
+    expect(handed?.tasks.map(({ label }) => label)).toContain("Études de détail");
   });
 });
