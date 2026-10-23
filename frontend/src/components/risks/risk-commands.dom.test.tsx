@@ -735,12 +735,10 @@ describe("« Modifier » a risk", () => {
     expect(announced()).not.toContain("Risque « Indisponibilité de la grue de levage » modifié.");
   });
 
-  // `updateRisk` documents no 422 example: the one of `createRisk` stands for it, the fields being
-  // those of the declaration.
   it("says the bound of the probability at its field in percentages, the server naming it in the ratio [WF-RIS-0010-A]", async () => {
     serve({
       [UPDATE]: {
-        problem: example("risk_probability_out_of_range") as Problem & { status: 422 },
+        problem: example("risk_update_probability_out_of_range") as Problem & { status: 422 },
       },
     });
     render(modify());

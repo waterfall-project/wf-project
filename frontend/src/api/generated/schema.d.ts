@@ -10848,7 +10848,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée. Rien n'est écrit. */
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée ; `/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme à la déclaration (`RiskUpdate.probability`, WF-RIS-0010). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;

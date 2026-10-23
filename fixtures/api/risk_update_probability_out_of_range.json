@@ -1,0 +1,17 @@
+{
+  "summary": "Un risque modifié avec une probabilité de 120, un pourcentage pour un rapport : refusé au-dessus du plus grand rapport admis, comme à la déclaration, le champ désigné avec la borne franchie ; rien n'est écrit (WF-RIS-0010).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/probability",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "maximum": "1"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001307"
+  }
+}

@@ -7013,6 +7013,19 @@ hors de cette partie, tranchés par l'auteur le 2026-10-21 (#1227) et portés pa
   rien du témoin ne fait varier, comme `project_rates_out_of_range`. Le front s'en sert pour dire
   la borne en pourcentage ; le schéma la dit sur `RiskWrite.probability`.
 
+**La modification dit la même borne de la probabilité** (US-0520/L2b, #1371). `RiskUpdate`
+portait déjà la borne de `RiskWrite.probability`, un rapport de 0 à 1 inclus, mais le 422
+d'`updateRisk` ne la disait pas : il la dit, `/probability` hors de 0 à 1 refusé par
+`VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme celui de `createRisk`. Son exemple
+est propre, `risk_update_probability_out_of_range` : la même probabilité de 120 envoyée en
+modifiant le risque, `params.maximum` à `1` (corrélation 1307), écrit à la main comme celui de la
+déclaration. Le résumé de chacun dit son geste, et le test 422 de « Modifier »
+(`risk-commands.dom.test.tsx`) lit l'exemple de l'opération qu'il éprouve, et non celui de
+`createRisk`. Écarté : citer `risk_probability_out_of_range` sous les deux opérations, son résumé
+élargi aux deux gestes — un résumé qui ne dirait plus lequel l'exemple montre, et que le réexamen
+d'US-0520/L3 aurait à élargir encore. Le réexamen (`reviewRisk`) dira sa borne avec US-0520/L3
+(#1114).
+
 Le résumé de `risk_created` s'ouvre par « Variante contrefactuelle », comme le veut la convention
 de #1196 (#1228).
 
@@ -7140,7 +7153,8 @@ ses exemples : le back ne sert pas encore `moveNodes`.
 « corrélations, suite » (1010-1199) étant presque épuisée, « corrélations, seconde suite »
 (1300-1599, `wftools.mockids`) la prolonge après les nœuds de l'avenant 2 ; les exemples de ce lot
 l'emploient, de 1300 à 1304. Les suivantes la prennent après eux : 1305 pour
-`task_hours_beyond_day` (US-0470/L2), 1306 pour `risk_probability_out_of_range` (US-0520/L2).
+`task_hours_beyond_day` (US-0470/L2), 1306 pour `risk_probability_out_of_range` (US-0520/L2),
+1307 pour `risk_update_probability_out_of_range` (US-0520/L2b).
 
 ## Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550)
 
