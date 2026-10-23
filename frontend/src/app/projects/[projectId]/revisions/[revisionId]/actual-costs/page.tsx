@@ -34,6 +34,8 @@ import {
   COSTS_LIST,
   costsQuery,
   COSTS_PAGE,
+  COST_IMPORT_GRID_KEY,
+  IMPORTS_ADDRESS,
   IMPORTS_PAGE,
   readCostFilters,
   readCostLine,
@@ -55,6 +57,7 @@ import { ImportJournal } from "@/components/costs/import-journal";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { refusedPeriod } from "@/components/grid/period";
 import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -65,9 +68,6 @@ import { requestSession } from "@/session/request";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
 import type { RevisionParams } from "../page";
-
-/** The lines of the journal a page holds: an import a month, a year and some. */
-const IMPORTS_LIMIT = 12;
 
 /** The refusal of filters the server cannot apply (`listActualCosts`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
@@ -141,13 +141,20 @@ async function readCosts(
 }
 
 /** A page of the journal of the imports, from the place the address asks. */
-async function readImports({ revision, address }: GridAddress) {
+async function readImports(
+  { revision, address }: GridAddress,
+  kept: Promise<GridPreferences | undefined>,
+) {
   const offset = readPage(address, IMPORTS_PAGE);
+  const { size } = readGridQuery(address, [], undefined, IMPORTS_ADDRESS, (await kept)?.page_size);
   return readOrFail("listCostImports", () =>
     serverClient().GET("/projects/{project_id}/cost-imports", {
       params: {
         path: { project_id: revision.projectId },
-        query: { limit: IMPORTS_LIMIT, ...(offset === 0 ? {} : { offset }) },
+        query: {
+          ...(size === undefined ? {} : { limit: size }),
+          ...(offset === 0 ? {} : { offset }),
+        },
       },
     }),
   );
@@ -215,8 +222,12 @@ export default async function ActualCostsPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "actual-costs");
   const filters = readCostFilters(at.address);
-  const settings = requestSession().then(
-    (session) => session?.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
+  const session = requestSession();
+  const settings = session.then(
+    (account) => account?.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
+  );
+  const journal = session.then(
+    (account) => account?.display_preferences?.grids?.[COST_IMPORT_GRID_KEY] ?? undefined,
   );
   // A column kept from the file sorts by its name, which no list of the screen knows beforehand.
   const asked = settings.then((kept) => {
@@ -229,14 +240,15 @@ export default async function ActualCostsPage({
       kept?.page_size,
     );
   });
-  const [reading, costs, imports, subprojects, preferences, query] = await Promise.all([
+  const [reading, costs, imports, subprojects, preferences, query, imported] = await Promise.all([
     // The costs are read for the filtered sub-project alone (`listActualCosts`): no date (#302).
     readProjectContext(at.pathname, at.context, ["subproject_id"]),
     readCosts(at, filters, asked),
-    readImports(at),
+    readImports(at, journal),
     readSubprojects(at),
     settings,
     asked,
+    journal,
   ]);
   if (reading === "not_found") {
     notFound();
@@ -297,7 +309,7 @@ export default async function ActualCostsPage({
                   offer={exclusion}
                 />
               )}
-              <ImportJournal imports={imports.items} page={imports.meta} />
+              <ImportJournal imports={imports.items} page={imports.meta} preferences={imported} />
             </aside>
           </div>
         </Screen>

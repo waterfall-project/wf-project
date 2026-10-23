@@ -31,6 +31,26 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The session of the contract, some of the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 // The grid renders as it would, and keeps what its page handed it.
 const grids = vi.hoisted((): { costs: CostsGridProps[] } => ({ costs: [] }));
 vi.mock("@/components/costs/costs-grid", async (original) => {
@@ -94,6 +114,7 @@ function queryOf(route: string): Record<string, string> {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.costs = [];
   server.clients = [];
   server.answers = {
@@ -119,7 +140,7 @@ describe("the screen of the actual costs", () => {
     const page = await costsAt();
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
-    expect(queryOf(IMPORTS)).toEqual({ limit: "12" });
+    expect(queryOf(IMPORTS)).toEqual({});
     expect(text(page)).toContain("Actual costs 27 lines retained");
   });
 
@@ -185,6 +206,7 @@ describe("the screen of the actual costs", () => {
       to: "2026-04-30",
       offset: "50",
       imports_offset: "12",
+      imports_limit: "25",
       search: "câbles",
     });
     expect(queryOf(COSTS)).toEqual({
@@ -196,7 +218,7 @@ describe("the screen of the actual costs", () => {
       sort_by: "amount",
       sort_order: "desc",
     });
-    expect(queryOf(IMPORTS)).toEqual({ limit: "12", offset: "12" });
+    expect(queryOf(IMPORTS)).toEqual({ limit: "25", offset: "12" });
     expect(grids.costs[0]?.query.sort).toEqual({ column: "amount", order: "desc" });
   });
 
@@ -377,5 +399,16 @@ describe("the actual costs, the size of the pages", () => {
       .flatMap((client) => client.calls)
       .find((each) => each.route === COSTS);
     expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+});
+
+describe("the journal of the imports, the size of the pages", () => {
+  it.each([
+    ["no limit in the address", {}, "25"],
+    ["a limit in the address, which wins over the preference", { imports_limit: "10" }, "10"],
+  ])("reads it with the page size kept, %s [WF-IHM-0060-A]", async (_name, search, limit) => {
+    kept.grids = { cost_imports: { page_size: 25 } };
+    await costsAt(search);
+    expect(queryOf(IMPORTS).limit).toBe(limit);
   });
 });
