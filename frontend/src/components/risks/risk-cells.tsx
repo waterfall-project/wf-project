@@ -28,7 +28,7 @@ import type { RiskRow } from "./risk-grid";
  * the `href`, which reflects the address shown, not the one asked: a Ctrl+click during a sort
  * opens the tab without the sort (#288).
  */
-function useRiskNavigation(risk: string | undefined) {
+export function useRiskNavigation(risk: string | undefined) {
   const pathname = usePathname();
   return usePendingLink((query) => riskHref(pathname, query, risk));
 }

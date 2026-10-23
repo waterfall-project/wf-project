@@ -1,0 +1,11 @@
+{
+  "summary": "Le réexamen de « Retard de livraison des armoires », survenu le 20 février 2026, refusé : aucune transition ne part de l'état survenu, la condition que sa commande review dit manquante ; rien n'est écrit, aucun réexamen ne s'ajoute à son historique (WF-RIS-0020, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "risk_not_occurred"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001310"
+  }
+}

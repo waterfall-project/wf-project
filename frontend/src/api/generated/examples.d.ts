@@ -159,7 +159,7 @@ export interface Examples {
     200: "risk" | "risk_occurred_detail";
   };
   "GET /projects/{project_id}/risks/{risk_id}/reviews": {
-    200: "risk_reviews";
+    200: "risk_reviews" | "risk_reviews_reviewed";
   };
   "GET /projects/{project_id}/state-transitions": {
     200: "state_transitions" | "state_transitions_exited";
@@ -339,7 +339,7 @@ export interface Examples {
     202: "task_occurrence_queued";
   };
   "POST /projects/{project_id}/risks/{risk_id}/reviews": {
-    201: "risk_reviewed";
+    201: "risk_dismissed" | "risk_reidentified" | "risk_reviewed";
   };
   "POST /projects/{project_id}/subprojects": {
     201: "subproject_created";

@@ -1128,7 +1128,26 @@
     "probability": "Probabilité (%)",
     "task": "Tâche de la provision",
     "firstTask": "Première tâche de premier niveau",
-    "saved": "Risque « {name} » modifié."
+    "saved": "Risque « {name} » modifié.",
+    "review": "Réexaminer",
+    "reviewTitle": "Réexaminer « {name} »",
+    "reviewHint": "Le réexamen est daté du jour : le confirmer sans rien changer en produit un, qui s’ajoute à l’historique. La gravité et la provision se recalculent.",
+    "retainedState": "État retenu",
+    "categoryOnReturn": "Demandée au retour à l’état identifié : la catégorie que le risque désignait n’est plus active.",
+    "reviewed": "Risque « {name} » réexaminé."
+  },
+  "riskDelete": {
+    "label": "Supprimer le risque",
+    "statement": "Le risque est supprimé avec son devis propre et sa ligne de provision. Un risque cité par une révision marquée ne se supprime pas : il s’écarte par un réexamen.",
+    "submit": "Supprimer le risque",
+    "done": "Risque « {name} » supprimé."
+  },
+  "riskOccurrence": {
+    "label": "Déclarer survenu",
+    "statement": "Le devis propre du risque est fusionné dans la structure principale de la révision en cours, avec un montant budgété nul, et sa ligne de provision est retirée du reste à engager. La déclaration est définitive : un risque survenu ne se modifie plus.",
+    "submit": "Déclarer le risque survenu",
+    "queued": "La survenance de « {name} » est confiée au traitement de fond ; elle est suivie dans « Tâches de fond ».",
+    "succeeded": "La survenance de « {name} » est terminée : son devis propre est fusionné dans la structure principale."
   },
   "projectForm": {
     "create": "Créer un projet",

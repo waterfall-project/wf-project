@@ -296,6 +296,7 @@
               items: { $ref: ../components/schemas/risks.yaml#/RiskReview }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_reviews.json }
+              reviewed: { $ref: ../../../fixtures/api/risk_reviews_reviewed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -335,6 +336,8 @@
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
             examples:
               reviewed: { $ref: ../../../fixtures/api/risk_reviewed.json }
+              dismissed: { $ref: ../../../fixtures/api/risk_dismissed.json }
+              reidentified: { $ref: ../../../fixtures/api/risk_reidentified.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -349,15 +352,22 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              occurred: { $ref: ../../../fixtures/api/risk_review_occurred.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant `/provision_cost_category_id` quand un risque
           écarté redevient identifié et que la catégorie qu'il désignait n'est plus active, par les
-          motifs de la déclaration (`createRisk`). Rien n'est écrit.
+          motifs de la déclaration (`createRisk`) ; `/probability` hors de 0 à 1,
+          `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme à la déclaration
+          (`RiskReviewWrite.probability`, WF-RIS-0010). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              probability_out_of_range:
+                $ref: ../../../fixtures/api/risk_review_probability_out_of_range.json
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}/occurrence:

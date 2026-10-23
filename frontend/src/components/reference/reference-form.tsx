@@ -185,6 +185,8 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
   readonly hint: string;
   /** Whether the form creates an object rather than modifies one. */
   readonly creating: boolean;
+  /** What the button that sends says when it is neither « Créer » nor « Enregistrer »: a review. */
+  readonly submit?: string | undefined;
   readonly fields: readonly FormField[];
   /** What the form starts from: the object modified, or nothing typed. */
   readonly initial: Draft;
@@ -425,6 +427,7 @@ export function ReferenceForm<T = ReferenceObject>({
   title,
   hint,
   creating,
+  submit: submitLabel,
   fields,
   initial,
   ask,
@@ -646,7 +649,9 @@ export function ReferenceForm<T = ReferenceObject>({
             </Button>
             <Button type="submit" aria-busy={pending}>
               {creating ? <Plus aria-hidden="true" /> : <Save aria-hidden="true" />}
-              {t(pending ? "sending" : creating ? "create" : "save")}
+              {pending || submitLabel === undefined
+                ? t(pending ? "sending" : creating ? "create" : "save")
+                : submitLabel}
             </Button>
           </DialogFooter>
         </form>

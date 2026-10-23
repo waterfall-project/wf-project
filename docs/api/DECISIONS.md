@@ -7129,6 +7129,37 @@ déclaration. Le résumé de chacun dit son geste, et le test 422 de « Modifier
 d'US-0520/L3 aurait à élargir encore. Le réexamen (`reviewRisk`) dira sa borne avec US-0520/L3
 (#1114).
 
+**Le réexamen dit la même borne, et ses réponses ont leurs exemples** (US-0520/L3, #1371, #1114).
+`RiskReviewWrite.probability`, le corps du réexamen, dit la borne de `RiskWrite.probability` : « De
+`0` à `1` inclus, un rapport (WF-RIS-0010). » ; le 422 de `reviewRisk` dit `/probability` hors de 0 à
+1 refusé par `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, avec son exemple propre,
+`risk_review_probability_out_of_range` (corrélation 1309), écrit à la main comme ceux de la
+déclaration et de la modification, le résumé disant le geste du réexamen. `RiskReview`, le réexamen
+lu dans l'historique, ne la redit pas, comme `Risk.probability` : la borne est celle de ce qui
+s'envoie. Les autres réponses du réexamen, dont le formulaire « Réexaminer » a besoin :
+- `risk_dismissed` (201), engendré par `wftools.mockriskwrites` : 751 écarté aujourd'hui, sa
+  probabilité inchangée, sans ligne ni tâche de provision, `update_provision` et
+  `declare_occurrence` indisponibles par `risk_identified`. Variante contrefactuelle : le témoin
+  confirme 751 aujourd'hui (`risk_reviewed`), à la version que l'écarter lui donnerait (#421).
+- `risk_reidentified` (201), engendré : 753, écarté le 2 février, redevenu identifié aujourd'hui à
+  sa probabilité ; sa catégorie encore active n'est pas redemandée, et sa ligne de provision,
+  recréée, est le nœud 586, qu'aucune lecture du témoin ne rend, porté par la « Mise en service »,
+  la tâche qui portait sa ligne dans la référence et que la structure principale porte encore
+  (#1227). La suite d'une écriture faite aujourd'hui, comme la confirmation de 751.
+- `risk_reviews_reviewed` (200 de `listRiskReviews`), engendré : l'historique de 751 relu après sa
+  confirmation, le réexamen daté du jour en tête — ce que l'historique rendu porte après
+  « Réexaminer » (Vérif de WF-RIS-0010).
+- `risk_review_occurred` (409), écrit à la main : le réexamen de 752, survenu, refusé par
+  `risk_not_occurred`, la condition que sa commande `review` dit manquante (corrélation 1310).
+
+Prism sert le premier exemple de chaque réponse : la confirmation de 751 (`risk_reviewed`) et
+l'historique du témoin (`risk_reviews`) le restent. `deleteRisk` avait déjà ce dont « Supprimer le
+risque » a besoin : le refus `risk_delete_cited`, et la commande `delete` indisponible par
+`risk_not_cited` dans `risk` et `risks`. `declareRiskOccurrence` a sa mise en file
+(`task_occurrence_queued`), la structure qui en résulte (`nodes_risk_occurred`) et le risque survenu
+(`risk_occurred_detail`), mais aucune opération ne rend le compte rendu préalable de la fusion du
+devis propre : à trancher (#1383).
+
 Le résumé de `risk_created` s'ouvre par « Variante contrefactuelle », comme le veut la convention
 de #1196 (#1228).
 
@@ -7257,7 +7288,8 @@ ses exemples : le back ne sert pas encore `moveNodes`.
 (1300-1599, `wftools.mockids`) la prolonge après les nœuds de l'avenant 2 ; les exemples de ce lot
 l'emploient, de 1300 à 1304. Les suivantes la prennent après eux : 1305 pour
 `task_hours_beyond_day` (US-0470/L2), 1306 pour `risk_probability_out_of_range` (US-0520/L2),
-1307 pour `risk_update_probability_out_of_range` (US-0520/L2b).
+1307 pour `risk_update_probability_out_of_range` (US-0520/L2b), 1309 pour
+`risk_review_probability_out_of_range` et 1310 pour `risk_review_occurred` (US-0520/L3).
 
 ## Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550)
 

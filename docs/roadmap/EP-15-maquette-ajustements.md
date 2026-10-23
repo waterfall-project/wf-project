@@ -999,7 +999,7 @@ qu'EP-14/L42s a écrits au contrat (`DECISIONS.md`, « Le compte rendu préalabl
 
 ## US-0520 — Identifier un risque, chiffrer son devis propre, le réexaminer, le déclarer survenu
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RIS-0010-A`, `WF-RIS-0020-A`, `WF-RIS-0030-A`
 - **opérations** : `createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`,
   `declareRiskOccurrence`, `getRisk`, `listRisks`, `listRiskReviews`, `listCostStructures`,
@@ -1078,9 +1078,12 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
   (`createRisk`) puis ouvre son devis propre dans la grille de devis ; « Modifier » et
   « Réexaminer » se font depuis le détail du risque ; « Supprimer le risque » demande une
   confirmation ;
-- propre à l'US : « Déclarer survenu » présente le compte rendu de la fusion du devis propre dans la
-  principale, dans les marques `+`, `-`, `M` d'US-0500, dit le retrait de la provision du reste à
-  engager, puis confirme ou abandonne ; un risque survenu n'est plus modifiable ;
+- écart : « Déclarer survenu » présente le compte rendu de la fusion du devis propre dans la
+  principale, dans les marques `+`, `-`, `M` d'US-0500. : la lecture `getRiskOccurrenceReport` et le
+  front de ce compte rendu sont d'EP-16 (#1383), par décision de l'auteur du 2026-10-23 ; dans
+  EP-15, la déclaration se fait par simple confirmation ;
+- propre à l'US : « Déclarer survenu » dit le retrait de la provision du reste à engager, puis
+  confirme ou abandonne ; un risque survenu n'est plus modifiable ;
 - propre à l'US : les exemples de succès de `createRisk`, `updateRisk` et `reviewRisk` manquent au
   contrat (#763) et sont ajoutés avant les formulaires ; un parcours e2e enchaîne identifier,
   chiffrer, réexaminer, déclarer.

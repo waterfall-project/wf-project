@@ -24,7 +24,7 @@ import { formatPercent, formatPlanningDate } from "@/i18n/format";
 
 import type { ProvisionOptions } from "./provision-choices";
 import { CloseRiskDetail } from "./risk-cells";
-import { ModifyRisk } from "./risk-commands";
+import { RiskCommands } from "./risk-commands";
 
 /** A risk, as the contract gives it. */
 export type Risk = components["schemas"]["Risk"];
@@ -140,7 +140,7 @@ export interface RiskDetailProps {
   readonly risk: Risk;
   readonly reviews: readonly RiskReview[];
   readonly projectId: string;
-  /** What the provision is chosen among, read while the risk lists `update` available. */
+  /** What the provision is chosen among, read while the risk lists `update` or `review` available. */
   readonly options?: ProvisionOptions | undefined;
 }
 
@@ -160,7 +160,7 @@ export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProp
         <CloseRiskDetail />
       </div>
       {/* Keeps by risk what a write leaves; the form and the status of a risk never outlive it. */}
-      <ModifyRisk projectId={projectId} risk={risk} options={options} />
+      <RiskCommands projectId={projectId} risk={risk} options={options} />
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <Fact name={t("grid.columns.state")}>{t(`enums.RiskState.${risk.state}`)}</Fact>
         <Fact name={t("grid.columns.probability")}>{formatPercent(risk.probability, locale)}</Fact>

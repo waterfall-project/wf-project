@@ -1011,8 +1011,18 @@ les demande (`provision-options.ts`) —, dit le 409 sous le formulaire et, la c
 propre du risque (`structure_id`) dans la grille de devis, pour une session qui lit le devis. « Modifier »,
 dans le détail, suit `update`, et la provision `update_provision` : indisponible, la catégorie, le sous-projet et
 la tâche se montrent fixes et ne sont pas envoyés. Les deux commandes attendent, inactives, qu'une écriture de
-leur formulaire fermé soit répondue (défaut n° 24 de `typescript.md`). Le réexamen, la suppression et la
-survenance viennent avec US-0520/L3 ; le registre ne se pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
+leur formulaire fermé soit répondue (défaut n° 24 de `typescript.md`). Les commandes du détail
+(`RiskCommands`) partagent par risque l'écriture en route et la réponse la plus récente. « Réexaminer »
+(`risk-review.tsx`, `review`) part de la probabilité et de l'état que le risque porte — le confirmer
+sans rien changer produit un réexamen daté (`reviewRisk`), que l'historique montre à la relecture — et
+offre les états que le contrat laisse retenir (identifié, écarté) ; un risque écarté dont la catégorie
+n'est plus active (`provision_cost_category_is_active`) en demande une autre, parmi plusieurs actives,
+au retour à l'état identifié. « Supprimer le risque » (`risk-lifecycle.tsx`, `delete`) demande une
+confirmation, est indisponible pour un risque cité (`risk_not_cited`) et, supprimé, quitte le détail par
+l'adresse sans le risque. « Déclarer survenu » (`declare_occurrence`) confirme, met la survenance en
+file (202) et la remet au suivi des tâches de fond (`Following`) ; le compte rendu préalable de la
+fusion n'a pas de source au contrat (#1383) et n'est pas présenté. Un risque survenu liste toutes ses
+commandes indisponibles. Le registre ne se pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 

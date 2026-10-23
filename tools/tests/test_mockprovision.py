@@ -193,6 +193,44 @@ def test_the_probability_sent_as_a_percent_is_refused_alike_when_the_risk_is_mod
     assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
 
 
+def test_the_probability_sent_as_a_percent_is_refused_alike_when_the_risk_is_reviewed() -> None:
+    # The review says the bound of the declaration, by an example of its own, as the change does,
+    # and its body says it as RiskWrite does (#1371).
+    declared = fixture("risk_probability_out_of_range")
+    reviewed = fixture("risk_review_probability_out_of_range")
+    assert set(reviewed) == set(declared)
+    assert (reviewed["status"], reviewed["code"], reviewed["fields"]) == (
+        declared["status"],
+        declared["code"],
+        declared["fields"],
+    )
+    assert reviewed["correlation_id"] == universe(1309)
+    summary = _summary("risk_review_probability_out_of_range")
+    assert summary.startswith("Un risque réexaminé")
+    assert "WF-RIS-0010" in summary
+    said = _block("reviewRisk", "422")
+    assert "fixtures/api/risk_review_probability_out_of_range.json" in said
+    assert "fixtures/api/risk_probability_out_of_range.json" not in said
+    assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
+    bound = "De `0` à `1` inclus, un rapport (WF-RIS-0010)."
+    assert bound in _schema("risks.yaml", "RiskReviewWrite")
+    assert bound in _schema("risks.yaml", "RiskWrite")
+
+
+def test_the_review_of_a_risk_occurred_is_refused_by_the_condition_its_command_misses() -> None:
+    # Written by hand, a static refusal: no transition leaves the state occurred (WF-RIS-0020).
+    refused = fixture("risk_review_occurred")
+    assert set(refused) == {"code", "status", "params", "correlation_id"}
+    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert refused["correlation_id"] == universe(1310)
+    summary = _summary("risk_review_occurred")
+    [risk] = [r for r in fixture("risks")["items"] if r["label"] in summary]
+    assert risk["state"] == "occurred"
+    commands = {each["command"]: each for each in risk["available_commands"]}
+    assert commands["review"]["missing_conditions"] == [refused["params"]["missing_condition"]]
+    assert "fixtures/api/risk_review_occurred.json" in _block("reviewRisk", "409")
+
+
 def test_the_provision_of_a_dismissed_risk_is_refused_by_the_condition_its_command_misses() -> None:
     refused = fixture("risk_provision_frozen")
     assert set(refused) == {"code", "status", "params", "correlation_id"}

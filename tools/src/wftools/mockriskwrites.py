@@ -12,7 +12,11 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - that risk modified, its line of provision moved to the task its form designates, the total of
   the estimate unchanged (``risk_updated``);
 - the rework of the wiring confirmed today without a change, a review dated of today
-  (``risk_reviewed``, WF-RIS-0010);
+  (``risk_reviewed``, WF-RIS-0010), and its reviews read after it (``risk_reviews_reviewed``);
+- the rework of the wiring dismissed today instead, a counterfactual, its line of provision
+  withdrawn (``risk_dismissed``), and the unavailability of the automation engineer, dismissed on
+  2 February, identified again today, its line recreated on the task it designated
+  (``risk_reidentified``, WF-RIS-0010, WF-RIS-0020);
 - the occurrence of the delay of the cabinets, on 20 February, put in the queue
   (``task_occurrence_queued``, WF-RIS-0060, WF-ARC-0090);
 - a declaration whose provision names a task the main structure does not bear
@@ -22,8 +26,9 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 
 The risk declared is a counterfactual: no reading of the witness knows its risk 754, its own
 structure 208 or its line of provision 585 — the register, the structures and the grids read the
-witness as it is, before the declaration (``DECLARED``). The review alone is of the register, on
-751.
+witness as it is, before the declaration (``DECLARED``). The reviews are of the register: the
+confirmation of 751 and the return of 753 follow the witness today; the dismissal of 751, which
+would render it at the version its confirmation renders, is a counterfactual (#421).
 
 They would have carried ``mockhistory`` past the thousand lines (``wftools.sources``).
 """
@@ -39,15 +44,26 @@ from wftools import mockamendment, mockcore, mocktext
 from wftools.mockhistory import (
     reference_budget,
     reference_rows,
+    reviews,
     risk_item,
     stamp,
 )
 from wftools.mockids import universe
 from wftools.mockwitness import TODAY, N
-from wftools.mockwitnessrisks import DELIVERY_DELAY, REGISTER, REWORK, Review, Risk
+from wftools.mockwitnessrisks import (
+    AUTOMATION_ENGINEER,
+    DELIVERY_DELAY,
+    DISMISSED,
+    IDENTIFIED,
+    REFERENCE_PROVISIONS,
+    REGISTER,
+    REWORK,
+    Review,
+    Risk,
+)
 
 if TYPE_CHECKING:
-    from wftools.mockstructure import JsonObject
+    from wftools.mockstructure import JsonObject, JsonValue
 
 DECLARED_AT = TODAY - timedelta(minutes=20)
 """When the risk was declared: earlier today, so that its modification follows at today's instant,
@@ -107,14 +123,65 @@ def risk_updated() -> JsonObject:
     return {**item, "audit": audit, "lock_version": 2}
 
 
+def _reviewed(risk: Risk, state: str) -> Risk:
+    """Return a risk reviewed today, its probability and its severity kept, in the state given."""
+    return replace(risk, reviews=(*risk.reviews, replace(risk.last, at=TODAY, state=state)))
+
+
 def risk_reviewed() -> JsonObject:
     """Return what reviewRisk answers when the rework of the wiring is confirmed without a change.
 
     Its probability and its state sent as they are: a review dated of today (WF-RIS-0010).
     """
-    last = REWORK.last
-    confirmed = replace(REWORK, reviews=(*REWORK.reviews, replace(last, at=TODAY)))
-    return risk_item(confirmed, _budget())
+    return risk_item(_reviewed(REWORK, IDENTIFIED), _budget())
+
+
+def risk_reviews_reviewed() -> list[JsonValue]:
+    """Return the reviews of the rework of the wiring read after its confirmation of today.
+
+    The review dated of today first, before those the register knows (WF-RIS-0010).
+    """
+    return reviews(_reviewed(REWORK, IDENTIFIED))
+
+
+def risk_dismissed() -> JsonObject:
+    """Return what reviewRisk answers when the rework of the wiring is dismissed today.
+
+    A counterfactual: the witness confirms it today (``risk_reviewed``). Its probability kept, it
+    bears no line of provision any more, nor a task for it (WF-RIS-0010, WF-RIS-0020).
+    """
+    return risk_item(_reviewed(REWORK, DISMISSED), _budget())
+
+
+REIDENTIFIED_LINE = 586
+"""The line of provision the return of the unavailability of the automation engineer recreates in
+the main structure of the current revision: a node of its own, which no reading of the witness
+renders (#421)."""
+
+
+def reidentified_task() -> int:
+    """Return the task that bears the line recreated: the one the risk designated (#1227).
+
+    The commissioning, which bore its line in the reference, is still a task of the main structure
+    of the current revision; were it not, the first task of the first level would bear it.
+    """
+    designated, _ = REFERENCE_PROVISIONS[AUTOMATION_ENGINEER.number]
+    tasks = {row.number for row in mockcore.current() if row.node["kind"] == "task"}
+    if designated not in tasks:
+        message = f"the task {designated} is no task of the main structure any more"
+        raise ValueError(message)
+    return designated
+
+
+def risk_reidentified() -> JsonObject:
+    """Return what reviewRisk answers when the unavailability of the automation engineer returns.
+
+    Dismissed on 2 February, identified again today at the probability it had: its category still
+    active, it is not asked; its line of provision is recreated on the task it designated
+    (WF-RIS-0010, WF-RIS-0020, #1227).
+    """
+    returned = replace(_reviewed(AUTOMATION_ENGINEER, IDENTIFIED), provision_line=REIDENTIFIED_LINE)
+    return risk_item(returned, _budget(), reidentified_task())
 
 
 def task_occurrence_queued() -> JsonObject:
@@ -198,9 +265,59 @@ def _task_label(item: JsonObject) -> str:
     return cast("str", cast("JsonObject", item["provision_task"])["label"])
 
 
+def _reviews_examples() -> dict[str, JsonObject]:
+    """Return the named examples of the reviews of a risk, by file name."""
+    reviewed, dismissed, returned = risk_reviewed(), risk_dismissed(), risk_reidentified()
+    rework = mocktext.amount(REWORK.last.probability * 100, 0)
+    return {
+        "risk_reviewed.json": mocktext.example(
+            f"« {REWORK.label} » réexaminé aujourd'hui sans modification, sa probabilité de "
+            f"{rework} % et son état identifié envoyés tels quels : la confirmation produit un "
+            f"réexamen daté du jour (last_review_on), qui s'ajoute à son historique "
+            f"(risk_reviews_reviewed) ; sa gravité et sa provision inchangées, sa ligne toujours "
+            f"portée par « {_task_label(reviewed)} » ; une version de plus (201, WF-RIS-0010, "
+            f"WF-RIS-0020).",
+            reviewed,
+        ),
+        "risk_reviews_reviewed.json": mocktext.example(
+            f"L'historique des réexamens de « {REWORK.label} » relu après sa confirmation "
+            f"d'aujourd'hui (risk_reviewed), du plus récent au plus ancien : le réexamen daté du "
+            f"{mocktext.day(TODAY.date())}, sa probabilité, sa gravité et son état inchangés, "
+            f"avant ceux que l'historique portait déjà (risk_reviews ; WF-RIS-0010).",
+            risk_reviews_reviewed(),
+        ),
+        "risk_dismissed.json": mocktext.example(
+            f"Variante contrefactuelle : « {REWORK.label} » écarté aujourd'hui au lieu d'être "
+            f"confirmé (risk_reviewed), sa probabilité de {rework} % envoyée telle quelle et "
+            f"l'état écarté retenu : un réexamen daté du jour ; sa ligne de provision retirée, il "
+            f"ne pèse plus sur le devis ni sur le reste à engager et ne nomme plus de ligne ni de "
+            f"tâche de provision (provision_node_id, provision_task) ; il garde la catégorie de sa "
+            f"provision, que son retour reprendrait ; il ne change plus la catégorie ni le "
+            f"sous-projet de sa provision et ne se déclare plus survenu (risk_identified), mais se "
+            f"réexamine pour redevenir identifié ; une version de plus (201, WF-RIS-0010, "
+            f"WF-RIS-0020).",
+            dismissed,
+        ),
+        "risk_reidentified.json": mocktext.example(
+            f"« {AUTOMATION_ENGINEER.label} », écarté le "
+            f"{mocktext.day(AUTOMATION_ENGINEER.last.at.date())}, redevenu identifié aujourd'hui "
+            f"à la probabilité de "
+            f"{mocktext.amount(AUTOMATION_ENGINEER.last.probability * 100, 0)} % qu'il avait : "
+            f"un réexamen daté du jour ; sa catégorie « "
+            f"{returned['provision_cost_category_label']} » encore active, elle n'est pas "
+            f"redemandée ; sa ligne de provision recréée (provision_node_id) sur la tâche qu'il "
+            f"désignait, « {_task_label(returned)} », encore une tâche de la structure principale "
+            f"(provision_task) ; ses commandes de nouveau disponibles, sauf la suppression, une "
+            f"révision marquée le citant (risk_not_cited) ; une version de plus (201, "
+            f"WF-RIS-0010, WF-RIS-0020, #1227).",
+            returned,
+        ),
+    }
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the entries of a risk, by file name."""
-    created, updated, reviewed = risk_created(), risk_updated(), risk_reviewed()
+    created, updated = risk_created(), risk_updated()
     rows = {row.number: row for row in mockamendment.rows()}
     main = {row.number: row for row in mockcore.current()}
     provision = main[cast("int", REWORK.provision_line)]
@@ -230,15 +347,7 @@ def examples() -> dict[str, JsonObject]:
             f"WF-RIS-0010, #786).",
             updated,
         ),
-        "risk_reviewed.json": mocktext.example(
-            f"« {REWORK.label} » réexaminé aujourd'hui sans modification, sa probabilité de "
-            f"{mocktext.amount(REWORK.last.probability * 100, 0)} % et son état identifié "
-            f"envoyés tels quels : la confirmation produit un réexamen daté du jour "
-            f"(last_review_on), qui s'ajoute à son historique (risk_reviews) ; sa gravité et sa "
-            f"provision inchangées, sa ligne toujours portée par « {_task_label(reviewed)} » ; "
-            f"une version de plus (201, WF-RIS-0010, WF-RIS-0020).",
-            reviewed,
-        ),
+        **_reviews_examples(),
         "task_occurrence_queued.json": mocktext.example(
             f"La survenance de « {DELIVERY_DELAY.label} », confirmée le "
             f"{mocktext.day(DELIVERY_DELAY.last.at.date())} à "

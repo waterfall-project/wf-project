@@ -206,9 +206,9 @@ export default async function RisksPage({
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
   // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
   const reading = readProjectContext(at.pathname, at.context, []);
-  // « Identifier un risque » as the revision lists `declare_risk`, and the modification of the risk
-  // shown, as it lists `update`: the choices of the provision are read as soon as the revision and
-  // the risk are, beside the other reads, when either command is available.
+  // « Identifier un risque » as the revision lists `declare_risk`, and the modification and the review
+  // of the risk shown, as it lists `update` and `review`: the choices of the provision are read as
+  // soon as the revision and the risk are, beside the other reads, when any of these commands is available.
   const declare = reading.then((read) =>
     read === "not_found" || read.revision === undefined
       ? undefined
@@ -217,7 +217,9 @@ export default async function RisksPage({
   const shown = readDetail(at, readRisk(at.address));
   const options = Promise.all([declare, shown]).then(([offer, read]) =>
     offer?.is_available === true ||
-    findOffer(read?.risk.available_commands ?? [], "update")?.is_available === true
+    (["update", "review"] as const).some(
+      (command) => findOffer(read?.risk.available_commands ?? [], command)?.is_available === true,
+    )
       ? readProvisionOptions(at.revision.projectId, at.revision.revisionId)
       : undefined,
   );
