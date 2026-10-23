@@ -548,9 +548,12 @@ export interface ChartProps {
   /**
    * Whether the drawing starts folded, so that a screen short of room keeps what follows the
    * chart in its window: a command shows it, and folds it again. The values stay under it. Only
-   * the initial state: a later change of the prop does not fold nor unfold the drawing.
+   * the initial state: a later change of the prop does not fold nor unfold the drawing. A chart
+   * given no state cannot be folded.
    */
   readonly folded?: boolean;
+  /** Called with the state the command just gave the drawing: `true` folded, `false` shown. */
+  readonly onFold?: (folded: boolean) => void;
 }
 
 /** Render a chart: a figure, its caption, its drawing named by a sentence, its values. */
@@ -562,14 +565,15 @@ export function Chart({
   children,
   exported,
   onPoint,
-  folded = false,
+  folded,
+  onFold,
 }: ChartProps) {
   const t = useTranslations("chart");
   const drawing = useRef<HTMLDivElement>(null);
   const probes = useRef<HTMLSpanElement>(null);
   const caption = useId();
   const drawingId = useId();
-  const [shown, setShown] = useState(!folded);
+  const [shown, setShown] = useState(folded !== true);
   // The latest handler of a click, which the event reads: the chart is not drawn anew for it.
   const clicked = useRef(onPoint);
   useLayoutEffect(() => {
@@ -637,7 +641,7 @@ export function Chart({
           {title}
         </span>
         <span className="flex flex-wrap gap-2">
-          {folded ? (
+          {folded === undefined ? null : (
             <Button
               type="button"
               variant="outline"
@@ -645,13 +649,14 @@ export function Chart({
               aria-expanded={shown}
               aria-controls={drawingId}
               onClick={() => {
-                setShown((was) => !was);
+                setShown(!shown);
+                onFold?.(shown);
               }}
             >
               {shown ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
               {t("toggle")}
             </Button>
-          ) : null}
+          )}
           {exported === undefined ? null : (
             <Button type="button" variant="outline" size="sm" onClick={exportImage}>
               <ImageDown aria-hidden="true" />

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ProjectRiskMatrixProps } from "@/components/risks/risk-bubble-chart";
 import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/risk-detail";
 import type { RisksGridProps } from "@/components/risks/risks-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -48,6 +49,19 @@ vi.mock("@/components/risks/risk-detail", async (original) => {
     RiskDetail: (props: RiskDetailProps) => {
       details.props.push(props);
       return createElement(actual.RiskDetail, props);
+    },
+  };
+});
+// The matrix renders as it would, and keeps what its page handed it.
+const matrices = vi.hoisted((): { props: ProjectRiskMatrixProps[] } => ({ props: [] }));
+vi.mock("@/components/risks/risk-bubble-chart", async (original) => {
+  const actual = await original<typeof import("@/components/risks/risk-bubble-chart")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    ProjectRiskMatrix: (props: ProjectRiskMatrixProps) => {
+      matrices.props.push(props);
+      return createElement(actual.ProjectRiskMatrix, props);
     },
   };
 });
@@ -115,6 +129,7 @@ function queryOf(route: string): Record<string, string> {
 beforeEach(() => {
   grids.risks = [];
   details.props = [];
+  matrices.props = [];
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -173,6 +188,15 @@ describe("the screen of the risks", () => {
     const opened = await risksAt({ risk: CABLING });
     expect(opened.indexOf("<aside")).toBeGreaterThan(opened.indexOf('role="grid"'));
     expect(opened.indexOf("<figure aria-labelledby")).toBeLessThan(opened.indexOf('role="grid"'));
+  });
+
+  it("starts the matrix as the account kept it, folded when it kept nothing", async () => {
+    await risksAt();
+    expect(matrices.props.map(({ folded }) => folded)).toEqual([true]);
+    matrices.props = [];
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await risksAt();
+    expect(matrices.props.map(({ folded }) => folded)).toEqual([false]);
   });
 
   it("hands the grid the risks in the order of the answer, of each the fields it reads alone", async () => {

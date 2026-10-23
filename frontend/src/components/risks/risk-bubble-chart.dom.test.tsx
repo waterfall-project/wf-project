@@ -5,7 +5,9 @@ import type { ScatterSeriesOption } from "echarts/charts";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { updateChartPreferences } from "@/api/actions/preferences";
 import type { components } from "@/api/generated/schema";
+import type { Settled } from "@/api/problem";
 import type { ChartPalette, ChartProps } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -31,6 +33,9 @@ vi.mock("@/components/chart/chart", async (original) => {
     },
   };
 });
+
+// The server action that keeps the state of the chart: what it is asked, and the answer a test gives.
+vi.mock("@/api/actions/preferences", () => ({ updateChartPreferences: vi.fn() }));
 
 // The instance of the screen is the real one; the instances made and released are counted. The
 // image is drawn on a canvas, which the simulated document does not paint: an instance in its
@@ -101,7 +106,7 @@ const PROVENANCE = {
 };
 
 /** The matrix of a project in English, the states asked drawn. */
-function project(states: readonly RiskState[] = [], matrix: RiskMatrix = MATRIX) {
+function project(states: readonly RiskState[] = [], matrix: RiskMatrix = MATRIX, folded = true) {
   charts.props = [];
   return render(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
@@ -110,6 +115,7 @@ function project(states: readonly RiskState[] = [], matrix: RiskMatrix = MATRIX)
         states={states}
         provenance={PROVENANCE}
         computedAt="2026-06-03T14:05:00Z"
+        folded={folded}
       />
     </NextIntlClientProvider>,
   );
@@ -136,6 +142,8 @@ roomForCharts();
 
 beforeEach(() => {
   router.push.mockClear();
+  vi.mocked(updateChartPreferences).mockReset();
+  vi.mocked(updateChartPreferences).mockResolvedValue({ kind: "done", data: null });
 });
 
 afterEach(() => {
@@ -468,6 +476,42 @@ describe("the risk matrix as a bubble chart", () => {
     // One instance made, one released: the fold leaves none behind.
     expect(instances.made).toBe(1);
     expect(instances.disposed).toBe(1);
+  });
+
+  it("starts unfolded when the account kept it so, and folded when it kept nothing: the state read is the one drawn", () => {
+    project([], MATRIX, false);
+    expect(screen.getByRole("button", { name: "Chart" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("img", { name: /^Bubble chart of the risks/ })).toBeInTheDocument();
+    cleanup();
+    project();
+    expect(screen.getByRole("button", { name: "Chart" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("keeps the state under « risk_matrix » at each click, without waiting for the answer, the focus staying on the command", () => {
+    // An answer that never comes: the chart changes at once, and the command stays usable.
+    vi.mocked(updateChartPreferences).mockReturnValue(new Promise<Settled>(() => undefined));
+    project();
+    const command = screen.getByRole("button", { name: "Chart" });
+    command.focus();
+    fireEvent.click(command);
+    expect(updateChartPreferences).toHaveBeenLastCalledWith("risk_matrix", { folded: false });
+    expect(command).toHaveAttribute("aria-expanded", "true");
+    expect(command).toHaveFocus();
+    fireEvent.click(command);
+    expect(updateChartPreferences).toHaveBeenLastCalledWith("risk_matrix", { folded: true });
+    expect(command).toHaveAttribute("aria-expanded", "false");
+    expect(updateChartPreferences).toHaveBeenCalledTimes(2);
+    expect(command).toHaveFocus();
+  });
+
+  it("tells a refusal of the service, which can be dismissed, the chart staying as the user left it", async () => {
+    vi.mocked(updateChartPreferences).mockResolvedValue({ kind: "unreachable" });
+    project();
+    fireEvent.click(screen.getByRole("button", { name: "Chart" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chart" })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: /dismiss|close/i }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("folds into another node than the one ECharts styled, which keeps neither its role nor its styles (#1252)", () => {

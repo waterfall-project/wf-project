@@ -163,11 +163,13 @@ function RiskMatrixSection({
   matrix,
   states,
   computedAt,
+  folded,
 }: {
   readonly reading: ProjectReading;
   readonly matrix: RiskMatrix;
   readonly states: readonly RiskState[];
   readonly computedAt: string;
+  readonly folded: boolean;
 }) {
   const t = useTranslations("contextBanner");
   const { project, revision } = reading;
@@ -181,6 +183,7 @@ function RiskMatrixSection({
         revision: revision?.version_name ?? t("currentRevision"),
       }}
       computedAt={computedAt}
+      folded={folded}
     />
   );
 }
@@ -270,6 +273,7 @@ export default async function RisksPage({
             matrix={matrix}
             states={states}
             computedAt={coverage.context.computed_at}
+            folded={kept?.display_preferences?.charts?.risk_matrix?.folded ?? true}
           />
           {/* The detail of a risk, beside the grid, keeps the height to read it in: the window too
               low for the chart, the grid and the detail scrolls the page. */}

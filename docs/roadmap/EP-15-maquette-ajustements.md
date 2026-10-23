@@ -1208,7 +1208,7 @@ sans ligne se termine à une date saisie.
 
 ## US-0550 — Les graphiques et les cartes de chiffres clés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DEV-0070-A`, `WF-PTF-0060-A`, `WF-RIS-0040-A`, `WF-IHM-0130-A`
 - **opérations** : `getProjectWorkload`, `getPortfolioWorkload`, `getProjectRiskMatrix`,
   `getPortfolioRisks`, `getRiskCoverage`, `getEstimateIndicators`, `getRemainingIndicators`,
@@ -1283,7 +1283,10 @@ pour un projet et pour le portefeuille, et atteindre le plan de charge depuis le
   toute la largeur entre les cartes et la grille du projet, et à la place du tableau du
   portefeuille ; les bulles sont les risques du filtre d'état de l'écran ; une infobulle par bulle,
   un clic qui mène au détail ; le décompte par case reste lisible dans une table sous le graphique ;
-  les zones se distinguent sans leur couleur (WF-IHM-0100).
+  les zones se distinguent sans leur couleur (WF-IHM-0100) ;
+- propre à l'US : la matrice des risques d'un projet retrouve son état replié ou déplié d'une session
+  à l'autre, une seule préférence (`charts.risk_matrix`) pour tous les projets ; elle démarre repliée
+  sans préférence, un clic l'écrit sans attendre la réponse, et un refus du service se dit.
 
 **Notes de réalisation.** Décisions de l'auteur du 2026-10-18 (#1051, #1052, #1053, #1069 et leurs
 commentaires). Le contrat change : `PortfolioWorkload` reçoit la capacité du périmètre et le total
