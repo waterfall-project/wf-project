@@ -1,0 +1,13 @@
+{
+  "summary": "La fusion de l'avenant 2 « reprise des essais » dans la structure principale de la révision courante, confirmée aujourd'hui à 14 h 09 (task_merge_queued), aboutie à 14 h 10 min 30 s : les différences de son compte rendu (structure_merge_report) sont écrites dans la structure principale, et l'avenant est fusionné. Les lectures des structures, d'avant sa confirmation, le montrent encore à fusionner (WF-REV-0050, WF-ARC-0090).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000948",
+    "kind": "structure_merge",
+    "status": "succeeded",
+    "progress": 100,
+    "submitted_at": "2026-06-03T14:09:00Z",
+    "finished_at": "2026-06-03T14:10:30Z",
+    "problem": null,
+    "result_url": null
+  }
+}

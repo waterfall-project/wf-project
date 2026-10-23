@@ -1020,6 +1020,31 @@
     "submit": "Mark",
     "cancel": "Cancel"
   },
+  "mergeReport": {
+    "label": "Contractualise the amendment",
+    "statement": "The merge applies the report below to the main structure and marks the current revision under the version name you give; the revision produced becomes the reference, and the reference budget moves. Abandoning here changes nothing.",
+    "submit": "Confirm the merge",
+    "title": "Report of the merge",
+    "reading": "Reading the report…",
+    "counts": "Differences by object",
+    "targets": {
+      "task": "Tasks",
+      "estimate_line": "Estimate lines",
+      "link": "Links"
+    },
+    "added": "{count} added",
+    "updated": "{count} modified",
+    "removed": "{count} removed",
+    "completed": "{count, plural, one {# started task will be completed} other {# started tasks will be completed}}",
+    "completedTask": "“{label}”: the differential removes it; it is kept, its remaining to commit brought to zero.",
+    "refusals": "{count, plural, one {# reason refuses the merge} other {# reasons refuse the merge}}",
+    "versionName": "Version name",
+    "versionNameHint": "Required: the revision produced bears it.",
+    "reread": "Read the report again",
+    "queued": "The merge is handed to the background worker under the version name “{version}”; it is followed in “Background tasks”.",
+    "reference": "The merge is done: “{version}” is the new reference revision.",
+    "seeRevisions": "See the revisions"
+  },
   "revisionCommands": {
     "create": "Open a current revision",
     "amendment": {
@@ -2360,7 +2385,7 @@
       "edit_risks": "Edit the risks",
       "declare_risk": "Declare a risk",
       "create_structure": "Prepare an amendment",
-      "merge_structure": "Merge a structure",
+      "merge_structure": "Contractualise the amendment",
       "mark": "Mark the revision",
       "designate_reference": "Designate as reference",
       "abandon": "Abandon the revision",

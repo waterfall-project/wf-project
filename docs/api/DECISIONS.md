@@ -6792,6 +6792,14 @@ devaient aller dans `test_mockhistory.py`, mais il aurait dépassé les mille li
   version. Deux différentiels coexistent ainsi dans une même révision (WF-REV-0100, #1211).
 - `task_merge_queued` (202) : la fusion de l'avenant 2, confirmée aujourd'hui à 14 h 09, la suite
   d'une écriture, à un instant à elle.
+- `merge_running` et `merge_succeeded` (`getBackgroundTask`, fichiers `task_merge_running` et
+  `task_merge_succeeded` ; #1362, US-0510) : la même tâche que `task_merge_queued` (…948,
+  `structure_merge`, soumise à 14 h 09), en cours à 60 %, puis aboutie à 14 h 10 min 30 s. Les
+  tâches de fond suivent ainsi la fusion par son propre identifiant, comme l'import et l'export ;
+  `task_running` et `task_succeeded` restent le marquage …931, premier exemple servi. Les lectures
+  des structures, d'avant la confirmation, montrent encore l'avenant 2 à fusionner : aucun exemple
+  ne lit la structure après la fusion, et #421 n'est pas en jeu, une tâche n'ayant pas de version.
+  Écrits à la main, comme les autres tâches ; `test_mockcycle.py` les tient à la tâche en file.
 
 **L'abandon est hors de l'annulation** (C-363, WF-IHM-0110). La description d'`abandonRevision`
 le dit : l'abandon est irréversible, et l'écran le dit dans sa confirmation. Celle

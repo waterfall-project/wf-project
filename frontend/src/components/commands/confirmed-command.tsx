@@ -34,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Command } from "./command";
 import { useHeldCommand } from "./held";
 import type { CommandOffer } from "./offer";
-import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+import { type ObjectNames, OutcomeNotice, type Reread } from "./outcome-notice";
 
 /** A command, what it asks to be confirmed, and what follows it. */
 export interface ConfirmedCommandProps<T> {
@@ -60,6 +60,8 @@ export interface ConfirmedCommandProps<T> {
   readonly done: (data: T) => string;
   /** What follows once it is done, besides what is said. */
   readonly onDone?: ((data: T) => void) | undefined;
+  /** What a stale confirmation (412) is read anew by, where it is not the screen that is reloaded. */
+  readonly reread?: Reread | undefined;
 }
 
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
@@ -79,6 +81,7 @@ export function ConfirmedCommand<T>({
   run,
   done,
   onDone,
+  reread,
 }: ConfirmedCommandProps<T>) {
   const t = useTranslations("revisionCommands");
   const form = useId();
@@ -194,6 +197,7 @@ export function ConfirmedCommand<T>({
             outcome={outcome}
             names={names}
             subject={subject}
+            reread={reread}
             onClear={() => {
               setOutcome(undefined);
             }}

@@ -590,7 +590,8 @@ sa nature quand ce n'est pas la principale, et offre les autres de la révision
 (`StructureChoice`) ; ce paramètre est celui de la grille : les liens entre fonctions ne le portent
 que du planning au devis et du devis au planning, qui lisent la même structure, et jamais vers un
 autre écran, qui retombe sur la principale (`readsStructure`, `navigation/context.ts`, #1220). La
-grille se monte par structure (`key`), et le squelette ne s'offre que sur la principale (US-0500). `readOnly` —
+grille se monte par structure (`key`), et le squelette ne s'offre que sur la principale
+(US-0500). `readOnly` —
 révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
 valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
@@ -2092,6 +2093,12 @@ liste ne se relance pas du suivi : échouée, son entrée dit de la relancer dep
 objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de
 version.
+« Contractualiser l'avenant » (`MergeAmendmentCommand`, `revisions/`) en est un autre : offerte par
+la grille de planning d'un différentiel non fusionné, comme la révision liste `merge_structure`, elle
+lit le compte rendu à l'ouverture (`getStructureMergeReport`), le présente dans les marques `+`, `-`,
+`M` de la grille, demande le nom de version et confirme avec les deux compteurs lus ; une version
+périmée (412) propose de relire le compte rendu, et l'abandon n'envoie rien. La fusion remise au
+suivi, `useWhenTaskSucceeds` dit à l'écran qu'elle a abouti, et il énonce la nouvelle référence.
 « Préparer un avenant » (`create_structure`) demande un libellé et ouvre le différentiel créé dans
 la grille de planning.
 

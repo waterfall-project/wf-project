@@ -1020,6 +1020,31 @@
     "submit": "Marquer",
     "cancel": "Annuler"
   },
+  "mergeReport": {
+    "label": "Contractualiser l’avenant",
+    "statement": "La fusion applique le compte rendu ci-dessous à la structure principale et marque la révision en cours sous le nom de version que vous donnez ; la révision produite devient la référence, et le budget de référence se déplace. Abandonner ici ne change rien.",
+    "submit": "Confirmer la fusion",
+    "title": "Compte rendu de la fusion",
+    "reading": "Lecture du compte rendu…",
+    "counts": "Écarts par objet",
+    "targets": {
+      "task": "Tâches",
+      "estimate_line": "Lignes de devis",
+      "link": "Liaisons"
+    },
+    "added": "{count, plural, one {# ajoutée} other {# ajoutées}}",
+    "updated": "{count, plural, one {# modifiée} other {# modifiées}}",
+    "removed": "{count, plural, one {# retirée} other {# retirées}}",
+    "completed": "{count, plural, one {# tâche démarrée sera terminée} other {# tâches démarrées seront terminées}}",
+    "completedTask": "« {label} » : le différentiel la retire ; elle est conservée, son reste à engager porté à zéro.",
+    "refusals": "{count, plural, one {# motif refuse la fusion} other {# motifs refusent la fusion}}",
+    "versionName": "Nom de version",
+    "versionNameHint": "Obligatoire : la révision produite le porte.",
+    "reread": "Relire le compte rendu",
+    "queued": "La fusion est confiée au traitement de fond sous le nom de version « {version} » ; elle est suivie dans « Tâches de fond ».",
+    "reference": "La fusion est terminée : « {version} » est la nouvelle révision de référence.",
+    "seeRevisions": "Voir les révisions"
+  },
   "revisionCommands": {
     "create": "Ouvrir une révision en cours",
     "amendment": {
@@ -2360,7 +2385,7 @@
       "edit_risks": "Modifier les risques",
       "declare_risk": "Déclarer un risque",
       "create_structure": "Préparer un avenant",
-      "merge_structure": "Fusionner une structure",
+      "merge_structure": "Contractualiser l’avenant",
       "mark": "Marquer la révision",
       "designate_reference": "Désigner comme référence",
       "abandon": "Abandonner la révision",

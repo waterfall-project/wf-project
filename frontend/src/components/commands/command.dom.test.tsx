@@ -101,7 +101,6 @@ describe("a command of a screen", () => {
       // The declaration of a risk, which a main structure without task forbids (EP-14/L42s).
       "Déclarer un risque",
       "Préparer un avenant",
-      "Fusionner une structure",
       "Marquer la révision",
       "Abandonner la révision en cours",
     ]);
@@ -162,7 +161,7 @@ describe("a command of a screen", () => {
 
   it("does nothing when pressed before its operation is wired", async () => {
     french(revisionCommands("revision"));
-    await userEvent.click(screen.getByRole("button", { name: "Fusionner une structure" }));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer un risque" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("form")).toBeNull();
   });
@@ -202,21 +201,13 @@ describe("a command of a revision", () => {
     const draft = french(revisionCommands("revision"));
     // The draft carries amendment 2, not merged: another one opens all the same, several
     // coexisting (WF-REV-0100, #1211).
-    for (const name of [
-      "Préparer un avenant",
-      "Fusionner une structure",
-      "Abandonner la révision en cours",
-    ]) {
+    for (const name of ["Préparer un avenant", "Abandonner la révision en cours"]) {
       expect(screen.getByRole("button", { name })).not.toHaveAttribute("aria-disabled");
     }
     draft.unmount();
 
     french(revisionCommands("revision_marked"));
-    for (const name of [
-      "Préparer un avenant",
-      "Fusionner une structure",
-      "Abandonner la révision en cours",
-    ]) {
+    for (const name of ["Préparer un avenant", "Abandonner la révision en cours"]) {
       const edit = screen.getByRole("button", { name });
       expect(edit).toHaveAttribute("aria-disabled", "true");
       expect(edit).toHaveAccessibleDescription(

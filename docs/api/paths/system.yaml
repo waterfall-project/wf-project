@@ -199,6 +199,8 @@
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }
               restore_verification_failed: { $ref: ../../../fixtures/api/task_restore_verification_failed.json }
               merge_outside_work_package: { $ref: ../../../fixtures/api/task_merge_outside_work_package.json }
+              merge_running: { $ref: ../../../fixtures/api/task_merge_running.json }
+              merge_succeeded: { $ref: ../../../fixtures/api/task_merge_succeeded.json }
               identity_sync_succeeded: { $ref: ../../../fixtures/api/identity_sync_succeeded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

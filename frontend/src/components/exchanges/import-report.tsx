@@ -17,6 +17,8 @@ import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import { LocalTime } from "@/components/local-time";
+import { DiffMark } from "@/components/grid/diff-mark";
+import type { RowDifference } from "@/components/grid/columns";
 import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -64,6 +66,14 @@ function isNodeColumn(field: DifferenceField): field is NodeColumn {
   return (NODE_COLUMNS as readonly string[]).includes(field);
 }
 
+/** The mark of a grid each change of a report bears; a task kept bears none. */
+const MARKED: Readonly<Record<Difference["change"], RowDifference | undefined>> = {
+  added: "added",
+  removed: "removed",
+  updated: "modified",
+  kept: undefined,
+};
+
 const HEADING = "text-sm font-semibold";
 const MUTED = "text-sm text-muted-foreground";
 
@@ -95,7 +105,14 @@ function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
  * The differences with the existing data, each by its change, its object, its label and the fields
  * it changes, named by the catalogue of their columns (WF-ARC-0110), in the order received.
  */
-function Differences({ differences }: { readonly differences: Report["differences"] }) {
+export function Differences({
+  differences,
+  marks = false,
+}: {
+  readonly differences: Report["differences"];
+  /** Whether each change bears the mark of the diff of a grid, `+`, `-`, `M` (US-0510). */
+  readonly marks?: boolean;
+}) {
   const t = useTranslations();
   const format = useFormatter();
   // A field is named by the catalogue of the columns of its object: a line of actual cost by its
@@ -137,7 +154,16 @@ function Differences({ differences }: { readonly differences: Report["difference
           {differences.map((difference, index) => (
             <TableRow key={`${difference.lineage_id ?? "new"}-${String(index)}`}>
               <TableCell className={CELL}>
-                {t(`enums.ImportDifference.change.${difference.change}`)}
+                {marks ? (
+                  <span className="inline-flex gap-1.5">
+                    <DiffMark difference={MARKED[difference.change]} />
+                    <span aria-hidden="true">
+                      {t(`enums.ImportDifference.change.${difference.change}`)}
+                    </span>
+                  </span>
+                ) : (
+                  t(`enums.ImportDifference.change.${difference.change}`)
+                )}
               </TableCell>
               <TableCell className={CELL}>
                 {t(`enums.ImportDifference.target.${difference.target}`)}
