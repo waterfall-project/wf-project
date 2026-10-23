@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The frame of a dense grid in the window, measured (US-0560, #1033, #1041, #1042): on each of the
- * ten screens that fill the window, in a window too low for the grid at its floor, at the two
+ * nine screens that fill the window, in a window too low for the grid at its floor, at the two
  * widths of the harness — 1366 points, then 911, what a zoom of 150 % leaves of it —, the frame
  * covers nothing that follows it; the bar above it is as wide as the frame, scroll bars included,
  * and holds on one line; and a grid of a few rows is no taller than its content. No requirement
@@ -25,13 +25,12 @@ const WINDOWS = [
 
 const REVISION = "/projects/[projectId]/revisions/[revisionId]";
 
-/** The ten screens that fill the window (`Screen`, `fill` or `fillWide`). */
+/** The nine screens that fill the window (`Screen`, `fill` or `fillWide`). */
 const SCREENS = [
   "/",
   "/portfolio/projects",
   "/admin/users",
   "/admin/audit-log",
-  "/reference/costs",
   path(`${REVISION}/estimate`),
   path(`${REVISION}/planning`),
   path(`${REVISION}/remaining`),

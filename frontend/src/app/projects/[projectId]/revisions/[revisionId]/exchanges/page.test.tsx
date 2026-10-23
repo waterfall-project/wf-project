@@ -164,7 +164,7 @@ describe("the screen of the imports and exports", () => {
     expect(calls(GET_IMPORT)).toEqual([]);
     // The revision read says which exports it offers, read once; the project, which imports.
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
-    expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=20`]);
+    expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=50`]);
     expect(text(page)).toContain(
       "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-correction.xlsx Actual costs Expired",
     );
@@ -274,8 +274,8 @@ describe("the screen of the imports and exports", () => {
 
   it("asks the page of the imports the address names, and leads to the pages around it", async () => {
     server.answers = { ...server.answers, [IMPORTS]: { example: "imports_page", status: 200 } };
-    const page = await exchangesAt({ offset: "2", import: IMPORT });
-    expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=20&offset=2`]);
+    const page = await exchangesAt({ offset: "2", limit: "10", import: IMPORT });
+    expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=10&offset=2`]);
     expect(page).toContain('aria-label="Pages of the imports of the project"');
     // The pages turn from the address the browser shows, here without a query.
     expect(links(page)).toEqual(expect.arrayContaining([PATHNAME, `${PATHNAME}?offset=4`]));

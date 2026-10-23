@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -10,6 +10,7 @@ import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
+import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -301,21 +302,59 @@ describe("the drop zone", () => {
     );
   });
 
-  it("stays highlighted while a file is dragged over a child of the zone, and is not once it leaves", async () => {
+  it("stays highlighted while a file is dragged over a child of the zone, counted by its entries and its exits, and is not once it has left", async () => {
     const { group } = await zone();
     const child = within(group).getByRole("button", { name: "Choisir un fichier" });
-    fireEvent.dragOver(group);
+    // Firefox gives a leave no `relatedTarget`: the drag is followed by what entered and left.
+    fireEvent.dragEnter(group);
     expect(group.className).toContain("bg-accent");
-    // jsdom's drag events carry no `relatedTarget` of their own: it is given by hand.
-    const leave = (to: Element) => {
-      const event = createEvent.dragLeave(group);
-      Object.defineProperty(event, "relatedTarget", { value: to });
-      fireEvent(group, event);
-    };
-    leave(child);
+    fireEvent.dragEnter(child);
+    fireEvent.dragLeave(group);
     expect(group.className).toContain("bg-accent");
-    leave(document.body);
+    fireEvent.dragLeave(child);
     expect(group.className).not.toContain("bg-accent");
+    // A drop ends the drag, whatever was entered: the next drag starts from nothing.
+    fireEvent.dragEnter(group);
+    fireEvent.dragEnter(child);
+    fireEvent.drop(group, { dataTransfer: { files: [] } });
+    expect(group.className).not.toContain("bg-accent");
+    fireEvent.dragEnter(group);
+    fireEvent.dragLeave(group);
+    expect(group.className).not.toContain("bg-accent");
+  });
+
+  it("takes another file once the task that analyses the one sent has not succeeded", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      // The contract has no failed analysis of the task the import opens: the follow-up of the task
+      // is interrupted (404), an end like a failure for the zone, whatever the task's own status.
+      const { client, group } = await zone({
+        ...IMPORTED,
+        [TASK]: { problem: { code: "NOT_FOUND", status: 404 } },
+      });
+      fireEvent.drop(group, {
+        dataTransfer: { files: [new File(["<Project/>"], "planning.xml", { type: "text/xml" })] },
+      });
+      await waitFor(() => {
+        expect(within(group).getByRole("status")).toHaveTextContent("« planning.xml » est envoyé");
+      });
+      const choose = within(group).getByRole("button", { name: "Choisir un fichier" });
+      expect(choose).toHaveAttribute("aria-disabled", "true");
+      await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+      await waitFor(() => {
+        expect(within(group).queryByRole("status")).toBeNull();
+      });
+      expect(choose).not.toHaveAttribute("aria-disabled");
+      const sent = client.calls.filter((call) => call.route === OPEN).length;
+      fireEvent.drop(group, {
+        dataTransfer: { files: [new File(["<Project/>"], "autre.xml", { type: "text/xml" })] },
+      });
+      await waitFor(() => {
+        expect(client.calls.filter((call) => call.route === OPEN)).toHaveLength(sent + 1);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("checks the type of the file before sending anything, and says so", async () => {

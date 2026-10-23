@@ -27,7 +27,9 @@ import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
 import { readPage } from "@/components/costs/address";
+import { KeptListSize } from "@/components/grid/kept-list-size";
 import { ListPages } from "@/components/grid/list-pages";
+import { CONTRACT_ADDRESS, readGridQuery } from "@/components/grid/query";
 import { ExportForm } from "@/components/exchanges/export-form";
 import { ImportList } from "@/components/exchanges/import-list";
 import { ImportPart, Part } from "@/components/exchanges/import-part";
@@ -35,6 +37,7 @@ import { ImportReport } from "@/components/exchanges/import-report";
 import {
   EXCHANGES_LIST,
   EXCHANGES_PAGE,
+  IMPORT_GRID_KEY,
   exportOffers,
   type ExportOffers,
   importOffers,
@@ -52,12 +55,6 @@ import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
-/**
- * The imports a page of the list holds, the most recent first as the server orders them, a page
- * after the other.
- */
-const IMPORTS_LIMIT = 20;
-
 /** Title the tab with the imports and exports, and the project. */
 export async function generateMetadata({
   params,
@@ -69,12 +66,20 @@ export async function generateMetadata({
 }
 
 /** A page of the imports of the project, from the place the address asks. */
-async function readImports({ revision }: GridAddress, offset: number) {
+async function readImports(
+  { revision, address }: GridAddress,
+  offset: number,
+  kept: number | undefined,
+) {
+  const { size } = readGridQuery(address, [], undefined, CONTRACT_ADDRESS, kept);
   return readOrFail("listImports", () =>
     serverClient().GET("/projects/{project_id}/imports", {
       params: {
         path: { project_id: revision.projectId },
-        query: { limit: IMPORTS_LIMIT, ...(offset === 0 ? {} : { offset }) },
+        query: {
+          ...(size === undefined ? {} : { limit: size }),
+          ...(offset === 0 ? {} : { offset }),
+        },
       },
     }),
   );
@@ -129,12 +134,13 @@ export default async function ExchangesPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "exchanges");
   const offset = readPage(at.address, EXCHANGES_PAGE);
-  const [reading, imports, shown, session] = await Promise.all([
+  const session = await requestSession();
+  const preferences = session?.display_preferences?.grids?.[IMPORT_GRID_KEY] ?? undefined;
+  const [reading, imports, shown] = await Promise.all([
     // The imports take neither a sub-project nor a date: the banner shows no filter (#302).
     readProjectContext(at.pathname, at.context, []),
-    readImports(at, offset),
+    readImports(at, offset, preferences?.page_size),
     readShownImport(revision.projectId, at.address),
-    requestSession(),
   ]);
   if (reading === "not_found") {
     notFound();
@@ -174,6 +180,11 @@ export default async function ExchangesPage({
               texts="actualCosts.pages.exchanges"
               page={imports.meta}
               shown={imports.items.length}
+            />
+            <KeptListSize
+              gridKey={IMPORT_GRID_KEY}
+              address={CONTRACT_ADDRESS}
+              preferences={preferences}
             />
           </ImportList>
         </PendingAddress>

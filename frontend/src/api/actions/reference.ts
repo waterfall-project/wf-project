@@ -5,7 +5,8 @@
  * (`setHourlyRate`); a node of the organisation, a resource role, a calendar, a nature or a category
  * of cost created, modified, deactivated or reactivated (`createReferenceObject`,
  * `updateReferenceObject`, `setActivation`); a calendar designated by default
- * (`designateDefaultCalendar`); the risk matrix, or the thresholds of the indices and the delay
+ * (`designateDefaultCalendar`); the constants the units of duration convert by (`setDurationUnits`);
+ * the risk matrix, or the thresholds of the indices and the delay
  * between two reviews, written (`updateReferenceSettings`) —: the screen asks the server of Next, which calls the API (§4.3.1),
  * and gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). Nothing is
  * deleted (WF-REF-0010).
@@ -303,4 +304,18 @@ export async function updateReferenceSettings(
   write: RiskMatrixWrite | IndicatorWrite,
 ): Promise<Outcome<Schemas["ReferenceSettings"]>> {
   return readAnew(await decode(() => serverClient().PATCH("/reference/settings", { body: write })));
+}
+
+/**
+ * Write the three constants the days, the weeks and the months of work convert into hours by, from
+ * the version read (WF-PLA-0160): the API answers them at their next version, and the page is read
+ * anew. The schedules of the revisions in progress are recalculated by the service; a marked
+ * revision keeps the hours it calculated (WF-REF-0130).
+ */
+export async function setDurationUnits(
+  write: Schemas["DurationUnitsWrite"],
+): Promise<Outcome<Schemas["DurationUnits"]>> {
+  return readAnew(
+    await decode(() => serverClient().PUT("/reference/duration-units", { body: write })),
+  );
 }

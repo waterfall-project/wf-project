@@ -172,3 +172,21 @@ describe("the types of the natures the page hands the form of a category", () =>
     expect(page).toContain("Modifier « Sous-traitance »");
   });
 });
+
+describe("the layout of the settings of the costs", () => {
+  it("stacks the natures, the categories and the hourly rates in a page that scrolls, as the settings of the resources do", async () => {
+    const page = await costsAt();
+    const at = (title: string) => page.indexOf(`<section aria-label="${title}"`);
+    const natures = at("Natures de coût");
+    const categories = at("Catégories de coût");
+    const rates = at("Taux horaires");
+    expect(natures).toBeGreaterThan(0);
+    expect(categories).toBeGreaterThan(natures);
+    expect(rates).toBeGreaterThan(categories);
+    // No side column, and a screen that does not fill the window at any width.
+    expect(page).not.toContain("<aside");
+    expect(page).not.toContain("data-fill");
+    // The filters of the rates are inside the third section.
+    expect(page.indexOf("Bornes de «\u00a0Grille des taux horaires\u00a0»")).toBeGreaterThan(rates);
+  });
+});

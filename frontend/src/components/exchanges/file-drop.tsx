@@ -8,16 +8,20 @@
  * file, and so is the size, past the largest an import takes (§4.6.2). A file that passes goes the
  * way the form of the screen of the imports and exports sends it (`useOpenImport`): the deposit, the
  * analysis in the tracker of the shell, then the report of the import on the screen, to be applied or
- * abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone says that it is sending, says a file dropped meanwhile is not taken, and takes no other once one is sent. The API judges the content.
+ * abandoned; a refusal is told under the zone (`OutcomeNotice`). The zone says that it is sending, says a file dropped meanwhile is not taken, and takes no other once one is sent — unless the task that analyses it fails, which frees the zone for another file. The API judges the content.
+ *
+ * The zone is lit while a file is dragged over it, over its children too: the entries and the exits
+ * of the drag are counted, as `relatedTarget` of a leave is null in Firefox.
  */
 "use client";
 
 import { FileUp, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type DragEvent, useId, useRef, useState, useTransition } from "react";
+import { type DragEvent, useCallback, useId, useRef, useState, useTransition } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { useWhenTaskFails } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import { IMPORT_MAX_BYTES, MEBIBYTE } from "./offers";
@@ -58,8 +62,20 @@ export function FileDrop({
   // The file being sent, then the file sent: the zone takes no other until the report is shown.
   const [sending, setSending] = useState<string>();
   const [sent, setSent] = useState<string>();
+  // The task that analyses the file sent: its failure frees the zone.
+  const [analysis, setAnalysis] = useState<string>();
+  // The drags that entered the zone or one of its children and did not leave yet.
+  const depth = useRef(0);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+
+  useWhenTaskFails(
+    analysis,
+    useCallback(() => {
+      setSent(undefined);
+      setAnalysis(undefined);
+    }, []),
+  );
 
   const receive = (file: File | undefined) => {
     if (file === undefined || sent !== undefined) {
@@ -82,6 +98,7 @@ export function FileDrop({
       setProblem(undefined);
       if (result.kind === "done") {
         setSent(file.name);
+        setAnalysis(result.data.task?.task_id);
       } else {
         setOutcome(result);
       }
@@ -89,6 +106,7 @@ export function FileDrop({
   };
   const drop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
+    depth.current = 0;
     setOver(false);
     receive(event.dataTransfer.files[0]);
   };
@@ -99,13 +117,19 @@ export function FileDrop({
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-hint`}
       aria-busy={pending}
+      onDragEnter={() => {
+        depth.current += 1;
+        setOver(true);
+      }}
       onDragOver={(event) => {
         event.preventDefault();
         setOver(true);
       }}
-      onDragLeave={(event) => {
-        // Moving over a child of the zone leaves the zone for the browser, not for the user.
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      onDragLeave={() => {
+        // Moving over a child of the zone enters it before it leaves the zone: only the last exit
+        // leaves the zone for the user.
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) {
           setOver(false);
         }
       }}

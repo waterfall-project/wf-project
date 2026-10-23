@@ -23,13 +23,14 @@ test("reads the settings of the reference data outside any project, and enters a
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de coûts");
   await expect(page.getByText("Montants exprimés en EUR")).toBeVisible();
 
-  // The grid of the rates: a hundred and fifty rows over fifteen years, its totals row in view.
+  // The grid of the rates: a hundred and fifty rows over fifteen years, its totals row at the foot.
   const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
   await expect(grid).toHaveAttribute("aria-rowcount", "152");
   await expect(grid.getByRole("columnheader", { name: "2012", exact: true })).toBeVisible();
   await expect(grid.getByRole("columnheader", { name: "2026", exact: true })).toHaveCount(1);
   const totals = grid.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
-  expect(await withinBox(grid, totals)).toBe(true);
+  // Its totals row is in the grid; that it stays in view is proven by the stacked layout below.
+  await expect(totals).toHaveCount(1);
 
   // The first rate of 2015 of the third category, entered from the keyboard and answered.
   // No project is opened here, nothing witnesses the hydration: the cell is clicked and the cursor
@@ -88,50 +89,54 @@ test("reads the settings of the reference data outside any project, and enters a
   await expect(page.getByText("8 semaines")).toBeVisible();
 });
 
-test("keeps the header and the totals row of the grid of the rates in a wide window, under its filters (US-0250)", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto("/reference/costs");
-  const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
-  await expect(
-    page.getByRole("form", { name: "Bornes de «\u00a0Grille des taux horaires\u00a0»" }),
-  ).toBeInViewport();
-  // The screen fills the window: the grid scrolls in its box, its header and its totals in view,
-  // in the window and not only in their container (défaut n° 13 de `typescript.md`).
-  await expect(grid.getByRole("columnheader", { name: "Code", exact: true })).toBeInViewport();
-  const totals = grid.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
-  await expect(totals).toBeInViewport();
-  expect(await withinBox(grid, totals)).toBe(true);
-  // The fake back answers the grid in one page, which offers no pages; the box the grid scrolls
-  // in, where they would come below, ends within the window.
-  const foot = await scroller(grid).boundingBox();
-  expect((foot?.y ?? 0) + (foot?.height ?? 0)).toBeLessThanOrEqual(1080);
-});
+const WINDOWS = [
+  { width: 1366, height: 768 },
+  { width: 911, height: 512 },
+] as const;
 
-test("stacks the grid of the rates and the natures of cost in a narrow window, neither over the other (US-0250)", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 800, height: 720 });
-  await page.goto("/reference/costs");
-  const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
-  const totals = grid.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
-  // The page scrolls, not the screen: the foot of the box of the grid brought into the window
-  // brings its totals.
-  await scroller(grid).evaluate((element) => {
-    element.scrollIntoView({ block: "end" });
+for (const { width, height } of WINDOWS) {
+  test(`stacks the natures, the categories and the hourly rates in a page that scrolls, each grid no taller than the window, at ${String(width)} points (US-0570)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/reference/costs");
+    const natures = page.getByRole("grid", { name: "Natures de coût" });
+    const categories = page.getByRole("grid", { name: "Catégories de coût" });
+    const rates = page.getByRole("grid", { name: "Grille des taux horaires" });
+    await expect(rates).toHaveAttribute("aria-rowcount", "152");
+    // Where each grid's box starts and how tall it is, in the page, whatever the scroll.
+    const placed = async (grid: typeof rates) =>
+      scroller(grid).evaluate((element) => ({
+        top: element.getBoundingClientRect().top + window.scrollY,
+        height: element.getBoundingClientRect().height,
+      }));
+    const first = await placed(natures);
+    const second = await placed(categories);
+    const third = await placed(rates);
+    // One under the other, in this order, none over the next.
+    expect(first.top + first.height).toBeLessThanOrEqual(second.top);
+    expect(second.top + second.height).toBeLessThanOrEqual(third.top);
+    // The page scrolls; each grid keeps a height of its own, never past the window.
+    for (const box of [first, second, third]) {
+      expect(box.height).toBeLessThanOrEqual(height);
+    }
+    // The rates, a hundred and fifty rows, fill the window at most: their totals are one scroll away.
+    await scroller(rates).evaluate((element) => {
+      element.scrollIntoView({ block: "end" });
+    });
+    const totals = rates.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
+    await expect(rates.getByRole("columnheader", { name: "Code", exact: true })).toBeInViewport();
+    await scroller(rates).evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(totals).toBeInViewport();
+    expect(await withinBox(rates, totals)).toBe(true);
+    // The filters of the rates come with their grid, under its title.
+    await expect(
+      page.getByRole("form", { name: "Bornes de «\u00a0Grille des taux horaires\u00a0»" }),
+    ).toHaveCount(1);
   });
-  await expect(totals).toBeInViewport();
-  const natures = page.getByRole("grid", { name: "Natures de coût" });
-  await natures.scrollIntoViewIfNeeded();
-  await expect(natures).toBeInViewport();
-  // The natures come below the box the grid scrolls in, never over it.
-  const box = await scroller(grid).boundingBox();
-  const below = await natures.boundingBox();
-  expect(box).not.toBeNull();
-  expect(below).not.toBeNull();
-  expect((below?.y ?? 0) >= (box?.y ?? 0) + (box?.height ?? 0)).toBe(true);
-});
+}
 
 test("adds the column of a year to the grid of the hourly rates, empty, and refuses a year the grid has [WF-REF-0060-A]", async ({
   page,
@@ -549,5 +554,38 @@ test("modifies the risk matrix and the thresholds of the indices in their forms,
       .getByRole("row", { name: "Indice de coût 0,95 0,85" }),
   ).toHaveCount(1);
   await expect(page.getByText("6 semaines")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
+
+test("modifies the units of duration from the settings of the resources, and says what the change does to the schedules (US-0570)", async ({
+  page,
+}) => {
+  test.slow();
+  await page.goto("/reference/resources");
+  const section = page.getByRole("region", { name: "Unités de durée" });
+  const value = (name: string) =>
+    section.getByText(name, { exact: true }).locator("xpath=following-sibling::dd");
+  await expect(value("Heures par jour")).toHaveText("8");
+  const form = page.getByRole("dialog", { name: "Modifier les unités de durée" });
+  // No project is opened here, nothing witnesses the hydration: the command is pressed again until
+  // React opens its form, and never once it is open.
+  await expect(async () => {
+    if (!(await form.isVisible())) {
+      await section.getByRole("button", { name: "Modifier les unités de durée" }).click();
+    }
+    await expect(form).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(form).toContainText(
+    "les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées.",
+  );
+  await form.getByRole("textbox", { name: "Heures par jour" }).fill("7");
+  await form.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(form).toBeHidden({ timeout: WORKING });
+  // The fake back answers the first example of the operation whatever was written: 7 and 35.
+  await expect(value("Heures par semaine")).toHaveText("35");
+  await expect(page.getByRole("status").filter({ hasText: "enregistrées" })).toHaveText(
+    "Unités de durée enregistrées.",
+  );
+  await expect(section.getByRole("button", { name: "Modifier les unités de durée" })).toBeFocused();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });

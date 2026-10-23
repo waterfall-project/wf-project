@@ -6,14 +6,20 @@
  * list (WF-CRE-0040) under the names of the contract — the scope, `in_tracked_scope`, and the
  * period of the documents, `from` and `to` —, and the page of each list the server pages: that of
  * the costs, `offset`, as the contract names it, and that of the journal of the imports,
- * `imports_offset`. A filter chosen, a page turned only change the address, and the page reads
+ * `imports_offset`, with its own size, `imports_limit`. A filter chosen, a page turned only change the address, and the page reads
  * anew: the front filters, sorts and pages nothing (WF-ARC-0020). And the line whose place in the
  * tracked scope is shown to be changed, `line` (WF-CRE-0040).
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
 import type { operations } from "@/api/generated/schema";
-import { CONTRACT_ADDRESS, type GridSort, OFFSET, pagedList } from "@/components/grid/query";
+import {
+  CONTRACT_ADDRESS,
+  type GridSort,
+  OFFSET,
+  pagedList,
+  prefixedAddress,
+} from "@/components/grid/query";
 import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
@@ -27,14 +33,25 @@ export const TO = "to";
 export const SUBPROJECT = "subproject_id";
 /** The page of the costs, as the contract names it. */
 export const COSTS_PAGE = OFFSET;
-/** The page of the journal of the imports, which shares the screen with the costs. */
-export const IMPORTS_PAGE = "imports_offset";
+/**
+ * The names under which the journal of the imports, which shares the screen with the costs, carries
+ * its page and the size of its pages: `imports_offset`, `imports_limit`.
+ */
+export const IMPORTS_ADDRESS = prefixedAddress("imports_");
+/** The page of the journal of the imports. */
+export const IMPORTS_PAGE = IMPORTS_ADDRESS.offset;
+/** The key the journal of the imports keeps its preferences under (WF-IHM-0060). */
+export const COST_IMPORT_GRID_KEY = "cost_imports";
 
 /** The list of the costs: its sort, its search and its filters, the sub-project among them. */
 export const COSTS_LIST: PagedList = pagedList(CONTRACT_ADDRESS, SCOPE, FROM, TO, SUBPROJECT);
 
-/** The journal of the imports, which reads nothing of the address but its page. */
-export const IMPORTS_LIST: PagedList = { page: IMPORTS_PAGE, reads: [] };
+/** The journal of the imports, which reads nothing of the address but its page and its size. */
+export const IMPORTS_LIST: PagedList = {
+  page: IMPORTS_PAGE,
+  size: IMPORTS_ADDRESS.limit,
+  reads: [IMPORTS_ADDRESS.limit],
+};
 
 /** The line of the page whose place in the tracked scope the screen shows, to change it. */
 export const LINE = "line";

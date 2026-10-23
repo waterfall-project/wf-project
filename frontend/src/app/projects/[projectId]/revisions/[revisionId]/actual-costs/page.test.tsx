@@ -119,7 +119,7 @@ describe("the screen of the actual costs", () => {
     const page = await costsAt();
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
-    expect(queryOf(IMPORTS)).toEqual({ limit: "12" });
+    expect(queryOf(IMPORTS)).toEqual({});
     expect(text(page)).toContain("Actual costs 27 lines retained");
   });
 
@@ -185,6 +185,7 @@ describe("the screen of the actual costs", () => {
       to: "2026-04-30",
       offset: "50",
       imports_offset: "12",
+      imports_limit: "25",
       search: "câbles",
     });
     expect(queryOf(COSTS)).toEqual({
@@ -196,7 +197,7 @@ describe("the screen of the actual costs", () => {
       sort_by: "amount",
       sort_order: "desc",
     });
-    expect(queryOf(IMPORTS)).toEqual({ limit: "12", offset: "12" });
+    expect(queryOf(IMPORTS)).toEqual({ limit: "25", offset: "12" });
     expect(grids.costs[0]?.query.sort).toEqual({ column: "amount", order: "desc" });
   });
 

@@ -22,6 +22,7 @@ import { ReferenceSection } from "./section";
 
 type RiskMatrixSettings = components["schemas"]["RiskMatrixSettings"];
 type IndexThresholds = components["schemas"]["IndexThresholds"];
+type DurationUnits = components["schemas"]["DurationUnits"];
 
 /**
  * A row of a table of settings: what it is, headed as a row, and its values, figures, each under
@@ -140,5 +141,26 @@ export function ReviewDelay({ weeks }: { readonly weeks: number }) {
     <ReferenceSection title={t("title")} icon={CalendarClock}>
       <p className="text-sm">{t("maxWeeks", { weeks })}</p>
     </ReferenceSection>
+  );
+}
+
+/** The three constants the days, the weeks and the months of work convert into hours by. */
+export function DurationUnitFigures({ units }: { readonly units: DurationUnits }) {
+  const t = useTranslations("reference.durationUnits");
+  const locale = useLocale();
+  const facts = [
+    ["hoursPerDay", units.hours_per_day],
+    ["hoursPerWeek", units.hours_per_week],
+    ["daysPerMonth", units.days_per_month],
+  ] as const;
+  return (
+    <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
+      {facts.map(([key, value]) => (
+        <div key={key} className="contents">
+          <dt className="text-muted-foreground">{t(key)}</dt>
+          <dd className="text-right tabular-nums">{formatDecimal(value, locale)}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

@@ -17,8 +17,8 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { type Calendar, DAYS, type ResourceRole } from "./resource-grids";
-import { CalendarList, type DayBounds, RoleNames } from "./resource-lists";
+import { type Calendar, type ResourceRole } from "./resource-grids";
+import { CalendarList, RoleNames } from "./resource-lists";
 
 // The commands of the calendars (EP-02/L43b, EP-14/L43g), the forms of the nodes and of the roles
 // being those of `resource-commands.dom.test.tsx`. The server of Next, as far as the list needs it:
@@ -41,7 +41,6 @@ const CALENDAR = "PATCH /reference/calendars/{calendar_id}";
 const DEFAULT = "PUT /reference/calendars/{calendar_id}/default";
 
 const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
-const NO_BOUNDS = { min: undefined, max: undefined };
 const calendars = example("calendars_with_inactive") as { items: Calendar[]; meta: ListPage };
 const roles = (example("resource_roles") as { items: ResourceRole[] }).items;
 
@@ -76,7 +75,6 @@ function calendarList(
             readsInactive
             editable
             state={undefined}
-            hours={Object.fromEntries(DAYS.map((day) => [day, NO_BOUNDS])) as DayBounds}
           />
         </RoleNames>
       </PendingAddress>

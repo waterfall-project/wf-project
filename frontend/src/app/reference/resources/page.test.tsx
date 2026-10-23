@@ -6,13 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
-import { DAYS } from "@/components/reference/resource-grids";
-import {
-  CalendarList,
-  type DayBounds,
-  OrgNodeList,
-  ResourceRoleList,
-} from "@/components/reference/resource-lists";
+import { CalendarList, OrgNodeList, ResourceRoleList } from "@/components/reference/resource-lists";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import type { ListPage } from "@/navigation/pages";
@@ -91,9 +85,6 @@ const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 
 /** No bound on either side of a column. */
 const NO_BOUNDS = { min: undefined, max: undefined };
-
-/** No bound on the hours of any day. */
-const NO_HOURS = Object.fromEntries(DAYS.map((day) => [day, NO_BOUNDS])) as DayBounds;
 
 /** The roles of the witness, as the server pages them. */
 const ROLE_PAGE = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
@@ -337,8 +328,15 @@ describe("the settings of the resources", () => {
       "État",
     ]);
     expect(text(page)).toContain(
-      "Unités de durée Heures par jour 8 Heures par semaine 40 Jours par mois 20",
+      "Unités de durée Modifier les unités de durée Heures par jour 8 Heures par semaine 40 Jours par mois 20",
     );
+  });
+
+  it("offer the calendars no filter on the hours of their days, only their search and their state [WF-IHM-0130-A]", async () => {
+    const page = await resourcesAt();
+    expect(page).not.toContain('aria-label="Bornes de «\u00a0Calendriers\u00a0»"');
+    expect(page).not.toMatch(/aria-label="(Lun|Mar|Mer|Jeu|Ven|Sam|Dim)\.[^"]*(min|max)\.?"/);
+    expect(page).toContain('aria-label="État des objets de «\u00a0Calendriers\u00a0»"');
   });
 
   it("ask each list of the server by the names of the contract, as the address asks it under the names of its grid [WF-IHM-0060-A] [WF-IHM-0130-A]", async () => {
@@ -559,7 +557,6 @@ describe("the settings of the resources", () => {
         readsInactive={false}
         editable={false}
         state={undefined}
-        hours={NO_HOURS}
       />,
     );
     expect(text(empty)).toBe("Calendriers Aucun calendrier.");
