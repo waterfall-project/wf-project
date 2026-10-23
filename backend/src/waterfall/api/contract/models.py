@@ -4394,7 +4394,9 @@ class RiskWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     mitigation_notes: str | None = None
-    probability: Percent
+    probability: Annotated[
+        Percent, Field(description="De `0` à `1` inclus, un rapport (WF-RIS-0010).")
+    ]
     provision_cost_category_id: Annotated[
         Uuid | None,
         Field(

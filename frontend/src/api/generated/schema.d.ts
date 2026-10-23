@@ -4913,6 +4913,7 @@ export interface components {
             label: string;
             description?: string | null;
             mitigation_notes?: string | null;
+            /** @description De `0` à `1` inclus, un rapport (WF-RIS-0010). */
             probability: components["schemas"]["Percent"];
             /** @description La catégorie que porte la ligne de provision (WF-RIS-0010, WF-REF-0030). Omise à la déclaration, elle est la seule catégorie active de type provision pour risques ; omise quand il en existe plusieurs, elle est refusée par 422, `VALUE_REQUIRED` ; inconnue, `UNKNOWN_COST_CATEGORY` ; désactivée, ce qu'est toute catégorie d'une nature désactivée, `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010, C-291) ; d'une nature d'un autre type, `PROVISION_CATEGORY_REQUIRED`. À la modification, omise, elle reste celle du risque ; `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée, comme le parent d'un nœud ou la catégorie d'un rôle (`updateOrgNode`, `updateResourceRole`) ; une autre, envoyée pour un risque qui n'est pas identifié, est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit d'avance. */
             provision_cost_category_id?: components["schemas"]["Uuid"];
