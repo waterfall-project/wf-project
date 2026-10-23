@@ -344,6 +344,8 @@ paths = [
     "fixtures/api/estimate_line_updated_amendment.json",
     "fixtures/api/paste_plan_amendment.json",
     "fixtures/api/paste_applied_amendment.json",
+    "fixtures/api/paste_plan_amendment_skipping.json",
+    "fixtures/api/paste_applied_amendment_skipping.json",
     "fixtures/api/node_create_horizon_exceeded.json",
     "fixtures/api/node_tracked.json",
     "fixtures/api/revisions_designation_open.json",

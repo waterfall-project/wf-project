@@ -22,6 +22,21 @@ export const UNASSIGNED = "unassigned";
 /** The parameter that carries the revision on a screen of the project itself. */
 export const REVISION_PARAMETER = "revision_id";
 
+/** The parameter that carries the structure a grid reads (`components/context/structure.ts`). */
+const STRUCTURE = "structure";
+
+/**
+ * The screens that can read the same structure, and so carry it from one to the other (decision of
+ * the author of 2026-10-21, #1220): the planning and the estimate. Any other screen reads the main
+ * structure, and the link that leads to it does not carry the parameter.
+ */
+const STRUCTURE_SCREENS: ReadonlySet<string> = new Set(["planning", "estimate"]);
+
+/** Whether the screen a route leads to reads a structure the address names: planning or estimate. */
+export function readsStructure(route: string): boolean {
+  return STRUCTURE_SCREENS.has(route.slice(route.lastIndexOf("/") + 1));
+}
+
 /** The cookie of the front that keeps the address of the last project context. */
 export const LAST_CONTEXT_COOKIE = "wf_last_project";
 
@@ -75,6 +90,11 @@ export interface ProjectContext {
   readonly revisionInPath: boolean;
   /** The filters the address gives, in the order of CONTEXT_PARAMETERS. */
   readonly parameters: URLSearchParams;
+  /**
+   * The structure the address names, on a screen that reads one (the planning, the estimate): the
+   * links to the other of the two carry it, those to any other screen do not (#1220).
+   */
+  readonly structure?: string | undefined;
 }
 
 /** What the navigation reads of the address: its search parameters. */
@@ -87,18 +107,22 @@ export interface SearchParameters {
  * nothing when the path is no screen of a project: the project alone, a function of the
  * project, a revision, a function of a revision.
  */
-function followProject(tail: readonly string[]): { revisionId: string | undefined } | undefined {
+function followProject(
+  tail: readonly string[],
+): { revisionId: string | undefined; screen: string | undefined } | undefined {
   const [first, second, third, ...more] = tail;
   if (first === undefined) {
-    return { revisionId: undefined };
+    return { revisionId: undefined, screen: undefined };
   }
   if (second === undefined) {
-    return PROJECT_SCREENS.has(first) ? { revisionId: undefined } : undefined;
+    return PROJECT_SCREENS.has(first) ? { revisionId: undefined, screen: undefined } : undefined;
   }
   if (first !== "revisions" || !IDENTIFIER.test(second) || more.length > 0) {
     return undefined;
   }
-  return third === undefined || REVISION_SCREENS.has(third) ? { revisionId: second } : undefined;
+  return third === undefined || REVISION_SCREENS.has(third)
+    ? { revisionId: second, screen: third }
+    : undefined;
 }
 
 /** A parameter of the address, when it has a value. */
@@ -129,6 +153,7 @@ export function readContext(
     }
   }
   const carried = parameter(search, REVISION_PARAMETER);
+  const structure = parameter(search, STRUCTURE);
   return {
     projectId,
     revisionId:
@@ -136,6 +161,12 @@ export function readContext(
       (carried !== undefined && IDENTIFIER.test(carried) ? carried : undefined),
     revisionInPath: followed.revisionId !== undefined,
     parameters,
+    ...(followed.screen !== undefined &&
+    STRUCTURE_SCREENS.has(followed.screen) &&
+    structure !== undefined &&
+    isUuid(structure)
+      ? { structure }
+      : {}),
   };
 }
 
@@ -143,7 +174,11 @@ export function readContext(
  * The search part of an address that carries a context, or nothing: the revision first when
  * the path does not name it, then the filters.
  */
-export function contextQuery(context: ProjectContext, carryRevision: boolean): string {
+export function contextQuery(
+  context: ProjectContext,
+  carryRevision: boolean,
+  carryStructure = false,
+): string {
   const query = new URLSearchParams();
   if (carryRevision && context.revisionId !== undefined) {
     query.set(REVISION_PARAMETER, context.revisionId);
@@ -151,13 +186,16 @@ export function contextQuery(context: ProjectContext, carryRevision: boolean): s
   for (const [name, value] of context.parameters) {
     query.set(name, value);
   }
+  if (carryStructure && context.structure !== undefined) {
+    query.set(STRUCTURE, context.structure);
+  }
   const text = query.toString();
   return text === "" ? "" : `?${text}`;
 }
 
 /** The address of the screen a context was read on: its path, and the context it carries. */
 export function contextAddress(pathname: string, context: ProjectContext): string {
-  return pathname + contextQuery(context, !context.revisionInPath);
+  return pathname + contextQuery(context, !context.revisionInPath, true);
 }
 
 /** A filter the address of a context may carry: `subproject_id` or `as_of`. */

@@ -99,7 +99,7 @@ class Calendar:
     def next_working_day(self, day: date) -> date:
         """Return the first day after a day that grants hours of work.
 
-        Within a week; raises if the week has no hour.
+        Look at most one week ahead and raise ValueError if the calendar grants no hour of work.
 
         What a date entered on a day without hours of work names, refused (WF-PLA-0020, #1271).
         """

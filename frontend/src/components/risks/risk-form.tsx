@@ -286,6 +286,8 @@ export function RiskForm({
       : fixedProvision(risk, heldLabel, unmet, texts);
   const fields: FormField[] = [
     required("label", columns("label"), LABEL_LENGTH),
+    // The contract bounds neither the description nor the actions of mitigation (`Risk`, `RiskWrite`:
+    // a string or null): no `maxLength`, the label alone has one.
     { name: "description", label: detail("description"), control: "multiline" },
     { name: "mitigation_notes", label: detail("mitigation"), control: "multiline" },
     { name: "probability", label: t("probability"), control: "number", required: true },

@@ -385,7 +385,7 @@ describe("the commands of the risks", () => {
     return /<button[^>]*>(?:(?!<\/button>).)*Identify a risk<\/button>/s.exec(page)?.[0] ?? "";
   }
 
-  it("offers « Identify a risk » as the revision lists `declare_risk`, and reads what the provision is chosen among [WF-RIS-0010-A]", async () => {
+  it("offers « Identify a risk » as the revision lists `declare_risk`, and reads once each of the listings the provision is chosen among", async () => {
     const page = await risksAt();
     expect(command(page)).not.toBe("");
     expect(command(page)).not.toContain(`aria-disabled="true"`);
@@ -397,6 +397,24 @@ describe("the commands of the risks", () => {
     expect(callsTo(NODES)[0]?.path).toContain(`/revisions/${REVISION}/structures/`);
     expect(Object.fromEntries(callsTo(NODES)[0]?.query ?? [])).toMatchObject({ kinds: "task" });
   });
+
+  it.each([
+    ["the sub-projects", SUBPROJECTS],
+    ["the tasks of the main structure", NODES],
+    ["the categories of cost", CATEGORIES],
+  ] as const)(
+    "renders the screen and offers the command when the session may not read %s, the server judging the declaration",
+    async (_listing, route) => {
+      server.answers = {
+        ...server.answers,
+        [route]: { problem: { code: "PERMISSION_MISSING", status: 403 } },
+      };
+      const page = await risksAt();
+      expect(command(page)).not.toBe("");
+      expect(command(page)).not.toContain(`aria-disabled="true"`);
+      expect(grids.risks).not.toEqual([]);
+    },
+  );
 
   it("offers it unavailable on a revision without a task, described by the condition it lacks, and reads nothing for a form it cannot open [WF-RIS-0010-A]", async () => {
     server.answers = {

@@ -1022,6 +1022,13 @@
   },
   "revisionCommands": {
     "create": "Ouvrir une révision en cours",
+    "amendment": {
+      "label": "Préparer un avenant",
+      "statement": "Un différentiel de la structure principale est créé sous le libellé donné, et s’ouvre dans la grille de planning, où vous ajoutez et modifiez tâches et lignes. Rien n’est fusionné.",
+      "name": "Libellé de l’avenant",
+      "submit": "Créer l’avenant",
+      "done": "L’avenant « {label} » est créé."
+    },
     "cancel": "Annuler",
     "abandon": {
       "label": "Abandonner la révision en cours",
@@ -2356,7 +2363,7 @@
       "edit_remaining": "Réestimer le reste à engager",
       "edit_risks": "Modifier les risques",
       "declare_risk": "Déclarer un risque",
-      "create_structure": "Créer une structure",
+      "create_structure": "Préparer un avenant",
       "merge_structure": "Fusionner une structure",
       "mark": "Marquer la révision",
       "designate_reference": "Désigner comme référence",

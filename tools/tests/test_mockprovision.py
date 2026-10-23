@@ -152,6 +152,21 @@ def test_the_refused_declaration_names_a_labour_category_and_a_subproject_unknow
     assert {"PROVISION_CATEGORY_REQUIRED", "UNKNOWN_SUBPROJECT"} <= set(codes)
 
 
+def test_the_probability_sent_as_a_percent_is_refused_with_the_bound_it_crosses() -> None:
+    # Written by hand, like its sibling above: 120 sent for a ratio, refused at its maximum,
+    # which the front says as a percent (WF-RIS-0010).
+    refused = fixture("risk_probability_out_of_range")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [
+        {"pointer": "/probability", "code": "VALUE_OUT_OF_RANGE", "params": {"maximum": "1"}}
+    ]
+    assert "WF-RIS-0010" in _summary("risk_probability_out_of_range")
+    said = _block("createRisk", "422")
+    assert said.index("fixtures/api/risk_provision_task_refused.json") < said.index(
+        "fixtures/api/risk_probability_out_of_range.json"
+    )
+
+
 def test_the_provision_of_a_dismissed_risk_is_refused_by_the_condition_its_command_misses() -> None:
     refused = fixture("risk_provision_frozen")
     assert set(refused) == {"code", "status", "params", "correlation_id"}

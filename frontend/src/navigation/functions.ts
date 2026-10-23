@@ -19,7 +19,7 @@
 import type { components } from "@/api/generated/schema";
 import type { Catalogue } from "@/i18n/catalogues";
 
-import { contextQuery, type ProjectContext } from "./context";
+import { contextQuery, type ProjectContext, readsStructure } from "./context";
 import table from "./functions.json";
 
 type PermissionCode = components["schemas"]["PermissionCode"];
@@ -221,7 +221,8 @@ export function functionHref(
     return undefined;
   }
   return (
-    inProject.replace(CONTEXT_SEGMENTS.revisionId, () => revisionId) + contextQuery(context, false)
+    inProject.replace(CONTEXT_SEGMENTS.revisionId, () => revisionId) +
+    contextQuery(context, false, readsStructure(fn.route))
   );
 }
 

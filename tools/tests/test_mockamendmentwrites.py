@@ -309,6 +309,35 @@ def test_the_block_pasted_on_the_amendment_follows_the_hours_entered() -> None:
     assert applied["rejected"] == []
 
 
+def test_a_block_that_covers_a_line_withdrawn_skips_it_and_writes_the_node_after_it() -> None:
+    # #1278, decision of the author: a paste that covers nodes withdrawn from a differential
+    # skips them and fills the next ones, without refusal. The wiring on site precedes the line
+    # the amendment withdraws, read only at its row; the second row writes the trials on site.
+    items = _json(mockamendment.nodes_amendment())["items"]
+    ids = [node["node_id"] for node in items]
+    start = ids.index(own(mockamendmentwrites.SKIPPING_TARGET))
+    covered = items[start : start + 3]
+    assert [node["difference"] for node in covered] == ["unchanged", "removed", "added"]
+    targets = mockamendmentwrites.paste_targets(2, mockamendmentwrites.SKIPPING_TARGET)
+    assert [own(number) for number in targets] == [covered[0]["node_id"], covered[2]["node_id"]]
+    plan = gesture("paste_plan_amendment_skipping")
+    assert (plan["accepted"], plan["rejected"]) == (2, [])
+    assert plan["paste_id"] != gesture("paste_plan_amendment")["paste_id"]
+    applied = gesture("paste_applied_amendment_skipping")
+    written = [node["node_id"] for node in applied["nodes"]]
+    assert written == [covered[0]["node_id"], covered[2]["node_id"]]
+    assert covered[1]["node_id"] not in written
+    assert covered[1]["node_id"] not in {node["node_id"] for node in applied["ancestors"]}
+    labels = [node[node["kind"]]["label"] for node in applied["nodes"]]
+    assert labels == [row[0] for row in mockamendmentwrites.SKIPPING_BLOCK]
+    assert applied["nodes"][0]["estimate_line"]["quantity"] == "2"
+    assert [node["lock_version"] for node in applied["nodes"]] == [2, 2]
+    amendment = _json(mockamendment.structure("amendment"))
+    assert applied["structure_lock_version"] == amendment["lock_version"] + 1
+    assert applied["rejected"] == []
+    assert covered[1]["estimate_line"]["label"] in _summary("paste_applied_amendment_skipping")
+
+
 def test_every_task_read_on_the_amendment_accepts_its_predecessors_but_one_removed() -> None:
     # #1257: the cell of the predecessors follows `editable_fields`, as every other cell; a node
     # removed from a differential is read only.

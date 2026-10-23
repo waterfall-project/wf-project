@@ -127,8 +127,9 @@
           d'une nature désactivée (WF-REF-0010, C-291) —, ou d'une nature d'un autre type,
           `PROVISION_CATEGORY_REQUIRED` ; `/provision_subproject_id` que le projet n'a pas,
           `UNKNOWN_SUBPROJECT` ; `/provision_task_id` qui n'est pas une tâche de la structure
-          principale de la révision en cours, `UNKNOWN_TASK` (WF-RIS-0010, #786). Rien n'est
-          écrit.
+          principale de la révision en cours, `UNKNOWN_TASK` (WF-RIS-0010, #786) ;
+          `/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`.
+          Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -136,6 +137,8 @@
               provision_refused: { $ref: ../../../fixtures/api/risk_provision_refused.json }
               provision_task_refused:
                 $ref: ../../../fixtures/api/risk_provision_task_refused.json
+              probability_out_of_range:
+                $ref: ../../../fixtures/api/risk_probability_out_of_range.json
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}:

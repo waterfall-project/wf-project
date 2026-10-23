@@ -196,6 +196,15 @@ describe("« Identifier un risque »", () => {
       const category = within(form).queryByRole("combobox", { name: "Catégorie" });
       expect(category !== null).toBe(asks);
       await fill(form, " Indisponibilité de la grue ", "20");
+      // The texts are multiline: the break of the line is written as typed.
+      await userEvent.type(
+        within(form).getByRole("textbox", { name: "Description" }),
+        "Grue immobilisée{Enter}deux semaines au plus",
+      );
+      await userEvent.type(
+        within(form).getByRole("textbox", { name: "Actions de mitigation" }),
+        "Louer une grue de secours",
+      );
       if (category !== null) {
         // The category is required before anything is asked, and takes the focus.
         await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
@@ -213,8 +222,8 @@ describe("« Identifier un risque »", () => {
       expect(client.calls[0]?.path).toBe(`/projects/${PROJECT}/risks`);
       expect(written(client)).toEqual({
         label: "Indisponibilité de la grue",
-        description: null,
-        mitigation_notes: null,
+        description: "Grue immobilisée\ndeux semaines au plus",
+        mitigation_notes: "Louer une grue de secours",
         // Entered as a percentage, sent as the ratio of the contract.
         probability: "0.2",
         ...(asks ? { provision_cost_category_id: CONTRACTUAL.id } : {}),
@@ -222,6 +231,41 @@ describe("« Identifier un risque »", () => {
         provision_task_id: null,
       });
       expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
+
+  it.each([
+    [
+      "tasks",
+      { ...ONLY_ONE, tasks: [] },
+      "Tâche de la provision",
+      "provision_task_id",
+      "Sous-projet",
+    ],
+    [
+      "sub-projects",
+      { ...ONLY_ONE, subprojects: [] },
+      "Sous-projet",
+      "provision_subproject_id",
+      "Tâche de la provision",
+    ],
+  ] satisfies [string, ProvisionOptions, string, string, string][])(
+    "opens the form without the field of the %s the session may not read, and sends it without that field",
+    async (_name, options, absent, key, present) => {
+      const client = serve();
+      render(identify(AVAILABLE, options));
+      await userEvent.click(identifyCommand());
+      const form = screen.getByRole("dialog", { name: "Identifier un risque" });
+      expect(within(form).queryByRole("combobox", { name: absent })).toBeNull();
+      expect(within(form).getByRole("combobox", { name: present })).toBeInTheDocument();
+      await fill(form, "Retard de livraison", "40");
+      await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+      await vi.waitFor(() => {
+        expect(client.calls).toHaveLength(1);
+      });
+      const body = written(client) as Record<string, unknown>;
+      expect(body).not.toHaveProperty(key);
+      expect(body).toMatchObject({ label: "Retard de livraison", probability: "0.4" });
     },
   );
 
@@ -322,6 +366,25 @@ describe("« Identifier un risque »", () => {
     },
   );
 
+  it("says the bound of the probability at its field in percentages, the server naming it in the ratio [WF-RIS-0010-A]", async () => {
+    serve({
+      [CREATE]: {
+        problem: example("risk_probability_out_of_range") as Problem & { status: 422 },
+      },
+    });
+    render(identify(AVAILABLE, ONLY_ONE));
+    await userEvent.click(identifyCommand());
+    const form = screen.getByRole("dialog", { name: "Identifier un risque" });
+    await fill(form, "Retard de livraison", "120");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    const probability = await within(form).findByRole("textbox", { name: "Probabilité (%)" });
+    await vi.waitFor(() => {
+      expect(probability).toHaveAccessibleDescription(/100/);
+    });
+    expect(probability).not.toHaveAccessibleDescription(/\b1\b/);
+    expect(probability).toHaveFocus();
+  });
+
   it("says at their fields the category and the sub-project the server refuses, and gives the focus to the first", async () => {
     serve({
       [CREATE]: { problem: example("risk_provision_refused") as Problem & { status: 422 } },
@@ -346,59 +409,73 @@ describe("« Identifier un risque »", () => {
     );
   });
 
-  it("keeps the command waiting while a write of the dialog closed is under way, tells the risk declared once answered, and leads nowhere (défaut n° 24)", async () => {
-    const { timing, release } = held();
-    const client = serve({}, timing);
-    render(identify(AVAILABLE, ONLY_ONE));
-    await userEvent.click(identifyCommand());
-    const form = screen.getByRole("dialog", { name: "Identifier un risque" });
-    await fill(form, "Retard de livraison", "40");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    await vi.waitFor(() => {
-      expect(client.calls).toHaveLength(1);
-    });
-    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
-    await vi.waitFor(() => {
-      expect(screen.queryByRole("dialog")).toBeNull();
-    });
-    // Opened anew, the form would send a second declaration of the same risk: the command waits.
-    expect(identifyCommand()).toHaveFocus();
-    expect(identifyCommand()).toHaveAttribute("aria-disabled", "true");
-    expect(identifyCommand()).toHaveAttribute("aria-busy", "true");
-    expect(identifyCommand()).toHaveAccessibleDescription("Enregistrement en cours…");
-    await userEvent.click(identifyCommand());
-    expect(screen.queryByRole("dialog")).toBeNull();
-    release();
-    await vi.waitFor(() => {
-      expect(announced()).toContain("Risque « Indisponibilité de la grue de levage » identifié.");
-    });
-    // The user closed the form: the answer does not take him away.
-    expect(router.push).not.toHaveBeenCalled();
-    await vi.waitFor(() => {
-      expect(identifyCommand()).not.toHaveAttribute("aria-disabled");
-    });
-  });
+  const CLOSED = [
+    [
+      "tells the risk declared once answered, and leads nowhere",
+      "success",
+      /Risque « Indisponibilité de la grue de levage » identifié\./,
+    ],
+    [
+      "tells the service out of reach once the action is rejected",
+      "rejected",
+      /Le service est injoignable/,
+    ],
+    [
+      "tells the condition the server finds unmet once it refuses",
+      "refused",
+      /Condition non remplie\s: au moins une tâche\./,
+    ],
+  ] satisfies [string, "success" | "rejected" | "refused", RegExp][];
 
-  it("frees the command, and tells the service out of reach, when the write of the dialog closed is rejected", async () => {
-    const { timing, until, release } = held();
-    failing.until = until;
-    serve({}, timing);
-    render(identify(AVAILABLE, ONLY_ONE));
-    await userEvent.click(identifyCommand());
-    const form = screen.getByRole("dialog", { name: "Identifier un risque" });
-    await fill(form, "Retard de livraison", "40");
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
-    await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
-    expect(identifyCommand()).toHaveAttribute("aria-disabled", "true");
-    release();
-    expect(await screen.findByText(/Le service est injoignable/)).toBeInTheDocument();
-    await vi.waitFor(() => {
-      expect(identifyCommand()).not.toHaveAttribute("aria-disabled");
-    });
-    expect(router.push).not.toHaveBeenCalled();
-    await userEvent.click(identifyCommand());
-    expect(screen.getByRole("dialog", { name: "Identifier un risque" })).toBeVisible();
-  });
+  it.each(CLOSED)(
+    "keeps the command waiting while a write of the dialog closed is under way, %s, then frees it (défaut n° 24)",
+    async (_name, kind, said) => {
+      const { timing, until, release } = held();
+      if (kind === "rejected") {
+        failing.until = until;
+      }
+      const client = serve(
+        kind === "refused"
+          ? { [CREATE]: { problem: example("risk_without_task") as Problem & { status: 409 } } }
+          : {},
+        timing,
+      );
+      render(identify(AVAILABLE, ONLY_ONE));
+      await userEvent.click(identifyCommand());
+      const form = screen.getByRole("dialog", { name: "Identifier un risque" });
+      await fill(form, "Retard de livraison", "40");
+      await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+      if (kind !== "rejected") {
+        await vi.waitFor(() => {
+          expect(client.calls).toHaveLength(1);
+        });
+      }
+      await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      await vi.waitFor(() => {
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+      // Opened anew, the form would send a second declaration of the same risk: the command waits.
+      expect(identifyCommand()).toHaveFocus();
+      expect(identifyCommand()).toHaveAttribute("aria-disabled", "true");
+      expect(identifyCommand()).toHaveAttribute("aria-busy", "true");
+      expect(identifyCommand()).toHaveAccessibleDescription("Enregistrement en cours…");
+      await userEvent.click(identifyCommand());
+      expect(screen.queryByRole("dialog")).toBeNull();
+      release();
+      expect(await screen.findByText(said)).toBeInTheDocument();
+      // The user closed the form: the answer does not take him away, nor does it open it again.
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(router.push).not.toHaveBeenCalled();
+      await vi.waitFor(() => {
+        expect(identifyCommand()).not.toHaveAttribute("aria-disabled");
+      });
+      expect(identifyCommand()).not.toHaveAttribute("aria-busy", "true");
+      if (kind !== "success") {
+        await userEvent.click(identifyCommand());
+        expect(screen.getByRole("dialog", { name: "Identifier un risque" })).toBeVisible();
+      }
+    },
+  );
 
   it("tells the service out of reach under the form open, which stays open with its entry", async () => {
     const { until, release } = held();

@@ -12,6 +12,7 @@ import {
   readContext,
   rememberedAddress,
 } from "./context";
+import { STRUCTURE_PARAMETER } from "@/components/context/structure";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -99,6 +100,28 @@ describe("the reading context", () => {
     );
     expect(rememberedAddress(`${LIFECYCLE}?revision_id=../x`)).toBe(LIFECYCLE);
     expect(rememberedAddress(`/projects/${PROJECT}`)).toBe(`/projects/${PROJECT}`);
+  });
+
+  it("keeps the structure a planning or an estimate reads, and no other screen's", () => {
+    const structure = "01926f3a-7c00-7000-8000-000000000a01";
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    expect(rememberedAddress(`${planning}?structure=${structure}`)).toBe(
+      `${planning}?structure=${structure}`,
+    );
+    expect(rememberedAddress(`${REMAINING}?structure=${structure}`)).toBe(REMAINING);
+    const context = readContext(planning, new URLSearchParams({ structure }));
+    expect(context && contextAddress(planning, context)).toBe(`${planning}?structure=${structure}`);
+  });
+
+  it("names the structure parameter as the grids do", () => {
+    expect(STRUCTURE_PARAMETER).toBe("structure");
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    const structure = "01926f3a-7c00-7000-8000-000000000a01";
+    expect(
+      readContext(planning, new URLSearchParams({ [STRUCTURE_PARAMETER]: structure })),
+    ).toMatchObject({
+      structure,
+    });
   });
 
   it.each([

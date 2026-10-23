@@ -3759,7 +3759,13 @@ class PastePreview(ContractModel):
 
 
 class PasteRejection(ContractModel):
-    row: Annotated[int, Field(description="La ligne du bloc refusée, comptée de zéro.", ge=0)]
+    row: Annotated[
+        int,
+        Field(
+            description="La ligne du bloc refusée, comptée de zéro. C'est une ligne du bloc, jamais un nœud : sur un différentiel, les nœuds retirés que le collage saute ne la décalent pas, et aucun refus ne les nomme (`PastePreview`, #1278).",
+            ge=0,
+        ),
+    ]
     column: Annotated[
         NodeColumn | None,
         Field(
@@ -3773,7 +3779,11 @@ class PasteRejection(ContractModel):
 class PastePlan(ContractModel):
     paste_id: Uuid
     accepted: Annotated[
-        int, Field(description="Le nombre de lignes du bloc que la confirmation écrira.", ge=0)
+        int,
+        Field(
+            description="Le nombre de lignes du bloc que la confirmation écrira. Sur un différentiel, un nœud retiré que le collage saute n'y est pas compté, et n'est pas refusé non plus : chaque ligne du bloc écrit le nœud suivant qui n'est pas retiré (`PastePreview`, #1278).",
+            ge=0,
+        ),
     ]
     rejected: Annotated[
         list[PasteRejection],
@@ -4394,7 +4404,9 @@ class RiskWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     mitigation_notes: str | None = None
-    probability: Percent
+    probability: Annotated[
+        Percent, Field(description="De `0` à `1` inclus, un rapport (WF-RIS-0010).")
+    ]
     provision_cost_category_id: Annotated[
         Uuid | None,
         Field(

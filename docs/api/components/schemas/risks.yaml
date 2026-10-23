@@ -216,7 +216,9 @@ RiskWrite:
       anyOf: [{ type: string }, { type: 'null' }]
     mitigation_notes:
       anyOf: [{ type: string }, { type: 'null' }]
-    probability: { $ref: ../common.yaml#/Percent }
+    probability:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: De `0` à `1` inclus, un rapport (WF-RIS-0010).
     provision_cost_category_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-

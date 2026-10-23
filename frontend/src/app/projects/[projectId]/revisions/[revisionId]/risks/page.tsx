@@ -204,37 +204,46 @@ export default async function RisksPage({
     (kept) => kept?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
   );
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
-  const [reading, risks, coverage, matrix, detail, preferences, query] = await Promise.all([
-    // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
-    readProjectContext(at.pathname, at.context, []),
-    readRisks(at, states, asked),
-    readCoverage(at),
-    readMatrix(at),
-    readDetail(at, readRisk(at.address)),
-    settings,
-    asked,
-  ]);
-  if (reading === "not_found") {
+  // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
+  const reading = readProjectContext(at.pathname, at.context, []);
+  // « Identifier un risque » as the revision lists `declare_risk`, and the modification of the risk
+  // shown, as it lists `update`: the choices of the provision are read as soon as the revision and
+  // the risk are, beside the other reads, when either command is available.
+  const declare = reading.then((read) =>
+    read === "not_found" || read.revision === undefined
+      ? undefined
+      : findOffer(read.revision.available_commands, "declare_risk"),
+  );
+  const shown = readDetail(at, readRisk(at.address));
+  const options = Promise.all([declare, shown]).then(([offer, read]) =>
+    offer?.is_available === true ||
+    findOffer(read?.risk.available_commands ?? [], "update")?.is_available === true
+      ? readProvisionOptions(at.revision.projectId, at.revision.revisionId)
+      : undefined,
+  );
+  const [read, risks, coverage, matrix, detail, preferences, query, offer, choices, kept] =
+    await Promise.all([
+      reading,
+      readRisks(at, states, asked),
+      readCoverage(at),
+      readMatrix(at),
+      shown,
+      settings,
+      asked,
+      declare,
+      options,
+      session,
+    ]);
+  if (read === "not_found") {
     notFound();
   }
-  // « Identifier un risque » as the revision lists `declare_risk`, and the modification of the risk
-  // shown, as it lists `update`: the choices of the provision are read when either is available.
-  const declare =
-    reading.revision === undefined
-      ? undefined
-      : findOffer(reading.revision.available_commands, "declare_risk");
-  const modifiable = findOffer(detail?.risk.available_commands ?? [], "update")?.is_available;
-  const options =
-    declare?.is_available === true || modifiable === true
-      ? await readProvisionOptions(at.revision.projectId, at.revision.revisionId)
-      : undefined;
   // The own estimate of a risk opens in the estimate of the revision, for a session that reads it.
-  const estimate = (await session)?.permissions.includes("estimate.read")
+  const estimate = kept?.permissions.includes("estimate.read")
     ? functionHref(functionOf("estimate"), at.context)
     : undefined;
   return (
     <>
-      <ContextBanner reading={reading} />
+      <ContextBanner reading={read} />
       {/* The filter, the grid and the links compose the changes they make to the address. */}
       <PendingAddress>
         <Screen density={FUNCTION_DENSITY.risks} fillWide>
@@ -243,8 +252,8 @@ export default async function RisksPage({
             actions={
               <IdentifyRisk
                 projectId={at.revision.projectId}
-                offer={declare}
-                options={options}
+                offer={offer}
+                options={choices}
                 estimate={estimate}
               />
             }
@@ -257,7 +266,7 @@ export default async function RisksPage({
             <RiskStateFilter states={states} />
           </div>
           <RiskMatrixSection
-            reading={reading}
+            reading={read}
             matrix={matrix}
             states={states}
             computedAt={coverage.context.computed_at}

@@ -8,13 +8,13 @@
  * the provision line (`listNodes`). Read on the server when the screen offers a form, and handed to
  * it as data: an identifier and a label for each choice, in the order the API gives them.
  *
- * A session that may not read the reference data (403) is offered no category: the form does not ask
- * for one, and the server, which judges the declaration, says what the risk lacks.
+ * A session that may not read one of these (403) is offered none of them: the form does not ask for
+ * it, and the server, which judges the declaration, says what the risk lacks.
  */
 import "server-only";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
-import { readOrFail, UnexpectedAnswer } from "@/api/problem";
+import { readOrFail, readUnlessRefused, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { askSubprojects } from "@/components/context/reading";
 
@@ -47,7 +47,7 @@ async function readTasks(
   if (main === undefined) {
     throw new UnexpectedAnswer("listCostStructures", 200);
   }
-  const nodes = await readOrFail("listNodes", () =>
+  const nodes = await readUnlessRefused("listNodes", [{ status: 403 }], () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
       params: {
         path: { ...path, structure_id: main.structure_id },
@@ -56,7 +56,7 @@ async function readTasks(
     }),
   );
   // The fake back ignores the filter of the kinds: the tasks are kept once more.
-  return nodes.items.flatMap(({ node_id: id, kind, task }) =>
+  return (nodes?.items ?? []).flatMap(({ node_id: id, kind, task }) =>
     kind === "task" && task !== undefined && task !== null ? [{ id, label: task.label }] : [],
   );
 }
@@ -68,12 +68,12 @@ export async function readProvisionOptions(
 ): Promise<ProvisionOptions> {
   const [categories, subprojects, tasks] = await Promise.all([
     readCategories(),
-    readOrFail("listSubprojects", () => askSubprojects(projectId)),
+    readUnlessRefused("listSubprojects", [{ status: 403 }], () => askSubprojects(projectId)),
     readTasks(projectId, revisionId),
   ]);
   return {
     categories,
-    subprojects: subprojects.map(({ subproject_id: id, label }) => ({ id, label })),
+    subprojects: (subprojects ?? []).map(({ subproject_id: id, label }) => ({ id, label })),
     tasks,
   };
 }

@@ -6929,6 +6929,28 @@ la hiérarchie, les subordonnées avant la récapitulative ; `params.cycle` le d
 résumés de `nodes_summaries` et de `startable_tasks_milestone` s'ouvrent par « Variante
 contrefactuelle » : la seconde est une lecture contrefactuelle, et non la suite d'une écriture.
 
+**Un collage saute les nœuds qu'un différentiel retire** (décision de l'auteur du 2026-10-22,
+#1278 ; US-0510). La lecture d'un différentiel rend ses nœuds retirés à leur place, en lecture
+seule (`NodeDifference`), et `PastePreview` voulait que chaque ligne du bloc écrive « la ligne de la
+grille à la même distance sous le nœud visé » : un bloc qui couvrait une ligne retirée serait tombé
+sur un nœud que rien n'écrit. Un tel bloc saute les nœuds retirés et remplit les suivants, sans
+refus : chaque ligne du bloc écrit le nœud suivant qui n'est pas retiré, et `PastePlan.accepted`
+comme `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds sautés. `previewPaste`,
+`applyPaste` et `PastePreview` le disent, et `PastePlan.accepted` comme `PasteRejection.row` y
+renvoient. Deux exemples engendrés par `wftools.mockamendmentwrites`, sur l'avenant 2 (structure
+203), le montrent : un bloc de deux lignes collé sur le libellé du « Câblage sur site » (nœud 1263),
+la ligne qui précède l'« Assistance aux essais de câblage » que l'avenant retire (1264), aperçu
+(`paste_plan_amendment_skipping`, deux lignes acceptées, aucun refus, collage 995) puis appliqué
+(`paste_applied_amendment_skipping`) : le câblage passe à deux ingénieurs, et la seconde ligne,
+sautant la ligne retirée, renomme les « Essais sur site » que l'avenant ajoute (1291) ; les deux
+nœuds écrits à leur version 2, le compteur du différentiel à 3, comme toute écriture qui suit sa
+lecture (#421). C'est le seul endroit de `nodes_amendment` où une ligne retirée en précède d'autres.
+`wftools.mockamendmentwrites.paste_targets` écarte désormais les nœuds retirés ; le bloc des
+parcours, sur les lignes 7 à 9, n'en couvre aucun, et son exemple ne change pas. Ce que devient un
+collage dont la cellule visée est elle-même sur un nœud retiré, qui ne nomme aucun champ
+(`editable_fields` vide), n'est pas tranché ici. Écarté : un refus de la ligne du bloc tombée sur un
+nœud retiré, que la décision écarte.
+
 ## La déclaration d'un risque désigne la tâche de sa provision, et les saisies du risque ont leurs exemples (EP-15/US-0520)
 
 **La tâche de la provision se désigne** (partie K5 de la conception d'EP-15, #786 ; US-0520/L1).
@@ -6985,6 +7007,11 @@ hors de cette partie, tranchés par l'auteur le 2026-10-21 (#1227) et portés pa
   réexamen.
 - `risk_provision_task_refused` (422) : une provision désignée sur la « Reprise des essais de
   câblage », que seul l'avenant 2 porte (corrélation 1193).
+- `risk_probability_out_of_range` (422) : une probabilité de 120, un pourcentage envoyé pour un
+  rapport, refusée sur `/probability` par `VALUE_OUT_OF_RANGE`, `params.maximum` à `1`
+  (corrélation 1306). Celui-là est écrit à la main, hors de `paths.toml` : un refus statique, que
+  rien du témoin ne fait varier, comme `project_rates_out_of_range`. Le front s'en sert pour dire
+  la borne en pourcentage ; le schéma la dit sur `RiskWrite.probability`.
 
 Le résumé de `risk_created` s'ouvre par « Variante contrefactuelle », comme le veut la convention
 de #1196 (#1228).
@@ -7112,7 +7139,8 @@ ses exemples : le back ne sert pas encore `moveNodes`.
 **Les corrélations écrites à la main ouvrent une nouvelle plage** (#1228). La famille
 « corrélations, suite » (1010-1199) étant presque épuisée, « corrélations, seconde suite »
 (1300-1599, `wftools.mockids`) la prolonge après les nœuds de l'avenant 2 ; les exemples de ce lot
-l'emploient, de 1300 à 1304.
+l'emploient, de 1300 à 1304. Les suivantes la prennent après eux : 1305 pour
+`task_hours_beyond_day` (US-0470/L2), 1306 pour `risk_probability_out_of_range` (US-0520/L2).
 
 ## Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550)
 

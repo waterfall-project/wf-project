@@ -1,0 +1,9 @@
+{
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), un bloc de deux lignes et quatre colonnes — libellé, catégorie, rôle, quantité — collé sur le libellé de « Câblage sur site », la ligne qui précède « Assistance aux essais de câblage », que l'avenant retire et que la grille montre à sa place, en lecture seule : la première ligne du bloc écrit « Câblage sur site » ; la seconde saute la ligne retirée, sans refus, et écrit le nœud suivant, la tâche « Essais sur site » que l'avenant ajoute, qui ne prend que son libellé, ses trois cellules vides n'écrivant rien. Les 2 lignes seront écrites, aucune n'est refusée ; rien n'est encore écrit (WF-IHM-0050, #1278).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "paste_id": "01926f3a-7c00-7000-8000-000000000995",
+    "accepted": 2,
+    "rejected": []
+  }
+}

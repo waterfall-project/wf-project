@@ -162,6 +162,7 @@ def test_the_contract_holds_the_code_of_a_signal_to_the_one_signal_there_is() ->
     text = (REPOSITORY / "docs/api/components/schemas/exchanges.yaml").read_text(encoding="utf-8")
     code = yaml.safe_load(text)["ImportSignal"]["properties"]["code"]
     assert {"const": mocknonworking.CODE} in code["allOf"]
+    assert {"$ref": "../common.yaml#/ErrorCode"} in code["allOf"]
 
 
 def test_the_calendars_of_the_file_are_ignored_and_named() -> None:
