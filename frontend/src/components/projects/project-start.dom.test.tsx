@@ -26,7 +26,7 @@ import {
 import { GeneratePlanning } from "./generate-planning";
 import { ProjectStart } from "./project-start";
 import { keepFolded } from "./start-fold";
-import { startOffers } from "./start-offers";
+import { OPENED_REVISION, startOffers } from "./start-offers";
 
 // The server of Next, as far as the encart needs it: the fake back behind serverClient, and the
 // router that leads the screen.
@@ -50,6 +50,7 @@ const BREAKDOWN = `${START}/settings?start=skeleton`;
 const PLANNING = `${START}/revisions/${REVISION}/planning`;
 const UPLOAD = "POST /file-uploads";
 const OPEN = "POST /projects/{project_id}/imports";
+const CREATE = "POST /projects/{project_id}/revisions";
 const SKELETON = "POST /projects/{project_id}/revisions/{revision_id}/skeleton";
 const TASK = "GET /tasks/{task_id}";
 
@@ -121,6 +122,53 @@ describe("what the page offers to start the planning", () => {
     expect(
       startOffers(example("project") as Project, example("revision_reader") as Revision),
     ).toBeUndefined();
+  });
+});
+
+describe("what the page offers on a project without revision", () => {
+  it("offers the skeleton and the import on the project created, as the project lists them [WF-PRJ-0030-A]", () => {
+    expect(startOffers(example("project_created") as Project, undefined)).toMatchObject({
+      skeleton: { command: "generate_skeleton", is_available: true },
+      planningImport: { is_available: true },
+    });
+  });
+
+  it("offers the skeleton on the project in pricing, without a marked revision [WF-PRJ-0030-A]", () => {
+    expect(startOffers(example("project_pricing") as Project, undefined)).toMatchObject({
+      skeleton: { is_available: true },
+    });
+  });
+
+  it("offers nothing when the project lists the skeleton unavailable, the last marked revision bearing tasks [WF-PRJ-0030-A]", () => {
+    const project = example("project_without_current_revision") as Project;
+    const listed = project.available_commands.find((c) => c.command === "generate_skeleton");
+    expect(listed).toMatchObject({ is_available: false });
+    expect(listed?.missing_conditions).toContain("main_structure_without_tasks");
+    expect(startOffers(project, undefined)).toBeUndefined();
+  });
+
+  it("offers nothing to the estimator, who may not modify the planning and whom the project does not list it to [WF-PRJ-0030-A]", () => {
+    const project = example("project_pricing_estimator") as Project;
+    expect(project.available_commands.map((c) => c.command)).not.toContain("generate_skeleton");
+    expect(startOffers(project, undefined)).toBeUndefined();
+  });
+
+  it("shows the encart of the project created, its first choice leading to the work breakdown [WF-PRJ-0030-A]", () => {
+    serve({});
+    const offers = startOffers(example("project_created") as Project, undefined);
+    if (offers === undefined) {
+      throw new Error("the encart is not offered");
+    }
+    open(
+      <ProjectStart projectId={PROJECT} offers={offers} breakdownHref={BREAKDOWN} start={START} />,
+    );
+    const section = screen.getByRole("region", { name: "Démarrer le projet" });
+    expect(
+      within(section).getByRole("link", { name: "Planning automatique depuis le lotissement" }),
+    ).toHaveAttribute("href", BREAKDOWN);
+    expect(
+      within(section).getByRole("button", { name: "Importer un fichier MS Project" }),
+    ).toBeVisible();
   });
 });
 
@@ -454,5 +502,108 @@ describe("« Engendrer le planning »", () => {
     await userEvent.click(command);
     expect(client.calls).toEqual([]);
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("« Engendrer le planning » on a project without revision", () => {
+  const OPENED_PLANNING = `${START}/revisions/${OPENED_REVISION}/planning`;
+
+  /** The command, as the project created lists it: it opens the revision, then generates. */
+  function generate() {
+    const offers = startOffers(example("project_created") as Project, undefined);
+    if (offers === undefined) {
+      throw new Error("the project does not list the skeleton");
+    }
+    return (
+      <GeneratePlanning
+        key={PROJECT}
+        projectId={PROJECT}
+        revisionId={undefined}
+        offer={offers.skeleton}
+        planningHref={OPENED_PLANNING}
+      />
+    );
+  }
+
+  it("opens the revision with the rates kept, generates on the one it is given, and leads to its grid [WF-PRJ-0030-A]", async () => {
+    const client = serve({
+      [CREATE]: { example: "revision_created", status: 201 },
+      [SKELETON]: { example: "skeleton_generated", status: 201 },
+    });
+    open(generate());
+    await userEvent.click(screen.getByRole("button", { name: "Engendrer le planning" }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(PLANNING);
+    });
+    expect(client.calls.map((call) => call.route)).toEqual([CREATE, SKELETON]);
+    expect(client.calls[0]?.body).toEqual({ apply_rate_update: false });
+    expect(client.calls[1]?.path).toBe(`${START}/revisions/${REVISION}/skeleton`);
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("reads the page anew when the generation is refused, the revision staying open, and keeps the focus on the command [WF-PRJ-0030-A]", async () => {
+    serve({
+      [CREATE]: { example: "revision_created", status: 201 },
+      [SKELETON]: {
+        problem: {
+          ...(example("skeleton_structure_not_empty") as components["schemas"]["Problem"]),
+          status: 409 as const,
+        },
+      },
+    });
+    open(generate());
+    const command = screen.getByRole("button", { name: "Engendrer le planning" });
+    await userEvent.click(command);
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeVisible();
+    });
+    expect(router.refresh).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Engendrer le planning" })).toBe(command);
+    expect(command).toHaveFocus();
+  });
+
+  it("reads the page anew after a conflict of the opening, generates nothing, and tells it [WF-PRJ-0030-A]", async () => {
+    const client = serve({
+      [CREATE]: {
+        problem: {
+          code: "STATE_FORBIDS_OPERATION",
+          status: 409 as const,
+          params: { missing_condition: "no_current_revision" },
+        },
+      },
+    });
+    open(generate());
+    await userEvent.click(screen.getByRole("button", { name: "Engendrer le planning" }));
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(client.calls.map((call) => call.route)).toEqual([CREATE]);
+    expect(router.refresh).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("does not lead anywhere when the answer comes once the screen is left [WF-PRJ-0030-A]", async () => {
+    const hold = held();
+    const client = serve(
+      {
+        [CREATE]: { example: "revision_created", status: 201 },
+        [SKELETON]: { example: "skeleton_generated", status: 201 },
+      },
+      hold.timing,
+    );
+    const { unmount } = open(generate());
+    await userEvent.click(screen.getByRole("button", { name: "Engendrer le planning" }));
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    unmount();
+    hold.release();
+    await waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toContain(SKELETON);
+    });
+    await act(async () => {
+      await hold.until;
+    });
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 });

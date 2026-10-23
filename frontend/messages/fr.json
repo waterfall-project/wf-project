@@ -2293,6 +2293,7 @@
       "manage_contributors": "Gérer les contributeurs",
       "manage_timelines": "Gérer les chronologies",
       "create_revision": "Créer une révision",
+      "generate_skeleton": "Engendrer le squelette de planning",
       "complete": "Terminer le projet",
       "lose": "Déclarer le projet perdu",
       "abandon": "Abandonner le projet",

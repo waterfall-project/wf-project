@@ -860,8 +860,10 @@ montre tout le cycle, de la création à la réalisation.
   catégorie. » : la commande est offerte depuis la révision en cours ; le rechiffrage est du
   service — EP-07.
 - propre à l'US : la page du projet porte l'encart « Démarrer le projet » tant que la structure
-  principale de la révision en cours n'a aucune tâche, pour qui peut modifier le planning, avec trois
-  choix : « Planning automatique depuis le lotissement », qui mène à la saisie du lotissement et à
+  principale de la révision en cours n'a aucune tâche, pour qui peut modifier le planning — et
+  aussi dès la création du projet, sur un projet sans révision, où « Engendrer le planning » ouvre
+  la révision puis engendre le squelette (décision de l'auteur du 2026-10-23, #1358, lot
+  US-0490/L4) —, avec trois choix : « Planning automatique depuis le lotissement », qui mène à la saisie du lotissement et à
   « Engendrer le planning » ; « Importer un fichier MS Project », une zone de dépôt accessible qui
   réemploie l'import de FBS-4.3.4 ; « Plus tard », qui replie l'encart pour la session ;
 - propre à l'US : « Abandonner la révision en cours » demande une confirmation qui dit que le projet
@@ -874,7 +876,8 @@ montre tout le cycle, de la création à la réalisation.
 **Notes de réalisation.** La spécification corrigée dit l'abandon hors de l'annulation (C-363,
 WF-IHM-0110) et la mise à jour refusée acceptable ensuite (C-362, WF-REV-0060). L'encart lit sa
 condition au serveur — la structure vide, et la révision qui liste `generate_skeleton` ou l'import
-du planning — et ne déduit rien (#1058). Les libellés du lotissement sont ceux d'US-0450.
+du planning, ou, sans révision, le projet qui liste `generate_skeleton` — et ne déduit rien (#1058,
+#1358). Les libellés du lotissement sont ceux d'US-0450.
 
 ## US-0500 — Lire la structure choisie, voir un différentiel comme un diff
 

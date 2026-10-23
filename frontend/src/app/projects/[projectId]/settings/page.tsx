@@ -42,6 +42,7 @@ import { estimatedRevision } from "@/components/projects/estimate-lead";
 import { GeneratePlanning } from "@/components/projects/generate-planning";
 import { ProjectIdentity } from "@/components/projects/project-form";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
+import { OPENED_REVISION } from "@/components/projects/start-offers";
 import {
   BREAKDOWN_ADDRESS,
   BREAKDOWN_GRID_KEY,
@@ -191,27 +192,30 @@ async function readWholeBreakdown(
 
 /**
  * What « Engendrer le planning » is given (WF-PRJ-0030): the revision in progress, as it lists
- * `generate_skeleton`, and the grid of its planning where the generation leads. Shown to the user
- * who comes from the encart of the project (`start=skeleton`), whatever the offer says, and to any
- * other as long as the offer is available; none when the revision does not list the skeleton.
+ * `generate_skeleton`, and the grid of its planning where the generation leads — or, for a project
+ * without revision, the generation as the project lists it, which opens the revision first (#1358).
+ * Shown to the user who comes from the encart of the project (`start=skeleton`), whatever the offer
+ * says, and to any other as long as the offer is available; none when nothing lists the skeleton.
  */
 async function readGeneration(read: ProjectReading, fromStart: boolean): Promise<ReactNode> {
   const revision = await readCurrentRevision(read.project);
-  const offer = revision?.available_commands.find(
-    (listed) => listed.command === "generate_skeleton",
-  );
-  if (revision === undefined || offer === undefined || !(fromStart || offer.is_available)) {
+  const offer =
+    revision === undefined
+      ? findOffer(read.project.available_commands, "generate_skeleton")
+      : findOffer(revision.available_commands, "generate_skeleton");
+  if (offer === undefined || !(fromStart || offer.is_available)) {
     return null;
   }
   const planningHref = functionHref(functionOf("planning"), {
     ...read.context,
-    revisionId: revision.revision_id,
+    revisionId: revision?.revision_id ?? OPENED_REVISION,
     revisionInPath: true,
   });
   return planningHref === undefined ? null : (
     <GeneratePlanning
+      key={read.project.project_id}
       projectId={read.project.project_id}
-      revisionId={revision.revision_id}
+      revisionId={revision?.revision_id}
       offer={offer}
       planningHref={planningHref}
     />
