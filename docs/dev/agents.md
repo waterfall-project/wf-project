@@ -11,15 +11,48 @@ foi.
 | Agent | Rôle |
 |---|---|
 | `epic-framer` | cadre un EPIC jusqu'à ses issues : US détaillées, conception, plan de lots |
-| `epic-deliverer` | livre les lots d'un EPIC `en cours`, à partir de leurs issues |
+| `epic-deliverer` | livre un lot d'un EPIC `en cours`, à partir de son issue ; une instance par lot, que le pilote lance |
 | `python-developer`, `typescript-developer` | réalisent un lot, chacun dans son langage ; l'extension Java de Keycloak revient à `python-developer` |
 | `python-developer-opus`, `typescript-developer-opus` | les mêmes, en Opus : `epic-deliverer` les lance d'emblée sur un lot que son issue ou sa conception dit complexe, ou en escalade, une fois par lot ; leur fichier renvoie à celui de l'original, qui seul porte les règles |
 | `python-reviewer`, `typescript-reviewer` | relisent la pull request d'un lot, sans rien modifier |
 
-`epic-framer` et `epic-deliverer` se lancent comme agent principal de la session
-(`claude --agent epic-deliverer`) : l'un pose ses questions à l'utilisateur, l'autre confie
-le travail aux quatre autres, et un sous-agent ne peut faire ni l'un ni l'autre. Les quatre
-autres sont des sous-agents, que l'agent de livraison — ou une personne — appelle.
+`epic-framer` se lance comme agent principal de la session (`claude --agent epic-framer`) :
+il pose ses questions à l'utilisateur, ce qu'un sous-agent ne peut pas faire.
+`epic-deliverer` est un sous-agent du pilote (« Le pilote »), et il confie à son tour le
+travail aux quatre autres ; ses questions passent par l'issue de son lot. Les quatre autres
+sont des sous-agents, que l'agent de livraison — ou une personne — appelle.
+
+## Le pilote
+
+Une série de lots se livre par une session de pilotage, ouverte dans un terminal, qui ne fait
+que lancer les livreurs : elle ne code pas, ne relit pas, ne lit aucun diff et ne fusionne
+rien. Elle tourne en Sonnet, et se relance chaque matin :
+
+```
+claude --model sonnet
+/loop /pilote EP-nn
+```
+
+Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En bref :
+
+- **Un livreur par lot.** Le pilote lance une instance neuve d'`epic-deliverer`, en
+  arrière-plan, pour chaque lot prêt du tableau de suivi, et une nouvelle pour le suivant
+  quand elle a rendu la main. Un livreur qui enchaînait les lots gardait des centaines de
+  milliers de tokens de contexte, que chaque attente de plus de cinq minutes faisait réécrire
+  en entier : la moitié du forfait de la semaine du 2026-10-19.
+- **Deux livreurs au plus en même temps**, sur des lots qui ne partagent aucun fichier et
+  qu'aucune dépendance ne relie, chacun dans son worktree : au-delà, les tests de plusieurs
+  agents saturent la mémoire du poste. Les paliers complets et les parcours de bout en bout ne
+  tournent qu'un à la fois sur le poste : le Makefile les fait attendre leur tour
+  (`HEAVY_LOCK`).
+- **Les questions.** Un livreur ne parle pas à l'utilisateur : une question bloquante devient
+  un commentaire de l'issue du lot, et le lot passe `question` dans le tableau. Le pilote passe
+  à un autre lot. Le jour, de 6 h à 20 h, il prévient l'utilisateur par une notification ; la
+  nuit, de 20 h à 6 h, il ne le dérange pas. L'utilisateur répond dans l'issue, à ses
+  créneaux, de 6 h à 7 h et de 18 h 30 à 20 h.
+- **Un réveil périodique**, toutes les trente minutes environ, même sans livreur rendu :
+  c'est lui qui reprend après une limite d'usage, un livreur planté ou une réponse donnée,
+  sans personne.
 
 ## Ce qui fait foi
 
@@ -98,4 +131,4 @@ Tout agent qui termine un travail rend compte ainsi :
 
 Le compte rendu tient en une quarantaine de lignes : des chemins, des chiffres, des numéros
 d'issues, jamais un diff ni un journal collé. Il revient dans le contexte de l'agent de
-livraison, qui le garde toute la nuit.
+livraison, qui le relit à chaque attente.
