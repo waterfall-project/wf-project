@@ -10,7 +10,16 @@
  * a code it names must be one the table has. The English version is a gap of WF-IHM-0140, until its
  * translation is decided (#1075): nothing is asked of `help/en/` yet.
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -236,6 +245,25 @@ describe("the reading of the help", () => {
     await expect(readHelpPage({ kind: "screen", code: "FBS-4.3" })).rejects.toThrow("FBS-4.3.md");
     await expect(readHelpPage({ kind: "notion", name: "indices" })).rejects.toThrow("indices.md");
     expect((await readHelpPage({ kind: "screen", code: "FBS-1.1" })).kind).toBe("pending");
+  });
+
+  it("fails the index on a page that should be written and is missing or untitled, and does not keep it [WF-IHM-0140-A]", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "waterfall-help-"));
+    folders.push(root);
+    mkdirSync(path.join(root, "help", "fr"), { recursive: true });
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    const fresh = await import("./read");
+    await expect(fresh.helpIndex()).rejects.toThrow("is missing");
+    // The pages are carried, one of them without a title: the failure is the same, and the call
+    // reads again instead of keeping an index with a hole.
+    cpSync(DIRECTORY, path.join(root, "help", "fr"), { recursive: true });
+    writeFileSync(path.join(root, "help", "fr", "FBS-4.1.md"), "no heading\n");
+    await expect(fresh.helpIndex()).rejects.toThrow("FBS-4.1.md has no title");
+    writeFileSync(path.join(root, "help", "fr", "FBS-4.1.md"), "# Révisions\n");
+    expect((await fresh.helpIndex())[0]?.title).toBe("Révisions");
+    vi.unstubAllEnvs();
   });
 
   it("indexes the title of every page written, the screens then the notions [WF-IHM-0140-A]", async () => {

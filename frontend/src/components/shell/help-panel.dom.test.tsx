@@ -3,9 +3,9 @@
 /**
  * The panel of the online help (US-0580): opened from the header of a screen by its button or by F1,
  * it shows the page of the code of the screen, read from the files of the help by the server action
- * as it reads them in production; a link shows another page in the panel, Escape closes it and gives the focus back. The action is
- * spied, so that a page
- * with raw HTML, a failure and a late answer can be served.
+ * as it reads them in production; a link shows another page in the panel, Escape closes it and gives
+ * the focus back. The action is spied, so that a page with raw HTML, a failure and a late answer can
+ * be served.
  */
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -155,6 +155,11 @@ describe("the panel of the help", () => {
     await within(dialog).findAllByRole("heading", { level: 3 });
     const title = within(dialog).getByRole("heading", { name: "Planification" });
     expect(title).toHaveAttribute("lang", "fr");
+    // The body, named by that French title, is French as a whole.
+    expect(within(dialog).getByRole("region", { name: "Planification" })).toHaveAttribute(
+      "lang",
+      "fr",
+    );
     expect(dialog.querySelectorAll('[lang="fr"]').length).toBeGreaterThan(1);
     expect(dialog.querySelector('[lang="fr"] h3')).not.toBeNull();
     // What is the interface's own — the name of the list of parts — is not said French.

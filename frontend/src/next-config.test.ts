@@ -30,7 +30,7 @@
  * `setPreviewData`. The last tests hold it; the key of the server actions is to be set at start by
  * `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the build (#825).
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import type { NextConfig } from "next";
@@ -92,6 +92,15 @@ describe("the build of the front", () => {
   it("traces the standalone server only for the image of production", async () => {
     expect((await loadConfig("1")).output).toBe("standalone");
     expect((await loadConfig(undefined)).output).toBeUndefined();
+  });
+
+  it("carries the files of the help into the standalone output of every route [WF-IHM-0140-A]", async () => {
+    const config = await loadConfig("1");
+    expect(config.outputFileTracingIncludes?.["/**"]).toContain("./help/**/*.md");
+    // The pattern finds the pages of the screens and the notions that the server reads.
+    const found = globSync("./help/**/*.md", { cwd: FRONT });
+    expect(found).toContain(join("help", "fr", "FBS-4.3.md"));
+    expect(found.some((file) => file.startsWith(join("help", "fr", "notions")))).toBe(true);
   });
 
   it("has no env in its configuration, and no source reads a NEXT_PUBLIC_ variable", async () => {

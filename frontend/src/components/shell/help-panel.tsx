@@ -24,7 +24,17 @@
 import { ArrowLeft, CircleHelp, House, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  Component,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 import { readHelp } from "@/api/actions/help";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
@@ -52,6 +62,26 @@ const HelpMarkdown = lazy(async () => {
   const loaded = await import("./help-markdown");
   return { default: loaded.HelpMarkdown };
 });
+
+/**
+ * The boundary of the renderer's chunk: a chunk that does not load (the network, a new deployment)
+ * shows the failed reading in the body of the panel, not the error page of the route in the place
+ * of the screen.
+ */
+class ChunkBoundary extends Component<
+  { readonly failed: ReactNode; readonly children: ReactNode },
+  { readonly error: boolean }
+> {
+  override state = { error: false };
+
+  static getDerivedStateFromError() {
+    return { error: true };
+  }
+
+  override render() {
+    return this.state.error ? this.props.failed : this.props.children;
+  }
+}
 
 /** The sections of a function's screen whose pages are written, each a link to its page. */
 function HelpParts({
@@ -304,6 +334,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
           <div
             role="region"
             aria-label={heading}
+            lang={written?.kind === "written" ? HELP_LANGUAGE : undefined}
             tabIndex={0}
             className="flex-1 overflow-y-auto p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
@@ -318,15 +349,23 @@ function ScreenHelp({ code }: { readonly code: string }) {
             ) : shown.reading.page.kind === "pending" ? (
               <p className="text-sm">{t("help.pending")}</p>
             ) : (
-              <Suspense
-                fallback={
-                  <p role="status" className="text-sm text-muted-foreground">
-                    {t("help.loading")}
+              <ChunkBoundary
+                failed={
+                  <p role="alert" className="text-sm">
+                    {t("help.failed")}
                   </p>
                 }
               >
-                <WrittenPage page={shown.reading.page} index={index} onFollow={follow} />
-              </Suspense>
+                <Suspense
+                  fallback={
+                    <p role="status" className="text-sm text-muted-foreground">
+                      {t("help.loading")}
+                    </p>
+                  }
+                >
+                  <WrittenPage page={shown.reading.page} index={index} onFollow={follow} />
+                </Suspense>
+              </ChunkBoundary>
             )}
           </div>
         </SheetContent>

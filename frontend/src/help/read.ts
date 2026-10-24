@@ -133,11 +133,12 @@ async function readIndex(): Promise<HelpEntry[]> {
     ...HELP_CODES.map((code) => ({ kind: "screen", code }) as const),
     ...(await notionNames()).map((name) => ({ kind: "notion", name }) as const),
   ];
+  // A page that should be written and is missing or untitled fails the index, as it fails its own
+  // reading, so that the process does not keep an index with a hole in it.
   const entries = await Promise.all(
     targets.map(async (target) => {
-      const text = await readText(fileOf(target));
-      const title = text === undefined ? undefined : parseHelp(text)?.title;
-      return title === undefined ? [] : [{ target, title }];
+      const page = await readHelpPage(target);
+      return page.kind === "written" ? [{ target, title: page.title }] : [];
     }),
   );
   return entries.flat();
