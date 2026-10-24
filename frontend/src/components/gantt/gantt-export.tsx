@@ -126,7 +126,7 @@ function useGanttExport(view: GanttView, exporting: GanttExporting): () => void 
       readGanttColours(probes),
       hours ? withNote(image(), t("hoursNote")) : image(),
     );
-    if (refused !== undefined && refused !== "unsupported") {
+    if (refused !== "unsupported") {
       exporting.refuse(refused);
     }
   };

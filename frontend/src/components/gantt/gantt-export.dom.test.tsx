@@ -90,12 +90,12 @@ function recorder(drawn: Drawn): CanvasRenderingContext2D {
 }
 
 /** Render the grid of the planning, its Gantt given the hours of a day and its provenance. */
-function renderPlanning(
+function planningTree(
   hoursPerDay: number | undefined = 8,
   nodes: NodeList = planning,
   project: string = PROJECT,
 ) {
-  const rendered = render(
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PlanningGrid
         nodes={nodes}
@@ -112,8 +112,17 @@ function renderPlanning(
           },
         }}
       />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** Render the grid of the planning, its Gantt given the hours of a day and its provenance. */
+function renderPlanning(
+  hoursPerDay: number | undefined = 8,
+  nodes: NodeList = planning,
+  project: string = PROJECT,
+) {
+  const rendered = render(planningTree(hoursPerDay, nodes, project));
   // The colours of the hatching, as the document would show its tokens.
   const fill = document.querySelector<SVGElement>('[data-probe="day-off"]');
   const mark = document.querySelector<SVGElement>('[data-probe="day-off-mark"]');
@@ -360,14 +369,29 @@ describe("the export of the Gantt", () => {
         node_id: `01926f3a-7c00-7000-8000-${String(index).padStart(12, "0")}`,
       })),
     } as NodeList;
-    renderPlanning(8, many, Array.from({ length: 400 }, () => "projet").join(" "));
+    const rendered = renderPlanning(8, many, Array.from({ length: 400 }, () => "projet").join(" "));
     const button = within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" });
     expect(button).not.toHaveAttribute("aria-disabled", "true");
     await userEvent.click(button);
     expect(canvases.files).toEqual([]);
     const why = "L’image serait trop haute pour le navigateur : pliez des récapitulatives.";
-    expect(await screen.findByRole("status", { name: "" })).toBeInTheDocument();
-    expect(screen.getAllByRole("status").some((region) => region.textContent === why)).toBe(true);
+    const region = (): HTMLElement => {
+      const found = screen.getAllByRole("status").find((one) => one.classList.contains("sr-only"));
+      if (found === undefined) {
+        throw new Error("no region");
+      }
+      return found;
+    };
+    await waitFor(() => {
+      expect(within(region()).getByText(why)).toBeInTheDocument();
+    });
+    // A later export that succeeds clears what was told: the region does not keep a stale refusal.
+    rendered.rerender(planningTree(8, many, "projet"));
+    await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
+    expect(canvases.files).toHaveLength(1);
+    await waitFor(() => {
+      expect(region()).toBeEmptyDOMElement();
+    });
   });
 
   it("walks the hours of a week once for each calendar of the export, not once for each row", () => {

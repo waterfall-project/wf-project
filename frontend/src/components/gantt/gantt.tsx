@@ -141,8 +141,11 @@ export interface GanttExporting {
   readonly overflow: GanttOverflow | undefined;
   /** The probes of its colours, in the document. */
   readonly probes: RefObject<HTMLSpanElement | null>;
-  /** Tell that the image, measured, passed a bound the command had judged it within. */
-  readonly refuse: (overflow: GanttOverflow) => void;
+  /**
+   * Tell that the image, measured, passed a bound the command had judged it within; none, an export
+   * succeeded, and what was told is forgotten.
+   */
+  readonly refuse: (overflow: GanttOverflow | undefined) => void;
 }
 
 /** The bound the last export passed, and how many times one was told: the same one is heard again. */
@@ -191,8 +194,10 @@ function useExporting(
   );
   const probes = useRef<HTMLSpanElement>(null);
   const [refusal, setRefusal] = useState<GanttRefusal | undefined>(undefined);
-  const refuse = useCallback((overflow: GanttOverflow) => {
-    setRefusal((before) => ({ overflow, count: (before?.count ?? 0) + 1 }));
+  const refuse = useCallback((overflow: GanttOverflow | undefined) => {
+    setRefusal((before) =>
+      overflow === undefined ? undefined : { overflow, count: (before?.count ?? 0) + 1 },
+    );
   }, []);
   return exported === undefined
     ? [undefined, null]
