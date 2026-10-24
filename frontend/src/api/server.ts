@@ -11,7 +11,9 @@
  * mode of the fake back, which grants the session the mock-up starts from: a fixed token
  * (`MOCK_TOKEN`). The mode is refused in a production build, except in the end-to-end
  * harness, which builds the front for production to measure it and says so with
- * `WATERFALL_E2E=1`. Nothing else tells the fake back and the real service apart.
+ * `WATERFALL_E2E=1`, and in the public demonstration, which serves the production image against
+ * the fake back and says so with `WATERFALL_DEMO=1` (`deploy/compose/compose.demo.yaml`). Nothing
+ * else tells the fake back and the real service apart.
  * Only the server of Next imports it (§4.3.1): ESLint refuses it in a client component, and
  * `server-only` fails the build of one.
  */
@@ -36,7 +38,11 @@ export function isMockAuthentication(): boolean {
   if (mode !== "mock") {
     throw new Error(`WATERFALL_AUTH must be "mock", or unset: ${mode}`);
   }
-  if (process.env.NODE_ENV === "production" && process.env.WATERFALL_E2E !== "1") {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.WATERFALL_E2E !== "1" &&
+    process.env.WATERFALL_DEMO !== "1"
+  ) {
     throw new Error("WATERFALL_AUTH=mock is refused in production");
   }
   return true;
