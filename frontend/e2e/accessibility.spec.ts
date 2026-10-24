@@ -229,8 +229,8 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
     }
   }
 
-  // The panel of the help, opened by F1 on the planning (US-0580): its page, its links and its
-  // search are audited, and Escape gives the focus back to where it was.
+  // The panel of the help, opened by F1 on the planning (US-0580): its page and its links
+  // are audited, and Escape gives the focus back to where it was.
   if (screen.code === "FBS-4.3") {
     for (const mode of ["light", "dark"] as const) {
       test.describe(`a workstation in ${mode} mode, the help open`, () => {
@@ -248,9 +248,7 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
           await expect(panel.getByRole("heading", { name: "Ses commandes" })).toBeVisible({
             timeout: WORKING,
           });
-          await expect(panel).toContainText(
-            "Tâches dont celle-ci dépend, désignées par leur numéro de ligne.",
-          );
+          await expect(panel).toContainText("La grille est un seul arrêt de tabulation");
           expect(await panel.evaluate((element) => element.contains(document.activeElement))).toBe(
             true,
           );

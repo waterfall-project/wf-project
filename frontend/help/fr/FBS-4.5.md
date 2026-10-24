@@ -33,6 +33,7 @@ Le montant budgété, le réestimé à la revue précédente et le montant rées
 - `Entrée` ou `F2` saisit une cellule, un caractère tapé commence la saisie, `Échap` l’abandonne ; `Tab` valide et passe à la cellule suivante, `Entrée` à la ligne du dessous.
 - Sur un en-tête, `Entrée` ou `Espace` trie les lignes sous chaque tâche, les tâches gardant l’ordre du plan ; l’avancement et la fin ne trient pas. `Maj` et les flèches élargissent ou rétrécissent la colonne.
 - `Alt` et `-` plie la ligne, `Alt` et `+` la déplie, `Alt` et `*` déplie tout.
+- Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`. Les touches de pliage y vont moins loin : `⌥` et `-`, `⌥` et `+` ne répondent que dans un navigateur qui donne la disposition du clavier, et `⌥` et `*` jamais ; dans Safari et Firefox, aucune ne répond, et le menu d’une cellule plie et déplie alors.
 - `F1` ouvre cette aide.
 
 ## Voir aussi

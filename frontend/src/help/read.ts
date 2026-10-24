@@ -25,6 +25,7 @@ import {
   type HelpSection,
   type HelpTarget,
 } from "./help";
+import { NOTIONS_TO_COME, SCREENS_TO_COME } from "./to-come";
 
 /** The directory of the pages of the help in its language. */
 export function helpDirectory(): string {
@@ -80,12 +81,30 @@ async function readText(file: string): Promise<string | undefined> {
   }
 }
 
-/** Read a page of the help: written, cut into its sections, or to come. */
+/** Whether the page is one the lots of the help have yet to write (`to-come.ts`). */
+function isToCome(target: HelpTarget): boolean {
+  return target.kind === "screen"
+    ? SCREENS_TO_COME[target.code] !== undefined
+    : NOTIONS_TO_COME[target.name] !== undefined;
+}
+
+/**
+ * Read a page of the help: written, cut into its sections, or to come. A page that should be
+ * written and whose file is missing or has no title is a failure, not a page to come: a file the
+ * build did not carry must not pass for help still to write.
+ */
 export async function readHelpPage(target: HelpTarget): Promise<HelpPage> {
-  const text = await readText(fileOf(target));
-  const parsed = text === undefined ? undefined : parseHelp(text);
+  const file = fileOf(target);
+  const text = await readText(file);
+  if (text === undefined) {
+    if (isToCome(target)) {
+      return { kind: "pending", target };
+    }
+    throw new Error(`The page of the help ${file} is missing from ${helpDirectory()}.`);
+  }
+  const parsed = parseHelp(text);
   if (parsed === undefined) {
-    return { kind: "pending", target };
+    throw new Error(`The page of the help ${file} has no title.`);
   }
   return { kind: "written", target, ...parsed };
 }
@@ -106,11 +125,10 @@ async function notionNames(): Promise<string[]> {
   }
 }
 
-/**
- * The index of the pages written: the screens in the order of the table,
- * then the notions in the order of their names, each by its title.
- */
-export async function helpIndex(): Promise<HelpEntry[]> {
+/** The index of the pages written, read once by the process: the files do not change under it. */
+let indexed: Promise<HelpEntry[]> | undefined;
+
+async function readIndex(): Promise<HelpEntry[]> {
   const targets: HelpTarget[] = [
     ...HELP_CODES.map((code) => ({ kind: "screen", code }) as const),
     ...(await notionNames()).map((name) => ({ kind: "notion", name }) as const),
@@ -123,4 +141,21 @@ export async function helpIndex(): Promise<HelpEntry[]> {
     }),
   );
   return entries.flat();
+}
+
+/**
+ * The index of the pages written: the screens in the order of the table, then the notions in the
+ * order of their names, each by its title. The panel asks for it at every page it opens, so the
+ * process keeps it, except under `next dev`, where the author changes the pages and reads them
+ * again.
+ */
+export function helpIndex(): Promise<HelpEntry[]> {
+  if (process.env.NODE_ENV === "development") {
+    return readIndex();
+  }
+  indexed ??= readIndex().catch((error: unknown) => {
+    indexed = undefined;
+    throw error;
+  });
+  return indexed;
 }

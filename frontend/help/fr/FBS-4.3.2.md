@@ -31,6 +31,7 @@ Le mode et l’avancement se lisent par une icône nommée ; une tâche du [ch
 - `Alt+Maj` et une flèche déplacent la sélection, comme le glisser de la poignée.
 - `Maj+F10` ou la touche Menu ouvre le menu de la cellule.
 - Les déplacements dans la grille et la saisie sont décrits dans l’aide de la [planification](FBS-4.3.md).
+- Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`.
 
 ## Voir aussi
 

@@ -20,13 +20,13 @@ En tête de l’écran, les commandes de la révision lue, chacune disponible ou
 - **Marquer la révision** demande un nom de version, obligatoire, et une description ; le marquage, confié au traitement de fond, fige la révision et conserve ses indicateurs. Indisponible sur une révision déjà marquée (« révision en cours d’élaboration ») ou pendant un traitement de fond.
 - **Préparer un avenant** crée, sous le libellé donné, un différentiel de la structure principale, qui s’ouvre dans la grille de planning ; rien n’est fusionné avant sa contractualisation, depuis la grille de son différentiel.
 - **Abandonner la révision en cours**, après confirmation : le projet revient à sa dernière révision marquée, et les lignes de la révision en cours sont supprimées. L’abandon est irréversible.
-- **Déclarer un risque** dit si l’identification d’un risque aboutirait ; le risque s’identifie sur l’écran des [risques](FBS-4.6.md).
+- **Déclarer un risque** dit si l’identification d’un risque aboutirait, mais n’ouvre rien sur cet écran : le risque s’identifie sur l’écran des [risques](FBS-4.6.md).
 
 Dans les sections :
 
 - **Ouvrir**, dans l’historique, ouvre la révision : les écrans du projet la lisent alors.
 - **Désigner comme référence**, sur une révision marquée, après confirmation : elle fixe le budget de référence et la valeur planifiée ; le projet qui porte son code projet passe à l’état En cours. Indisponible sur une révision qui ne porte aucune tâche ou aucune ligne de devis, et quand la référence ne se corrige plus — le projet a reçu un coût réel, ou une révision a été marquée depuis la dernière désignation.
-- **Comparer**, entre deux révisions marquées choisies par **De la révision** et **À la révision** : la grille des nœuds comparés marque chaque tâche et chaque ligne ajoutée (`+`), retirée (`-`) ou modifiée (`M`), et les écarts de montants suivent. Il faut deux révisions marquées.
+- **Comparer**, entre deux révisions marquées choisies par **De la révision** et **À la révision** : la grille des nœuds comparés marque chaque tâche et chaque ligne ajoutée (**+**), retirée (**-**) ou modifiée (**M**), et les écarts de montants suivent. Il faut deux révisions marquées.
 - **Appliquer la mise à jour des taux**, pour les catégories retenues, après confirmation : les taux de la révision en cours sont remplacés par les taux proposés, et ses montants rechiffrés. Une proposition, jamais imposée ; offerte là où la révision se saisit au devis.
 
 ## Ses colonnes et ses valeurs calculées

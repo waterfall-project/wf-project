@@ -21,6 +21,7 @@ Le montant budgété est celui que la révision de référence a fixé ; le mo
 - La poignée de la ligne, dans la colonne du numéro : `Espace` la sélectionne, `Maj+↑` et `Maj+↓` étendent la sélection, `Échap` la lève ; `Alt+Maj` et une flèche la déplacent.
 - `Maj+F10` ou la touche Menu ouvre le menu de la cellule.
 - Les déplacements dans la grille, la saisie et le tri sont décrits dans l’aide du [reste à engager](FBS-4.5.md).
+- Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`.
 
 ## Voir aussi
 

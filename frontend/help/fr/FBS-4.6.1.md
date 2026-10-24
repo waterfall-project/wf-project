@@ -21,6 +21,7 @@ La gravité et la provision sont calculées, colonnes entières, et portent Σ e
 - Le registre est un seul arrêt de tabulation : les flèches déplacent la cellule active, `Origine` et `Fin` le long de la ligne, `Ctrl+Origine` et `Ctrl+Fin` à la première et à la dernière ligne.
 - `Entrée` sur le libellé d’un risque ouvre son détail ; sur une cellule calculée, l’explication de sa valeur, que `Échap` ferme.
 - Sur un en-tête, `Entrée` ou `Espace` trie ; `Maj` et les flèches élargissent ou rétrécissent la colonne.
+- Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`.
 
 ## Voir aussi
 

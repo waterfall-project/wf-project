@@ -7,11 +7,13 @@
  * opens (`readHelp`). A screen whose address the table of the functions does not know — the
  * account, a page of the system — offers no help.
  *
- * The page is Markdown, rendered without any raw HTML (`skipHtml`), and only in the elements a page
- * of text needs: an image, a raw block, anything else is dropped. A link to another page of the help
- * — a screen, a notion — shows that page in the panel, without leaving the screen; any other link
- * shows as text. A function's screen leads to the pages of its sections. A page not written yet says
- * that its help is to come.
+ * The page is Markdown (`help-markdown.tsx`, loaded when the panel first shows a page): no raw
+ * HTML, only the elements a page of text needs. A link to another page of the help — a screen, a
+ * notion — shows that page in the panel, without leaving the screen; any other link shows as text.
+ * A function's screen leads to the pages of its sections. A page not written yet says that its help
+ * is to come. The help is in French alone (`HELP_LANGUAGE`): the title and the body of a page say
+ * so (`lang`) in an interface in another language, for a screen reader to speak them as French. The
+ * body, which scrolls, is a region, named like the title, that Tab reaches.
  *
  * The panel is a sheet: a dialog of Radix, named by its title, which holds the focus, closes by
  * Escape and gives the focus back to where it was — the button, or the cell where F1 was pressed. A
@@ -21,18 +23,8 @@
 
 import { ArrowLeft, CircleHelp, House, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
-import {
-  type MouseEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
-import Markdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useLocale, useTranslations } from "next-intl";
+import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { readHelp } from "@/api/actions/help";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
@@ -40,117 +32,26 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   fileOf,
+  HELP_LANGUAGE,
   type HelpEntry,
   type HelpPage,
   type HelpReading,
   type HelpTarget,
   helpCodeAt,
-  linkTarget,
   sameTarget,
   sectionsOf,
 } from "@/help/help";
 
-/** The elements a page of the help is rendered in; any other is dropped, its text kept. */
-const ALLOWED = [
-  "p",
-  "a",
-  "strong",
-  "em",
-  "del",
-  "code",
-  "ul",
-  "ol",
-  "li",
-  "blockquote",
-  "h3",
-  "h4",
-  "table",
-  "thead",
-  "tbody",
-  "tr",
-  "th",
-  "td",
-  "br",
-  "hr",
-];
+import { HelpLink } from "./help-link";
 
-/** The class of a link of the help, which shows another page of it in the panel. */
-const LINK =
-  "rounded-sm text-primary underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-/** A link to another page of the help, followed in the panel. */
-function HelpLink({
-  target,
-  onFollow,
-  children,
-}: {
-  readonly target: HelpTarget;
-  readonly onFollow: (target: HelpTarget) => void;
-  readonly children: ReactNode;
-}) {
-  return (
-    <a
-      href={`#${fileOf(target)}`}
-      className={LINK}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        onFollow(target);
-      }}
-    >
-      {children}
-    </a>
-  );
-}
-
-/** The Markdown of a page of the help, its links resolved from the page it belongs to. */
-function HelpMarkdown({
-  from,
-  text,
-  onFollow,
-}: {
-  readonly from: HelpTarget;
-  readonly text: string;
-  readonly onFollow: (target: HelpTarget) => void;
-}) {
-  const components: Components = {
-    a: ({ href, children }) => {
-      const target = href === undefined ? undefined : linkTarget(from, href);
-      return target === undefined ? (
-        <span>{children}</span>
-      ) : (
-        <HelpLink target={target} onFollow={onFollow}>
-          {children}
-        </HelpLink>
-      );
-    },
-    p: ({ children }) => <p className="leading-relaxed">{children}</p>,
-    ul: ({ children }) => <ul className="list-disc space-y-1 pl-5">{children}</ul>,
-    ol: ({ children }) => <ol className="list-decimal space-y-1 pl-5">{children}</ol>,
-    blockquote: ({ children }) => (
-      <blockquote className="border-l-2 pl-3 text-muted-foreground">{children}</blockquote>
-    ),
-    // A key, or a sequence of keys, is written as code in the Markdown.
-    code: ({ children }) => (
-      <kbd className="rounded border bg-muted px-1 font-sans text-xs">{children}</kbd>
-    ),
-    h3: ({ children }) => <h4 className="font-medium">{children}</h4>,
-    h4: ({ children }) => <h5 className="font-medium">{children}</h5>,
-    table: ({ children }) => <table className="w-full border-collapse">{children}</table>,
-    th: ({ children }) => <th className="border px-2 py-1 text-left font-medium">{children}</th>,
-    td: ({ children }) => <td className="border px-2 py-1 align-top">{children}</td>,
-  };
-  return (
-    <Markdown
-      remarkPlugins={[remarkGfm]}
-      skipHtml
-      allowedElements={ALLOWED}
-      unwrapDisallowed
-      components={components}
-    >
-      {text}
-    </Markdown>
-  );
-}
+/**
+ * The renderer of the Markdown, loaded when the panel first shows a page: `react-markdown` and its
+ * plugins are the weight of the help, which a screen whose help stays closed does not carry.
+ */
+const HelpMarkdown = lazy(async () => {
+  const loaded = await import("./help-markdown");
+  return { default: loaded.HelpMarkdown };
+});
 
 /** The sections of a function's screen whose pages are written, each a link to its page. */
 function HelpParts({
@@ -163,6 +64,8 @@ function HelpParts({
   readonly onFollow: (target: HelpTarget) => void;
 }) {
   const t = useTranslations("help");
+  // The title of the list is the interface's own: it stays out of the French page around it.
+  const locale = useLocale();
   const heading = useId();
   const parts = sectionsOf(code).flatMap((section) =>
     index.filter((entry) => sameTarget(entry.target, { kind: "screen", code: section })),
@@ -171,7 +74,7 @@ function HelpParts({
     return null;
   }
   return (
-    <nav aria-labelledby={heading} className="space-y-1">
+    <nav aria-labelledby={heading} lang={locale} className="space-y-1">
       <h4 id={heading} className="font-medium">
         {t("sections")}
       </h4>
@@ -201,7 +104,7 @@ function WrittenPage({
   const id = useId();
   const { target } = page;
   return (
-    <div className="space-y-5 text-sm">
+    <div lang={HELP_LANGUAGE} className="space-y-5 text-sm">
       {page.intro === "" ? null : (
         <HelpMarkdown from={target} text={page.intro} onFollow={onFollow} />
       )}
@@ -275,8 +178,9 @@ function ScreenHelp({ code }: { readonly code: string }) {
 
   const openScreen = useCallback(() => {
     if (!open) {
-      returnTo.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      // Where F1 was pressed; with nothing focused — the body — the button is where to go back.
+      const active = document.activeElement;
+      returnTo.current = active instanceof HTMLElement && active !== document.body ? active : null;
     }
     toTitle.current = false;
     setOpen(true);
@@ -363,6 +267,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
           <SheetHeader className="flex-row items-center gap-2 border-b">
             <SheetTitle
               ref={title}
+              lang={written?.kind === "written" ? HELP_LANGUAGE : undefined}
               tabIndex={-1}
               className="flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -396,7 +301,12 @@ function ScreenHelp({ code }: { readonly code: string }) {
               </Button>
             </SheetClose>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto p-4">
+          <div
+            role="region"
+            aria-label={heading}
+            tabIndex={0}
+            className="flex-1 overflow-y-auto p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          >
             {shown.kind === "loading" ? (
               <p role="status" className="text-sm text-muted-foreground">
                 {t("help.loading")}
@@ -408,7 +318,15 @@ function ScreenHelp({ code }: { readonly code: string }) {
             ) : shown.reading.page.kind === "pending" ? (
               <p className="text-sm">{t("help.pending")}</p>
             ) : (
-              <WrittenPage page={shown.reading.page} index={index} onFollow={follow} />
+              <Suspense
+                fallback={
+                  <p role="status" className="text-sm text-muted-foreground">
+                    {t("help.loading")}
+                  </p>
+                }
+              >
+                <WrittenPage page={shown.reading.page} index={index} onFollow={follow} />
+              </Suspense>
             )}
           </div>
         </SheetContent>

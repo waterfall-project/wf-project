@@ -3,7 +3,8 @@
 /**
  * The panel of the online help (US-0580): opened from the header of a screen by its button or by F1,
  * it shows the page of the code of the screen, read from the files of the help by the server action
- * as it reads them in production; a link shows another page in the panel,  Escape closes it and gives the focus back. The action is spied, so that a page
+ * as it reads them in production; a link shows another page in the panel, Escape closes it and gives the focus back. The action is
+ * spied, so that a page
  * with raw HTML, a failure and a late answer can be served.
  */
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -40,11 +41,12 @@ beforeEach(() => {
   }
 });
 
-/** The header of a screen, with its help. */
-function renderHeader() {
+/** The header of a screen, with its help, in the language of the interface. */
+function renderHeader(locale: "fr" | "en" = "fr") {
   return render(
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
       <PageHeader title="Planification" />
+      <input aria-label="Ailleurs" />
     </NextIntlClientProvider>,
   );
 }
@@ -78,9 +80,7 @@ describe("the panel of the help", () => {
     const dialog = await panel("Planification");
     expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4.3" });
     expect(
-      within(dialog)
-        .getAllByRole("heading", { level: 3 })
-        .map((h) => h.textContent),
+      (await within(dialog).findAllByRole("heading", { level: 3 })).map((h) => h.textContent),
     ).toEqual([
       "Ce que montre l’écran",
       "Ses commandes",
@@ -93,7 +93,7 @@ describe("the panel of the help", () => {
       within(dialog).getByRole("navigation", { name: "Les parties de l’écran" }),
     ).toHaveTextContent("Grille de planningGantt");
     // A key is written as a key.
-    expect(within(dialog).getAllByText("Ctrl+Z")[0]?.tagName).toBe("KBD");
+    expect((await within(dialog).findAllByText("Ctrl+Z"))[0]?.tagName).toBe("KBD");
   });
 
   it("opens by F1 anywhere on the screen, and closes by Escape, the focus given back [WF-IHM-0140-A]", async () => {
@@ -110,6 +110,74 @@ describe("the panel of the help", () => {
     expect(helpButton()).toHaveFocus();
   });
 
+  it("opens by F1 from any element of the screen, and gives the focus back to it [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    const elsewhere = screen.getByRole("textbox", { name: "Ailleurs" });
+    elsewhere.focus();
+    await user.keyboard("{F1}");
+    await panel("Planification");
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it("gives the focus back to the button when F1 was pressed with nothing focused [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    expect(document.body).toHaveFocus();
+    await user.keyboard("{F1}");
+    await panel("Planification");
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(helpButton()).toHaveFocus();
+  });
+
+  it("ignores F1 with a modifier, which is another command of the browser [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.keyboard("{Control>}{F1}{/Control}");
+    await user.keyboard("{Shift>}{F1}{/Shift}");
+    await user.keyboard("{Alt>}{F1}{/Alt}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(readHelp).not.toHaveBeenCalled();
+  });
+
+  it("says its French pages are French in an interface in English, title and body [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planification");
+    await within(dialog).findAllByRole("heading", { level: 3 });
+    const title = within(dialog).getByRole("heading", { name: "Planification" });
+    expect(title).toHaveAttribute("lang", "fr");
+    expect(dialog.querySelectorAll('[lang="fr"]').length).toBeGreaterThan(1);
+    expect(dialog.querySelector('[lang="fr"] h3')).not.toBeNull();
+    // What is the interface's own — the name of the list of parts — is not said French.
+    expect(
+      within(dialog).getByRole("navigation", { name: "The parts of the screen" }).closest("[lang]"),
+    ).toHaveAttribute("lang", "en");
+    await expectAccessible(dialog);
+  });
+
+  it("puts the body, which scrolls, in the order of the keyboard, named by the title [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await panel("Planification");
+    await within(dialog).findAllByRole("heading", { level: 3 });
+    const body = within(dialog).getByRole("region", { name: "Planification" });
+    expect(body).toHaveAttribute("tabindex", "0");
+    // Tab goes from the title's neighbours — the close button — to the body.
+    within(dialog).getByRole("button", { name: "Fermer l’aide" }).focus();
+    await user.tab();
+    expect(body).toHaveFocus();
+  });
+
   it("is accessible, open: named by its title, its sections and its links named [WF-IHM-0140-A]", async () => {
     const user = userEvent.setup();
     renderHeader();
@@ -123,7 +191,9 @@ describe("the panel of the help", () => {
     renderHeader();
     await user.click(helpButton());
     const dialog = await panel("Planification");
-    await user.click(first(within(dialog).getAllByRole("link", { name: "valeur planifiée" })));
+    await user.click(
+      first(await within(dialog).findAllByRole("link", { name: "valeur planifiée" })),
+    );
     const notion = await panel("La valeur planifiée");
     await waitFor(() => {
       expect(within(notion).getByRole("heading", { name: "La valeur planifiée" })).toHaveFocus();
@@ -140,11 +210,17 @@ describe("the panel of the help", () => {
     renderHeader();
     await user.click(helpButton());
     const dialog = await panel("Planification");
-    await user.click(within(dialog).getByRole("link", { name: "les chronologies" }));
+    // The link is to a page the real files have: the action answers it as a page to come.
+    const target = { kind: "screen", code: "FBS-4.4" } as const;
+    vi.mocked(readHelp).mockResolvedValueOnce({
+      page: { kind: "pending", target },
+      index: [],
+    } satisfies HelpReading);
+    await user.click(first(await within(dialog).findAllByRole("link", { name: "le devis" })));
     await waitFor(() => {
       expect(within(dialog).getByText("L’aide de cette page est à venir.")).toBeInTheDocument();
     });
-    expect(readHelp).toHaveBeenLastCalledWith({ kind: "screen", code: "FBS-4.3.1" });
+    expect(readHelp).toHaveBeenLastCalledWith(target);
   });
 
   it("renders no raw HTML a page would hold, nor an image, nor a link out of the help [WF-IHM-0140-A]", async () => {
@@ -167,9 +243,9 @@ describe("the panel of the help", () => {
     renderHeader();
     await user.click(helpButton());
     const dialog = await panel("Planification");
-    const section = within(dialog)
-      .getByRole("heading", { name: "Ce que montre l’écran" })
-      .closest("section");
+    const section = (
+      await within(dialog).findByRole("heading", { name: "Ce que montre l’écran" })
+    ).closest("section");
     expect(section?.querySelector("b, script, img, div")).toBeNull();
     // The tags are dropped, their text kept inert.
     expect(section).not.toHaveTextContent("<b>");
@@ -194,7 +270,7 @@ describe("the panel of the help", () => {
           }),
       )
       .mockRejectedValueOnce(new Error("out of reach"));
-    await user.click(first(within(dialog).getAllByRole("link", { name: "le devis" })));
+    await user.click(first(await within(dialog).findAllByRole("link", { name: "le devis" })));
     await user.click(helpButtonInPanel(dialog));
     await waitFor(() => {
       expect(within(dialog).getByRole("alert")).toHaveTextContent("L’aide n’a pas pu être lue.");

@@ -4,7 +4,7 @@
 
 La grille de l’écran du [devis](FBS-4.4.md) : les tâches de la structure lue, dans l’ordre du plan, et sous chacune les lignes de devis qu’elle porte, avant ses sous-tâches. Une ligne de main-d’œuvre porte un rôle de ressource, qui fixe sa catégorie, et une charge en heures ; une autre ligne porte une quantité et un débours unitaire. Une ligne de provision, que le serveur tient d’un risque, ne se saisit pas. Les totaux de la réponse sont en pied.
 
-Sur le différentiel d’un avenant, la colonne « Écart » marque chaque ligne : `+` ajoutée, `-` retirée, `M` modifiée ; la couleur double la marque, et une ligne retirée se lit sans se toucher.
+Sur le différentiel d’un avenant, la colonne « Écart » marque chaque ligne : **+** ajoutée, **-** retirée, **M** modifiée ; la couleur double la marque, et une ligne retirée se lit sans se toucher.
 
 ## Ses commandes
 
@@ -25,6 +25,7 @@ La catégorie d’une ligne de main-d’œuvre est celle de son rôle : elle ne
 - La poignée de la ligne, dans la colonne du numéro : `Espace` la sélectionne, `Maj+↑` et `Maj+↓` étendent la sélection, `Échap` la lève ; `Alt+Maj` et une flèche la déplacent, comme le glisser de la poignée à la souris.
 - `Maj+F10` ou la touche Menu ouvre le menu de la cellule.
 - Les déplacements dans la grille, la saisie et le tri sont décrits dans l’aide du [devis](FBS-4.4.md).
+- Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`.
 
 ## Voir aussi
 

@@ -14,7 +14,7 @@
 
 ## Dans Waterfall
 
-Un projet n’a jamais plus d’une révision en cours d’élaboration : c’est elle qui se saisit. Elle s’ouvre sur l’écran des [révisions](../FBS-4.1.md), copie de la dernière révision marquée, ou d’elle-même à la première saisie d’un projet qui n’en a pas. Marquée, elle se fige : ses grilles se lisent sans se saisir, et le bandeau de chaque écran le dit. Les indicateurs d’une révision marquée sont conservés à la date de son marquage.
+Un projet n’a jamais plus d’une révision en cours d’élaboration : c’est elle qui se saisit. La révision suivante n’est créée qu’à la demande — **Ouvrir une révision en cours**, sur l’écran des [révisions](../FBS-4.1.md) —, ou par la première saisie qui l’exige : un import, la saisie d’un risque, sa survenance, la fusion d’un différentiel. La copie de la dernière révision marquée a lieu alors, et non au marquage. Marquée, elle se fige : ses grilles se lisent sans se saisir, et le bandeau de chaque écran le dit. Les indicateurs d’une révision marquée sont conservés à la date de son marquage.
 
 La révision de référence est une révision marquée que l’on désigne : elle fixe le [budget de référence](budget-de-reference.md) et la [valeur planifiée](valeur-planifiee.md). La désignation se corrige tant que le projet n’a reçu aucun coût réel et qu’aucune révision n’a été marquée depuis ; ensuite, seul un avenant contractualisé produit une nouvelle référence.
 

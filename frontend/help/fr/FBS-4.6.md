@@ -37,6 +37,7 @@ La gravité et la provision sont calculées par le serveur : la gravité est le
 - Le registre est un seul arrêt de tabulation : les flèches déplacent la cellule active, `Origine` et `Fin` le long de la ligne, `Page préc.` et `Page suiv.` d’un écran.
 - Sur le libellé d’un risque, `Entrée` ouvre son détail.
 - Sur un en-tête, `Entrée` ou `Espace` trie le registre par la colonne, sauf la case de la matrice ; `Maj` et les flèches élargissent ou rétrécissent la colonne.
+- Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`.
 - `F1` ouvre cette aide.
 
 ## Voir aussi

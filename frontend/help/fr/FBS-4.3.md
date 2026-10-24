@@ -38,6 +38,7 @@ Une colonne dont l’en-tête porte Σ est calculée par le serveur ; une cell
 - `Entrée` ou `F2` saisit une cellule ; un caractère tapé commence la saisie ; `Échap` l’abandonne. Validée, la saisie passe à la cellule suivante : `Tab` le long de la ligne, `Entrée` à la ligne du dessous.
 - Le planning garde l’ordre du plan : aucune colonne ne se trie. Sur un en-tête, `Maj` et les flèches élargissent ou rétrécissent la colonne.
 - `Alt` et `-` plie la ligne, `Alt` et `+` la déplie, `Alt` et `*` déplie tout.
+- Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`. Les touches de pliage y vont moins loin : `⌥` et `-`, `⌥` et `+` ne répondent que dans un navigateur qui donne la disposition du clavier, et `⌥` et `*` jamais ; dans Safari et Firefox, aucune ne répond, et le menu d’une cellule plie et déplie alors.
 - `F1` ouvre cette aide.
 
 ## Voir aussi
