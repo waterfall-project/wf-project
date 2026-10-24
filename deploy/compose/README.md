@@ -331,9 +331,17 @@ logpath  = /var/log/caddy/access.log
 maxretry = 10
 findtime = 10m
 bantime  = 1h
-# Docker publie les ports hors des chaînes INPUT : le bannissement passe par DOCKER-USER.
-chain    = DOCKER-USER
+# Docker publie les ports hors des chaînes INPUT : le bannissement passe par DOCKER-USER, que seule
+# l'action iptables sait viser (celle de Debian 13 par défaut, nftables, ne le fait pas).
+banaction = iptables-multiport
+chain     = DOCKER-USER
+# Debian 13 lit les journaux de systemd par défaut : ici, un fichier.
+backend  = auto
 ```
+
+Sous Debian 13, `ufw`, `fail2ban` et `unattended-upgrades` ne sont pas installés d'office
+(`apt install ufw fail2ban unattended-upgrades`), et Docker se prend dans son dépôt officiel, qui
+apporte `iptables`.
 
 Sur la machine : clés SSH seules, `ufw` ouvert sur 22, 80 et 443 (Docker contourne `ufw` pour ses
 ports publiés : on n'en publie pas d'autres que ceux de Caddy), mises à jour de sécurité
