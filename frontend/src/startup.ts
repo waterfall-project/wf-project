@@ -6,7 +6,7 @@
  * first sign-in only. It stops instead, with the code 1, naming every variable that is missing.
  *
  * Out of the mode of the fake back (`WATERFALL_AUTH=mock`), which is refused here in production as
- * it is at a request (`src/api/server.ts`): the variables of the session (`SESSION_VARIABLES`),
+ * it is at a request, except in the demonstration (`WATERFALL_DEMO=1`, `src/api/server.ts`): the variables of the session (`SESSION_VARIABLES`),
  * and, in production, the address of the API, without which the front would call the fake back of
  * development (`src/api/server.ts`), and the key of the server actions, which Next reads before the
  * one `next build` wrote into the image (`frontend/Dockerfile`), the same for every start and every

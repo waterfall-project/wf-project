@@ -36,6 +36,7 @@ function stubFetch(authorizations: (string | null)[] = []): string[] {
 beforeEach(() => {
   vi.stubEnv("WATERFALL_AUTH", undefined);
   vi.stubEnv("WATERFALL_E2E", undefined);
+  vi.stubEnv("WATERFALL_DEMO", undefined);
   vi.stubEnv("WATERFALL_API_CONNECTIONS", undefined);
 });
 
@@ -124,12 +125,17 @@ describe("the mock authentication", () => {
     expect(sent).toEqual([null, `Bearer ${MOCK_TOKEN}`]);
   });
 
-  it("is refused in production, except for the end-to-end harness", () => {
+  it("is refused in production, except for the end-to-end harness and the demonstration", () => {
     vi.stubEnv("WATERFALL_AUTH", "mock");
     vi.stubEnv("NODE_ENV", "production");
     expect(() => isMockAuthentication()).toThrow("refused in production");
     vi.stubEnv("WATERFALL_E2E", "1");
     expect(isMockAuthentication()).toBe(true);
+    vi.stubEnv("WATERFALL_E2E", undefined);
+    vi.stubEnv("WATERFALL_DEMO", "1");
+    expect(isMockAuthentication()).toBe(true);
+    vi.stubEnv("WATERFALL_DEMO", "true");
+    expect(() => isMockAuthentication()).toThrow("refused in production");
   });
 
   it("refuses a mode that is not mock", () => {

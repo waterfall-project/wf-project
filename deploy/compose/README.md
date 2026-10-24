@@ -264,3 +264,86 @@ connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRI
 il demande à l'API une sauvegarde puis sa restauration, qu'il suit par la sonde de vie jusqu'à
 `ok` — la chaîne la demande, un essai sur un poste peut la laisser de côté ; puis il retire la
 plateforme et ses volumes. Ses secrets viennent de l'environnement, comme `production.env.example` les nomme.
+
+## Déployer la démonstration publique
+
+`compose.demo.yaml` sert une maquette ouverte aux utilisateurs, sans rien de la plateforme
+ci-dessus : l'image de production du front contre le faux back — Prism, qui répond avec les
+exemples du contrat —, derrière Caddy et un mot de passe partagé. Ni Keycloak, ni base, ni Redis :
+`WATERFALL_AUTH=mock` accorde à tout visiteur la même session, et une écriture reçoit sa réponse
+sans être gardée nulle part. L'image de production n'accepte ce mode qu'avec `WATERFALL_DEMO=1`,
+que le fichier pose (`frontend/src/api/server.ts`).
+
+Les fichiers sont `compose.demo.yaml`, `Caddyfile.demo`, `mock.Dockerfile` et `demo.env.example`.
+Seul Caddy publie des ports (80 et 443). Le front et Prism vivent sur un réseau interne, sans accès
+à Internet, et tournent sans privilège, en lecture seule, avec une mémoire bornée.
+
+### Installer
+
+Sur le poste, dans le dépôt, produire le contrat que Prism sert, et le copier avec les fichiers :
+
+```sh
+make mock-spec
+ssh vps 'mkdir -p ~/waterfall-demo'
+scp docs/api/waterfall.mock.json deploy/compose/{compose.demo.yaml,Caddyfile.demo,mock.Dockerfile,demo.env.example} vps:~/waterfall-demo/
+```
+
+Sur la machine, le DNS de `demo.waterfall-project.pro` pointant déjà vers elle (A et AAAA) :
+
+```sh
+cd ~/waterfall-demo
+mv demo.env.example .env && chmod 600 .env
+docker run --rm caddy:2.11.7-alpine caddy hash-password   # le hash va dans .env, entre apostrophes
+openssl rand -base64 32                                    # WATERFALL_SERVER_ACTIONS_KEY
+sudo mkdir -p /var/log/caddy
+docker login ghcr.io                                       # seulement si l'image du front n'est pas publique
+docker compose -f compose.demo.yaml up --detach --build --wait
+```
+
+Le compte partagé est `WATERFALL_DEMO_USER` et le mot de passe dont on a mis le hash. Sans eux,
+Caddy répond 401 à toute requête, hors `/robots.txt`, qui interdit l'indexation.
+
+### Mettre à jour
+
+Un nouveau contrat : refaire `make mock-spec`, copier `waterfall.mock.json`, puis
+`docker compose -f compose.demo.yaml restart mock`. Une nouvelle image du front : changer
+`WATERFALL_IMAGE_TAG` dans `.env`, puis `docker compose -f compose.demo.yaml up --detach --wait`.
+Changer le mot de passe : un nouveau hash dans `.env`, puis `up --detach` recrée Caddy.
+
+### Ouvrir la démonstration au public
+
+Le mot de passe est comparé en bcrypt, ce qui ralentit chaque essai, mais rien ne limite leur
+nombre. Caddy écrit chaque requête dans `/var/log/caddy/access.log` ; fail2ban bannit ceux qui
+accumulent les 401 :
+
+```ini
+# /etc/fail2ban/filter.d/caddy-demo.conf
+[Definition]
+failregex = "remote_ip":"<HOST>".*"status":401
+```
+
+```ini
+# /etc/fail2ban/jail.d/caddy-demo.local
+[caddy-demo]
+enabled  = true
+filter   = caddy-demo
+logpath  = /var/log/caddy/access.log
+maxretry = 10
+findtime = 10m
+bantime  = 1h
+# Docker publie les ports hors des chaînes INPUT : le bannissement passe par DOCKER-USER, que seule
+# l'action iptables sait viser (celle de Debian 13 par défaut, nftables, ne le fait pas).
+banaction = iptables-multiport
+chain     = DOCKER-USER
+# Debian 13 lit les journaux de systemd par défaut : ici, un fichier.
+backend  = auto
+```
+
+Sous Debian 13, `ufw`, `fail2ban` et `unattended-upgrades` ne sont pas installés d'office
+(`apt install ufw fail2ban unattended-upgrades`), et Docker se prend dans son dépôt officiel, qui
+apporte `iptables`.
+
+Sur la machine : clés SSH seules, `ufw` ouvert sur 22, 80 et 443 (Docker contourne `ufw` pour ses
+ports publiés : on n'en publie pas d'autres que ceux de Caddy), mises à jour de sécurité
+automatiques. Les exemples du contrat sont ce que voit tout visiteur : aucune donnée réelle n'y
+a sa place.

@@ -231,6 +231,10 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		$(COMPOSE_PRODUCTION) --profile install config --quiet
+	@WATERFALL_DOMAIN=demo.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
+		WATERFALL_DEMO_USER=stand-in WATERFALL_DEMO_PASSWORD_HASH=stand-in \
+		WATERFALL_SERVER_ACTIONS_KEY=stand-in PRISM_VERSION=$(PRISM_VERSION) \
+		docker compose -f deploy/compose/compose.demo.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build $(call build-cache-from,keycloak) --tag $(KEYCLOAK_IMAGE) deploy/keycloak
