@@ -362,14 +362,19 @@ describe("the export of the Gantt", () => {
   });
 
   it("tells it, when the head, measured, makes an image no canvas holds, though it was offered", async () => {
+    // Few rows, a name of fifteen hundred lines: the head alone passes what the rows leave of a canvas.
     const many = {
       ...planning,
-      items: Array.from({ length: 1160 }, (_, index) => ({
+      items: Array.from({ length: 60 }, (_, index) => ({
         ...(TASKS[index % TASKS.length] ?? planning.items[0]),
         node_id: `01926f3a-7c00-7000-8000-${String(index).padStart(12, "0")}`,
       })),
     } as NodeList;
-    const rendered = renderPlanning(8, many, Array.from({ length: 400 }, () => "projet").join(" "));
+    const rendered = renderPlanning(
+      8,
+      many,
+      Array.from({ length: 1500 }, () => "p".repeat(95)).join(" "),
+    );
     const button = within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" });
     expect(button).not.toHaveAttribute("aria-disabled", "true");
     await userEvent.click(button);
