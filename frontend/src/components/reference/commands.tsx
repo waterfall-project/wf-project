@@ -344,10 +344,12 @@ export function CreateCommand({ label }: { readonly label: string }) {
 /** The command that opens the modification of a row, named after it. */
 export function ModifyCommand({ row }: { readonly row: ReferenceObject }) {
   const t = useTranslations("reference");
+  const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   return (
     <CellCommand
-      aria-label={t("modifyNamed", { name: row.label })}
+      label={t("modifyNamed", { name: row.label })}
+      help={said("modify.help")}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget });
       }}
@@ -372,6 +374,7 @@ function ActivationButton({
 }) {
   const t = useTranslations("reference.state");
   const said = useTranslations("reference.form");
+  const helped = useTranslations("commands");
   const [pending, run] = useRowCommand(
     `${command} ${target.kind} ${target.id}`,
     conflict === undefined ? {} : { [conflict.id]: conflict.name },
@@ -379,7 +382,8 @@ function ActivationButton({
   );
   return (
     <CellCommand
-      aria-label={t(command, { name })}
+      label={t(command, { name })}
+      help={helped(`${command}.help`)}
       aria-busy={pending}
       onClick={() => {
         run(

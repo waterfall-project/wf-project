@@ -43,6 +43,17 @@ export type CellAlign = "start" | "end" | "center";
 /** The key of the heading of a column in the catalogue, under `grid.columns`. */
 export type ColumnLabel = keyof Catalogue["grid"]["columns"];
 
+/**
+ * The key of the definition of a column in the catalogue, `columns.<grid>.<column>.help`, written
+ * `<grid>.<column>`: the sentence its header shows in its tooltip, and the help of the screen reads
+ * from the same keys (US-0580).
+ */
+export type ColumnHelp = {
+  [
+    G in Extract<keyof Catalogue["columns"], string>
+  ]: `${G}.${Extract<keyof Catalogue["columns"][G], string>}`;
+}[Extract<keyof Catalogue["columns"], string>];
+
 /** The key of the accessible name of a grid in the catalogue, under `grid.names`. */
 export type GridName = keyof Catalogue["grid"]["names"];
 
@@ -59,6 +70,16 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * heading of its label, which then says what the column holds.
    */
   readonly heading?: string;
+  /**
+   * What the column designates, the definition its header shows in a tooltip (`ColumnHelp`); none,
+   * and the header bears no tooltip.
+   */
+  readonly help?: ColumnHelp;
+  /**
+   * The values of the sentence of `help`, already formatted — the year of reference and the rate of
+   * inflation of the amount corrected of it.
+   */
+  readonly helpValues?: Readonly<Record<string, string>>;
   readonly format: CellFormat;
   /** Where the column aligns; by default, as its format does. */
   readonly align?: CellAlign;

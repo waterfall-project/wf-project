@@ -60,11 +60,13 @@ export function CreateRevisionCommand({
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("revisionCommands");
+  const helps = useTranslations("commands");
   const router = useRouter();
   return (
     <Command
       offer={offer}
       label={t("create")}
+      help={helps("project.create_revision.help")}
       icon={commandIcon(PROJECT_COMMAND_ICONS.create_revision)}
       names={names}
       subject={names[projectId]}
@@ -95,6 +97,7 @@ export function AbandonCommand({
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("revisionCommands");
+  const helps = useTranslations("commands");
   const router = useRouter();
   const [left, setLeft] = useState(false);
   // After the status is told, and noted, in the same commit: its effect comes first.
@@ -107,6 +110,7 @@ export function AbandonCommand({
     <ConfirmedCommand
       offer={offer}
       label={t("abandon.label")}
+      help={helps("revision.abandon.help")}
       icon={commandIcon(REVISION_COMMAND_ICONS.abandon)}
       statement={t("abandon.statement")}
       submit={t("abandon.submit")}
@@ -133,10 +137,12 @@ export function DesignateCommand({
 }) {
   const t = useTranslations("revisionCommands");
   const state = useTranslations("enums.ProjectState");
+  const helps = useTranslations("commands");
   return (
     <ConfirmedCommand
       offer={offer}
       label={t("designate.label")}
+      help={helps("revision.designate_reference.help")}
       icon={commandIcon(REVISION_COMMAND_ICONS.designate_reference)}
       statement={t("designate.statement", { name: revision.name, state: state("in_progress") })}
       submit={t("designate.submit")}
@@ -163,6 +169,7 @@ export function PrepareAmendmentCommand({
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("revisionCommands.amendment");
+  const helps = useTranslations("commands");
   const router = useRouter();
   const field = useId();
   const [label, setLabel] = useState("");
@@ -170,6 +177,7 @@ export function PrepareAmendmentCommand({
     <ConfirmedCommand
       offer={offer}
       label={t("label")}
+      help={helps("revision.create_structure.help")}
       icon={commandIcon(REVISION_COMMAND_ICONS.create_structure)}
       statement={t("statement")}
       submit={t("submit")}

@@ -47,6 +47,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createProject, updateProject } from "@/api/actions/projects";
 import type { Outcome } from "@/api/problem";
 import { Command, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
@@ -284,6 +285,7 @@ interface Editing {
 export function ProjectIdentity({ project }: { readonly project: Project }) {
   const t = useTranslations("projectForm");
   const command = useTranslations("enums.ProjectCommand");
+  const helps = useTranslations("commands");
   const [answered, setAnswered] = useState<Project>();
   // The version the form opened on, which it writes from, and its opening: none while it is closed.
   const [editing, setEditing] = useState<Editing>();
@@ -308,28 +310,38 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
           {said === undefined ? null : <span key={said.count}>{said.text}</span>}
         </p>
         {offer?.is_available === true ? (
-          <Button
-            ref={trigger}
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-disabled={writing ? true : undefined}
-            aria-busy={writing}
-            aria-describedby={writing ? why : undefined}
-            className={UNAVAILABLE}
-            onClick={() => {
-              if (writing) {
-                return;
-              }
-              openings.current += 1;
-              setEditing({ project: shown, opening: openings.current });
-            }}
+          <CommandTooltip
+            label={command("update")}
+            help={helps("project.update.help")}
+            describedBy={writing ? why : undefined}
           >
-            {icon}
-            {command("update")}
-          </Button>
+            <Button
+              ref={trigger}
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-disabled={writing ? true : undefined}
+              aria-busy={writing}
+              className={UNAVAILABLE}
+              onClick={() => {
+                if (writing) {
+                  return;
+                }
+                openings.current += 1;
+                setEditing({ project: shown, opening: openings.current });
+              }}
+            >
+              {icon}
+              {command("update")}
+            </Button>
+          </CommandTooltip>
         ) : (
-          <Command offer={offer} label={command("update")} icon={icon} />
+          <Command
+            offer={offer}
+            label={command("update")}
+            help={helps("project.update.help")}
+            icon={icon}
+          />
         )}
         <WritingNote id={why} writing={writing} />
       </div>

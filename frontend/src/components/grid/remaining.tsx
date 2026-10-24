@@ -103,6 +103,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "progress",
       label: "progress",
+      help: "remaining.progress",
       format: "text",
       align: "center",
       width: 44,
@@ -117,6 +118,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "finish",
       label: "finishDate",
+      help: "remaining.finishDate",
       format: "date",
       width: 100,
       contract: "finish",
@@ -127,6 +129,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "finish_overdue",
       label: "finishOverdue",
+      help: "remaining.finishOverdue",
       format: "text",
       align: "center",
       width: 44,
@@ -137,6 +140,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "budgeted_amount",
       label: "budgetedAmount",
+      help: "remaining.budgetedAmount",
       format: "money",
       width: 128,
       computed: computedAmount("budgeted_amount"),
@@ -149,6 +153,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "previous_quantity",
       label: "previousQuantity",
+      help: "remaining.previousQuantity",
       format: "decimal",
       width: 96,
       contract: "previous_quantity",
@@ -157,6 +162,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "previous_hours",
       label: "previousHours",
+      help: "remaining.previousHours",
       format: "decimal",
       width: 112,
       contract: "previous_hours",
@@ -165,6 +171,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "previous_unit_disbursement",
       label: "previousUnitDisbursement",
+      help: "remaining.previousUnitDisbursement",
       format: "money",
       width: 128,
       contract: "previous_unit_disbursement",
@@ -173,6 +180,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "previous_reestimated_amount",
       label: "previousReestimatedAmount",
+      help: "remaining.previousReestimatedAmount",
       format: "money",
       width: 128,
       computed: COMPUTED_PREVIOUS,
@@ -182,6 +190,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "quantity",
       label: "quantity",
+      help: "remaining.quantity",
       format: "decimal",
       width: 72,
       computed: computedWhereNamed("estimate_line.quantity"),
@@ -191,6 +200,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "hours",
       label: "hours",
+      help: "remaining.hours",
       format: "decimal",
       width: 96,
       computed: computedWhereNamed("estimate_line.hours"),
@@ -201,6 +211,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "unit_disbursement",
       label: "unitDisbursement",
+      help: "remaining.unitDisbursement",
       format: "money",
       width: 128,
       computed: computedWhereNamed("estimate_line.unit_disbursement"),
@@ -212,6 +223,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "subproject",
       label: "subproject",
+      help: "remaining.subproject",
       format: "text",
       width: 160,
       hidden: true,
@@ -222,6 +234,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
     {
       key: "reestimated_amount",
       label: "reestimatedAmount",
+      help: "remaining.reestimatedAmount",
       format: "money",
       width: 128,
       computed: computedAmount("reestimated_amount"),

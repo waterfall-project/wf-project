@@ -10,13 +10,12 @@
  * A button is what the user presses: a `<button>`, `Button` and the commands built on it
  * (`CellCommand`, `Command`), a switch, an item or a trigger of a menu, an element of the role
  * `button`, and a link drawn as a button (`buttonVariants`). The commands of objects, of the dialogs,
- * of the headers of the columns and of the computed values pass to `CommandTooltip` with US-0580/L2
- * (#1137): their files are listed here, a closed list that can only shrink — a file listed that
- * bears no `title` on a button any more fails the test too, to be taken off the list; the lot that
- * empties it removes the list.
+ * of the headers of the columns and of the computed values passed to `CommandTooltip` with
+ * US-0580/L2 (#1137): no button of the front bears a `title` any more.
  *
  * What the reading of one source tells is read: the classes of a button written in place or through
- * a name the source binds to them, and a `title` given by a spread of an object written in place or
+ * a name the source binds to them, in the block nearest the button that binds it (a namesake of
+ * another block is not the name), and a `title` given by a spread of an object written in place or
  * bound in the source. What it cannot tell stays with the review: classes or props imported from
  * another module, a spread of the props a component receives (`{...props}`), and a component of
  * ours that draws a button under another name than those above.
@@ -28,14 +27,6 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const SOURCES = join(import.meta.dirname, "..");
-
-/** The files whose buttons still bear a `title`, left to US-0580/L2 (#1137). */
-const LEFT_TO_L2: readonly string[] = [
-  "components/admin/role-commands.tsx",
-  "components/admin/user-cells.tsx",
-  "components/projects/subproject-commands.tsx",
-  "components/reference/cell-command.tsx",
-];
 
 /** Every component of the front: the `.tsx` files of `src/`, tests left out. */
 function components(): string[] {
@@ -58,17 +49,43 @@ function written(attribute: ts.JsxAttribute | undefined, file: ts.SourceFile): s
   return attribute?.initializer?.getText(file) ?? "";
 }
 
-/** The names a source binds, each to the expression that gives its value. */
-function bindings(file: ts.SourceFile): ReadonlyMap<string, ts.Expression> {
-  const bound = new Map<string, ts.Expression>();
-  const visit = (node: ts.Node) => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      bound.set(node.name.text, node.initializer);
+/** The expression a name is bound to by the statements of a block, if any of them binds it. */
+function boundIn(name: string, statements: readonly ts.Statement[]): ts.Expression | undefined {
+  for (const statement of statements) {
+    if (!ts.isVariableStatement(statement)) {
+      continue;
     }
-    ts.forEachChild(node, visit);
-  };
-  visit(file);
-  return bound;
+    for (const declaration of statement.declarationList.declarations) {
+      if (
+        ts.isIdentifier(declaration.name) &&
+        declaration.name.text === name &&
+        declaration.initializer !== undefined
+      ) {
+        return declaration.initializer;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * What a name read at a node is bound to: the nearest block, going up from the node, that binds it
+ * — a namesake in another block, or a shadowed one further up, is not it.
+ */
+function scoped(name: string, from: ts.Node): ts.Expression | undefined {
+  let node = from.parent;
+  for (;;) {
+    if (ts.isBlock(node) || ts.isSourceFile(node) || ts.isModuleBlock(node)) {
+      const bound = boundIn(name, node.statements);
+      if (bound !== undefined) {
+        return bound;
+      }
+    }
+    if (ts.isSourceFile(node)) {
+      return undefined;
+    }
+    node = node.parent;
+  }
 }
 
 /** The identifiers an expression reads, itself included. */
@@ -85,15 +102,11 @@ function identifiers(node: ts.Node): string[] {
 }
 
 /** Whether an expression, or a name it reads that the source binds, satisfies a test. */
-function readsWhere(
-  expression: ts.Node,
-  bound: ReadonlyMap<string, ts.Expression>,
-  test: (node: ts.Node) => boolean,
-): boolean {
+function readsWhere(expression: ts.Node, test: (node: ts.Node) => boolean): boolean {
   return (
     test(expression) ||
     identifiers(expression).some((name) => {
-      const value = bound.get(name);
+      const value = scoped(name, expression);
       return value !== undefined && test(value);
     })
   );
@@ -120,7 +133,6 @@ function isButton(
   tag: string,
   attributes: ReadonlyMap<string, ts.JsxAttribute>,
   file: ts.SourceFile,
-  bound: ReadonlyMap<string, ts.Expression>,
 ): boolean {
   const classes = attributes.get("className")?.initializer;
   return (
@@ -128,14 +140,13 @@ function isButton(
     /^["'{]*["']button["'][}]*$/.test(written(attributes.get("role"), file)) ||
     // The classes of a button written in place, or a name the source binds to them.
     (classes !== undefined &&
-      readsWhere(classes, bound, (node) => node.getText(file).includes("buttonVariants(")))
+      readsWhere(classes, (node) => node.getText(file).includes("buttonVariants(")))
   );
 }
 
 /** The buttons of a source that bear a `title`, each by its tag and its line. */
 function titledButtons(source: string, name = "source.tsx"): string[] {
   const file = ts.createSourceFile(name, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const bound = bindings(file);
   const found: string[] = [];
   const visit = (node: ts.Node) => {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
@@ -150,10 +161,10 @@ function titledButtons(source: string, name = "source.tsx"): string[] {
         attributes.has("title") ||
         properties.some(
           (property) =>
-            ts.isJsxSpreadAttribute(property) && readsWhere(property.expression, bound, holdsTitle),
+            ts.isJsxSpreadAttribute(property) && readsWhere(property.expression, holdsTitle),
         );
       const tag = node.tagName.getText(file);
-      if (titled && isButton(tag, attributes, file, bound)) {
+      if (titled && isButton(tag, attributes, file)) {
         const line = file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1;
         found.push(`${tag}:${line.toString()}`);
       }
@@ -173,12 +184,7 @@ describe("the buttons of the front", () => {
     .filter(([, buttons]) => buttons.length > 0);
 
   it("bear no title, the browser's tooltip, but CommandTooltip (US-0580)", () => {
-    const offending = titled.filter(([file]) => !LEFT_TO_L2.includes(file));
-    expect(offending).toEqual([]);
-  });
-
-  it("left to US-0580/L2 are those that still bear one: the list only shrinks (#1137)", () => {
-    expect(titled.map(([file]) => file).sort()).toEqual([...LEFT_TO_L2].sort());
+    expect(titled).toEqual([]);
   });
 
   it("finds a title on a button, whatever draws it", () => {
@@ -196,6 +202,9 @@ describe("the buttons of the front", () => {
       "<Button {...{ title: x }}>x</Button>",
       "<Button {...(unmet === undefined ? {} : { title: unmet })}>x</Button>",
       "const hint = { title: unmet };\n<Button {...hint}>x</Button>",
+      // The namesake of the block that holds the button, not one of another block.
+      "function a() { const hint = { label: x }; return <i {...hint} />; }\nfunction b() { const hint = { title: x }; return <Button {...hint}>x</Button>; }",
+      "const ACTION = 'text-sm';\nfunction b() { const ACTION = buttonVariants(); return <Link title={x} className={ACTION} />; }",
     ]) {
       expect(titledButtons(button), button).toHaveLength(1);
     }
@@ -210,6 +219,9 @@ describe("the buttons of the front", () => {
       "// <button title='x' />\nconst a = 1;",
       "const PLAIN = 'text-sm';\n<Link href={href} title={x} className={PLAIN} />",
       "const shown = { label: x };\n<Button {...shown}>x</Button>",
+      // A namesake in another block, bound to a title, is not the name the button reads.
+      "function a() { const hint = { title: x }; return <i {...hint} />; }\nfunction b() { const hint = { label: x }; return <Button {...hint}>x</Button>; }",
+      "function a() { const LINK = buttonVariants(); return LINK; }\nfunction b() { const LINK = 'text-sm'; return <Link title={x} className={LINK} />; }",
       "<span {...{ title: x }}>x</span>",
     ]) {
       expect(titledButtons(plain), plain).toEqual([]);

@@ -49,6 +49,7 @@ export function ApplyRateUpdateCommand({
   categories,
 }: ApplyRateUpdateProps) {
   const t = useTranslations("revisionCommands.rateUpdate");
+  const helps = useTranslations("commands");
   const locale = useLocale();
   const legend = useId();
   const [refused, setRefused] = useState<ReadonlySet<string>>(new Set());
@@ -57,6 +58,7 @@ export function ApplyRateUpdateCommand({
     <ConfirmedCommand
       offer={{ is_available: true, missing_conditions: [] }}
       label={t("label")}
+      help={helps("updateRates.help")}
       icon={<Coins aria-hidden="true" />}
       statement={t("statement")}
       submit={t("submit")}

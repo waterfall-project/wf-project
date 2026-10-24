@@ -184,6 +184,7 @@ function SkeletonOffer({
     <Command
       offer={offer}
       label={t("enums.RevisionCommand.generate_skeleton")}
+      help={t("commands.revision.generate_skeleton.help")}
       icon={commandIcon(REVISION_COMMAND_ICONS.generate_skeleton)}
       action={generate}
     />

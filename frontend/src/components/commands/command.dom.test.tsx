@@ -54,6 +54,7 @@ function available(action: () => Promise<Outcome<unknown>>, names?: Record<strin
     <Command
       offer={{ is_available: true, missing_conditions: [] }}
       label="Terminer le projet"
+      help="Ce que la commande fait."
       icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
       action={action}
       names={names}
@@ -131,6 +132,7 @@ describe("a command of a screen", () => {
           missing_conditions: ["project_in_progress", "reference_revision_designated"],
         }}
         label="Déclarer la survenance d’un risque"
+        help="Ce que la commande fait."
         icon={commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
       />,
     );
@@ -147,6 +149,7 @@ describe("a command of a screen", () => {
       <Command
         offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
         label="Terminer le projet"
+        help="Ce que la commande fait."
         icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
         action={action}
       />,
@@ -157,6 +160,29 @@ describe("a command of a screen", () => {
     await userEvent.keyboard("{Enter}");
     expect(action).not.toHaveBeenCalled();
     expect(complete).toHaveFocus();
+  });
+
+  it("says what it does in its tooltip, and the conditions it lacks beside its name", async () => {
+    french(
+      <Command
+        offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
+        label="Terminer le projet"
+        help="Termine le projet, après confirmation."
+        icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
+      />,
+    );
+    const complete = screen.getByRole("button", { name: "Terminer le projet" });
+    expect(complete).toHaveAttribute("aria-disabled", "true");
+    await userEvent.hover(complete);
+    await screen.findByRole("tooltip");
+    expect(document.querySelector("[data-slot=tooltip-content]")).toHaveTextContent(
+      "Termine le projet, après confirmation.",
+    );
+    expect(complete).not.toHaveAttribute("title");
+    // The condition is said beside the command; the tooltip, open, adds its help to the description.
+    expect(complete).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: projet en cours. Termine le projet, après confirmation.",
+    );
   });
 
   it("does nothing when pressed before its operation is wired", async () => {
@@ -176,6 +202,7 @@ describe("a command of a revision", () => {
         <Command
           offer={findOffer(reader.available_commands, "mark")}
           label="Marquer la révision"
+          help="Ce que la commande fait."
           icon={commandIcon(REVISION_COMMAND_ICONS.mark)}
         />
       </>,
@@ -264,6 +291,7 @@ describe("the outcome of a command", () => {
       <Command
         offer={{ is_available: true, missing_conditions: [] }}
         label="Modifier le planning"
+        help="Ce que la commande fait."
         icon={commandIcon(REVISION_COMMAND_ICONS.edit_planning)}
         action={write}
       />,

@@ -196,6 +196,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
 /** Offer the import of each kind of file, and open the choice of its file when pressed. */
 export function ImportCommands({ projectId, offers, start }: ImportCommandsProps) {
   const t = useTranslations("exchanges.import.kinds");
+  const helps = useTranslations("commands");
   const form = useId();
   const [open, setOpen] = useState<ExchangeKind>();
   const buttons = useRef<Partial<Record<ExchangeKind, HTMLButtonElement | null>>>({});
@@ -213,6 +214,7 @@ export function ImportCommands({ projectId, offers, start }: ImportCommandsProps
             key={kind}
             offer={offers[kind]}
             label={t(kind)}
+            help={helps(`project.${IMPORT_COMMAND[kind]}.help`)}
             icon={commandIcon(PROJECT_COMMAND_ICONS[IMPORT_COMMAND[kind]])}
             disclosure={{
               expanded: open === kind,

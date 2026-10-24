@@ -135,6 +135,7 @@ function RevisionCommandItem({
     <Command
       offer={offer}
       label={t(`enums.RevisionCommand.${offer.command}`)}
+      help={t(`commands.revision.${offer.command}.help`)}
       icon={commandIcon(REVISION_COMMAND_ICONS[offer.command])}
       names={names}
       subject={name}

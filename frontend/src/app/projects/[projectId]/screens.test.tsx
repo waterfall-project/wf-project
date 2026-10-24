@@ -592,8 +592,8 @@ describe("the settings of a project", () => {
     );
     // A sub-project charged with actual costs no longer deletes: its deletion says why. Both are,
     // the tests and commissioning by the invoices of the drawn tasks of its lots (EP-14/L45a).
-    expect(page).toMatch(/aria-label="Delete “SP-CMD”" aria-disabled="true"/);
-    expect(page).toMatch(/aria-label="Delete “SP-ESS”" aria-disabled="true"/);
+    expect(page).toMatch(/aria-label="Delete “SP-CMD”"[^>]*aria-disabled="true"/);
+    expect(page).toMatch(/aria-label="Delete “SP-ESS”"[^>]*aria-disabled="true"/);
     expect(text(page)).toContain(
       "Proposed from the roles of the estimate, to be confirmed: Sacha Lefèvre.",
     );
@@ -634,7 +634,9 @@ describe("the settings of a project", () => {
     expect(named(false).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
     for (const code of ["SP-CMD", "SP-ESS"]) {
       for (const command of ["Modify", "Delete"]) {
-        expect(page).toContain(`aria-label="${command} “${code}”" aria-disabled="true"`);
+        expect(page).toMatch(
+          new RegExp(`aria-label="${command} “${code}”"[^>]*aria-disabled="true"`),
+        );
       }
     }
     expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
@@ -716,7 +718,7 @@ describe("the lifecycle of a project", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_pricing" };
     const page = html(await LifecyclePage(at()));
     const complete =
-      /<button[^>]*aria-disabled="true"[^>]*aria-describedby="([^"]+)"[^>]*>(?:(?!<\/button>).)*Complete the project<\/button>/.exec(
+      /<button[^>]*aria-describedby="([^"]+)"[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Complete the project<\/button>/.exec(
         page,
       );
     expect(complete).not.toBeNull();

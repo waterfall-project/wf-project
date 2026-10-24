@@ -476,7 +476,7 @@ describe("« Identifier un risque »", () => {
       expect(identifyCommand()).toHaveFocus();
       expect(identifyCommand()).toHaveAttribute("aria-disabled", "true");
       expect(identifyCommand()).toHaveAttribute("aria-busy", "true");
-      expect(identifyCommand()).toHaveAccessibleDescription("Enregistrement en cours…");
+      expect(identifyCommand()).toHaveAccessibleDescription(/^Enregistrement en cours…/);
       await userEvent.click(identifyCommand());
       expect(screen.queryByRole("dialog")).toBeNull();
       release();
@@ -682,7 +682,7 @@ describe("« Modifier » a risk", () => {
     });
     expect(command()).toHaveFocus();
     expect(command()).toHaveAttribute("aria-disabled", "true");
-    expect(command()).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(command()).toHaveAccessibleDescription(/^Enregistrement en cours…/);
     await userEvent.click(command());
     expect(screen.queryByRole("dialog")).toBeNull();
     release();
@@ -821,7 +821,7 @@ describe("« Modifier » a risk", () => {
         expect(screen.queryByRole("dialog")).toBeNull();
       });
       expect(command()).toHaveAttribute("aria-disabled", "true");
-      expect(command()).toHaveAccessibleDescription("Enregistrement en cours…");
+      expect(command()).toHaveAccessibleDescription(/^Enregistrement en cours…/);
       release();
       expect(await screen.findByText(said)).toBeInTheDocument();
       // The user closed the form: the answer does not open it again.
@@ -863,7 +863,7 @@ describe("« Modifier » a risk", () => {
     expect(command()).not.toHaveAttribute("aria-disabled");
     rerender(detail(CREATED));
     expect(command()).toHaveAttribute("aria-disabled", "true");
-    expect(command()).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(command()).toHaveAccessibleDescription(/^Enregistrement en cours…/);
     await userEvent.click(command());
     expect(screen.queryByRole("dialog")).toBeNull();
     release();

@@ -377,7 +377,7 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /users": "users_anonymized" };
     const page = rendered(await UsersPage(searched({ is_active: "false" })));
     expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
-      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Condition non remplie : compte non anonymisé. Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
+      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Condition non remplie : compte non anonymisé. Désactivé Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
     ]);
     expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
     // Its reactivation, on the switch of its state, and its anonymisation: both unavailable.

@@ -142,6 +142,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "description",
       label: "description",
+      help: "planning.description",
       format: "text",
       width: 120,
       contract: "description",
@@ -150,6 +151,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "scheduling_mode",
       label: "schedulingMode",
+      help: "planning.schedulingMode",
       format: "text",
       align: "center",
       width: 44,
@@ -161,6 +163,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "duration",
       label: "duration",
+      help: "planning.duration",
       format: "decimal",
       width: 64,
       computed: computedWhereNamed("task.duration"),
@@ -174,6 +177,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "start",
       label: "startDate",
+      help: "planning.startDate",
       format: "date",
       width: 100,
       computed: computedWhereNamed("task.start"),
@@ -183,6 +187,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "finish",
       label: "finishDate",
+      help: "planning.finishDate",
       format: "date",
       width: 100,
       computed: computedWhereNamed("task.finish"),
@@ -192,6 +197,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "progress",
       label: "progress",
+      help: "planning.progress",
       format: "text",
       align: "center",
       width: 44,
@@ -204,6 +210,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "physical_progress",
       label: "physicalProgress",
+      help: "planning.physicalProgress",
       format: "percent",
       width: 72,
       computed: COMPUTED_PHYSICAL_PROGRESS,
@@ -214,6 +221,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "total_float",
       label: "totalFloat",
+      help: "planning.totalFloat",
       format: "decimal",
       width: 72,
       computed: COMPUTED_FLOAT,
@@ -224,6 +232,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "predecessors",
       label: "predecessors",
+      help: "planning.predecessors",
       format: "text",
       width: 104,
       contract: "predecessors",
@@ -235,6 +244,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "work_breakdown",
       label: "attachment",
+      help: "planning.attachment",
       format: "text",
       width: 160,
       contract: "work_breakdown",
@@ -245,6 +255,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "timelines",
       label: "timelines",
+      help: "planning.timelines",
       format: "text",
       width: 160,
       hidden: true,
@@ -255,6 +266,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "gantt",
       label: "gantt",
+      help: "planning.gantt",
       format: "text",
       width: 400,
       // At the end, over the columns before it as it widens, as in Microsoft Project (US-0530).

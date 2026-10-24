@@ -66,7 +66,7 @@ import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { useListReport } from "@/components/reference/reactivation";
-import { ReferenceForm, required, WritingNote } from "@/components/reference/reference-form";
+import { ReferenceForm, required } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -303,12 +303,15 @@ export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undef
  */
 function UnavailableCommand({
   name,
+  help,
   offer,
   lead,
   children,
 }: {
   /** The accessible name of the command, which names the sub-project by its code. */
   readonly name: string;
+  /** What the command does, translated. */
+  readonly help: string;
   readonly offer: CommandOffer;
   readonly lead?: Lead | undefined;
   readonly children: ReactNode;
@@ -318,6 +321,7 @@ function UnavailableCommand({
   return (
     <UnavailableCellCommand
       name={name}
+      help={help}
       offer={offer}
       onPress={(unmet) => {
         commands?.say(t("unavailable", { command: name, unmet }), { lead, noted: false });
@@ -337,8 +341,8 @@ function UnavailableCommand({
 export function ModifySubproject({ row }: { readonly row: Subproject }) {
   const t = useTranslations("projectLists.subprojects");
   const form = useTranslations("reference.form");
+  const said = useTranslations("commands");
   const commands = useContext(SubprojectContext);
-  const why = useId();
   const offer = findOffer(row.available_commands, "update");
   const name = t("modifyNamed", { code: row.code });
   const writing = commands?.writing.has(row.subproject_id) === true;
@@ -353,7 +357,7 @@ export function ModifySubproject({ row }: { readonly row: Subproject }) {
   }
   if (!offer.is_available) {
     return (
-      <UnavailableCommand name={name} offer={offer}>
+      <UnavailableCommand name={name} help={said("modify.help")} offer={offer}>
         {content}
       </UnavailableCommand>
     );
@@ -361,11 +365,10 @@ export function ModifySubproject({ row }: { readonly row: Subproject }) {
   return (
     <>
       <CellCommand
-        aria-label={name}
-        aria-disabled={writing ? true : undefined}
+        label={name}
+        help={said("modify.help")}
+        unavailable={writing ? form("writing") : undefined}
         aria-busy={writing}
-        aria-describedby={writing ? why : undefined}
-        title={writing ? form("writing") : undefined}
         className={UNAVAILABLE}
         onClick={(event: MouseEvent<HTMLElement>) => {
           if (!writing) {
@@ -375,7 +378,6 @@ export function ModifySubproject({ row }: { readonly row: Subproject }) {
       >
         {content}
       </CellCommand>
-      <WritingNote id={why} writing={writing} srOnly />
     </>
   );
 }
@@ -389,6 +391,7 @@ export function ModifySubproject({ row }: { readonly row: Subproject }) {
  */
 export function DeleteSubproject({ row }: { readonly row: Subproject }) {
   const t = useTranslations("projectLists.subprojects");
+  const said = useTranslations("commands");
   const commands = useContext(SubprojectContext);
   const offer = findOffer(row.available_commands, "delete");
   const name = t("deleteNamed", { code: row.code });
@@ -408,6 +411,7 @@ export function DeleteSubproject({ row }: { readonly row: Subproject }) {
     return (
       <UnavailableCommand
         name={name}
+        help={said("deleteSubproject.help")}
         offer={offer}
         lead={
           estimate === undefined
@@ -421,7 +425,8 @@ export function DeleteSubproject({ row }: { readonly row: Subproject }) {
   }
   return (
     <CellCommand
-      aria-label={name}
+      label={name}
+      help={said("deleteSubproject.help")}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget, deleting: true });
       }}

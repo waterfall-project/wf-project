@@ -219,6 +219,7 @@ export function MergeAmendmentCommand({
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("mergeReport");
+  const helps = useTranslations("commands");
   const [report, setReport] = useState<Outcome<Report>>();
   const [attempt, setAttempt] = useState(0);
   const [name, setName] = useState("");
@@ -265,6 +266,7 @@ export function MergeAmendmentCommand({
         offer={offer}
         presented={!merged}
         label={t("label")}
+        help={helps("revision.merge_structure.help")}
         icon={commandIcon(REVISION_COMMAND_ICONS.merge_structure)}
         statement={t("statement")}
         submit={t("submit")}

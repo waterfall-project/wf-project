@@ -40,6 +40,7 @@ export interface ProjectStartProps {
 /** Offer to start the planning of the project, or the way back to the encart once it is folded. */
 export function ProjectStart({ projectId, offers, breakdownHref, start }: ProjectStartProps) {
   const t = useTranslations("projectStart");
+  const helps = useTranslations("commands");
   const folded = useFolded(projectId);
   const [dropping, setDropping] = useState(false);
   const drop = useId();
@@ -97,11 +98,17 @@ export function ProjectStart({ projectId, offers, breakdownHref, start }: Projec
             {t("skeleton")}
           </Link>
         ) : (
-          <Command offer={skeleton} label={t("skeleton")} icon={<Workflow aria-hidden="true" />} />
+          <Command
+            offer={skeleton}
+            label={t("skeleton")}
+            help={helps("project.generate_skeleton.help")}
+            icon={<Workflow aria-hidden="true" />}
+          />
         )}
         <Command
           offer={offers.planningImport}
           label={t("import")}
+          help={helps("project.import_planning.help")}
           icon={commandIcon(PROJECT_COMMAND_ICONS.import_planning)}
           disclosure={{
             expanded: dropping,

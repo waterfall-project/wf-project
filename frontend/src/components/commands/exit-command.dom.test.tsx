@@ -237,7 +237,10 @@ describe("the exits of the lifecycle of a project", () => {
     expect(complete).toHaveFocus();
     expect(complete).toHaveAttribute("aria-disabled", "true");
     expect(complete).toHaveAttribute("aria-expanded", "false");
-    expect(complete).toHaveAccessibleDescription("Condition non remplie\u00A0: projet en cours.");
+    // The command has the focus: its tooltip, open, adds its help to the condition said beside it.
+    expect(complete).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: projet en cours. Termine le projet, après confirmation.",
+    );
   });
 
   it("keeps the confirmation while the API is asked, and says its refusal once it answers", async () => {
