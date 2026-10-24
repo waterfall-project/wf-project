@@ -8,10 +8,9 @@
  * shown is that of the route the address follows.
  *
  * Neither server nor client: what the panel of the help and the reading of its files share — what a
- * page is, which codes have one, where a link between pages leads, what a search finds. The files
+ * page is, which codes have one, where a link between pages leads. The files
  * are read on the server alone (`read.ts`).
  */
-import type { ColumnHelp, ColumnLabel } from "@/components/grid/columns";
 import { FUNCTION_GROUPS, findScreen } from "@/navigation/functions";
 
 /**
@@ -39,23 +38,10 @@ export const SCREEN_HEADINGS = [
   "Voir aussi",
 ] as const;
 
-/** The place, among `SCREEN_HEADINGS`, of the section the definitions of the columns follow. */
-export const COLUMNS_SECTION = 2;
-
 /** A section of a page: its heading of the second level, and the Markdown under it. */
 export interface HelpSection {
   readonly heading: string;
   readonly body: string;
-}
-
-/**
- * A column of the grid of a screen, as the panel defines it: its heading and its definition, the
- * same keys of the catalogues its header shows in its tooltip, and whether the server computes it.
- */
-export interface HelpColumn {
-  readonly label: ColumnLabel;
-  readonly help: ColumnHelp;
-  readonly computed: boolean;
 }
 
 /** A page of the help, written, or still to write. */
@@ -67,12 +53,10 @@ export type HelpPage =
       /** What comes before the first section: nothing, on the page of a screen. */
       readonly intro: string;
       readonly sections: readonly HelpSection[];
-      /** The columns of the grid the screen shows, defined after the section of the columns. */
-      readonly columns: readonly HelpColumn[];
     }
   | { readonly kind: "pending"; readonly target: HelpTarget };
 
-/** A page of the index the search reads: what it is, and its title. */
+/** A page of the index of the pages written: what it is, and its title. */
 export interface HelpEntry {
   readonly target: HelpTarget;
   readonly title: string;
@@ -166,26 +150,4 @@ export function linkTarget(from: HelpTarget, href: string): HelpTarget | undefin
     return isHelpTarget(target) ? target : undefined;
   }
   return undefined;
-}
-
-/** A text folded for a search: small letters, without accents nor marks. */
-function folded(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "").replace(/[’']/g, " ").toLowerCase();
-}
-
-/**
- * The pages a search finds, in the order of the index: those whose title holds every word of the
- * query, accents and capitals aside; nothing for a query without a word.
- */
-export function searched(index: readonly HelpEntry[], query: string): HelpEntry[] {
-  const words = folded(query)
-    .split(/\s+/)
-    .filter((word) => word !== "");
-  if (words.length === 0) {
-    return [];
-  }
-  return index.filter((entry) => {
-    const title = folded(entry.title);
-    return words.every((word) => title.includes(word));
-  });
 }

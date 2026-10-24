@@ -1395,29 +1395,6 @@
       "reestimatedAmount": {
         "help": "Montant réestimé de la ligne ou de la tâche : le devis actualisé à l’achèvement."
       }
-    },
-    "risks": {
-      "label": {
-        "help": "Libellé du risque, tel qu’il a été identifié."
-      },
-      "probability": {
-        "help": "Probabilité que le risque survienne, en pourcentage."
-      },
-      "severity": {
-        "help": "Gravité : ce que coûterait le risque s’il survenait, le total de son devis propre, calculé par le serveur."
-      },
-      "provisionAmount": {
-        "help": "Provision : la gravité pondérée par la probabilité, calculée par le serveur ; un risque survenu ou écarté n’en porte plus."
-      },
-      "state": {
-        "help": "État du risque : identifié, survenu ou écarté."
-      },
-      "lastReview": {
-        "help": "Date du dernier réexamen du risque."
-      },
-      "matrixCell": {
-        "help": "Case de la matrice de risques où tombent sa probabilité et sa gravité, et la zone qui la colore."
-      }
     }
   },
   "help": {
@@ -1426,13 +1403,10 @@
     "close": "Fermer l’aide",
     "back": "Revenir à la page précédente de l’aide",
     "screen": "Revenir à l’aide de l’écran",
-    "search": "Chercher dans l’aide",
-    "results": "{count, plural, =0 {Aucune page de l’aide ne porte ces mots.} one {# page trouvée} other {# pages trouvées}}",
     "loading": "Lecture de l’aide…",
     "failed": "L’aide n’a pas pu être lue. Réessayez dans un instant.",
     "pending": "L’aide de cette page est à venir.",
-    "sections": "Les parties de l’écran",
-    "computed": "(valeur calculée par le serveur)"
+    "sections": "Les parties de l’écran"
   },
   "outcome": {
     "unreachable": "Le service est injoignable ; réessayez dans un instant.",

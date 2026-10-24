@@ -3,8 +3,7 @@
 /**
  * The panel of the online help (US-0580): opened from the header of a screen by its button or by F1,
  * it shows the page of the code of the screen, read from the files of the help by the server action
- * as it reads them in production; a link shows another page in the panel, a search finds the pages
- * by their titles; Escape closes it and gives the focus back. The action is spied, so that a page
+ * as it reads them in production; a link shows another page in the panel,  Escape closes it and gives the focus back. The action is spied, so that a page
  * with raw HTML, a failure and a late answer can be served.
  */
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -71,7 +70,7 @@ async function panel(title: string) {
 }
 
 describe("the panel of the help", () => {
-  it("opens from the button of the header on the page of the screen, in its fixed sections, its columns from the catalogues [WF-IHM-0140-A]", async () => {
+  it("opens from the button of the header on the page of the screen, in its fixed sections [WF-IHM-0140-A]", async () => {
     const user = userEvent.setup();
     renderHeader();
     expect(helpButton()).toHaveAttribute("aria-keyshortcuts", "F1");
@@ -89,13 +88,6 @@ describe("the panel of the help", () => {
       "Les gestes au clavier",
       "Voir aussi",
     ]);
-    // The definitions of the columns, as the tooltips of the headers say them.
-    const columns = within(dialog)
-      .getByRole("heading", { name: "Ses colonnes et ses valeurs calculées" })
-      .closest("section");
-    expect(columns).toHaveTextContent(CATALOGUES.fr.columns.planning.predecessors.help);
-    expect(columns).toHaveTextContent(CATALOGUES.fr.grid.columns.totalFloat);
-    expect(columns).toHaveTextContent("(valeur calculée par le serveur)");
     // The parts of the screen lead to their own pages.
     expect(
       within(dialog).getByRole("navigation", { name: "Les parties de l’écran" }),
@@ -155,20 +147,6 @@ describe("the panel of the help", () => {
     expect(readHelp).toHaveBeenLastCalledWith({ kind: "screen", code: "FBS-4.3.1" });
   });
 
-  it("searches the titles of the pages and the notions [WF-IHM-0140-A]", async () => {
-    const user = userEvent.setup();
-    renderHeader();
-    await user.click(helpButton());
-    const dialog = await panel("Planification");
-    await user.type(
-      within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" }),
-      "acquise",
-    );
-    expect(within(dialog).getByRole("status")).toHaveTextContent("1 page trouvée");
-    await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
-    await panel("La valeur acquise");
-  });
-
   it("renders no raw HTML a page would hold, nor an image, nor a link out of the help [WF-IHM-0140-A]", async () => {
     vi.mocked(readHelp).mockResolvedValue({
       page: {
@@ -182,7 +160,6 @@ describe("the panel of the help", () => {
             body: 'Avant <b>gras</b> <script>alert(1)</script> ![image](x.png) [dehors](https://example.org) et [le devis](FBS-4.4.md).\n\n<div onclick="x">bloc</div>',
           },
         ],
-        columns: [],
       },
       index: [],
     } satisfies HelpReading);

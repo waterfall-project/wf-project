@@ -2169,7 +2169,7 @@ fichier entier. Les boutons de validation et d’annulation d’un formulaire ou
 est l’action, ne portent pas de phrase d’aide. Les tests du composant sont dans
 `command-tooltip.dom.test.tsx` (survol, focus, Échap dans un menu, touches, condition, fournisseur partagé,
 axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,
-et `column-help.test.ts` pour toute colonne de devis, de planning, de reste à engager ou du registre des risques sans définition.
+et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à engager sans définition.
 
 ### L'aide en ligne
 
@@ -2185,17 +2185,13 @@ standalone les emporte par `outputFileTracingIncludes` (`next.config.ts`). Le pa
 `react-markdown` et `remark-gfm`, sans HTML brut (`skipHtml`) et dans les seuls éléments d'un texte ;
 un code entre accents graves s'y lit comme une touche (`<kbd>`). Un lien relatif vers un code ou une
 notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` depuis une notion) montre sa page
-dans le panneau ; tout autre lien se lit comme du texte. La recherche porte sur les titres des pages
-écrites, que l'action rend avec la page. Le panneau tient le focus, se ferme par Échap et rend le focus
+dans le panneau ; tout autre lien se lit comme du texte. Le panneau tient le focus, se ferme par Échap et rend le focus
 à ce qui l'avait — le bouton, ou la cellule où F1 a été pressée ; une page suivie par un lien donne le
 focus à son titre. Une réponse arrivée après une autre demande est ignorée.
 
 La page d'un écran suit la structure de #1075, ses titres de second niveau dans cet ordre
 (`SCREEN_HEADINGS`) : « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses valeurs
-calculées », « Les gestes au clavier », « Voir aussi ». Les définitions des colonnes ne s'y écrivent
-pas : le panneau les rend après la troisième section, depuis la configuration de la grille de l'écran
-et les clés de ses en-têtes (`columns.<grille>.<colonne>.help`, `COLUMNS` de `read.ts`), une seule
-source avec leurs infobulles. Une notion cite le glossaire de l'annexe A mot pour mot, une citation par
+calculées », « Les gestes au clavier », « Voir aussi ». Une notion cite le glossaire de l'annexe A mot pour mot, une citation par
 terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
 « Voir aussi ». L'aide n'existe qu'en français : une interface en anglais la montre en français, écart
 de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075).

@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
  * The guard of the definitions of the columns (US-0580/L2, #1137): each column of the grids of the
- * estimate, of the planning, of the remaining to commit and of the risks (US-0580/L3) has a
- * definition for its header, and the amount corrected of inflation, the sentence with the year and
- * the rate that correct it where the screen knows them.
+ * estimate, of the planning and of the remaining to commit has a definition for its header, and the
+ * amount corrected of inflation, the sentence with the year and the rate that correct it where the
+ * screen knows them.
  */
 import { describe, expect, it } from "vitest";
 
-import { RISK_GRID } from "@/components/risks/risk-grid";
 import { estimateReference } from "@/test/reference";
 
 import type { GridColumn } from "./columns";
@@ -28,7 +27,6 @@ describe("the definitions of the columns", () => {
     ["estimate", ESTIMATE_GRID.columns, estimateGrid(estimateReference()).columns],
     ["planning", PLANNING_GRID.columns, planningGrid().columns],
     ["remaining", REMAINING_GRID.columns, remainingGrid().columns],
-    ["risks", RISK_GRID.columns, RISK_GRID.columns],
   ] as const)("gives every column of the grid of the %s a definition", (_grid, defined, built) => {
     expect(defined.length).toBeGreaterThan(0);
     expect(bare(defined)).toEqual([]);

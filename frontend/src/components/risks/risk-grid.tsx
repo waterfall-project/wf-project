@@ -99,7 +99,6 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     {
       key: "label",
       label: "label",
-      help: "risks.label",
       format: "text",
       width: 240,
       pinned: true,
@@ -110,7 +109,6 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     {
       key: "probability",
       label: "probability",
-      help: "risks.probability",
       format: "percent",
       width: 88,
       contract: "probability",
@@ -119,7 +117,6 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     {
       key: "severity",
       label: "severity",
-      help: "risks.severity",
       format: "money",
       width: 120,
       computed: computedInEveryRisk("severity"),
@@ -129,7 +126,6 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     {
       key: "provision_amount",
       label: "provisionAmount",
-      help: "risks.provisionAmount",
       format: "money",
       width: 120,
       computed: computedInEveryRisk("provision_amount"),
@@ -140,7 +136,6 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     {
       key: "state",
       label: "state",
-      help: "risks.state",
       format: "text",
       width: 96,
       contract: "state",
@@ -151,7 +146,6 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     {
       key: "last_review_on",
       label: "lastReview",
-      help: "risks.lastReview",
       format: "date",
       width: 104,
       contract: "last_review_on",
@@ -160,7 +154,6 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     {
       key: "zone",
       label: "matrixCell",
-      help: "risks.matrixCell",
       format: "text",
       align: "center",
       width: 44,
