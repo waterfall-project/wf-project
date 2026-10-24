@@ -649,7 +649,7 @@ describe("the test of an external location", () => {
         "« secours-lyon » éprouvé le 3 juin 2026, 14:05, dossier waterfall/sauvegardes : le fichier témoin a été écrit puis effacé.",
       );
     });
-    // Kept in the history of the messages, a success, about the location tested [WF-IHM-0080-A].
+    // Kept in the history of the messages, a success, about the location tested (#1043).
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
         tone: "success",
@@ -678,7 +678,7 @@ describe("the test of an external location", () => {
         "« nas-siege » éprouvé le 3 juin 2026, 14:05, à sa racine : échec — Accès refusé.",
       );
     });
-    // Kept in the history of the messages, a refusal [WF-IHM-0080-A].
+    // Kept in the history of the messages, a refusal (#1043).
     expect(readMessages().messages).toEqual([
       expect.objectContaining({ tone: "refusal", object: "nas-siege" }),
     ]);

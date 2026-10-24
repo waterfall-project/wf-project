@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
@@ -233,6 +234,36 @@ describe("what a write answers besides the row written", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals()[5]).toBe("12,5");
+  });
+
+  it("notes in the history of the messages a reading anew of the totals refused while a refusal is told, which it keeps quiet on the screen (#1181)", async () => {
+    // The first write refused, the second done: the totals read anew are refused in turn, behind
+    // the refusal the grid tells.
+    forgetMessages();
+    const stale = { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const;
+    const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+    const client = serve({ [LINE]: [stale, "estimate_line_updated"], [NODES_ROUTE]: lost });
+    const search = { sort: undefined, search: "borniers", size: undefined };
+    render(grid(estimate, search, { search: "borniers" }));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    const told = (await screen.findByRole("alert")).textContent;
+    cell(LABOUR, "quantity").focus();
+    await userEvent.keyboard("3{Enter}");
+    await vi.waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toEqual([LINE, LINE, NODES_ROUTE]);
+    });
+    await vi.waitFor(() => {
+      expect(readMessages().messages.map((message) => message.tone)).toEqual([
+        "refusal",
+        "refusal",
+      ]);
+    });
+    expect(screen.getByRole("alert").textContent).toBe(told);
+    expect(readMessages().messages.map((message) => message.sentence)).toEqual([
+      expect.stringContaining("modifié"),
+      "Vous devez vous connecter.",
+    ]);
   });
 
   it("reads nothing anew for a reading of the whole structure, whose totals the writes answer", async () => {

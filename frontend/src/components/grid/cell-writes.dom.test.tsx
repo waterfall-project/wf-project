@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, renderHook } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
 import type { Outcome, Problem } from "@/api/problem";
@@ -11,6 +13,7 @@ import {
   type RateRow,
   withYears,
 } from "@/components/reference/rate-cells";
+import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
 import { type CellReading, type CellRules, type CellWrites, useCellWrites } from "./cell-writes";
@@ -50,6 +53,15 @@ const LABOUR = nodes.items.findIndex(
 );
 const NODES: CellRules<EstimateNode, NodeTotals> = { rowKey: nodeKey, fresher: nodeFresher };
 const TASK = nodes.items.findIndex((node) => node.task?.label === "Câblage des armoires");
+
+/** In French. */
+function French({ children }: { readonly children: ReactNode }) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+      {children}
+    </NextIntlClientProvider>
+  );
+}
 
 /** Every promise under way settled. */
 function settled(): Promise<void> {
@@ -97,9 +109,10 @@ function writes<Row, Totals>(
   first: CellReading<Row, Totals>,
   writing?: (write: Promise<unknown>) => void,
 ) {
+  // In French, as the grid tells the refusals it keeps quiet to the history of the messages.
   return renderHook(
     (reading: CellReading<Row, Totals>) => useCellWrites<Row, Totals>(reading, rules, writing),
-    { initialProps: first },
+    { initialProps: first, wrapper: French },
   );
 }
 
