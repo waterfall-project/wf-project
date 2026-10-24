@@ -293,8 +293,15 @@ Sur la machine, le DNS de `demo.waterfall-project.pro` pointant déjà vers elle
 ```sh
 cd ~/waterfall-demo
 mv demo.env.example .env && chmod 600 .env
-docker run --rm caddy:2.11.7-alpine caddy hash-password   # le hash va dans .env, entre apostrophes
-openssl rand -base64 32                                    # WATERFALL_SERVER_ACTIONS_KEY
+docker run --rm -it caddy:2.11.7-alpine caddy hash-password   # demande le mot de passe, rend son hash
+openssl rand -base64 32                                        # rend la clé des actions serveur
+```
+
+Écrire dans `.env` l'adresse de `WATERFALL_ACME_EMAIL`, le tag de `WATERFALL_IMAGE_TAG`, le hash dans
+`WATERFALL_DEMO_PASSWORD_HASH`, **entre apostrophes** (ses `$` seraient sinon pris pour des
+variables), et la clé dans `WATERFALL_SERVER_ACTIONS_KEY`. Puis :
+
+```sh
 sudo mkdir -p /var/log/caddy
 docker login ghcr.io                                       # seulement si l'image du front n'est pas publique
 docker compose -f compose.demo.yaml up --detach --build --wait
