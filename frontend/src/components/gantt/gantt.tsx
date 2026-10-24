@@ -56,7 +56,7 @@ import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-m
 import { formatLocale, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
-import { dayOffBands, hasDaysOff, MIN_DAY_WIDTH } from "./days-off";
+import { DAY_OFF_HATCH, dayOffBands, hasDaysOff, MIN_DAY_WIDTH } from "./days-off";
 import {
   type GanttBar,
   ganttLayout,
@@ -249,7 +249,9 @@ export function GanttRows({
     reveal,
     can: { in: level < levels - 1 || zoom === "fit", out: level > 0 || zoom === "fit" },
     dayWidth,
-    tinted: anyDayOff && dayWidth >= MIN_DAY_WIDTH,
+    // Fitted and not yet measured (`frame` at 0), the legend is held: it keeps its place, and the
+    // bands, which wait for the width of a day, come after the measure without moving the layout.
+    tinted: anyDayOff && (dayWidth >= MIN_DAY_WIDTH || (width === undefined && frame === 0)),
   };
   return (
     <GanttContext value={view}>
@@ -423,17 +425,18 @@ function Months({
 
 /** The hatching of the days off, a tint with diagonal strokes on it, as a pattern of an SVG. */
 function DayOffPattern({ id }: { readonly id: string }) {
+  const { size, stroke, rotation, fillClass, markClass } = DAY_OFF_HATCH;
   return (
     <defs>
       <pattern
         id={id}
-        width={6}
-        height={6}
+        width={size}
+        height={size}
         patternUnits="userSpaceOnUse"
-        patternTransform="rotate(45)"
+        patternTransform={`rotate(${rotation.toString()})`}
       >
-        <rect width={6} height={6} className="fill-day-off" />
-        <line x1={0} x2={0} y1={0} y2={6} strokeWidth={1.5} className="stroke-day-off-mark" />
+        <rect width={size} height={size} className={fillClass} />
+        <line x1={0} x2={0} y1={0} y2={size} strokeWidth={stroke} className={markClass} />
       </pattern>
     </defs>
   );

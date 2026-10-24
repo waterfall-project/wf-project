@@ -257,7 +257,8 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
 // The position of a node among the siblings of its kind, which the gestures of structure read to
 // place a node beside another (US-0460/L3, #1188), weighs about a hundredth of each answer: 0.655,
 // 0.475 and 0.63 before it. The calendar of the task, which the Gantt tints the days off of
-// (US-0530/L5), adds about 0.003 to the planning: 0.485 before it.
+// (US-0530/L5), adds 118 400 characters to the planning rows, 1 000 tasks of it: 3.41 to 3.53
+// million characters of the 7.24 of the volume, 0.471 to 0.488; the bound was 0.485 before it.
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.67);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.49);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a

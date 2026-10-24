@@ -23,6 +23,23 @@ export interface DayOffBand {
 /** The fewest pixels a day takes for its tint to be drawn: under it, a day is no more than a hair. */
 export const MIN_DAY_WIDTH = 1;
 
+/**
+ * The hatching of a day off, as the Gantt draws it in SVG and the export as an image on a canvas: a
+ * tile of `size` pixels holding a tint and one stroke of `stroke` pixels along its left edge, the
+ * whole turned by `rotation` degrees. The tint and the stroke are theme tokens (custom properties
+ * of `globals.css`), which the drawing reads from the computed style of the page.
+ */
+export const DAY_OFF_HATCH = {
+  size: 6,
+  stroke: 1.5,
+  rotation: 45,
+  fillToken: "--day-off",
+  markToken: "--day-off-mark",
+  // The same tokens as classes of Tailwind, written whole so that its scan finds them.
+  fillClass: "fill-day-off",
+  markClass: "stroke-day-off-mark",
+} as const;
+
 /** The days of the week by `Date.getUTCDay`, Sunday first. */
 const WEEKDAYS = [
   "sunday",

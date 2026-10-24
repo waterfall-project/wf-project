@@ -198,8 +198,8 @@ describe("the Gantt of the planning", () => {
     expect(bands.length).toBeGreaterThan(8);
     // The tint is a pattern with strokes, not a plain fill: the colour does not carry it alone.
     const pattern = ganttOf("Études de détail").querySelector("pattern");
-    expect(pattern?.querySelector("line.stroke-day-off-mark")).not.toBeNull();
-    expect(pattern?.querySelector("rect.fill-day-off")).not.toBeNull();
+    expect(pattern?.querySelector("line")).toHaveClass("stroke-day-off-mark");
+    expect(pattern?.querySelector("rect")).toHaveClass("fill-day-off");
     expect(bands[0]?.getAttribute("fill")).toBe(`url(#${pattern?.id ?? ""})`);
     // The legend names it, in the language of the interface.
     const legend = screen.getByRole("group", { name: "Légende du Gantt" });
@@ -207,7 +207,8 @@ describe("the Gantt of the planning", () => {
     expect(legend.querySelector("pattern")).not.toBeNull();
   });
 
-  it("tints nothing for a calendar without day off, and writes its legend in English", () => {
+  it("tints nothing for a calendar without day off, and writes its legend in English [WF-PLA-0090-A]", () => {
+    // The calendar_hours of each task of the contract example is replaced by hand by a worked week.
     const worked = {
       monday: "8",
       tuesday: "8",
