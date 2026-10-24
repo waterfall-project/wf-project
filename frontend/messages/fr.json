@@ -390,6 +390,8 @@
     "zoom": "Zoom du Gantt",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
+    "legend": "Légende du Gantt",
+    "dayOff": "Jour chômé : aucune heure de travail au calendrier de la tâche",
     "fit": "Ajuster au projet",
     "quarter": "T{quarter} {year}",
     "quarterShort": "T{quarter}"

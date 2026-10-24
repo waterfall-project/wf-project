@@ -190,6 +190,63 @@ describe("the Gantt of the planning", () => {
     expect(headers.at(-1)?.textContent).toContain("March 2026");
   });
 
+  // WF-PLA-0090 : le Gantt teinte les jours chômés du calendrier de chaque tâche (US-0530/L5).
+  it("tints the days off of each task across its row, hatched as well as coloured, and names the tint in a legend [WF-PLA-0090-A]", () => {
+    renderPlanning();
+    // Two months in 400 points: the weekends of March and April, one band each, over the lines.
+    const bands = ganttOf("Études de détail").querySelectorAll("rect[data-day-off]");
+    expect(bands.length).toBeGreaterThan(8);
+    // The tint is a pattern with strokes, not a plain fill: the colour does not carry it alone.
+    const pattern = ganttOf("Études de détail").querySelector("pattern");
+    expect(pattern?.querySelector("line.stroke-day-off-mark")).not.toBeNull();
+    expect(pattern?.querySelector("rect.fill-day-off")).not.toBeNull();
+    expect(bands[0]?.getAttribute("fill")).toBe(`url(#${pattern?.id ?? ""})`);
+    // The legend names it, in the language of the interface.
+    const legend = screen.getByRole("group", { name: "Légende du Gantt" });
+    expect(legend).toHaveTextContent("Jour chômé");
+    expect(legend.querySelector("pattern")).not.toBeNull();
+  });
+
+  it("tints nothing for a calendar without day off, and writes its legend in English", () => {
+    const worked = {
+      monday: "8",
+      tuesday: "8",
+      wednesday: "8",
+      thursday: "8",
+      friday: "8",
+      saturday: "8",
+      sunday: "8",
+    };
+    const first = planning.items[0];
+    expect(first?.task?.calendar_hours).toBeDefined();
+    const alone: NodeList = {
+      ...planning,
+      items: planning.items.map((item) =>
+        item.task === null || item.task === undefined
+          ? item
+          : { ...item, task: { ...item.task, calendar_hours: worked } },
+      ),
+    };
+    const { unmount } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PlanningGrid
+          nodes={alone}
+          structure={STRUCTURE}
+          structureVersion={1}
+          filters={{}}
+          query={NO_QUERY}
+          preferences={undefined}
+          undoable
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(document.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
+    expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
+    unmount();
+    renderPlanning("en");
+    expect(screen.getByRole("group", { name: "Gantt legend" })).toHaveTextContent("Day off");
+  });
+
   it("draws nothing outside a grid of the planning", () => {
     const { container } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">

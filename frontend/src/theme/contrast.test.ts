@@ -163,6 +163,9 @@ const CONTROLS: readonly [string, string][] = [
   // The focus in the banner, in a menu, and in the side bar on its entries.
   ["ring", "muted"],
   ["ring", "popover"],
+  // The hatching of the days off in the Gantt, on the page and on its own tint (US-0530/L5).
+  ["day-off-mark", "background"],
+  ["day-off-mark", "day-off"],
   ["sidebar-ring", "sidebar"],
   ["sidebar-ring", "sidebar-accent"],
 ];

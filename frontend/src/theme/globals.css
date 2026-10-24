@@ -92,6 +92,11 @@
   --diff-removed-mark: light-dark(#b91c1c, #f87171);
   --diff-modified: light-dark(#fbf1c7, #33290a);
   --diff-modified-mark: light-dark(#854d0e, #facc15);
+  /* The days off of a task in the Gantt (US-0530/L5): a cool grey-blue tint, and the hatching drawn
+     on it, which tells them apart without the colour (WF-PLA-0100, WCAG 1.4.1). The hatching
+     reaches 3:1 on the page and on the tint (contrast.test.ts). */
+  --day-off: light-dark(#eceff6, #1c2130);
+  --day-off-mark: light-dark(#6b7599, #8c96bb);
   /* What floats over the page — a menu, the panel of a sub-menu —: the surface of a card. */
   --popover: var(--card);
   --popover-foreground: var(--card-foreground);
@@ -162,6 +167,8 @@
   --color-diff-removed-mark: var(--diff-removed-mark);
   --color-diff-modified: var(--diff-modified);
   --color-diff-modified-mark: var(--diff-modified-mark);
+  --color-day-off: var(--day-off);
+  --color-day-off-mark: var(--day-off-mark);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-sidebar: var(--sidebar);
