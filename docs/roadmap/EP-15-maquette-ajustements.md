@@ -1428,7 +1428,7 @@ l'autre, et leur taille par défaut passe à 50.
 
 ## US-0580 — L'aide en ligne et les infobulles
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : `getComputedValueDependencies`, `getRevision`, `getProject`
 - **issue** : #1135

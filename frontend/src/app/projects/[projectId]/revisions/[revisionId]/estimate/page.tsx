@@ -32,6 +32,7 @@ import type { ReactNode } from "react";
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
@@ -235,10 +236,12 @@ function EstimateHeader({
       actions={
         <>
           {workload === undefined ? null : (
-            <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              <WorkloadIcon aria-hidden="true" />
-              {t(WORKLOAD.label)}
-            </Link>
+            <CommandTooltip label={t(WORKLOAD.label)} help="workload">
+              <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                <WorkloadIcon aria-hidden="true" />
+                {t(WORKLOAD.label)}
+              </Link>
+            </CommandTooltip>
           )}
           {exchanges}
         </>

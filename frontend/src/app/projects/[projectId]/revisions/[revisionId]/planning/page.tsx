@@ -32,6 +32,7 @@ import { useTranslations } from "next-intl";
 
 import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import type { ListedStructure } from "@/components/context/structure";
 import { ContextBanner } from "@/components/context/context-banner";
@@ -74,10 +75,10 @@ export async function generateMetadata({
  * `leafOf`, by which `make screens` knows the page leads to it.
  */
 const LEAVES = [
-  { leaf: leafOf("FBS-4.3.1"), Icon: LEAF_ICONS["FBS-4.3.1"] },
-  { leaf: leafOf("FBS-4.3.4"), Icon: LEAF_ICONS["FBS-4.3.4"] },
-  { leaf: leafOf("FBS-4.3.5"), Icon: LEAF_ICONS["FBS-4.3.5"] },
-];
+  { leaf: leafOf("FBS-4.3.1"), Icon: LEAF_ICONS["FBS-4.3.1"], help: "timelines" },
+  { leaf: leafOf("FBS-4.3.4"), Icon: LEAF_ICONS["FBS-4.3.4"], help: "exchanges" },
+  { leaf: leafOf("FBS-4.3.5"), Icon: LEAF_ICONS["FBS-4.3.5"], help: "taskTree" },
+] as const;
 
 /**
  * The title of the grid, and what it holds: the structure, and its tasks retained; and the links to
@@ -101,17 +102,15 @@ function PlanningHeader({
       subtitle={t("planningGrid.summary", { structure: label, tasks: totals.task_count })}
       actions={
         <div className="flex flex-wrap gap-2">
-          {LEAVES.map(({ leaf, Icon }) => {
+          {LEAVES.map(({ leaf, Icon, help }) => {
             const href = functionHref(leaf, context);
             return href === undefined ? null : (
-              <Link
-                key={leaf.code}
-                href={href}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                <Icon aria-hidden="true" />
-                {t(leaf.label)}
-              </Link>
+              <CommandTooltip key={leaf.code} label={t(leaf.label)} help={help}>
+                <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  <Icon aria-hidden="true" />
+                  {t(leaf.label)}
+                </Link>
+              </CommandTooltip>
             );
           })}
         </div>

@@ -188,8 +188,9 @@ describe("the frieze of a timeline", () => {
   it("moves a rectangle down by Alt and the down arrow, past a lane where it would overlap, and records the lanes shown after a pause", async () => {
     const user = userEvent.setup();
     renderFrieze();
-    // After the zoom in and out — the automatic layout is already shown.
-    for (let press = 0; press < 3; press += 1) {
+    // After the zoom in, out and fitted, and the automatic layout, already shown: unavailable, each
+    // stays reached, to say why in its tooltip (US-0580).
+    for (let press = 0; press < 5; press += 1) {
       await user.tab();
     }
     expect(frieze()).toHaveFocus();
@@ -271,7 +272,10 @@ describe("the frieze of a timeline", () => {
     renderFrieze(STUDIES, { [node(8)]: 1 });
     await user.click(screen.getByRole("button", { name: "Disposition automatique" }));
     expect(rectangle("Poste de commande")).toHaveAccessibleName(/couloir 1$/);
-    expect(screen.getByRole("button", { name: "Disposition automatique" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disposition automatique" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     await waitFor(
       () => {
         expect(recorded()).toEqual([null]);

@@ -27,6 +27,7 @@ import type { ReactNode } from "react";
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
 import { askSubprojects } from "@/components/context/reading";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
@@ -163,6 +164,7 @@ function RemainingHeader({
 }) {
   const t = useTranslations();
   const action = buttonVariants({ variant: "outline", size: "sm" });
+  const shown = notStarted ? t("remainingGrid.startedOnly") : t("remainingGrid.showNotStarted");
   return (
     <PageHeader
       title={t("functions.remaining")}
@@ -175,27 +177,32 @@ function RemainingHeader({
       })}
       actions={
         <>
-          <Link href={progress} className={action}>
-            {notStarted ? t("remainingGrid.startedOnly") : t("remainingGrid.showNotStarted")}
-          </Link>
-          {kanban === undefined ? null : (
-            <Link href={kanban} className={action}>
-              <KanbanIcon aria-hidden="true" />
-              {t(KANBAN.label)}
+          <CommandTooltip label={shown} help="startedOnly">
+            <Link href={progress} className={action}>
+              {shown}
             </Link>
+          </CommandTooltip>
+          {kanban === undefined ? null : (
+            <CommandTooltip label={t(KANBAN.label)} help="kanban">
+              <Link href={kanban} className={action}>
+                <KanbanIcon aria-hidden="true" />
+                {t(KANBAN.label)}
+              </Link>
+            </CommandTooltip>
           )}
           {workload === undefined ? null : (
-            // An icon alone, named for the readers of the screen and for the pointer: the title, the
-            // subtitle and four links with their words leave the title no room on a window of 1280
-            // points, and the totals of the grid out of it.
-            <Link
-              href={workload}
-              aria-label={t(WORKLOAD.label)}
-              title={t(WORKLOAD.label)}
-              className={buttonVariants({ variant: "outline", size: "icon" })}
-            >
-              <WorkloadIcon aria-hidden="true" />
-            </Link>
+            // An icon alone, named for the readers of the screen, and by its tooltip for the pointer:
+            // the title, the subtitle and four links with their words leave the title no room on a
+            // window of 1280 points, and the totals of the grid out of it.
+            <CommandTooltip label={t(WORKLOAD.label)} help="workload">
+              <Link
+                href={workload}
+                aria-label={t(WORKLOAD.label)}
+                className={buttonVariants({ variant: "outline", size: "icon" })}
+              >
+                <WorkloadIcon aria-hidden="true" />
+              </Link>
+            </CommandTooltip>
           )}
           {exchanges}
         </>

@@ -190,8 +190,9 @@ test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cut
   );
   // Zoomed in until the axis outgrows the frame, the first rectangle is in view and the last is not.
   const zoomIn = page.getByRole("button", { name: "Zoom avant" });
-  // The finest level is the day: the button is disabled once it is reached.
-  while (await zoomIn.isEnabled()) {
+  // The finest level is the day: the button is unavailable once it is reached, reached still to say
+  // why in its tooltip (US-0580).
+  while ((await zoomIn.getAttribute("aria-disabled")) !== "true") {
     await zoomIn.click();
   }
   await frieze.focus();

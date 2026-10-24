@@ -42,6 +42,8 @@ import {
   useState,
 } from "react";
 
+import { CommandTooltip, Keys, MENU_KEYS_CLASS } from "@/components/commands/command-tooltip";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { FoldToggle } from "@/components/grid/fold";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
@@ -256,12 +258,39 @@ export function GanttRows({
   );
 }
 
-/** The commands of the zoom of the Gantt, their icon, their step, and whether each goes anywhere. */
+/** The keys that zoom in the grid or the frieze, as `aria-keyshortcuts` names them (`keyZoom`). */
+const ZOOM_KEYS = {
+  zoomIn: "Control+Plus Meta+Plus",
+  zoomOut: "Control+- Meta+-",
+} as const;
+
+/**
+ * The commands of the zoom of the Gantt, their icon, their step, whether each goes anywhere, and the
+ * keys that ask it.
+ */
 export function zoomCommands(view: GanttView) {
   return [
-    { key: "zoomIn", icon: <ZoomIn aria-hidden="true" />, step: 1, offered: view.can.in },
-    { key: "zoomOut", icon: <ZoomOut aria-hidden="true" />, step: -1, offered: view.can.out },
-    { key: "fit", icon: <Expand aria-hidden="true" />, step: "fit", offered: view.zoom !== "fit" },
+    {
+      key: "zoomIn",
+      icon: <ZoomIn aria-hidden="true" />,
+      step: 1,
+      offered: view.can.in,
+      keys: ZOOM_KEYS.zoomIn,
+    },
+    {
+      key: "zoomOut",
+      icon: <ZoomOut aria-hidden="true" />,
+      step: -1,
+      offered: view.can.out,
+      keys: ZOOM_KEYS.zoomOut,
+    },
+    {
+      key: "fit",
+      icon: <Expand aria-hidden="true" />,
+      step: "fit",
+      offered: view.zoom !== "fit",
+      keys: undefined,
+    },
   ] as const;
 }
 
@@ -274,6 +303,7 @@ export function zoomCommands(view: GanttView) {
  */
 export function GanttZoom() {
   const t = useTranslations("gantt");
+  const said = useTranslations("commands");
   const view = use(GanttContext);
   if (view === undefined) {
     return null;
@@ -285,22 +315,29 @@ export function GanttZoom() {
       className="absolute top-0.5 right-1 z-10 flex gap-0.5 rounded-sm bg-background/90"
     >
       {zoomCommands(view).map((command) => (
-        <Button
+        <CommandTooltip
           key={command.key}
-          type="button"
-          variant="ghost"
-          size="icon"
-          tabIndex={-1}
-          className="size-5 [&_svg]:size-3.5"
-          aria-label={t(command.key)}
-          title={t(command.key)}
-          disabled={!command.offered}
-          onClick={() => {
-            view.zoomTo(command.step);
-          }}
+          label={t(command.key)}
+          help={command.key}
+          keys={command.keys}
+          unavailable={command.offered ? undefined : said(`${command.key}.unavailable`)}
         >
-          {command.icon}
-        </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            tabIndex={-1}
+            className={`size-5 [&_svg]:size-3.5 ${UNAVAILABLE}`}
+            aria-label={t(command.key)}
+            onClick={() => {
+              if (command.offered) {
+                view.zoomTo(command.step);
+              }
+            }}
+          >
+            {command.icon}
+          </Button>
+        </CommandTooltip>
       ))}
     </div>
   );
@@ -312,6 +349,7 @@ export function GanttZoom() {
  */
 export function GanttZoomItems({ separated }: { readonly separated: boolean }) {
   const t = useTranslations("gantt");
+  const said = useTranslations("commands");
   const view = use(GanttContext);
   if (view === undefined) {
     return null;
@@ -320,16 +358,30 @@ export function GanttZoomItems({ separated }: { readonly separated: boolean }) {
     <>
       {separated ? <ContextMenuSeparator /> : null}
       {zoomCommands(view).map((command) => (
-        <ContextMenuItem
+        <CommandTooltip
           key={command.key}
-          disabled={!command.offered}
-          onSelect={() => {
-            view.zoomTo(command.step);
-          }}
+          label={t(command.key)}
+          help={command.key}
+          keys={command.keys}
+          unavailable={command.offered ? undefined : said(`${command.key}.unavailable`)}
+          inMenu
         >
-          {command.icon}
-          {t(command.key)}
-        </ContextMenuItem>
+          <ContextMenuItem
+            className={UNAVAILABLE}
+            onSelect={(event) => {
+              // Pressed where it goes nowhere, it does nothing, and the menu stays open on why.
+              if (!command.offered) {
+                event.preventDefault();
+                return;
+              }
+              view.zoomTo(command.step);
+            }}
+          >
+            {command.icon}
+            {t(command.key)}
+            <Keys keys={command.keys} className={MENU_KEYS_CLASS} />
+          </ContextMenuItem>
+        </CommandTooltip>
       ))}
     </>
   );

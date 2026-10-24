@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { askSubprojects, readProjectContext } from "@/components/context/reading";
@@ -195,10 +196,12 @@ function CostsHeader({
       subtitle={count === undefined ? undefined : t("actualCosts.summary", { count })}
       actions={
         exchanges === undefined ? undefined : (
-          <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            <ExchangesIcon aria-hidden="true" />
-            {t(EXCHANGES.label)}
-          </Link>
+          <CommandTooltip label={t(EXCHANGES.label)} help="exchanges">
+            <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <ExchangesIcon aria-hidden="true" />
+              {t(EXCHANGES.label)}
+            </Link>
+          </CommandTooltip>
         )
       }
     />

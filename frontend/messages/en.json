@@ -252,10 +252,6 @@
       "undo": "Undo",
       "redo": "Redo",
       "menu": "Cell menu",
-      "shortcut": {
-        "undo": "Ctrl+Z",
-        "redo": "Ctrl+Shift+Z"
-      },
       "unavailable": "Unavailable until the server keeps the history of the entries.",
       "told": {
         "undo": "Undo is unavailable: the server does not keep the history of the entries yet.",
@@ -307,7 +303,8 @@
       "categoryField": "Category",
       "quantityField": "Quantity",
       "taskHint": "Name the task. It is created as a leaf, automatic, of one day, without predecessor.",
-      "lineHint": "Name the line, choose its category and its quantity. The other fields are entered in the grid."
+      "lineHint": "Name the line, choose its category and its quantity. The other fields are entered in the grid.",
+      "busy": "Waits for the write under way to end."
     },
     "columnsMenu": {
       "open": "Columns",
@@ -318,7 +315,6 @@
       "open": "Tree",
       "title": "Fold and unfold the tree",
       "expandAll": "Expand all",
-      "expandAllKeys": "Alt+*",
       "collapseAll": "Collapse all",
       "level": "Down to level {level}",
       "collapse": "Collapse",
@@ -998,7 +994,118 @@
   },
   "commands": {
     "label": "Commands",
-    "unmet": "{count, plural, one {Unmet condition} other {Unmet conditions}}: {conditions}."
+    "unmet": "{count, plural, one {Unmet condition} other {Unmet conditions}}: {conditions}.",
+    "or": " or ",
+    "keys": {
+      "Control": "Ctrl",
+      "Meta": "Meta",
+      "Alt": "Alt",
+      "Shift": "Shift",
+      "Insert": "Insert",
+      "Delete": "Delete",
+      "ArrowLeft": "←",
+      "ArrowRight": "→",
+      "ArrowUp": "↑",
+      "ArrowDown": "↓",
+      "Plus": "+",
+      "ContextMenu": "Menu",
+      "Escape": "Esc",
+      "Enter": "Enter"
+    },
+    "macKeys": {
+      "Control": "⌃",
+      "Meta": "⌘",
+      "Alt": "⌥",
+      "Shift": "⇧"
+    },
+    "undo": {
+      "help": "Undoes the last entry of the revision."
+    },
+    "redo": {
+      "help": "Redoes the last entry undone."
+    },
+    "columns": {
+      "help": "Chooses the columns the grid shows."
+    },
+    "outline": {
+      "help": "Folds or unfolds the whole tree, or folds it down to a level."
+    },
+    "expandAll": {
+      "help": "Unfolds every row of the tree."
+    },
+    "collapseAll": {
+      "help": "Folds the tree onto its rows of the first level."
+    },
+    "collapseRow": {
+      "help": "Folds the row: the rows under it are hidden."
+    },
+    "expandRow": {
+      "help": "Unfolds the row: the rows under it are shown."
+    },
+    "insertFirst": {
+      "help": "Creates the first task of the structure."
+    },
+    "insertBelow": {
+      "help": "Creates a task below the row, at the same level."
+    },
+    "insertChild": {
+      "help": "Creates a sub-task under the task of the row."
+    },
+    "insertLine": {
+      "help": "Creates an estimate line on the task, or below the line."
+    },
+    "indent": {
+      "help": "Makes the row a subordinate of the one before it."
+    },
+    "outdent": {
+      "help": "Moves the row one level up the tree."
+    },
+    "up": {
+      "help": "Moves the row one place up among its siblings."
+    },
+    "down": {
+      "help": "Moves the row one place down among its siblings."
+    },
+    "delete": {
+      "help": "Deletes the row; a summary takes its subordinates with it, once confirmed."
+    },
+    "zoomIn": {
+      "help": "Narrows the time scale to read the dates more closely.",
+      "unavailable": "The zoom is at its closest."
+    },
+    "zoomOut": {
+      "help": "Widens the time scale to see a longer period.",
+      "unavailable": "The zoom is at its widest."
+    },
+    "fit": {
+      "help": "Fits the scale to show the whole project.",
+      "unavailable": "The scale already shows the whole project."
+    },
+    "restack": {
+      "help": "Stacks the tasks in their lanes by themselves, forgetting those chosen by hand.",
+      "unavailable": "No task was placed by hand: they are stacked by themselves."
+    },
+    "dismissNews": {
+      "help": "Removes this line; the task stays followed in the panel of the tasks and messages."
+    },
+    "startedOnly": {
+      "help": "Shows or hides the tasks not started."
+    },
+    "timelines": {
+      "help": "Opens the timelines of the project, as a frieze."
+    },
+    "exchanges": {
+      "help": "Opens the imports and exports of the revision."
+    },
+    "taskTree": {
+      "help": "Opens the task tree of the revision."
+    },
+    "workload": {
+      "help": "Opens the workload of the revision, by role."
+    },
+    "kanban": {
+      "help": "Opens the kanban of the tasks to do, in progress and done."
+    }
   },
   "outcome": {
     "unreachable": "The service cannot be reached; try again in a moment.",
@@ -1034,7 +1141,8 @@
     "resultRefused": "The result of a task could not be downloaded.",
     "panel": "Tasks and messages",
     "close": "Close the tasks and messages",
-    "started": "Task started: {task}."
+    "started": "Task started: {task}.",
+    "closeNews": "Close the line of the task"
   },
   "markRevision": {
     "versionName": "Version name",

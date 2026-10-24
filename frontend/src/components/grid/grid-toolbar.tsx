@@ -15,6 +15,7 @@ import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode, SubmitEvent } from "react";
 
+import { CommandTooltip, Keys, MENU_KEYS_CLASS } from "@/components/commands/command-tooltip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,7 +30,7 @@ import { Input } from "@/components/ui/input";
 
 import type { GridColumn, GridConfig } from "./columns";
 import { useDatedEntry } from "./dated-entry";
-import { useFoldReach } from "./fold";
+import { MENU_KEYS, useFoldReach } from "./fold";
 import { configColumn, type GridTable } from "./grid-table";
 import { SEARCH_LENGTH } from "./query";
 import { UndoCommands } from "./undo-commands";
@@ -162,38 +163,43 @@ function SearchField({
  */
 function OutlineMenu({ outline }: { readonly outline: GridOutline }) {
   const t = useTranslations("grid.fold");
-  // Alt and * off a Mac alone, where Option types no * (`useFoldReach`).
+  // Alt and * off a Mac alone, where Option types no * (`useFoldReach`), as in the menu of a cell.
   const reach = useFoldReach();
   const levels = Array.from({ length: Math.max(outline.levels - 1, 0) }, (_, at) => at + 2);
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
-          <ListTree aria-hidden="true" />
-          {t("open")}
-        </Button>
-      </DropdownMenuTrigger>
+      <CommandTooltip label={t("open")} help="outline">
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+            <ListTree aria-hidden="true" />
+            {t("open")}
+          </Button>
+        </DropdownMenuTrigger>
+      </CommandTooltip>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={outline.expandAll}
-          aria-keyshortcuts={reach === "all" ? "Alt+*" : undefined}
+        <CommandTooltip
+          label={t("expandAll")}
+          help="expandAll"
+          keys={MENU_KEYS.expandAll[reach]}
+          inMenu
+          side="left"
         >
-          {t("expandAll")}
-          {reach === "all" ? (
-            <span aria-hidden="true" className="ml-auto text-xs text-muted-foreground">
-              {t("expandAllKeys")}
-            </span>
-          ) : null}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            outline.collapseTo(1);
-          }}
-        >
-          {t("collapseAll")}
-        </DropdownMenuItem>
+          <DropdownMenuItem onSelect={outline.expandAll}>
+            {t("expandAll")}
+            <Keys keys={MENU_KEYS.expandAll[reach]} className={MENU_KEYS_CLASS} />
+          </DropdownMenuItem>
+        </CommandTooltip>
+        <CommandTooltip label={t("collapseAll")} help="collapseAll" inMenu side="left">
+          <DropdownMenuItem
+            onSelect={() => {
+              outline.collapseTo(1);
+            }}
+          >
+            {t("collapseAll")}
+          </DropdownMenuItem>
+        </CommandTooltip>
         {levels.map((level) => (
           <DropdownMenuItem
             key={level}
@@ -234,18 +240,20 @@ export function GridToolbar({
       {undoable === true ? <UndoCommands /> : null}
       {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={grid === undefined ? undefined : t("openIn", { grid })}
-            className="h-7 text-xs"
-          >
-            <Columns3 aria-hidden="true" />
-            {t("open")}
-          </Button>
-        </DropdownMenuTrigger>
+        <CommandTooltip label={t("open")} help="columns">
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={grid === undefined ? undefined : t("openIn", { grid })}
+              className="h-7 text-xs"
+            >
+              <Columns3 aria-hidden="true" />
+              {t("open")}
+            </Button>
+          </DropdownMenuTrigger>
+        </CommandTooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
           <DropdownMenuSeparator />

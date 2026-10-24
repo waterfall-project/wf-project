@@ -2095,6 +2095,44 @@ d'un projet, qu'aucun projet ne liste ; les commandes d'une sauvegarde sont cell
 commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
 par `OutcomeNotice`.
 
+### Les infobulles des commandes
+
+Un bouton porte `CommandTooltip` (`frontend/src/components/commands/command-tooltip.tsx`, US-0580,
+#1071), jamais un attribut `title=`, que le navigateur montre tard, sans mise en forme ni thème sombre,
+et jamais au focus du clavier. Un lien dessiné comme un bouton et un article de menu le portent de
+même. L'infobulle dit :
+
+- **le nom** de la commande, celui que le contrôle porte déjà ;
+- **une phrase d'aide**, prise du catalogue : `commands.<commande>.help`, dans les deux langues, tenue
+  par `make catalogs` ; la prop `help` ne se compile que pour une commande qui en a une
+  (`CommandHelp`) ;
+- **ses touches**, en `<kbd>`, écrites selon le poste — ⌘ sur un Mac, Ctrl ailleurs —, chaque touche
+  par son nom du catalogue (`commands.keys`, `commands.macKeys`). Elles n'ont qu'une source : la prop
+  `keys`, écrite comme `aria-keyshortcuts` la nomme (`"Control+Z Meta+Z"`), que `CommandTooltip` pose
+  sur le contrôle et montre à la fois (`shortcut.ts`) ; un article de menu les montre aussi à sa fin
+  (`Keys`), de la même source ;
+- **la condition qui manque**, pour une commande indisponible (WF-IHM-0090) : `unavailable`, qui
+  marque le contrôle `aria-disabled` — jamais `disabled`, qui l'ôterait du survol et du clavier —, la
+  condition restant dite là où elle l'est déjà, que `describedBy` désigne.
+
+L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
+aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`) ;
+elle se ferme par Échap sans déplacer le focus, et reste ouverte tant que le pointeur passe dessus.
+Ouverte, elle décrit le contrôle (`aria-describedby`) par sa phrase d'aide seule : elle ne porte jamais
+seule ce qu'il faut savoir, le nom restant celui du contrôle et la condition sa description. Le
+contrôle est un seul élément, qui reçoit les attributs et les événements de l'infobulle : il ne pose
+lui-même ni `aria-keyshortcuts`, ni `aria-disabled`, ni `aria-describedby`, que `CommandTooltip`
+pose ; il ne fait rien, pressé indisponible.
+
+_Contrôle_ : `src/components/button-title-guard.test.ts` (`make test-front`) lit chaque composant par
+l'analyseur de TypeScript et refuse un `title=` sur un bouton — `<button>`, `Button`, `CellCommand`,
+`Command`, un interrupteur, un article ou un déclencheur de menu, un élément de rôle `button`, un lien
+dessiné par `buttonVariants`. Les commandes d'objet, les dialogues, les en-têtes de colonnes et les
+valeurs calculées passent à `CommandTooltip` avec US-0580/L2 (#1137) : les fichiers dont les boutons
+portent encore un `title=` y sont une liste fermée, qui ne peut que décroître — un fichier listé qui
+n'en porte plus fait échouer le test aussi, pour qu'on l'en retire. Les tests du composant sont dans
+`command-tooltip.dom.test.tsx` (survol, focus, Échap, touches, condition, axe).
+
 ### Les actions longues et le suivi des tâches de fond
 
 Une action longue rend la main à la réception de sa tâche de fond (WF-ARC-0090) : son action
@@ -2114,7 +2152,9 @@ son nom et ses pastilles, le nombre des tâches suivies et celui des refus non l
 de lui-même, sauf le refus d'un résultat au retour du navigateur, dont le téléchargement est parti
 du panneau. Une tâche remise ou finie se dit sous la barre, dans le flux de la page, sur l'écran où
 l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante — la confirmation sur
-place d'un succès que l'écran ne montre pas —, sans annonce, le journal parlant pour les fins.
+place d'un succès que l'écran ne montre pas —, sans annonce, le journal parlant pour les fins ; son
+bouton la ferme, au clavier comme à la souris, et rend le focus au bouton de la barre, la tâche
+restant suivie (décision de l'auteur, #1179).
 Fermé, le panneau suit encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées
 — et son journal parle toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est
 gardé. Une relance

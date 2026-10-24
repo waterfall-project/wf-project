@@ -215,20 +215,20 @@ describe("undo and redo, placed in the grids", () => {
     const cell = focusLabel();
     await userEvent.pointer({ keys: "[MouseRight]", target: cell });
     // The gestures of structure, then the folding of the row, the grid being a tree, then undo and
-    // redo.
+    // redo; each with the keys it sets on its item, shown off a Mac (US-0580).
     expect(
       within(cellMenu())
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
     ).toEqual([
-      "Insérer au-dessous",
-      "Insérer une sous-tâche",
-      "Insérer une ligne",
-      "Désindenter",
-      "Descendre",
-      "Supprimer",
-      "Plier la ligne",
-      "Tout déplier",
+      "Insérer au-dessousInser",
+      "Insérer une sous-tâcheAlt+Inser",
+      "Insérer une ligneCtrl+Inser",
+      "DésindenterAlt+Maj+←",
+      "DescendreAlt+Maj+↓",
+      "SupprimerCtrl+Suppr",
+      "Plier la ligneAlt+-",
+      "Tout déplierAlt+*",
       "AnnulerCtrl+Z",
       "RétablirCtrl+Maj+Z",
     ]);

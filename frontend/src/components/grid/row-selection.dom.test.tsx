@@ -367,8 +367,10 @@ describe("the moves of a selection", () => {
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
     // The deletion is that of a row alone: not offered on a selection of several.
-    expect(items).toEqual(expect.arrayContaining(["Indenter", "Monter", "Descendre"]));
-    expect(items).not.toContain("Supprimer");
+    expect(items).toEqual(
+      expect.arrayContaining(["IndenterAlt+Maj+→", "MonterAlt+Maj+↑", "DescendreAlt+Maj+↓"]),
+    );
+    expect(items.filter((item) => item.startsWith("Supprimer"))).toEqual([]);
     expect(within(menu).getByRole("menuitem", { name: "Descendre" })).toHaveAttribute(
       "aria-keyshortcuts",
       "Alt+Shift+ArrowDown",

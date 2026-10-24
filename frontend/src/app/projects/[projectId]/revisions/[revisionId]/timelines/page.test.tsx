@@ -156,14 +156,15 @@ describe("the screen of the timelines", () => {
     };
     // Stacked automatically for an account that placed nothing: nothing to give back.
     const stacked = await timelinesAt();
-    expect(restack(stacked)).toContain('disabled=""');
+    // Unavailable, reached still to say why in its tooltip (US-0580).
+    expect(restack(stacked)).toContain('aria-disabled="true"');
     expect(stacked).toContain(COMMISSIONING.replace("LANE", "1"));
     server.clients = [];
     server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
     const page = await timelinesAt();
     const placed = restack(page);
     expect(placed).toContain("<button");
-    expect(placed).not.toContain('disabled=""');
+    expect(placed).not.toContain('aria-disabled="true"');
     // The lanes kept concern milestones only: the drawing stays the automatic stacking (the drawn lane: #1406).
     expect(page).toContain(COMMISSIONING.replace("LANE", "1"));
   });

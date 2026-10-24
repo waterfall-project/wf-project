@@ -35,6 +35,8 @@ import {
 
 import type { components } from "@/api/generated/schema";
 import { updateTimelinePreferences } from "@/api/actions/preferences";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useKeptWriter } from "@/components/grid/settings";
 import { Button } from "@/components/ui/button";
@@ -174,6 +176,7 @@ function said(
 function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
   const t = useTranslations("timelines.chart");
   const tz = useTranslations("gantt");
+  const commands = useTranslations("commands");
   const tg = useTranslations("grid.columns");
   const locale = useLocale();
   const view = useGanttView();
@@ -326,33 +329,50 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
         <span className="flex flex-wrap gap-2">
           <span role="group" aria-label={t("zoom")} className="flex gap-1">
             {zoomCommands(view).map((command) => (
-              <Button
+              <CommandTooltip
                 key={command.key}
-                type="button"
-                variant="outline"
-                size="icon"
-                className="size-8"
-                aria-label={tz(command.key)}
-                title={tz(command.key)}
-                disabled={!command.offered}
-                onClick={() => {
-                  view.zoomTo(command.step);
-                }}
+                label={tz(command.key)}
+                help={command.key}
+                keys={command.keys}
+                unavailable={command.offered ? undefined : commands(`${command.key}.unavailable`)}
               >
-                {command.icon}
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className={`size-8 ${UNAVAILABLE}`}
+                  aria-label={tz(command.key)}
+                  onClick={() => {
+                    if (command.offered) {
+                      view.zoomTo(command.step);
+                    }
+                  }}
+                >
+                  {command.icon}
+                </Button>
+              </CommandTooltip>
             ))}
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={placed === undefined}
-            onClick={restack}
+          <CommandTooltip
+            label={t("restack")}
+            help="restack"
+            unavailable={placed === undefined ? commands("restack.unavailable") : undefined}
           >
-            <Rows3 aria-hidden="true" />
-            {t("restack")}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={UNAVAILABLE}
+              onClick={() => {
+                if (placed !== undefined) {
+                  restack();
+                }
+              }}
+            >
+              <Rows3 aria-hidden="true" />
+              {t("restack")}
+            </Button>
+          </CommandTooltip>
         </span>
       </figcaption>
       <p id={`${ids}hint`} className="text-xs text-muted-foreground">

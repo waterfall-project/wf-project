@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { spokenText } from "@/test/menu";
 
 import EstimatePage from "./estimate/page";
 import type { RevisionParams } from "./page";
@@ -338,7 +339,7 @@ describe("the own estimate of a risk", () => {
     const menu = await screen.findByRole("menu", { name: "Menu de la cellule" });
     const names = within(menu)
       .getAllByRole("menuitem")
-      .map((item) => item.textContent)
+      .map(spokenText)
       .filter((text) => /Insérer|Supprimer/.test(text));
     await userEvent.keyboard("{Escape}");
     return names;

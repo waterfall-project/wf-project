@@ -123,10 +123,11 @@ test("confirms the deletion of a summary of the planning before it is sent, and 
   const leaf = await labelOf(table, /^9 .*Câblage des armoires/);
   await leaf.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
+  // Each with its keys, shown off a Mac (US-0580).
   await expect(menu.getByRole("menuitem").filter({ hasText: /Insérer|Supprimer/ })).toHaveText([
-    "Insérer au-dessous",
-    "Insérer une sous-tâche",
-    "Supprimer",
+    "Insérer au-dessousInser",
+    "Insérer une sous-tâcheAlt+Inser",
+    "SupprimerCtrl+Suppr",
   ]);
   await menu.getByRole("menuitem", { name: "Supprimer" }).click();
   await expect(page.getByText("« Câblage des armoires » supprimée.")).toBeVisible({
