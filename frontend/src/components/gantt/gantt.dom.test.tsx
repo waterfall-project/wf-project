@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -16,7 +17,7 @@ import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { WRITE_DELAY } from "@/components/grid/settings";
 
-import { GanttCell } from "./gantt";
+import { GanttAxis, GanttCell, GanttLegend, GanttRows } from "./gantt";
 
 // The server of Next, as far as the grid needs it: the preferences it records.
 const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } => ({
@@ -246,6 +247,39 @@ describe("the Gantt of the planning", () => {
     unmount();
     renderPlanning("en");
     expect(screen.getByRole("group", { name: "Gantt legend" })).toHaveTextContent("Day off");
+  });
+
+  it("holds its legend only until the frame is measured, and tints only the days of a pixel or more [WF-PLA-0090-A]", async () => {
+    const rows = planning.items;
+    const row = rows.find((item) => item.task !== null && item.task !== undefined) ?? {
+      node_id: "none",
+    };
+    const drawing = (axis: number | undefined) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <GanttRows rows={rows}>
+          {axis === undefined ? null : <GanttAxis width={axis} />}
+          <GanttCell row={row} />
+          <GanttLegend />
+        </GanttRows>
+      </NextIntlClientProvider>
+    );
+    // Before the measure (the first render, no effect run): the legend holds its place, no band yet.
+    const first = document.createElement("div");
+    first.innerHTML = renderToString(drawing(400));
+    expect(first.querySelector("[role=group]")).not.toBeNull();
+    expect(first.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
+    // A frame measured too narrow, the days under a pixel: neither legend nor band.
+    const narrow = render(drawing(10));
+    expect(narrow.container.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
+    await waitFor(() => {
+      expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
+    });
+    narrow.unmount();
+    // A Gantt not drawn, no axis to measure: no legend once the tick of the mount is over.
+    render(drawing(undefined));
+    await waitFor(() => {
+      expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
+    });
   });
 
   it("draws nothing outside a grid of the planning", () => {

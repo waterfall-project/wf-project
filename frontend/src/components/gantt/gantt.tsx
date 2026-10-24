@@ -150,6 +150,16 @@ export function GanttRows({
   const levels = levelsWith(undefined);
   const [zoom, setZoom] = useKeptZoom(scope, levels);
   const [frame, setFrame] = useState(0);
+  // False until a tick after the mount: the time the axis, if drawn, has to measure its frame.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const tick = setTimeout(() => {
+      setSettled(true);
+    }, 0);
+    return () => {
+      clearTimeout(tick);
+    };
+  }, []);
   const [offset, setOffset] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
   const attach = useCallback((element: HTMLDivElement | null) => {
@@ -249,9 +259,11 @@ export function GanttRows({
     reveal,
     can: { in: level < levels - 1 || zoom === "fit", out: level > 0 || zoom === "fit" },
     dayWidth,
-    // Fitted and not yet measured (`frame` at 0), the legend is held: it keeps its place, and the
-    // bands, which wait for the width of a day, come after the measure without moving the layout.
-    tinted: anyDayOff && (dayWidth >= MIN_DAY_WIDTH || (width === undefined && frame === 0)),
+    // Fitted and not yet measured, for a tick at most, the legend is held: it keeps its place, and
+    // the bands, which wait for the width of a day, come after the measure. The layout moves once
+    // only if the measure shows days under a pixel (the legend then goes), or if no axis is drawn.
+    tinted:
+      anyDayOff && (dayWidth >= MIN_DAY_WIDTH || (width === undefined && frame === 0 && !settled)),
   };
   return (
     <GanttContext value={view}>
