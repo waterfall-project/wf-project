@@ -27,7 +27,7 @@ import fr from "../../../messages/fr.json";
 const SOURCES = join(import.meta.dirname, "..", "..");
 
 /** The sources of the front that run: tests, generated client and fixtures left out. */
-function sources(): string {
+function sources(): string[] {
   return readdirSync(SOURCES, { recursive: true, withFileTypes: true })
     .filter(
       (entry) =>
@@ -37,8 +37,7 @@ function sources(): string {
         !entry.parentPath.includes(join("src", "api", "generated")) &&
         !entry.parentPath.includes(join("src", "test")),
     )
-    .map((entry) => readFileSync(join(entry.parentPath, entry.name), "utf8"))
-    .join("\n");
+    .map((entry) => readFileSync(join(entry.parentPath, entry.name), "utf8"));
 }
 
 type Helps = Readonly<Record<string, unknown>>;
@@ -54,8 +53,13 @@ function helpPaths(commands: Helps, prefix = ""): string[] {
   });
 }
 
-/** Whether a source names the key whole, or names the command where it builds the key from it. */
-function isRead(path: string, text: string): boolean {
+/**
+ * Whether a source names the key whole, or, in one same file, names the command in a string and
+ * builds the key from a name (`}.help`): the name alone, anywhere, would let a command read nowhere
+ * pass on a common name (`create`, `up`).
+ */
+function isRead(path: string, files: readonly string[]): boolean {
+  const text = files.join("\n");
   const [group, command] = path.split(".");
   if (command !== undefined && (group === "project" || group === "revision")) {
     const listed: readonly string[] =
@@ -66,8 +70,20 @@ function isRead(path: string, text: string): boolean {
   }
   const whole = new RegExp(`(?:["'\`]|commands\\.)${path.replace(".", "\\.")}\\.help`);
   const built = new RegExp(`["']${path}["']`);
-  return whole.test(text) || (text.includes("}.help") && built.test(text));
+  return whole.test(text) || files.some((file) => file.includes("}.help") && built.test(file));
 }
+
+describe("the reading of a help", () => {
+  const builder = "const key = `${command}.help`;";
+
+  it("counts a key built from its name when the name and the construction are in the same file", () => {
+    expect(isRead("create", [`${builder}\nconst commands = ["create"];`])).toBe(true);
+  });
+
+  it("refuses a key of a common name that no file both names and builds", () => {
+    expect(isRead("create", [builder, 'const label = "create";'])).toBe(false);
+  });
+});
 
 describe("the helps of the commands of the catalogue", () => {
   const text = sources();

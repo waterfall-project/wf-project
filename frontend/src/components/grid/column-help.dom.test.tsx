@@ -108,6 +108,10 @@ describe("the tooltip of the header of a column", () => {
     await waitFor(() => {
       expect(inflated).toHaveAccessibleDescription(plain);
     });
-    expect(plain).not.toMatch(/\d/);
+    expect(plain).toBe(
+      "Montant corrigé de l’inflation de l’année de référence de la révision à l’année de consommation de la ligne, au taux d’inflation du projet.",
+    );
+    // Neither the year nor the rate of the example of the contract.
+    expect(inflated).not.toHaveAccessibleDescription(/2026|3\s?%/);
   });
 });

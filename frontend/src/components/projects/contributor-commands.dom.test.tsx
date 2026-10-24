@@ -396,7 +396,9 @@ describe("the modification of the contributors of a project", () => {
     expect(command).toHaveFocus();
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAttribute("aria-busy", "true");
-    expect(command).toHaveAccessibleDescription(/^Enregistrement en cours…/);
+    expect(command).toHaveAccessibleDescription(
+      `${CATALOGUES.fr.reference.form.writing} ${CATALOGUES.fr.commands.project.manage_contributors.help}`,
+    );
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
     release();
