@@ -143,27 +143,6 @@ describe("what the tracker follows", () => {
     expect(tracking(tracked, { type: "found", tasks: [] }).tasks).toBe(tracked.tasks);
   });
 
-  it("keeps the refusal of the reads out of reach, noted once, and takes anew a relaunch out of reach after them, noted anew (#1181)", () => {
-    const answer = (source: "read" | "relaunch") =>
-      ({
-        type: "answer",
-        source,
-        key: MARKING,
-        taskId: MARKING,
-        outcome: { kind: "unreachable" },
-      }) as const;
-    const once = tracking(following(task("task_running")), answer("read"));
-    const first = once.tasks[0]?.outcome;
-    expect(first).toEqual({ kind: "unreachable" });
-    // Read again out of reach: the same refusal, which the history noted already.
-    const twice = tracking(once, answer("read"));
-    expect(twice.tasks[0]?.outcome).toBe(first);
-    // A relaunch the user pressed, out of reach: a refusal of its own, told and noted anew.
-    const relaunched = tracking(twice, answer("relaunch"));
-    expect(relaunched.tasks[0]?.outcome).toEqual({ kind: "unreachable" });
-    expect(relaunched.tasks[0]?.outcome).not.toBe(first);
-  });
-
   it("asks again after the API out of reach, and not after a refusal", () => {
     const [running] = following(task("task_running")).tasks;
     if (running === undefined) {

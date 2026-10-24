@@ -7,8 +7,8 @@ import {
   gestureBegun,
   heldClick,
   holdNavigation,
+  leftRefusals,
   onLeftRefusals,
-  refusedLeft,
 } from "./held-writes";
 
 /** A write under way, and the way to answer it. */
@@ -100,15 +100,15 @@ describe("the writes refused once their screen is gone (#863)", () => {
     holdNavigation(refused.write)();
     holdNavigation(applied.write)();
     holdNavigation(failed)();
-    expect(refusedLeft().length).toBe(0);
+    expect(leftRefusals()).toBe(0);
     refused.answer(false);
     applied.answer(true);
     fail(new Error("the server of Next out of reach"));
     await settled();
-    expect(refusedLeft().length).toBe(2);
+    expect(leftRefusals()).toBe(2);
     expect(told).toHaveBeenCalledTimes(2);
     dismissLeftRefusals();
-    expect(refusedLeft().length).toBe(0);
+    expect(leftRefusals()).toBe(0);
     expect(told).toHaveBeenCalledTimes(3);
     stop();
   });
@@ -118,7 +118,7 @@ describe("the writes refused once their screen is gone (#863)", () => {
     await settled();
     release();
     await settled();
-    expect(refusedLeft().length).toBe(0);
+    expect(leftRefusals()).toBe(0);
   });
 
   it("count a write once, however many times its screen releases it", async () => {
@@ -128,6 +128,6 @@ describe("the writes refused once their screen is gone (#863)", () => {
     release();
     write.answer(false);
     await settled();
-    expect(refusedLeft().length).toBe(1);
+    expect(leftRefusals()).toBe(1);
   });
 });

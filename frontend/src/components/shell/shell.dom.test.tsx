@@ -526,9 +526,7 @@ describe("the writes refused once their screen is gone (#863)", () => {
     expect(bar().queryByRole("alert")).toBeNull();
   });
 
-  it("are signalled to a user who changed screens meanwhile, each noted in the history of the messages in the sentence of its refusal, with the object it names and the screen the write was made on [WF-IHM-0080-A]", async () => {
-    // Son aboutissement comme son échec sont signalés même si l'utilisateur a changé d'écran
-    // entre-temps : the screen is left before the write answers, and the refusal arrives on another.
+  it("are each noted in the history of the messages, in the sentence of their refusal, with the object it names and the screen the write was made on [WF-IHM-0080-A]", async () => {
     forgetMessages();
     const made = `/projects/${PROJECT}/settings`;
     window.history.replaceState(null, "", made);

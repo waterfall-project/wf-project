@@ -6,7 +6,7 @@
  * of the page wait until it has answered, and do not take place when it was refused
  * (`held-writes.ts`, `useNavigationHold`). The screen gone, or the list that tells their refusal
  * read otherwise, its writes hold nothing: a click does not wait for them, and one refused after is
- * told by the bar of the shell, unless what asked it tells it still (`LeftRefusals`, #863).
+ * told by the bar of the shell, unless what asked it tells it still (`leftRefusals`, #863).
  *
  * The one point every command of a screen goes through: `useHeldCommand` gives the outcome of its
  * server action, a rejection read as the screen of failure reads it (`rejected`), and holds the

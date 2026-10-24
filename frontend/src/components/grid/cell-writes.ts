@@ -56,7 +56,6 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { useHeldWrites } from "@/components/commands/held";
-import { useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 
 import {
@@ -312,7 +311,6 @@ export function useCellWrites<Row, Totals>(
   }, [epoch, view, rowKey, fresher]);
   // The writes the navigations of the page wait for, released when the grid goes.
   const hold = useHeldWrites();
-  const noteRefusal = useNoteRefusal();
   // The write of each row under way, which the next waits for.
   const queues = useRef(new Map<string, Promise<unknown>>());
   // How many pastes wrote each row: a refusal of a write the paste of its row overtook says
@@ -403,11 +401,6 @@ export function useCellWrites<Row, Totals>(
           const kept =
             answer.kind === "done" ||
             (before.outcome !== undefined && before.outcome.kind !== "done");
-          if (kept && answer.kind !== "done") {
-            // Kept quiet on the screen, behind the refusal told: noted all the same (#1181) — once,
-            // however often React runs this update, the history noting an outcome once.
-            noteRefusal(answer);
-          }
           return {
             ...show(before),
             outcome: kept ? before.outcome : answer,

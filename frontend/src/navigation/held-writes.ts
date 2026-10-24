@@ -19,7 +19,7 @@
  * gone — left by « Précédent », by the router, or by a link while the write had not left yet —, or
  * the list it was asked from read otherwise, which tells a refusal on the reading it was asked from
  * alone. It holds no click then. One still under way, and refused after, is told by the bar of the
- * shell (`LeftRefusals`), which outlives every screen (#863): nothing is lost unsaid — save when
+ * shell (`leftRefusals`), which outlives every screen (#863): nothing is lost unsaid — save when
  * what asked it tells it still (`told`), a dialog left open telling the refusal at its fields, which
  * the bar does not say twice. One refused before its release was told where it was made, and is not
  * told again.
@@ -73,6 +73,11 @@ function tellLeftRefusals(): void {
   for (const listener of listeners) {
     listener();
   }
+}
+
+/** How many writes were refused once released, told nowhere else, not yet dismissed. */
+export function leftRefusals(): number {
+  return leftRefused.length;
 }
 
 /** The writes refused once released, not yet dismissed: the same list as long as none is added. */

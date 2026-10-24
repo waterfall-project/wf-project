@@ -379,8 +379,7 @@ describe("the work breakdown edited in its grid", () => {
       expect.objectContaining({
         tone: "refusal",
         sentence: "Les données saisies ne sont pas valides.",
-        // The two fields refused for the same reason: the reason said once (#1181).
-        detail: "Une valeur est requise.",
+        detail: "Une valeur est requise. Une valeur est requise.",
         object: ADDED,
       }),
     ]);

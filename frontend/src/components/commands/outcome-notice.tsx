@@ -381,8 +381,8 @@ export interface NotedRefusal {
 /**
  * Note in the history of the messages a refusal the screen tells otherwise than by a notice — at the
  * fields of a form, by the bar of the shell —, in the sentence a notice would tell it in, once, what
- * its fields refuse in a second sentence, each reason once: the same outcome told by a notice after
- * it notes nothing more. Nothing for an outcome done.
+ * its fields refuse in a second sentence: the same outcome told by a notice after it notes nothing
+ * more. Nothing for an outcome done.
  */
 export function useNoteRefusal(): (outcome: Outcome<unknown>, noted?: NotedRefusal) => void {
   const known = useContext(Known);
@@ -395,9 +395,8 @@ export function useNoteRefusal(): (outcome: Outcome<unknown>, noted?: NotedRefus
         return;
       }
       const fields = "problem" in outcome ? (outcome.problem.fields ?? []) : [];
-      // Each sentence once: two fields refused for the same reason say it once (#1181).
-      const sentences = [...new Set(fields.map((field) => say.problem(field)))];
-      const detail = sentences.length === 0 ? undefined : sentences.join(" ");
+      const detail =
+        fields.length === 0 ? undefined : fields.map((field) => say.problem(field)).join(" ");
       noteMessage(outcome, draftOf(refusal, subject, screen, detail), project(), parts);
     },
     [known, say, project],

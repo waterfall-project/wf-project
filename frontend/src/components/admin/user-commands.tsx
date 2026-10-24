@@ -210,7 +210,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
         const outcome = await write.send(latest(shown));
         if (outcome.kind === "done") {
           record(outcome.data);
-          say(write.said(outcome.data), { object: naming.person(outcome.data) });
+          say(write.said(outcome.data));
         }
         return outcome;
       });
@@ -233,7 +233,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
       });
       return sent;
     },
-    [latest, record, say, naming],
+    [latest, record, say],
   );
   const run = useCallback(
     (shown: User, write: UserWrite) => {

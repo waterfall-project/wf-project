@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, fireEvent, renderHook } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
@@ -15,7 +13,6 @@ import {
   type RateRow,
   withYears,
 } from "@/components/reference/rate-cells";
-import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
 import { useNavigationHold } from "./navigation-hold";
@@ -46,15 +43,6 @@ function settled(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** In French. */
-function French({ children }: { readonly children: ReactNode }) {
-  return (
-    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      {children}
-    </NextIntlClientProvider>
-  );
-}
-
 /**
  * The page: its shell holding its navigations, a grid of rates whose write waits until answered,
  * and a link of the side bar, followed as the router of Next follows it.
@@ -63,14 +51,11 @@ function page() {
   renderHook(() => {
     useNavigationHold();
   });
-  // In French, as the grid tells the refusals it keeps quiet to the history of the messages.
-  const grid = renderHook(
-    () =>
-      useCellWrites<RateRow, null>(
-        { address: "/reference/costs?", rows, totals: null },
-        { rowKey: (row) => row.cost_category_id },
-      ),
-    { wrapper: French },
+  const grid = renderHook(() =>
+    useCellWrites<RateRow, null>(
+      { address: "/reference/costs?", rows, totals: null },
+      { rowKey: (row) => row.cost_category_id },
+    ),
   );
   let answer: (outcome: Outcome<RowsWritten<RateRow, null>>) => void = () => undefined;
   const entry: CellEntry<RateRow, null> = {

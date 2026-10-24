@@ -216,7 +216,7 @@ describe("the restoration of the platform", () => {
       `sauvegarde du ${dated(LAST_NIGHT)}, vérifiée`,
     );
     expect(within(dialog).getAllByRole("alert")).toHaveLength(1);
-    // Said at the date, out of a notice, and kept in the history of the messages (#1043).
+    // Said at the date, out of a notice, and kept in the history of the messages [WF-IHM-0080-A].
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
         tone: "refusal",

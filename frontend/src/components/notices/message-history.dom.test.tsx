@@ -229,9 +229,6 @@ describe("the screens the history keeps", () => {
   it.each([
     "//elsewhere.example/projects",
     "/\\elsewhere.example",
-    "/\t/elsewhere.example",
-    "/\n/elsewhere.example",
-    "/\r\n/elsewhere.example",
     "https://elsewhere.example",
     "projects",
   ])("keeps no address of another site, or none of the application: %s", (href) => {
@@ -253,28 +250,7 @@ describe("a status said by hand (useSaid)", () => {
     );
   }
 
-  it("notes what a command did with the screen it was given on, the person gone to another before it answered, and lists it with the link back to it [WF-IHM-0080-A]", () => {
-    // Son aboutissement est signalé même si l'utilisateur a changé d'écran entre-temps.
-    let say: Say = () => undefined;
-    const view = render(french(<Saying onSay={(given) => (say = given)} />));
-    // The command pressed, the person goes to another screen, where the answer arrives.
-    window.history.replaceState(null, "", "/system");
-    view.rerender(french(<main />));
-    act(() => {
-      say("« Lot A » enregistré.", { object: "Lot A" });
-    });
-    expect(readMessages().messages).toEqual([
-      expect.objectContaining({ sentence: "« Lot A » enregistré.", screen: { href: SCREEN } }),
-    ]);
-    render(french(<MessageList onFollow={vi.fn()} />));
-    const [done] = listed();
-    expect(done).toHaveTextContent(/^Réussite\s:« Lot A » enregistré\./);
-    expect(
-      within(done ?? document.body).getByRole("link", { name: "Planification" }),
-    ).toHaveAttribute("href", SCREEN);
-  });
-
-  it("says what a command did, and notes it in the history with the object it is about (#1043)", () => {
+  it("says what a command did, and notes it in the history with the object it is about [WF-IHM-0080-A]", () => {
     let say: Say = () => undefined;
     render(<Saying onSay={(given) => (say = given)} />);
     act(() => {

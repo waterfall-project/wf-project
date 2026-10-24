@@ -338,7 +338,6 @@ export default async function SettingsPage(props: ProjectPageProps) {
             active={active}
             editing={{
               project: address.projectId,
-              label: read.project.label,
               offer: manage,
               counter: contributors.lock_version,
               whole,

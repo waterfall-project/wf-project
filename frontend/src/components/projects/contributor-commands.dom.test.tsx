@@ -86,7 +86,6 @@ function list(
           contributors={shown.items}
           editing={{
             project: PROJECT,
-            label: "Tour Horizon",
             offer,
             counter: shown.lock_version,
             whole,
@@ -168,14 +167,6 @@ describe("the modification of the contributors of a project", () => {
       "Lucas Petit",
     ]);
     expect(screen.getByRole("status")).toHaveTextContent("Liste des contributeurs enregistrée.");
-    // Noted in the history of the messages, about the project (#1181).
-    expect(readMessages().messages).toEqual([
-      expect.objectContaining({
-        tone: "success",
-        sentence: "Liste des contributeurs enregistrée.",
-        object: "Tour Horizon",
-      }),
-    ]);
   });
 
   it("inscribes a contributor proposed only once the project manager confirms it, the list unchanged until then [WF-PRJ-0070-A]", async () => {
