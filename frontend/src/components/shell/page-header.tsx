@@ -4,12 +4,14 @@
  * The template of a screen (charter, guide « Charte graphique »): its `<main>`, dense for the
  * grids and the lists — the most information under the eyes — or airy for the indicators; and
  * its header, the title with the icon of the function, a line under it, and its commands at the
- * right, each with its icon.
+ * right, each with its icon, the button of the help of the screen last (`HelpPanel`, US-0580).
  */
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/components/ui/utils";
+
+import { HelpPanel } from "./help-panel";
 
 /** How much a screen holds: dense for a grid or a list, airy for indicators. */
 export type Density = "dense" | "airy";
@@ -59,7 +61,10 @@ export function Screen({
   );
 }
 
-/** What the header of a screen shows: its title, its icon, a line under it, its commands. */
+/**
+ * What the header of a screen shows: its title, its icon, a line under it, its commands; and the
+ * button of its help, wherever the table of the functions knows the screen.
+ */
 export interface PageHeaderProps {
   readonly title: string;
   readonly icon?: LucideIcon | undefined;
@@ -67,6 +72,11 @@ export interface PageHeaderProps {
   /** The commands of the screen, at the right of its title. */
   readonly actions?: ReactNode;
   readonly density?: Density;
+  /**
+   * Whether the header offers the help of the screen at the address; not on a screen that stands
+   * in for another — not found, a session refused —, whose address names a screen it does not show.
+   */
+  readonly helped?: boolean;
 }
 
 /** Render the header of a screen. */
@@ -76,6 +86,7 @@ export function PageHeader({
   subtitle,
   actions,
   density = "dense",
+  helped = true,
 }: PageHeaderProps) {
   return (
     <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
@@ -90,9 +101,10 @@ export function PageHeader({
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         )}
       </div>
-      {actions === undefined ? null : (
-        <div className="flex flex-wrap items-start gap-2">{actions}</div>
-      )}
+      <div className="flex flex-wrap items-start gap-2">
+        {actions}
+        {helped ? <HelpPanel /> : null}
+      </div>
     </div>
   );
 }

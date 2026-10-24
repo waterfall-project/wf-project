@@ -1271,6 +1271,9 @@
     },
     "breakdownDelete": {
       "help": "Deletes this element of the work breakdown, with what it holds."
+    },
+    "help": {
+      "help": "Opens, beside the screen, the help that describes it: what it shows, its commands, its columns, its keyboard gestures and the notions of the method."
     }
   },
   "columns": {
@@ -1392,7 +1395,44 @@
       "reestimatedAmount": {
         "help": "Re-estimated amount of the line or task: the updated estimate at completion."
       }
+    },
+    "risks": {
+      "label": {
+        "help": "Label of the risk, as it was identified."
+      },
+      "probability": {
+        "help": "Probability that the risk occurs, as a percentage."
+      },
+      "severity": {
+        "help": "Severity: what the risk would cost if it occurred, the total of its own estimate, computed by the server."
+      },
+      "provisionAmount": {
+        "help": "Provision: the severity weighted by the probability, computed by the server; a risk that occurred or was dismissed bears none any more."
+      },
+      "state": {
+        "help": "State of the risk: identified, occurred or dismissed."
+      },
+      "lastReview": {
+        "help": "Date of the last review of the risk."
+      },
+      "matrixCell": {
+        "help": "Cell of the risk matrix its probability and severity fall in, and the zone that colours it."
+      }
     }
+  },
+  "help": {
+    "button": "Help",
+    "title": "Help",
+    "close": "Close the help",
+    "back": "Back to the previous page of the help",
+    "screen": "Back to the help of the screen",
+    "search": "Search the help",
+    "results": "{count, plural, =0 {No page of the help holds these words.} one {# page found} other {# pages found}}",
+    "loading": "Reading the help…",
+    "failed": "The help could not be read. Try again in a moment.",
+    "pending": "The help of this page is to come.",
+    "sections": "The parts of the screen",
+    "computed": "(value computed by the server)"
   },
   "outcome": {
     "unreachable": "The service cannot be reached; try again in a moment.",

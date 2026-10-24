@@ -353,7 +353,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home();
     expect(text(html)).toMatch(
-      /^Projects Create a project Projects you contribute to Show all projects Mock-up: .* Every state .* You contribute to no project\.$/,
+      /^Projects Create a project Projects you contribute to Show all projects Help Mock-up: .* Every state .* You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -379,7 +379,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false" });
     expect(text(html)).toMatch(
-      /^Projects Create a project Show only my projects Mock-up: .* Every state .* No project\.$/,
+      /^Projects Create a project Show only my projects Help Mock-up: .* Every state .* No project\.$/,
     );
   });
 
@@ -406,7 +406,7 @@ describe("the empty states of the home", () => {
       const html = await home();
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
+          `^Projects Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Help Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
         ),
       );
       expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
@@ -443,7 +443,7 @@ describe("the empty states of the home", () => {
     );
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html)).toBe(
-      "Projects Create a project The minimum reference data is incomplete. Show only my projects " +
+      "Projects Create a project The minimum reference data is incomplete. Show only my projects Help " +
         `${MOCKUP} Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
         "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",

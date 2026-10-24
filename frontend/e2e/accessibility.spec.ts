@@ -21,7 +21,7 @@
  *
  * The matrix of the risks, unfolded behind its command, is audited too, in both modes, and the
  * estimate of the amendment with the tooltip of Undo open, its keys and its condition shown
- * (US-0580).
+ * (US-0580), and the planning with the panel of its help open by F1.
  *
  * What these tests leave unproven is written in the note of US-0200 (EP-14): what a gesture opens
  * — a dialog, a menu, the editor of a cell — is not walked, nor what a closed `details` holds.
@@ -224,6 +224,41 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
               .soft(breaches, `${String(size.width)} points: axe's rules for WCAG A and AA`)
               .toEqual([]);
           }
+        });
+      });
+    }
+  }
+
+  // The panel of the help, opened by F1 on the planning (US-0580): its page, its links and its
+  // search are audited, and Escape gives the focus back to where it was.
+  if (screen.code === "FBS-4.3") {
+    for (const mode of ["light", "dark"] as const) {
+      test.describe(`a workstation in ${mode} mode, the help open`, () => {
+        test.use({ colorScheme: mode });
+
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the panel of the help open by F1: named by its title, the focus held in it, no contrast below AA nor any other breach of axe's rules for WCAG A and AA, Escape giving the focus back [WF-IHM-0140-A]`, async ({
+          page,
+        }) => {
+          await open(page, screen);
+          await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+          const help = page.getByRole("button", { name: "Aide", exact: true });
+          await help.focus();
+          await page.keyboard.press("F1");
+          const panel = page.getByRole("dialog", { name: "Planification" });
+          await expect(panel.getByRole("heading", { name: "Ses commandes" })).toBeVisible({
+            timeout: WORKING,
+          });
+          await expect(panel).toContainText(
+            "Tâches dont celle-ci dépend, désignées par leur numéro de ligne.",
+          );
+          expect(await panel.evaluate((element) => element.contains(document.activeElement))).toBe(
+            true,
+          );
+          const { breaches } = await axeAudit(page);
+          expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);
+          await page.keyboard.press("Escape");
+          await expect(page.getByRole("dialog")).toHaveCount(0);
+          await expect(help).toBeFocused();
         });
       });
     }

@@ -338,7 +338,7 @@ describe("the screen of the indicators of a project", () => {
       });
     }
     expect(page).toContain(
-      "Project indicators Computed on another revision The evolution of the indices is computed on the revision “Current revision”, not on the one of the indicators. Financial progress",
+      "Project indicators Help Computed on another revision The evolution of the indices is computed on the revision “Current revision”, not on the one of the indicators. Financial progress",
     );
     // The indicators are those of the revision shown: the banner names no other revision.
     expect(page).not.toContain("Revision of the calculation");

@@ -176,6 +176,7 @@ describe("the screen of the imports and exports", () => {
     const page = await exchangesAt();
     expect(page.startsWith('<section aria-label="Reading context"')).toBe(true);
     expect(buttons(page)).toEqual([
+      "Help",
       "Import an MS Project schedule",
       "Import an estimate",
       "Import an estimate to complete",
@@ -198,6 +199,7 @@ describe("the screen of the imports and exports", () => {
     const page = await exchangesAt({}, "en", MARKED);
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${MARKED}?`]);
     expect(buttons(page)).toEqual([
+      "Help",
       "Import an MS Project schedule",
       "Import an estimate",
       "Import an estimate to complete",
@@ -226,7 +228,8 @@ describe("the screen of the imports and exports", () => {
     expect(text(page)).toContain(
       "3 differences with the existing data Change Object Label Fields Added Estimate line Essais de continuité Updated Estimate line Assistance à la reprise des essais Hours Removed Estimate line Câblage sur site",
     );
-    expect(buttons(page).slice(0, 2)).toEqual(["Apply the import", "Abandon the import"]);
+    // The help of the screen first, in its header.
+    expect(buttons(page).slice(0, 3)).toEqual(["Help", "Apply the import", "Abandon the import"]);
     const current = [...page.matchAll(/<a aria-current="page"[^>]*href="([^"]*)"/g)];
     expect(current.map((match) => match[1])).toEqual([
       `${PATHNAME}?as_of=2026-05-31&amp;import=${IMPORT}`,
@@ -290,7 +293,7 @@ describe("the screen of the imports and exports", () => {
     };
     const page = await exchangesAt({ import: IMPORT });
     expect(text(page)).toContain("The file is being analysed.");
-    expect(buttons(page).slice(0, 1)).toEqual(["Abandon the import"]);
+    expect(buttons(page).slice(0, 2)).toEqual(["Help", "Abandon the import"]);
   });
 
   it("asks the page of the imports the address names, and leads to the pages around it", async () => {
@@ -314,6 +317,7 @@ describe("the screen of the imports and exports", () => {
     };
     const page = await exchangesAt();
     expect(buttons(page)).toEqual([
+      "Help",
       "Import an MS Project schedule",
       "Import an estimate",
       "Import an estimate to complete",
@@ -330,7 +334,7 @@ describe("the screen of the imports and exports", () => {
       [GET_REVISION]: "revision_estimator",
     };
     const page = await exchangesAt();
-    expect(buttons(page)).toEqual(["Import an estimate", "Request the export"]);
+    expect(buttons(page)).toEqual(["Help", "Import an estimate", "Request the export"]);
     expect(text(page)).toContain("holding the permission to create a revision");
     expect(text(page)).toContain("Estimate Estimate to complete");
   });

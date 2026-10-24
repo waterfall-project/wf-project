@@ -196,7 +196,8 @@ describe("the screen of a project", () => {
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await ProjectPage(at()));
-    expect(buttons(page)).toEqual([]);
+    // The help of the screen at the address alone, which the test sets to the settings.
+    expect(buttons(page)).toEqual(["Help"]);
     expect(page).not.toContain("<form");
   });
 });
@@ -733,6 +734,7 @@ describe("the lifecycle of a project", () => {
       "Complete the project",
       "Declare the project lost",
       "Abandon the project",
+      "Help",
     ]);
   });
 
@@ -800,6 +802,7 @@ describe("the lifecycle of a project", () => {
         "Complete the project",
         "Declare the project lost",
         "Abandon the project",
+        "Help",
       ]);
     }
   });
