@@ -145,7 +145,9 @@ describe("the screen of the timelines", () => {
     expect(table).not.toContain("Mise en service");
   });
 
-  it("hands the frieze the lanes the account keeps for the timeline shown", async () => {
+  it("hands the frieze the lanes the account keeps for the timeline shown [WF-ADM-0040-A]", async () => {
+    // Deux utilisateurs ouvrant le même projet voient les mêmes données présentées selon leurs
+    // réglages respectifs.
     // The opening tag of the command that gives back the automatic layout.
     const restack = (page: string) => {
       const at = page.indexOf("Automatic layout");
