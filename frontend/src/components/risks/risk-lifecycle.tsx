@@ -46,6 +46,7 @@ export function DeleteRisk({
   readonly risk: Risk;
 }) {
   const t = useTranslations("riskDelete");
+  const helps = useTranslations("commands");
   const router = useRouter();
   const { href } = useRiskNavigation(undefined);
   const offer = findOffer(risk.available_commands, "delete");
@@ -56,6 +57,7 @@ export function DeleteRisk({
     <ConfirmedCommand
       offer={offer}
       label={t("label")}
+      help={helps("deleteRisk.help")}
       icon={<Trash2 aria-hidden="true" />}
       statement={t("statement")}
       submit={t("submit")}
@@ -85,6 +87,7 @@ export function DeclareOccurrence({
   readonly risk: Risk;
 }) {
   const t = useTranslations("riskOccurrence");
+  const helps = useTranslations("commands");
   const [followed, setFollowed] = useState<Declared>();
   const [succeeded, setSucceeded] = useState<{ readonly name: string }>();
   const offer = findOffer(risk.available_commands, "declare_occurrence");
@@ -97,6 +100,7 @@ export function DeclareOccurrence({
       <ConfirmedCommand
         offer={offer}
         label={t("label")}
+        help={helps("project.declare_risk_occurrence.help")}
         icon={commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
         statement={t("statement")}
         submit={t("submit")}

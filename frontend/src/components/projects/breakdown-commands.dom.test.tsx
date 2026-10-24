@@ -479,7 +479,9 @@ describe("the work breakdown edited in its grid", () => {
     expect(create).toHaveFocus();
     expect(create).toHaveAttribute("aria-disabled", "true");
     expect(create).toHaveAttribute("aria-busy", "true");
-    expect(create).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(create).toHaveAccessibleDescription(
+      `${CATALOGUES.fr.reference.form.writing} ${CATALOGUES.fr.commands.breakdownWorkPackage.help}`,
+    );
     await userEvent.click(create);
     expect(screen.queryByRole("dialog")).toBeNull();
     release();

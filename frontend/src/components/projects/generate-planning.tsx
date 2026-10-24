@@ -55,6 +55,7 @@ export function GeneratePlanning({
   planningHref,
 }: GeneratePlanningProps) {
   const t = useTranslations("generatePlanning");
+  const helps = useTranslations("commands");
   const router = useRouter();
   // Whether the screen is still the one the call was made from: it is not once left.
   const here = useRef(true);
@@ -98,6 +99,7 @@ export function GeneratePlanning({
       <Command
         offer={offer}
         label={t("label")}
+        help={helps("project.generate_skeleton.help")}
         icon={commandIcon(REVISION_COMMAND_ICONS.generate_skeleton)}
         action={generate}
       />

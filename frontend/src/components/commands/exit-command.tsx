@@ -190,6 +190,7 @@ function ExitCommand({
       <Command
         offer={offer}
         label={t(`enums.ProjectCommand.${command}`)}
+        help={t(`commands.project.${command}.help`)}
         icon={commandIcon(PROJECT_COMMAND_ICONS[command])}
         names={names}
         disclosure={{

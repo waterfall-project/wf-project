@@ -40,6 +40,8 @@ import { type ObjectNames, OutcomeNotice, type Reread } from "./outcome-notice";
 export interface ConfirmedCommandProps<T> {
   readonly offer: CommandOffer;
   readonly label: string;
+  /** What the command does, translated (`commands.<command>.help`): its tooltip says it. */
+  readonly help: string;
   /** The icon before its name (`commandIcon`). */
   readonly icon: ReactElement;
   /** What the command does, which describes the button that confirms. */
@@ -70,6 +72,7 @@ const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 export function ConfirmedCommand<T>({
   offer,
   label,
+  help,
   icon,
   statement,
   submit,
@@ -140,6 +143,7 @@ export function ConfirmedCommand<T>({
         <Command
           offer={offer}
           label={label}
+          help={help}
           icon={icon}
           names={names}
           subject={subject}

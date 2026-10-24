@@ -105,6 +105,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "cost_category",
       label: "category",
+      help: "estimate.category",
       format: "text",
       width: 160,
       contract: "cost_category",
@@ -113,6 +114,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "resource_role",
       label: "role",
+      help: "estimate.role",
       format: "text",
       width: 160,
       contract: "resource_role",
@@ -121,6 +123,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "quantity",
       label: "quantity",
+      help: "estimate.quantity",
       format: "decimal",
       width: 72,
       computed: computedWhereNamed("estimate_line.quantity"),
@@ -130,6 +133,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "hours",
       label: "hours",
+      help: "estimate.hours",
       format: "decimal",
       width: 96,
       computed: computedWhereNamed("estimate_line.hours"),
@@ -140,6 +144,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "unit_disbursement",
       label: "unitDisbursement",
+      help: "estimate.unitDisbursement",
       format: "money",
       width: 128,
       computed: computedWhereNamed("estimate_line.unit_disbursement"),
@@ -153,6 +158,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "subproject",
       label: "subproject",
+      help: "estimate.subproject",
       format: "text",
       width: 160,
       hidden: true,
@@ -163,6 +169,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "payment_delay_days",
       label: "paymentDelay",
+      help: "estimate.paymentDelay",
       format: "decimal",
       width: 88,
       contract: "payment_delay_days",
@@ -174,6 +181,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "inactive_object",
       label: "inactiveObject",
+      help: "estimate.inactiveObject",
       format: "text",
       align: "center",
       width: 44,
@@ -186,6 +194,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "base_amount",
       label: "referenceAmount",
+      help: "estimate.referenceAmount",
       format: "money",
       width: 128,
       computed: computedAmount("base_amount"),
@@ -196,6 +205,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "inflated_amount",
       label: "inflatedAmount",
+      help: "estimate.inflatedAmountStatic",
       format: "money",
       width: 128,
       computed: computedAmount("inflated_amount"),
@@ -426,6 +436,30 @@ function entered(
 }
 
 /**
+ * What the amount corrected of inflation is corrected by, as its header names it (WF-IHM-0140): the
+ * year of reference of the revision and the rate of inflation of the project, formatted.
+ */
+export interface EstimateInflation {
+  readonly year: string;
+  readonly rate: string;
+}
+
+/**
+ * The column of the amount corrected of inflation, defined by the year and the rate that correct it:
+ * its definition is a sentence with its values, which only the screen that reads the revision and the
+ * project knows; without them the column keeps a definition that names neither; the other columns
+ * are as they are.
+ */
+function inflated(
+  column: GridColumn<EstimateNode, NodeSortColumn, NodeTotals>,
+  inflation: EstimateInflation | undefined,
+): GridColumn<EstimateNode, NodeSortColumn, NodeTotals> {
+  return inflation === undefined || column.key !== "inflated_amount"
+    ? column
+    : { ...column, help: "estimate.inflatedAmount", helpValues: { ...inflation } };
+}
+
+/**
  * The grid of the estimate: its cells entered and a block pasted through `writes`; none, and the
  * grid is read only, taking neither entry nor paste. A line takes its label, category, role,
  * quantity, effort, unit disbursement and payment delay, where its node accepts the
@@ -436,12 +470,15 @@ function entered(
 export function estimateGrid(
   reference: EstimateReference,
   writes?: EstimateWrites,
+  inflation?: EstimateInflation,
 ): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
   const specs = enteredColumns(reference);
   return {
     ...ESTIMATE_GRID,
     paste: writes?.paste,
     retotal: writes?.totals,
-    columns: ESTIMATE_GRID.columns.map((column) => entered(column, specs[column.key], writes)),
+    columns: ESTIMATE_GRID.columns.map((column) =>
+      entered(inflated(column, inflation), specs[column.key], writes),
+    ),
   };
 }

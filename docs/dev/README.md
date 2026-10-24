@@ -2156,12 +2156,20 @@ rôle `button`, un lien dessiné par `buttonVariants`, écrit en place ou par un
 fichier —, et un `title` passé par la décomposition d'un objet écrit ou nommé dans le fichier. Restent
 à la revue : des classes ou des props importées d'un autre module, la décomposition des props qu'un
 composant reçoit (`{...props}`), et un composant à nous qui dessine un bouton sous un autre nom. Les
-commandes d'objet, les dialogues, les en-têtes de colonnes et les valeurs calculées passent à
-`CommandTooltip` avec US-0580/L2 (#1137) : les fichiers dont les boutons portent encore un `title=` y
-sont une liste fermée (`LEFT_TO_L2`), un cliquet qui ne peut que décroître — un fichier listé qui n'en
-porte plus fait échouer le test aussi, pour qu'on l'en retire —, et le lot qui la vide supprime la
-constante. Les tests du composant sont dans `command-tooltip.dom.test.tsx` (survol, focus, Échap dans
-un menu, touches, condition, fournisseur partagé, axe).
+commandes d'objet passent à `CommandTooltip` avec US-0580/L2 (#1137), et la garde ne tolère plus aucun
+`title=` sur un bouton : `Command` et `ConfirmedCommand` prennent `help` (pour une commande d'objet,
+`commands.project.<commande>.help` ou `commands.revision.<commande>.help`, d'après les énumérations du
+contrat), `CellCommand` et `UnavailableCellCommand` prennent le nom (`label`), `help` et la condition qui
+manque (`unavailable`), que `CommandTooltip` pose en `aria-disabled` et en description, sans texte caché
+écrit à la main. L'en-tête d'une colonne porte sa définition de la même façon (`GridColumn.help`, clé
+`<grille>.<colonne>` du catalogue `columns`, et `helpValues` pour la phrase à paramètres du montant
+corrigé de l'inflation, que `estimateGrid` pose d'après l'année de référence de la révision et le taux du
+projet). La garde suit les noms liés dans le bloc le plus proche du bouton qui les lie, non plus dans le
+fichier entier. Les boutons de validation et d’annulation d’un formulaire ou d’un dialogue, dont le libellé
+est l’action, ne portent pas de phrase d’aide. Les tests du composant sont dans
+`command-tooltip.dom.test.tsx` (survol, focus, Échap dans un menu, touches, condition, fournisseur partagé,
+axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,
+et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à engager sans définition.
 
 ### Les actions longues et le suivi des tâches de fond
 

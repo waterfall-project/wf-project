@@ -41,7 +41,15 @@ export const EXPORT_KINDS: readonly ExportKind[] = [
 ];
 
 /** The command of the project that imports each kind of file. */
-export const IMPORT_COMMAND: Readonly<Record<ExchangeKind, ProjectCommand>> = {
+export const IMPORT_COMMAND: Readonly<
+  Record<
+    ExchangeKind,
+    Extract<
+      ProjectCommand,
+      "import_planning" | "import_estimate" | "import_remaining" | "import_actual_costs"
+    >
+  >
+> = {
   ms_project_schedule: "import_planning",
   estimate: "import_estimate",
   remaining: "import_remaining",

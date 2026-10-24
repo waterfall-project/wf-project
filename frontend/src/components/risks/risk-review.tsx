@@ -180,6 +180,7 @@ export function ReviewRisk({
   readonly onAnswered: (answer: Risk) => void;
 }) {
   const t = useTranslations("riskForm");
+  const helps = useTranslations("commands");
   const dialog = useRiskDialog({ writing, setWriting: onWriting });
   const [said, say] = useSaid();
   const { open, current } = dialog;
@@ -190,6 +191,7 @@ export function ReviewRisk({
         <OpensForm
           offer={findOffer(risk.available_commands, "review")}
           label={t("review")}
+          help={helps("reviewRisk.help")}
           icon={<RefreshCw aria-hidden="true" />}
           writing={dialog.writing}
           trigger={dialog.trigger}

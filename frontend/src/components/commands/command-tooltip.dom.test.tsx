@@ -73,8 +73,8 @@ function redo(unavailable?: string) {
   );
 }
 
-/** Redo in a context menu, as the menu of a cell offers it. */
-function inMenu() {
+/** Redo in a context menu, as the menu of a cell offers it, with the condition it lacks if any. */
+function inMenu(unavailable?: string) {
   return (
     <ContextMenu>
       <ContextMenuTrigger>Zone</ContextMenuTrigger>
@@ -84,6 +84,7 @@ function inMenu() {
           label="Rétablir"
           help={HELP}
           keys={REDO}
+          unavailable={unavailable}
           onSelect={(event) => {
             event.preventDefault();
           }}
@@ -251,6 +252,42 @@ describe("the tooltip of a command", () => {
     expect(within(menu).getByRole("menuitem", { name: "Rétablir" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("stays open in a menu when the focus goes from its item to the menu itself, as the pointer leaving an item does", async () => {
+    inLanguage(inMenu());
+    const menu = await openMenu();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(HELP);
+    fireEvent.blur(within(menu).getByRole("menuitem", { name: "Rétablir" }), {
+      relatedTarget: menu,
+    });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(HELP);
+  });
+
+  it("closes in a menu when the focus goes from its item to anything but the menu", async () => {
+    inLanguage(inMenu());
+    const menu = await openMenu();
+    await screen.findByRole("tooltip");
+    fireEvent.blur(within(menu).getByRole("menuitem", { name: "Rétablir" }), {
+      relatedTarget: document.body,
+    });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("describes an item of a menu by the condition it lacks, said nowhere else, tooltip closed and open [WF-IHM-0090-A]", async () => {
+    inLanguage(inMenu(LACKING));
+    const menu = await openMenu();
+    const item = within(menu).getByRole("menuitem", { name: "Rétablir" });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    expect(item).toHaveAccessibleDescription(LACKING);
+    // The condition is the description of the item alone, not a text of the menu.
+    expect(within(menu).queryByText(LACKING)).not.toBeVisible();
+    await screen.findByRole("tooltip");
+    expect(document.querySelector("[data-slot=tooltip-content]")).toHaveTextContent(
+      `${HELP}${LACKING}`,
+    );
+    expect(item).toHaveAccessibleDescription(`${LACKING} ${HELP}`);
+    await expectAccessible(menu);
   });
 
   // aucune exigence : propre à l'US (US-0580, le repos dans un menu).

@@ -78,6 +78,14 @@ export function LifecycleCommands({ project }: { readonly project: Project }) {
   );
 }
 
+/** The commands of a revision an export, an entry of a grid or a screen of its own offers. */
+type OfferedElsewhere =
+  | `export_${string}`
+  | `edit_${string}`
+  | "generate_skeleton"
+  | "merge_structure"
+  | "designate_reference";
+
 /** Whether a command of a revision is an export, which the screen of the exchanges offers. */
 function isExport(command: RevisionCommand): boolean {
   return command.startsWith("export_");
@@ -97,6 +105,13 @@ function isOfferedByItsScreen(command: RevisionCommand): boolean {
   );
 }
 
+/** Whether the list of the commands of a revision presents a command itself. */
+export function isListed(
+  command: RevisionCommand,
+): command is Exclude<RevisionCommand, OfferedElsewhere> {
+  return !isExport(command) && !isOfferedByItsScreen(command);
+}
+
 /** The command of a revision that has a form of its own, or the plain command it is. */
 function RevisionCommandItem({
   offer,
@@ -104,7 +119,9 @@ function RevisionCommandItem({
   name,
   names,
 }: {
-  readonly offer: Revision["available_commands"][number];
+  readonly offer: Revision["available_commands"][number] & {
+    readonly command: Exclude<RevisionCommand, OfferedElsewhere>;
+  };
   readonly revision: Revision;
   readonly name: string;
   readonly names: Readonly<Record<string, string>>;
@@ -135,6 +152,7 @@ function RevisionCommandItem({
     <Command
       offer={offer}
       label={t(`enums.RevisionCommand.${offer.command}`)}
+      help={t(`commands.revision.${offer.command}.help`)}
       icon={commandIcon(REVISION_COMMAND_ICONS[offer.command])}
       names={names}
       subject={name}
@@ -163,8 +181,8 @@ export function RevisionCommands({
     ...(revision === undefined ? {} : { [revision.revision_id]: name }),
   };
   const commands =
-    revision?.available_commands.filter(
-      (offer) => !isExport(offer.command) && !isOfferedByItsScreen(offer.command),
+    revision?.available_commands.flatMap((offer) =>
+      isListed(offer.command) ? [{ ...offer, command: offer.command }] : [],
     ) ?? [];
   return (
     <CommandList>

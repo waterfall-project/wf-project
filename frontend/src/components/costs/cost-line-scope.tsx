@@ -61,6 +61,7 @@ export interface CostLineScopeProps {
 /** Render the place of a line in the tracked scope, and the command that changes it. */
 export function CostLineScope({ projectId, line, offer }: CostLineScopeProps) {
   const t = useTranslations("actualCosts.line");
+  const helps = useTranslations("commands");
   const locale = useLocale();
   const heading = useId();
   const reasonField = useId();
@@ -112,6 +113,7 @@ export function CostLineScope({ projectId, line, offer }: CostLineScopeProps) {
       <Command
         offer={offer}
         label={tracked ? t("exclude") : t("reinstate")}
+        help={helps(tracked ? "excludeCostLine.help" : "reinstateCostLine.help")}
         icon={ICON}
         action={change}
       />

@@ -1117,6 +1117,281 @@
     },
     "kanban": {
       "help": "Ouvre le kanban des tâches à faire, en cours et terminées."
+    },
+    "modify": {
+      "help": "Ouvre le formulaire de modification de la ligne."
+    },
+    "deactivate": {
+      "help": "Désactive l’objet : il n’est plus proposé aux nouvelles saisies, mais ses données restent."
+    },
+    "reactivate": {
+      "help": "Réactive l’objet : il est de nouveau proposé aux saisies."
+    },
+    "designateCalendar": {
+      "help": "Fait de ce calendrier celui qu’emploient par défaut les nouvelles ressources."
+    },
+    "retainBackup": {
+      "help": "Marque la sauvegarde à conserver : la rétention ne la supprime pas."
+    },
+    "releaseBackup": {
+      "help": "Lève la marque de conservation : la rétention peut de nouveau supprimer la sauvegarde."
+    },
+    "restoreBackup": {
+      "help": "Ouvre la restauration de la plateforme depuis cette sauvegarde, après confirmation."
+    },
+    "deleteRole": {
+      "help": "Supprime le rôle d’habilitation, après confirmation."
+    },
+    "deleteSubproject": {
+      "help": "Supprime le sous-projet, après confirmation."
+    },
+    "password_link": {
+      "help": "Donne le lien par lequel le titulaire du compte fixe son mot de passe."
+    },
+    "anonymize": {
+      "help": "Anonymise le compte désactivé, après confirmation : l’opération est définitive."
+    },
+    "activeUser": {
+      "help": "Active ou désactive le compte : un compte désactivé ne peut plus se connecter."
+    },
+    "downloadBackup": {
+      "help": "Télécharge la sauvegarde, une fois vérifiée."
+    },
+    "project": {
+      "update": {
+        "help": "Ouvre le formulaire des paramètres du projet."
+      },
+      "manage_contributors": {
+        "help": "Gère les contributeurs du projet."
+      },
+      "create_revision": {
+        "help": "Crée la révision en cours d’élaboration, copie de la dernière révision marquée."
+      },
+      "generate_skeleton": {
+        "help": "Engendre le squelette du planning de la révision."
+      },
+      "complete": {
+        "help": "Termine le projet, après confirmation."
+      },
+      "lose": {
+        "help": "Déclare le projet perdu, après confirmation."
+      },
+      "abandon": {
+        "help": "Abandonne le projet, après confirmation."
+      },
+      "declare_risk_occurrence": {
+        "help": "Déclare qu’un risque est survenu et en consigne le compte rendu, après confirmation."
+      },
+      "import_actual_costs": {
+        "help": "Importe les coûts réels depuis un fichier."
+      },
+      "import_planning": {
+        "help": "Importe un planning depuis un fichier MS Project."
+      },
+      "import_estimate": {
+        "help": "Importe un devis depuis un fichier."
+      },
+      "import_remaining": {
+        "help": "Importe un reste à engager depuis un fichier."
+      }
+    },
+    "revision": {
+      "generate_skeleton": {
+        "help": "Engendre le squelette du planning de la révision."
+      },
+      "declare_risk": {
+        "help": "Déclare un nouveau risque au projet."
+      },
+      "create_structure": {
+        "help": "Prépare un avenant : une structure différentielle sur la révision."
+      },
+      "merge_structure": {
+        "help": "Contractualise l’avenant : ses différences rejoignent la structure principale."
+      },
+      "mark": {
+        "help": "Marque la révision : elle devient une version figée, nommée."
+      },
+      "designate_reference": {
+        "help": "Désigne la révision marquée comme budget de référence, après confirmation."
+      },
+      "abandon": {
+        "help": "Abandonne la révision en cours d’élaboration, après confirmation."
+      }
+    },
+    "deleteRisk": {
+      "help": "Supprime le risque avec son devis propre et sa ligne de provision, après confirmation."
+    },
+    "modifyRisk": {
+      "help": "Ouvre le formulaire de modification du risque."
+    },
+    "reviewRisk": {
+      "help": "Ouvre le réexamen du risque."
+    },
+    "updateRates": {
+      "help": "Remplace les taux de la révision en cours par les taux proposés, pour les catégories retenues, après confirmation."
+    },
+    "excludeCostLine": {
+      "help": "Exclut la ligne de coût du périmètre suivi."
+    },
+    "reinstateCostLine": {
+      "help": "Rétablit la ligne de coût dans le périmètre suivi."
+    },
+    "applyReport": {
+      "help": "Applique l’import à la révision, après confirmation."
+    },
+    "abandonReport": {
+      "help": "Abandonne l’import : rien n’est appliqué."
+    },
+    "create": {
+      "help": "Ouvre le formulaire de création."
+    },
+    "deleteTimeline": {
+      "help": "Supprime la chronologie affichée ; ses jalons disparaissent avec elle."
+    },
+    "cardGestures": {
+      "help": "Ouvre le menu des gestes de cette tâche."
+    },
+    "retryReading": {
+      "help": "Relit les tâches de cette carte."
+    },
+    "contributorWithdraw": {
+      "help": "Retire ce contributeur de la liste à enregistrer."
+    },
+    "contributorInscribe": {
+      "help": "Ajoute ce compte à la liste à enregistrer, comme contributeur."
+    },
+    "breakdownWorkPackage": {
+      "help": "Ajoute un lot au lotissement du projet."
+    },
+    "breakdownAdd": {
+      "help": "Ajoute un poste à ce lot, ou un livrable à ce poste."
+    },
+    "breakdownRename": {
+      "help": "Change le libellé de cet élément du lotissement."
+    },
+    "breakdownDelete": {
+      "help": "Supprime cet élément du lotissement, avec ce qu’il contient."
+    }
+  },
+  "columns": {
+    "nodes": {
+      "label": {
+        "help": "Libellé de la tâche ou de la ligne, à la place qu’elle occupe dans l’arbre."
+      }
+    },
+    "estimate": {
+      "category": {
+        "help": "Catégorie de coût de la ligne : elle donne le taux et la nature de la dépense."
+      },
+      "role": {
+        "help": "Rôle de ressource qui effectue la ligne, quand elle est une charge."
+      },
+      "quantity": {
+        "help": "Nombre d’unités de la ligne."
+      },
+      "hours": {
+        "help": "Charge de la ligne, en heures."
+      },
+      "unitDisbursement": {
+        "help": "Débours d’une unité, hors charge de travail."
+      },
+      "subproject": {
+        "help": "Sous-projet auquel la ligne est rattachée."
+      },
+      "paymentDelay": {
+        "help": "Nombre de jours entre la consommation de la ligne et son paiement."
+      },
+      "inactiveObject": {
+        "help": "Marque une ligne qui emploie un objet désactivé du référentiel."
+      },
+      "referenceAmount": {
+        "help": "Montant de la ligne à l’année de référence de la révision, avant toute correction de l’inflation."
+      },
+      "inflatedAmount": {
+        "help": "Montant corrigé de l’inflation de l’année de référence ({year}) à l’année de consommation de la ligne, au taux d’inflation du projet ({rate} par an)."
+      },
+      "inflatedAmountStatic": {
+        "help": "Montant corrigé de l’inflation de l’année de référence de la révision à l’année de consommation de la ligne, au taux d’inflation du projet."
+      }
+    },
+    "planning": {
+      "description": {
+        "help": "Description libre de la tâche."
+      },
+      "schedulingMode": {
+        "help": "Mode de planification : la tâche suit ses liens, ou ses dates sont posées à la main."
+      },
+      "duration": {
+        "help": "Durée de la tâche, dans l’unité choisie."
+      },
+      "startDate": {
+        "help": "Date de début de la tâche, calculée par le serveur d’après ses liens et le calendrier."
+      },
+      "finishDate": {
+        "help": "Date de fin de la tâche, calculée par le serveur d’après sa durée et le calendrier."
+      },
+      "progress": {
+        "help": "Avancement de la tâche : à faire, en cours ou terminée."
+      },
+      "physicalProgress": {
+        "help": "Part du travail réalisée, en pourcentage de la tâche."
+      },
+      "totalFloat": {
+        "help": "Marge totale : retard que la tâche peut prendre sans repousser la fin du projet."
+      },
+      "predecessors": {
+        "help": "Tâches dont celle-ci dépend, désignées par leur numéro de ligne."
+      },
+      "attachment": {
+        "help": "Lot ou poste de la structure de découpage auquel la tâche est rattachée."
+      },
+      "timelines": {
+        "help": "Chronologies auxquelles la tâche est inscrite."
+      },
+      "gantt": {
+        "help": "Barre de la tâche sur l’échelle du temps."
+      }
+    },
+    "remaining": {
+      "progress": {
+        "help": "Avancement de la tâche : à faire, en cours ou terminée."
+      },
+      "finishDate": {
+        "help": "Date de fin prévue de la tâche."
+      },
+      "finishOverdue": {
+        "help": "Marque une tâche dont la fin prévue est dépassée sans qu’elle soit terminée."
+      },
+      "budgetedAmount": {
+        "help": "Montant budgété de la ligne, tel que le budget de référence l’a figé."
+      },
+      "previousQuantity": {
+        "help": "Quantité de la ligne au reste à engager précédent."
+      },
+      "previousHours": {
+        "help": "Charge de la ligne, en heures, au reste à engager précédent."
+      },
+      "previousUnitDisbursement": {
+        "help": "Débours unitaire de la ligne au reste à engager précédent."
+      },
+      "previousReestimatedAmount": {
+        "help": "Montant réestimé de la ligne au reste à engager précédent."
+      },
+      "quantity": {
+        "help": "Quantité restant à engager sur la ligne."
+      },
+      "hours": {
+        "help": "Charge restant à engager sur la ligne, en heures."
+      },
+      "unitDisbursement": {
+        "help": "Débours unitaire de la ligne, réestimé."
+      },
+      "subproject": {
+        "help": "Sous-projet auquel la ligne est rattachée."
+      },
+      "reestimatedAmount": {
+        "help": "Montant réestimé de la ligne ou de la tâche : le devis actualisé à l’achèvement."
+      }
     }
   },
   "outcome": {

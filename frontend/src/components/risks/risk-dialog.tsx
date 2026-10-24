@@ -11,6 +11,7 @@
 import { type ReactElement, type Ref, useEffect, useId, useRef, useState } from "react";
 
 import { Command } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { WritingNote } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ export function useRiskDialog(kept?: {
 export function OpensForm({
   offer,
   label,
+  help,
   icon,
   writing,
   trigger,
@@ -79,6 +81,8 @@ export function OpensForm({
 }: {
   readonly offer: CommandOffer | undefined;
   readonly label: string;
+  /** What the command does, translated. */
+  readonly help: string;
   readonly icon: ReactElement;
   readonly writing: boolean;
   readonly trigger: Ref<HTMLButtonElement>;
@@ -89,24 +93,25 @@ export function OpensForm({
     return null;
   }
   if (!offer.is_available) {
-    return <Command offer={offer} label={label} icon={icon} />;
+    return <Command offer={offer} label={label} help={help} icon={icon} />;
   }
   return (
     <div className="space-y-1">
-      <Button
-        ref={trigger}
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-disabled={writing ? true : undefined}
-        aria-busy={writing}
-        aria-describedby={writing ? why : undefined}
-        className={UNAVAILABLE}
-        onClick={onOpen}
-      >
-        {icon}
-        {label}
-      </Button>
+      <CommandTooltip label={label} help={help} describedBy={writing ? why : undefined}>
+        <Button
+          ref={trigger}
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-disabled={writing ? true : undefined}
+          aria-busy={writing}
+          className={UNAVAILABLE}
+          onClick={onOpen}
+        >
+          {icon}
+          {label}
+        </Button>
+      </CommandTooltip>
       <WritingNote id={why} writing={writing} />
     </div>
   );

@@ -147,6 +147,7 @@ export function ReportCommands({
   then,
 }: ReportCommandsProps) {
   const t = useTranslations("exchanges.report");
+  const helps = useTranslations("commands");
   const router = useRouter();
   const form = useId();
   const [open, setOpen] = useState(false);
@@ -171,6 +172,7 @@ export function ReportCommands({
         <Command
           offer={steps.apply ? offer : undefined}
           label={t("apply")}
+          help={helps("applyReport.help")}
           icon={commandIcon(FileCheck)}
           disclosure={{
             expanded: open,
@@ -184,6 +186,7 @@ export function ReportCommands({
         <Command
           offer={steps.abandon ? offer : undefined}
           label={t("abandon")}
+          help={helps("abandonReport.help")}
           icon={commandIcon(Ban)}
           action={abandon}
         />

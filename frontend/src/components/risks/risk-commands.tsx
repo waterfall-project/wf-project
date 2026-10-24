@@ -83,6 +83,7 @@ export function IdentifyRisk({
   readonly estimate: string | undefined;
 }) {
   const t = useTranslations("riskForm");
+  const helps = useTranslations("commands");
   const router = useRouter();
   const dialog = useRiskDialog();
   const [said, say] = useSaid();
@@ -94,6 +95,7 @@ export function IdentifyRisk({
         <OpensForm
           offer={offer}
           label={t("identify")}
+          help={helps("revision.declare_risk.help")}
           icon={commandIcon(REVISION_COMMAND_ICONS.declare_risk)}
           writing={dialog.writing}
           trigger={dialog.trigger}
@@ -218,6 +220,7 @@ function ModifyRiskShown({
   readonly onAnswered: (answer: Risk) => void;
 }) {
   const t = useTranslations("riskForm");
+  const helps = useTranslations("commands");
   const unmet = useUnmet();
   const dialog = useRiskDialog({ writing, setWriting: onWriting });
   const [said, say] = useSaid();
@@ -230,6 +233,7 @@ function ModifyRiskShown({
         <OpensForm
           offer={findOffer(risk.available_commands, "update")}
           label={t("modify")}
+          help={helps("modifyRisk.help")}
           icon={<Pencil aria-hidden="true" />}
           writing={dialog.writing}
           trigger={dialog.trigger}

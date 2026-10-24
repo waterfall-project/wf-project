@@ -276,40 +276,32 @@ export function CreateRole() {
 export function DeleteRole({ role }: { readonly role: AccessRole }) {
   const t = useTranslations("admin.accessRoles");
   const told = useTranslations("admin.commands");
+  const said = useTranslations("commands");
   const say = useContext(Say);
   const deletions = useContext(DeletionsContext);
-  const described = `${useId()}-unmet`;
   const name = t("deleteRole", { name: role.label });
   const held = role.holder_count > 0 ? t("heldBy", { count: role.holder_count }) : undefined;
   const pending = deletions?.deleting.has(role.access_role_id) ?? false;
   return (
-    <>
-      <CellCommand
-        aria-label={name}
-        aria-busy={pending}
-        aria-disabled={held === undefined ? undefined : true}
-        aria-describedby={held === undefined ? undefined : described}
-        title={held}
-        className={UNAVAILABLE}
-        onClick={() => {
-          if (held !== undefined) {
-            // An unavailable command never runs: the press says the condition it lacks.
-            say?.(told("unmet", { command: name, condition: held }));
-            return;
-          }
-          if (!pending) {
-            deletions?.ask(role);
-          }
-        }}
-      >
-        <Trash2 aria-hidden="true" />
-        {t("delete")}
-      </CellCommand>
-      {held === undefined ? null : (
-        <span id={described} className="sr-only">
-          {held}
-        </span>
-      )}
-    </>
+    <CellCommand
+      label={name}
+      help={said("deleteRole.help")}
+      unavailable={held}
+      aria-busy={pending}
+      className={UNAVAILABLE}
+      onClick={() => {
+        if (held !== undefined) {
+          // An unavailable command never runs: the press says the condition it lacks.
+          say?.(told("unmet", { command: name, condition: held }));
+          return;
+        }
+        if (!pending) {
+          deletions?.ask(role);
+        }
+      }}
+    >
+      <Trash2 aria-hidden="true" />
+      {t("delete")}
+    </CellCommand>
   );
 }

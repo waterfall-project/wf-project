@@ -50,6 +50,7 @@ import { setWorkBreakdown } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
@@ -249,6 +250,8 @@ interface RowCommand {
   readonly key: string;
   readonly name: string;
   readonly text: string;
+  /** What the command does, translated (`commands.<command>.help`). */
+  readonly help: string;
   readonly icon: ReactNode;
   readonly gesture: Gesture;
 }
@@ -259,11 +262,13 @@ interface RowCommand {
  */
 function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowCommand[] {
   const t = useTranslations("projectLists.workBreakdown");
+  const helps = useTranslations("commands");
   return (row) => {
     const workPackage: RowCommand = {
       key: "workPackage",
       name: t("createWorkPackage"),
       text: t("createWorkPackage"),
+      help: helps("breakdownWorkPackage.help"),
       icon: <Plus aria-hidden="true" />,
       gesture: { kind: "add", parent: undefined },
     };
@@ -275,6 +280,7 @@ function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowComman
       key: "add",
       name: t("addUnder", { kind: row.kind, label: row.label }),
       text: t("add", { kind: row.kind }),
+      help: helps("breakdownAdd.help"),
       icon: <ListPlus aria-hidden="true" />,
       gesture: { kind: "add", parent: row },
     };
@@ -285,6 +291,7 @@ function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowComman
         key: "rename",
         name: t("renameNamed", { element }),
         text: t("rename"),
+        help: helps("breakdownRename.help"),
         icon: <PencilLine aria-hidden="true" />,
         gesture: { kind: "rename", row },
       },
@@ -292,6 +299,7 @@ function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowComman
         key: "delete",
         name: t("deleteNamed", { element }),
         text: t("delete"),
+        help: helps("breakdownDelete.help"),
         icon: <Trash2 aria-hidden="true" />,
         gesture: { kind: "delete", row },
       },
@@ -325,25 +333,31 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
     bar: (row) => (
       <div className="flex flex-wrap items-center gap-1">
         {on(row).map((command) => (
-          <Button
+          <CommandTooltip
             key={command.key}
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={command.name}
-            aria-disabled={waiting ? true : undefined}
-            aria-busy={writing}
-            aria-describedby={why}
-            className={`h-7 text-xs ${UNAVAILABLE}`}
-            onClick={(event: MouseEvent<HTMLElement>) => {
-              if (!waiting) {
-                commands.open(command.gesture, event.currentTarget);
-              }
-            }}
+            label={command.name}
+            help={command.help}
+            unavailable={writing || offer.is_available ? undefined : unmet(offer)}
+            describedBy={why}
           >
-            {command.icon}
-            {command.text}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={command.name}
+              aria-disabled={waiting ? true : undefined}
+              aria-busy={writing}
+              className={`h-7 text-xs ${UNAVAILABLE}`}
+              onClick={(event: MouseEvent<HTMLElement>) => {
+                if (!waiting) {
+                  commands.open(command.gesture, event.currentTarget);
+                }
+              }}
+            >
+              {command.icon}
+              {command.text}
+            </Button>
+          </CommandTooltip>
         ))}
         {writing ? null : <UnmetConditions id={why} offer={offer} />}
         <WritingNote id={`${id}-writing`} writing={writing} />

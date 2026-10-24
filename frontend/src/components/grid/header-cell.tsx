@@ -22,8 +22,16 @@
 import type { RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, Sigma } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, type PointerEvent, type ReactNode, useId, useRef } from "react";
+import {
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactElement,
+  type ReactNode,
+  useId,
+  useRef,
+} from "react";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { TableHead } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 
@@ -48,7 +56,7 @@ const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
 /** What a header reads of its column: whether the server computes it whole, not its rows. */
 type HeaderColumn = Pick<
   GridColumn<unknown, string, unknown>,
-  "label" | "format" | "align" | "icon" | "axis" | "corner"
+  "label" | "format" | "align" | "icon" | "axis" | "corner" | "help" | "helpValues"
 > & {
   readonly computed?: { readonly whole: boolean };
 };
@@ -240,6 +248,30 @@ function cornerOf(column: HeaderColumn | undefined): ReactNode {
   return column?.corner?.();
 }
 
+/**
+ * A header with the definition of its column in a tooltip, which opens on the header as on its focus;
+ * the header itself when the column has none.
+ */
+function Defined({
+  column,
+  label,
+  children,
+}: {
+  readonly column: HeaderColumn | undefined;
+  readonly label: string;
+  readonly children: ReactElement;
+}) {
+  const definitions = useTranslations("columns");
+  if (column?.help === undefined) {
+    return children;
+  }
+  return (
+    <CommandTooltip label={label} help={definitions(`${column.help}.help`, column.helpValues)}>
+      {children}
+    </CommandTooltip>
+  );
+}
+
 /** Render a header of a grid. */
 export function HeaderCell<Row extends RowData>({
   table,
@@ -286,7 +318,7 @@ export function HeaderCell<Row extends RowData>({
     sorts ? "Enter Space" : undefined,
     resizes ? "Shift+ArrowLeft Shift+ArrowRight" : undefined,
   ].filter((each) => each !== undefined);
-  return (
+  const head = (
     <TableHead
       scope="col"
       aria-labelledby={id}
@@ -324,5 +356,10 @@ export function HeaderCell<Row extends RowData>({
       {cornerOf(column)}
       {resizes ? <ResizeHandle table={table} header={header} label={label} /> : null}
     </TableHead>
+  );
+  return (
+    <Defined column={column} label={label}>
+      {head}
+    </Defined>
   );
 }

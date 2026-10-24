@@ -514,14 +514,17 @@ describe("a write whose dialog is closed, and the focus", () => {
       "Vous n’avez pas la permission nécessaire.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
-    // Noted once, about the object the dialog modified.
-    expect(readMessages().messages).toEqual([
-      expect.objectContaining({
-        tone: "refusal",
-        sentence: "Vous n’avez pas la permission nécessaire.",
-        object: "Sous-traitance",
-      }),
-    ]);
+    // Noted once, about the object the dialog modified. The notice notes it in an effect, which
+    // React flushes after the alert is in the document: under load the alert is found first.
+    await vi.waitFor(() => {
+      expect(readMessages().messages).toEqual([
+        expect.objectContaining({
+          tone: "refusal",
+          sentence: "Vous n’avez pas la permission nécessaire.",
+          object: "Sous-traitance",
+        }),
+      ]);
+    });
   });
 
   it("holds a link clicked once the dialog is closed while it sends, and does not follow it when the server refuses the write: the refusal is told above the list (#688)", async () => {

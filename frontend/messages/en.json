@@ -1117,6 +1117,281 @@
     },
     "kanban": {
       "help": "Opens the kanban of the tasks to do, in progress and done."
+    },
+    "modify": {
+      "help": "Opens the form that modifies the row."
+    },
+    "deactivate": {
+      "help": "Deactivates the object: it is no longer offered to new entries, but its data stay."
+    },
+    "reactivate": {
+      "help": "Reactivates the object: it is offered to entries again."
+    },
+    "designateCalendar": {
+      "help": "Makes this calendar the one new resources use by default."
+    },
+    "retainBackup": {
+      "help": "Marks the backup to keep: retention does not delete it."
+    },
+    "releaseBackup": {
+      "help": "Lifts the mark to keep: retention may delete the backup again."
+    },
+    "restoreBackup": {
+      "help": "Opens the restoration of the platform from this backup, after confirmation."
+    },
+    "deleteRole": {
+      "help": "Deletes the access role, after confirmation."
+    },
+    "deleteSubproject": {
+      "help": "Deletes the sub-project, after confirmation."
+    },
+    "password_link": {
+      "help": "Gives the link by which the account holder sets a password."
+    },
+    "anonymize": {
+      "help": "Anonymises the deactivated account, after confirmation: the operation is final."
+    },
+    "activeUser": {
+      "help": "Activates or deactivates the account: a deactivated account can no longer sign in."
+    },
+    "downloadBackup": {
+      "help": "Downloads the backup, once verified."
+    },
+    "project": {
+      "update": {
+        "help": "Opens the form of the settings of the project."
+      },
+      "manage_contributors": {
+        "help": "Manages the contributors of the project."
+      },
+      "create_revision": {
+        "help": "Creates the revision being drawn up, a copy of the last marked revision."
+      },
+      "generate_skeleton": {
+        "help": "Generates the skeleton of the planning of the revision."
+      },
+      "complete": {
+        "help": "Completes the project, after confirmation."
+      },
+      "lose": {
+        "help": "Declares the project lost, after confirmation."
+      },
+      "abandon": {
+        "help": "Abandons the project, after confirmation."
+      },
+      "declare_risk_occurrence": {
+        "help": "Declares that a risk occurred and records its account, after confirmation."
+      },
+      "import_actual_costs": {
+        "help": "Imports the actual costs from a file."
+      },
+      "import_planning": {
+        "help": "Imports a planning from an MS Project file."
+      },
+      "import_estimate": {
+        "help": "Imports an estimate from a file."
+      },
+      "import_remaining": {
+        "help": "Imports a remaining to commit from a file."
+      }
+    },
+    "revision": {
+      "generate_skeleton": {
+        "help": "Generates the skeleton of the planning of the revision."
+      },
+      "declare_risk": {
+        "help": "Declares a new risk on the project."
+      },
+      "create_structure": {
+        "help": "Prepares an amendment: a differential structure on the revision."
+      },
+      "merge_structure": {
+        "help": "Makes the amendment contractual: its differences join the main structure."
+      },
+      "mark": {
+        "help": "Marks the revision: it becomes a frozen, named version."
+      },
+      "designate_reference": {
+        "help": "Designates the marked revision as the reference budget, after confirmation."
+      },
+      "abandon": {
+        "help": "Abandons the revision being drawn up, after confirmation."
+      }
+    },
+    "deleteRisk": {
+      "help": "Deletes the risk with its own estimate and its provision line, after confirmation."
+    },
+    "modifyRisk": {
+      "help": "Opens the form that modifies the risk."
+    },
+    "reviewRisk": {
+      "help": "Opens the review of the risk."
+    },
+    "updateRates": {
+      "help": "Replaces the rates of the revision in progress by the rates proposed, for the categories retained, after confirmation."
+    },
+    "excludeCostLine": {
+      "help": "Excludes the cost line from the tracked scope."
+    },
+    "reinstateCostLine": {
+      "help": "Reinstates the cost line in the tracked scope."
+    },
+    "applyReport": {
+      "help": "Applies the import to the revision, after confirmation."
+    },
+    "abandonReport": {
+      "help": "Abandons the import: nothing is applied."
+    },
+    "create": {
+      "help": "Opens the creation form."
+    },
+    "deleteTimeline": {
+      "help": "Deletes the timeline shown; its milestones go with it."
+    },
+    "cardGestures": {
+      "help": "Opens the menu of the gestures of this task."
+    },
+    "retryReading": {
+      "help": "Reads the tasks of this card again."
+    },
+    "contributorWithdraw": {
+      "help": "Removes this contributor from the list to save."
+    },
+    "contributorInscribe": {
+      "help": "Adds this account to the list to save, as a contributor."
+    },
+    "breakdownWorkPackage": {
+      "help": "Adds a work package to the work breakdown of the project."
+    },
+    "breakdownAdd": {
+      "help": "Adds an order item to this work package, or a deliverable to this order item."
+    },
+    "breakdownRename": {
+      "help": "Changes the label of this element of the work breakdown."
+    },
+    "breakdownDelete": {
+      "help": "Deletes this element of the work breakdown, with what it holds."
+    }
+  },
+  "columns": {
+    "nodes": {
+      "label": {
+        "help": "Label of the task or of the line, at the place it holds in the tree."
+      }
+    },
+    "estimate": {
+      "category": {
+        "help": "Cost category of the line: it gives the rate and the nature of the expense."
+      },
+      "role": {
+        "help": "Resource role that performs the line, when it is effort."
+      },
+      "quantity": {
+        "help": "Number of units of the line."
+      },
+      "hours": {
+        "help": "Effort of the line, in hours."
+      },
+      "unitDisbursement": {
+        "help": "Disbursement of one unit, apart from the effort."
+      },
+      "subproject": {
+        "help": "Sub-project the line belongs to."
+      },
+      "paymentDelay": {
+        "help": "Number of days between the consumption of the line and its payment."
+      },
+      "inactiveObject": {
+        "help": "Marks a line that uses a deactivated object of the reference data."
+      },
+      "referenceAmount": {
+        "help": "Amount of the line at the reference year of the revision, before any correction for inflation."
+      },
+      "inflatedAmount": {
+        "help": "Amount corrected for inflation from the reference year ({year}) to the year the line is consumed, at the inflation rate of the project ({rate} a year)."
+      },
+      "inflatedAmountStatic": {
+        "help": "Amount corrected for inflation from the reference year of the revision to the year the line is consumed, at the inflation rate of the project."
+      }
+    },
+    "planning": {
+      "description": {
+        "help": "Free description of the task."
+      },
+      "schedulingMode": {
+        "help": "Scheduling mode: the task follows its links, or its dates are set by hand."
+      },
+      "duration": {
+        "help": "Duration of the task, in the chosen unit."
+      },
+      "startDate": {
+        "help": "Start date of the task, computed by the server from its links and the calendar."
+      },
+      "finishDate": {
+        "help": "Finish date of the task, computed by the server from its duration and the calendar."
+      },
+      "progress": {
+        "help": "Progress of the task: to do, in progress or done."
+      },
+      "physicalProgress": {
+        "help": "Share of the work done, as a percentage of the task."
+      },
+      "totalFloat": {
+        "help": "Total float: the delay the task can take without pushing the end of the project."
+      },
+      "predecessors": {
+        "help": "Tasks this one depends on, named by their row number."
+      },
+      "attachment": {
+        "help": "Lot or post of the work breakdown structure the task belongs to."
+      },
+      "timelines": {
+        "help": "Timelines the task is inscribed on."
+      },
+      "gantt": {
+        "help": "Bar of the task on the time scale."
+      }
+    },
+    "remaining": {
+      "progress": {
+        "help": "Progress of the task: to do, in progress or done."
+      },
+      "finishDate": {
+        "help": "Planned finish date of the task."
+      },
+      "finishOverdue": {
+        "help": "Marks a task whose planned finish has passed without it being done."
+      },
+      "budgetedAmount": {
+        "help": "Budgeted amount of the line, as the reference budget froze it."
+      },
+      "previousQuantity": {
+        "help": "Quantity of the line at the previous remaining to commit."
+      },
+      "previousHours": {
+        "help": "Effort of the line, in hours, at the previous remaining to commit."
+      },
+      "previousUnitDisbursement": {
+        "help": "Unit disbursement of the line at the previous remaining to commit."
+      },
+      "previousReestimatedAmount": {
+        "help": "Re-estimated amount of the line at the previous remaining to commit."
+      },
+      "quantity": {
+        "help": "Quantity left to commit on the line."
+      },
+      "hours": {
+        "help": "Effort left to commit on the line, in hours."
+      },
+      "unitDisbursement": {
+        "help": "Unit disbursement of the line, re-estimated."
+      },
+      "subproject": {
+        "help": "Sub-project the line belongs to."
+      },
+      "reestimatedAmount": {
+        "help": "Re-estimated amount of the line or task: the updated estimate at completion."
+      }
     }
   },
   "outcome": {

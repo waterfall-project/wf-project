@@ -279,10 +279,12 @@ export function UnavailableActivation({
   readonly offer: CommandOffer;
 }) {
   const t = useTranslations("reference.state");
+  const said = useTranslations("commands");
   const list = useContext(Report);
   return (
     <UnavailableCellCommand
       name={t(command, { name })}
+      help={said(`${command}.help`)}
       offer={offer}
       onPress={() => {
         list?.tell(name, offer, command);

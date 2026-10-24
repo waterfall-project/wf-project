@@ -30,6 +30,7 @@ import type { Calendar } from "./resource-grids";
 /** The command that designates a calendar by default, named after it. */
 function DesignateCommand({ calendar }: { readonly calendar: Calendar }) {
   const t = useTranslations("reference");
+  const said = useTranslations("commands");
   const [pending, run] = useRowCommand(
     `designate calendar ${calendar.calendar_id}`,
     {},
@@ -37,7 +38,8 @@ function DesignateCommand({ calendar }: { readonly calendar: Calendar }) {
   );
   return (
     <CellCommand
-      aria-label={t("calendars.designate", { name: calendar.label })}
+      label={t("calendars.designate", { name: calendar.label })}
+      help={said("designateCalendar.help")}
       aria-busy={pending}
       onClick={() => {
         run(
@@ -64,6 +66,7 @@ function DesignateCommand({ calendar }: { readonly calendar: Calendar }) {
  */
 export function DefaultCalendarCell({ calendar }: { readonly calendar: Calendar }) {
   const t = useTranslations("reference.calendars");
+  const said = useTranslations("commands");
   const list = useListReport();
   if (calendar.is_default) {
     return (
@@ -82,6 +85,7 @@ export function DefaultCalendarCell({ calendar }: { readonly calendar: Calendar 
   ) : (
     <UnavailableCellCommand
       name={t("designate", { name: calendar.label })}
+      help={said("designateCalendar.help")}
       offer={offer}
       onPress={() => {
         list?.tell(calendar.label, offer, "set_default");

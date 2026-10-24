@@ -49,6 +49,7 @@ import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { CellCommand } from "./cell-command";
 import {
   type ActivationTarget,
@@ -322,21 +323,24 @@ export function WrittenRegion({ said }: { readonly said: Said | undefined }) {
  * on an empty list too —, after the region that says what the last write of the list did.
  */
 export function CreateCommand({ label }: { readonly label: string }) {
+  const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <WrittenRegion said={commands?.said} />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={(event: MouseEvent<HTMLElement>) => {
-          commands?.open({ row: undefined, trigger: event.currentTarget });
-        }}
-      >
-        <Plus aria-hidden="true" />
-        {label}
-      </Button>
+      <CommandTooltip label={label} help={said("create.help")}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            commands?.open({ row: undefined, trigger: event.currentTarget });
+          }}
+        >
+          <Plus aria-hidden="true" />
+          {label}
+        </Button>
+      </CommandTooltip>
     </div>
   );
 }
@@ -344,10 +348,12 @@ export function CreateCommand({ label }: { readonly label: string }) {
 /** The command that opens the modification of a row, named after it. */
 export function ModifyCommand({ row }: { readonly row: ReferenceObject }) {
   const t = useTranslations("reference");
+  const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   return (
     <CellCommand
-      aria-label={t("modifyNamed", { name: row.label })}
+      label={t("modifyNamed", { name: row.label })}
+      help={said("modify.help")}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget });
       }}
@@ -372,6 +378,7 @@ function ActivationButton({
 }) {
   const t = useTranslations("reference.state");
   const said = useTranslations("reference.form");
+  const helped = useTranslations("commands");
   const [pending, run] = useRowCommand(
     `${command} ${target.kind} ${target.id}`,
     conflict === undefined ? {} : { [conflict.id]: conflict.name },
@@ -379,7 +386,8 @@ function ActivationButton({
   );
   return (
     <CellCommand
-      aria-label={t(command, { name })}
+      label={t(command, { name })}
+      help={helped(`${command}.help`)}
       aria-busy={pending}
       onClick={() => {
         run(

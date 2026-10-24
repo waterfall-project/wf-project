@@ -222,11 +222,14 @@ export function BackupHead({ startable }: { readonly startable: boolean }) {
  */
 function UnavailableCommand({
   name,
+  help,
   offer,
   children,
 }: {
   /** The accessible name of the command, which names the backup by its date. */
   readonly name: string;
+  /** What the command does, translated. */
+  readonly help: string;
   readonly offer: CommandOffer;
   readonly children: ReactNode;
 }) {
@@ -235,6 +238,7 @@ function UnavailableCommand({
   return (
     <UnavailableCellCommand
       name={name}
+      help={help}
       offer={offer}
       onPress={(unmet) => {
         commands?.say(t("unavailable", { command: name, unmet }), { noted: false });
@@ -257,6 +261,7 @@ function offerOf(backup: Backup, command: BackupCommand) {
  */
 export function RetentionCell({ backup }: { readonly backup: Backup }) {
   const t = useTranslations("admin.backups");
+  const said = useTranslations("commands");
   const locale = useLocale();
   const commands = useContext(ListCommands);
   const list = useListReport();
@@ -268,6 +273,7 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
   const offer = offerOf(backup, retained ? "release" : "retain");
   const icon = retained ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />;
   const name = t(retained ? "releaseNamed" : "retainNamed", { date });
+  const help = said(retained ? "releaseBackup.help" : "retainBackup.help");
   const retain = () => {
     if (pending) {
       return;
@@ -301,12 +307,12 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
         </span>
       ) : null}
       {offer === undefined ? null : offer.is_available ? (
-        <CellCommand aria-label={name} aria-busy={pending} onClick={retain}>
+        <CellCommand label={name} help={help} aria-busy={pending} onClick={retain}>
           {icon}
           {t(retained ? "release" : "retain")}
         </CellCommand>
       ) : (
-        <UnavailableCommand name={name} offer={offer}>
+        <UnavailableCommand name={name} help={help} offer={offer}>
           {icon}
           {t(retained ? "release" : "retain")}
         </UnavailableCommand>
@@ -322,6 +328,7 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
  */
 export function DownloadCell({ backup }: { readonly backup: Backup }) {
   const t = useTranslations("admin.backups");
+  const said = useTranslations("commands");
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const date = useLocalTimestamp(backup.taken_at);
@@ -332,7 +339,7 @@ export function DownloadCell({ backup }: { readonly backup: Backup }) {
   const name = t("downloadNamed", { date });
   if (!offer.is_available) {
     return (
-      <UnavailableCommand name={name} offer={offer}>
+      <UnavailableCommand name={name} help={said("downloadBackup.help")} offer={offer}>
         <Download aria-hidden="true" />
         {t("download")}
       </UnavailableCommand>
@@ -359,6 +366,7 @@ export function DownloadCell({ backup }: { readonly backup: Backup }) {
  */
 export function RestoreCell({ backup }: { readonly backup: Backup }) {
   const t = useTranslations("admin.backups");
+  const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   const date = useLocalTimestamp(backup.taken_at);
   const offer = offerOf(backup, "restore");
@@ -368,7 +376,7 @@ export function RestoreCell({ backup }: { readonly backup: Backup }) {
   const name = t("restoreNamed", { date });
   if (!offer.is_available) {
     return (
-      <UnavailableCommand name={name} offer={offer}>
+      <UnavailableCommand name={name} help={said("restoreBackup.help")} offer={offer}>
         <History aria-hidden="true" />
         {t("restore")}
       </UnavailableCommand>
@@ -376,7 +384,8 @@ export function RestoreCell({ backup }: { readonly backup: Backup }) {
   }
   return (
     <CellCommand
-      aria-label={name}
+      label={name}
+      help={said("restoreBackup.help")}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ backup, trigger: event.currentTarget });
       }}

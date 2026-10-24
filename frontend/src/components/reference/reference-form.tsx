@@ -130,23 +130,13 @@ export interface FormField {
 
 /**
  * What a command that opens a form says while a write of the form is under way, which keeps it
- * inactive (`onWriting`): rendered then alone, for the command to be described by it — hidden but
- * from a reader of the screen for a command of a cell of a dense grid, which has no room for it, its
- * title saying it to the eye.
+ * inactive (`onWriting`): rendered then alone, for the command to be described by it. A command of a
+ * cell of a dense grid, which has no room for it, says it in its tooltip (`CellCommand`).
  */
-export function WritingNote({
-  id,
-  writing,
-  srOnly = false,
-}: {
-  readonly id: string;
-  readonly writing: boolean;
-  /** Whether the note is said to a reader of the screen alone — in a cell of a dense grid. */
-  readonly srOnly?: boolean;
-}) {
+export function WritingNote({ id, writing }: { readonly id: string; readonly writing: boolean }) {
   const t = useTranslations("reference.form");
   return writing ? (
-    <span id={id} className={srOnly ? "sr-only" : "text-xs text-muted-foreground"}>
+    <span id={id} className="text-xs text-muted-foreground">
       {t("writing")}
     </span>
   ) : null;
