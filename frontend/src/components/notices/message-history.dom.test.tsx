@@ -254,7 +254,7 @@ describe("a status said by hand (useSaid)", () => {
   }
 
   it("notes what a command did with the screen it was given on, the person gone to another before it answered, and lists it with the link back to it [WF-IHM-0080-A]", () => {
-    // Son aboutissement est signalé même si l'utilisateur a changé d'écran entre-temps.
+    // "Un utilisateur qui change d'écran pendant un import est informé de son aboutissement."
     let say: Say = () => undefined;
     const view = render(french(<Saying onSay={(given) => (say = given)} />));
     // The command pressed, the person goes to another screen, where the answer arrives.
