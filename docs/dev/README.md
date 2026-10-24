@@ -3897,3 +3897,45 @@ suivent ce guide comme une personne, et leurs règles propres sont dans
 Les règles sont dans le [README de la roadmap](../roadmap/README.md), sections « Lots » et
 « Branches », et dans [CONTRIBUTING](../../CONTRIBUTING.md) : un lot, une issue, une branche
 `lot/<identifiant>` tirée de `epic/EP-nn`, une pull request qui y revient.
+
+## Signature des commits
+
+Les commits qui arrivent sur `main` sont signés : la règle « Require signed commits » de
+GitHub protège `main`, et un commit qu'elle ne reconnaît pas bloque la fusion. Ce que GitHub
+crée lui-même (le merge commit d'une pull request, un squash, un commit de Dependabot) est
+signé par GitHub ; ce qu'une personne ou un agent commite est signé par la clé de cette
+personne.
+
+**Configurer sa machine** (clé SSH, la plus simple) :
+
+```bash
+ssh-keygen -t ed25519 -C "<adresse des commits>" -f ~/.ssh/id_ed25519_signing
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519_signing.pub
+git config --global commit.gpgsign true
+```
+
+Puis ajouter le contenu de `~/.ssh/id_ed25519_signing.pub` dans GitHub, *Settings → SSH and
+GPG keys → New SSH key*, avec le type **Signing Key** et l'adresse des commits. La clé ne doit
+pas demander sa phrase secrète à chaque commit, faute de quoi un agent s'arrête : la charger
+dans `ssh-agent` (`ssh-add`) ou dans le trousseau du système. Se vérifier avec
+`git log --show-signature -1`, puis lire le badge « Verified » sur GitHub après un push.
+
+**Les agents** (`.claude/agents/`) commitent avec la configuration git de la machine où ils
+tournent : lancés sur la machine d'une personne dont la clé est enregistrée, leurs commits sont
+signés et vérifiés. Lancés dans une session cloud, ils signent avec une clé d'environnement
+que GitHub ne connaît pas : leurs commits ne sont pas « Verified » et ne doivent pas arriver
+sur `main` tels quels.
+
+**Fusions.** `main` reçoit les branches d'EPIC par merge commit, qui porte leurs commits : il
+faut donc qu'ils soient tous vérifiés. Pour ne pas bloquer une fusion, ne commiter sur
+`epic/EP-nn` et `lot/*` qu'avec une clé enregistrée, et mettre une branche à jour depuis `main`
+par le bouton « Update branch » de la pull request ou par un merge local signé. Éviter le « Rebase and merge » : GitHub
+réécrit alors les commits sans les signer.
+
+**Mise en place sur `main`.** La règle ne s'active qu'une fois l'EPIC en cours, EP-15,
+fusionné, car il contient des commits non signés et la règle ne revérifie pas l'historique
+déjà fusionné. Ordre : la clé enregistrée et vérifiée, la fusion d'EP-15, puis « Require signed
+commits » sur `main` (*Settings → Rules*), avant de tirer la branche de l'EPIC suivant. La règle
+ne vise ni `epic/*` ni `lot/*`. Aucun contrôle de la chaîne ne la double : c'est GitHub qui
+refuse, d'où cette section.
