@@ -13,6 +13,10 @@
  * outline; a summary is a bracket, a milestone a diamond, so that the three sorts of task read
  * apart (WF-PLA-0080). Each bar is an image named by its dates, as the API gives them.
  *
+ * The days off of a task — the days at 0 hours of its calendar (`days-off.ts`) — are tinted across its
+ * row, in a hatching as well as a colour, so that the colour does not carry them alone (WCAG 1.4.1);
+ * a legend under the grid names the tint. Not where a day takes under a pixel.
+ *
  * It presents the tree of the grid, folded as the grid is — its rows are the grid's —, and folds it
  * as the grid does (WF-PLA-0090): the bracket of a summary has the button that folds it before it,
  * and the keys of the folding act on its cells as on any cell of the grid (`fold.tsx`). Folding
@@ -36,6 +40,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -51,15 +56,18 @@ import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-m
 import { formatLocale, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
+import { DAY_OFF_HATCH, dayOffBands, hasDaysOff, MIN_DAY_WIDTH } from "./days-off";
 import {
   type GanttBar,
   ganttLayout,
   type GanttLayout,
   type GanttLinkPart,
   type GanttRow,
+  type GanttTask,
 } from "./layout";
 import {
   centredOffset,
+  DAY,
   fittedLevel,
   levelsWith,
   revealedOffset,
@@ -93,6 +101,10 @@ export interface GanttView {
   /** Scroll the drawing to bring a stretch of the axis, two shares of its width, into view. */
   readonly reveal: (from: number, to: number) => void;
   readonly can: { readonly in: boolean; readonly out: boolean };
+  /** The width of a day, in pixels, at the level shown. */
+  readonly dayWidth: number;
+  /** Whether the days off of some task are tinted: a legend names the tint then. */
+  readonly tinted: boolean;
 }
 
 /** The Gantt of the grid around, if any. */
@@ -138,6 +150,16 @@ export function GanttRows({
   const levels = levelsWith(undefined);
   const [zoom, setZoom] = useKeptZoom(scope, levels);
   const [frame, setFrame] = useState(0);
+  // False until a tick after the mount: the time the axis, if drawn, has to measure its frame.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const tick = setTimeout(() => {
+      setSettled(true);
+    }, 0);
+    return () => {
+      clearTimeout(tick);
+    };
+  }, []);
   const [offset, setOffset] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
   const attach = useCallback((element: HTMLDivElement | null) => {
@@ -159,6 +181,11 @@ export function GanttRows({
   const upper = useMemo(
     () => (scale === undefined ? [] : scaleTicks(scale.upper, first, last)),
     [scale, first, last],
+  );
+  const dayWidth = (width ?? frame) / Math.max((last - first) / DAY, 1);
+  const anyDayOff = useMemo(
+    () => rows.some(({ task }) => hasDaysOff(task?.calendar_hours)),
+    [rows],
   );
   const zoomTo = (step: 1 | -1 | "fit") => {
     centre.current = (offset + frame / 2) / Math.max(width ?? frame, 1);
@@ -231,6 +258,12 @@ export function GanttRows({
     zoomTo,
     reveal,
     can: { in: level < levels - 1 || zoom === "fit", out: level > 0 || zoom === "fit" },
+    dayWidth,
+    // Fitted and not yet measured, for a tick at most, the legend is held: it keeps its place, and
+    // the bands, which wait for the width of a day, come after the measure. The layout moves once
+    // only if the measure shows days under a pixel (the legend then goes), or if no axis is drawn.
+    tinted:
+      anyDayOff && (dayWidth >= MIN_DAY_WIDTH || (width === undefined && frame === 0 && !settled)),
   };
   return (
     <GanttContext value={view}>
@@ -402,6 +435,86 @@ function Months({
   ));
 }
 
+/** The hatching of the days off, a tint with diagonal strokes on it, as a pattern of an SVG. */
+function DayOffPattern({ id }: { readonly id: string }) {
+  const { size, stroke, rotation, fillClass, markClass } = DAY_OFF_HATCH;
+  return (
+    <defs>
+      <pattern
+        id={id}
+        width={size}
+        height={size}
+        patternUnits="userSpaceOnUse"
+        patternTransform={`rotate(${rotation.toString()})`}
+      >
+        <rect width={size} height={size} className={fillClass} />
+        <line x1={0} x2={0} y1={0} y2={size} strokeWidth={stroke} className={markClass} />
+      </pattern>
+    </defs>
+  );
+}
+
+/** The days off of a task, bands across its row under the months, the width of a day told by the view. */
+function DaysOff({
+  view,
+  calendar,
+  pattern,
+}: {
+  readonly view: GanttView;
+  readonly calendar: GanttTask["calendar_hours"];
+  readonly pattern: string;
+}) {
+  const { layout, dayWidth } = view;
+  const first = layout.ticks[0] ?? 0;
+  const last = layout.ticks.at(-1) ?? first;
+  const bands = useMemo(
+    () => dayOffBands(calendar, { from: first, to: last }, dayWidth),
+    [calendar, first, last, dayWidth],
+  );
+  return bands.map((band) => (
+    <rect
+      key={band.from}
+      data-day-off=""
+      x={percent(layout.at(band.from))}
+      width={percent(layout.at(band.to) - layout.at(band.from))}
+      y={0}
+      height="100%"
+      fill={`url(#${pattern})`}
+    />
+  ));
+}
+
+/**
+ * The legend of the Gantt, under the grid: the hatched tint of the days off, named. Nothing where
+ * no day off is tinted.
+ */
+export function GanttLegend() {
+  const t = useTranslations("gantt");
+  const view = use(GanttContext);
+  const pattern = useId();
+  if (view?.tinted !== true) {
+    return null;
+  }
+  return (
+    <div
+      role="group"
+      aria-label={t("legend")}
+      className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"
+    >
+      <svg
+        aria-hidden="true"
+        width={20}
+        height={12}
+        className="shrink-0 border border-day-off-mark"
+      >
+        <DayOffPattern id={pattern} />
+        <rect width={20} height={12} fill={`url(#${pattern})`} />
+      </svg>
+      <span>{t("dayOff")}</span>
+    </div>
+  );
+}
+
 /** The part of a link a row draws: its vertical stretch, and where it arrives its arrow. */
 function LinkPart({ link }: { readonly link: GanttLinkPart }) {
   const out = percent(link.out);
@@ -491,6 +604,7 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
   const t = useTranslations("gantt");
   const locale = useLocale();
   const view = use(GanttContext);
+  const pattern = useId();
   if (view === undefined) {
     return null;
   }
@@ -517,6 +631,12 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
             : { width: view.width, transform: `translateX(-${String(view.offset)}px)` }
         }
       >
+        {view.tinted ? (
+          <>
+            <DayOffPattern id={pattern} />
+            <DaysOff view={view} calendar={task?.calendar_hours} pattern={pattern} />
+          </>
+        ) : null}
         <Months layout={layout} ticks={view.lower} />
         {layout.links(row.node_id).map((link, at) => (
           <LinkPart key={at} link={link} />

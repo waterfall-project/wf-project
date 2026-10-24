@@ -108,6 +108,8 @@ export const PLANNING_FIELDS = {
     "work_package_id",
     "work_breakdown_label",
     "tracking",
+    // The days off the Gantt tints in the row of the task (US-0530/L5).
+    "calendar_hours",
   ],
   line: [],
 } as const satisfies AnyNodeFields;

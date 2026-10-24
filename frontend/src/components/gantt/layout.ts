@@ -21,6 +21,9 @@
 import type { components } from "@/api/generated/schema";
 import { monthTicks } from "@/components/chart/ticks";
 
+/** The hours of each day of the week of the calendar that applies to a task. */
+type WeeklyHours = components["schemas"]["WeeklyHours"];
+
 /** A start or a finish of a task: a date, and the hours of work elapsed that day. */
 type WorkInstant = components["schemas"]["WorkInstant"];
 
@@ -34,6 +37,8 @@ export interface GanttTask {
   readonly is_summary: boolean;
   readonly is_milestone: boolean;
   readonly is_critical?: boolean;
+  /** The hours of each weekday of its calendar: a day at 0 hours is a day off (US-0530/L5). */
+  readonly calendar_hours?: WeeklyHours;
 }
 
 /** What the Gantt reads of a row: its identity, its task, its links. */
@@ -47,7 +52,7 @@ export interface GanttRow {
 const DAY = 86_400_000;
 
 /** An exact decimal of the contract that reads as zero: `0`, `0.00`. */
-const ZERO = /^-?0+(\.0+)?$/;
+export const ZERO = /^-?0+(\.0+)?$/;
 
 /** The midnight that starts a date of planning, in UTC, which no time zone moves. */
 function midnight(date: string): number {

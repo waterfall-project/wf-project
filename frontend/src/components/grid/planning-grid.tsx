@@ -34,7 +34,7 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { GanttRows, GanttZoomItems } from "@/components/gantt/gantt";
+import { GanttLegend, GanttRows, GanttZoomItems } from "@/components/gantt/gantt";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
@@ -404,6 +404,7 @@ export function PlanningGrid({
         around={(rows, table) => (
           <GanttRows rows={rows} scope={`${config.key}:${structure.revision_id}`}>
             {table}
+            <GanttLegend />
           </GanttRows>
         )}
       />

@@ -390,6 +390,8 @@
     "zoom": "Gantt zoom",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
+    "legend": "Gantt legend",
+    "dayOff": "Day off: no working hours in the task’s calendar",
     "fit": "Fit to project",
     "quarter": "Q{quarter} {year}",
     "quarterShort": "Q{quarter}"

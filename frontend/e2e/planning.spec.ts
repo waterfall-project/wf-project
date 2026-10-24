@@ -315,6 +315,22 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   expect(sent).toEqual([]);
 });
 
+test("tints the days off of each task in the Gantt, hatched, with a legend [WF-PLA-0090-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { gantt: "Gantt" });
+  // Zoomed to the weeks, a day is wide enough: the weekends of the task are bands under its bar.
+  await page.getByRole("button", { name: "Zoom avant" }).click();
+  const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
+  const cell = completed.getByRole("gridcell").nth(at.gantt);
+  await expect(cell.locator("rect[data-day-off]").first()).toBeAttached();
+  // The hatching tells them without their colour, and the legend names them.
+  await expect(cell.locator("pattern line").first()).toBeAttached();
+  await expect(page.getByRole("group", { name: "Légende du Gantt" })).toContainText("Jour chômé");
+});
+
 test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session [WF-PLA-0090-A]", async ({
   page,
 }) => {
