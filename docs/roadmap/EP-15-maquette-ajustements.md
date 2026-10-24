@@ -286,6 +286,27 @@ tranchées dans le sens proposé).
   Décision : #817 et #819 restent en EP-16, réduites aux points gardés, les points ramenés nommés
   dans un commentaire à l'ouverture des issues ; #802 est ramenée en EP-15 entière, part contrat K1
   d'US-0450.
+- **Les choix de l'échelle du Gantt** (US-0530/L2, #1393 ; décision de l'auteur du 2026-10-24 :
+  tous acceptés, sauf les jours non travaillés) : les graduations sont de 0,5, 1,5, 6 et 24 pixels
+  par jour, puis 20 par heure ; la semaine commence le lundi (ISO), quelle que soit la langue, et la
+  rangée basse des semaines montre le jour du lundi, sans numéro de semaine ; un label trop serré
+  est sauté (22 points en bas, 72 en haut) ; « Ajusté au projet » donne au dessin la largeur de la
+  colonne, au plus fin niveau qui tient, un dézoom pouvant donner un dessin plus étroit ; la date
+  gardée au zoom est celle du centre du cadre, pour la molette comme pour les boutons, non celle
+  sous le pointeur ; le niveau est gardé dans `sessionStorage`, sous la clé `planning:<revision_id>` ;
+  le fichier s'appelle `gantt/scale.ts`, `timeline` entrant en conflit avec `gantt/timeline.tsx` ;
+  le bouton de pliage d'une récapitulative sortie du cadre par le défilement du temps est rogné
+  mais reste dans l'ordre du clavier ; les trois boutons de zoom sont dans le coin épinglé de
+  l'en-tête du Gantt, en `tabIndex=-1` (la treegrid n'a qu'un arrêt de tabulation, WF-IHM-0100),
+  et le zoom passe au clavier par Ctrl et `+`/`-` et par le menu d'une cellule. `hours_per_day`, un
+  `Decimal`, devient le nombre de graduations horaires par un calcul entier sur la chaîne décimale,
+  jamais par un flottant : arrondi à l'heure entière la plus proche, la demi-heure vers le haut,
+  minimum 1, maximum 24, sans demi-heures. **Contre le choix de L2**, qui ne dessinait pas les jours
+  non travaillés faute de calendrier dans la lecture du planning, ils sont dessinés dans une couleur
+  distincte (#1410) : K10 porte le calendrier de chaque tâche, US-0530/L5 la teinte et sa légende ;
+  la frise n'est pas teintée (décision du 2026-10-24 : elle range des tâches de calendriers
+  différents sur un axe commun, sans ligne par tâche). La conception d'origine disait « rien d'autre
+  n'y change » au contrat pour US-0530, et rangeait #1064 parmi ce qui ne change pas : K10 la corrige.
 - **Taille des lots** : comme EP-14, les lots sont coupés à 1 200 lignes estimées, et un lot
   d'écran qui approche le plafond se découpe plutôt que de grossir.
 - **La branche du cadrage** est `roadmap/EP-15-cadrage`, vers `main` (autorisation de l'auteur du
@@ -319,7 +340,7 @@ disent rien de la création ni de la suppression ; lire `Project.state`, que le 
 
 ### Modifications du contrat, opération par opération
 
-Neuf parties, chacune avec ses exemples, son entrée dans `docs/api/DECISIONS.md` nommée ci-dessous,
+Dix parties, chacune avec ses exemples, son entrée dans `docs/api/DECISIONS.md` nommée ci-dessous,
 `make lint-openapi`, `make inventory`, `make generate-client`, `make mock-data` et `make catalogs`,
 faites **avant** le lot d'écran qui les consomme. Un exemple engendré se régénère ; un exemple écrit à
 la main se réécrit et reste confronté par `test_mockuniverse.py`. Les noms des champs, des codes et
@@ -334,11 +355,12 @@ des conditions sont ceux que le cadrage propose ; chaque partie les arrête dans
 | K5 — les risques (#1062, #763, #786) | `createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`, `declareRiskOccurrence`, `getRisk`, `listRisks` | `RiskWrite.provision_task_id`, facultatif — nul, la première tâche de premier niveau —, changeable tant que le risque est identifié (`update_provision`), refusé par 422 `UNKNOWN_TASK` si la tâche n'est pas de la structure principale de la révision en cours ; `Risk` rend `provision_task` `{node_id, label}` (#786) ; exemples de succès : `risk_created` (201, avec sa structure propre et sa ligne de provision), `risk_updated` (200), `risk_reviewed` (201), `task_occurrence_queued` (202), et `risk_provision_task_refused` (422) ; réalisé par US-0520/L1 : `provision_task` nul pour un risque qui n'est pas identifié, sous un schéma nommé `ProvisionTask`, `provision_task_id` nul à la modification rendant la ligne à la première tâche de premier niveau ; ajouté sur décision de l'auteur du 2026-10-20 : `deleteNode` reçoit `lock_version` en paramètre de requête, le compteur du nœud supprimé, et son 412 a son exemple (#1210), une écriture qui déclare un 412 envoyant un compteur ; `estimate_line_created`, `estimate_line_created_after_subtask` et `nodes_moved` portent sur l'avenant 2, et `moveNodes` décrit son 409 vers une tâche terminée, `task_not_completed` (#1214) ; ajouté sur décision de l'auteur du 2026-10-21 (#1227), réalisé par US-0570/L1 : `moveNodes` refuse une ligne de provision par 422 `VALIDATION_FAILED`, `/node_ids/<n>`, motif nouveau `PROVISION_LINE_MOVED_BY_RISK`, `params.risk` renvoyant au formulaire du risque, et la description de `reviewRisk` dit la tâche de la ligne d'un risque écarté redevenu identifié | `risk_reviewed` engendré depuis le registre (`mockwitness.REGISTER`) comme les réexamens, sur 751 confirmé aujourd'hui ; `risk_created` et `risk_updated` engendrés d'un risque déclaré aujourd'hui, hors registre, 754, sa structure propre vide ; `risks`, `risk`, `risk_occurred_detail` nomment `provision_task` — réalisé par US-0520/L1 : les cinq exemples engendrés par `wftools.mockriskwrites`, `mockhistory` passant sinon les mille lignes, `task_occurrence_queued` sur la survenance de 752 ; les gestes du devis sur l'avenant 2, `nodes_move_completed_refused` et `node_delete_stale` (#1210), sur une ligne que `nodes_moved` a portée à sa version 2, par `wftools.mockamendmentwrites`, `mockgestures` passant sinon les mille lignes (#1214) ; le test du tri d'un nœud retiré lit le différentiel marqué par le tri du faux back, `mockcore.subtree(…, sort=…)` (#1216) ; par US-0570/L1 : `nodes_move_provision_refused` engendré par `wftools.mockriskwrites`, la ligne de 751 envoyée sous le « Montage des armoires sur site », et le résumé de `risk_created` ouvert par « Variante contrefactuelle » (#1228) | « La déclaration d'un risque désigne la tâche de sa provision, et les saisies du risque ont leurs exemples (EP-15/US-0520) », citant #763, #786, #1210, #1214 et #1216, puis #1227 et #1228 |
 | K6 — le Kanban (#1070) | `listStartableTasks`, `setTaskProgress` | chaque tâche des trois colonnes est un `KanbanTask` — `Node` et `available_commands` sur une énumération `KanbanCommand` : `start`, `complete`, `reopen`, `enter_remaining`, chacune avec ses conditions manquantes (`task_without_lines`, `task_is_milestone`…) et, au-delà de cette conception, l'état qu'elle envoie (`KanbanCommandAvailability.progress`, justifié dans `DECISIONS.md`) — ; `NotStartedTask` garde `predecessors_completed` ; `ProgressUpdate.progress` accepte `not_started`, pour un jalon terminé seulement, refusé par 409 `STATE_FORBIDS_OPERATION`, `missing_condition` `completed_milestone`, pour toute autre tâche ; sa description (« aucun geste ne la ramène à “non démarrée” ») est réécrite ; exemples `task_started`, `milestone_completed`, `task_reopened`, `milestone_reopened`, `task_reopen_not_started_refused` | `startable_tasks*` engendrés par `mockkanban` disent les commandes et l'état que chacune envoie ; les réponses des gestes aussi, par `mockkanban`, sur les écritures du noyau de `mockwrites` | « Les gestes du Kanban (EP-15/US-0540) » |
 | K7 — les graphiques (#1051, #1053) | `getPortfolioWorkload`, `getProjectRiskMatrix`, `getPortfolioRisks` | `PortfolioWorkload` gagne `capacity_monthly_hours` à la racine (la somme des rôles retenus, filtrés ou non) et `monthly_totals` — un total d'heures par mois de `months`, dans le même ordre — ; `RiskMatrix` gagne `points`, un par risque retenu : `risk_id`, `label`, `probability`, `severity_amount`, `severity_ratio`, `provision_amount`, `state`, `zone`, et pour le portefeuille `project_id`, `project_label`, `can_open` ; `cells` reste | `mockportfoliotime` somme la capacité et les totaux ; `mockhistory` (`risk_matrix`) et `mockportfolio` (`portfolio_risks`) placent les points depuis le registre ; `portfolio_workload*`, `risk_matrix`, `portfolio_risks` régénérés, la matrice du volume un point par ligne (`mockdata.render`) | « Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550) », citant #375, #1051, #1053 et #1236 |
-| K8 — les préférences et le référentiel (#1045, #1068, #1047, #1049) | `updateMyPreferences`, `getMe`, `listCalendars`, `setDurationUnits` | `GridPreferences.page_size`, entier parmi 10, 25, 50, 100, refusé hors de ces valeurs par 422 `VALUE_OUT_OF_RANGE` sur `/grids/<grille>/page_size` ; `DisplayPreferences.timelines`, une table par `timeline_id` (100 au plus) de `{lanes: {node_id: entier ≥ 0}}` (64 au plus), bornée comme `grids` ; les quatorze paramètres `monday_min` à `sunday_max` de `listCalendars` retirés avec `calendars_bounds_inverted` ; `setDurationUnits` : `duration_units_updated` (200), `duration_units_zero` (422, `fields` sur la constante), `duration_units_stale` (412) ; réalisé par US-0570/L1 : `page_size` refusé sans paramètre, quatre valeurs et non des bornes, le service disant `VALUE_OUT_OF_RANGE` pour tout entier hors d'une énumération d'entiers ; `TimelinePreferences`, `lanes` exigé, une chronologie à `null` retrouvant sa disposition automatique, un couloir négatif refusé par `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` ; la constante nulle refusée par un motif nouveau, `DURATION_UNIT_NOT_POSITIVE`, sans paramètre, la borne étant exclue | fixtures écrites à la main : `preferences*` (dont `preferences_page_size_out_of_range`), `duration_units_*`, `calendars*` ; `test_mockbounds.py` tient les bornes — réalisé par US-0570/L1 : `preferences_page_size`, `preferences_timeline_lanes`, `preferences_page_size_out_of_range`, `preferences_lane_out_of_range`, `me_grid_settings` (25 lignes, le « Comité de pilotage » disposé), `duration_units_updated`, `duration_units_zero`, `duration_units_stale`, `calendars_bounds_inverted` retiré ; les corrélations écrites à la main dans une plage nouvelle, 1300-1599 (#1228) ; le front n'envoie plus les bornes d'heures, la barre restant à US-0570/L3 | « Le nombre de lignes par page, la disposition d'une chronologie, les calendriers sans bornes d'heures, les unités de durée (EP-15/US-0530, US-0570) », citant C-351, C-352, C-360 |
+| K8 — les préférences et le référentiel (#1045, #1068, #1047, #1049) | `updateMyPreferences`, `getMe`, `listCalendars`, `setDurationUnits` | `GridPreferences.page_size`, entier parmi 10, 25, 50, 100, refusé hors de ces valeurs par 422 `VALUE_OUT_OF_RANGE` sur `/grids/<grille>/page_size` ; `DisplayPreferences.timelines`, une table par `timeline_id` (100 au plus) de `{lanes: {node_id: entier ≥ 0}}` (64 au plus), bornée comme `grids` ; les quatorze paramètres `monday_min` à `sunday_max` de `listCalendars` retirés avec `calendars_bounds_inverted` ; `setDurationUnits` : `duration_units_updated` (200), `duration_units_zero` (422, `fields` sur la constante), `duration_units_stale` (412) ; réalisé par US-0570/L1 : `page_size` refusé sans paramètre, quatre valeurs et non des bornes, le service disant `VALUE_OUT_OF_RANGE` pour tout entier hors d'une énumération d'entiers ; `TimelinePreferences`, `lanes` exigé, une chronologie à `null` retrouvant sa disposition automatique, un couloir négatif refusé par `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` ; la constante nulle refusée par un motif nouveau, `DURATION_UNIT_NOT_POSITIVE`, sans paramètre, la borne étant exclue | fixtures écrites à la main : `preferences*` (dont `preferences_page_size_out_of_range`), `duration_units_*`, `calendars*` ; `test_mockbounds.py` tient les bornes — réalisé par US-0570/L1 : `preferences_page_size`, `preferences_timeline_lanes`, `preferences_page_size_out_of_range`, `preferences_lane_out_of_range`, `me_grid_settings` (25 lignes, le « Comité de pilotage » disposé : ses jalons, qu'une frise ne range pas, et, sur décision de l'auteur du 2026-10-24 (#1406), le couloir 2 d'une tâche, « Mise en service » `01926f3a-7c00-7000-8000-000000000565`, qui diffère de l'empilement automatique), `duration_units_updated`, `duration_units_zero`, `duration_units_stale`, `calendars_bounds_inverted` retiré ; les corrélations écrites à la main dans une plage nouvelle, 1300-1599 (#1228) ; le front n'envoie plus les bornes d'heures, la barre restant à US-0570/L3 | « Le nombre de lignes par page, la disposition d'une chronologie, les calendriers sans bornes d'heures, les unités de durée (EP-15/US-0530, US-0570) », citant C-351, C-352, C-360 |
 | K9 — les refus des gestes selon la phase | `createNode`, `deleteNode`, `moveNodes` | aucun refus nouveau : la phase est une commande de la structure (K2), et le serveur accepte les mêmes écritures depuis les trois grilles ; la description de `createNode` dit qu'une tâche créée depuis le devis ou le reste à engager est une feuille automatique d'un jour sans prédécesseur (WF-DEV-0050), et qu'une ligne ajoutée après la référence a un montant budgété nul (WF-RAE-0050) | — | dans l'entrée de K2 |
+| K10 — la date de calcul et le calendrier de la lecture du planning (#1404, #1406, #1410) | `listNodes`, `getMe` | `NodeListMeta.scheduled_at` (`Timestamp`, exigé) : l'instant du dernier calcul des dates de la structure lue — la dernière écriture qui l'a redatée, ou son import —, quels que soient les filtres, comme `summary_depth` (décision de l'auteur du 2026-10-24, #1404) ; écartée : la variante `CostStructure.scheduled_at`, la date étant un fait de la lecture du planning, et `NodeListMeta` disant déjà ce que la lecture dit de la structure lue ; le calendrier de chaque tâche (#1410, option A, décision du 2026-10-24) : un champ de `NodeFields` rend les `WeeklyHours` du calendrier applicable à la tâche (WF-PLA-0020 : le plus petit nombre d'heures, jour par jour, des calendriers des rôles de ses lignes de main-d'œuvre, le calendrier par défaut sans ligne) ; un jour chômé est un jour à 0 heure, le contrat ne connaissant pas de jours fériés (WF-REF-0110) ; écartée : les seules `WeeklyHours` du calendrier par défaut dans `NodeListMeta`, qui montreraient travaillé un jour que le rôle de la tâche ne travaille pas ; le nom du champ et le sort des récapitulatives sont arrêtés par le lot | `mockwitness` donne `scheduled_at` à toute lecture de nœuds (la date du témoin) et le générateur calcule le calendrier applicable depuis les lignes ; `nodes*` régénérés ; `me_grid_settings` reçoit le couloir de la tâche `…0565` (voir K8) ; `test_mocklists.py` confronte le calendrier | « La lecture du planning dit sa date de calcul et ses jours chômés (EP-15/US-0530) », citant #1404, #1406 et #1410 |
 
 Ce qui ne change pas au contrat : #1058 (l'encart lit `generate_skeleton` et `import_planning`),
-#1063 et #1064 (le Gantt, la largeur dans `column_widths`), #1069 (le lien et sa base), #1052
+#1063 (le Gantt, la largeur dans `column_widths`), #1069 (le lien et sa base), #1052
 (les cartes), #1043 (l'historique), #1050 (le menu), #1041, #1042, #1033, #1044, #1071 et #1075
 (l'aide : la seule lecture nouvelle est celle des infobulles des valeurs calculées, par
 `getComputedValueDependencies`, déjà servie).
@@ -376,8 +398,8 @@ Ce qui ne change pas au contrat : #1058 (l'encart lit `generate_skeleton` et `im
   provision sont celles de L42p (catégorie, sous-projet, `update_provision`), plus la tâche
   porteuse (#786).
 - **Le Gantt et la frise (US-0530)** : `DenseGrid` reçoit l'épinglage à droite d'une colonne
-  (`columnPinning.right`, `scrollPaddingInlineEnd`) et une poignée de séparation ; `gantt/timeline.ts`
-  reçoit le modèle d'échelle à cinq niveaux et l'axe à deux rangées ; `gantt/timeline-chart.tsx`
+  (`columnPinning.right`, `scrollPaddingInlineEnd`) et une poignée de séparation ; `gantt/scale.ts`
+  (et non `gantt/timeline.ts`, que `gantt/timeline.tsx` rend ambigu) reçoit le modèle d'échelle à cinq niveaux et l'axe à deux rangées ; `gantt/timeline-chart.tsx`
   dessine la frise en SVG et écrit la disposition par `updateMyPreferences`.
 - **Le Kanban (US-0540)** : `kanban/` reçoit la sélection des cartes, le glisser entre colonnes, le
   menu de la carte et l'action `setTaskProgress`.
@@ -486,7 +508,8 @@ l'écart reste.
    avenants, les risques, dans cet ordre (#1074, #1061, #1062 reposent sur #1060 et #1056).
 5. En parallèle du point 3, sans dépendance avec lui : **K8** puis **US-0570** ; **K7** puis
    **US-0550** ; **K6** puis **US-0540** ; **US-0560** ; **US-0530** (l'épinglage et le zoom
-   d'abord, la frise après US-0480 pour les inscriptions).
+   d'abord, la frise après US-0480 pour les inscriptions), puis **K10** et les jours chômés
+   (US-0530/L4, L5), puis les exports (L3b, L2b), qui reprennent la date de calcul et la teinte.
 6. **US-0580**, l'aide et les infobulles, en dernier : elle décrit les écrans tels que les US
    précédentes les laissent.
 7. La clôture : le croisement sans manque, la définition de fini constatée par l'auteur écran par
@@ -1146,18 +1169,22 @@ de plusieurs années comme une tâche de quelques jours, et présenter une chron
   automatiquement, et se déplacent d'un couloir à l'autre à la souris et au clavier (Alt+↑, Alt+↓) ;
   la disposition est une préférence d'affichage par chronologie (WF-ADM-0040) ;
 - propre à l'US : le graphique et chaque rectangle ou jalon ont un nom accessible, et une lecture en
-  table est donnée (WF-IHM-0100).
+  table est donnée (WF-IHM-0100) ;
+- propre à l'US : le Gantt teinte les jours chômés de chaque tâche — les jours à 0 heure du
+  calendrier que la lecture du planning rend pour elle — d'une couleur distincte, que l'information
+  ne porte pas par la seule couleur, avec une légende ; l'export PNG du Gantt (L2b) reprend la
+  teinte et la légende ; la frise n'est pas teintée (décision de l'auteur du 2026-10-24, #1410).
 
 **Notes de réalisation.** Décisions de l'auteur du 2026-10-18 (#1063, #1064 et son commentaire,
 #1068). Le contrat reçoit `DisplayPreferences.timelines` — une table par `timeline_id`, chaque
 entrée portant le couloir de chaque tâche (`lanes`), bornée comme `grids` — avec ses exemples et son
 entrée de `DECISIONS.md` ; rien d'autre n'y change. Le refus ou l'ouverture d'un couloir quand un
 rectangle en chevaucherait un autre se tranche au lot (#1068). Trois lots : l'épinglage et la
-poignée ; l'échelle et le zoom ; la frise. Tranché par US-0530/L3 : le déplacement vers un couloir
+poignée ; l'échelle et le zoom ; la frise. Ajoutés le 2026-10-24 (#1393, #1404, #1406, #1410) : un lot de contrat, `NodeListMeta.scheduled_at`, le couloir d'une tâche de `me_grid_settings` et le calendrier de chaque tâche (K10, L4), puis la teinte des jours chômés (L5), avant les exports (L3b, L2b), qui nomment la date de calcul de `scheduled_at`. Tranché par US-0530/L3 : le déplacement vers un couloir
 où le rectangle en chevaucherait un autre est refusé, dit, et rien ne bouge ; aucun couloir ne
 s'ouvre au-dessus d'un autre, un couloir vide s'offrant toujours sous le dernier, et le clavier vise
 le plus proche couloir où le rectangle tient. Un jalon, ligne sur toute la hauteur, n'a pas de
-couloir. L'export PNG de la frise est livré par US-0530/L3b.
+couloir. L'export PNG de la frise est livré par US-0530/L3b, celui du Gantt par L2b.
 
 ## US-0540 — Les gestes du Kanban
 
