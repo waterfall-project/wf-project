@@ -394,7 +394,9 @@
     "dayOff": "Jour chômé : aucune heure de travail au calendrier de la tâche",
     "fit": "Ajuster au projet",
     "quarter": "T{quarter} {year}",
-    "quarterShort": "T{quarter}"
+    "quarterShort": "T{quarter}",
+    "title": "Diagramme de Gantt",
+    "file": "gantt"
   },
   "taskTree": {
     "summary": "Les tâches récapitulatives, sous le projet, jusqu’au niveau choisi — en lecture.",
@@ -1083,6 +1085,10 @@
     "fit": {
       "help": "Ajuste l’échelle pour montrer le projet entier.",
       "unavailable": "L’échelle montre déjà le projet entier."
+    },
+    "exportGantt": {
+      "help": "Enregistre le Gantt en image PNG, sur toute son étendue au niveau de zoom choisi, avec le projet, la révision et la date de calcul.",
+      "unavailable": "L’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives."
     },
     "restack": {
       "help": "Range les tâches dans les couloirs d’elles-mêmes, en oubliant ceux choisis à la main.",

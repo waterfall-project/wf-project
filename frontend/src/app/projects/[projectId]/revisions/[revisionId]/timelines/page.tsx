@@ -28,7 +28,6 @@ import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { inscribedTo, type TimelineTask } from "@/components/gantt/timeline";
-import type { ChartProvenance } from "@/components/chart/chart";
 import { TimelineChart } from "@/components/gantt/timeline-chart";
 import {
   TimelineBody,
@@ -42,7 +41,7 @@ import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
-import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
+import { type GridAddress, gridAddress, provenanceOf, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
 /** A named timeline of a project. */
@@ -67,15 +66,6 @@ const TIMELINE_FIELDS = {
   task: ["start", "finish", "is_critical", "tracking"],
   line: [],
 } as const;
-
-/** The project and the revision the exported image names; the current one has no version name. */
-function provenanceOf(reading: ProjectReading, current: string): ChartProvenance {
-  return {
-    project: reading.project.label,
-    code: reading.project.code ?? reading.project.project_id,
-    revision: reading.revision?.version_name ?? current,
-  };
-}
 
 /**
  * What the frieze of the timeline shown needs besides its tasks: the reading context, which scopes

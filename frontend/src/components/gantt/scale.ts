@@ -12,8 +12,8 @@
  * its level, and scrolls in its own frame, the date at its centre kept (`centredOffset`).
  *
  * The finest level, days and worked hours, divides each day into the hours of work of the
- * installation (`DurationUnits.hours_per_day`): the planning does not read them yet, and a Gantt
- * that is not given them stops at weeks and days (`levelsWith`).
+ * installation (`DurationUnits.hours_per_day`), rounded to whole hours (`hoursOfDay`); a Gantt that
+ * is not given them — the frieze of a timeline — stops at weeks and days (`levelsWith`).
  */
 
 /** A unit of the axis, by the boundaries it marks. */
@@ -47,6 +47,32 @@ export function levelsWith(hoursPerDay: number | undefined): number {
   return hoursPerDay === undefined ? SCALE_LEVELS.length - 1 : SCALE_LEVELS.length;
 }
 
+/** The fewest and the most graduations of hours a day takes. */
+const HOURS_OF_DAY = { least: 1, most: 24 } as const;
+
+/**
+ * The graduations of hours of a day, from the hours of a day of work of the installation — an exact
+ * decimal of the contract (`Decimal`) —, computed on its digits, never through a floating point: the
+ * nearest whole hour, half an hour up, from 1 to 24 (#1393). None for a text that is no decimal.
+ */
+export function hoursOfDay(decimal: string): number | undefined {
+  const digits = /^(-?)(\d+)(?:\.(\d+))?$/.exec(decimal);
+  if (digits === null) {
+    return undefined;
+  }
+  const [, sign = "", whole = "", fraction = ""] = digits;
+  const hours = whole.replace(/^0+(?=\d)/, "");
+  if (sign === "-") {
+    return HOURS_OF_DAY.least;
+  }
+  if (hours.length > 2) {
+    return HOURS_OF_DAY.most;
+  }
+  // Two digits at most: an integer, read as such. The first decimal alone says the rounding.
+  const rounded = Number.parseInt(hours, 10) + (fraction.charAt(0) >= "5" ? 1 : 0);
+  return Math.min(Math.max(rounded, HOURS_OF_DAY.least), HOURS_OF_DAY.most);
+}
+
 /** The width of the drawing of a span of time at a level, in pixels. */
 export function widthAt(level: number, span: number, hoursPerDay = 1): number {
   const scale = SCALE_LEVELS[level];
@@ -55,10 +81,10 @@ export function widthAt(level: number, span: number, hoursPerDay = 1): number {
 }
 
 /** The finest level whose drawing of a span the width of a column holds; the coarsest otherwise. */
-export function fittedLevel(span: number, width: number, levels: number): number {
+export function fittedLevel(span: number, width: number, levels: number, hoursPerDay = 1): number {
   let fitted = 0;
   for (let level = 0; level < levels; level += 1) {
-    if (widthAt(level, span) <= width) {
+    if (widthAt(level, span, hoursPerDay) <= width) {
       fitted = level;
     }
   }

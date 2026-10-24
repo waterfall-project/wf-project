@@ -106,6 +106,7 @@ beforeEach(() => {
     [NODES]: "nodes_planning",
     [BREAKDOWN]: "work_breakdown",
     "GET /projects/{project_id}/timelines": "timelines",
+    "GET /reference/duration-units": "duration_units",
   };
 });
 
@@ -143,6 +144,23 @@ describe("the screen of the planning", () => {
     expect(read?.path).toBe(`/projects/${PROJECT}/timelines`);
     expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);
     expect(page).not.toMatch(/<th(?:(?!<\/th>).)*>Timelines</);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, le niveau des heures travaillées et l'export du Gantt).
+  it("gives the Gantt the hours of a day of the installation, and the project, the revision and the date of calculation its image names", async () => {
+    await planning();
+    expect(callsOf("GET /reference/duration-units")).toHaveLength(1);
+    expect(grid.given.at(-1)?.gantt).toEqual({
+      hoursPerDay: 8,
+      exported: {
+        provenance: {
+          project: "Modernisation du poste de commande",
+          code: "PRJ-001",
+          revision: "Current revision",
+        },
+        scheduledAt: "2026-06-03T14:05:00Z",
+      },
+    });
   });
 
   it("gives the grid what the project lists of the creation of a timeline, as the server says it [WF-IHM-0090-A]", async () => {

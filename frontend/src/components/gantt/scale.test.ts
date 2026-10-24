@@ -7,6 +7,7 @@ import {
   centredOffset,
   DAY,
   fittedLevel,
+  hoursOfDay,
   levelsWith,
   revealedOffset,
   SCALE_LEVELS,
@@ -77,6 +78,32 @@ describe("the scale of the Gantt", () => {
     expect(fittedLevel(60 * DAY, 400, 4)).toBe(2);
     expect(fittedLevel(60 * DAY, 2000, 4)).toBe(3);
     expect(fittedLevel(40 * 365 * DAY, 400, 4)).toBe(0);
+    // Twelve days of eight hours hold in 2 000 points: 1 920 at the hours.
+    expect(fittedLevel(12 * DAY, 2000, 5, 8)).toBe(4);
+    expect(fittedLevel(12 * DAY, 2000, 5, 9)).toBe(3);
+  });
+
+  it.each([
+    ["8", 8],
+    ["7.5", 8],
+    ["7.49", 7],
+    // Beyond the precision of a floating point, which would read 7.5 and round it up.
+    ["7.49999999999999999999", 7],
+    ["7.50000000000000000001", 8],
+    ["0008.50", 9],
+    ["23.5", 24],
+    ["0.2", 1],
+    ["0.5", 1],
+    ["0", 1],
+    ["-3", 1],
+    ["30", 24],
+    ["100000000000000000000.5", 24],
+  ])("graduates a day of %s hours of work in %i whole hours", (decimal, hours) => {
+    expect(hoursOfDay(decimal)).toBe(hours);
+  });
+
+  it("graduates no hours from a text that is no decimal", () => {
+    expect(hoursOfDay("8,5")).toBeUndefined();
   });
 
   it("zooms a level in or out from the one shown, within those offered", () => {

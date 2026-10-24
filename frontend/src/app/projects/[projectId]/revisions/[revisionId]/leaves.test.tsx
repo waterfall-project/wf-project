@@ -87,6 +87,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /projects/{project_id}/timelines": "timelines",
+    "GET /reference/duration-units": "duration_units",
   };
 });
 

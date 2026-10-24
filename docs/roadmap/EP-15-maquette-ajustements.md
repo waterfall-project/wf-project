@@ -1123,7 +1123,7 @@ trois lots : les formulaires et le devis propre ; le réexamen, la suppression e
 
 ## US-0530 — Le Gantt épinglé et zoomé, la chronologie en frise
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0090-A`, `WF-PLA-0140-A`
 - **opérations** : `listNodes`, `listTimelines`, `getMe`, `updateMyPreferences`,
   `getDurationUnits`
@@ -1184,7 +1184,13 @@ poignée ; l'échelle et le zoom ; la frise. Ajoutés le 2026-10-24 (#1393, #140
 où le rectangle en chevaucherait un autre est refusé, dit, et rien ne bouge ; aucun couloir ne
 s'ouvre au-dessus d'un autre, un couloir vide s'offrant toujours sous le dernier, et le clavier vise
 le plus proche couloir où le rectangle tient. Un jalon, ligne sur toute la hauteur, n'a pas de
-couloir. L'export PNG de la frise est livré par US-0530/L3b, celui du Gantt par L2b.
+couloir. L'export PNG de la frise est livré par US-0530/L3b, celui du Gantt par L2b. Réalisé par
+L2b : l'image du Gantt a une ligne par tâche que la grille montre, une ligne sans tâche n'y
+dessinant rien ; elle est deux fois plus dense que l'écran tant qu'un canevas le tient, aussi dense
+sinon, et l'export est indisponible, son motif dit, au-delà des bornes des navigateurs ; une heure
+travaillée se lit sur l'axe par son numéro dans le jour, le front ne connaissant pas l'heure où le
+calendrier la place ; la date gardée au zoom est celle du centre du cadre qui défile dans l'en-tête,
+non celui de la colonne.
 
 ## US-0540 — Les gestes du Kanban
 

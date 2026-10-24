@@ -23,14 +23,16 @@
  * the own estimate of a risk, which the skeleton, generated on the main structure, would not fill.
  * The timelines of the project (`listTimelines`) name the inscriptions of its tasks, in a column
  * hidden until shown, and are the boxes of the submenu « Chronologies » of the menu of their cells
- * (US-0480). Once, under its header, the screen then says that the fake back keeps none of what they write
+ * (US-0480). The Gantt reads the hours of a day of the installation (`getDurationUnits`), which
+ * graduate its finest level, and is exported with the date its dates were calculated at
+ * (`meta.scheduled_at`). Once, under its header, the screen then says that the fake back keeps none of what they write
  * (`MockupNotice`, EP-14/L44d).
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { readUnlessRefused } from "@/api/problem";
+import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
@@ -46,7 +48,9 @@ import {
   PLANNING_KINDS,
   PLANNING_SORT_COLUMNS,
 } from "@/components/grid/planning";
-import { PlanningGrid } from "@/components/grid/planning-grid";
+import type { ProjectReading } from "@/components/context/reading";
+import { hoursOfDay } from "@/components/gantt/scale";
+import { PlanningGrid, type PlanningGridProps } from "@/components/grid/planning-grid";
 import type { ChoiceOption } from "@/components/grid/row-choices";
 import { MergeAmendmentCommand } from "@/components/revisions/merge-amendment-command";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
@@ -57,7 +61,7 @@ import type { PageSearchParams, ProjectContext } from "@/navigation/context";
 import { functionHref, leafOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../../../../title";
-import { gridAddress, readGridScreen } from "../grid-screen";
+import { gridAddress, provenanceOf, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
 /** Title the tab with the function, and with the project. */
@@ -171,6 +175,33 @@ function AmendmentMerge({
   );
 }
 
+/**
+ * The grid of the planning and its Gantt, which zooms down to the hours of a day of the installation
+ * and names the project, the revision and the date of calculation in its exported image.
+ */
+function PlanningWithGantt({
+  grid,
+  reading,
+  scheduledAt,
+  hoursPerDay,
+}: {
+  readonly grid: Omit<PlanningGridProps, "gantt">;
+  readonly reading: ProjectReading;
+  readonly scheduledAt: string;
+  readonly hoursPerDay: string;
+}) {
+  const t = useTranslations("contextBanner");
+  return (
+    <PlanningGrid
+      {...grid}
+      gantt={{
+        hoursPerDay: hoursOfDay(hoursPerDay),
+        exported: { provenance: provenanceOf(reading, t("currentRevision")), scheduledAt },
+      }}
+    />
+  );
+}
+
 /** Render the grid of the planning on the structure of a revision the address names. */
 export default async function PlanningPage({
   params,
@@ -181,7 +212,7 @@ export default async function PlanningPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "planning");
-  const [screen, timelines] = await Promise.all([
+  const [screen, timelines, units] = await Promise.all([
     readGridScreen(at, {
       key: PLANNING_GRID.key,
       sortable: PLANNING_SORT_COLUMNS,
@@ -193,6 +224,7 @@ export default async function PlanningPage({
       chooses: true,
     }),
     readTimelines(revision.projectId),
+    readOrFail("getDurationUnits", () => serverClient().GET("/reference/duration-units")),
   ]);
   const editable = screen.commands.has("edit_planning");
   const skeleton =
@@ -219,25 +251,30 @@ export default async function PlanningPage({
         {screen.breakdown === undefined ? null : (
           <BreakdownFilterChoice choices={screen.breakdown} />
         )}
-        <PlanningGrid
+        <PlanningWithGantt
           key={screen.structure.structure_id}
-          nodes={screen.nodes}
-          structure={screen.structure}
-          structureVersion={screen.structureVersion}
-          filters={screen.filters}
-          query={screen.query}
-          preferences={screen.preferences}
-          undoable={editable}
-          editable={editable}
-          differential={screen.kind === "amendment"}
-          // The attachment is chosen among the same items, where the planning may be entered.
-          breakdown={editable ? screen.breakdown?.items : undefined}
-          skeleton={skeleton}
-          timelines={timelines}
-          timelineCreation={findOffer(
-            screen.reading.project.available_commands,
-            "manage_timelines",
-          )}
+          reading={screen.reading}
+          scheduledAt={screen.scheduledAt}
+          hoursPerDay={units.hours_per_day}
+          grid={{
+            nodes: screen.nodes,
+            structure: screen.structure,
+            structureVersion: screen.structureVersion,
+            filters: screen.filters,
+            query: screen.query,
+            preferences: screen.preferences,
+            undoable: editable,
+            editable,
+            differential: screen.kind === "amendment",
+            // The attachment is chosen among the same items, where the planning may be entered.
+            breakdown: editable ? screen.breakdown?.items : undefined,
+            skeleton,
+            timelines,
+            timelineCreation: findOffer(
+              screen.reading.project.available_commands,
+              "manage_timelines",
+            ),
+          }}
         />
       </Screen>
     </PendingAddress>

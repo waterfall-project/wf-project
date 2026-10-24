@@ -260,6 +260,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /projects/{project_id}/timelines": "timelines",
+    "GET /reference/duration-units": "duration_units",
   };
 });
 
@@ -474,10 +475,7 @@ describe("the witness path", () => {
     server.clients = [];
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "label" }) });
-    expect(nodesQuery()).toEqual({
-      sort_by: "label",
-      sort_order: "asc",
-    });
+    expect(nodesQuery()).toEqual({ sort_by: "label", sort_order: "asc" });
   });
 
   it("leads from a revision to its planning, the first function of a revision in the order of the FBS and of the sidebar, the reading context carried on", async () => {
