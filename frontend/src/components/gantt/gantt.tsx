@@ -66,7 +66,7 @@ import type { Locale } from "@/i18n/locale";
 import { axisWriter, labelsOf } from "./axis-labels";
 import { DAY_OFF_HATCH, dayOffBands, hasDaysOff, MIN_DAY_WIDTH } from "./days-off";
 import { GanttExportButton, GanttExportItem, GanttProbes } from "./gantt-export";
-import { ganttFits } from "./gantt-image";
+import { type GanttOverflow, ganttOverflow } from "./gantt-image";
 import {
   type GanttBar,
   ganttLayout,
@@ -136,8 +136,8 @@ export interface GanttExporting {
   readonly rows: readonly GanttRow[];
   /** The width of the drawing at the level shown: zoomed, or that of its column. */
   readonly width: number;
-  /** Whether a canvas holds its image: too wide or too long, it is not drawn. */
-  readonly fits: boolean;
+  /** The bound of a canvas its image passes, if any: too wide or too long, it is not drawn. */
+  readonly overflow: GanttOverflow | undefined;
   /** The probes of its colours, in the document. */
   readonly probes: RefObject<HTMLSpanElement | null>;
 }
@@ -184,7 +184,13 @@ function useExporting(
   return exported === undefined
     ? [undefined, null]
     : [
-        { exported, rows: tasks, width, fits: ganttFits(width, tasks.length, tinted), probes },
+        {
+          exported,
+          rows: tasks,
+          width,
+          overflow: ganttOverflow(width, tasks.length, tinted),
+          probes,
+        },
         <GanttProbes key="probes" probes={probes} />,
       ];
 }
@@ -269,7 +275,11 @@ export function GanttRows({
     // The scroll of the frame itself, which a scroll not yet told to the view may have moved, and
     // its width within the header, inset from the edges of the column.
     const scrolled = width === undefined ? 0 : (scroller.current?.scrollLeft ?? offset);
-    centre.current = (scrolled + seen() / 2) / Math.max(drawn, 1);
+    // Fitted to the project, the drawing is the whole column and its frame stands inset from the
+    // edge (`left-2`): the centre of the frame is that of the column. Zoomed, the drawing begins
+    // with the frame.
+    const inset = width === undefined ? (scroller.current?.offsetLeft ?? 0) : 0;
+    centre.current = (inset + scrolled + seen() / 2) / Math.max(drawn, 1);
     setZoom(step === "fit" ? "fit" : zoomed(zoom, fitted, step, levels));
   };
   const reveal = (from: number, to: number) => {
@@ -761,6 +771,7 @@ export function GanttAxis({ width }: { readonly width: number }) {
   const { scroller, scrolled } = view;
   const drawn = view.width ?? width;
   const write = axisWriter(t, locale, view);
+  const hours = SCALE_LEVELS[view.level]?.lower === "hour";
   const row = (which: "lower" | "upper", y: string) =>
     labelsOf(which === "lower" ? view.lower : view.upper, drawn, which, view.layout.at).map(
       ([tick, x]) => (
@@ -785,7 +796,12 @@ export function GanttAxis({ width }: { readonly width: number }) {
         scrolled(event.currentTarget.scrollLeft);
       }}
     >
-      <svg aria-hidden="true" className="h-full" style={{ width: view.width ?? "100%" }}>
+      <svg
+        {...(hours ? { role: "img", "aria-label": t("hoursNote") } : { "aria-hidden": true })}
+        className="h-full"
+        style={{ width: view.width ?? "100%" }}
+      >
+        {hours ? <title>{t("hoursNote")}</title> : null}
         {view.upper.slice(1, -1).map((tick) => (
           <line
             key={tick}

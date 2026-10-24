@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-// Aucune exigence : propre à l'US (US-0530, l'export PNG du Gantt sur toute son étendue au niveau
-// choisi, la teinte et la légende des jours chômés, le niveau des heures travaillées).
+// L'export du Gantt (US-0530) : sur toute son étendue au niveau choisi, la teinte et la légende
+// des jours chômés, le niveau des heures travaillées ; le test du titre, du projet, de la révision
+// et de la date de calcul cite WF-IHM-0130-A, les autres n'ont pas d'exigence propre.
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -15,7 +16,8 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { ganttFits } from "./gantt-image";
+import { exportGanttPng, type GanttColours, ganttOverflow } from "./gantt-image";
+import { ganttLayout } from "./layout";
 
 const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } => ({
   client: undefined,
@@ -51,6 +53,8 @@ const canvases = vi.hoisted(() => ({
   drawn: [] as Drawn[],
   of: new WeakMap<HTMLCanvasElement, Drawn>(),
   files: [] as string[],
+  revoked: [] as string[],
+  blank: false,
 }));
 
 /** A context of a canvas that records what it is asked: the simulated document paints none. */
@@ -79,11 +83,11 @@ function recorder(drawn: Drawn): CanvasRenderingContext2D {
 }
 
 /** Render the grid of the planning, its Gantt given the hours of a day and its provenance. */
-function renderPlanning(hoursPerDay: number | undefined = 8) {
+function renderPlanning(hoursPerDay: number | undefined = 8, nodes: NodeList = planning) {
   const rendered = render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PlanningGrid
-        nodes={planning}
+        nodes={nodes}
         structure={STRUCTURE}
         structureVersion={1}
         filters={{}}
@@ -142,6 +146,8 @@ beforeEach(() => {
   window.sessionStorage.clear();
   canvases.drawn = [];
   canvases.files = [];
+  canvases.revoked = [];
+  canvases.blank = false;
   server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
@@ -154,14 +160,21 @@ beforeEach(() => {
     canvases.of.set(this, drawn);
     return recorder(drawn);
   });
-  vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(function taken(
+  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(function taken(
     this: HTMLCanvasElement,
+    callback: BlobCallback,
   ) {
     const drawn = canvases.of.get(this);
     if (drawn !== undefined) {
       drawn.taken = [this.width, this.height];
     }
-    return "data:image/png;base64,iVBORw0KGgo=";
+    callback(canvases.blank ? null : new Blob(["png"], { type: "image/png" }));
+  });
+  vi.stubGlobal("URL", {
+    createObjectURL: () => "blob:png",
+    revokeObjectURL: (url: string) => {
+      canvases.revoked.push(url);
+    },
   });
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function saved(
     this: HTMLAnchorElement,
@@ -172,15 +185,18 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("the export of the Gantt", () => {
-  it("draws its whole extent at the level chosen, named after the project, the revision and the date of calculation", async () => {
+  it("draws its whole extent at the level chosen, named after the project, the revision and the date of calculation [WF-IHM-0130-A]", async () => {
     renderPlanning();
     // The weeks over their days: 61 days of 24 points, the drawing wider than its column.
     await zoomIn(1);
     await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
     expect(canvases.files).toEqual(["gantt-PRJ-001.png"]);
+    // The object address of the picture is released once the file is saved.
+    expect(canvases.revoked).toEqual(["blob:png"]);
     // Twice as dense as the screen: the drawing and its margins, the head of two lines, the axis,
     // a row for each task, the legend.
     const drawn = image();
@@ -247,12 +263,91 @@ describe("the export of the Gantt", () => {
   });
 
   it("is drawn only within the bounds of a canvas, its legend and a long head counted", () => {
-    expect(ganttFits(1000, 1000, true)).toBe(true);
+    expect(ganttOverflow(1000, 1000, true)).toBeUndefined();
     // Too long: 1 200 rows of 28 points pass 32 767.
-    expect(ganttFits(1000, 1200, false)).toBe(false);
+    expect(ganttOverflow(1000, 1200, false)).toBe("height");
     // Too wide, at the hours of years.
-    expect(ganttFits(40_000, 10, false)).toBe(false);
+    expect(ganttOverflow(40_000, 10, false)).toBe("width");
     // Each side within, the whole too large.
-    expect(ganttFits(20_000, 900, true)).toBe(false);
+    expect(ganttOverflow(20_000, 900, true)).toBe("area");
+  });
+
+  it("is unavailable, saying how to bring it back, when its rows pass the height of a canvas", async () => {
+    // 1 200 rows of tasks, each a copy of the first: fitted to the project, no zoom changes a height.
+    const [first] = TASKS;
+    const many: NodeList = {
+      ...planning,
+      items: Array.from({ length: 1200 }, (_, index) => ({
+        ...first,
+        node_id: `01926f3a-7c00-7000-8000-${String(index).padStart(12, "0")}`,
+      })) as NodeList["items"],
+    };
+    renderPlanning(8, many);
+    const button = within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button);
+    expect(canvases.files).toEqual([]);
+    // The remedy of the bound passed: fold, not zoom out.
+    await userEvent.hover(button);
+    const why = "L’image serait trop haute pour le navigateur : pliez des récapitulatives.";
+    expect((await screen.findAllByText(why)).length).toBeGreaterThan(0);
+    const cell = document.querySelector<HTMLElement>('td[data-column="gantt"]');
+    fireEvent.contextMenu(cell ?? document.body, { clientX: 300, clientY: 200 });
+    const item = within(await screen.findByRole("menu")).getByRole("menuitem", {
+      name: "Exporter en PNG",
+    });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(item);
+    expect(canvases.files).toEqual([]);
+  });
+
+  it("saves nothing when the head, measured, makes an image no canvas holds, though it was judged to", () => {
+    // 1 160 rows hold with the head usually written; a project name of many lines does not.
+    const rows = Array.from({ length: 1160 }, (_, index) => ({ node_id: String(index) }));
+    const drawing = {
+      rows,
+      layout: ganttLayout(rows),
+      width: 1000,
+      lower: [],
+      upper: [],
+      labels: { upper: [], lower: [] },
+      dayWidth: 1,
+      legend: undefined,
+    };
+    expect(ganttOverflow(1000, rows.length, false)).toBeUndefined();
+    const colours: GanttColours = {
+      text: "",
+      grid: "",
+      mark: "",
+      background: "",
+      font: "sans-serif",
+      critical: "",
+      primary: "",
+      dayOff: "",
+      dayOffMark: "",
+    } as GanttColours;
+    const long = Array.from({ length: 400 }, () => "projet").join(" ");
+    const refused = { title: long, subtitle: "révision", fileName: "g.png" };
+    expect(exportGanttPng(drawing, colours, refused)).toBe(false);
+    expect(canvases.files).toEqual([]);
+    const usual = { title: "Gantt", subtitle: "révision", fileName: "g.png" };
+    expect(exportGanttPng(drawing, colours, usual)).toBe(true);
+    expect(canvases.files).toEqual(["g.png"]);
+  });
+
+  it("saves no file when the canvas gives no picture", async () => {
+    canvases.blank = true;
+    renderPlanning();
+    await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
+    expect(canvases.files).toEqual([]);
+  });
+
+  it("says that the numbers of the lower row are worked hours, on the screen and in the image", async () => {
+    renderPlanning();
+    await zoomIn(2);
+    const note = "Échelle en heures travaillées, numérotées dans la journée";
+    expect(within(ganttHeader()).getByRole("img", { name: note })).toBeInTheDocument();
+    await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
+    expect(texts(image())[1]).toContain(note);
   });
 });

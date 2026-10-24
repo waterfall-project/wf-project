@@ -396,7 +396,8 @@
     "quarter": "T{quarter} {year}",
     "quarterShort": "T{quarter}",
     "title": "Diagramme de Gantt",
-    "file": "gantt"
+    "file": "gantt",
+    "hoursNote": "Échelle en heures travaillées, numérotées dans la journée"
   },
   "taskTree": {
     "summary": "Les tâches récapitulatives, sous le projet, jusqu’au niveau choisi — en lecture.",
@@ -1088,7 +1089,9 @@
     },
     "exportGantt": {
       "help": "Enregistre le Gantt en image PNG, sur toute son étendue au niveau de zoom choisi, avec le projet, la révision et la date de calcul.",
-      "unavailable": "L’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives."
+      "unavailableWidth": "L’image serait trop large pour le navigateur : dézoomez.",
+      "unavailableHeight": "L’image serait trop haute pour le navigateur : pliez des récapitulatives.",
+      "unavailableArea": "L’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives."
     },
     "restack": {
       "help": "Range les tâches dans les couloirs d’elles-mêmes, en oubliant ceux choisis à la main.",

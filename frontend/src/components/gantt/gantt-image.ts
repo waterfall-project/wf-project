@@ -11,7 +11,7 @@
  *
  * A canvas has bounds that browsers do not pass (`CANVAS_LIMITS`): the image is drawn twice as
  * dense as the screen when it holds in them, as dense as the screen otherwise, and not at all when
- * even that does not hold — the command then says why (`ganttFits`).
+ * even that does not hold — the command then says why (`ganttOverflow`).
  */
 "use client";
 
@@ -25,7 +25,7 @@ import {
   wrapLines,
 } from "@/components/chart/chart";
 
-import { DAY_OFF_HATCH, dayOffBands } from "./days-off";
+import { DAY_OFF_HATCH, type DayOffBand, dayOffBands } from "./days-off";
 import type { GanttBar, GanttLayout, GanttLinkPart, GanttRow } from "./layout";
 
 /** The height of a row and of the axis, as the grid draws them, in pixels. */
@@ -108,19 +108,35 @@ function sizeOf(width: number, rows: number, legend: boolean, head: number) {
   };
 }
 
-/** Whether a canvas of a size, as dense as a ratio, holds in the bounds of the browsers. */
-function holds(size: { readonly width: number; readonly height: number }, ratio: number): boolean {
+/** The bound of a canvas an image passes: its width, its height, or the area of both. */
+export type GanttOverflow = "width" | "height" | "area";
+
+/** The bound a canvas of a size, as dense as a ratio, passes in the browsers, if any. */
+function overflowOf(
+  size: { readonly width: number; readonly height: number },
+  ratio: number,
+): GanttOverflow | undefined {
   const [width, height] = [Math.ceil(size.width * ratio), Math.ceil(size.height * ratio)];
-  return (
-    width <= CANVAS_LIMITS.side &&
-    height <= CANVAS_LIMITS.side &&
-    width * height <= CANVAS_LIMITS.area
-  );
+  if (width > CANVAS_LIMITS.side) {
+    return "width";
+  }
+  if (height > CANVAS_LIMITS.side) {
+    return "height";
+  }
+  return width * height > CANVAS_LIMITS.area ? "area" : undefined;
 }
 
-/** Whether the image of a drawing so wide, of so many rows, can be drawn at all. */
-export function ganttFits(width: number, rows: number, legend: boolean): boolean {
-  return holds(sizeOf(width, rows, legend, HEAD_ROOM), 1);
+/**
+ * The bound the image of a drawing so wide, of so many rows, passes at the density of the screen,
+ * if any: the command says which, for the remedy differs — zoom out for the width, fold summaries
+ * for the height. The head is judged at its usual height (`HEAD_ROOM`); the export measures it.
+ */
+export function ganttOverflow(
+  width: number,
+  rows: number,
+  legend: boolean,
+): GanttOverflow | undefined {
+  return overflowOf(sizeOf(width, rows, legend, HEAD_ROOM), 1);
 }
 
 /** The hatching of the days off as a pattern of the canvas: the tile, its stroke, turned. */
@@ -264,8 +280,16 @@ function tasks(
   const bottom = top + rows.length * ROW;
   if (drawing.legend !== undefined) {
     context.fillStyle = hatching(context, colours);
+    // The same hours of a week give the same bands: walked once for each calendar of the export.
+    const known = new Map<string, DayOffBand[]>();
+    const bandsOf = (calendar: Parameters<typeof dayOffBands>[0]) => {
+      const key = JSON.stringify(calendar ?? null);
+      const found = known.get(key) ?? dayOffBands(calendar, extent, drawing.dayWidth);
+      known.set(key, found);
+      return found;
+    };
     rows.forEach((row, index) => {
-      for (const band of dayOffBands(row.task?.calendar_hours, extent, drawing.dayWidth)) {
+      for (const band of bandsOf(row.task?.calendar_hours)) {
         const from = x(layout.at(band.from));
         context.fillRect(from, top + index * ROW, x(layout.at(band.to)) - from, ROW);
       }
@@ -342,19 +366,28 @@ function lines(
 
 /**
  * Export the Gantt as a PNG image, whose file the browser saves: drawn on a canvas out of the
- * document, as dense as its size allows, then released.
+ * document, as dense as its size allows, then released. Nothing is saved, and false returned, when
+ * the head measured makes an image no canvas holds even as dense as the screen, or the canvas
+ * gives no picture.
  */
-export function exportGanttPng(drawing: GanttDrawing, colours: GanttColours, image: ChartExport) {
+export function exportGanttPng(
+  drawing: GanttDrawing,
+  colours: GanttColours,
+  image: ChartExport,
+): boolean {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (context === null) {
-    return;
+    return false;
   }
   const legendShown = drawing.legend !== undefined;
   const width = sizeOf(drawing.width, drawing.rows.length, legendShown, 0).width;
   const written = head(context, image, width, colours.font);
   const size = sizeOf(drawing.width, drawing.rows.length, legendShown, written.height);
-  const ratio = holds(size, 2) ? 2 : 1;
+  if (overflowOf(size, 1) !== undefined) {
+    return false;
+  }
+  const ratio = overflowOf(size, 2) === undefined ? 2 : 1;
   canvas.width = Math.ceil(size.width * ratio);
   canvas.height = Math.ceil(size.height * ratio);
   context.scale(ratio, ratio);
@@ -374,10 +407,17 @@ export function exportGanttPng(drawing: GanttDrawing, colours: GanttColours, ima
   if (drawing.legend !== undefined) {
     legend(context, drawing.legend, written.height + AXIS + drawing.rows.length * ROW, colours);
   }
-  const link = document.createElement("a");
-  link.href = canvas.toDataURL("image/png");
-  link.download = image.fileName;
-  link.click();
-  canvas.width = 0;
-  canvas.height = 0;
+  canvas.toBlob((blob) => {
+    if (blob !== null) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = image.fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+    canvas.width = 0;
+    canvas.height = 0;
+  }, "image/png");
+  return true;
 }

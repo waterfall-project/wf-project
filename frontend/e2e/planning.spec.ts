@@ -526,6 +526,26 @@ test("keeps the date at the centre of the frame of the Gantt when it zooms in, i
   expect(Math.abs((after?.left ?? 0) - kept)).toBeLessThanOrEqual(1);
 });
 
+// aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom depuis « Ajusté au projet »).
+test("keeps the date at the centre of the column when it zooms in from the Gantt fitted to the project", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const header = page
+    .getByRole("treegrid", { name: "Grille de planning" })
+    .getByRole("columnheader", { name: "Gantt" });
+  // Fitted to the project is the level it opens at: its command has nothing left to do.
+  await expect(header.getByRole("button", { name: "Ajuster au projet" })).toBeDisabled();
+  // The frame of the axis is inset from the column; the centre of the column is its date.
+  await header.getByRole("button", { name: "Zoom avant" }).click();
+  await expect.poll(() => axisFrame(header)).toBeDefined();
+  const after = await axisFrame(header);
+  const kept = 0.5 * (after?.width ?? 0) - (after?.frame ?? 0) / 2;
+  // To the pixel or two the border of the column takes; the inset of the frame, unheeded, put the
+  // centre eight pixels of the column, a share of the drawing wider than the frame, away.
+  expect(Math.abs((after?.left ?? 0) - kept)).toBeLessThanOrEqual(4);
+});
+
 /** The width and the height of the PNG image a download saved, its signature checked. */
 async function pngSize(download: Download): Promise<[number, number]> {
   const chunks: Buffer[] = [];

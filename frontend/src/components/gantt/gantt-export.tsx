@@ -12,7 +12,7 @@ import { ImageDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { RefObject } from "react";
 
-import { Probes, useProvenance } from "@/components/chart/chart";
+import { type ChartExport, Probes, useProvenance } from "@/components/chart/chart";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
@@ -23,6 +23,7 @@ import { axisWriter, labelsOf } from "./axis-labels";
 import { DAY_OFF_HATCH } from "./days-off";
 import type { GanttExporting, GanttView } from "./gantt";
 import { type AxisLabel, exportGanttPng, GANTT_PROBES, readGanttColours } from "./gantt-image";
+import { SCALE_LEVELS } from "./scale";
 
 /** The probes of the colours of the Gantt, hidden: those of a chart, its bars, its days off. */
 export function GanttProbes({ probes }: { readonly probes: RefObject<HTMLSpanElement | null> }) {
@@ -39,6 +40,26 @@ export function GanttProbes({ probes }: { readonly probes: RefObject<HTMLSpanEle
   );
 }
 
+/** The provenance of an image, a note more: what its axis counts, at the worked hours. */
+function withNote(image: ChartExport, note: string): ChartExport {
+  return { ...image, subtitle: `${image.subtitle} · ${note}` };
+}
+
+/** Why the command is unavailable, if it is: the bound of a canvas its image passes. */
+function useWhy(exporting: GanttExporting): string | undefined {
+  const said = useTranslations("commands");
+  switch (exporting.overflow) {
+    case undefined:
+      return undefined;
+    case "width":
+      return said("exportGantt.unavailableWidth");
+    case "height":
+      return said("exportGantt.unavailableHeight");
+    case "area":
+      return said("exportGantt.unavailableArea");
+  }
+}
+
 /**
  * The export of the Gantt as a PNG image, of the image it draws (`exportGanttPng`): its rows and
  * its axis as the Gantt shows them, the labels written as its header writes them; nothing when it
@@ -53,9 +74,10 @@ function useGanttExport(view: GanttView, exporting: GanttExporting): () => void 
     exporting.exported.scheduledAt,
     t("file"),
   );
+  const hours = SCALE_LEVELS[view.level]?.lower === "hour";
   return () => {
     const probes = exporting.probes.current;
-    if (probes === null || !exporting.fits) {
+    if (probes === null || exporting.overflow !== undefined) {
       return;
     }
     const write = axisWriter(t, locale, view);
@@ -75,7 +97,7 @@ function useGanttExport(view: GanttView, exporting: GanttExporting): () => void 
         legend: view.tinted ? t("dayOff") : undefined,
       },
       readGanttColours(probes),
-      image(),
+      hours ? withNote(image(), t("hoursNote")) : image(),
     );
   };
 }
@@ -90,13 +112,10 @@ export function GanttExportButton({
 }) {
   const t = useTranslations("chart");
   const said = useTranslations("commands");
+  const why = useWhy(exporting);
   const run = useGanttExport(view, exporting);
   return (
-    <CommandTooltip
-      label={t("exportPng")}
-      help={said("exportGantt.help")}
-      unavailable={exporting.fits ? undefined : said("exportGantt.unavailable")}
-    >
+    <CommandTooltip label={t("exportPng")} help={said("exportGantt.help")} unavailable={why}>
       <Button
         type="button"
         variant="ghost"
@@ -122,17 +141,18 @@ export function GanttExportItem({
 }) {
   const t = useTranslations("chart");
   const said = useTranslations("commands");
+  const why = useWhy(exporting);
   const run = useGanttExport(view, exporting);
   return (
     <MenuCommand
       item={ContextMenuItem}
       label={t("exportPng")}
       help={said("exportGantt.help")}
-      unavailable={exporting.fits ? undefined : said("exportGantt.unavailable")}
+      unavailable={why}
       icon={<ImageDown aria-hidden="true" />}
       className={UNAVAILABLE}
       onSelect={(event) => {
-        if (!exporting.fits) {
+        if (why !== undefined) {
           event.preventDefault();
           return;
         }
