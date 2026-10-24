@@ -40,6 +40,7 @@ import { Expand, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
+  Fragment,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -65,7 +66,7 @@ import type { Locale } from "@/i18n/locale";
 
 import { axisWriter, labelsOf } from "./axis-labels";
 import { DAY_OFF_HATCH, dayOffBands, hasDaysOff, MIN_DAY_WIDTH } from "./days-off";
-import { GanttExportButton, GanttExportItem, GanttProbes } from "./gantt-export";
+import { GanttExportButton, GanttExportItem, GanttExportStatus, GanttProbes } from "./gantt-export";
 import { type GanttOverflow, ganttOverflow } from "./gantt-image";
 import {
   type GanttBar,
@@ -140,6 +141,14 @@ export interface GanttExporting {
   readonly overflow: GanttOverflow | undefined;
   /** The probes of its colours, in the document. */
   readonly probes: RefObject<HTMLSpanElement | null>;
+  /** Tell that the image, measured, passed a bound the command had judged it within. */
+  readonly refuse: (overflow: GanttOverflow) => void;
+}
+
+/** The bound the last export passed, and how many times one was told: the same one is heard again. */
+export interface GanttRefusal {
+  readonly overflow: GanttOverflow;
+  readonly count: number;
 }
 
 /** The Gantt of the grid around, if any. */
@@ -181,6 +190,10 @@ function useExporting(
     [rows],
   );
   const probes = useRef<HTMLSpanElement>(null);
+  const [refusal, setRefusal] = useState<GanttRefusal | undefined>(undefined);
+  const refuse = useCallback((overflow: GanttOverflow) => {
+    setRefusal((before) => ({ overflow, count: (before?.count ?? 0) + 1 }));
+  }, []);
   return exported === undefined
     ? [undefined, null]
     : [
@@ -190,8 +203,12 @@ function useExporting(
           width,
           overflow: ganttOverflow(width, tasks.length, tinted),
           probes,
+          refuse,
         },
-        <GanttProbes key="probes" probes={probes} />,
+        <Fragment key="probes">
+          <GanttProbes probes={probes} />
+          <GanttExportStatus refusal={refusal} />
+        </Fragment>,
       ];
 }
 

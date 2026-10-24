@@ -366,26 +366,27 @@ function lines(
 
 /**
  * Export the Gantt as a PNG image, whose file the browser saves: drawn on a canvas out of the
- * document, as dense as its size allows, then released. Nothing is saved, and false returned, when
- * the head measured makes an image no canvas holds even as dense as the screen, or the canvas
- * gives no picture.
+ * document, as dense as its size allows, then released. Nothing is saved when the head
+ * measured makes an image no canvas holds even as dense as the screen: the bound it passes is
+ * returned, for the command to tell; "unsupported" when the document gives no canvas context.
  */
 export function exportGanttPng(
   drawing: GanttDrawing,
   colours: GanttColours,
   image: ChartExport,
-): boolean {
+): GanttOverflow | "unsupported" | undefined {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (context === null) {
-    return false;
+    return "unsupported";
   }
   const legendShown = drawing.legend !== undefined;
   const width = sizeOf(drawing.width, drawing.rows.length, legendShown, 0).width;
   const written = head(context, image, width, colours.font);
   const size = sizeOf(drawing.width, drawing.rows.length, legendShown, written.height);
-  if (overflowOf(size, 1) !== undefined) {
-    return false;
+  const passed = overflowOf(size, 1);
+  if (passed !== undefined) {
+    return passed;
   }
   const ratio = overflowOf(size, 2) === undefined ? 2 : 1;
   canvas.width = Math.ceil(size.width * ratio);
@@ -414,10 +415,13 @@ export function exportGanttPng(
       link.href = url;
       link.download = image.fileName;
       link.click();
-      URL.revokeObjectURL(url);
+      // Some browsers start the download after the task: the address lives until then.
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 0);
     }
     canvas.width = 0;
     canvas.height = 0;
   }, "image/png");
-  return true;
+  return undefined;
 }

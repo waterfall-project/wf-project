@@ -3,7 +3,7 @@
 // L'export du Gantt (US-0530) : sur toute son étendue au niveau choisi, la teinte et la légende
 // des jours chômés, le niveau des heures travaillées ; le test du titre, du projet, de la révision
 // et de la date de calcul cite WF-IHM-0130-A, les autres n'ont pas d'exigence propre.
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,8 +16,14 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
+import { dayOffBands } from "./days-off";
 import { exportGanttPng, type GanttColours, ganttOverflow } from "./gantt-image";
 import { ganttLayout } from "./layout";
+
+vi.mock("./days-off", async (original) => {
+  const days = await original<typeof import("./days-off")>();
+  return { ...days, dayOffBands: vi.fn(days.dayOffBands) };
+});
 
 const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } => ({
   client: undefined,
@@ -54,6 +60,7 @@ const canvases = vi.hoisted(() => ({
   of: new WeakMap<HTMLCanvasElement, Drawn>(),
   files: [] as string[],
   revoked: [] as string[],
+  revokedAtClick: [] as number[],
   blank: false,
 }));
 
@@ -83,7 +90,11 @@ function recorder(drawn: Drawn): CanvasRenderingContext2D {
 }
 
 /** Render the grid of the planning, its Gantt given the hours of a day and its provenance. */
-function renderPlanning(hoursPerDay: number | undefined = 8, nodes: NodeList = planning) {
+function renderPlanning(
+  hoursPerDay: number | undefined = 8,
+  nodes: NodeList = planning,
+  project: string = PROJECT,
+) {
   const rendered = render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PlanningGrid
@@ -96,7 +107,7 @@ function renderPlanning(hoursPerDay: number | undefined = 8, nodes: NodeList = p
         gantt={{
           hoursPerDay,
           exported: {
-            provenance: { project: PROJECT, code: "PRJ-001", revision: "Révision en cours" },
+            provenance: { project, code: "PRJ-001", revision: "Révision en cours" },
             scheduledAt: SCHEDULED_AT,
           },
         }}
@@ -147,6 +158,7 @@ beforeEach(() => {
   canvases.drawn = [];
   canvases.files = [];
   canvases.revoked = [];
+  canvases.revokedAtClick = [];
   canvases.blank = false;
   server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
@@ -180,6 +192,7 @@ beforeEach(() => {
     this: HTMLAnchorElement,
   ) {
     canvases.files.push(this.download);
+    canvases.revokedAtClick.push(canvases.revoked.length);
   });
 });
 
@@ -196,7 +209,11 @@ describe("the export of the Gantt", () => {
     await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
     expect(canvases.files).toEqual(["gantt-PRJ-001.png"]);
     // The object address of the picture is released once the file is saved.
-    expect(canvases.revoked).toEqual(["blob:png"]);
+    // Not before the click has gone: some browsers start the download after its task.
+    expect(canvases.revokedAtClick).toEqual([0]);
+    await waitFor(() => {
+      expect(canvases.revoked).toEqual(["blob:png"]);
+    });
     // Twice as dense as the screen: the drawing and its margins, the head of two lines, the axis,
     // a row for each task, the legend.
     const drawn = image();
@@ -328,11 +345,67 @@ describe("the export of the Gantt", () => {
     } as GanttColours;
     const long = Array.from({ length: 400 }, () => "projet").join(" ");
     const refused = { title: long, subtitle: "révision", fileName: "g.png" };
-    expect(exportGanttPng(drawing, colours, refused)).toBe(false);
+    expect(exportGanttPng(drawing, colours, refused)).toBe("height");
     expect(canvases.files).toEqual([]);
     const usual = { title: "Gantt", subtitle: "révision", fileName: "g.png" };
-    expect(exportGanttPng(drawing, colours, usual)).toBe(true);
+    expect(exportGanttPng(drawing, colours, usual)).toBeUndefined();
     expect(canvases.files).toEqual(["g.png"]);
+  });
+
+  it("tells it, when the head, measured, makes an image no canvas holds, though it was offered", async () => {
+    const many = {
+      ...planning,
+      items: Array.from({ length: 1160 }, (_, index) => ({
+        ...(TASKS[index % TASKS.length] ?? planning.items[0]),
+        node_id: `01926f3a-7c00-7000-8000-${String(index).padStart(12, "0")}`,
+      })),
+    } as NodeList;
+    renderPlanning(8, many, Array.from({ length: 400 }, () => "projet").join(" "));
+    const button = within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" });
+    expect(button).not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button);
+    expect(canvases.files).toEqual([]);
+    const why = "L’image serait trop haute pour le navigateur : pliez des récapitulatives.";
+    expect(await screen.findByRole("status", { name: "" })).toBeInTheDocument();
+    expect(screen.getAllByRole("status").some((region) => region.textContent === why)).toBe(true);
+  });
+
+  it("walks the hours of a week once for each calendar of the export, not once for each row", () => {
+    const calendar = {
+      monday: "8",
+      tuesday: "8",
+      wednesday: "8",
+      thursday: "8",
+      friday: "8",
+      saturday: "0",
+      sunday: "0",
+    };
+    const other = { ...calendar, wednesday: "0" };
+    const task = (hours: typeof calendar) => ({
+      is_summary: false,
+      is_milestone: false,
+      calendar_hours: hours,
+    });
+    const rows = [calendar, calendar, other, calendar].map((hours, index) => ({
+      node_id: String(index),
+      task: task(hours),
+    }));
+    const drawing = {
+      rows,
+      layout: ganttLayout(rows),
+      width: 1000,
+      lower: [],
+      upper: [],
+      labels: { upper: [], lower: [] },
+      dayWidth: 24,
+      legend: "Jour chômé",
+    };
+    const colours = { font: "sans-serif" } as GanttColours;
+    vi.mocked(dayOffBands).mockClear();
+    expect(
+      exportGanttPng(drawing, colours, { title: "Gantt", subtitle: "r", fileName: "g.png" }),
+    ).toBeUndefined();
+    expect(vi.mocked(dayOffBands)).toHaveBeenCalledTimes(2);
   });
 
   it("saves no file when the canvas gives no picture", async () => {

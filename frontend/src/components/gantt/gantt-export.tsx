@@ -21,8 +21,14 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 
 import { axisWriter, labelsOf } from "./axis-labels";
 import { DAY_OFF_HATCH } from "./days-off";
-import type { GanttExporting, GanttView } from "./gantt";
-import { type AxisLabel, exportGanttPng, GANTT_PROBES, readGanttColours } from "./gantt-image";
+import type { GanttExporting, GanttRefusal, GanttView } from "./gantt";
+import {
+  type AxisLabel,
+  exportGanttPng,
+  GANTT_PROBES,
+  type GanttOverflow,
+  readGanttColours,
+} from "./gantt-image";
 import { SCALE_LEVELS } from "./scale";
 
 /** The probes of the colours of the Gantt, hidden: those of a chart, its bars, its days off. */
@@ -45,19 +51,40 @@ function withNote(image: ChartExport, note: string): ChartExport {
   return { ...image, subtitle: `${image.subtitle} · ${note}` };
 }
 
+/** The sentence that says which bound of a canvas an image passes, and the remedy. */
+function useSaid(): (overflow: GanttOverflow | undefined) => string | undefined {
+  const said = useTranslations("commands");
+  return (overflow) => {
+    switch (overflow) {
+      case undefined:
+        return undefined;
+      case "width":
+        return said("exportGantt.unavailableWidth");
+      case "height":
+        return said("exportGantt.unavailableHeight");
+      case "area":
+        return said("exportGantt.unavailableArea");
+    }
+  };
+}
+
 /** Why the command is unavailable, if it is: the bound of a canvas its image passes. */
 function useWhy(exporting: GanttExporting): string | undefined {
-  const said = useTranslations("commands");
-  switch (exporting.overflow) {
-    case undefined:
-      return undefined;
-    case "width":
-      return said("exportGantt.unavailableWidth");
-    case "height":
-      return said("exportGantt.unavailableHeight");
-    case "area":
-      return said("exportGantt.unavailableArea");
-  }
+  return useSaid()(exporting.overflow);
+}
+
+/**
+ * The region that tells the image of the Gantt could not be drawn, though the command was offered:
+ * the head, measured, passed a bound. Present, empty, before it speaks; a new node each time, so
+ * that the same refusal told again is heard again.
+ */
+export function GanttExportStatus({ refusal }: { readonly refusal: GanttRefusal | undefined }) {
+  const said = useSaid()(refusal?.overflow);
+  return (
+    <div role="status" aria-live="polite" className="sr-only">
+      {refusal === undefined ? null : <p key={refusal.count}>{said}</p>}
+    </div>
+  );
 }
 
 /**
@@ -85,7 +112,7 @@ function useGanttExport(view: GanttView, exporting: GanttExporting): () => void 
       labelsOf(view[which], exporting.width, which, view.layout.at).map(
         ([tick, x]) => [x, write(which, tick)] as const,
       );
-    exportGanttPng(
+    const refused = exportGanttPng(
       {
         rows: exporting.rows,
         layout: view.layout,
@@ -99,6 +126,9 @@ function useGanttExport(view: GanttView, exporting: GanttExporting): () => void 
       readGanttColours(probes),
       hours ? withNote(image(), t("hoursNote")) : image(),
     );
+    if (refused !== undefined && refused !== "unsupported") {
+      exporting.refuse(refused);
+    }
   };
 }
 
