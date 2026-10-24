@@ -79,14 +79,22 @@ function provenanceOf(reading: ProjectReading, current: string): ChartProvenance
 
 /**
  * What the frieze of the timeline shown needs besides its tasks: the reading context, which scopes
- * its zoom and names the project and the revision in its exported image, the lanes the account keeps
- * for it, and the instant the dates of the structure were last calculated at.
+ * its zoom and names the project and the revision in its exported image, and the lanes the account
+ * keeps for it.
  */
 interface TimelineDrawing {
   readonly reading: ProjectReading;
   readonly kept: Readonly<Record<string, number>> | undefined;
-  /** None when the project has no timeline: no task is read. */
-  readonly scheduledAt: string | undefined;
+}
+
+/**
+ * The timeline shown with what is read for it: the tasks inscribed to it, and the instant the dates
+ * of the structure were last calculated at. None when the project has no timeline: no task is read.
+ */
+interface TimelineShown {
+  readonly timeline: Timeline;
+  readonly tasks: readonly TimelineTask[];
+  readonly scheduledAt: string;
 }
 
 /**
@@ -98,33 +106,31 @@ function TimelinesScreen({
   offer,
   timelines,
   shown,
-  tasks,
   hrefs,
   drawing,
 }: {
   readonly project: string;
   readonly offer: CommandOffer | undefined;
   readonly timelines: readonly Timeline[];
-  readonly shown: Timeline | undefined;
-  readonly tasks: readonly TimelineTask[];
+  readonly shown: TimelineShown | undefined;
   readonly hrefs: Readonly<Record<string, string>>;
   readonly drawing: TimelineDrawing;
 }) {
   const t = useTranslations();
   let body: ReactNode = null;
-  if (shown !== undefined && drawing.scheduledAt !== undefined) {
+  if (shown !== undefined) {
     body =
-      tasks.length === 0 ? (
+      shown.tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("timelines.empty")}</p>
       ) : (
         <TimelineChart
-          key={shown.timeline_id}
-          name={shown.label}
-          timeline={shown.timeline_id}
-          tasks={tasks}
+          key={shown.timeline.timeline_id}
+          name={shown.timeline.label}
+          timeline={shown.timeline.timeline_id}
+          tasks={shown.tasks}
           kept={drawing.kept}
           provenance={provenanceOf(drawing.reading, t("contextBanner.currentRevision"))}
-          scheduledAt={drawing.scheduledAt}
+          scheduledAt={shown.scheduledAt}
           scope={`timelines:${drawing.reading.revision?.revision_id ?? project}`}
         />
       );
@@ -143,14 +149,14 @@ function TimelinesScreen({
                 project={project}
                 offer={offer}
                 timelines={timelines}
-                shown={shown?.timeline_id}
+                shown={shown?.timeline.timeline_id}
                 hrefs={hrefs}
               />
             )
           }
         />
         {offer?.is_available === true ? <MockupNotice /> : null}
-        <TimelineBody timelines={timelines} shown={shown?.timeline_id}>
+        <TimelineBody timelines={timelines} shown={shown?.timeline.timeline_id}>
           {body}
         </TimelineBody>
       </TimelineDeletions>
@@ -173,8 +179,11 @@ async function readInscribed(at: GridAddress, shown: Timeline) {
   });
   return {
     reading: screen.reading,
-    tasks: inscribedTo(screen.nodes.items, shown.timeline_id),
-    scheduledAt: screen.scheduledAt,
+    shown: {
+      timeline: shown,
+      tasks: inscribedTo(screen.nodes.items, shown.timeline_id),
+      scheduledAt: screen.scheduledAt,
+    },
   };
 }
 
@@ -203,19 +212,15 @@ export default async function TimelinesPage({
     notFound();
   }
   const asked = at.address.get(TIMELINE);
-  const shown = timelines.find((timeline) => timeline.timeline_id === asked) ?? timelines[0];
-  const {
-    reading,
-    tasks,
-    scheduledAt,
-  }: { reading: ProjectReading; tasks: readonly TimelineTask[]; scheduledAt: string | undefined } =
-    shown === undefined
-      ? { reading: context, tasks: [], scheduledAt: undefined }
-      : await readInscribed(at, shown);
+  const asShown = timelines.find((timeline) => timeline.timeline_id === asked) ?? timelines[0];
+  const { reading, shown }: { reading: ProjectReading; shown: TimelineShown | undefined } =
+    asShown === undefined
+      ? { reading: context, shown: undefined }
+      : await readInscribed(at, asShown);
   const kept =
-    shown === undefined
+    asShown === undefined
       ? undefined
-      : (session?.display_preferences?.timelines?.[shown.timeline_id]?.lanes ?? undefined);
+      : (session?.display_preferences?.timelines?.[asShown.timeline_id]?.lanes ?? undefined);
   const query = searchQuery(search);
   const href = (timeline: Timeline) => {
     const next = new URLSearchParams(query);
@@ -230,11 +235,10 @@ export default async function TimelinesPage({
         offer={findOffer(context.project.available_commands, "manage_timelines")}
         timelines={timelines}
         shown={shown}
-        tasks={tasks}
         hrefs={Object.fromEntries(
           timelines.map((timeline) => [timeline.timeline_id, href(timeline)]),
         )}
-        drawing={{ reading, kept, scheduledAt }}
+        drawing={{ reading, kept }}
       />
     </>
   );

@@ -22,6 +22,9 @@ const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } =
 }));
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
+/** The drawing of an item of the exported image, as the chart library calls it. */
+type RenderItem = (params: { dataIndex: number }, api: object) => unknown;
+
 /** What the instance out of the screen was handed for the exported image. */
 const canvas = vi.hoisted(() => ({ options: [] as unknown[] }));
 
@@ -366,6 +369,35 @@ describe("the frieze of a timeline", () => {
     expect(axis?.scrollLeft).toBe(scrolled);
   });
 
+  it("reads the scroll of the frame itself, not the offset last recorded, to reach a rectangle [WF-IHM-0100-A]", async () => {
+    // Le focus reste visible.
+    const user = userEvent.setup();
+    const { container } = renderFrieze();
+    await user.click(screen.getByRole("button", { name: "Zoom avant" }));
+    await user.click(screen.getByRole("button", { name: "Zoom avant" }));
+    const axis = container.querySelector<HTMLElement>(".overflow-x-auto");
+    expect(axis).not.toBeNull();
+    frieze().focus();
+    await user.keyboard("{End}");
+    expect(axis?.scrollLeft).toBe(1536);
+    if (axis !== null) {
+      // Scrolled by the mouse, then a key: the event tells the offset where the frame is.
+      axis.scrollLeft = 0;
+      fireEvent.scroll(axis);
+    }
+    await user.keyboard("{ArrowLeft}");
+    expect(axis?.scrollLeft).toBe(104);
+    await user.keyboard("{End}");
+    // Moved without an event (the offset recorded stays 1536, the frame is at 0): the rectangle
+    // before the last ends past the frame of 1000, so the frame reaches its end at 104; were the
+    // stale offset read, it would reach its start, at 936.
+    if (axis !== null) {
+      axis.scrollLeft = 0;
+    }
+    await user.keyboard("{ArrowLeft}");
+    expect(axis?.scrollLeft).toBe(104);
+  });
+
   // aucune exigence : propre à l'US (US-0530, l'avis relu d'un refus répété).
   it("says again a refusal that repeats, the sentence replaced in the live region", () => {
     renderFrieze();
@@ -470,5 +502,28 @@ describe("the export of the frieze", () => {
     // The lanes as laid out: the control station moved down to the second lane.
     expect(boxes?.data.map((box) => box[2])).toEqual([0, 1, 1, 2, 1]);
     expect(milestones?.data).toHaveLength(1);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, ce que l'image dessine d'un rectangle et d'un jalon).
+  it("draws each rectangle at least two pixels wide and inset in its lane, and each milestone with its name and its date", async () => {
+    renderFrieze();
+    await userEvent.click(screen.getByRole("button", { name: "Exporter en PNG" }));
+    const { series } = canvas.options[0] as { series: { renderItem: RenderItem }[] };
+    // An axis of one pixel a day, a lane of thirty pixels.
+    const api = {
+      value: (dimension: number) => [10, 10, 1][dimension],
+      coord: ([x, lane]: number[]) => [x, 30 * (lane ?? 0)],
+    };
+    const [rectangles, milestones] = series;
+    const shown = (item: RenderItem | undefined, index: number) =>
+      item?.({ dataIndex: index }, api) as { children: Record<string, unknown>[] };
+    // A task of one instant is two pixels wide, and 4 pixels below the top of its lane.
+    const [rect] = shown(rectangles?.renderItem, 0).children;
+    expect(rect).toMatchObject({ shape: { x: 10, y: 30 + 4, width: 2, height: 30 - 2 * 4 } });
+    // The first milestone of the plan: the reception of the studies.
+    const [, text] = shown(milestones?.renderItem, 0).children;
+    expect(text).toMatchObject({
+      style: { text: "Réception des études\n24/04/2026", align: "center" },
+    });
   });
 });

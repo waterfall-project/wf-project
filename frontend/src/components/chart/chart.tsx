@@ -346,8 +346,8 @@ export interface ChartProvenance {
 /**
  * What the exported image of a chart says of itself: its title and the project, then the
  * revision, what else it is computed on if its provenance says it, and the date of calculation —
- * written in the local time of the workstation, at the moment of the export —, and the name of its
- * file, `file` followed by the code of the project.
+ * the instant of calculation, `computedAt`, written in the local time of the workstation —, and
+ * the name of its file, `file` followed by the code of the project.
  */
 export function useProvenance(
   provenance: ChartProvenance,
