@@ -432,7 +432,8 @@
       "table": "Read as a table",
       "lane": "Lane",
       "milestoneLane": "Milestone",
-      "undrawn": "No dates"
+      "undrawn": "No dates",
+      "file": "timeline"
     }
   },
   "remainingGrid": {

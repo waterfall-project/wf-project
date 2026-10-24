@@ -6,11 +6,11 @@
  * (WF-IHM-0020); the named timelines of the project (`listTimelines`), each a link that writes the
  * address (`timeline`) — the first when the address names none the project has —; and the tasks of
  * the revision inscribed to the one shown, drawn as a frieze in the lanes the account keeps for it
- * (`TimelineChart`, `DisplayPreferences.timelines`). The
- * timelines are created and deleted as the project lists `manage_timelines` (`TimelineChoice`,
- * EP-14/L44f), the screen saying then that the fake back keeps none of it (`MockupNotice`), and the
- * tasks of a timeline deleted giving way with it (`TimelineBody`); the inscriptions are read, never
- * entered here. The tasks are read
+ * (`TimelineChart`, `DisplayPreferences.timelines`), exported with the date its dates were
+ * calculated at (`meta.scheduled_at`). The timelines are created and deleted as the project lists
+ * `manage_timelines` (`TimelineChoice`, EP-14/L44f), the screen saying then that the fake back
+ * keeps none of it (`MockupNotice`), and the tasks of a timeline deleted giving way with it
+ * (`TimelineBody`); the inscriptions are read, never entered here. The tasks are read
  * as the grid of the planning reads them — the tasks alone, restricted to the filtered sub-project
  * (`grid-screen.ts`) —, the server selecting those inscribed to the timeline shown (`timeline_id`,
  * #463), once the timelines read say which it is, the screen keeping them once more against the
@@ -28,6 +28,7 @@ import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { inscribedTo, type TimelineTask } from "@/components/gantt/timeline";
+import type { ChartProvenance } from "@/components/chart/chart";
 import { TimelineChart } from "@/components/gantt/timeline-chart";
 import {
   TimelineBody,
@@ -67,13 +68,25 @@ const TIMELINE_FIELDS = {
   line: [],
 } as const;
 
+/** The project and the revision the exported image names; the current one has no version name. */
+function provenanceOf(reading: ProjectReading, current: string): ChartProvenance {
+  return {
+    project: reading.project.label,
+    code: reading.project.code ?? reading.project.project_id,
+    revision: reading.revision?.version_name ?? current,
+  };
+}
+
 /**
  * What the frieze of the timeline shown needs besides its tasks: the reading context, which scopes
- * its zoom, and the lanes the account keeps for it.
+ * its zoom and names the project and the revision in its exported image, the lanes the account keeps
+ * for it, and the instant the dates of the structure were last calculated at.
  */
 interface TimelineDrawing {
   readonly reading: ProjectReading;
   readonly kept: Readonly<Record<string, number>> | undefined;
+  /** None when the project has no timeline: no task is read. */
+  readonly scheduledAt: string | undefined;
 }
 
 /**
@@ -99,7 +112,7 @@ function TimelinesScreen({
 }) {
   const t = useTranslations();
   let body: ReactNode = null;
-  if (shown !== undefined) {
+  if (shown !== undefined && drawing.scheduledAt !== undefined) {
     body =
       tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("timelines.empty")}</p>
@@ -110,6 +123,8 @@ function TimelinesScreen({
           timeline={shown.timeline_id}
           tasks={tasks}
           kept={drawing.kept}
+          provenance={provenanceOf(drawing.reading, t("contextBanner.currentRevision"))}
+          scheduledAt={drawing.scheduledAt}
           scope={`timelines:${drawing.reading.revision?.revision_id ?? project}`}
         />
       );
@@ -156,7 +171,11 @@ async function readInscribed(at: GridAddress, shown: Timeline) {
     narrowed: { timeline_id: shown.timeline_id },
     fields: TIMELINE_FIELDS,
   });
-  return { reading: screen.reading, tasks: inscribedTo(screen.nodes.items, shown.timeline_id) };
+  return {
+    reading: screen.reading,
+    tasks: inscribedTo(screen.nodes.items, shown.timeline_id),
+    scheduledAt: screen.scheduledAt,
+  };
 }
 
 /** Render the timelines of a project, and the tasks of the revision inscribed to the one shown. */
@@ -185,8 +204,14 @@ export default async function TimelinesPage({
   }
   const asked = at.address.get(TIMELINE);
   const shown = timelines.find((timeline) => timeline.timeline_id === asked) ?? timelines[0];
-  const { reading, tasks }: { reading: ProjectReading; tasks: readonly TimelineTask[] } =
-    shown === undefined ? { reading: context, tasks: [] } : await readInscribed(at, shown);
+  const {
+    reading,
+    tasks,
+    scheduledAt,
+  }: { reading: ProjectReading; tasks: readonly TimelineTask[]; scheduledAt: string | undefined } =
+    shown === undefined
+      ? { reading: context, tasks: [], scheduledAt: undefined }
+      : await readInscribed(at, shown);
   const kept =
     shown === undefined
       ? undefined
@@ -209,7 +234,7 @@ export default async function TimelinesPage({
         hrefs={Object.fromEntries(
           timelines.map((timeline) => [timeline.timeline_id, href(timeline)]),
         )}
-        drawing={{ reading, kept }}
+        drawing={{ reading, kept, scheduledAt }}
       />
     </>
   );
