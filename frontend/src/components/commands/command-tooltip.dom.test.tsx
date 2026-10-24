@@ -254,7 +254,6 @@ describe("the tooltip of a command", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  // aucune exigence : propre à l'US (US-0580, le focus rendu au menu, #1414).
   it("stays open in a menu when the focus goes from its item to the menu itself, as the pointer leaving an item does", async () => {
     inLanguage(inMenu());
     const menu = await openMenu();
@@ -265,7 +264,6 @@ describe("the tooltip of a command", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent(HELP);
   });
 
-  // aucune exigence : propre à l'US (US-0580, le focus rendu au menu, #1414).
   it("closes in a menu when the focus goes from its item to anything but the menu", async () => {
     inLanguage(inMenu());
     const menu = await openMenu();

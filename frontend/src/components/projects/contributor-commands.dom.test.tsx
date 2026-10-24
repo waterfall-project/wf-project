@@ -396,7 +396,7 @@ describe("the modification of the contributors of a project", () => {
     expect(command).toHaveFocus();
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAttribute("aria-busy", "true");
-    expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(command).toHaveAccessibleDescription(/^Enregistrement en cours…/);
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
     release();

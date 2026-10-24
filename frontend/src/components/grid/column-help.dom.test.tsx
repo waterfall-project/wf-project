@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -94,17 +94,20 @@ describe("the tooltip of the header of a column", () => {
     expect(header).toHaveFocus();
   });
 
-  it("gives every other column its definition of the catalogue, and the amount corrected of inflation none when the revision is unknown", async () => {
+  it("gives every other column its definition of the catalogue, and the amount corrected of inflation one that names neither year nor rate when the revision is unknown", async () => {
     renderGrid(undefined);
-    await userEvent.hover(screen.getByRole("columnheader", { name: /Qté/ }));
+    const quantity = screen.getByRole("columnheader", { name: /Qté/ });
+    await userEvent.hover(quantity);
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       CATALOGUES.fr.columns.estimate.quantity.help,
     );
-    await userEvent.unhover(screen.getByRole("columnheader", { name: /Qté/ }));
-    await userEvent.hover(
-      screen.getByRole("columnheader", { name: /Montant corrigé de l’inflation/ }),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    expect(screen.queryByText(/taux d’inflation du projet/)).toBeNull();
+    await userEvent.unhover(quantity);
+    const inflated = screen.getByRole("columnheader", { name: /Montant corrigé de l’inflation/ });
+    await userEvent.hover(inflated);
+    const plain = CATALOGUES.fr.columns.estimate.inflatedAmountStatic.help;
+    await waitFor(() => {
+      expect(inflated).toHaveAccessibleDescription(plain);
+    });
+    expect(plain).not.toMatch(/\d/);
   });
 });

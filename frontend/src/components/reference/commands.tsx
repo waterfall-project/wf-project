@@ -49,6 +49,7 @@ import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { CellCommand } from "./cell-command";
 import {
   type ActivationTarget,
@@ -322,21 +323,24 @@ export function WrittenRegion({ said }: { readonly said: Said | undefined }) {
  * on an empty list too —, after the region that says what the last write of the list did.
  */
 export function CreateCommand({ label }: { readonly label: string }) {
+  const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <WrittenRegion said={commands?.said} />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={(event: MouseEvent<HTMLElement>) => {
-          commands?.open({ row: undefined, trigger: event.currentTarget });
-        }}
-      >
-        <Plus aria-hidden="true" />
-        {label}
-      </Button>
+      <CommandTooltip label={label} help={said("create.help")}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            commands?.open({ row: undefined, trigger: event.currentTarget });
+          }}
+        >
+          <Plus aria-hidden="true" />
+          {label}
+        </Button>
+      </CommandTooltip>
     </div>
   );
 }

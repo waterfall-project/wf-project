@@ -1161,17 +1161,8 @@
       "update": {
         "help": "Opens the form of the settings of the project."
       },
-      "update_win_probability": {
-        "help": "Changes the probability of winning the project."
-      },
-      "update_work_breakdown": {
-        "help": "Enters the work breakdown: the lots and posts of the project."
-      },
       "manage_contributors": {
         "help": "Manages the contributors of the project."
-      },
-      "manage_timelines": {
-        "help": "Manages the timelines of the project."
       },
       "create_revision": {
         "help": "Creates the revision being drawn up, a copy of the last marked revision."
@@ -1188,20 +1179,11 @@
       "abandon": {
         "help": "Abandons the project, after confirmation."
       },
-      "edit_risks": {
-        "help": "Allows the risks of the project to be modified."
-      },
-      "declare_risk": {
-        "help": "Declares a new risk on the project."
-      },
       "declare_risk_occurrence": {
         "help": "Declares that a risk occurred and records its account, after confirmation."
       },
       "import_actual_costs": {
         "help": "Imports the actual costs from a file."
-      },
-      "exclude_cost_lines": {
-        "help": "Excludes cost lines from the tracked scope."
       },
       "import_planning": {
         "help": "Imports a planning from an MS Project file."
@@ -1214,20 +1196,8 @@
       }
     },
     "revision": {
-      "edit_planning": {
-        "help": "Allows the planning of the revision to be modified."
-      },
       "generate_skeleton": {
         "help": "Generates the skeleton of the planning of the revision."
-      },
-      "edit_estimate": {
-        "help": "Allows the estimate of the revision to be modified."
-      },
-      "edit_remaining": {
-        "help": "Allows the remaining to commit to be re-estimated."
-      },
-      "edit_risks": {
-        "help": "Allows the risks of the project to be modified."
       },
       "declare_risk": {
         "help": "Declares a new risk on the project."
@@ -1246,18 +1216,6 @@
       },
       "abandon": {
         "help": "Abandons the revision being drawn up, after confirmation."
-      },
-      "export_planning": {
-        "help": "Exports the planning in the MS Project format."
-      },
-      "export_estimate": {
-        "help": "Exports the estimate."
-      },
-      "export_remaining": {
-        "help": "Exports the remaining to commit."
-      },
-      "export_task_tree_image": {
-        "help": "Exports the task tree as an image."
       }
     },
     "deleteRisk": {
@@ -1283,9 +1241,44 @@
     },
     "abandonReport": {
       "help": "Abandons the import: nothing is applied."
+    },
+    "create": {
+      "help": "Opens the creation form."
+    },
+    "deleteTimeline": {
+      "help": "Deletes the timeline shown; its milestones go with it."
+    },
+    "cardGestures": {
+      "help": "Opens the menu of the gestures of this task."
+    },
+    "retryReading": {
+      "help": "Reads the tasks of this card again."
+    },
+    "contributorWithdraw": {
+      "help": "Removes this contributor from the list to save."
+    },
+    "contributorInscribe": {
+      "help": "Adds this account to the list to save, as a contributor."
+    },
+    "breakdownWorkPackage": {
+      "help": "Adds a work package to the work breakdown of the project."
+    },
+    "breakdownAdd": {
+      "help": "Adds an order item to this work package, or a deliverable to this order item."
+    },
+    "breakdownRename": {
+      "help": "Changes the label of this element of the work breakdown."
+    },
+    "breakdownDelete": {
+      "help": "Deletes this element of the work breakdown, with what it holds."
     }
   },
   "columns": {
+    "nodes": {
+      "label": {
+        "help": "Label of the task or of the line, at the place it holds in the tree."
+      }
+    },
     "estimate": {
       "category": {
         "help": "Cost category of the line: it gives the rate and the nature of the expense."
@@ -1316,6 +1309,9 @@
       },
       "inflatedAmount": {
         "help": "Amount corrected for inflation from the reference year ({year}) to the year the line is consumed, at the inflation rate of the project ({rate} a year)."
+      },
+      "inflatedAmountStatic": {
+        "help": "Amount corrected for inflation from the reference year of the revision to the year the line is consumed, at the inflation rate of the project."
       }
     },
     "planning": {

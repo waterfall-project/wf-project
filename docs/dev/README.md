@@ -2165,9 +2165,11 @@ manque (`unavailable`), que `CommandTooltip` pose en `aria-disabled` et en descr
 `<grille>.<colonne>` du catalogue `columns`, et `helpValues` pour la phrase à paramètres du montant
 corrigé de l'inflation, que `estimateGrid` pose d'après l'année de référence de la révision et le taux du
 projet). La garde suit les noms liés dans le bloc le plus proche du bouton qui les lie, non plus dans le
-fichier entier. Restent sans infobulle les boutons de formulaire et de dialogue (valider, annuler, ouvrir) qui n’ont jamais porté
-de `title=`. Les tests du composant sont dans `command-tooltip.dom.test.tsx` (survol, focus, Échap dans
-un menu, touches, condition, fournisseur partagé, axe).
+fichier entier. Les boutons de validation et d’annulation d’un formulaire ou d’un dialogue, dont le libellé
+est l’action, ne portent pas de phrase d’aide. Les tests du composant sont dans
+`command-tooltip.dom.test.tsx` (survol, focus, Échap dans un menu, touches, condition, fournisseur partagé,
+axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,
+et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à engager sans définition.
 
 ### Les actions longues et le suivi des tâches de fond
 

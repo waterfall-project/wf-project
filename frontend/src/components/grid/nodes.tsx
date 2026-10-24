@@ -511,6 +511,7 @@ export function nodeNumber(node: GridNode): number {
 export const LABEL_COLUMN: Omit<GridColumn<GridNode, NodeSortColumn, NodeTotals>, "entry"> = {
   key: "label",
   label: "label",
+  help: "nodes.label",
   format: "text",
   width: 320,
   pinned: true,

@@ -53,7 +53,8 @@ import {
 import { setContributors } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { UnmetConditions } from "@/components/commands/command";
+import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
@@ -227,6 +228,8 @@ function ModifyContributors({
   readonly from: ContributorReading | undefined;
 }) {
   const t = useTranslations("projectLists.contributors");
+  const helps = useTranslations("commands");
+  const unmetText = useUnmet();
   const id = useId();
   const { offer } = commands.editing;
   // What the dialog starts from: the rows and the counter of the reading, whole.
@@ -240,24 +243,30 @@ function ModifyContributors({
   const why = `${id}-writing`;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-disabled={offer.is_available && !writing ? undefined : true}
-        aria-busy={writing}
-        aria-describedby={writing ? why : unmet}
-        className={UNAVAILABLE}
-        onClick={(event: MouseEvent<HTMLElement>) => {
-          if (offer.is_available && !writing && reading !== undefined) {
-            commands.refuse(undefined);
-            commands.open({ ...reading, trigger: event.currentTarget });
-          }
-        }}
+      <CommandTooltip
+        label={t("modify")}
+        help={helps("project.manage_contributors.help")}
+        unavailable={unmet === undefined ? undefined : unmetText(offer)}
+        describedBy={writing ? why : unmet}
       >
-        <Users aria-hidden="true" />
-        {t("modify")}
-      </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-disabled={offer.is_available && !writing ? undefined : true}
+          aria-busy={writing}
+          className={UNAVAILABLE}
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            if (offer.is_available && !writing && reading !== undefined) {
+              commands.refuse(undefined);
+              commands.open({ ...reading, trigger: event.currentTarget });
+            }
+          }}
+        >
+          <Users aria-hidden="true" />
+          {t("modify")}
+        </Button>
+      </CommandTooltip>
       <UnmetConditions id={unmet} offer={offer} />
       <WritingNote id={why} writing={writing} />
     </>
@@ -329,6 +338,7 @@ function ContributorEditor({
   readonly suggestions: readonly Suggestion[];
 }) {
   const t = useTranslations("projectLists.contributors");
+  const helps = useTranslations("commands");
   const form = useTranslations("reference.form");
   const kinds = useTranslations("enums.ContributorKind");
   const locale = useLocale();
@@ -480,17 +490,22 @@ function ContributorEditor({
                     </NativeSelect>
                   </td>
                   <td className="py-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label={t("withdraw", { name: row.display_name })}
-                      onClick={() => {
-                        setDraft(draft.filter((each) => each !== row));
-                      }}
+                    <CommandTooltip
+                      label={t("withdraw", { name: row.display_name })}
+                      help={helps("contributorWithdraw.help")}
                     >
-                      <UserMinus aria-hidden="true" />
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={t("withdraw", { name: row.display_name })}
+                        onClick={() => {
+                          setDraft(draft.filter((each) => each !== row));
+                        }}
+                      >
+                        <UserMinus aria-hidden="true" />
+                      </Button>
+                    </CommandTooltip>
                   </td>
                 </tr>
               );
@@ -515,27 +530,32 @@ function ContributorEditor({
                       })}
                     </span>
                   </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Inscribed as the server tells the account (EP-14/L42i): active, a
-                      // deactivated one being no longer proposed (WF-ADM-0060).
-                      setDraft([
-                        ...draft,
-                        {
-                          user_id: one.user_id,
-                          display_name: one.display_name,
-                          kind: "contributor",
-                          is_active: one.is_active,
-                        },
-                      ]);
-                    }}
+                  <CommandTooltip
+                    label={t("inscribe", { name: one.display_name })}
+                    help={helps("contributorInscribe.help")}
                   >
-                    <UserPlus aria-hidden="true" />
-                    {t("inscribe", { name: one.display_name })}
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Inscribed as the server tells the account (EP-14/L42i): active, a
+                        // deactivated one being no longer proposed (WF-ADM-0060).
+                        setDraft([
+                          ...draft,
+                          {
+                            user_id: one.user_id,
+                            display_name: one.display_name,
+                            kind: "contributor",
+                            is_active: one.is_active,
+                          },
+                        ]);
+                      }}
+                    >
+                      <UserPlus aria-hidden="true" />
+                      {t("inscribe", { name: one.display_name })}
+                    </Button>
+                  </CommandTooltip>
                 </li>
               ))}
             </ul>

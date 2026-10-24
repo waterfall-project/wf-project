@@ -205,6 +205,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "inflated_amount",
       label: "inflatedAmount",
+      help: "estimate.inflatedAmountStatic",
       format: "money",
       width: 128,
       computed: computedAmount("inflated_amount"),
@@ -446,7 +447,8 @@ export interface EstimateInflation {
 /**
  * The column of the amount corrected of inflation, defined by the year and the rate that correct it:
  * its definition is a sentence with its values, which only the screen that reads the revision and the
- * project knows; the other columns are as they are.
+ * project knows; without them the column keeps a definition that names neither; the other columns
+ * are as they are.
  */
 function inflated(
   column: GridColumn<EstimateNode, NodeSortColumn, NodeTotals>,

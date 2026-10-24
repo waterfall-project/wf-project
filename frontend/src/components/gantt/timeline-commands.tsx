@@ -43,7 +43,8 @@ import {
 
 import { createTimeline, deleteTimeline } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
-import { UnmetConditions } from "@/components/commands/command";
+import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { useSaid } from "@/components/notices/said";
@@ -150,6 +151,72 @@ export function TimelineChoice(props: TimelineChoiceProps) {
     <Reactivations reads={[]}>
       <Choice {...props} />
     </Reactivations>
+  );
+}
+
+/** The commands that create a timeline and delete the one shown, as the project lists them. */
+function ManageButtons({
+  offer,
+  unmet,
+  current,
+  open,
+}: {
+  readonly offer: CommandOffer;
+  /** The identifier of the text that names the conditions the offer lacks. */
+  readonly unmet: string | undefined;
+  readonly current: Timeline | undefined;
+  readonly open: (deleting: Timeline | undefined, trigger: HTMLElement) => void;
+}) {
+  const t = useTranslations("timelines");
+  const helps = useTranslations("commands");
+  const unmetText = useUnmet();
+  const unavailable = offer.is_available ? undefined : unmetText(offer);
+  return (
+    <>
+      <CommandTooltip
+        label={t("create")}
+        help={helps("create.help")}
+        unavailable={unavailable}
+        describedBy={unmet}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-disabled={offer.is_available ? undefined : true}
+          className={UNAVAILABLE}
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            open(undefined, event.currentTarget);
+          }}
+        >
+          <Plus aria-hidden="true" />
+          {t("create")}
+        </Button>
+      </CommandTooltip>
+      {current === undefined ? null : (
+        <CommandTooltip
+          label={t("deleteNamed", { label: current.label })}
+          help={helps("deleteTimeline.help")}
+          unavailable={unavailable}
+          describedBy={unmet}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t("deleteNamed", { label: current.label })}
+            aria-disabled={offer.is_available ? undefined : true}
+            className={UNAVAILABLE}
+            onClick={(event: MouseEvent<HTMLElement>) => {
+              open(current, event.currentTarget);
+            }}
+          >
+            <Trash2 aria-hidden="true" />
+            {t("delete")}
+          </Button>
+        </CommandTooltip>
+      )}
+    </>
   );
 }
 
@@ -262,37 +329,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
       )}
       {offer === undefined ? null : (
         <>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-disabled={offer.is_available ? undefined : true}
-            aria-describedby={unmet}
-            className={UNAVAILABLE}
-            onClick={(event: MouseEvent<HTMLElement>) => {
-              open(undefined, event.currentTarget);
-            }}
-          >
-            <Plus aria-hidden="true" />
-            {t("create")}
-          </Button>
-          {current === undefined ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label={t("deleteNamed", { label: current.label })}
-              aria-disabled={offer.is_available ? undefined : true}
-              aria-describedby={unmet}
-              className={UNAVAILABLE}
-              onClick={(event: MouseEvent<HTMLElement>) => {
-                open(current, event.currentTarget);
-              }}
-            >
-              <Trash2 aria-hidden="true" />
-              {t("delete")}
-            </Button>
-          )}
+          <ManageButtons offer={offer} unmet={unmet} current={current} open={open} />
           <UnmetConditions id={unmet} offer={offer} />
         </>
       )}

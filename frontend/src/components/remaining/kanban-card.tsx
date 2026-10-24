@@ -26,6 +26,7 @@ import { useId, useRef, useState } from "react";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,7 @@ function CardMenu({
   readonly onDismiss: () => void;
 }) {
   const t = useTranslations("kanban");
+  const helps = useTranslations("commands");
   const commands = useTranslations("enums.KanbanCommand");
   const unmet = useUnmet();
   const chosen = useRef<CardGesture>(undefined);
@@ -133,18 +135,23 @@ function CardMenu({
   const outside = useRef(false);
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-label={t("gestures", { label: card.label })}
-          aria-busy={busy}
-          className="h-7"
-        >
-          <Ellipsis aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
+      <CommandTooltip
+        label={t("gestures", { label: card.label })}
+        help={helps("cardGestures.help")}
+      >
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t("gestures", { label: card.label })}
+            aria-busy={busy}
+            className="h-7"
+          >
+            <Ellipsis aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+      </CommandTooltip>
       <DropdownMenuContent
         align="start"
         aria-label={t("gestures", { label: card.label })}
@@ -363,6 +370,7 @@ function CardReading({
   readonly retry: () => void;
 }) {
   const t = useTranslations("kanban");
+  const helps = useTranslations("commands");
   if (reading === "updating") {
     return (
       <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -378,15 +386,17 @@ function CardReading({
     return (
       <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span className="after:ml-1.5 after:content-['—']">{t("outdated")}</span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-6 px-2 text-xs"
-          onClick={retry}
-        >
-          {t("retry")}
-        </Button>
+        <CommandTooltip label={t("retry")} help={helps("retryReading.help")}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={retry}
+          >
+            {t("retry")}
+          </Button>
+        </CommandTooltip>
       </p>
     );
   }

@@ -1161,17 +1161,8 @@
       "update": {
         "help": "Ouvre le formulaire des paramètres du projet."
       },
-      "update_win_probability": {
-        "help": "Modifie la probabilité de gain du projet."
-      },
-      "update_work_breakdown": {
-        "help": "Saisit le lotissement : les lots et les postes du projet."
-      },
       "manage_contributors": {
         "help": "Gère les contributeurs du projet."
-      },
-      "manage_timelines": {
-        "help": "Gère les chronologies du projet."
       },
       "create_revision": {
         "help": "Crée la révision en cours d’élaboration, copie de la dernière révision marquée."
@@ -1188,20 +1179,11 @@
       "abandon": {
         "help": "Abandonne le projet, après confirmation."
       },
-      "edit_risks": {
-        "help": "Permet de modifier les risques du projet."
-      },
-      "declare_risk": {
-        "help": "Déclare un nouveau risque au projet."
-      },
       "declare_risk_occurrence": {
         "help": "Déclare qu’un risque est survenu et en consigne le compte rendu, après confirmation."
       },
       "import_actual_costs": {
         "help": "Importe les coûts réels depuis un fichier."
-      },
-      "exclude_cost_lines": {
-        "help": "Exclut des lignes de coût du périmètre suivi."
       },
       "import_planning": {
         "help": "Importe un planning depuis un fichier MS Project."
@@ -1214,20 +1196,8 @@
       }
     },
     "revision": {
-      "edit_planning": {
-        "help": "Permet de modifier le planning de la révision."
-      },
       "generate_skeleton": {
         "help": "Engendre le squelette du planning de la révision."
-      },
-      "edit_estimate": {
-        "help": "Permet de modifier le devis de la révision."
-      },
-      "edit_remaining": {
-        "help": "Permet de réestimer le reste à engager."
-      },
-      "edit_risks": {
-        "help": "Permet de modifier les risques du projet."
       },
       "declare_risk": {
         "help": "Déclare un nouveau risque au projet."
@@ -1246,18 +1216,6 @@
       },
       "abandon": {
         "help": "Abandonne la révision en cours d’élaboration, après confirmation."
-      },
-      "export_planning": {
-        "help": "Exporte le planning au format MS Project."
-      },
-      "export_estimate": {
-        "help": "Exporte le devis."
-      },
-      "export_remaining": {
-        "help": "Exporte le reste à engager."
-      },
-      "export_task_tree_image": {
-        "help": "Exporte l’arborescence des tâches en image."
       }
     },
     "deleteRisk": {
@@ -1283,9 +1241,44 @@
     },
     "abandonReport": {
       "help": "Abandonne l’import : rien n’est appliqué."
+    },
+    "create": {
+      "help": "Ouvre le formulaire de création."
+    },
+    "deleteTimeline": {
+      "help": "Supprime la chronologie affichée ; ses jalons disparaissent avec elle."
+    },
+    "cardGestures": {
+      "help": "Ouvre le menu des gestes de cette tâche."
+    },
+    "retryReading": {
+      "help": "Relit les tâches de cette carte."
+    },
+    "contributorWithdraw": {
+      "help": "Retire ce contributeur de la liste à enregistrer."
+    },
+    "contributorInscribe": {
+      "help": "Ajoute ce compte à la liste à enregistrer, comme contributeur."
+    },
+    "breakdownWorkPackage": {
+      "help": "Ajoute un lot au lotissement du projet."
+    },
+    "breakdownAdd": {
+      "help": "Ajoute un poste à ce lot, ou un livrable à ce poste."
+    },
+    "breakdownRename": {
+      "help": "Change le libellé de cet élément du lotissement."
+    },
+    "breakdownDelete": {
+      "help": "Supprime cet élément du lotissement, avec ce qu’il contient."
     }
   },
   "columns": {
+    "nodes": {
+      "label": {
+        "help": "Libellé de la tâche ou de la ligne, à la place qu’elle occupe dans l’arbre."
+      }
+    },
     "estimate": {
       "category": {
         "help": "Catégorie de coût de la ligne : elle donne le taux et la nature de la dépense."
@@ -1316,6 +1309,9 @@
       },
       "inflatedAmount": {
         "help": "Montant corrigé de l’inflation de l’année de référence ({year}) à l’année de consommation de la ligne, au taux d’inflation du projet ({rate} par an)."
+      },
+      "inflatedAmountStatic": {
+        "help": "Montant corrigé de l’inflation de l’année de référence de la révision à l’année de consommation de la ligne, au taux d’inflation du projet."
       }
     },
     "planning": {
