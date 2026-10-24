@@ -533,6 +533,7 @@ function News({
   readonly onClose: () => void;
 }) {
   const t = useTranslations("tasks");
+  const commands = useTranslations("commands");
   const naming = useTaskNaming();
   if (news === undefined) {
     return null;
@@ -544,7 +545,7 @@ function News({
   return (
     <div className="flex items-center gap-2 border-b px-4 py-1 text-sm">
       <p className="flex-1">{sentence}</p>
-      <CommandTooltip label={t("closeNews")} help="dismissNews">
+      <CommandTooltip label={t("closeNews")} help={commands("dismissNews.help")}>
         <Button
           type="button"
           variant="ghost"
