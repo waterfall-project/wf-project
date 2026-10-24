@@ -196,7 +196,7 @@ function CostsHeader({
       subtitle={count === undefined ? undefined : t("actualCosts.summary", { count })}
       actions={
         exchanges === undefined ? undefined : (
-          <CommandTooltip label={t(EXCHANGES.label)} help="exchanges">
+          <CommandTooltip label={t(EXCHANGES.label)} help={t("commands.exchanges.help")}>
             <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
               <ExchangesIcon aria-hidden="true" />
               {t(EXCHANGES.label)}

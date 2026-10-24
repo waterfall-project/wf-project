@@ -2103,35 +2103,55 @@ et jamais au focus du clavier. Un lien dessiné comme un bouton et un article de
 même. L'infobulle dit :
 
 - **le nom** de la commande, celui que le contrôle porte déjà ;
-- **une phrase d'aide**, prise du catalogue : `commands.<commande>.help`, dans les deux langues, tenue
-  par `make catalogs` ; la prop `help` ne se compile que pour une commande qui en a une
-  (`CommandHelp`) ;
+- **une phrase d'aide**, la prop `help`, déjà traduite : pour une commande, `commands.<commande>.help`,
+  dans les deux langues, tenue par `make catalogs` et lue par `t("commands.<commande>.help")`, que le
+  typage du catalogue refuse pour une commande qui n'en a pas (`CommandHelp` nomme celles qui en ont,
+  pour une table de commandes) ; pour l'en-tête d'une colonne, sa définition
+  (`columns.<grille>.<colonne>.help`) ; ou une phrase à paramètres, comme le montant corrigé de
+  l'inflation, qui nomme l'année de référence et le taux. `help` et `unavailable` ne prennent jamais un
+  littéral (`make lint-front`) ;
 - **ses touches**, en `<kbd>`, écrites selon le poste — ⌘ sur un Mac, Ctrl ailleurs —, chaque touche
   par son nom du catalogue (`commands.keys`, `commands.macKeys`). Elles n'ont qu'une source : la prop
   `keys`, écrite comme `aria-keyshortcuts` la nomme (`"Control+Z Meta+Z"`), que `CommandTooltip` pose
-  sur le contrôle et montre à la fois (`shortcut.ts`) ; un article de menu les montre aussi à sa fin
-  (`Keys`), de la même source ;
+  sur le contrôle et montre à la fois (`shortcut.ts`) ;
 - **la condition qui manque**, pour une commande indisponible (WF-IHM-0090) : `unavailable`, qui
-  marque le contrôle `aria-disabled` — jamais `disabled`, qui l'ôterait du survol et du clavier —, la
-  condition restant dite là où elle l'est déjà, que `describedBy` désigne.
+  marque le contrôle `aria-disabled` — jamais `disabled`, qui l'ôterait du survol et du clavier. La
+  condition décrit le contrôle, infobulle fermée comme ouverte : par le texte qui la dit déjà à côté de
+  la commande, que `describedBy` désigne, ou, l'écran ne la disant nulle part ailleurs, par un texte
+  caché de `CommandTooltip` lui-même.
+
+Un article de menu s'écrit par `MenuCommand` (`menu-command.tsx`), qui prend l'article
+(`item={ContextMenuItem}` ou `DropdownMenuItem`), le nom, l'aide, les touches, la condition, l'icône
+et `onSelect` : le nom est à la fois le texte de l'article et celui de l'infobulle, et les touches
+sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie.
 
 L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
-aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`) ;
-elle se ferme par Échap sans déplacer le focus, et reste ouverte tant que le pointeur passe dessus.
-Ouverte, elle décrit le contrôle (`aria-describedby`) par sa phrase d'aide seule : elle ne porte jamais
-seule ce qu'il faut savoir, le nom restant celui du contrôle et la condition sa description. Le
+aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`,
+que `MenuCommand` pose) ; elle se ferme par Échap sans déplacer le focus — dans un menu, le premier
+Échap ferme l'infobulle, le second le menu —, et reste ouverte tant que le pointeur passe dessus, même
+dans un menu modal, qui ôte le pointeur au reste de la page (`pointer-events-auto` de `TooltipContent`).
+Ouverte, elle décrit en outre le contrôle (`aria-describedby`) par sa phrase d'aide : elle ne porte
+jamais seule ce qu'il faut savoir, le nom restant celui du contrôle et la condition sa description. Le
 contrôle est un seul élément, qui reçoit les attributs et les événements de l'infobulle : il ne pose
 lui-même ni `aria-keyshortcuts`, ni `aria-disabled`, ni `aria-describedby`, que `CommandTooltip`
-pose ; il ne fait rien, pressé indisponible.
+pose ; il ne fait rien, pressé indisponible. Les infobulles partagent un seul `TooltipProvider`, à la
+racine de la coquille (`shell.tsx`) : l'une fermée, la suivante que le pointeur atteint s'ouvre sans
+attendre ; chacune dit son délai (`delayDuration` de `Tooltip`), et une infobulle rendue hors de la
+coquille, dans le test d'un composant, apporte le sien.
 
 _Contrôle_ : `src/components/button-title-guard.test.ts` (`make test-front`) lit chaque composant par
 l'analyseur de TypeScript et refuse un `title=` sur un bouton — `<button>`, `Button`, `CellCommand`,
-`Command`, un interrupteur, un article ou un déclencheur de menu, un élément de rôle `button`, un lien
-dessiné par `buttonVariants`. Les commandes d'objet, les dialogues, les en-têtes de colonnes et les
-valeurs calculées passent à `CommandTooltip` avec US-0580/L2 (#1137) : les fichiers dont les boutons
-portent encore un `title=` y sont une liste fermée, qui ne peut que décroître — un fichier listé qui
-n'en porte plus fait échouer le test aussi, pour qu'on l'en retire. Les tests du composant sont dans
-`command-tooltip.dom.test.tsx` (survol, focus, Échap, touches, condition, axe).
+`Command`, un interrupteur, un article de menu, coché ou au choix, ou un déclencheur, un élément de
+rôle `button`, un lien dessiné par `buttonVariants`, écrit en place ou par une constante du même
+fichier —, et un `title` passé par la décomposition d'un objet écrit ou nommé dans le fichier. Restent
+à la revue : des classes ou des props importées d'un autre module, la décomposition des props qu'un
+composant reçoit (`{...props}`), et un composant à nous qui dessine un bouton sous un autre nom. Les
+commandes d'objet, les dialogues, les en-têtes de colonnes et les valeurs calculées passent à
+`CommandTooltip` avec US-0580/L2 (#1137) : les fichiers dont les boutons portent encore un `title=` y
+sont une liste fermée (`LEFT_TO_L2`), un cliquet qui ne peut que décroître — un fichier listé qui n'en
+porte plus fait échouer le test aussi, pour qu'on l'en retire —, et le lot qui la vide supprime la
+constante. Les tests du composant sont dans `command-tooltip.dom.test.tsx` (survol, focus, Échap dans
+un menu, touches, condition, fournisseur partagé, axe).
 
 ### Les actions longues et le suivi des tâches de fond
 

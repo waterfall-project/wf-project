@@ -132,8 +132,10 @@ const ACTION_SYNTAX = {
 // A literal passed to a function, `t(ok ? "yes" : "no")`, is a key, not a text; an empty
 // alt, the mark of a decorative image, is no text either, nor the placeholder of next/image,
 // `blur`, `empty` or a `data:image/` address. What stays with the review: the props of our
-// own components other than `label`, and a string built by a function or a method
-// (`.join`, `.concat`), in the JSX or outside it.
+// own components other than `label` — and than the sentences of a tooltip, `help` and
+// `unavailable` of `CommandTooltip` and `MenuCommand`, which take a text translated, no key
+// (US-0580) —, and a string built by a function or a method (`.join`, `.concat`), in the JSX
+// or outside it.
 const TEXT = "Write the text in the catalogues of messages/, and read it with next-intl.";
 const TEXT_VALUE =
   ":matches(Literal[value=/\\S/], TemplateLiteral:has(> TemplateElement[value.raw=/\\S/]))";
@@ -142,6 +144,7 @@ const OPERATOR =
 const TEXT_CHILD = ":matches(JSXElement, JSXFragment) > JSXExpressionContainer";
 const TEXT_ATTRIBUTES = [
   "JSXAttribute[name.name=/^(aria-(label|description|roledescription|valuetext|placeholder)|title|alt|label)$/]",
+  "JSXOpeningElement[name.name=/^(CommandTooltip|MenuCommand)$/] > JSXAttribute[name.name=/^(help|unavailable)$/]",
   "JSXAttribute[name.name='placeholder']:not([value.value=/^((blur|empty)$|data:image\\/)/])",
   "JSXOpeningElement[name.name='input']:has(> JSXAttribute[name.name='type'][value.value=/^(submit|button|reset)$/]) > JSXAttribute[name.name='value']",
 ];

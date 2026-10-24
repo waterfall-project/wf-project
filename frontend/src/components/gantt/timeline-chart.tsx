@@ -332,7 +332,7 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
               <CommandTooltip
                 key={command.key}
                 label={tz(command.key)}
-                help={command.key}
+                help={commands(`${command.key}.help`)}
                 keys={command.keys}
                 unavailable={command.offered ? undefined : commands(`${command.key}.unavailable`)}
               >
@@ -355,7 +355,7 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
           </span>
           <CommandTooltip
             label={t("restack")}
-            help="restack"
+            help={commands("restack.help")}
             unavailable={placed === undefined ? commands("restack.unavailable") : undefined}
           >
             <Button

@@ -105,7 +105,11 @@ function PlanningHeader({
           {LEAVES.map(({ leaf, Icon, help }) => {
             const href = functionHref(leaf, context);
             return href === undefined ? null : (
-              <CommandTooltip key={leaf.code} label={t(leaf.label)} help={help}>
+              <CommandTooltip
+                key={leaf.code}
+                label={t(leaf.label)}
+                help={t(`commands.${help}.help`)}
+              >
                 <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
                   <Icon aria-hidden="true" />
                   {t(leaf.label)}

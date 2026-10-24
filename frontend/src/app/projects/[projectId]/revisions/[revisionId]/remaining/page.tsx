@@ -177,13 +177,13 @@ function RemainingHeader({
       })}
       actions={
         <>
-          <CommandTooltip label={shown} help="startedOnly">
+          <CommandTooltip label={shown} help={t("commands.startedOnly.help")}>
             <Link href={progress} className={action}>
               {shown}
             </Link>
           </CommandTooltip>
           {kanban === undefined ? null : (
-            <CommandTooltip label={t(KANBAN.label)} help="kanban">
+            <CommandTooltip label={t(KANBAN.label)} help={t("commands.kanban.help")}>
               <Link href={kanban} className={action}>
                 <KanbanIcon aria-hidden="true" />
                 {t(KANBAN.label)}
@@ -194,7 +194,7 @@ function RemainingHeader({
             // An icon alone, named for the readers of the screen, and by its tooltip for the pointer:
             // the title, the subtitle and four links with their words leave the title no room on a
             // window of 1280 points, and the totals of the grid out of it.
-            <CommandTooltip label={t(WORKLOAD.label)} help="workload">
+            <CommandTooltip label={t(WORKLOAD.label)} help={t("commands.workload.help")}>
               <Link
                 href={workload}
                 aria-label={t(WORKLOAD.label)}

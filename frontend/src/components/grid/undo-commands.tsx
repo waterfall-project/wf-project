@@ -30,7 +30,8 @@ import {
   useState,
 } from "react";
 
-import { CommandTooltip, Keys, MENU_KEYS_CLASS } from "@/components/commands/command-tooltip";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -139,6 +140,7 @@ export function UndoAnnouncer({
 /** Render the commands in the bar of a grid: their buttons, and why they wait. */
 export function UndoCommands() {
   const t = useTranslations("grid.undo");
+  const said = useTranslations("commands");
   const reason = useId();
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -146,7 +148,7 @@ export function UndoCommands() {
         <CommandTooltip
           key={command}
           label={t(command)}
-          help={command}
+          help={said(`${command}.help`)}
           keys={KEYS[command]}
           unavailable={t("unavailable")}
           describedBy={reason}
@@ -478,6 +480,7 @@ function UndoMenuItems({
   readonly separated: boolean;
 }) {
   const t = useTranslations("grid.undo");
+  const said = useTranslations("commands");
   return (
     <>
       {separated ? <ContextMenuSeparator /> : null}
@@ -486,27 +489,21 @@ function UndoMenuItems({
       </ContextMenuLabel>
       <ContextMenuSeparator />
       {COMMANDS.map((command) => (
-        <CommandTooltip
+        <MenuCommand
           key={command}
+          item={ContextMenuItem}
           label={t(command)}
-          help={command}
+          help={said(`${command}.help`)}
           keys={KEYS[command]}
           unavailable={t("unavailable")}
           describedBy={reason}
-          inMenu
-        >
-          <ContextMenuItem
-            className={UNAVAILABLE}
-            // Pressed, it does nothing, and the menu stays open on the reason.
-            onSelect={(event) => {
-              event.preventDefault();
-            }}
-          >
-            {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
-            {t(command)}
-            <Keys keys={KEYS[command]} className={MENU_KEYS_CLASS} />
-          </ContextMenuItem>
-        </CommandTooltip>
+          icon={command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
+          className={UNAVAILABLE}
+          // Pressed, it does nothing, and the menu stays open on the reason.
+          onSelect={(event) => {
+            event.preventDefault();
+          }}
+        />
       ))}
     </>
   );

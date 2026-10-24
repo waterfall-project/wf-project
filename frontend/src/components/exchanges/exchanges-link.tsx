@@ -46,7 +46,7 @@ export function ExchangesLink({ project, kind, context }: ExchangesLinkProps) {
     return null;
   }
   return (
-    <CommandTooltip label={t(EXCHANGES.label)} help="exchanges">
+    <CommandTooltip label={t(EXCHANGES.label)} help={t("commands.exchanges.help")}>
       <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
         <ExchangesIcon aria-hidden="true" />
         {t(EXCHANGES.label)}

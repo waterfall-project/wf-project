@@ -42,7 +42,8 @@ import {
   useState,
 } from "react";
 
-import { CommandTooltip, Keys, MENU_KEYS_CLASS } from "@/components/commands/command-tooltip";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { FoldToggle } from "@/components/grid/fold";
 import { Button } from "@/components/ui/button";
@@ -318,7 +319,7 @@ export function GanttZoom() {
         <CommandTooltip
           key={command.key}
           label={t(command.key)}
-          help={command.key}
+          help={said(`${command.key}.help`)}
           keys={command.keys}
           unavailable={command.offered ? undefined : said(`${command.key}.unavailable`)}
         >
@@ -358,30 +359,24 @@ export function GanttZoomItems({ separated }: { readonly separated: boolean }) {
     <>
       {separated ? <ContextMenuSeparator /> : null}
       {zoomCommands(view).map((command) => (
-        <CommandTooltip
+        <MenuCommand
           key={command.key}
+          item={ContextMenuItem}
           label={t(command.key)}
-          help={command.key}
+          help={said(`${command.key}.help`)}
           keys={command.keys}
           unavailable={command.offered ? undefined : said(`${command.key}.unavailable`)}
-          inMenu
-        >
-          <ContextMenuItem
-            className={UNAVAILABLE}
-            onSelect={(event) => {
-              // Pressed where it goes nowhere, it does nothing, and the menu stays open on why.
-              if (!command.offered) {
-                event.preventDefault();
-                return;
-              }
-              view.zoomTo(command.step);
-            }}
-          >
-            {command.icon}
-            {t(command.key)}
-            <Keys keys={command.keys} className={MENU_KEYS_CLASS} />
-          </ContextMenuItem>
-        </CommandTooltip>
+          icon={command.icon}
+          className={UNAVAILABLE}
+          onSelect={(event) => {
+            // Pressed where it goes nowhere, it does nothing, and the menu stays open on why.
+            if (!command.offered) {
+              event.preventDefault();
+              return;
+            }
+            view.zoomTo(command.step);
+          }}
+        />
       ))}
     </>
   );

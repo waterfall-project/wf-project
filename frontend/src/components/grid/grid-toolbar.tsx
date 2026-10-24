@@ -15,7 +15,8 @@ import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode, SubmitEvent } from "react";
 
-import { CommandTooltip, Keys, MENU_KEYS_CLASS } from "@/components/commands/command-tooltip";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -163,12 +164,13 @@ function SearchField({
  */
 function OutlineMenu({ outline }: { readonly outline: GridOutline }) {
   const t = useTranslations("grid.fold");
+  const said = useTranslations("commands");
   // Alt and * off a Mac alone, where Option types no * (`useFoldReach`), as in the menu of a cell.
   const reach = useFoldReach();
   const levels = Array.from({ length: Math.max(outline.levels - 1, 0) }, (_, at) => at + 2);
   return (
     <DropdownMenu>
-      <CommandTooltip label={t("open")} help="outline">
+      <CommandTooltip label={t("open")} help={said("outline.help")}>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
             <ListTree aria-hidden="true" />
@@ -179,27 +181,23 @@ function OutlineMenu({ outline }: { readonly outline: GridOutline }) {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <CommandTooltip
+        <MenuCommand
+          item={DropdownMenuItem}
           label={t("expandAll")}
-          help="expandAll"
+          help={said("expandAll.help")}
           keys={MENU_KEYS.expandAll[reach]}
-          inMenu
           side="left"
-        >
-          <DropdownMenuItem onSelect={outline.expandAll}>
-            {t("expandAll")}
-            <Keys keys={MENU_KEYS.expandAll[reach]} className={MENU_KEYS_CLASS} />
-          </DropdownMenuItem>
-        </CommandTooltip>
-        <CommandTooltip label={t("collapseAll")} help="collapseAll" inMenu side="left">
-          <DropdownMenuItem
-            onSelect={() => {
-              outline.collapseTo(1);
-            }}
-          >
-            {t("collapseAll")}
-          </DropdownMenuItem>
-        </CommandTooltip>
+          onSelect={outline.expandAll}
+        />
+        <MenuCommand
+          item={DropdownMenuItem}
+          label={t("collapseAll")}
+          help={said("collapseAll.help")}
+          side="left"
+          onSelect={() => {
+            outline.collapseTo(1);
+          }}
+        />
         {levels.map((level) => (
           <DropdownMenuItem
             key={level}
@@ -227,6 +225,7 @@ export function GridToolbar({
   commands,
 }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
+  const said = useTranslations("commands");
   return (
     <div
       className="flex min-w-min max-w-full items-center gap-2"
@@ -240,7 +239,7 @@ export function GridToolbar({
       {undoable === true ? <UndoCommands /> : null}
       {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>
-        <CommandTooltip label={t("open")} help="columns">
+        <CommandTooltip label={t("open")} help={said("columns.help")}>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"

@@ -236,7 +236,7 @@ function EstimateHeader({
       actions={
         <>
           {workload === undefined ? null : (
-            <CommandTooltip label={t(WORKLOAD.label)} help="workload">
+            <CommandTooltip label={t(WORKLOAD.label)} help={t("commands.workload.help")}>
               <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
                 <WorkloadIcon aria-hidden="true" />
                 {t(WORKLOAD.label)}

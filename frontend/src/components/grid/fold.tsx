@@ -39,12 +39,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import {
-  type CommandHelp,
-  CommandTooltip,
-  Keys,
-  MENU_KEYS_CLASS,
-} from "@/components/commands/command-tooltip";
+import type { CommandHelp } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { onMac } from "@/components/commands/shortcut";
 import { ContextMenuItem } from "@/components/ui/context-menu";
 import { cn } from "@/components/ui/utils";
@@ -677,6 +673,7 @@ export function FoldMenuItems({
   readonly onRun: () => void;
 }) {
   const t = useTranslations("grid.fold");
+  const said = useTranslations("commands");
   const reach = useFoldReach();
   const { collapse, expand } = folding.offers(at);
   const collapseLabel =
@@ -690,23 +687,17 @@ export function FoldMenuItems({
   ];
   return items.map(([command, help, label]) =>
     label === undefined ? null : (
-      <CommandTooltip
+      <MenuCommand
         key={command}
+        item={ContextMenuItem}
         label={label}
-        help={help}
+        help={said(`${help}.help`)}
         keys={MENU_KEYS[command][reach]}
-        inMenu
-      >
-        <ContextMenuItem
-          onSelect={() => {
-            onRun();
-            folding.run(command, at);
-          }}
-        >
-          {label}
-          <Keys keys={MENU_KEYS[command][reach]} className={MENU_KEYS_CLASS} />
-        </ContextMenuItem>
-      </CommandTooltip>
+        onSelect={() => {
+          onRun();
+          folding.run(command, at);
+        }}
+      />
     ),
   );
 }
