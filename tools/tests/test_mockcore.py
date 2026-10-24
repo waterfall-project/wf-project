@@ -548,7 +548,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
     assert set(depths) == cited
     assert (depths["nodes"], depths["nodes_core"], depths["nodes_summaries"]) == (2, 2, 3)
     for name, depth in depths.items():
-        assert mockwitness.fixture(name)["meta"] == {"summary_depth": depth}, name
+        assert mockwitness.fixture(name)["meta"]["summary_depth"] == depth, name
     # A reading without a filter renders every summary: its depth is that of its own items.
     for name in ("volume/nodes_thousand", "nodes_core"):
         read = mockwitness.fixture(name)
@@ -557,10 +557,86 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
             for node in read["items"]
             if node["kind"] == "task" and node["task"]["is_summary"]
         )
-        assert read["meta"] == {"summary_depth": deepest}, name
+        assert read["meta"]["summary_depth"] == deepest, name
     # The tree asked at the level 2 is told the third exists, which it does not render.
     shown = mockwitness.fixture("nodes_summaries")["items"]
     assert max(node["level"] for node in shown) == 2
+
+
+def test_every_reading_of_nodes_says_when_its_structure_was_last_dated() -> None:
+    # #1404: whatever the filters, the instant of the witness for a structure in progress, the
+    # marking for a marked revision compared, which nothing redates after.
+    said: dict[str, str] = {}
+    for path in sorted((REPOSITORY / "fixtures/api").glob("**/*.json")):
+        value: object = json.loads(path.read_text(encoding="utf-8"))["value"]
+        meta = cast("dict[str, Any]", value).get("meta") if isinstance(value, dict) else None
+        if isinstance(meta, dict) and "summary_depth" in meta:
+            read = cast("dict[str, str]", meta)
+            assert set(read) == {"summary_depth", "scheduled_at"}, path.name
+            said[path.stem] = read["scheduled_at"]
+    marked = {"comparison", "comparison_moved", "comparison_volume", "comparison_identical"}
+    assert marked <= set(said)
+    for name, at in said.items():
+        if name == "comparison_identical":
+            assert at == mockcore.stamp(mockwitness.OFFER_MARKED.instant), name
+        elif name in marked:
+            assert at == mockcore.stamp(mockwitness.AMENDMENT_MERGED.instant), name
+        else:
+            assert at == mockcore.stamp(TODAY), name
+
+
+def _hand_written_calendars() -> tuple[dict[str, dict[str, Decimal]], dict[str, Decimal]]:
+    """Return the calendar of each active role and the default one, from the lists by hand."""
+    entries = mockwitness.fixture("calendars")["items"]
+    weeks = {
+        entry["calendar_id"]: {day: Decimal(hours) for day, hours in entry["weekly_hours"].items()}
+        for entry in entries
+    }
+    [default] = [entry["calendar_id"] for entry in entries if entry["is_default"]]
+    roles = {
+        role["resource_role_id"]: weeks[role["calendar_id"]]
+        for role in mockwitness.fixture("resource_roles")["items"]
+        if role["is_active"]
+    }
+    return roles, weeks[default]
+
+
+def test_each_task_read_bears_the_fewest_hours_of_the_calendars_of_its_labour_lines() -> None:
+    # #1410: each day, the fewest hours the calendars of the roles of the labour lines a task
+    # bears grant it, its own and not its subordinates' — a summary as a leaf or a milestone —,
+    # the default calendar without any; a day at 0 hours is a day off.
+    roles, default = _hand_written_calendars()
+    structures = {
+        "volume/nodes_thousand": mockcore.current(),
+        "nodes_core": mockcore.alone(),
+        "nodes_nested": mockcore.alone(mockdata.nested()),
+        "nodes_amendment": mockamendment.rows(),
+    }
+    for name, rows in structures.items():
+        borne: dict[str, list[str]] = {}
+        for row in rows:
+            line = row.node.get("estimate_line")
+            if row.parent is not None and isinstance(line, dict) and line["resource_role_id"]:
+                parent = mockwitness.node_id(row.parent)
+                borne.setdefault(parent, []).append(cast("str", line["resource_role_id"]))
+        tasks = [node for node in mockwitness.fixture(name)["items"] if node["kind"] == "task"]
+        assert tasks, name
+        for node in tasks:
+            calendars = [roles[role] for role in borne.get(node["node_id"], [])] or [default]
+            expected = {day: min(each[day] for each in calendars) for day in default}
+            hours = {day: Decimal(value) for day, value in node["task"]["calendar_hours"].items()}
+            assert hours == expected, (name, node["task"]["label"])
+    # The wiring on site given to the cable fitter, four days of ten hours, beside the
+    # commissioning technician on the standard week: eight hours from Monday to Thursday.
+    [mounting] = [
+        node
+        for node in mockwitness.fixture("estimate_line_redated")["ancestors"]
+        if node["node_id"] == mockwitness.node_id(N.MOUNTING)
+    ]
+    assert mounting["task"]["calendar_hours"] == {
+        **dict.fromkeys(("monday", "tuesday", "wednesday", "thursday"), "8"),
+        **dict.fromkeys(("friday", "saturday", "sunday"), "0"),
+    }
 
 
 def test_a_timeline_reads_the_tasks_inscribed_on_it_without_their_ancestors(

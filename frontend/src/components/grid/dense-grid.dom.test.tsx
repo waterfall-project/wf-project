@@ -193,7 +193,7 @@ function thousandRows(): NodeList {
   return {
     items: [summary, ...lines],
     totals: { ...witness.totals, task_count: 1, estimate_line_count: 999 },
-    meta: { summary_depth: 1 },
+    meta: { ...witness.meta, summary_depth: 1 },
   };
 }
 

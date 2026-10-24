@@ -165,8 +165,8 @@ describe("the screen of the timelines", () => {
     const placed = restack(page);
     expect(placed).toContain("<button");
     expect(placed).not.toContain('aria-disabled="true"');
-    // The lanes kept concern milestones only: the drawing stays the automatic stacking (the drawn lane: #1406).
-    expect(page).toContain(COMMISSIONING.replace("LANE", "1"));
+    // The commissioning kept in a lane below the studies, apart from the automatic stacking (#1406).
+    expect(page).toContain(COMMISSIONING.replace("LANE", "2"));
   });
 
   it("offers the commands of the timelines as the project lists `manage_timelines`, and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {

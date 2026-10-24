@@ -98,13 +98,13 @@ def schedule(roots: Iterable[Task] = CORE) -> Mapping[int, Dated]:
 
     Forward: each task in automatic mode starts where its links allow, at the start of the
     studies without any, on the calendar of the roles of its labour lines (WF-PLA-0010,
-    WF-PLA-0030); a task in manual mode keeps its dates; a summary spans its subordinates
-    (WF-PLA-0040). The tasks are dated in the order of their links, each after its
-    predecessors, whatever their order in the plan. Backward: a task may finish as late as its
-    successors allow, at the finish of the core without any. A structure is dated once: the
-    readings of the indicators and of the curves date it again and again. A structure whose
-    links close a loop, or bind a summary to one of its subordinates, is not dated: the server
-    refuses it (``in_link_order``, ``wftools.mocklinks``).
+    WF-PLA-0030); a task in manual mode keeps its dates; a summary spans its subordinates, on the
+    calendar of its own lines (WF-PLA-0040). The tasks are dated in the order of their links,
+    each after its predecessors, whatever their order in the plan. Backward: a task may finish
+    as late as its successors allow, at the finish of the core without any. A structure is dated
+    once: the readings of the indicators and of the curves date it again and again. A structure
+    whose links close a loop, or bind a summary to one of its subordinates, is not dated: the
+    server refuses it (``in_link_order``, ``wftools.mocklinks``).
     """
     return _schedule(tuple(roots))
 
@@ -117,12 +117,16 @@ def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
     linked = in_link_order(tasks)
     refuse_through_summaries(tasks)
     dated: dict[int, Dated] = {}
+    calendars = {
+        task.number: applicable(
+            [roles[line.role] for line in task.lines if line.role is not None], default
+        )
+        for task in tasks
+    }
     for task in linked:
         if task.children:
             continue
-        calendar = applicable(
-            [roles[line.role] for line in task.lines if line.role is not None], default
-        )
+        calendar = calendars[task.number]
         if task.manual is not None:
             # The dates entered are days: the server completes their hours, the start at the
             # start of its day, the finish at the end of that day's hours on the applicable
@@ -147,10 +151,12 @@ def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
         dated[task.number] = Dated(task, calendar, start, finish)
     for task in reversed(tasks):
         if task.children:
+            # A summary has its own calendar, that of the lines it bears: its duration is the work
+            # between its dates on it (WF-PLA-0040), not on those of its subordinates.
             placed = [dated[child.number] for child in task.children]
             start = min(each.start for each in placed)
             finish = max(each.finish for each in placed)
-            dated[task.number] = Dated(task, default, start, finish)
+            dated[task.number] = Dated(task, calendars[task.number], start, finish)
     _backward(dated, linked)
     return dated
 

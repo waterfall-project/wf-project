@@ -7242,8 +7242,9 @@ s'ignore. Un couloir négatif est refusé par `VALUE_OUT_OF_RANGE`,
 `/timelines/<chronologie>/lanes/<tâche>`, `params.minimum` à `0`, comme toute borne d'une écriture
 (`tools/tests/test_mockbounds.py`). Exemples `preferences_timeline_lanes` et
 `preferences_lane_out_of_range` (corrélation 1301), sur le « Comité de pilotage » du témoin ;
-`me_grid_settings` porte la même disposition. Le refus d'un couloir où un rectangle en
-chevaucherait un autre se tranche au lot d'écran (US-0530/L3).
+`me_grid_settings` porte la même disposition, et le couloir d'une tâche (#1406, plus bas). Le
+refus d'un couloir où un rectangle en chevaucherait un autre se tranche au lot d'écran
+(US-0530/L3).
 
 **La table des calendriers ne se filtre pas sur les heures de ses jours** (C-352, #1047). Les
 quatorze paramètres `monday_min` à `sunday_max` de `listCalendars` sont retirés, avec l'exemple
@@ -7556,6 +7557,73 @@ nouveau du contrat pour chaque graphique qui se replie ; un état par projet, un
 `project_id`, que la décision ne demande pas et qui ferait redéplier la matrice à chaque projet
 ouvert ; et une table par écran plutôt que par graphique, qui confondrait deux graphiques d'un même
 écran.
+
+## La lecture du planning dit sa date de calcul et ses jours chômés (EP-15/US-0530)
+
+Partie K10 de la conception d'EP-15 (US-0530/L4), sur les décisions de l'auteur du 2026-10-24
+(#1404, #1406, #1410) : les exports d'image du Gantt et d'une chronologie nomment la date de calcul
+(WF-IHM-0130), et le Gantt teinte les jours chômés de chaque tâche ; ni l'une ni les autres
+n'étaient dans la lecture du planning.
+
+**La date de calcul est un fait de la lecture** (#1404). `NodeListMeta.scheduled_at`, un
+`Timestamp` exigé : l'instant du dernier calcul des dates de la structure lue — la dernière écriture
+qui l'a redatée, sa création comprise, ou son import —, quels que soient les filtres, la recherche,
+`kinds` et `fields`, comme `summary_depth`. Une révision marquée n'étant plus redatée (WF-DAT-0020),
+elle garde l'instant du dernier calcul qui a précédé son marquage. `RevisionComparison.meta`
+reprenant `NodeListMeta`, une comparaison le porte aussi, pour la révision comparée : elle se lit
+comme `listNodes` (#1193, ci-dessus), et sa conséquence ne demande aucun schéma de plus. Le faux back
+dit l'instant du témoin, le 3 juin 2026 à 14 h 05, de toute lecture d'une structure en cours
+(`mockwitness.SCHEDULED_AT`) — il date une structure en la lisant, et aucune écriture du témoin ne
+vient après —, et l'instant de son marquage d'une révision comparée (`mockcomparisons`, d'après
+`mockhistory.REVISIONS`) : la fusion de l'avenant 1, qui redate la référence et la marque, le 1er
+février 2026 à 9 h, et le marquage de l'offre, le 15 décembre 2025 à 16 h, pour la paire
+identique — le témoin ne datant aucune des écritures qui ont précédé ce marquage, le faux back tient
+le marquage pour leur dernier calcul. Écartée : `CostStructure.scheduled_at`, qui obligerait le front à lire la liste des
+structures pour dater ce qu'il lit des nœuds, quand `NodeListMeta` dit déjà ce que la lecture dit
+de la structure lue.
+
+**Chaque tâche porte les heures de son calendrier applicable, `TaskFacet.calendar_hours`** (#1410,
+option A). Un `WeeklyHours` exigé, calculé : chaque jour, le plus petit des nombres d'heures que les
+calendriers des rôles des lignes de main-d'œuvre de la tâche lui accordent, le calendrier par
+défaut sans aucune (WF-PLA-0010) ; un jour à 0 heure est un jour chômé, le contrat ne connaissant
+pas de jours fériés (WF-REF-0110). C'est une propriété de `Node` que `fields` nomme
+(`task.calendar_hours`), rendue de toute lecture sans `fields` ; sur une révision marquée, ce sont
+les heures des calendriers qu'elle fige (`EmployedReference`).
+- *Le nom.* `calendar_hours` se range à côté de `calendar_id` et dit ce qu'il porte, les heures du
+  calendrier ; `weekly_hours`, le nom de la même forme dans `CalendarImage`, aurait fait lire un
+  calendrier du référentiel là où une tâche à deux rôles porte leur intersection, qui n'en est aucun,
+  et, dans une facette où `hours` et les totaux comptent la charge, les heures de travail de la
+  tâche. `calendar_id` ne suffit pas : une intersection n'a pas d'identifiant, et le front devrait
+  lire le référentiel et la recalculer, ce que WF-ARC-0020 refuse à un écran.
+- *Les récapitulatives et les jalons.* La même règle, sur les seules lignes qu'ils portent : une
+  récapitulative tire de ses subordonnées ses dates, sa durée et son état, non son calendrier, et sa
+  durée est le temps de travail entre ses dates « sur son calendrier applicable » (WF-PLA-0040) ; un
+  jalon a une date, refusée saisie sur un jour sans heure de ce calendrier (WF-PLA-0020). Le Gantt teinte ainsi la
+  barre d'une récapitulative sur le calendrier même où sa durée se compte. Écartés : une
+  récapitulative sans calendrier, nul ou omis, dont la barre ne se teinterait pas ; l'intersection
+  des calendriers de son sous-arbre, qu'aucune exigence ne dit, et qui contredirait celui de sa
+  durée ; et les seules `WeeklyHours` du calendrier par défaut dans `NodeListMeta`, qui montreraient
+  travaillé un jour que le rôle d'une tâche ne travaille pas.
+
+Le générateur calcule le calendrier applicable depuis les lignes (`wftools.mockcalendar.applicable`),
+et date désormais une récapitulative sur le sien, non sur le calendrier par défaut — aucune
+récapitulative du témoin ne porte de ligne de main-d'œuvre, et rien ne change de ses dates. Les
+lectures et les écritures de nœuds régénérées le rendent : sur la semaine standard pour presque
+toutes, sur la semaine de quatre jours de dix heures pour les tâches du monteur câbleur, et, dans
+`estimate_line_redated`, sur l'intersection des deux — huit heures du lundi au jeudi — quand le câblage
+sur site passe au monteur câbleur à côté du technicien de mise en service ; `skeleton_generated`,
+écrit à la main, porte le calendrier par défaut. `tools/tests/test_mockcore.py`, qui tient les
+lectures de `listNodes`, confronte le calendrier de chaque tâche lue aux calendriers et aux rôles
+écrits à la main, et la date de calcul de chaque lecture à la chronologie du témoin ;
+`tools/tests/test_mockdating.py` date une récapitulative qui porte une ligne du monteur câbleur sur
+son propre calendrier, trois jours et demi pour les trois jours de sa subordonnée.
+`test_mocklists.py`, que nomme la conception, tient les listes écrites à la main (`wftools.mocklists`),
+non les lectures des nœuds.
+
+**Le couloir d'une tâche dans `me_grid_settings`** (#1406). La disposition du « Comité de
+pilotage » range aussi la « Mise en service » (`…0565`) au couloir 2, sous les études, à côté
+desquelles l'empilement automatique la range : jusque-là, l'exemple ne plaçait que deux jalons, qu'une
+frise ne range pas, et sa disposition se dessinait comme l'automatique.
 
 ## Collage et annulation
 
