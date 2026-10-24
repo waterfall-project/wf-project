@@ -269,7 +269,10 @@ describe("the Gantt of the planning", () => {
     // The weeks over their days, the drawing wider than its column, which scrolls it.
     expect(header.textContent).toContain("9 mars 2026");
     expect(ganttOf("Études").querySelector("svg")).toHaveStyle({ width: "1464px" });
-    expect(screen.getByRole("button", { name: "Zoom avant" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Zoom avant" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     ganttOf("Études").focus();
     await userEvent.keyboard("{Control>}-{/Control}");
     expect(header.textContent).toContain("avril 2026");
@@ -334,12 +337,17 @@ describe("the Gantt of the planning", () => {
   // aucune exigence : propre à l'US (US-0530, le niveau gardé pour la session).
   it("keeps its level for the session, by grid and by revision, and opens fitted to the project", async () => {
     const first = renderPlanning();
-    expect(screen.getByRole("button", { name: "Ajuster au projet" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ajuster au projet" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Zoom arrière" }));
     first.unmount();
     renderPlanning();
     expect(screen.getAllByRole("columnheader").at(-1)?.textContent).toContain("T1 2026");
-    expect(screen.getByRole("button", { name: "Ajuster au projet" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Ajuster au projet" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
     expect(
       window.sessionStorage.getItem(`waterfall.gantt.zoom.planning:${STRUCTURE.revision_id}`),
     ).toBe("1");

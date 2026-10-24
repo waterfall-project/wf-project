@@ -73,6 +73,8 @@ import {
 import { createNode, deleteNode, moveNodes } from "@/api/actions/nodes";
 import { createTimeline } from "@/api/actions/projects";
 import type { Outcome } from "@/api/problem";
+import { type CommandHelp, CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
@@ -116,6 +118,19 @@ const ICONS: Readonly<Record<Gesture, ReactNode>> = {
   up: <ArrowUp aria-hidden="true" />,
   down: <ArrowDown aria-hidden="true" />,
   delete: <Trash2 aria-hidden="true" />,
+};
+
+/** The help of each gesture, in the catalogue of the commands. */
+const HELPS: Readonly<Record<Gesture, CommandHelp>> = {
+  first: "insertFirst",
+  below: "insertBelow",
+  child: "insertChild",
+  line: "insertLine",
+  indent: "indent",
+  outdent: "outdent",
+  up: "up",
+  down: "down",
+  delete: "delete",
 };
 
 /** What a move says it did, by the gesture that asked it — or rows dropped. */
@@ -317,6 +332,7 @@ export function useStructureGestures<Row extends GridNode>(
   choices?: RowChoices<Row>,
 ): RowCommands<Row> | undefined {
   const t = useTranslations("grid.structure");
+  const helps = useTranslations("commands");
   const router = useRouter();
   const held = useHeldCommand();
   const [reading, refresh] = useTransition();
@@ -564,50 +580,56 @@ export function useStructureGestures<Row extends GridNode>(
     // the others are offered by the menu of a cell and by the keys, which keep the bar to one line.
     bar: (row) =>
       row !== undefined || !gesturesOn(undefined, scope).includes("first") ? null : (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={names.first}
-          title={names.first}
-          aria-disabled={busy ? true : undefined}
-          aria-busy={busy}
-          aria-keyshortcuts={GESTURE_KEYS.first}
-          className={`size-7 shrink-0 ${UNAVAILABLE}`}
-          onClick={(event: MouseEvent<HTMLElement>) => {
-            open("first", undefined, [], event.currentTarget);
-          }}
+        <CommandTooltip
+          label={names.first}
+          help={helps(`${HELPS.first}.help`)}
+          keys={GESTURE_KEYS.first}
+          unavailable={busy ? t("busy") : undefined}
         >
-          {ICONS.first}
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={names.first}
+            aria-busy={busy}
+            className={`size-7 shrink-0 ${UNAVAILABLE}`}
+            onClick={(event: MouseEvent<HTMLElement>) => {
+              open("first", undefined, [], event.currentTarget);
+            }}
+          >
+            {ICONS.first}
+          </Button>
+        </CommandTooltip>
       ),
     menu: (row, { cell, took, rows, applied }) => {
       const gestures = gesturesOn(row, scope, rows);
       return (
         <>
           {gestures.map((gesture) => (
-            <ContextMenuItem
+            <MenuCommand
               key={gesture}
-              aria-disabled={busy ? true : undefined}
-              aria-keyshortcuts={GESTURE_KEYS[gesture]}
+              item={ContextMenuItem}
+              label={names[gesture]}
+              help={helps(`${HELPS[gesture]}.help`)}
+              keys={GESTURE_KEYS[gesture]}
+              unavailable={busy ? t("busy") : undefined}
+              icon={ICONS[gesture]}
               className={UNAVAILABLE}
               onSelect={(event) => {
-                // Pressed while a write or its reading is under way, it does nothing, and the menu
-                // stays open.
+                // Pressed while a write or its reading is under way, it does nothing, and the
+                // menu stays open.
                 if (busy) {
                   event.preventDefault();
                   return;
                 }
-                // A dialog takes the focus; a deletion with nothing to confirm leaves it to the cell.
+                // A dialog takes the focus; a deletion with nothing to confirm leaves it to the
+                // cell.
                 if (confirms(gesture, row)) {
                   took();
                 }
                 open(gesture, row, rows, cell);
               }}
-            >
-              {ICONS[gesture]}
-              {names[gesture]}
-            </ContextMenuItem>
+            />
           ))}
           {row === undefined || choices === undefined ? null : (
             <ChoiceMenuItems

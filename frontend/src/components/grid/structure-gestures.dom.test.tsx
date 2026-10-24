@@ -16,6 +16,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { spokenText } from "@/test/menu";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { estimateReference } from "@/test/reference";
 
@@ -130,7 +131,7 @@ async function offered(row: number): Promise<string[]> {
   const menu = await openMenu(row);
   const names = within(menu)
     .getAllByRole("menuitem")
-    .map((item) => item.textContent)
+    .map(spokenText)
     .filter((text) => /Insérer|Supprimer/.test(text));
   await userEvent.keyboard("{Escape}");
   return names;

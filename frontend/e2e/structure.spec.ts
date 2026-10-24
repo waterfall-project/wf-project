@@ -123,12 +123,25 @@ test("confirms the deletion of a summary of the planning before it is sent, and 
   const leaf = await labelOf(table, /^9 .*Câblage des armoires/);
   await leaf.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
+  // Each with its keys, shown off a Mac (US-0580).
   await expect(menu.getByRole("menuitem").filter({ hasText: /Insérer|Supprimer/ })).toHaveText([
-    "Insérer au-dessous",
-    "Insérer une sous-tâche",
-    "Supprimer",
+    "Insérer au-dessousInser",
+    "Insérer une sous-tâcheAlt+Inser",
+    "SupprimerCtrl+Suppr",
   ]);
-  await menu.getByRole("menuitem", { name: "Supprimer" }).click();
+  // Its tooltip opens once the pointer rests on the item, and stays open while the pointer passes
+  // over it, though the modal menu takes the pointer from the rest of the page (US-0580, WCAG 1.4.13).
+  const remove = menu.getByRole("menuitem", { name: "Supprimer" });
+  await remove.hover();
+  const tooltip = page.locator("[data-slot=tooltip-content]");
+  await expect(tooltip).toContainText(
+    "Supprime la ligne ; une récapitulative emporte ses subordonnées, après confirmation.",
+  );
+  await tooltip.hover();
+  await expect(tooltip).toHaveCSS("pointer-events", "auto");
+  await expect(tooltip).toBeVisible();
+  await expect(menu).toBeVisible();
+  await remove.click();
   await expect(page.getByText("« Câblage des armoires » supprimée.")).toBeVisible({
     timeout: WORKING,
   });

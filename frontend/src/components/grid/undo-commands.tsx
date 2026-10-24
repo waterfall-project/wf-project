@@ -30,6 +30,8 @@ import {
   useState,
 } from "react";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -138,23 +140,29 @@ export function UndoAnnouncer({
 /** Render the commands in the bar of a grid: their buttons, and why they wait. */
 export function UndoCommands() {
   const t = useTranslations("grid.undo");
+  const said = useTranslations("commands");
   const reason = useId();
   return (
     <div className="flex shrink-0 items-center gap-1">
       {COMMANDS.map((command) => (
-        <Button
+        <CommandTooltip
           key={command}
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={t(command)}
-          aria-disabled
-          aria-describedby={reason}
-          aria-keyshortcuts={KEYS[command]}
-          className={cn("size-7", UNAVAILABLE)}
+          label={t(command)}
+          help={said(`${command}.help`)}
+          keys={KEYS[command]}
+          unavailable={t("unavailable")}
+          describedBy={reason}
         >
-          {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t(command)}
+            className={cn("size-7", UNAVAILABLE)}
+          >
+            {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
+          </Button>
+        </CommandTooltip>
       ))}
       <p id={reason} className="max-w-56 text-xs text-muted-foreground">
         {t("unavailable")}
@@ -472,6 +480,7 @@ function UndoMenuItems({
   readonly separated: boolean;
 }) {
   const t = useTranslations("grid.undo");
+  const said = useTranslations("commands");
   return (
     <>
       {separated ? <ContextMenuSeparator /> : null}
@@ -480,23 +489,21 @@ function UndoMenuItems({
       </ContextMenuLabel>
       <ContextMenuSeparator />
       {COMMANDS.map((command) => (
-        <ContextMenuItem
+        <MenuCommand
           key={command}
-          aria-disabled
-          aria-describedby={reason}
-          aria-keyshortcuts={KEYS[command]}
+          item={ContextMenuItem}
+          label={t(command)}
+          help={said(`${command}.help`)}
+          keys={KEYS[command]}
+          unavailable={t("unavailable")}
+          describedBy={reason}
+          icon={command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
           className={UNAVAILABLE}
           // Pressed, it does nothing, and the menu stays open on the reason.
           onSelect={(event) => {
             event.preventDefault();
           }}
-        >
-          {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
-          {t(command)}
-          <kbd className="ml-auto pl-4 font-sans text-xs text-muted-foreground">
-            {t(`shortcut.${command}`)}
-          </kbd>
-        </ContextMenuItem>
+        />
       ))}
     </>
   );

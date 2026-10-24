@@ -252,10 +252,6 @@
       "undo": "Annuler",
       "redo": "Rétablir",
       "menu": "Menu de la cellule",
-      "shortcut": {
-        "undo": "Ctrl+Z",
-        "redo": "Ctrl+Maj+Z"
-      },
       "unavailable": "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
       "told": {
         "undo": "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.",
@@ -307,7 +303,8 @@
       "categoryField": "Catégorie",
       "quantityField": "Quantité",
       "taskHint": "Nommez la tâche. Elle est créée feuille, en mode automatique, d'un jour, sans prédécesseur.",
-      "lineHint": "Nommez la ligne, choisissez sa catégorie et sa quantité. Les autres champs se saisissent dans la grille."
+      "lineHint": "Nommez la ligne, choisissez sa catégorie et sa quantité. Les autres champs se saisissent dans la grille.",
+      "busy": "Attend la fin de l’écriture en cours."
     },
     "columnsMenu": {
       "open": "Colonnes",
@@ -318,7 +315,6 @@
       "open": "Arbre",
       "title": "Plier et déplier l’arbre",
       "expandAll": "Tout déplier",
-      "expandAllKeys": "Alt+*",
       "collapseAll": "Tout plier",
       "level": "Jusqu’au niveau {level}",
       "collapse": "Plier",
@@ -998,7 +994,115 @@
   },
   "commands": {
     "label": "Commandes",
-    "unmet": "{count, plural, one {Condition non remplie} other {Conditions non remplies}} : {conditions}."
+    "unmet": "{count, plural, one {Condition non remplie} other {Conditions non remplies}} : {conditions}.",
+    "or": " ou ",
+    "keys": {
+      "Control": "Ctrl",
+      "Meta": "Méta",
+      "Alt": "Alt",
+      "Shift": "Maj",
+      "Insert": "Inser",
+      "Delete": "Suppr",
+      "ArrowLeft": "←",
+      "ArrowRight": "→",
+      "ArrowUp": "↑",
+      "ArrowDown": "↓",
+      "Plus": "+",
+      "ContextMenu": "Menu",
+      "Escape": "Échap",
+      "Enter": "Entrée"
+    },
+    "macKeys": {
+      "Control": "⌃",
+      "Meta": "⌘",
+      "Alt": "⌥",
+      "Shift": "⇧"
+    },
+    "undo": {
+      "help": "Annule la dernière saisie de la révision."
+    },
+    "redo": {
+      "help": "Rétablit la dernière saisie annulée."
+    },
+    "columns": {
+      "help": "Choisit les colonnes que la grille montre."
+    },
+    "outline": {
+      "help": "Plie ou déplie l’arbre entier, ou le plie jusqu’à un niveau."
+    },
+    "expandAll": {
+      "help": "Déplie toutes les lignes de l’arbre."
+    },
+    "collapseAll": {
+      "help": "Plie l’arbre sur ses lignes de premier niveau."
+    },
+    "collapseRow": {
+      "help": "Plie la ligne : les lignes qu’elle porte sont masquées."
+    },
+    "expandRow": {
+      "help": "Déplie la ligne : les lignes qu’elle porte sont montrées."
+    },
+    "insertFirst": {
+      "help": "Crée la première tâche de la structure."
+    },
+    "insertBelow": {
+      "help": "Crée une tâche au-dessous de la ligne, au même niveau."
+    },
+    "insertChild": {
+      "help": "Crée une sous-tâche sous la tâche de la ligne."
+    },
+    "insertLine": {
+      "help": "Crée une ligne de devis sur la tâche, ou au-dessous de la ligne."
+    },
+    "indent": {
+      "help": "Fait de la ligne une subordonnée de celle qui la précède."
+    },
+    "outdent": {
+      "help": "Remonte la ligne d’un niveau dans l’arbre."
+    },
+    "up": {
+      "help": "Monte la ligne d’un rang parmi ses voisines."
+    },
+    "down": {
+      "help": "Descend la ligne d’un rang parmi ses voisines."
+    },
+    "delete": {
+      "help": "Supprime la ligne ; une récapitulative emporte ses subordonnées, après confirmation."
+    },
+    "zoomIn": {
+      "help": "Resserre l’échelle du temps pour lire les dates de plus près.",
+      "unavailable": "Le zoom est à son plus fort."
+    },
+    "zoomOut": {
+      "help": "Élargit l’échelle du temps pour voir une période plus longue.",
+      "unavailable": "Le zoom est à son plus faible."
+    },
+    "fit": {
+      "help": "Ajuste l’échelle pour montrer le projet entier.",
+      "unavailable": "L’échelle montre déjà le projet entier."
+    },
+    "restack": {
+      "help": "Range les tâches dans les couloirs d’elles-mêmes, en oubliant ceux choisis à la main.",
+      "unavailable": "Aucune tâche n’a été placée à la main : elles sont rangées d’elles-mêmes."
+    },
+    "startedOnly": {
+      "help": "Montre ou masque les tâches qui n’ont pas démarré."
+    },
+    "timelines": {
+      "help": "Ouvre les chronologies du projet, en frise."
+    },
+    "exchanges": {
+      "help": "Ouvre les imports et exports de la révision."
+    },
+    "taskTree": {
+      "help": "Ouvre l’arbre des tâches de la révision."
+    },
+    "workload": {
+      "help": "Ouvre le plan de charge de la révision, par rôle."
+    },
+    "kanban": {
+      "help": "Ouvre le kanban des tâches à faire, en cours et terminées."
+    }
   },
   "outcome": {
     "unreachable": "Le service est injoignable ; réessayez dans un instant.",

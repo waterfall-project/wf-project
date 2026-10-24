@@ -19,7 +19,9 @@
  *   wearing its indicator of the focus, comes back to the first without being caught on the way
  *   (`walkByTab`), and reaches at 911 points every element it reached at 1366 (`lost`).
  *
- * The matrix of the risks, unfolded behind its command, is audited too, in both modes.
+ * The matrix of the risks, unfolded behind its command, is audited too, in both modes, and the
+ * estimate of the amendment with the tooltip of Undo open, its keys and its condition shown
+ * (US-0580).
  *
  * What these tests leave unproven is written in the note of US-0200 (EP-14): what a gesture opens
  * — a dialog, a menu, the editor of a cell — is not walked, nor what a closed `details` holds.
@@ -151,6 +153,42 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
         }
       });
     });
+  }
+
+  // The estimate opened on the amendment of the current revision, whose grid is written and offers
+  // Undo: the estimate of the table of the screens, that of the current revision, is read only.
+  if (screen.code === "estimate-differential") {
+    for (const mode of ["light", "dark"] as const) {
+      test.describe(`a workstation in ${mode} mode, a tooltip open`, () => {
+        test.use({ colorScheme: mode });
+
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the tooltip of Undo open on its focus, its keys and its condition shown: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA [WF-IHM-0100-A]`, async ({
+          page,
+        }) => {
+          await open(page, screen);
+          await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+          // The tooltip of Undo opens on its focus, with its keys in `<kbd>` and the condition it
+          // lacks, and describes it by both (US-0580): the contrast of each is measured.
+          const undo = page.getByRole("button", { name: "Annuler", exact: true });
+          await undo.focus();
+          const tooltip = page.locator("[data-slot=tooltip-content]");
+          await expect(tooltip).toContainText("Annule la dernière saisie de la révision.");
+          await expect(tooltip).toContainText(
+            "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
+          );
+          await expect(tooltip.locator("kbd")).toHaveText(["Ctrl+Z"]);
+          await expect(undo).toHaveAccessibleDescription(
+            "Indisponibles tant que le serveur ne conserve pas l’historique des saisies. Annule la dernière saisie de la révision.",
+          );
+          const { breaches } = await axeAudit(page);
+          expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);
+          // Escape closes it, the focus left on the command.
+          await page.keyboard.press("Escape");
+          await expect(page.getByRole("tooltip")).toHaveCount(0);
+          await expect(undo).toBeFocused();
+        });
+      });
+    }
   }
 
   if (screen.route === "/projects/[projectId]/revisions/[revisionId]/risks") {

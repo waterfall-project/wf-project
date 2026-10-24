@@ -645,7 +645,12 @@ describe("the keys the grid tells", () => {
       render(planning());
       expect(cellOf(OCCURRED, "label")).toHaveAttribute("aria-keyshortcuts", "Shift+F10");
       const menu = await openMenuOf(cellOf(OCCURRED, "label"));
-      for (const item of within(menu).getAllByRole("menuitem")) {
+      // The folding alone: the zoom of the Gantt is Cmd and plus or minus there.
+      const folding = within(menu)
+        .getAllByRole("menuitem")
+        .filter((item) => /plier/i.test(item.textContent));
+      expect(folding.length).toBeGreaterThan(0);
+      for (const item of folding) {
         expect(item).not.toHaveAttribute("aria-keyshortcuts");
       }
       await userEvent.keyboard("{Escape}");
@@ -695,7 +700,7 @@ describe("the keys the grid tells", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Tout déplier"]);
+    ).toEqual(["Tout déplierAlt+*"]);
   });
 });
 
