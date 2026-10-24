@@ -195,7 +195,7 @@ export function GanttRows({
     if (width === undefined || scroller.current === null) {
       return;
     }
-    const kept = revealedOffset({ from, to }, width, frame, offset);
+    const kept = revealedOffset({ from, to }, width, frame, scroller.current.scrollLeft);
     scroller.current.scrollLeft = kept;
     setOffset(kept);
   };

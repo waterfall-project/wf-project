@@ -11,17 +11,22 @@
  * The rectangles lie in lanes (`lanes.ts`): stacked automatically, in the order of the plan, unless
  * the user placed them, and moved from lane to lane by dragging them with the mouse, or by Alt and
  * the up and down arrows on the rectangle the keyboard is on. A move into a lane where the rectangle
- * would overlap another is refused, said, and nothing moves; Escape gives up a drag. The lanes are a display preference of
- * each user, by timeline (`DisplayPreferences.timelines`, WF-ADM-0040), recorded after a pause as the
- * settings of a grid are; moving a lane modifies no task.
+ * would overlap another is refused, said, and nothing moves; Escape gives up a drag. The lanes are a
+ * display preference of each user, by timeline (`DisplayPreferences.timelines`, WF-ADM-0040),
+ * recorded after a pause as the settings of a grid are; moving a lane modifies no task.
  *
  * The frieze is one stop of the keyboard, named after the timeline, which moves among its rectangles
- * by the left and right arrows (`aria-activedescendant`), the axis scrolling to keep it in view; each rectangle and each milestone is named
- * by its task, its dates and its lane, and the table under the frieze reads the same (WF-IHM-0100).
+ * by the left and right arrows (`aria-activedescendant`), the axis scrolling to keep it in view;
+ * each rectangle and each milestone is named by its task, its dates and its lane, and the table
+ * under the frieze reads the same (WF-IHM-0100). It is exported as a PNG image as it is laid out
+ * (the days off are not tinted), with the name of the timeline, the project, the revision and the
+ * date of calculation of the dates (WF-IHM-0130), drawn anew on a canvas as every chart is
+ * (`exportPng`).
  */
 "use client";
 
-import { Rows3 } from "lucide-react";
+import type { CustomSeriesOption } from "echarts/charts";
+import { ImageDown, Rows3 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   type KeyboardEvent,
@@ -35,6 +40,17 @@ import {
 
 import type { components } from "@/api/generated/schema";
 import { updateTimelinePreferences } from "@/api/actions/preferences";
+import {
+  type ChartOption,
+  type ChartPalette,
+  type ChartExport,
+  type ChartProvenance,
+  exportPng,
+  Probes,
+  readPalette,
+  timeAxis,
+  useProvenance,
+} from "@/components/chart/chart";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
@@ -48,13 +64,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatPlanningDate } from "@/i18n/format";
+import { formatLocale, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
 import { GanttAxis, GanttRows, percent, useGanttView, zoomCommands } from "./gantt";
 import {
   type LaneMove,
   laneCount,
+  type Lanes,
   type LaneSpan,
   keptLanes,
   movedBy,
@@ -134,6 +151,10 @@ export interface TimelineChartProps {
   readonly tasks: readonly TimelineTask[];
   /** The lanes the account kept for it; none, stacked automatically. */
   readonly kept: Readonly<Record<string, number>> | undefined;
+  /** The project and the revision, which the exported image names. */
+  readonly provenance: ChartProvenance;
+  /** The instant the dates were last calculated at (`scheduled_at`), which the image names. */
+  readonly scheduledAt: string;
   /** The scope the level of the zoom is kept under for the session. */
   readonly scope: string;
 }
@@ -145,6 +166,118 @@ export function TimelineChart(props: TimelineChartProps) {
       <Frieze {...props} />
     </GanttRows>
   );
+}
+
+/**
+ * The option of the exported image: the rectangles in their lanes as the frieze lays them out, the
+ * milestones across, on an axis of time in UTC — dates of planning have no time zone.
+ */
+function friezeOption(
+  palette: ChartPalette,
+  locale: Locale,
+  drawn: { readonly rectangles: readonly Drawn[]; readonly milestones: readonly Drawn[] },
+  lanes: Lanes,
+  ticks: readonly number[],
+): ChartOption {
+  const first = ticks[0] ?? 0;
+  const bounds = [first, ticks.at(-1) ?? first];
+  const count = Math.max(laneCount(lanes), 1);
+  const font = (size: number) => `${String(size)}px ${palette.font}`;
+  const rectangle: NonNullable<CustomSeriesOption["renderItem"]> = (params, api) => {
+    const lane = Number(api.value(2));
+    const [x0 = 0, y0 = 0] = api.coord([api.value(0), lane]);
+    const [x1 = 0, y1 = 0] = api.coord([api.value(1), lane + 1]);
+    return {
+      type: "group",
+      children: [
+        {
+          type: "rect",
+          shape: { x: x0, y: y0 + INSET, width: Math.max(x1 - x0, 2), height: y1 - y0 - 2 * INSET },
+          style: { fill: palette.background, stroke: palette.series[0] ?? palette.mark },
+        },
+        {
+          type: "text",
+          x: x0 + 4,
+          y: (y0 + y1) / 2,
+          style: {
+            text: drawn.rectangles[params.dataIndex]?.label ?? "",
+            width: Math.max(x1 - x0 - 8, 0),
+            overflow: "truncate",
+            fill: palette.mark,
+            font: font(11),
+            verticalAlign: "middle",
+          },
+        },
+      ],
+    };
+  };
+  const milestone: NonNullable<CustomSeriesOption["renderItem"]> = (params, api) => {
+    const each = drawn.milestones[params.dataIndex];
+    const [x = 0, top = 0] = api.coord([api.value(0), 0]);
+    const [, bottom = 0] = api.coord([api.value(0), count]);
+    return {
+      type: "group",
+      children: [
+        {
+          type: "line",
+          shape: { x1: x, y1: top, x2: x, y2: bottom },
+          style: { stroke: palette.mark, lineDash: [4, 3] },
+        },
+        {
+          type: "text",
+          x,
+          y: bottom + 4,
+          style: {
+            text: `${each?.label ?? ""}\n${each?.finish ?? ""}`,
+            width: MILESTONE_NAME,
+            overflow: "truncate",
+            align: "center",
+            fill: palette.mark,
+            font: font(10),
+          },
+        },
+      ],
+    };
+  };
+  return {
+    useUTC: true,
+    textStyle: { fontFamily: palette.font, color: palette.text },
+    grid: { left: 16, right: 16, top: 16, bottom: 32 + FOOT },
+    xAxis: timeAxis(
+      palette,
+      formatLocale(locale),
+      bounds.map((time) => new Date(time).toISOString()),
+      true,
+    ),
+    yAxis: { type: "value", min: 0, max: count, inverse: true, show: false },
+    series: [
+      {
+        type: "custom",
+        clip: true,
+        data: drawn.rectangles.map((each) => [each.from, each.to, lanes.get(each.id) ?? 0]),
+        encode: { x: [0, 1], y: 2 },
+        renderItem: rectangle,
+      },
+      {
+        type: "custom",
+        data: drawn.milestones.map((each) => [each.to, 0]),
+        encode: { x: 0, y: 1 },
+        renderItem: milestone,
+      },
+    ],
+  };
+}
+
+/** Export the frieze as an image, in the palette the document shows now. */
+function exportFrieze(
+  probes: HTMLElement | null,
+  option: (palette: ChartPalette) => ChartOption,
+  image: ChartExport,
+) {
+  if (probes !== null) {
+    const palette = readPalette(probes);
+    exportPng(option(palette), palette, image);
+  }
 }
 
 /** What a move says, or nothing for one that changes nothing. */
@@ -173,10 +306,11 @@ function said(
 }
 
 /** The frieze, in the Gantt around it: its commands, its axis, its drawing, its table. */
-function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
+function Frieze({ name, timeline, tasks, kept, provenance, scheduledAt }: TimelineChartProps) {
   const t = useTranslations("timelines.chart");
   const tz = useTranslations("gantt");
   const commands = useTranslations("commands");
+  const tc = useTranslations("chart");
   const tg = useTranslations("grid.columns");
   const locale = useLocale();
   const view = useGanttView();
@@ -193,9 +327,11 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
   // so read again.
   const [message, setMessage] = useState<{ readonly text: string; readonly count: number }>();
   const writer = useKeptWriter<TimelinePreferences | null>(timeline, updateTimelinePreferences);
+  const exported = useProvenance(provenance, name, scheduledAt, t("file"));
   const ids = useId();
   const frame = useRef<HTMLDivElement>(null);
   const drawing = useRef<SVGSVGElement>(null);
+  const probes = useRef<HTMLSpanElement>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
     const element = frame.current;
@@ -318,6 +454,13 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
   const height = shownLanes * LANE + foot;
   const refused =
     drag !== undefined && movedTo(spans, lanes, drag.id, drag.lane).kind === "overlap";
+  const exportImage = () => {
+    exportFrieze(
+      probes.current,
+      (palette) => friezeOption(palette, locale, drawn, lanes, view.layout.ticks),
+      exported(),
+    );
+  };
   const laneName = (id: string) => (lanes.get(id) ?? 0) + 1;
 
   return (
@@ -373,11 +516,18 @@ function Frieze({ name, timeline, tasks, kept }: TimelineChartProps) {
               {t("restack")}
             </Button>
           </CommandTooltip>
+          <Button type="button" variant="outline" size="sm" onClick={exportImage}>
+            <ImageDown aria-hidden="true" />
+            {tc("exportPng")}
+          </Button>
         </span>
       </figcaption>
       <p id={`${ids}hint`} className="text-xs text-muted-foreground">
         {t("hint")}
       </p>
+      <span ref={probes} hidden>
+        <Probes />
+      </span>
       <div className="rounded-md border">
         <div className="relative h-9 border-b">
           <GanttAxis width={Math.max(width, 0)} />

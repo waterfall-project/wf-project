@@ -6,8 +6,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { ChartOption } from "@/components/chart/chart";
 import { WRITE_DELAY } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -20,7 +22,35 @@ const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } =
 }));
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
+/** The drawing of an item of the exported image, as the chart library calls it. */
+type RenderItem = (params: { dataIndex: number }, api: object) => unknown;
+
+/** What the instance out of the screen was handed for the exported image. */
+const canvas = vi.hoisted(() => ({ options: [] as unknown[] }));
+
+// The image is drawn on a canvas, which the simulated document does not paint: an instance in its
+// place records what it is asked to draw.
+vi.mock("echarts/core", async (actual) => {
+  const echarts = await actual<typeof import("echarts/core")>();
+  return {
+    ...echarts,
+    init: (...args: Parameters<typeof echarts.init>) => {
+      if (args[2]?.renderer !== "canvas") {
+        return echarts.init(...args);
+      }
+      return {
+        setOption: (option: unknown) => canvas.options.push(option),
+        getDataURL: () => "data:image/png;base64,iVBORw0KGgo=",
+        dispose: () => undefined,
+      };
+    },
+  };
+});
+
 const STEERING = "01926f3a-7c00-7000-8000-000000001000";
+const PROJECT = "Modernisation du poste de commande";
+// The instant the dates were last calculated at, which `meta.scheduled_at` gives.
+const SCHEDULED_AT = "2026-06-03T08:30:00Z";
 
 /** The rows of the studies and of the control station of the core, by their number in the plan. */
 function rows(...numbers: number[]): TimelineTask[] {
@@ -59,6 +89,8 @@ function friezeOf(tasks: readonly TimelineTask[], kept?: Readonly<Record<string,
         timeline={STEERING}
         tasks={tasks}
         kept={kept}
+        provenance={{ project: PROJECT, code: "PRJ-001", revision: "Révision en cours" }}
+        scheduledAt={SCHEDULED_AT}
         scope="timelines:test"
       />
     </NextIntlClientProvider>
@@ -123,8 +155,10 @@ function node(number: number): string {
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  canvas.options = [];
   server.client = fakeClient({ "PATCH /me/preferences": "preferences_timeline_lanes" });
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1000);
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
@@ -188,9 +222,9 @@ describe("the frieze of a timeline", () => {
   it("moves a rectangle down by Alt and the down arrow, past a lane where it would overlap, and records the lanes shown after a pause", async () => {
     const user = userEvent.setup();
     renderFrieze();
-    // After the zoom in, out and fitted, and the automatic layout, already shown: unavailable, each
-    // stays reached, to say why in its tooltip (US-0580).
-    for (let press = 0; press < 5; press += 1) {
+    // After the zoom in, out and fitted, the automatic layout, already shown: unavailable, each
+    // stays reached, to say why in its tooltip (US-0580), and the export.
+    for (let press = 0; press < 6; press += 1) {
       await user.tab();
     }
     expect(frieze()).toHaveFocus();
@@ -329,9 +363,39 @@ describe("the frieze of a timeline", () => {
     await user.keyboard("{End}");
     if (axis !== null) {
       axis.scrollLeft = 0;
+      fireEvent.scroll(axis);
     }
     fireEvent.keyDown(frieze(), { key: "ArrowDown", altKey: true });
     expect(axis?.scrollLeft).toBe(scrolled);
+  });
+
+  it("reads the scroll of the frame itself, not the offset last recorded, to reach a rectangle [WF-IHM-0100-A]", async () => {
+    // Le focus reste visible.
+    const user = userEvent.setup();
+    const { container } = renderFrieze();
+    await user.click(screen.getByRole("button", { name: "Zoom avant" }));
+    await user.click(screen.getByRole("button", { name: "Zoom avant" }));
+    const axis = container.querySelector<HTMLElement>(".overflow-x-auto");
+    expect(axis).not.toBeNull();
+    frieze().focus();
+    await user.keyboard("{End}");
+    expect(axis?.scrollLeft).toBe(1536);
+    if (axis !== null) {
+      // Scrolled by the mouse, then a key: the event tells the offset where the frame is.
+      axis.scrollLeft = 0;
+      fireEvent.scroll(axis);
+    }
+    await user.keyboard("{ArrowLeft}");
+    expect(axis?.scrollLeft).toBe(104);
+    await user.keyboard("{End}");
+    // Moved without an event (the offset recorded stays 1536, the frame is at 0): the rectangle
+    // before the last ends past the frame of 1000, so the frame reaches its end at 104; were the
+    // stale offset read, it would reach its start, at 936.
+    if (axis !== null) {
+      axis.scrollLeft = 0;
+    }
+    await user.keyboard("{ArrowLeft}");
+    expect(axis?.scrollLeft).toBe(104);
   });
 
   // aucune exigence : propre à l'US (US-0530, l'avis relu d'un refus répété).
@@ -381,7 +445,9 @@ describe("the frieze of a timeline", () => {
       },
       { timeout: WRITE_DELAY * 4 },
     );
-    expect(Object.keys((recorded()[0] as { lanes: object }).lanes)).toHaveLength(64);
+    const lanes = (recorded()[0] as { lanes: Record<string, number> }).lanes;
+    expect(Object.keys(lanes)).toHaveLength(64);
+    expect(lanes[node(65)]).toBe(1);
   });
 
   // aucune exigence : propre à l'US (US-0530, le rectangle actif d'une frise qui change de tâches).
@@ -415,5 +481,49 @@ describe("the frieze of a timeline", () => {
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
     await new Promise((resolve) => setTimeout(resolve, WRITE_DELAY * 2));
     expect(recorded()).toEqual([]);
+  });
+});
+
+describe("the export of the frieze", () => {
+  it("draws a PNG image of the frieze as it is laid out, with the name of the timeline, the project, the revision and the date of calculation [WF-PLA-0140-A]", async () => {
+    // L'export produit un fichier PNG de la chronologie affichée.
+    const user = userEvent.setup();
+    renderFrieze();
+    fireEvent.keyDown(frieze(), { key: "End" });
+    fireEvent.keyDown(frieze(), { key: "ArrowDown", altKey: true });
+    await user.click(screen.getByRole("button", { name: "Exporter en PNG" }));
+    expect(canvas.options).toHaveLength(1);
+    const option = canvas.options[0] as ChartOption;
+    expect(option.title).toMatchObject({
+      text: `Comité de pilotage — ${PROJECT}`,
+      subtext: `Révision : Révision en cours · Calculé le ${formatTimestamp(SCHEDULED_AT, "fr")}`,
+    });
+    const [boxes, milestones] = option.series as { data: number[][] }[];
+    // The lanes as laid out: the control station moved down to the second lane.
+    expect(boxes?.data.map((box) => box[2])).toEqual([0, 1, 1, 2, 1]);
+    expect(milestones?.data).toHaveLength(1);
+  });
+
+  // aucune exigence : propre à l'US (US-0530, ce que l'image dessine d'un rectangle et d'un jalon).
+  it("draws each rectangle at least two pixels wide and inset in its lane, and each milestone with its name and its date", async () => {
+    renderFrieze();
+    await userEvent.click(screen.getByRole("button", { name: "Exporter en PNG" }));
+    const { series } = canvas.options[0] as { series: { renderItem: RenderItem }[] };
+    // An axis of one pixel a day, a lane of thirty pixels.
+    const api = {
+      value: (dimension: number) => [10, 10, 1][dimension],
+      coord: ([x, lane]: number[]) => [x, 30 * (lane ?? 0)],
+    };
+    const [rectangles, milestones] = series;
+    const shown = (item: RenderItem | undefined, index: number) =>
+      item?.({ dataIndex: index }, api) as { children: Record<string, unknown>[] };
+    // A task of one instant is two pixels wide, and 4 pixels below the top of its lane.
+    const [rect] = shown(rectangles?.renderItem, 0).children;
+    expect(rect).toMatchObject({ shape: { x: 10, y: 30 + 4, width: 2, height: 30 - 2 * 4 } });
+    // The first milestone of the plan: the reception of the studies.
+    const [, text] = shown(milestones?.renderItem, 0).children;
+    expect(text).toMatchObject({
+      style: { text: "Réception des études\n24/04/2026", align: "center" },
+    });
   });
 });

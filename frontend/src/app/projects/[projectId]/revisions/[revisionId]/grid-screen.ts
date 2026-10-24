@@ -175,6 +175,11 @@ export interface GridScreen<Row> {
    */
   readonly summaryDepth: number;
   /**
+   * The instant of the last calculation of the dates of the structure read (`meta.scheduled_at`),
+   * which the exported images of the planning name (WF-IHM-0130).
+   */
+  readonly scheduledAt: string;
+  /**
    * What the reading asked of the nodes besides their fields and their sort — the kinds, the
    * search, the filters —, as it was sent: one that asks any has totals of its own, never those
    * of the structure a write answers, and reads them anew (`NodesWritten.totals`, #218).
@@ -289,6 +294,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     ),
     nodes: projectNodes(answer, fields),
     summaryDepth: answer.meta.summary_depth,
+    scheduledAt: answer.meta.scheduled_at,
     filters,
   };
 }
