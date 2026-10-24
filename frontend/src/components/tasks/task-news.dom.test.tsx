@@ -101,10 +101,11 @@ describe("the line under the bar", () => {
       await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
       const close = screen.getByRole("button", { name: "Fermer la ligne de la tâche" });
       expect(close.parentElement).toHaveTextContent("Tâche terminée : Marquage d’une révision.");
-      screen.getByRole("button", { name: "Fermer la ligne de la tâche" }).focus();
+      close.focus();
       await userEvent.keyboard("{Enter}");
       expect(screen.queryByRole("button", { name: "Fermer la ligne de la tâche" })).toBeNull();
       expect(tasksButton()).toHaveFocus();
+      expect(tasksButton()).toHaveAccessibleName("Tâches et messages : 1 tâche suivie");
       expect(within(tasksRegion()).getByText("Réussie")).toBeVisible();
     });
   });

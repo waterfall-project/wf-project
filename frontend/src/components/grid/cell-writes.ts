@@ -318,7 +318,8 @@ export function useCellWrites<Row, Totals>(
   const hold = useHeldWrites();
   const noteRefusal = useNoteRefusal();
   const project = useShownProjectLabel();
-  // The state as last committed, read in a callback: the update handed to the state stays pure.
+  // The state as the writes left it — each change of an address carried here at once, the commit
+  // catching up — read in a callback: the update handed to the state stays pure.
   const latest = useRef(written);
   useLayoutEffect(() => {
     latest.current = written;
@@ -371,6 +372,11 @@ export function useCellWrites<Row, Totals>(
   };
   /** Change the state of an address, unless another address came meanwhile. */
   const current = (at: object, update: (before: Written<Row, Totals>) => Written<Row, Totals>) => {
+    // The state as the updates queued will leave it, kept at once: the layout effect only
+    // catches up with what was committed, too late for an answer of the same tick.
+    if (latest.current.epoch === at) {
+      latest.current = update(latest.current);
+    }
     setState((before) => (before.epoch === at ? update(before) : before));
   };
   /**

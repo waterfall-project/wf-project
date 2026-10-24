@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Outcome, Problem } from "@/api/problem";
 import type { components } from "@/api/generated/schema";
@@ -13,6 +13,7 @@ import {
   type RateRow,
   withYears,
 } from "@/components/reference/rate-cells";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
@@ -666,5 +667,58 @@ describe("the rows written together while a cell of theirs is under way", () => 
     await refuse(0, stale);
     expect(result.current.outcome).toEqual(stale);
     expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+  });
+});
+
+describe("the totals read anew behind a refusal told", () => {
+  it("notes the refusal of the totals, answered in the tick another row was done, behind the refusal of a write of the same tick (#1181)", async () => {
+    forgetMessages();
+    const errors = vi.spyOn(console, "error");
+    const stale: Outcome<never> = {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    };
+    const lost: Outcome<never> = {
+      kind: "signed_out",
+      problem: { code: "SESSION_REQUIRED", status: 401 },
+      conflictingObjectId: null,
+    };
+    const retotal = () => Promise.resolve(lost);
+    const { result } = writes<EstimateNode, NodeTotals>(
+      { ...NODES, retotal },
+      { address: ADDRESS, rows: nodes.items, totals: nodes.totals },
+    );
+    const answers: ((outcome: Outcome<RowsWritten<EstimateNode, NodeTotals>>) => void)[] = [];
+    const entry: CellEntry<EstimateNode, NodeTotals> = {
+      kind: { type: "decimal", nullable: false },
+      in: () => true,
+      value: () => undefined,
+      write: () => new Promise((resolve) => answers.push(resolve)),
+    };
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    await enter(result.current, TASK, "label", entry, "x");
+    const task = nodes.items[TASK] as EstimateNode;
+    // Both answer in one tick: the first refused, the second done, the totals refused at once.
+    await act(async () => {
+      answers[0]?.(stale);
+      answers[1]?.({
+        kind: "done",
+        data: {
+          rows: [{ ...task, lock_version: task.lock_version + 1 }],
+          changed: [],
+          parts: [],
+          totals: undefined,
+          order: 1,
+        },
+      });
+      await settled();
+    });
+    // The refusal of the write is told by the screen of the grid, not noted by the writes: the
+    // refusal of the totals, kept quiet behind it, is the one noted here.
+    expect(readMessages().messages.map((message) => message.sentence)).toEqual([
+      "Vous devez vous connecter.",
+    ]);
+    expect(errors).not.toHaveBeenCalled();
   });
 });
