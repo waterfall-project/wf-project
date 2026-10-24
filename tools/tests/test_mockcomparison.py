@@ -15,7 +15,7 @@ import pytest
 
 from wftools import mockcomparisons, mockcore, mockdata, mockdiff, mockhistory
 from wftools.mockids import universe
-from wftools.mockwitness import N
+from wftools.mockwitness import SCHEDULED_AT, N
 
 type Node = dict[str, Any]
 
@@ -203,3 +203,18 @@ def test_the_moved_variant_bears_a_task_moved_under_another_summary_marked_modif
     summary = str(example["summary"])
     assert summary.startswith("Variante contrefactuelle : ")
     assert "« Mise en service » sous la récapitulative « Poste de commande »" in summary
+
+
+def test_a_comparison_to_a_revision_in_progress_is_dated_at_the_instant_of_the_witness() -> None:
+    """The revision compared, not marked, is read as any structure in progress (WF-DAT-0020)."""
+    compared = cast(
+        "Node",
+        mockcomparisons.comparison(
+            mockhistory.reference_rows(),
+            mockhistory.reference_rows(),
+            mockhistory.REFERENCE,
+            mockhistory.CURRENT,
+        ),
+    )
+
+    assert compared["meta"]["scheduled_at"] == mockcore.stamp(SCHEDULED_AT)

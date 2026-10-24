@@ -39,6 +39,7 @@ from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CORE,
     OFFER_MARKED,
+    SCHEDULED_AT,
     N,
     by_identifier,
     fixture,
@@ -97,8 +98,9 @@ def comparison(
     of the later, its nodes marked against the earlier, those it no longer bears at the place they
     had (``mockdiff``, C-361); the totals and the meta of the later, as ``listNodes`` gives them,
     the nodes removed not counted, its dates computed when it was marked, after which nothing
-    redates it (WF-DAT-0020, #1404); and the deltas of the estimate at the year of reference, of the
-    lines the reading retains, those removed with them.
+    redates it (WF-DAT-0020, #1404), or at the instant of the witness for a revision still in
+    progress, as any reading of such a structure; and the deltas of the estimate at the year of
+    reference, of the lines the reading retains, those removed with them.
 
     A line is retained by its parent in the later, where the marked tree renders it, and brings
     its whole delta, the later's amount less the earlier's, wherever it was: moved out of the
@@ -115,9 +117,7 @@ def comparison(
         nodes = mockdiff.window(nodes, ids[subtree_of])
     kept = {cast("str", node["node_id"]) for node in nodes}
     marked = REVISIONS[to_id][1]
-    if marked is None:
-        message = f"the revision {to_id} compared is not marked"
-        raise ValueError(message)
+    scheduled_at = SCHEDULED_AT if marked is None else marked.instant
 
     def retained(rows: list[mockcore.Row]) -> list[mockcore.Row]:
         return [row for row in rows if row.node["node_id"] in kept]
@@ -129,7 +129,7 @@ def comparison(
         "totals": answer["totals"],
         "meta": {
             **cast("JsonObject", answer["meta"]),
-            "scheduled_at": mockcore.stamp(marked.instant),
+            "scheduled_at": mockcore.stamp(scheduled_at),
         },
         "amount_deltas": _deltas(retained(before), retained(after)),
     }

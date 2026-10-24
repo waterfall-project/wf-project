@@ -7578,7 +7578,7 @@ vient après —, et l'instant de son marquage d'une révision comparée (`mockc
 `mockhistory.REVISIONS`) : la fusion de l'avenant 1, qui redate la référence et la marque, le 1er
 février 2026 à 9 h, et le marquage de l'offre, le 15 décembre 2025 à 16 h, pour la paire
 identique — le témoin ne datant aucune des écritures qui ont précédé ce marquage, le faux back tient
-le marquage pour leur dernier calcul. Écartée : `CostStructure.scheduled_at`, qui obligerait le front à lire la liste des
+le marquage pour leur dernier calcul. Une révision comparée non marquée, en cours, est lue comme toute structure en cours : à l'instant du témoin. Écartée : `CostStructure.scheduled_at`, qui obligerait le front à lire la liste des
 structures pour dater ce qu'il lit des nœuds, quand `NodeListMeta` dit déjà ce que la lecture dit
 de la structure lue.
 
