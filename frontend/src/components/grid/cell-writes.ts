@@ -58,6 +58,8 @@ import type { Outcome } from "@/api/problem";
 import { useHeldWrites } from "@/components/commands/held";
 import { useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
+import { type MessageScreen, shownScreen } from "@/components/notices/message-history";
+import { useShownProjectLabel } from "@/components/shell/shown-project";
 
 import {
   alike,
@@ -277,7 +279,9 @@ export interface CellWrites<Row, Totals> {
 /**
  * Write the cells of a grid, on the rows of a reading, by the rules of the grid: its rows told
  * apart by `rowKey`, the totals of a reading the writes do not answer read anew by `retotal`, an
- * answer judged against a row read anew by `fresher`.
+ * answer judged against a row read anew by `fresher`. It needs the `NextIntlClientProvider` and the
+ * `Known` context above it: a refusal kept quiet is noted in the history of the messages, in the
+ * sentence a notice would tell it in (`useNoteRefusal`).
  */
 export function useCellWrites<Row, Totals>(
   reading: CellReading<Row, Totals>,
@@ -313,6 +317,12 @@ export function useCellWrites<Row, Totals>(
   // The writes the navigations of the page wait for, released when the grid goes.
   const hold = useHeldWrites();
   const noteRefusal = useNoteRefusal();
+  const project = useShownProjectLabel();
+  // The state as last committed, read in a callback: the update handed to the state stays pure.
+  const latest = useRef(written);
+  useLayoutEffect(() => {
+    latest.current = written;
+  });
   // The write of each row under way, which the next waits for.
   const queues = useRef(new Map<string, Promise<unknown>>());
   // How many pastes wrote each row: a refusal of a write the paste of its row overtook says
@@ -381,7 +391,7 @@ export function useCellWrites<Row, Totals>(
    * whose totals the writes do not answer: an answer is taken only if no write left meanwhile,
    * whose own answer reads them again; a refusal is told unless another is.
    */
-  const settle = (at: Book<Row, Totals>) => {
+  const settle = (at: Book<Row, Totals>, screen: MessageScreen) => {
     if (retotal === undefined || underWay.current > 0 || !done.current) {
       return;
     }
@@ -398,16 +408,22 @@ export function useCellWrites<Row, Totals>(
           retotalled(at.answers, answer.data);
         }
         const show = showing(at);
+        // A refusal kept quiet on the screen, behind the refusal told, is noted all the same
+        // (#1181), on the screen the write was given on; beside the state update, which stays pure.
+        const told = latest.current;
+        if (
+          answer.kind !== "done" &&
+          told.epoch === at.epoch &&
+          told.outcome !== undefined &&
+          told.outcome.kind !== "done"
+        ) {
+          noteRefusal(answer, { screen });
+        }
         current(at.epoch, (before) => {
           // A refusal told before stays; a success told says nothing of this one.
           const kept =
             answer.kind === "done" ||
             (before.outcome !== undefined && before.outcome.kind !== "done");
-          if (kept && answer.kind !== "done") {
-            // Kept quiet on the screen, behind the refusal told: noted all the same (#1181) — once,
-            // however often React runs this update, the history noting an outcome once.
-            noteRefusal(answer);
-          }
           return {
             ...show(before),
             outcome: kept ? before.outcome : answer,
@@ -421,6 +437,7 @@ export function useCellWrites<Row, Totals>(
     const cell = cellKey(key, column);
     const born = pasted.current.get(key) ?? 0;
     const at = kept();
+    const screen = shownScreen(project());
     underWay.current += 1;
     retotals.current += 1;
     current(at.epoch, (before) => ({
@@ -442,7 +459,7 @@ export function useCellWrites<Row, Totals>(
           pending: changed(before.pending, cell, undefined),
           ...(before.refused === cell ? { outcome: undefined, refused: undefined } : {}),
         }));
-        settle(at);
+        settle(at, screen);
         return true;
       }
       const answer = answering(key, byField(await entry.write(from, value).catch(rejected)));
@@ -471,7 +488,7 @@ export function useCellWrites<Row, Totals>(
           refused: refusedAfter(answer, cell, before.refused, stale),
         };
       });
-      settle(at);
+      settle(at, screen);
       // Applied, or a refusal kept quiet: a navigation waits for no refusal the screen does not say.
       // The outcome itself otherwise, for the bar of the shell to tell it once the grid is gone.
       return stale ? true : answer;
@@ -489,7 +506,7 @@ export function useCellWrites<Row, Totals>(
     take(at.answers, together, rowKey);
     done.current = true;
     current(at.epoch, showing(at));
-    settle(at);
+    settle(at, shownScreen(project()));
   };
   return {
     rows,

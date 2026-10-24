@@ -240,6 +240,9 @@ describe("what a write answers besides the row written", () => {
     // The first write refused, the second done: the totals read anew are refused in turn, behind
     // the refusal the grid tells.
     forgetMessages();
+    // Noting is no effect of a state update: React warns of none (« Cannot update a component while
+    // rendering a different component »).
+    const errors = vi.spyOn(console, "error");
     const stale = { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const;
     const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
     const client = serve({ [LINE]: [stale, "estimate_line_updated"], [NODES_ROUTE]: lost });
@@ -264,6 +267,7 @@ describe("what a write answers besides the row written", () => {
       expect.stringContaining("modifié"),
       "Vous devez vous connecter.",
     ]);
+    expect(errors).not.toHaveBeenCalled();
   });
 
   it("reads nothing anew for a reading of the whole structure, whose totals the writes answer", async () => {
