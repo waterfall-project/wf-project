@@ -425,7 +425,12 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     assert len(compared["items"]) == 5_999
     assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 2_770
     assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
-    assert compared["meta"] == mockcore.whole(mockhistory.reference_rows())["meta"]
+    # Its meta is that of listNodes, but for when the dates were last computed: the marking, which
+    # the merge of the amendment redated, and after which nothing redates it (#1404, WF-DAT-0020).
+    assert compared["meta"] == {
+        **cast("dict[str, Any]", mockcore.whole(mockhistory.reference_rows())["meta"]),
+        "scheduled_at": mockcore.stamp(AMENDMENT_MERGED.instant),
+    }
 
 
 def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_one(
@@ -452,7 +457,11 @@ def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_o
     assert [node["node_id"] for node in window["items"]] == below
     assert window["items"] == [node for node in whole["items"] if node["node_id"] in below]
     reading = mockcore.subtree(reference, N.INSTALLATION)
-    assert (window["totals"], window["meta"]) == (reading["totals"], reading["meta"])
+    assert window["totals"] == reading["totals"]
+    assert window["meta"] == {
+        **cast("dict[str, Any]", reading["meta"]),
+        "scheduled_at": mockcore.stamp(AMENDMENT_MERGED.instant),
+    }
     assert {node["difference"] for node in window["items"]} == {
         "added",
         "removed",

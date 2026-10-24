@@ -20,6 +20,7 @@ from wftools import mockcore, mockdiff, mocktext
 from wftools.mockhistory import (
     OFFER,
     REFERENCE,
+    REVISIONS,
     estimate_line,
     moved_offer_rows,
     nature,
@@ -38,6 +39,7 @@ from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CORE,
     OFFER_MARKED,
+    SCHEDULED_AT,
     N,
     by_identifier,
     fixture,
@@ -95,8 +97,10 @@ def comparison(
     Read as ``listNodes`` reads a structure (#1193), whole or by the subtree of a task: the tree
     of the later, its nodes marked against the earlier, those it no longer bears at the place they
     had (``mockdiff``, C-361); the totals and the meta of the later, as ``listNodes`` gives them,
-    the nodes removed not counted; and the deltas of the estimate at the year of reference, of the
-    lines the reading retains, those removed with them.
+    the nodes removed not counted, its dates computed when it was marked, after which nothing
+    redates it (WF-DAT-0020, #1404), or at the instant of the witness for a revision still in
+    progress, as any reading of such a structure; and the deltas of the estimate at the year of
+    reference, of the lines the reading retains, those removed with them.
 
     A line is retained by its parent in the later, where the marked tree renders it, and brings
     its whole delta, the later's amount less the earlier's, wherever it was: moved out of the
@@ -112,6 +116,8 @@ def comparison(
         ids = {row.number: cast("str", row.node["node_id"]) for row in [*before, *after]}
         nodes = mockdiff.window(nodes, ids[subtree_of])
     kept = {cast("str", node["node_id"]) for node in nodes}
+    marked = REVISIONS[to_id][1]
+    scheduled_at = SCHEDULED_AT if marked is None else marked.instant
 
     def retained(rows: list[mockcore.Row]) -> list[mockcore.Row]:
         return [row for row in rows if row.node["node_id"] in kept]
@@ -121,7 +127,10 @@ def comparison(
         "to_revision_id": to_id,
         "items": cast("list[JsonValue]", nodes),
         "totals": answer["totals"],
-        "meta": answer["meta"],
+        "meta": {
+            **cast("JsonObject", answer["meta"]),
+            "scheduled_at": mockcore.stamp(scheduled_at),
+        },
         "amount_deltas": _deltas(retained(before), retained(after)),
     }
 

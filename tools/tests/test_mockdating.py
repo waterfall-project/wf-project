@@ -233,3 +233,31 @@ def test_a_quantity_is_an_exact_decimal_in_the_amount_of_a_line() -> None:
         1, "Location", mockwitness.EQUIPMENT, unit=Decimal("100.00"), quantity=Decimal("2.5")
     )
     assert mockdating.price(line, 2026).base == Decimal(250)
+
+
+def test_a_summary_is_dated_on_the_calendar_of_its_own_lines_not_on_its_subordinates() -> None:
+    # #1410, WF-PLA-0040: a summary spans its subordinates, but its duration is the work between
+    # its dates on its own applicable calendar, which its labour lines give (WF-PLA-0010). The
+    # laying of three days on the standard week runs from Monday 2 March to Wednesday evening; the
+    # lot above it, which bears a line of the cable fitter, four days of ten hours, spans the same
+    # dates, but counts 10 + 10 + 8 hours on its own calendar: three days and a half.
+    laying = Task(1, "Pose", days=3)
+    supervision = Line(
+        2,
+        "Encadrement",
+        mockwitness.ELECTRICAL_ENGINEERING,
+        hours=Decimal(10),
+        role=mockwitness.CABLE_FITTER,
+    )
+    lot = Task(3, "Lot", children=(laying,), lines=(supervision,))
+    tasks = {row.number: facet(row.node) for row in mockcore.core([lot]) if row.kind == "task"}
+    assert (tasks[3]["start"], tasks[3]["finish"]) == (tasks[1]["start"], tasks[1]["finish"])
+    assert tasks[1]["duration"] == {"value": "3", "unit": "d"}
+    assert tasks[3]["duration"] == {"value": "3.5", "unit": "d"}
+    four_days = {
+        **dict.fromkeys(("monday", "tuesday", "wednesday", "thursday"), "10"),
+        **dict.fromkeys(("friday", "saturday", "sunday"), "0"),
+    }
+    standard = {**dict.fromkeys(("monday", "tuesday", "wednesday", "thursday", "friday"), "8")}
+    standard |= {"saturday": "0", "sunday": "0"}
+    assert (tasks[3]["calendar_hours"], tasks[1]["calendar_hours"]) == (four_days, standard)

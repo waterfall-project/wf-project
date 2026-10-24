@@ -3981,6 +3981,8 @@ export interface components {
             is_milestone?: boolean;
             /** @description Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). */
             calendar_id?: components["schemas"]["Uuid"] | null;
+            /** @description Calculé, jamais saisi : les heures de chaque jour de la semaine du calendrier applicable à la tâche, celui sur lequel ses dates et sa durée se comptent (WF-PLA-0010) — chaque jour, le plus petit des nombres d'heures que les calendriers des rôles de ses lignes de main-d'œuvre lui accordent ; le calendrier par défaut si elle n'en porte aucune. Une récapitulative et un jalon suivent la même règle, sur les seules lignes qu'ils portent : une récapitulative n'hérite pas des calendriers de ses subordonnées, dont chacune a le sien, et ses dates comme sa durée se comptent sur le sien (WF-PLA-0040). Un jour à 0 heure est un jour chômé de la tâche, que le Gantt distingue ; le contrat ne connaît pas de jours fériés (WF-REF-0110). Sur une révision marquée, les heures des calendriers qu'elle fige (`EmployedReference`). */
+            calendar_hours?: components["schemas"]["WeeklyHours"];
             /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
             total_float?: components["schemas"]["Duration"] | null;
             /** @description Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). */
@@ -4137,6 +4139,8 @@ export interface components {
         };
         /** @description Ce que la lecture dit de la structure lue elle-même, et non des nœuds qu'elle rend : les filtres, la recherche, `kinds` et `fields` n'y changent rien. */
         NodeListMeta: {
+            /** @description L'instant du dernier calcul des dates de la structure lue : celui de la dernière écriture qui l'a redatée — une durée, une liaison, un calendrier, l'arbre, sa date de début de planning, sa création comprise (WF-PLA-0020) —, ou de son import, quels que soient les filtres, la recherche, `kinds` et `fields`, comme `summary_depth`. Une révision marquée n'est plus redatée (WF-DAT-0020) : elle garde l'instant du dernier calcul qui a précédé son marquage. C'est la date de calcul que nomment les images exportées du Gantt et d'une chronologie (WF-IHM-0130, WF-PLA-0140). */
+            scheduled_at: components["schemas"]["Timestamp"];
             /** @description Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level` compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative. L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit (WF-PLA-0110). */
             summary_depth: number;
         };
@@ -4285,6 +4289,8 @@ export interface components {
             is_milestone: boolean;
             /** @description Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). */
             calendar_id?: components["schemas"]["Uuid"] | null;
+            /** @description Calculé, jamais saisi : les heures de chaque jour de la semaine du calendrier applicable à la tâche, celui sur lequel ses dates et sa durée se comptent (WF-PLA-0010) — chaque jour, le plus petit des nombres d'heures que les calendriers des rôles de ses lignes de main-d'œuvre lui accordent ; le calendrier par défaut si elle n'en porte aucune. Une récapitulative et un jalon suivent la même règle, sur les seules lignes qu'ils portent : une récapitulative n'hérite pas des calendriers de ses subordonnées, dont chacune a le sien, et ses dates comme sa durée se comptent sur le sien (WF-PLA-0040). Un jour à 0 heure est un jour chômé de la tâche, que le Gantt distingue ; le contrat ne connaît pas de jours fériés (WF-REF-0110). Sur une révision marquée, les heures des calendriers qu'elle fige (`EmployedReference`). */
+            calendar_hours: components["schemas"]["WeeklyHours"];
             /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
             total_float?: components["schemas"]["Duration"] | null;
             /** @description Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). */

@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockcalendar import (
+    Calendar,
     Instant,
     to_hours,
 )
@@ -60,8 +61,10 @@ from wftools.mockwitness import (
     CORE,
     INSCRIBED,
     MILESTONE_TRACKING,
+    SCHEDULED_AT,
     TODAY,
     TRACKED,
+    WEEKDAYS,
     Line,
     Task,
     WorkPackage,
@@ -72,7 +75,7 @@ from wftools.mockwitnessrisks import reference
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
-    from datetime import date
+    from datetime import date, datetime
 
     from wftools.mocksort import LineSort
 
@@ -278,6 +281,7 @@ class _Emitter:
             facet["completed_on"] = completed_on.isoformat()
         facet["is_summary"] = bool(task.children)
         facet["is_milestone"] = task.is_milestone
+        facet["calendar_hours"] = calendar_hours(placed.calendar)
         if task.bears is not None:
             # A task bears a lot or a post, never both, named, that the grid shows without
             # reading the work breakdown (WF-PLA-0130, WF-PLA-0170, WF-ARC-0020).
@@ -375,6 +379,19 @@ def _tracking(task: Task) -> list[JsonValue]:
     if task.number in TRACKED:
         entries.append({"kind": "milestone_tracking", "timeline_id": None})
     return entries
+
+
+def calendar_hours(calendar: Calendar) -> JsonObject:
+    """Return the hours of each day of a calendar as `WeeklyHours` carries them, 0 for a day off.
+
+    The calendar applicable to a task, the one its dates are counted on (WF-PLA-0010).
+    """
+    return {day: decimal(hours) for day, hours in zip(WEEKDAYS, calendar.week, strict=True)}
+
+
+def stamp(at: datetime) -> str:
+    """Return an instant as the contract carries it, in universal time: 2026-06-03T14:05:00Z."""
+    return at.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _instant(at: Instant) -> JsonObject:
@@ -630,7 +647,8 @@ def _answer(
     amounts of the tasks, which would count the lines twice. ``kinds`` chooses what is rendered,
     never what is summed: a reading of the tasks alone has the totals of the full one (#487). The
     meta says what the structure read holds whatever the reading retains: the level of its deepest
-    summary, which the task tree offers down to (`NodeListMeta`, #494).
+    summary, which the task tree offers down to (`NodeListMeta`, #494), and when its dates were last
+    computed (#1404).
     """
     shown = sorted(
         (row for row in [*retained, *readable] if kinds is None or row.kind in kinds),
@@ -648,7 +666,7 @@ def _answer(
             "hours": decimal(sum((row.hours for row in lines), Decimal(0))),
             **amounts.rendered(),
         },
-        "meta": {"summary_depth": summary_depth(structure)},
+        "meta": {"summary_depth": summary_depth(structure), "scheduled_at": stamp(SCHEDULED_AT)},
     }
 
 

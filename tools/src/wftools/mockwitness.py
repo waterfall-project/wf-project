@@ -53,6 +53,12 @@ def by_identifier(name: str, key: str) -> list[Any]:
 TODAY = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 """The instant every first example describes (decision of the user of 2026-10-05)."""
 
+SCHEDULED_AT = TODAY
+"""When the dates of a structure the witness reads in progress were last computed, which every
+reading of its nodes says (`NodeListMeta.scheduled_at`, #1404): the fake back dates a structure
+as it reads it, today, and no write of the witness comes after. A marked revision says the instant
+of its marking instead (``mockhistory.REVISIONS``), after which nothing redates it."""
+
 
 @dataclass(frozen=True, slots=True)
 class Event:
@@ -202,12 +208,15 @@ STANDARD_WEEK = universe(481)
 FOUR_DAY_WEEK = universe(482)
 
 
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+"""The days of `WeeklyHours`, Monday first, as a calendar counts its week (``Calendar.week``)."""
+
+
 def calendars() -> dict[str, Calendar]:
     """Return the active calendars of the installation, by identifier (``calendars``)."""
-    days = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
     return {
         entry["calendar_id"]: Calendar(
-            entry["calendar_id"], tuple(Decimal(entry["weekly_hours"][day]) for day in days)
+            entry["calendar_id"], tuple(Decimal(entry["weekly_hours"][day]) for day in WEEKDAYS)
         )
         for entry in fixture("calendars")["items"]
     }

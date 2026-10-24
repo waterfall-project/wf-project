@@ -97,8 +97,11 @@ REVISIONS: dict[str, tuple[Event, Event | None]] = {
 
 
 def stamp(at: datetime) -> str:
-    """Return an instant as the contract carries it, in universal time: 2026-06-03T14:05:00Z."""
-    return at.strftime("%Y-%m-%dT%H:%M:%SZ")
+    """Return an instant as the contract carries it, in universal time: 2026-06-03T14:05:00Z.
+
+    As the readings of the nodes write when their structure was dated (``mockcore.stamp``).
+    """
+    return mockcore.stamp(at)
 
 
 # --- The marked revisions, described from the core --------------------------------------------

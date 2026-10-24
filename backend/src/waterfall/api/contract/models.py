@@ -2628,6 +2628,12 @@ class ComparedTaskFacet(ContractModel):
             description="Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010)."
         ),
     ] = None
+    calendar_hours: Annotated[
+        WeeklyHours | None,
+        Field(
+            description="Calculé, jamais saisi : les heures de chaque jour de la semaine du calendrier applicable à la tâche, celui sur lequel ses dates et sa durée se comptent (WF-PLA-0010) — chaque jour, le plus petit des nombres d'heures que les calendriers des rôles de ses lignes de main-d'œuvre lui accordent ; le calendrier par défaut si elle n'en porte aucune. Une récapitulative et un jalon suivent la même règle, sur les seules lignes qu'ils portent : une récapitulative n'hérite pas des calendriers de ses subordonnées, dont chacune a le sien, et ses dates comme sa durée se comptent sur le sien (WF-PLA-0040). Un jour à 0 heure est un jour chômé de la tâche, que le Gantt distingue ; le contrat ne connaît pas de jours fériés (WF-REF-0110). Sur une révision marquée, les heures des calendriers qu'elle fige (`EmployedReference`)."
+        ),
+    ] = None
     total_float: Annotated[
         Duration | None,
         Field(
@@ -2974,6 +2980,12 @@ class NodeTotals(ContractModel):
 
 
 class NodeListMeta(ContractModel):
+    scheduled_at: Annotated[
+        Timestamp,
+        Field(
+            description="L'instant du dernier calcul des dates de la structure lue : celui de la dernière écriture qui l'a redatée — une durée, une liaison, un calendrier, l'arbre, sa date de début de planning, sa création comprise (WF-PLA-0020) —, ou de son import, quels que soient les filtres, la recherche, `kinds` et `fields`, comme `summary_depth`. Une révision marquée n'est plus redatée (WF-DAT-0020) : elle garde l'instant du dernier calcul qui a précédé son marquage. C'est la date de calcul que nomment les images exportées du Gantt et d'une chronologie (WF-IHM-0130, WF-PLA-0140)."
+        ),
+    ]
     summary_depth: Annotated[
         int,
         Field(
@@ -3278,6 +3290,12 @@ class TaskFacet(ContractModel):
             description="Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010)."
         ),
     ] = None
+    calendar_hours: Annotated[
+        WeeklyHours,
+        Field(
+            description="Calculé, jamais saisi : les heures de chaque jour de la semaine du calendrier applicable à la tâche, celui sur lequel ses dates et sa durée se comptent (WF-PLA-0010) — chaque jour, le plus petit des nombres d'heures que les calendriers des rôles de ses lignes de main-d'œuvre lui accordent ; le calendrier par défaut si elle n'en porte aucune. Une récapitulative et un jalon suivent la même règle, sur les seules lignes qu'ils portent : une récapitulative n'hérite pas des calendriers de ses subordonnées, dont chacune a le sien, et ses dates comme sa durée se comptent sur le sien (WF-PLA-0040). Un jour à 0 heure est un jour chômé de la tâche, que le Gantt distingue ; le contrat ne connaît pas de jours fériés (WF-REF-0110). Sur une révision marquée, les heures des calendriers qu'elle fige (`EmployedReference`)."
+        ),
+    ]
     total_float: Annotated[
         Duration | None,
         Field(

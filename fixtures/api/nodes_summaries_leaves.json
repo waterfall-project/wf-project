@@ -4,6 +4,6 @@
   "value": {
     "items": [],
     "totals": {"task_count":0,"estimate_line_count":0,"hours":"0","base_amount":"0.00","budgeted_amount":"0.00","reestimated_amount":"0.00","inflated_amount":"0.00"},
-    "meta": {"summary_depth":0}
+    "meta": {"summary_depth":0,"scheduled_at":"2026-06-03T14:05:00Z"}
   }
 }

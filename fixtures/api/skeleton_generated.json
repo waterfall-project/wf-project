@@ -30,6 +30,15 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
           "order_item_id": null,
           "work_package_id": "01926f3a-7c00-7000-8000-000000000714",
           "work_breakdown_label": "Rénovation du poste de livraison",
@@ -86,6 +95,15 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
           "order_item_id": "01926f3a-7c00-7000-8000-000000000715",
           "work_package_id": null,
           "work_breakdown_label": "Rénovation du poste de livraison",
@@ -142,6 +160,15 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -196,6 +223,15 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
           "total_float": {
             "value": "0",
             "unit": "d"
