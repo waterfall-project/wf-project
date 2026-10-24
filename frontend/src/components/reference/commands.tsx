@@ -261,12 +261,14 @@ export function useListForm(): ListForm | undefined {
 
 /**
  * Run a command of a row from the reading it is pressed on: its answer takes the place of the rows it
- * names and is said in the region of the list; its refusal is told above the list, in place of the
- * one the same command on the same object had there (`target`).
+ * names and is said in the region of the list, noted in the history of the messages about the object
+ * of the row (`subject`, by its name); its refusal is told above the list, in place of the one the
+ * same command on the same object had there (`target`).
  */
 export function useRowCommand(
   target: string,
   names: ObjectNames,
+  subject: string,
 ): readonly [
   boolean,
   (
@@ -294,7 +296,7 @@ export function useRowCommand(
       const outcome = await held(action());
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
-        commands?.say(said(outcome.data));
+        commands?.say(said(outcome.data), { object: subject });
       } else {
         list?.report({ outcome, generation, names, target });
       }
@@ -373,6 +375,7 @@ function ActivationButton({
   const [pending, run] = useRowCommand(
     `${command} ${target.kind} ${target.id}`,
     conflict === undefined ? {} : { [conflict.id]: conflict.name },
+    name,
   );
   return (
     <CellCommand

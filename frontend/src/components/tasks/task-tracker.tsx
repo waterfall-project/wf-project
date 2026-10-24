@@ -55,6 +55,7 @@ import {
 } from "react";
 
 import type { BackgroundTask } from "@/api/problem";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
   forgetMessages,
@@ -116,7 +117,8 @@ interface TrackerStore {
   readonly read: () => Held;
   readonly dispatch: Dispatch<TrackingEvent>;
   readonly show: (shown: boolean) => void;
-  readonly tell: (news: TaskNews) => void;
+  /** Say a news under the bar — none, and the line is closed. */
+  readonly tell: (news: TaskNews | undefined) => void;
 }
 
 /** The news once an event has changed what the tracker follows: an end logged is the last. */
@@ -195,6 +197,7 @@ function useTracker() {
     open: shown,
     setOpen: store.show,
     news,
+    tell: store.tell,
     panelId,
     button,
   };
@@ -519,10 +522,18 @@ const END_SENTENCE = {
 /**
  * The last task handed over or ended, under the bar, in the flow of the page: a short line that
  * stays until the next, not announced — the log of the ends speaks, and a task handed over follows
- * a command the user just gave.
+ * a command the user just gave —, or until it is closed (#1179), by its button, reached by the
+ * keyboard; the focus goes then to the button of the bar, where the task is still followed.
  */
-function News({ news }: { readonly news: TaskNews | undefined }) {
+function News({
+  news,
+  onClose,
+}: {
+  readonly news: TaskNews | undefined;
+  readonly onClose: () => void;
+}) {
   const t = useTranslations("tasks");
+  const commands = useTranslations("commands");
   const naming = useTaskNaming();
   if (news === undefined) {
     return null;
@@ -531,7 +542,23 @@ function News({ news }: { readonly news: TaskNews | undefined }) {
     news.kind === "started"
       ? t("started", { task: taskName(naming, news) })
       : t(END_SENTENCE[news.line.end], { task: taskName(naming, news.line) });
-  return <p className="border-b px-4 py-1.5 text-sm">{sentence}</p>;
+  return (
+    <div className="flex items-center gap-2 border-b px-4 py-1 text-sm">
+      <p className="flex-1">{sentence}</p>
+      <CommandTooltip label={t("closeNews")} help={commands("dismissNews.help")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={t("closeNews")}
+          className="size-6"
+          onClick={onClose}
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </CommandTooltip>
+    </div>
+  );
 }
 
 /**
@@ -542,7 +569,7 @@ function News({ news }: { readonly news: TaskNews | undefined }) {
  */
 export function TaskPanel() {
   const t = useTranslations("tasks");
-  const { tasks, log, refusedResult, dispatch, open, setOpen, news, panelId, button } =
+  const { tasks, log, refusedResult, dispatch, open, setOpen, news, tell, panelId, button } =
     useTracker();
   const region = useRef<HTMLElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
@@ -567,7 +594,13 @@ export function TaskPanel() {
         <TaskPolling key={entry.key} entry={entry} dispatch={dispatch} />
       ))}
       {open ? null : <EndLog log={log} />}
-      <News news={news} />
+      <News
+        news={news}
+        onClose={() => {
+          button.current?.focus();
+          tell(undefined);
+        }}
+      />
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="right"

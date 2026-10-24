@@ -1097,6 +1097,9 @@
       "help": "Stacks the tasks in their lanes by themselves, forgetting those chosen by hand.",
       "unavailable": "No task was placed by hand: they are stacked by themselves."
     },
+    "dismissNews": {
+      "help": "Removes this line; the task stays followed in the panel of the tasks and messages."
+    },
     "startedOnly": {
       "help": "Shows or hides the tasks not started."
     },
@@ -1150,7 +1153,8 @@
     "resultRefused": "The result of a task could not be downloaded.",
     "panel": "Tasks and messages",
     "close": "Close the tasks and messages",
-    "started": "Task started: {task}."
+    "started": "Task started: {task}.",
+    "closeNews": "Close the line of the task"
   },
   "markRevision": {
     "versionName": "Version name",

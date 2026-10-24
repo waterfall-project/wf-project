@@ -164,7 +164,7 @@ describe("the exits of the lifecycle of a project", () => {
     });
     expect(complete).toHaveFocus();
     expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
-    // Kept in the history of the messages, about the project it exited [WF-IHM-0080-A].
+    // Kept in the history of the messages, about the project it exited (#1043).
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
         tone: "success",

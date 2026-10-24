@@ -377,6 +377,10 @@ describe("the state of an account, on its switch", () => {
     await waitFor(() => {
       expect(told().textContent).toBe("« Noé Vidal » désactivé.");
     });
+    // Noted in the history of the messages, about the account (#1181).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ sentence: "« Noé Vidal » désactivé.", object: "Noé Vidal" }),
+    ]);
     expect(vidal).not.toBeChecked();
     expect(vidal.closest("td")).toHaveTextContent("Désactivé");
     const noe = account("Vidal");

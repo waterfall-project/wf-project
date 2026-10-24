@@ -2182,7 +2182,9 @@ son nom et ses pastilles, le nombre des tâches suivies et celui des refus non l
 de lui-même, sauf le refus d'un résultat au retour du navigateur, dont le téléchargement est parti
 du panneau. Une tâche remise ou finie se dit sous la barre, dans le flux de la page, sur l'écran où
 l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante — la confirmation sur
-place d'un succès que l'écran ne montre pas —, sans annonce, le journal parlant pour les fins.
+place d'un succès que l'écran ne montre pas —, sans annonce, le journal parlant pour les fins ; son
+bouton la ferme, au clavier comme à la souris, et rend le focus au bouton de la barre, la tâche
+restant suivie (décision de l'auteur, #1179).
 Fermé, le panneau suit encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées
 — et son journal parle toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est
 gardé. Une relance

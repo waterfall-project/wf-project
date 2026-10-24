@@ -223,7 +223,7 @@ describe("the form of the risk matrix", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("notes what a write did in the history of the messages, as the screen says it, once [WF-IHM-0080-A]", async () => {
+  it("notes what a write did in the history of the messages, as the screen says it, once (#1043)", async () => {
     forgetMessages();
     serve({ [UPDATE]: "reference_settings_matrix_updated" });
     const form = await openRisks();
@@ -236,7 +236,7 @@ describe("the form of the risk matrix", () => {
     ]);
   });
 
-  it("notes whole, once, a refusal it says at its fields [WF-IHM-0080-A]", async () => {
+  it("notes whole, once, a refusal it says at its fields (#1043)", async () => {
     forgetMessages();
     serve({
       [UPDATE]: {

@@ -11,11 +11,11 @@
  */
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
-import { noteMessage } from "./message-history";
+import { type MessageScreen, noteMessage, shownScreen } from "./message-history";
 
 /** What the last command done said, the how-many-th it was, and what it leads to, if anything. */
 export interface Said<Lead = never> {
@@ -40,16 +40,25 @@ export type Say<Lead = never> = (text: string, saying?: Saying<Lead>) => void;
 
 /**
  * What the screen said last, and the way to say the next — noted, as it is said, in the history of
- * the messages, with the project the screen shows.
+ * the messages, with the screen the command was given on and the project it showed: the screen as
+ * it was last rendered, taken as each rendering is committed (défaut n° 1 of
+ * `docs/dev/typescript.md`). A command is pressed on what was rendered; the answer may arrive once
+ * the person has gone to another screen, whose address the window shows by then, while the screen
+ * that said it, left, is rendered no more.
  */
 export function useSaid<Lead = never>(): readonly [Said<Lead> | undefined, Say<Lead>] {
   const [said, setSaid] = useState<Said<Lead>>();
   const project = useShownProjectLabel();
+  const shown = useRef<MessageScreen>(undefined);
+  useLayoutEffect(() => {
+    shown.current = shownScreen(project());
+  });
   const say = useCallback<Say<Lead>>(
     (text, { object, lead, noted = true } = {}) => {
       setSaid((before) => ({ text, count: (before?.count ?? 0) + 1, lead }));
       if (noted) {
-        noteMessage({}, { tone: "success", sentence: text, object }, project());
+        const screen = shown.current ?? shownScreen(project());
+        noteMessage({}, { tone: "success", sentence: text, object, screen });
       }
     },
     [project],

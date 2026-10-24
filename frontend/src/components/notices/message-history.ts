@@ -90,7 +90,9 @@ const listeners = new Set<() => void>();
 
 /**
  * Whether a value read back is a screen kept here: an address of the application, which a link leads
- * back to — never one of another site, `//elsewhere` or `/\elsewhere`, which a browser reads as such.
+ * back to — never one of another site, `//elsewhere` or `/\elsewhere`, which a browser reads as such,
+ * nor one with a tabulation or a line break, which a browser strips from an address: `/\t/elsewhere`
+ * is `//elsewhere` to it.
  */
 export function isScreen(value: unknown): value is MessageScreen {
   if (typeof value !== "object" || value === null) {
@@ -101,7 +103,7 @@ export function isScreen(value: unknown): value is MessageScreen {
     typeof screen.href === "string" &&
     screen.href.startsWith("/") &&
     !screen.href.startsWith("//") &&
-    !screen.href.includes("\\") &&
+    !/[\\\t\n\r]/.test(screen.href) &&
     (screen.project === undefined || typeof screen.project === "string")
   );
 }

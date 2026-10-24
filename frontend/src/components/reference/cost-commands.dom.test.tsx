@@ -786,6 +786,10 @@ describe("the activation of a nature or a category", () => {
       "Désactivé",
     );
     expect(announced()).toContain("«\u00a0Débours\u00a0» désactivée.");
+    // Noted in the history of the messages, about the nature (#1181).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ sentence: "«\u00a0Débours\u00a0» désactivée.", object: "Débours" }),
+    ]);
     // The page is read anew: the natures are what the categories are attached to (WF-REF-0010).
     expect(refresh).toHaveBeenCalledOnce();
   });
