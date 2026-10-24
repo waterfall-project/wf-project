@@ -30,7 +30,11 @@ import type { Calendar } from "./resource-grids";
 /** The command that designates a calendar by default, named after it. */
 function DesignateCommand({ calendar }: { readonly calendar: Calendar }) {
   const t = useTranslations("reference");
-  const [pending, run] = useRowCommand(`designate calendar ${calendar.calendar_id}`, {});
+  const [pending, run] = useRowCommand(
+    `designate calendar ${calendar.calendar_id}`,
+    {},
+    calendar.label,
+  );
   return (
     <CellCommand
       aria-label={t("calendars.designate", { name: calendar.label })}

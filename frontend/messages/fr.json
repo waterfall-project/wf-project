@@ -1088,6 +1088,9 @@
       "help": "Range les tâches dans les couloirs d’elles-mêmes, en oubliant ceux choisis à la main.",
       "unavailable": "Aucune tâche n’a été placée à la main : elles sont rangées d’elles-mêmes."
     },
+    "dismissNews": {
+      "help": "Retire cette ligne ; la tâche reste suivie dans le panneau des tâches et messages."
+    },
     "startedOnly": {
       "help": "Montre ou masque les tâches qui n’ont pas démarré."
     },
@@ -1141,7 +1144,8 @@
     "resultRefused": "Le résultat d’une tâche n’a pas pu être téléchargé.",
     "panel": "Tâches et messages",
     "close": "Fermer les tâches et messages",
-    "started": "Tâche lancée : {task}."
+    "started": "Tâche lancée : {task}.",
+    "closeNews": "Fermer la ligne de la tâche"
   },
   "markRevision": {
     "versionName": "Nom de version",

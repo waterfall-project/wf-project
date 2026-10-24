@@ -92,6 +92,8 @@ const AT_CONTRIBUTOR = /^\/contributors\/(\d+)(?:\/|$)/;
 /** What the list of the contributors is written from, for the project it is of. */
 export interface ContributorEditing {
   readonly project: string;
+  /** The label of the project, the object the history of the messages notes a list written about. */
+  readonly label: string;
   /** The command `manage_contributors` the project lists: absent, nothing is offered. */
   readonly offer: CommandOffer | undefined;
   /** The counter of the reading the grid shows: null when it is filtered. */
@@ -354,7 +356,7 @@ function ContributorEditor({
   const take = (answer: Outcome<ContributorReading>, sent: readonly Contributor[]) => {
     if (answer.kind === "done") {
       commands.answer(answer.data);
-      commands.say(t("saved"));
+      commands.say(t("saved"), { object: commands.editing.label });
       // Closed if it is still the opening the answer was sent from, never a later one.
       open.current = false;
       commands.close(opened.opening);
