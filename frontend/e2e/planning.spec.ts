@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
@@ -65,11 +65,11 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
   // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its thirteen headers,
-  // the number and the twelve columns, none holds a button but the three of the zoom in that of the
-  // Gantt, none says a sort.
+  // the number and the twelve columns, none holds a button but the three of the zoom and the export
+  // in that of the Gantt, none says a sort.
   const headers = grid.getByRole("columnheader");
   await expect(headers).toHaveCount(13);
-  await expect(headers.getByRole("button")).toHaveCount(3);
+  await expect(headers.getByRole("button")).toHaveCount(4);
   await expect(
     headers.getByRole("group", { name: "Zoom du Gantt" }).getByRole("button"),
   ).toHaveCount(3);
@@ -479,4 +479,113 @@ test("creates a timeline by its name, and deletes the one shown once confirmed, 
     "true",
     { timeout: WORKING },
   );
+});
+
+/** The frame of the axis of the Gantt that scrolls, in its header: how far, how wide, over what. */
+async function axisFrame(header: Locator) {
+  return header.evaluate((element) => {
+    const frame = [...element.querySelectorAll("div")].find(
+      (candidate) => candidate.scrollWidth > candidate.clientWidth,
+    );
+    return frame === undefined
+      ? undefined
+      : { left: frame.scrollLeft, frame: frame.clientWidth, width: frame.scrollWidth };
+  });
+}
+
+// aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom).
+test("keeps the date at the centre of the frame of the Gantt when it zooms in, its header scrolled to it", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const header = page
+    .getByRole("treegrid", { name: "Grille de planning" })
+    .getByRole("columnheader", { name: "Gantt" });
+  const zoomIn = header.getByRole("button", { name: "Zoom avant" });
+  // The quarters over their months: the drawing wider than its frame, scrolled to its middle.
+  await zoomIn.click();
+  await expect.poll(() => axisFrame(header)).toBeDefined();
+  await header.evaluate((element) => {
+    for (const frame of element.querySelectorAll("div")) {
+      if (frame.scrollWidth > frame.clientWidth) {
+        frame.scrollLeft = (frame.scrollWidth - frame.clientWidth) / 2;
+      }
+    }
+  });
+  const before = await axisFrame(header);
+  if (before === undefined) {
+    throw new Error("the axis does not scroll");
+  }
+  const centre = (before.left + before.frame / 2) / before.width;
+  await zoomIn.click();
+  await expect.poll(async () => (await axisFrame(header))?.width).toBeGreaterThan(before.width);
+  const after = await axisFrame(header);
+  expect(after?.frame).toBe(before.frame);
+  // The same date at the centre, to the pixel the scroll rounds to.
+  const kept = centre * (after?.width ?? 0) - before.frame / 2;
+  expect(Math.abs((after?.left ?? 0) - kept)).toBeLessThanOrEqual(1);
+});
+
+// aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom depuis « Ajusté au projet »).
+test("keeps the date at the centre of the column when it zooms in from the Gantt fitted to the project", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const header = page
+    .getByRole("treegrid", { name: "Grille de planning" })
+    .getByRole("columnheader", { name: "Gantt" });
+  // Fitted to the project is the level it opens at: its command has nothing left to do.
+  await expect(header.getByRole("button", { name: "Ajuster au projet" })).toBeDisabled();
+  // The frame of the axis is inset from the column; the centre of the column is its date.
+  await header.getByRole("button", { name: "Zoom avant" }).click();
+  await expect.poll(() => axisFrame(header)).toBeDefined();
+  const after = await axisFrame(header);
+  const kept = 0.5 * (after?.width ?? 0) - (after?.frame ?? 0) / 2;
+  // To the pixel or two the border of the column takes; the inset of the frame, unheeded, put the
+  // centre eight pixels of the column, a share of the drawing wider than the frame, away.
+  expect(Math.abs((after?.left ?? 0) - kept)).toBeLessThanOrEqual(4);
+});
+
+/** The width and the height of the PNG image a download saved, its signature checked. */
+async function pngSize(download: Download): Promise<[number, number]> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of await download.createReadStream()) {
+    chunks.push(chunk as Buffer);
+  }
+  const image = Buffer.concat(chunks);
+  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  return [image.readUInt32BE(16), image.readUInt32BE(20)];
+}
+
+// aucune exigence : propre à l'US (US-0530, l'export PNG du Gantt sur toute son étendue au niveau
+// choisi).
+test("exports the Gantt as a PNG image over its whole extent at the level chosen, each of its tasks a row", async ({
+  page,
+}) => {
+  test.slow();
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const header = page
+    .getByRole("treegrid", { name: "Grille de planning" })
+    .getByRole("columnheader", { name: "Gantt" });
+  const exported = async () => {
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      header.getByRole("button", { name: "Exporter en PNG" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("gantt-PRJ-001.png");
+    return pngSize(download);
+  };
+  // Fitted to the project: a row of 28 points for each of the thousand tasks, as dense as the
+  // screen, twice as dense passing the height a canvas holds.
+  const [, fittedHeight] = await exported();
+  expect(fittedHeight).toBeGreaterThan(1000 * 28);
+  // Zoomed in, the whole drawing, not the frame that shows it: its width and the margins. A day
+  // takes a pixel and a half: its days off are tinted, and the legend of 24 points names them,
+  // which the fitted Gantt, a day under a pixel, had not.
+  await header.getByRole("button", { name: "Zoom avant" }).click();
+  await expect.poll(() => axisFrame(header)).toBeDefined();
+  const drawing = await axisFrame(header);
+  const [width, height] = await exported();
+  expect(width).toBe((drawing?.width ?? 0) + 32);
+  expect(height).toBe(fittedHeight + 24);
 });

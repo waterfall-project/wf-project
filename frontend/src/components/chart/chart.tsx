@@ -381,11 +381,11 @@ const EXPORT_SIZE = { width: 1280, height: 720 } as const;
 const EXPORT_TEXT_WIDTH = EXPORT_SIZE.width - 32;
 
 /** The size of the letters of the title and of the provenance, and the height of their lines. */
-const EXPORT_TITLE = { size: 18, line: 24 } as const;
-const EXPORT_SUBTITLE = { size: 12, line: 16 } as const;
+export const EXPORT_TITLE = { size: 18, line: 24 } as const;
+export const EXPORT_SUBTITLE = { size: 12, line: 16 } as const;
 
 /** The space above the title, between the title and the provenance, and below the provenance. */
-const EXPORT_MARGINS = { top: 12, gap: 6, bottom: 14 } as const;
+export const EXPORT_MARGINS = { top: 12, gap: 6, bottom: 14 } as const;
 
 /** How wide a text is written in a font: measured by a canvas, estimated without one. */
 type Measure = (text: string) => number;

@@ -23,6 +23,7 @@ import { notFound } from "next/navigation";
 import type { components } from "@/api/generated/schema";
 import { type ExpectedRefusal, readOrFail, readOrRefused, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import type { ChartProvenance } from "@/components/chart/chart";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import {
   listedStructure,
@@ -366,4 +367,17 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
   }
   const breakdown = items === undefined ? undefined : { items, filter: breakdownFilter };
   return { reading, ...structure, query, preferences, breakdown, breakdownFilter };
+}
+
+/**
+ * The project and the revision an exported image of the planning names (WF-IHM-0130): the code of
+ * the project names its file, its identifier when it has none; the current revision, which has no
+ * version name, is named `current`.
+ */
+export function provenanceOf(reading: ProjectReading, current: string): ChartProvenance {
+  return {
+    project: reading.project.label,
+    code: reading.project.code ?? reading.project.project_id,
+    revision: reading.revision?.version_name ?? current,
+  };
 }

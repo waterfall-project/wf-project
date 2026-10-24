@@ -922,7 +922,17 @@ dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâ
 sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
 « critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
 seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
-déplier. Sa colonne « Rattachement » présente le lot ou le poste que porte une tâche, par le libellé
+déplier. Son niveau le plus fin divise chaque jour en heures travaillées, numérotées dans leur jour,
+que la page lit de `getDurationUnits` : `hoursOfDay` (`scale.ts`) arrondit `hours_per_day` à l'heure
+entière la plus proche, la demi-heure vers le haut, de 1 à 24, sur les chiffres de la chaîne, jamais
+par un flottant (#1393). « Exporter en PNG », après le zoom dans le coin de l'en-tête et au menu
+d'une cellule, dessine sur un canevas (`gantt-image.ts`) toute l'étendue au niveau montré — la
+largeur du dessin zoomé, celle de la colonne une fois ajusté au projet —, une ligne par tâche que la grille
+montre, pliée comme elle, les jours chômés du même hachurage que l'écran (`DAY_OFF_HATCH`, lu par
+les classes de ses jetons) et leur légende, la provenance en tête comme pour toute courbe
+(`useProvenance`, `provenanceOf` de `grid-screen.ts`) ; deux fois plus dense que l'écran tant qu'un
+canevas le tient, aussi dense sinon, et indisponible, son motif dit, au-delà des bornes des
+navigateurs (32 767 points de côté, 268 millions en tout). Sa colonne « Rattachement » présente le lot ou le poste que porte une tâche, par le libellé
 que le serveur résout (`work_breakdown_label`) ; là où la structure lue liste `edit_planning`, la cellule le
 choisit parmi les lots et les postes du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
 — le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte

@@ -394,7 +394,10 @@
     "dayOff": "Day off: no working hours in the task’s calendar",
     "fit": "Fit to project",
     "quarter": "Q{quarter} {year}",
-    "quarterShort": "Q{quarter}"
+    "quarterShort": "Q{quarter}",
+    "title": "Gantt chart",
+    "file": "gantt",
+    "hoursNote": "Scale in worked hours, numbered within the day"
   },
   "taskTree": {
     "summary": "The summary tasks, under the project, down to the level chosen — read only.",
@@ -1083,6 +1086,12 @@
     "fit": {
       "help": "Fits the scale to show the whole project.",
       "unavailable": "The scale already shows the whole project."
+    },
+    "exportGantt": {
+      "help": "Saves the Gantt as a PNG image, over its whole extent at the zoom level chosen, with the project, the revision and the date of calculation.",
+      "unavailableWidth": "The image would be too wide for the browser: zoom out.",
+      "unavailableHeight": "The image would be too tall for the browser: fold some summaries.",
+      "unavailableArea": "The image would be too large for the browser: zoom out, or fold some summaries."
     },
     "restack": {
       "help": "Stacks the tasks in their lanes by themselves, forgetting those chosen by hand.",

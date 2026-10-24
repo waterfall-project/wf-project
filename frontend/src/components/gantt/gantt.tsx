@@ -27,7 +27,12 @@
  * corner of its header (`GanttZoom`) and in the menu of a cell (`GanttZoomItems`), by Ctrl and plus or minus in the grid, and by Ctrl and the wheel on
  * the Gantt; zoomed, its drawing scrolls in its own frame — the axis with the bars, by the scroll bar
  * of its header or the wheel —, the date at its centre kept. Neither zooming nor scrolling modifies a
- * task (WF-PLA-0090).
+ * task (WF-PLA-0090). Its finest level, the worked hours, divides each day into the hours of a day
+ * of work of the installation, numbered from the first.
+ *
+ * Where its grid names where it comes from, it is exported as a PNG image (`gantt-image.ts`) by a
+ * command beside the zoom and in the menu of a cell: its whole extent at the level shown, its days
+ * off and its legend, its title and its provenance (WF-IHM-0130).
  */
 "use client";
 
@@ -35,8 +40,10 @@ import { Expand, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
+  Fragment,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
   use,
   useCallback,
   useEffect,
@@ -47,16 +54,20 @@ import {
   useState,
 } from "react";
 
+import type { ChartProvenance } from "@/components/chart/chart";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { FoldToggle } from "@/components/grid/fold";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
-import { formatLocale, formatPlanningDate } from "@/i18n/format";
+import { formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
+import { axisWriter, labelsOf } from "./axis-labels";
 import { DAY_OFF_HATCH, dayOffBands, hasDaysOff, MIN_DAY_WIDTH } from "./days-off";
+import { GanttExportButton, GanttExportItem, GanttExportStatus, GanttProbes } from "./gantt-export";
+import { type GanttOverflow, ganttOverflow } from "./gantt-image";
 import {
   type GanttBar,
   ganttLayout,
@@ -105,6 +116,42 @@ export interface GanttView {
   readonly dayWidth: number;
   /** Whether the days off of some task are tinted: a legend names the tint then. */
   readonly tinted: boolean;
+  /** The graduations of hours of a day at the finest level; none, the scale stops at days. */
+  readonly hoursPerDay: number | undefined;
+  /** What the export of the Gantt as an image needs; none where its grid names no provenance. */
+  readonly exporting: GanttExporting | undefined;
+}
+
+/** Where the image of a Gantt comes from, which it names (WF-IHM-0130). */
+export interface GanttExported {
+  /** The project and the revision. */
+  readonly provenance: ChartProvenance;
+  /** The instant the dates were last calculated at (`meta.scheduled_at`). */
+  readonly scheduledAt: string;
+}
+
+/** What the export of a Gantt draws, and whether it can. */
+export interface GanttExporting {
+  readonly exported: GanttExported;
+  /** The rows of the tasks the grid shows, folded as it is. */
+  readonly rows: readonly GanttRow[];
+  /** The width of the drawing at the level shown: zoomed, or that of its column. */
+  readonly width: number;
+  /** The bound of a canvas its image passes, if any: too wide or too long, it is not drawn. */
+  readonly overflow: GanttOverflow | undefined;
+  /** The probes of its colours, in the document. */
+  readonly probes: RefObject<HTMLSpanElement | null>;
+  /**
+   * Tell that the image, measured, passed a bound the command had judged it within; none, an export
+   * succeeded, and what was told is forgotten.
+   */
+  readonly refuse: (overflow: GanttOverflow | undefined) => void;
+}
+
+/** The bound the last export passed, and how many times one was told: the same one is heard again. */
+export interface GanttRefusal {
+  readonly overflow: GanttOverflow;
+  readonly count: number;
 }
 
 /** The Gantt of the grid around, if any. */
@@ -132,22 +179,77 @@ function keyZoom(event: KeyboardEvent): 1 | -1 | undefined {
 }
 
 /**
+ * What the export of a Gantt needs, given where it comes from: the rows of its tasks, the width of
+ * its drawing, whether its image holds in a canvas, and the probes of its colours.
+ */
+function useExporting(
+  exported: GanttExported | undefined,
+  rows: readonly GanttRow[],
+  width: number,
+  tinted: boolean,
+): readonly [GanttExporting | undefined, ReactNode] {
+  const tasks = useMemo(
+    () => rows.filter(({ task }) => task !== null && task !== undefined),
+    [rows],
+  );
+  const probes = useRef<HTMLSpanElement>(null);
+  const [refusal, setRefusal] = useState<GanttRefusal | undefined>(undefined);
+  const refuse = useCallback((overflow: GanttOverflow | undefined) => {
+    setRefusal((before) =>
+      overflow === undefined ? undefined : { overflow, count: (before?.count ?? 0) + 1 },
+    );
+  }, []);
+  return exported === undefined
+    ? [undefined, null]
+    : [
+        {
+          exported,
+          rows: tasks,
+          width,
+          overflow: ganttOverflow(width, tasks.length, tinted),
+          probes,
+          refuse,
+        },
+        <Fragment key="probes">
+          <GanttProbes probes={probes} />
+          <GanttExportStatus refusal={refusal} />
+        </Fragment>,
+      ];
+}
+
+/** Zoom by Ctrl and plus or minus pressed in the grid or the frieze. */
+function zoomByKey(event: KeyboardEvent, zoomTo: (step: 1 | -1) => void) {
+  const step = keyZoom(event);
+  const target = event.target instanceof Element ? event.target : undefined;
+  if (step !== undefined && target?.closest('[role="treegrid"], [data-timeline]') != null) {
+    event.preventDefault();
+    zoomTo(step);
+  }
+}
+
+/**
  * Hand the cells of the Gantt the layout of the rows the grid shows — those of the answer, as
  * its writes left them —, computed again only when they change, and the level of its scale, kept
  * under a scope — the grid and the revision — for the session; without a scope, fitted to the
- * project, and nothing zooms.
+ * project, and nothing zooms. Given the hours of a day, its finest level is the worked hours; given
+ * where it comes from, it is exported as an image.
  */
 export function GanttRows({
   rows,
   scope,
+  hoursPerDay,
+  exported,
   children,
 }: {
   readonly rows: readonly GanttRow[];
   readonly scope?: string | undefined;
+  /** The graduations of hours of a day (`hoursOfDay`); none, the scale stops at days. */
+  readonly hoursPerDay?: number | undefined;
+  readonly exported?: GanttExported | undefined;
   readonly children: ReactNode;
 }) {
   const layout = useMemo(() => ganttLayout(rows), [rows]);
-  const levels = levelsWith(undefined);
+  const levels = levelsWith(hoursPerDay);
   const [zoom, setZoom] = useKeptZoom(scope, levels);
   const [frame, setFrame] = useState(0);
   // False until a tick after the mount: the time the axis, if drawn, has to measure its frame.
@@ -170,25 +272,36 @@ export function GanttRows({
   const centre = useRef<number | undefined>(undefined);
   const first = layout.ticks[0] ?? 0;
   const last = layout.ticks.at(-1) ?? first;
-  const fitted = fittedLevel(last - first, frame, levels);
+  const fitted = fittedLevel(last - first, frame, levels, hoursPerDay);
   const level = zoom === "fit" ? fitted : zoom;
-  const width = zoom === "fit" ? undefined : widthAt(level, last - first);
+  const width = zoom === "fit" ? undefined : widthAt(level, last - first, hoursPerDay);
   const scale = SCALE_LEVELS[level];
   const lower = useMemo(
-    () => (scale === undefined ? [] : scaleTicks(scale.lower, first, last)),
-    [scale, first, last],
+    () => (scale === undefined ? [] : scaleTicks(scale.lower, first, last, hoursPerDay)),
+    [scale, first, last, hoursPerDay],
   );
   const upper = useMemo(
     () => (scale === undefined ? [] : scaleTicks(scale.upper, first, last)),
     [scale, first, last],
   );
-  const dayWidth = (width ?? frame) / Math.max((last - first) / DAY, 1);
+  // The width of the drawing: zoomed, or that of its column.
+  const drawn = width ?? frame;
+  const dayWidth = drawn / Math.max((last - first) / DAY, 1);
   const anyDayOff = useMemo(
     () => rows.some(({ task }) => hasDaysOff(task?.calendar_hours)),
     [rows],
   );
+  // The width of the frame that scrolls, as the header shows it; that of the column before it is drawn.
+  const seen = () => scroller.current?.clientWidth ?? frame;
   const zoomTo = (step: 1 | -1 | "fit") => {
-    centre.current = (offset + frame / 2) / Math.max(width ?? frame, 1);
+    // The scroll of the frame itself, which a scroll not yet told to the view may have moved, and
+    // its width within the header, inset from the edges of the column.
+    const scrolled = width === undefined ? 0 : (scroller.current?.scrollLeft ?? offset);
+    // Fitted to the project, the drawing is the whole column and its frame stands inset from the
+    // edge (`left-2`): the centre of the frame is that of the column. Zoomed, the drawing begins
+    // with the frame.
+    const inset = width === undefined ? (scroller.current?.offsetLeft ?? 0) : 0;
+    centre.current = (inset + scrolled + seen() / 2) / Math.max(drawn, 1);
     setZoom(step === "fit" ? "fit" : zoomed(zoom, fitted, step, levels));
   };
   const reveal = (from: number, to: number) => {
@@ -203,7 +316,11 @@ export function GanttRows({
     if (centre.current === undefined) {
       return;
     }
-    const kept = centredOffset(centre.current, width ?? frame, frame);
+    const kept = centredOffset(
+      centre.current,
+      width ?? frame,
+      scroller.current?.clientWidth ?? frame,
+    );
     centre.current = undefined;
     if (scroller.current !== null) {
       scroller.current.scrollLeft = kept;
@@ -244,6 +361,9 @@ export function GanttRows({
       element.removeEventListener("wheel", listener);
     };
   }, [scope]);
+  const tinted =
+    anyDayOff && (dayWidth >= MIN_DAY_WIDTH || (width === undefined && frame === 0 && !settled));
+  const [exporting, probed] = useExporting(exported, rows, drawn, tinted);
   const view: GanttView = {
     layout,
     level,
@@ -262,30 +382,27 @@ export function GanttRows({
     // Fitted and not yet measured, for a tick at most, the legend is held: it keeps its place, and
     // the bands, which wait for the width of a day, come after the measure. The layout moves once
     // only if the measure shows days under a pixel (the legend then goes), or if no axis is drawn.
-    tinted:
-      anyDayOff && (dayWidth >= MIN_DAY_WIDTH || (width === undefined && frame === 0 && !settled)),
+    tinted,
+    hoursPerDay,
+    exporting,
   };
   return (
     <GanttContext value={view}>
       {scope === undefined ? (
-        children
+        <>
+          {children}
+          {probed}
+        </>
       ) : (
         <div
           ref={held}
           className="contents"
           onKeyDown={(event) => {
-            const step = keyZoom(event);
-            const target = event.target instanceof Element ? event.target : undefined;
-            if (
-              step !== undefined &&
-              target?.closest('[role="treegrid"], [data-timeline]') != null
-            ) {
-              event.preventDefault();
-              zoomTo(step);
-            }
+            zoomByKey(event, zoomTo);
           }}
         >
           {children}
+          {probed}
         </div>
       )}
     </GanttContext>
@@ -333,7 +450,7 @@ export function zoomCommands(view: GanttView) {
  * end of the axis and away from the handle on its left edge: seen at every width, the column being
  * pinned at the end. Out of the order of tabulation, as the button and the handle of a header — the
  * grid is one stop (WF-IHM-0100) —, the keyboard zooming by Ctrl and plus or minus in the grid, or by
- * the menu of a cell (`GanttZoomItems`).
+ * the menu of a cell (`GanttZoomItems`). After them, its export, where it is offered.
  */
 export function GanttZoom() {
   const t = useTranslations("gantt");
@@ -343,36 +460,37 @@ export function GanttZoom() {
     return null;
   }
   return (
-    <div
-      role="group"
-      aria-label={t("zoom")}
-      className="absolute top-0.5 right-1 z-10 flex gap-0.5 rounded-sm bg-background/90"
-    >
-      {zoomCommands(view).map((command) => (
-        <CommandTooltip
-          key={command.key}
-          label={t(command.key)}
-          help={said(`${command.key}.help`)}
-          keys={command.keys}
-          unavailable={command.offered ? undefined : said(`${command.key}.unavailable`)}
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            tabIndex={-1}
-            className={`size-5 [&_svg]:size-3.5 ${UNAVAILABLE}`}
-            aria-label={t(command.key)}
-            onClick={() => {
-              if (command.offered) {
-                view.zoomTo(command.step);
-              }
-            }}
+    <div className="absolute top-0.5 right-1 z-10 flex gap-0.5 rounded-sm bg-background/90">
+      <div role="group" aria-label={t("zoom")} className="flex gap-0.5">
+        {zoomCommands(view).map((command) => (
+          <CommandTooltip
+            key={command.key}
+            label={t(command.key)}
+            help={said(`${command.key}.help`)}
+            keys={command.keys}
+            unavailable={command.offered ? undefined : said(`${command.key}.unavailable`)}
           >
-            {command.icon}
-          </Button>
-        </CommandTooltip>
-      ))}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              tabIndex={-1}
+              className={`size-5 [&_svg]:size-3.5 ${UNAVAILABLE}`}
+              aria-label={t(command.key)}
+              onClick={() => {
+                if (command.offered) {
+                  view.zoomTo(command.step);
+                }
+              }}
+            >
+              {command.icon}
+            </Button>
+          </CommandTooltip>
+        ))}
+      </div>
+      {view.exporting === undefined ? null : (
+        <GanttExportButton view={view} exporting={view.exporting} />
+      )}
     </div>
   );
 }
@@ -411,6 +529,9 @@ export function GanttZoomItems({ separated }: { readonly separated: boolean }) {
           }}
         />
       ))}
+      {view.exporting === undefined ? null : (
+        <GanttExportItem view={view} exporting={view.exporting} />
+      )}
     </>
   );
 }
@@ -652,40 +773,6 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
   );
 }
 
-/** The fewest pixels between two labels of a row of the axis: the lower, the upper. */
-const LABEL_SPACING = { lower: 22, upper: 72 } as const;
-
-/** How each unit is written on each row, in the language of the interface. */
-const FORMATS: Readonly<Record<string, Intl.DateTimeFormatOptions>> = {
-  "upper:year": { year: "numeric" },
-  "upper:month": { month: "long", year: "numeric" },
-  "upper:week": { day: "numeric", month: "short", year: "numeric" },
-  "upper:day": { weekday: "short", day: "numeric", month: "short" },
-  "lower:month": { month: "short" },
-};
-
-/**
- * The labels of a row of the axis its width holds, each at its boundary; a unit of the upper row
- * begun before the axis is written at its start, one of the lower row is not.
- */
-function labelsOf(
-  ticks: readonly number[],
-  width: number,
-  row: "lower" | "upper",
-  at: (time: number) => number,
-): (readonly [number, number])[] {
-  const kept: (readonly [number, number])[] = [];
-  const shown = row === "upper" ? ticks : ticks.filter((tick) => at(tick) >= 0);
-  for (const tick of shown.filter((boundary) => at(boundary) < 1)) {
-    const x = Math.max(at(tick), 0) * width;
-    const before = kept.at(-1)?.[1];
-    if (before === undefined || x - before >= LABEL_SPACING[row]) {
-      kept.push([tick, x]);
-    }
-  }
-  return kept;
-}
-
 /**
  * Render the axis of the Gantt, in its header: two rows — the upper unit of its level over the
  * lower, written in the language of the interface, in UTC —, as many labels as its width holds;
@@ -704,22 +791,9 @@ export function GanttAxis({ width }: { readonly width: number }) {
     return null;
   }
   const { scroller, scrolled } = view;
-  const scale = SCALE_LEVELS[view.level];
   const drawn = view.width ?? width;
-  const write = (which: "lower" | "upper", tick: number) => {
-    const unit = scale?.[which] ?? "day";
-    const date = new Date(tick);
-    if (unit === "quarter") {
-      return t(which === "upper" ? "quarter" : "quarterShort", {
-        quarter: Math.floor(date.getUTCMonth() / 3) + 1,
-        year: date.getUTCFullYear(),
-      });
-    }
-    return new Intl.DateTimeFormat(formatLocale(locale), {
-      ...(FORMATS[`${which}:${unit}`] ?? { day: "numeric" }),
-      timeZone: "UTC",
-    }).format(date);
-  };
+  const write = axisWriter(t, locale, view);
+  const hours = SCALE_LEVELS[view.level]?.lower === "hour";
   const row = (which: "lower" | "upper", y: string) =>
     labelsOf(which === "lower" ? view.lower : view.upper, drawn, which, view.layout.at).map(
       ([tick, x]) => (
@@ -744,7 +818,12 @@ export function GanttAxis({ width }: { readonly width: number }) {
         scrolled(event.currentTarget.scrollLeft);
       }}
     >
-      <svg aria-hidden="true" className="h-full" style={{ width: view.width ?? "100%" }}>
+      <svg
+        {...(hours ? { role: "img", "aria-label": t("hoursNote") } : { "aria-hidden": true })}
+        className="h-full"
+        style={{ width: view.width ?? "100%" }}
+      >
+        {hours ? <title>{t("hoursNote")}</title> : null}
         {view.upper.slice(1, -1).map((tick) => (
           <line
             key={tick}

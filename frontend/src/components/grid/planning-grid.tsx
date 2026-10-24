@@ -10,7 +10,8 @@
  * A computed cell asks the server what its value depends on, by the structure and its node. The
  * Gantt, its last column, lays out the rows the grid shows once for all its cells (`GanttRows`) —
  * those the tree leaves unfolded, so that both fold alike (WF-PLA-0090) —; the folds are kept for
- * the revision the structure belongs to.
+ * the revision the structure belongs to. Given the hours of a day of the installation, the Gantt
+ * zooms down to the worked hours; given where it comes from, it is exported as an image (`gantt`).
  *
  * Where the planning may be entered, the cells of a task are written by `updateTaskFacet`, each
  * alone (US-0470): its label, its description, its mode, its duration with its unit, the dates of a
@@ -34,7 +35,12 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { GanttLegend, GanttRows, GanttZoomItems } from "@/components/gantt/gantt";
+import {
+  type GanttExported,
+  GanttLegend,
+  GanttRows,
+  GanttZoomItems,
+} from "@/components/gantt/gantt";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
@@ -118,6 +124,18 @@ export interface PlanningGridProps {
    * the grid then has its column of marks (US-0500).
    */
   readonly differential?: boolean | undefined;
+  /**
+   * What the Gantt reads besides the rows: the graduations of hours of a day (`hoursOfDay`), and
+   * where it comes from, which its exported image names. None, it stops at days and is not
+   * exported.
+   */
+  readonly gantt?: PlanningGantt | undefined;
+}
+
+/** What the Gantt of the planning reads besides its rows. */
+export interface PlanningGantt {
+  readonly hoursPerDay: number | undefined;
+  readonly exported: GanttExported;
 }
 
 /** The skeleton generated on a structure: its tasks as the grid reads them, and its version. */
@@ -219,6 +237,7 @@ export function PlanningGrid({
   timelines,
   timelineCreation,
   differential,
+  gantt,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
@@ -402,7 +421,12 @@ export function PlanningGrid({
         undoable={undoable}
         commands={zoomed}
         around={(rows, table) => (
-          <GanttRows rows={rows} scope={`${config.key}:${structure.revision_id}`}>
+          <GanttRows
+            rows={rows}
+            scope={`${config.key}:${structure.revision_id}`}
+            hoursPerDay={gantt?.hoursPerDay}
+            exported={gantt?.exported}
+          >
             {table}
             <GanttLegend />
           </GanttRows>

@@ -1,8 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
-import { dayOffBands, hasDaysOff } from "./days-off";
+import { DAY_OFF_HATCH, dayOffBands, hasDaysOff } from "./days-off";
+
+/** The tokens of the charter, which the classes of the hatching paint with. */
+const CSS = readFileSync(join(import.meta.dirname, "../../theme/globals.css"), "utf-8");
 
 const WEEK = {
   monday: "8",
@@ -48,5 +54,18 @@ describe("the days off of a task in the Gantt", () => {
     expect(hasDaysOff(WEEK)).toBe(true);
     expect(dayOffBands(WEEK, extent, 0.5)).toEqual([]);
     expect(dayOffBands(WEEK, extent, 1.5)).not.toEqual([]);
+  });
+});
+
+// aucune exigence : propre à l'US (US-0530, la teinte que l'écran et l'image reprennent, #1420).
+describe("the hatching of the days off", () => {
+  it("is painted by tokens of the charter, light and dark, that its classes read on the screen and in the image", () => {
+    const { fillToken, markToken, fillClass, markClass } = DAY_OFF_HATCH;
+    for (const token of [fillToken, markToken]) {
+      expect(CSS).toMatch(new RegExp(`\\s${token}: light-dark\\(#[0-9a-f]{6}, #[0-9a-f]{6}\\);`));
+    }
+    // `fill-day-off` and `stroke-day-off-mark` are the colours of Tailwind on the tokens.
+    expect(CSS).toContain(`--color-${fillClass.replace(/^fill-/, "")}: var(${fillToken});`);
+    expect(CSS).toContain(`--color-${markClass.replace(/^stroke-/, "")}: var(${markToken});`);
   });
 });
