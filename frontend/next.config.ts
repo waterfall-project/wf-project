@@ -27,6 +27,9 @@ const config: NextConfig = {
   allowedDevOrigins: DEV_ORIGINS,
   // The front calls nothing but the API, through the generated client (WF-ARC-0020).
   poweredByHeader: false,
+  // The pages of the online help are read from their files when the panel opens (US-0580): no
+  // import names them, so the trace of the standalone output is told to take them.
+  outputFileTracingIncludes: { "/**": ["./help/**/*.md"] },
   experimental: {
     serverActions: {
       // An avatar and the file of an import go from the browser to the server of Next by a server

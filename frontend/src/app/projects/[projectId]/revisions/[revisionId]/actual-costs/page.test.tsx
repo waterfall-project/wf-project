@@ -141,7 +141,7 @@ describe("the screen of the actual costs", () => {
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
     expect(queryOf(IMPORTS)).toEqual({});
-    expect(text(page)).toContain("Actual costs 27 lines retained");
+    expect(text(page)).toContain("Actual costs Help 27 lines retained");
   });
 
   it("leads from its head to the imports and exports of the project, where the actual costs are imported, in the same context", async () => {
@@ -247,7 +247,7 @@ describe("the screen of the actual costs", () => {
   it("shows the way to the next page when the server holds more lines than the page [WF-CRE-0040-A]", async () => {
     server.answers = { ...server.answers, [COSTS]: { example: "actual_costs_page", status: 200 } };
     const page = await costsAt({ offset: "1" });
-    expect(text(page)).toContain("Actual costs 27 lines retained");
+    expect(text(page)).toContain("Actual costs Help 27 lines retained");
     expect(page).toContain('aria-label="Pages of the actual costs"');
     expect(page).toContain(`href="${PATHNAME}?offset=2"`);
   });
@@ -259,7 +259,7 @@ describe("the screen of the actual costs", () => {
       [IMPORTS]: { example: "cost_imports_empty", status: 200 },
     };
     const said = text(await costsAt());
-    expect(said).toContain("Actual costs no line retained");
+    expect(said).toContain("Actual costs Help no line retained");
     expect(said).toContain("General total 0.00 Last import No import");
     expect(said).toContain("No row matches the request.");
     expect(said).toContain("Journal of the imports No actual cost has been imported yet.");

@@ -2171,6 +2171,44 @@ est l’action, ne portent pas de phrase d’aide. Les tests du composant sont d
 axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,
 et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à engager sans définition.
 
+### L'aide en ligne
+
+Chaque écran que la table des fonctions connaît ouvre son aide (WF-IHM-0140, US-0580) : le bouton
+« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, de la hauteur d'une ligne du titre,
+qui suit son dernier mot dans le même flux de texte : à droite, parmi les commandes, il rétrécirait le
+titre ; élément d'une rangée qui passe à la ligne, il prendrait une ligne à lui sous un titre sur deux
+lignes, celui du reste à engager en 1280 × 720 ; dans les deux cas, l'en-tête grandirait et
+pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
+`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine —, ou F1
+partout sur l'écran, ouvre à côté de lui un panneau
+latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code de la FBS — celui de la route que
+suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, la liste des projets
+(FBS-4). Une page est un fichier Markdown, `frontend/help/fr/<code>.md` ; une notion de la méthode,
+`frontend/help/fr/notions/<notion>.md`. Le serveur les lit à l'ouverture du panneau, par l'action
+`readHelp` (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), qui ne nomme aucun fichier
+d'après la requête sans l'avoir confronté aux codes de la table ou à la forme d'un nom de notion ; le
+standalone les emporte par `outputFileTracingIncludes` (`next.config.ts`). Le panneau les rend par
+`react-markdown` et `remark-gfm`, sans HTML brut (`skipHtml`) et dans les seuls éléments d'un texte ;
+un code entre accents graves s'y lit comme une touche (`<kbd>`). Un lien relatif vers un code ou une
+notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` depuis une notion) montre sa page
+dans le panneau ; tout autre lien se lit comme du texte. Le panneau tient le focus, se ferme par Échap et rend le focus
+à ce qui l'avait — le bouton, ou la cellule où F1 a été pressée ; une page suivie par un lien donne le
+focus à son titre. Une réponse arrivée après une autre demande est ignorée.
+
+La page d'un écran suit la structure de #1075, ses titres de second niveau dans cet ordre
+(`SCREEN_HEADINGS`) : « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses valeurs
+calculées », « Les gestes au clavier », « Voir aussi ». Une notion cite le glossaire de l'annexe A mot pour mot, une citation par
+terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
+« Voir aussi ». L'aide n'existe qu'en français : une interface en anglais la montre en français, écart
+de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075).
+
+_Contrôle_ : `src/help/help.test.ts` (`make test-front`) exige une page française par code de la table
+qui a un écran, ou sa place dans la liste des pages à venir avec le lot qui l'écrit (`SCREENS_TO_COME`,
+`NOTIONS_TO_COME`) — liste qui échoue dès qu'un code qu'elle nomme reçoit son fichier ; il tient la
+structure des pages, les citations du glossaire, les liens, qui mènent à une page écrite ou à venir, et
+l'absence de HTML brut. Une page à venir se dit telle dans le panneau. `help-panel.dom.test.tsx` éprouve
+le panneau, et `e2e/accessibility.spec.ts` l'audite ouvert par F1 sur le planning.
+
 ### Les actions longues et le suivi des tâches de fond
 
 Une action longue rend la main à la réception de sa tâche de fond (WF-ARC-0090) : son action

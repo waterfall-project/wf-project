@@ -158,7 +158,7 @@ describe("the journal of audit", () => {
       "La plateforme Sauvegarde Sauvegarde Sauvegarde Hors projet 01926f3a-7c00-7000-8000-000800000033",
     );
     expect(shown.at(-1)).toBe("36 inscriptions");
-    expect(text(page)).toContain("Journal d’audit 36 inscriptions");
+    expect(text(page)).toContain("Journal d’audit Aide 36 inscriptions");
     // Each date, an instant the browser writes in its local time; the history, an icon named.
     expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
     expect(page).toContain('aria-label="Histoire de l’objet"');

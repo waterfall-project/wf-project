@@ -309,6 +309,7 @@ describe("the backups", () => {
     // The filters and the choice of the columns alone: readings, which write nothing of the
     // backups — no start, no marking, no restoration, no deposit.
     expect(buttons(page)).toEqual([
+      "Aide",
       "Filtrer",
       "Tous les déclenchements",
       "Manuelle",
@@ -427,6 +428,7 @@ describe("the backups", () => {
     expect(text(page).split("Aucune sauvegarde").length - 1).toBe(1);
     expect(page).not.toContain('aria-label="Sauvegardes" role="grid"');
     expect(buttons(page)).toEqual([
+      "Aide",
       "Modifier la planification",
       "Sauvegarder maintenant",
       "Déposer",

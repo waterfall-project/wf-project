@@ -146,7 +146,10 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // and @tanstack/virtual-core the rows in view from the sizes and the scroll it observes. Nor
 // does Apache ECharts (US-0240), imported piece by piece: it draws the series it is handed, in
 // SVG — an image would be loaded from an address given as a symbol (`image://`), and no chart
-// gives one; a map, from the GeoJSON registered with it, which no chart registers. The session of
+// gives one; a map, from the GeoJSON registered with it, which no chart registers. Nor do
+// react-markdown and remark-gfm (US-0580/L3), which turn the text of a page of the help into
+// elements: an image would load from its address, and the panel of the help renders none
+// (`allowedElements` of `help-panel.tsx`), its links being its own, followed in it. The session of
 // the front (US-0350) does reach the network, and is examined for its own lists,
 // IDENTITY_MODULES and REDIS_MODULES: openid-client and jose speak to the identity provider,
 // @redis/client to Redis.
@@ -167,6 +170,8 @@ const DEPENDENCIES = [
   "radix-ui",
   "react",
   "react-dom",
+  "react-markdown",
+  "remark-gfm",
   "server-only",
   "tailwind-merge",
 ];

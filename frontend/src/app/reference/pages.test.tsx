@@ -191,7 +191,7 @@ describe("the settings of the costs", () => {
   it("hand the grid of the hourly rates the page the server answers, its currency, and its entry to a session that may modify the cost settings", async () => {
     const page = await costsAt();
     expect(text(page)).toContain(
-      "Paramètres de coûts Montants exprimés en EUR, devise unique de l’installation.",
+      "Paramètres de coûts Aide Montants exprimés en EUR, devise unique de l’installation.",
     );
     const [handed] = grids.rates;
     expect(handed?.grid.rows).toHaveLength(150);

@@ -1271,6 +1271,9 @@
     },
     "breakdownDelete": {
       "help": "Supprime cet élément du lotissement, avec ce qu’il contient."
+    },
+    "help": {
+      "help": "Ouvre, à côté de l’écran, l’aide qui le décrit : ce qu’il montre, ses commandes, ses colonnes, ses gestes au clavier et les notions de la méthode."
     }
   },
   "columns": {
@@ -1393,6 +1396,17 @@
         "help": "Montant réestimé de la ligne ou de la tâche : le devis actualisé à l’achèvement."
       }
     }
+  },
+  "help": {
+    "button": "Aide",
+    "title": "Aide",
+    "close": "Fermer l’aide",
+    "back": "Revenir à la page précédente de l’aide",
+    "screen": "Revenir à l’aide de l’écran",
+    "loading": "Lecture de l’aide…",
+    "failed": "L’aide n’a pas pu être lue. Réessayez dans un instant.",
+    "pending": "L’aide de cette page est à venir.",
+    "sections": "Les parties de l’écran"
   },
   "outcome": {
     "unreachable": "Le service est injoignable ; réessayez dans un instant.",

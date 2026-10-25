@@ -171,7 +171,7 @@ describe("the screen of the risks", () => {
     // No risk named, no detail read.
     expect(callsTo(RISK)).toEqual([]);
     expect(callsTo(REVIEWS)).toEqual([]);
-    expect(text(page)).toContain("Risk management 3 risks retained");
+    expect(text(page)).toContain("Risk management Help 3 risks retained");
     // The matrix is not in a column beside the grid: with no risk named, nothing is.
     expect(page).not.toContain("<aside");
   });
@@ -395,7 +395,7 @@ describe("the screen of the risks", () => {
   it("says a risk retained by none of its filters, its totals those of the server", async () => {
     server.answers = { ...server.answers, [LIST]: { example: "risks_empty", status: 200 } };
     const page = await risksAt({ states: "occurred" });
-    expect(text(page)).toContain("Risk management no risk retained");
+    expect(text(page)).toContain("Risk management Help no risk retained");
     expect(text(page)).toContain(
       "Identified risks 0.00 Occurred risks 0.00 Dismissed risks 0.00 General total 0.00",
     );

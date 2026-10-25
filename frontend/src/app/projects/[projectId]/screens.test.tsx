@@ -196,7 +196,8 @@ describe("the screen of a project", () => {
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await ProjectPage(at()));
-    expect(buttons(page)).toEqual([]);
+    // The help of the screen at the address alone, which the test sets to the settings.
+    expect(buttons(page)).toEqual(["Help"]);
     expect(page).not.toContain("<form");
   });
 });
@@ -730,6 +731,7 @@ describe("the lifecycle of a project", () => {
     const page = html(await LifecyclePage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
     expect(buttons(page)).toEqual([
+      "Help",
       "Complete the project",
       "Declare the project lost",
       "Abandon the project",
@@ -742,7 +744,7 @@ describe("the lifecycle of a project", () => {
     expect(paths()["GET /projects/{project_id}/state-transitions"]).toBe(
       `/projects/${PROJECT}/state-transitions`,
     );
-    expect(text(page)).toMatch(/^.*Project lifecycle State In progress/);
+    expect(text(page)).toMatch(/^.*Project lifecycle Help State In progress/);
     expect(text(page)).toContain(
       "History of states Date Transition By Reason " +
         "Creation Created Camille Martin Created Pricing Camille Martin Pricing In progress Camille Martin",
@@ -797,6 +799,7 @@ describe("the lifecycle of a project", () => {
       };
       const page = html(await LifecyclePage(at()));
       expect(buttons(page)).toEqual([
+        "Help",
         "Complete the project",
         "Declare the project lost",
         "Abandon the project",
