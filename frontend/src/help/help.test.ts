@@ -26,6 +26,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { readHelp } from "@/api/actions/help";
+import { RISK_GRID } from "@/components/risks/risk-grid";
 
 import {
   fileOf,
@@ -231,6 +232,40 @@ describe("the reading of the help", () => {
     ]);
   });
 
+  it.each([
+    ["FBS-4.3"],
+    ["FBS-4.3.2"],
+    ["FBS-4.3.3"],
+    ["FBS-4.4"],
+    ["FBS-4.4.2"],
+    ["FBS-4.4.3"],
+    ["FBS-4.5"],
+    ["FBS-4.5.2"],
+    ["FBS-4.6"],
+    ["FBS-4.6.1"],
+  ])("defines the columns of %s, none empty [WF-IHM-0140-A]", async (code) => {
+    const page = await readHelpPage({ kind: "screen", code });
+    expect(page.kind).toBe("written");
+    const columns = page.kind === "written" ? page.columns : [];
+    expect(columns.length).toBeGreaterThan(0);
+    if (code === "FBS-4.3.3" || code === "FBS-4.4.3") {
+      expect(columns).toHaveLength(1);
+    }
+  });
+
+  it.each([["FBS-4.6"], ["FBS-4.6.1"]])(
+    "defines the columns of %s as the risk grid orders them [WF-IHM-0140-A]",
+    async (code) => {
+      const page = await readHelpPage({ kind: "screen", code });
+      const helps = page.kind === "written" ? page.columns.map((column) => column.help) : [];
+      expect(helps).toHaveLength(7);
+      expect(helps.every((help) => help.startsWith("risks."))).toBe(true);
+      expect(helps).toEqual(
+        RISK_GRID.columns.flatMap((column) => (column.help === undefined ? [] : [column.help])),
+      );
+    },
+  );
+
   it("says a page not written yet is to come [WF-IHM-0140-A]", async () => {
     expect(await readHelpPage({ kind: "screen", code: "FBS-1.1" })).toEqual({
       kind: "pending",
@@ -347,6 +382,12 @@ describe("the links, the search and the screens of the help", () => {
     ]);
     expect(searched(index, "acquise valeur")).toHaveLength(1);
     expect(searched(index, "  ")).toEqual([]);
+    // The ligature NFD does not decompose is spelt out, on the title and on the query.
+    const ligatures = [
+      { target: { kind: "notion", name: "oeuvre" }, title: "Cœur de l’œuvre" },
+    ] as const;
+    expect(searched(ligatures, "coeur oeuvre")).toHaveLength(1);
+    expect(searched(ligatures, "CŒUR")).toHaveLength(1);
   });
 
   it.each([
