@@ -2174,11 +2174,13 @@ et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à
 ### L'aide en ligne
 
 Chaque écran que la table des fonctions connaît ouvre son aide (WF-IHM-0140, US-0580) : le bouton
-« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, à côté du titre et de la hauteur de
-sa ligne : à droite, parmi les commandes, il rétrécirait le titre, renverrait son sous-titre à la
-ligne et pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
-`remaining.spec.ts`) ; faute de place à côté du titre, il passe dessous —, ou F1 partout sur
-l'écran, ouvre à côté de lui un panneau
+« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, de la hauteur d'une ligne du titre,
+qui suit son dernier mot dans le même flux de texte : à droite, parmi les commandes, il rétrécirait le
+titre ; élément d'une rangée qui passe à la ligne, il prendrait une ligne à lui sous un titre sur deux
+lignes, celui du reste à engager en 1280 × 720 ; dans les deux cas, l'en-tête grandirait et
+pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
+`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine —, ou F1
+partout sur l'écran, ouvre à côté de lui un panneau
 latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code de la FBS — celui de la route que
 suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, la liste des projets
 (FBS-4). Une page est un fichier Markdown, `frontend/help/fr/<code>.md` ; une notion de la méthode,
