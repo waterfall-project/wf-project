@@ -9,6 +9,7 @@ the front prerendered is held without Docker too, on every change of the front
 """
 
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -232,10 +233,20 @@ def test_the_manifest_of_a_build_on_the_checkout_is_held_without_docker(
 
 
 def dry_run(target: str, tier: str, *variables: str) -> list[str]:
-    """Return the commands make would run for a target in a tier, without running them."""
+    """Return the commands make would run for a target in a tier, without running them.
+
+    The environment of the caller does not leak in: a test that wants E2E_BUILT or E2E_DEV_SERVER
+    passes it as a variable of make.
+    """
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if name not in {"E2E_BUILT", "E2E_DEV_SERVER"}
+    }
     result = subprocess.run(
         ["make", "--dry-run", "--no-print-directory", target, f"TIER={tier}", *variables],
         cwd=REPOSITORY,
+        env=environment,
         capture_output=True,
         text=True,
         check=True,
@@ -245,13 +256,12 @@ def dry_run(target: str, tier: str, *variables: str) -> list[str]:
 
 @pytest.mark.parametrize("tier", ["fast", "full"])
 def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(tier: str) -> None:
-    build = "pnpm build"
     # The layout reads the cookies, which keeps every page from being prerendered: a change of it,
     # or of any page, wakes the front family, whose check holds the manifest after the build.
     families = paths.read().touched(["frontend/src/app/layout.tsx"])
     assert "check-front" in {family.target for family in families}
     commands = dry_run("check-front", tier)
-    built = [i for i, command in enumerate(commands) if build in command]
+    built = [i for i, command in enumerate(commands) if command.endswith("pnpm build")]
     held = [i for i, command in enumerate(commands) if "frontimage --manifest" in command]
     assert built
     assert held
@@ -273,13 +283,20 @@ def test_the_paths_build_the_front_then_play_against_it(target: str) -> None:
 
 @pytest.mark.parametrize("target", ["e2e", "e2e-measure", "e2e-service"])
 def test_a_front_built_already_is_not_built_again(target: str) -> None:
-    commands = dry_run(target, "full", "E2E_BUILT=1", "SHARD=1/3")
-    assert not [command for command in commands if "pnpm build" in command]
+    shard = ["SHARD=1/3"] if target == "e2e" else []
+    commands = dry_run(target, "full", "E2E_BUILT=1", *shard)
+    assert not [command for command in commands if command.endswith("pnpm build")]
+    assert [command for command in commands if "playwright test" in command]
 
 
-def test_the_paths_against_the_development_server_build_nothing_but_the_measure_does() -> None:
-    assert not [c for c in dry_run("e2e", "full", "E2E_DEV_SERVER=1") if "pnpm build" in c]
-    assert [c for c in dry_run("e2e-measure", "full", "E2E_DEV_SERVER=1") if "pnpm build" in c]
+@pytest.mark.parametrize(
+    ("target", "builds"), [("e2e", False), ("e2e-service", False), ("e2e-measure", True)]
+)
+def test_the_paths_against_the_development_server_build_nothing_but_the_measure_does(
+    target: str, builds: bool
+) -> None:
+    commands = dry_run(target, "full", "E2E_DEV_SERVER=1")
+    assert bool([c for c in commands if c.endswith("pnpm build")]) is builds
 
 
 def test_the_chain_holds_what_the_build_of_the_paths_prerendered() -> None:
@@ -305,14 +322,22 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     workflows = REPOSITORY / ".github" / "workflows"
     chain = yaml.safe_load((workflows / "ci.yml").read_text())["jobs"]
     build = chain["front-build"]
-    assert "needs.changes.outputs.tier == 'full'" in build["if"]
-    for family in ("front", "service"):
-        assert f"needs.changes.outputs.{family} == 'true'" in build["if"]
+    assert build["needs"] == "changes"
+    assert " ".join(build["if"].split()) == (
+        "needs.changes.outputs.tier == 'full' && "
+        "(needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')"
+    )
     assert [step["run"] for step in build["steps"] if "run" in step][-1] == "make build-front"
+    (building,) = [step for step in build["steps"] if step.get("run") == "make build-front"]
+    assert not [name for name in building.get("env", {}) if name.startswith("E2E_")]
     (uploaded,) = [
         step["with"] for step in build["steps"] if "upload-artifact" in step.get("uses", "")
     ]
     assert uploaded["path"].split() == ["frontend/.next/", "!frontend/.next/cache/"]
+    # .next is hidden: without the option the action would skip it.
+    assert uploaded["include-hidden-files"] is True
+    assert uploaded["if-no-files-found"] == "error"
+    assert uploaded["retention-days"] == 1
     played = {"name": uploaded["name"], "path": "frontend/.next/"}
     for job in ("e2e", "service", "gate"):
         assert "front-build" in chain[job]["needs"]
