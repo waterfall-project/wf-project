@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +18,7 @@ import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { WRITE_DELAY } from "@/components/grid/settings";
 
-import { GanttAxis, GanttCell, GanttLegend, GanttRows } from "./gantt";
+import { GanttAxis, GanttCell, GanttLegend, GanttRows, useGanttView } from "./gantt";
 
 // The server of Next, as far as the grid needs it: the preferences it records.
 const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } => ({
@@ -56,6 +57,19 @@ function renderPlanning(locale: Locale = "fr") {
         undoable
       />
     </NextIntlClientProvider>,
+  );
+}
+
+/** A bare command that zooms in: the gesture alone, without the tooltip of the header. */
+function ZoomIn() {
+  const view = useGanttView();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        view?.zoomTo(1);
+      }}
+    />
   );
 }
 
@@ -280,6 +294,57 @@ describe("the Gantt of the planning", () => {
     await waitFor(() => {
       expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
     });
+  });
+
+  // aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom depuis « Ajusté au
+  // projet ») ; le geste pris juste après le montage (#1473, #1479).
+  it("knows the width of its column from the commit of its mount, for a zoom asked at once", async () => {
+    // The frame of the axis, inset from its column of 400 (`left-2`, `w-[calc(100%-1rem)]`).
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(384);
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(8);
+    const row = planning.items.find((item) => item.task !== null && item.task !== undefined) ?? {
+      node_id: "none",
+    };
+    // Mounted as the browser mounts it, outside `act`, which runs every effect before the gesture:
+    // React hands the page back after the commit, and its effects come in a later task. The click
+    // comes at the first moment the page can take it, once the commit of the mount is over.
+    const acting: unknown = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
+    Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false);
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    const clicked = new Promise<void>((resolve) => {
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        container.querySelector("button")?.click();
+        resolve();
+      });
+      observer.observe(container, { childList: true, subtree: true });
+    });
+    try {
+      root.render(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          <GanttRows rows={planning.items} scope="mount">
+            <ZoomIn />
+            <GanttAxis width={400} />
+            <GanttCell row={row} />
+          </GanttRows>
+        </NextIntlClientProvider>,
+      );
+      await clicked;
+      const drawing = () => container.querySelector<SVGElement>("svg[style]");
+      await waitFor(() => {
+        expect(drawing()?.style.width).toMatch(/px$/);
+      });
+      // One level finer than the one fitted to a column of 400 — the weeks over their days —, and
+      // the date at the centre of the column at the centre of the frame: 1 464 / 2 − 384 / 2. A
+      // column of no width fitted the coarsest level, and a centre taken on it scrolled nowhere.
+      expect(drawing()).toHaveStyle({ width: "1464px" });
+      expect(drawing()?.parentElement?.scrollLeft).toBe(540);
+    } finally {
+      root.unmount();
+      container.remove();
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", acting);
+    }
   });
 
   it("draws nothing outside a grid of the planning", () => {
