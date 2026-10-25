@@ -2186,7 +2186,8 @@ suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, l
 (FBS-4). Une page est un fichier Markdown, `frontend/help/fr/<code>.md` ; une notion de la méthode,
 `frontend/help/fr/notions/<notion>.md`. Le serveur les lit à l'ouverture du panneau, par l'action
 `readHelp` (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), qui ne nomme aucun fichier
-d'après la requête sans l'avoir confronté aux codes de la table ou à la forme d'un nom de notion ; le
+d'après la requête sans l'avoir confronté aux codes de la table ou à la forme d'un nom de notion, et
+dont la lecture refuse, là où le chemin s'écrit, tout fichier hors du dossier de l'aide (#1462) ; le
 standalone les emporte par `outputFileTracingIncludes` (`next.config.ts`). Le panneau les rend par
 `react-markdown` et `remark-gfm`, sans HTML brut (`skipHtml`) et dans les seuls éléments d'un texte ;
 un code entre accents graves s'y lit comme une touche (`<kbd>`). Un lien relatif vers un code ou une
