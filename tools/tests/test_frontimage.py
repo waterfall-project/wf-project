@@ -254,6 +254,29 @@ def dry_run(target: str, tier: str, *variables: str) -> list[str]:
     return result.stdout.splitlines()
 
 
+BUILD = re.compile(r"pnpm build(\s|$)")
+
+
+def builds_the_front(command: str) -> bool:
+    """Tell whether a command of the dry run builds the front, whatever argument it is given."""
+    return BUILD.search(command) is not None
+
+
+@pytest.mark.parametrize(
+    ("command", "builds"),
+    [
+        ("cd frontend && pnpm build", True),
+        ("cd frontend && pnpm build --debug", True),
+        ("cd frontend && pnpm build:analyze", False),
+        ("cd frontend && pnpm lint", False),
+    ],
+)
+def test_a_build_of_the_front_is_seen_with_or_without_an_argument(
+    command: str, builds: bool
+) -> None:
+    assert builds_the_front(command) is builds
+
+
 @pytest.mark.parametrize("tier", ["fast", "full"])
 def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(tier: str) -> None:
     # The layout reads the cookies, which keeps every page from being prerendered: a change of it,
@@ -261,7 +284,7 @@ def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(tier: 
     families = paths.read().touched(["frontend/src/app/layout.tsx"])
     assert "check-front" in {family.target for family in families}
     commands = dry_run("check-front", tier)
-    built = [i for i, command in enumerate(commands) if command.endswith("pnpm build")]
+    built = [i for i, command in enumerate(commands) if builds_the_front(command)]
     held = [i for i, command in enumerate(commands) if "frontimage --manifest" in command]
     assert built
     assert held
@@ -274,7 +297,7 @@ def test_the_paths_build_the_front_then_play_against_it(target: str) -> None:
     # US-0590: every part of the harness plays the front built for production, built as
     # build-front builds it — with no API to reach (#131) — before Playwright starts it.
     commands = dry_run(target, "full")
-    built = [i for i, command in enumerate(commands) if command.endswith("pnpm build")]
+    built = [i for i, command in enumerate(commands) if builds_the_front(command)]
     played = [i for i, command in enumerate(commands) if "playwright test" in command]
     assert len(built) == 1
     assert played
@@ -285,7 +308,7 @@ def test_the_paths_build_the_front_then_play_against_it(target: str) -> None:
 def test_a_front_built_already_is_not_built_again(target: str) -> None:
     shard = ["SHARD=1/3"] if target == "e2e" else []
     commands = dry_run(target, "full", "E2E_BUILT=1", *shard)
-    assert not [command for command in commands if command.endswith("pnpm build")]
+    assert not [command for command in commands if builds_the_front(command)]
     assert [command for command in commands if "playwright test" in command]
 
 
@@ -296,7 +319,7 @@ def test_the_paths_against_the_development_server_build_nothing_but_the_measure_
     target: str, builds: bool
 ) -> None:
     commands = dry_run(target, "full", "E2E_DEV_SERVER=1")
-    assert bool([c for c in commands if c.endswith("pnpm build")]) is builds
+    assert bool([c for c in commands if builds_the_front(c)]) is builds
 
 
 def test_the_chain_holds_what_the_build_of_the_paths_prerendered() -> None:

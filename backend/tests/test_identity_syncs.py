@@ -34,6 +34,7 @@ from waterfall.core.users.interface import (
     SkippedAccount,
     SkippedPerson,
     SyncReport,
+    latest_report,
     record_report,
 )
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
@@ -136,6 +137,22 @@ def test_a_reading_is_asked_for_under_the_permission_to_change_the_accounts(
         403,
         {"missing_permission": "users.write"},
     )
+
+
+@pytest.mark.requirement("WF-ADM-0070-A")
+def test_the_report_of_two_readings_ended_together_is_always_the_same_one(
+    database: Database, queue: TaskQueue
+) -> None:
+    # « Le dernier compte administrateur, retiré de l'annuaire, reste actif et la synchronisation
+    # le signale. » : the report that tells it is the same each time it is read, whatever the
+    # order the rows are kept in; of two readings ended at the same instant, the greater task wins.
+    kept = account(database, "Bernard", "Dominique", origin="directory")
+    tasks = [reported(database, queue, NIGHT, count, kept) for count in (1, 2, 3)]
+    for _ in range(3):
+        with database.transaction() as session:
+            report = latest_report(session)
+        assert report is not None
+        assert report.task_id == max(tasks)
 
 
 @pytest.mark.requirement("WF-ADM-0070-A")
