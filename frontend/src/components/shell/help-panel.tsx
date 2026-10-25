@@ -10,10 +10,13 @@
  * The page is Markdown (`help-markdown.tsx`, loaded when the panel first shows a page): no raw
  * HTML, only the elements a page of text needs. A link to another page of the help — a screen, a
  * notion — shows that page in the panel, without leaving the screen; any other link shows as text.
- * A function's screen leads to the pages of its sections. A page not written yet says that its help
- * is to come. The help is in French alone (`HELP_LANGUAGE`): the title and the body of a page say
- * so (`lang`) in an interface in another language, for a screen reader to speak them as French. The
- * body, which scrolls, is a region, named like the title, that Tab reaches.
+ * The section of the columns is followed by the definitions of the columns of the grid, from the
+ * catalogues, as their headers show them; a function's screen leads to the pages of its sections.
+ * A search reads the titles of the pages written. A page not written yet says that its help is to
+ * come. The help is in French alone (`HELP_LANGUAGE`): the title and the page, and the titles a
+ * search finds, say so (`lang`) in an interface in another language, for a screen reader to speak
+ * them as French; the messages of the interface around them keep its language. The body, which
+ * scrolls, is a region, named like the title, that Tab reaches.
  *
  * The panel is a sheet: a dialog of Radix, named by its title, which holds the focus, closes by
  * Escape and gives the focus back to where it was — the button, or the cell where F1 was pressed. A
@@ -39,16 +42,20 @@ import {
 import { readHelp } from "@/api/actions/help";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
+  COLUMNS_SECTION,
   fileOf,
   HELP_LANGUAGE,
+  type HelpColumn,
   type HelpEntry,
   type HelpPage,
   type HelpReading,
   type HelpTarget,
   helpCodeAt,
   sameTarget,
+  searched,
   sectionsOf,
 } from "@/help/help";
 
@@ -81,6 +88,31 @@ class ChunkBoundary extends Component<
   override render() {
     return this.state.error ? this.props.failed : this.props.children;
   }
+}
+
+/** The definitions of the columns of a grid, as its headers show them in their tooltips. */
+function HelpColumns({ columns }: { readonly columns: readonly HelpColumn[] }) {
+  const t = useTranslations("help");
+  const headings = useTranslations("grid.columns");
+  const definitions = useTranslations("columns");
+  if (columns.length === 0) {
+    return null;
+  }
+  return (
+    <dl className="space-y-2">
+      {columns.map((column) => (
+        <div key={column.help}>
+          <dt className="font-medium">
+            {headings(column.label)}
+            {column.computed ? (
+              <span className="ml-1 font-normal text-muted-foreground">{t("computed")}</span>
+            ) : null}
+          </dt>
+          <dd className="leading-relaxed">{definitions(`${column.help}.help`)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 /** The sections of a function's screen whose pages are written, each a link to its page. */
@@ -121,7 +153,7 @@ function HelpParts({
   );
 }
 
-/** A page of the help written: its sections. */
+/** A page of the help written: its sections, the columns after theirs. */
 function WrittenPage({
   page,
   index,
@@ -151,6 +183,7 @@ function WrittenPage({
           {at === 0 && target.kind === "screen" ? (
             <HelpParts code={target.code} index={index} onFollow={onFollow} />
           ) : null}
+          {at === COLUMNS_SECTION ? <HelpColumns columns={page.columns} /> : null}
         </section>
       ))}
     </div>
@@ -163,9 +196,36 @@ type Shown =
   | { readonly kind: "failed" }
   | { readonly kind: "read"; readonly reading: HelpReading };
 
+/** The results of a search, each a link to its page: the count is the interface's own, the titles are French. */
+function SearchResults({
+  found,
+  onFollow,
+}: {
+  readonly found: readonly HelpEntry[];
+  readonly onFollow: (target: HelpTarget) => void;
+}) {
+  const t = useTranslations("help");
+  return (
+    <div className="space-y-2 text-sm">
+      <p role="status">{t("results", { count: found.length })}</p>
+      {found.length === 0 ? null : (
+        <ul className="space-y-1">
+          {found.map((entry) => (
+            <li key={fileOf(entry.target)} lang={HELP_LANGUAGE}>
+              <HelpLink target={entry.target} onFollow={onFollow}>
+                {entry.title}
+              </HelpLink>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /**
  * The button and the panel of the help of a screen, by its code. The button is an icon named
- * « Aide », 28 points high like the line of a dense title, which it stands beside
+ * « Aide », at most as high as the line of a dense title (28 points), which it follows
  * (`page-header.tsx`); its tooltip says its name and F1.
  */
 function ScreenHelp({ code }: { readonly code: string }) {
@@ -175,6 +235,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
   const [history, setHistory] = useState<readonly HelpTarget[]>([]);
   const [shown, setShown] = useState<Shown>({ kind: "loading" });
   const [index, setIndex] = useState<readonly HelpEntry[]>([]);
+  const [query, setQuery] = useState("");
   const panelId = useId();
   // The page asked last: an answer to an earlier one, arriving after it, is dropped.
   const asked = useRef(0);
@@ -192,6 +253,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
     setPage(target);
     setHistory(past);
     setShown({ kind: "loading" });
+    setQuery("");
     const answer = (next: Shown) => {
       if (ticket === asked.current) {
         setShown(next);
@@ -268,6 +330,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
   const written = shown.kind === "read" ? shown.reading.page : undefined;
   const heading = written?.kind === "written" ? written.title : t("help.title");
   const atScreen = sameTarget(page, { kind: "screen", code });
+  const found = searched(index, query);
 
   return (
     <>
@@ -336,14 +399,25 @@ function ScreenHelp({ code }: { readonly code: string }) {
               </Button>
             </SheetClose>
           </SheetHeader>
+          <div className="border-b px-4 py-2">
+            <Input
+              type="search"
+              aria-label={t("help.search")}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
+            />
+          </div>
           <div
             role="region"
             aria-label={heading}
-            lang={written?.kind === "written" ? HELP_LANGUAGE : undefined}
             tabIndex={0}
             className="flex-1 overflow-y-auto p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
-            {shown.kind === "loading" ? (
+            {query.trim() !== "" ? (
+              <SearchResults found={found} onFollow={follow} />
+            ) : shown.kind === "loading" ? (
               <p role="status" className="text-sm text-muted-foreground">
                 {t("help.loading")}
               </p>

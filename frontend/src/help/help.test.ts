@@ -35,6 +35,7 @@ import {
   isHelpTarget,
   linkTarget,
   SCREEN_HEADINGS,
+  searched,
 } from "./help";
 import { helpDirectory, helpIndex, parseHelp, readHelpPage } from "./read";
 import { NOTIONS_TO_COME, SCREENS_TO_COME } from "./to-come";
@@ -201,13 +202,24 @@ afterEach(() => {
 });
 
 describe("the reading of the help", () => {
-  it("reads the page of a screen in its sections [WF-IHM-0140-A]", async () => {
+  it("reads the page of a screen in its sections, with the columns of its grid from the catalogues [WF-IHM-0140-A]", async () => {
     const page = await readHelpPage({ kind: "screen", code: "FBS-4.4" });
     expect(page.kind).toBe("written");
     if (page.kind === "written") {
       expect(page.title).toBe("Chiffrage et devis");
       expect(page.sections.map((section) => section.heading)).toEqual([...SCREEN_HEADINGS]);
+      expect(page.columns.map((column) => column.help)).toContain("estimate.referenceAmount");
+      expect(page.columns.find((column) => column.help === "estimate.category")?.computed).toBe(
+        false,
+      );
+      expect(
+        page.columns.find((column) => column.help === "estimate.referenceAmount")?.computed,
+      ).toBe(true);
     }
+    const column = await readHelpPage({ kind: "screen", code: "FBS-4.4.3" });
+    expect(column.kind === "written" ? column.columns.map((each) => each.label) : []).toEqual([
+      "referenceAmount",
+    ]);
   });
 
   it("says a page not written yet is to come [WF-IHM-0140-A]", async () => {
@@ -294,7 +306,7 @@ describe("the reading of the help", () => {
   });
 });
 
-describe("the links and the screens of the help", () => {
+describe("the links, the search and the screens of the help", () => {
   it.each([
     [{ kind: "screen", code: "FBS-4.3" }, "FBS-4.4.md", { kind: "screen", code: "FBS-4.4" }],
     [
@@ -314,6 +326,18 @@ describe("the links and the screens of the help", () => {
     [{ kind: "notion", name: "indices" }, "../../package.json", undefined],
   ] as const)("resolves a link of %o to %s", (from, href, to) => {
     expect(linkTarget(from, href)).toEqual(to);
+  });
+
+  it("finds the pages whose title holds every word, accents and capitals aside", () => {
+    const index = [
+      { target: { kind: "notion", name: "valeur-acquise" }, title: "La valeur acquise" },
+      { target: { kind: "notion", name: "budget-de-reference" }, title: "Le budget de référence" },
+    ] as const;
+    expect(searched(index, "REFERENCE").map((entry) => entry.title)).toEqual([
+      "Le budget de référence",
+    ]);
+    expect(searched(index, "acquise valeur")).toHaveLength(1);
+    expect(searched(index, "  ")).toEqual([]);
   });
 
   it.each([
