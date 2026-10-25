@@ -91,29 +91,20 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-center gap-3">
-          <h1 className={cn("flex items-center gap-2 font-semibold", TITLE[density])}>
-            {Icon === undefined ? null : (
-              <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-            )}
-            {title}
-          </h1>
-          {/* Beside the title, its margins negative: the button, taller than the line of a dense
-              title, adds no height to the header, and none to the commands at the right, which
-              keep the room they had — the grid under them keeps its totals in a low window. */}
-          {helped ? (
-            <span className="-my-1 flex shrink-0 items-center gap-2">
-              <HelpPanel />
-            </span>
-          ) : null}
-        </div>
+        <h1 className={cn("flex items-center gap-2 font-semibold", TITLE[density])}>
+          {Icon === undefined ? null : (
+            <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+          )}
+          {title}
+        </h1>
         {subtitle === undefined ? null : (
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         )}
       </div>
-      {actions === undefined ? null : (
-        <div className="flex flex-wrap items-start gap-2">{actions}</div>
-      )}
+      <div className="flex flex-wrap items-start gap-2">
+        {actions}
+        {helped ? <HelpPanel /> : null}
+      </div>
     </div>
   );
 }
