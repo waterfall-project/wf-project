@@ -2792,7 +2792,8 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le runner. Le build ne dépend
   pas de ce chemin : seul `required-server-files.json`, que lit la sortie autonome de l'image et
   non `next start`, le nomme, et un build déplacé ailleurs, son dossier d'origine retiré, sert ses
-  pages (vérifié le 2026-10-25).
+  pages (vérifié le 2026-10-25 sur le poste, en déplaçant le build ; la preuve dans la chaîne
+  viendra d'une exécution de `chain` sur la branche du lot).
 
 Le back suit le même modèle (#492, levier 5) :
 
@@ -3477,8 +3478,9 @@ nommer y est nommé, et ce qu'ils doivent laisser passer passe. Les outils du se
 développement de Next (`nextjs-portal`), que le front construit n'a pas, sont écartés d'axe et du
 parcours. Le fichier se joue test par test (`mode: "parallel"`) : Playwright répartit ses tests un à
 un entre les workers et les morceaux de la chaîne, et non le fichier en bloc ; chacun prend
-`test.slow()`, car il ouvre un écran à froid, que le serveur de développement compile à sa première
-visite, puis le contrôle deux fois. Un écart relevé se corrige dans l'écran, jamais en écartant une
+`test.slow()`, car il ouvre un écran puis le contrôle deux fois, ce qui dépasse le délai par défaut
+sur un poste chargé ; la compilation à froid d'un écran n'ajoute à ce temps que sous
+`E2E_DEV_SERVER=1`, le front construit n'en ayant pas. Un écart relevé se corrige dans l'écran, jamais en écartant une
 règle.
 
 Le harnais ne contrôle que les écrans tels qu'ils s'ouvrent : ce qu'un geste ouvre — un dialogue,

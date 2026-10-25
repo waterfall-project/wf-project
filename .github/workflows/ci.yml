@@ -101,7 +101,8 @@ jobs:
   # build nothing again (E2E_BUILT). Here, whenever either of them runs: e2e.yml and service.yml
   # are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml builds: the
   # parts of e2e.yml start it in Playwright's image, on its Node 24 and its Ubuntu noble, amd64, at
-  # another path of the workspace, which the build does not depend on; service.yml on the runner.
+  # another path of the workspace, which the build should not depend on (checked by moving the
+  # build on a workstation; the proof in the chain is a run of `chain` on the branch); service.yml on the runner.
   front-build:
     needs: changes
     if: >-
