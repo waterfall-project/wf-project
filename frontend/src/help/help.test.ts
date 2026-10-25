@@ -75,6 +75,14 @@ function plain(text: string): string {
   return text.replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * A definition of the glossary as a notion quotes it: without the identifiers of requirement in
+ * brackets (« (WF-RIS-0050) »), which mean nothing to the reader of the help (#1440).
+ */
+function withoutIdentifiers(text: string): string {
+  return text.replace(/\s\(WF-[A-Z]{3}-\d{4}\)/g, "");
+}
+
 /** The glossary of the specification, its annex A, by term. */
 function glossary(): ReadonlyMap<string, string> {
   const spec = readFileSync(
@@ -87,7 +95,7 @@ function glossary(): ReadonlyMap<string, string> {
   for (const row of spec.slice(start, end).split("\n")) {
     const cells = /^\|([^|]+)\|([^|]+)\|$/.exec(row.trim());
     if (cells?.[1] !== undefined && cells[2] !== undefined && !cells[1].includes("---")) {
-      terms.set(plain(cells[1]), plain(cells[2]));
+      terms.set(plain(cells[1]), plain(withoutIdentifiers(cells[2])));
     }
   }
   return terms;
@@ -144,7 +152,7 @@ describe("the pages of the help", () => {
     }
   });
 
-  it("quotes the glossary of the specification in every notion, word for word [WF-IHM-0140-A]", () => {
+  it("quotes the glossary of the specification in every notion, word for word but the identifiers of requirement [WF-IHM-0140-A]", () => {
     const terms = glossary();
     expect(terms.size).toBeGreaterThan(50);
     for (const { target, text } of pages().filter((page) => page.target.kind === "notion")) {
@@ -161,6 +169,7 @@ describe("the pages of the help", () => {
       for (const quote of quotes) {
         expect(quote, fileOf(target)).not.toBeNull();
         const term = plain(quote?.[1] ?? "");
+        expect(quote?.[2], `${fileOf(target)}: ${term}`).not.toMatch(/WF-[A-Z]{3}-\d{4}/);
         expect(plain(quote?.[2] ?? ""), `${fileOf(target)}: ${term}`).toBe(terms.get(term));
       }
     }

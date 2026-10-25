@@ -8,7 +8,7 @@
 
 > **Révision de référence** — Désigne la révision marquée qui fait foi pour le budget de référence, la réserve pour risques, les dates contractuelles et la valeur planifiée. Ce caractère est un attribut de la révision : il passe à une nouvelle révision à chaque avenant contractualisé.
 
-> **Révision courante** — Désigne la révision dans laquelle une grandeur est lue ou calculée : pour les indicateurs d’une révision marquée, cette révision ; au jour courant, la révision en cours d’élaboration lorsqu’il en existe une, sinon la dernière révision marquée (WF-IND-0010). C’est elle que lisent le reste à engager (WF-RAE-0010), le devis courant, l’assiette du projet (WF-REF-0160) et le portefeuille au jour courant (WF-PTF-0010).
+> **Révision courante** — Désigne la révision dans laquelle une grandeur est lue ou calculée : pour les indicateurs d’une révision marquée, cette révision ; au jour courant, la révision en cours d’élaboration lorsqu’il en existe une, sinon la dernière révision marquée. C’est elle que lisent le reste à engager, le devis courant, l’assiette du projet et le portefeuille au jour courant.
 
 > **Revue périodique** — Désigne l’opération au cours de laquelle un utilisateur habilité met à jour le planning et le reste à engager de la révision en cours, réexamine les risques, importe les nouveaux coûts réels, puis marque la révision. Ces données permettent de mettre à jour les indicateurs du projet.
 

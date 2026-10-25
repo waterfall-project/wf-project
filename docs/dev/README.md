@@ -2174,12 +2174,12 @@ et `column-help.test.ts` pour toute colonne de devis, de planning, de reste à e
 ### L'aide en ligne
 
 Chaque écran que la table des fonctions connaît ouvre son aide (WF-IHM-0140, US-0580) : le bouton
-« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, de la hauteur d'une ligne du titre,
+« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, au plus de la hauteur d'une ligne du titre,
 qui suit son dernier mot dans le même flux de texte : à droite, parmi les commandes, il rétrécirait le
 titre ; élément d'une rangée qui passe à la ligne, il prendrait une ligne à lui sous un titre sur deux
 lignes, celui du reste à engager en 1280 × 720 ; dans les deux cas, l'en-tête grandirait et
 pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
-`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine —, ou F1
+`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine, et il y est alors sans retrait : une espace le sépare du titre, non une marge —, ou F1
 partout sur l'écran, ouvre à côté de lui un panneau
 latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code de la FBS — celui de la route que
 suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, la liste des projets
@@ -2202,10 +2202,13 @@ La page d'un écran suit la structure de #1075, ses titres de second niveau dans
 calculées », « Les gestes au clavier », « Voir aussi ». Les définitions des colonnes ne s'y écrivent
 pas : le panneau les rend après la troisième section, depuis la configuration de la grille de l'écran
 et les clés de ses en-têtes (`columns.<grille>.<colonne>.help`, `COLUMNS` de `read.ts`), une seule
-source avec leurs infobulles. Une notion cite le glossaire de l'annexe A mot pour mot, une citation par
-terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
+source avec leurs infobulles. Une notion cite le glossaire de l'annexe A mot pour mot, sans les identifiants d'exigence entre
+parenthèses (« (WF-RIS-0050) »), qui ne disent rien à qui lit l'aide, et que `help.test.ts` ignore dans sa
+comparaison (#1440), une citation par terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
 « Voir aussi ». L'aide n'existe qu'en français : une interface en anglais la montre en français, écart
-de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075).
+de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075). `lang="fr"` ne couvre que la page rendue
+(`WrittenPage`), le titre du panneau et les titres que la recherche trouve : les messages de l'interface
+du corps (lecture, échec, nombre de résultats) gardent sa langue (#1442).
 
 _Contrôle_ : `src/help/help.test.ts` (`make test-front`) exige une page française par code de la table
 qui a un écran, ou sa place dans la liste des pages à venir avec le lot qui l'écrit (`SCREENS_TO_COME`,

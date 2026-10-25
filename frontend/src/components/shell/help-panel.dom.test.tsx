@@ -162,10 +162,9 @@ describe("the panel of the help", () => {
     await within(dialog).findAllByRole("heading", { level: 3 });
     const title = within(dialog).getByRole("heading", { name: "Planification" });
     expect(title).toHaveAttribute("lang", "fr");
-    // The body, named by that French title, is French as a whole.
-    expect(within(dialog).getByRole("region", { name: "Planification" })).toHaveAttribute(
+    // The region of the body holds the messages of the interface too: only the page is French (#1442).
+    expect(within(dialog).getByRole("region", { name: "Planification" })).not.toHaveAttribute(
       "lang",
-      "fr",
     );
     expect(dialog.querySelectorAll('[lang="fr"]').length).toBeGreaterThan(1);
     expect(dialog.querySelector('[lang="fr"] h3')).not.toBeNull();
@@ -184,8 +183,10 @@ describe("the panel of the help", () => {
     await within(dialog).findAllByRole("heading", { level: 3 });
     const body = within(dialog).getByRole("region", { name: "Planification" });
     expect(body).toHaveAttribute("tabindex", "0");
-    // Tab goes from the title's neighbours — the close button — to the body.
+    // Tab goes from the title's neighbours — the close button — to the search, then to the body.
     within(dialog).getByRole("button", { name: "Fermer l’aide" }).focus();
+    await user.tab();
+    expect(within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" })).toHaveFocus();
     await user.tab();
     expect(body).toHaveFocus();
   });
@@ -247,6 +248,23 @@ describe("the panel of the help", () => {
     expect(within(dialog).getByRole("status")).toHaveTextContent("1 page trouvée");
     await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
     await panel("La valeur acquise");
+  });
+
+  it("keeps the language of the interface on the messages of a search and a failed reading, the French on the titles [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planification");
+    await user.type(within(dialog).getByRole("searchbox", { name: "Search the help" }), "acquise");
+    expect(within(dialog).getByRole("status")).toHaveTextContent("1 page found");
+    expect(within(dialog).getByRole("status").closest("[lang]")).toBeNull();
+    expect(
+      within(dialog).getByRole("link", { name: "La valeur acquise" }).closest("[lang]"),
+    ).toHaveAttribute("lang", "fr");
+    vi.mocked(readHelp).mockRejectedValueOnce(new Error("out of reach"));
+    await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("The help could not be read.");
+    expect(within(dialog).getByRole("alert").closest("[lang]")).toBeNull();
   });
 
   it("renders no raw HTML a page would hold, nor an image, nor a link out of the help [WF-IHM-0140-A]", async () => {
