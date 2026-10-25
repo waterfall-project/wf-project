@@ -168,9 +168,15 @@ export function linkTarget(from: HelpTarget, href: string): HelpTarget | undefin
   return undefined;
 }
 
-/** A text folded for a search: small letters, without accents nor marks. */
+/** A text folded for a search: small letters, without accents nor marks, « œ » and « æ » spelt out. */
 function folded(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "").replace(/[’']/g, " ").toLowerCase();
+  return text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[’']/g, " ")
+    .toLowerCase()
+    .replace(/œ/g, "oe")
+    .replace(/æ/g, "ae");
 }
 
 /**
