@@ -3181,19 +3181,28 @@ les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses
 serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front —, jamais ceux de
 `make dev`, et son faux back sert une variante du contrat écrite sous `frontend/.e2e/`, que
 `make dev` ne lit pas : un port déjà pris fait échouer le lancement en le disant. `E2E_API_PORT`
-et `E2E_FRONT_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un port
+et `E2E_FRONT_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste — le front des
+parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous) ; un port
 qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
-(`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
+(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier d'au moins 1, rien d'autre), moins que
+Playwright n'en prend de lui-même — la moitié des processeurs — sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
 **Les parcours se jouent contre le front construit pour la production** (US-0590), celui
-qu'ouvrent les utilisateurs : un seul serveur `next start`, sur `E2E_FRONT_PORT`, sert les
-parcours, la mesure de la seconde et les parcours du service. Le serveur de développement rendait
-en série les pages des quatre workers, au-delà des cinq secondes d'une assertion (#1262), et
-montait à plus de 9 Go après avoir compilé chaque route (#1309). `make e2e`, `make e2e-measure` et
+qu'ouvrent les utilisateurs : un serveur `next start` par worker des parcours, sur `E2E_FRONT_PORT`
+et les ports qui le suivent, chaque worker jouant contre celui de sa place parmi les workers
+(`TEST_PARALLEL_INDEX`) ; un seul pour la mesure de la seconde, jouée sur un worker, pour les
+parcours du service, dont le royaume ne connaît l'adresse que d'un front, et pour le serveur de
+développement. Le serveur de développement rendait en série les pages des quatre workers, au-delà
+des cinq secondes d'une assertion (#1262), et montait à plus de 9 Go après avoir compilé chaque
+route (#1309). Un seul front construit, un processus, les rendait en série lui aussi, plus vite :
+occupé les trois quarts du temps sous six workers, il laissait l'écran des risques en chargement
+cinq secondes après le clic, trois fois sur soixante (#1477) ; un front par worker, aucune sur
+soixante. Playwright démarre les fronts l'un après l'autre, et le premier construit le front quand
+il ne l'est pas. `make e2e`, `make e2e-measure` et
 `make e2e-service` construisent d'abord le front comme `make build-front`, sans API joignable
 (#131) — un même build sert donc le faux back et le vrai service —, puis lancent Playwright, qui le
 démarre ; en local, le cache de Next (`frontend/.next/cache`) abrège les builds suivants.
@@ -3218,11 +3227,13 @@ développement avant le premier parcours, est retiré avec ses tests : le front 
 rien à la demande. Une panne de l'API, du royaume ou de Redis se lit donc au premier parcours qui
 l'atteint, et non plus avant lui (#1265).
 
-**Un échec toléré, jusqu'à US-0590b** (#1460) : au palier complet local, l'échec d'un parcours que
-nomme #1263 — l'accessibilité d'`/admin/access-roles` (`accessibility.spec.ts`), un écran qui
-attend le rendu serveur du Kanban — n'empêche pas une fusion s'il passe rejoué seul
-(`make e2e WORKERS=2 TESTS=e2e/<fichier>`) ; le compte rendu du lot le dit. Tout autre échec est un
-échec. La règle disparaît avec US-0590b, qui corrige ces échecs à leur cause.
+**Aucun échec n'est toléré** (US-0590b, #1460) : au palier complet local comme dans la chaîne,
+l'échec d'un parcours est un échec, même s'il passe rejoué seul. La règle provisoire de #1145, qui
+laissait fusionner un lot dont les parcours de #1145 et de #1263 tombaient au palier local puis
+passaient rejoués seuls, a disparu avec US-0590b, qui a corrigé ces échecs à leur cause : le front
+construit, un par worker (ci-dessus), et le parcours au clavier allégé (ci-dessous). Un parcours
+qui tombe se corrige à sa cause, jamais par une attente plus longue, un `retries`, un `fixme` ni un
+`skip`.
 
 Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
 (`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
@@ -3470,7 +3481,13 @@ deux largeurs :
   fait défiler n'est jamais un bord : ce qu'elle cache, elle le montre en défilant, et c'est elle qui
   doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
   l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
-  l'atteint encore à 911 (`lost`).
+  l'atteint encore à 911 (`lost`). Pour voir ce qui peint par-dessus un élément, le parcours fait
+  prendre le pointeur, le temps de la mesure, aux seuls éléments qui ne le prennent pas, puis les
+  rend tels qu'ils étaient : une feuille posée sur tous (`* { pointer-events: auto }`) et retirée à
+  chaque Tab faisait recalculer deux fois le style de la page entière — les trois cinquièmes du
+  temps d'un Tab sur une page de deux mille éléments, et le parcours des rôles d'habilitation,
+  plus de 350 Tab à chaque largeur, à 84 des 90 secondes de son délai sous quatre workers, 66 une
+  fois la mesure ainsi faite (#1263).
 
 `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
 d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent

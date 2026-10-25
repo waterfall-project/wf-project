@@ -6,10 +6,11 @@
  * title (WF-QUA-0010). From EP-03, the same paths run against the real service by pointing
  * `WATERFALL_API_ADDRESS` at it.
  *
- * Every path plays against the front built for production, the one users open (US-0590): one
- * `next start` serves the paths, the measure of the second of §4.6.2 (`opening.spec.ts`,
- * US-0110/L2) and the paths against the service. The development server rendered the pages of
- * four workers in series, past the five seconds of an assertion (#1262). The front is built first
+ * Every path plays against the front built for production, the one users open (US-0590): a
+ * `next start` for each worker serves the paths, one the measure of the second of §4.6.2
+ * (`opening.spec.ts`, US-0110/L2) and the paths against the service. The development server
+ * rendered the pages of four workers in series, past the five seconds of an assertion (#1262), and
+ * a single front built did so still, though faster (#1477). The front is built first
  * as `make build-front` builds it, with no API to reach (#131), unless `E2E_BUILT=1` says it is
  * built already — the chain builds it once for all its parts (`ci.yml`). `E2E_DEV_SERVER=1`, on a
  * workstation only, plays the paths against `next dev` instead, which spares a build at each run
@@ -45,6 +46,7 @@
  * which reads the log of the proxy of the contract from the start of the run.
  */
 import { randomBytes } from "node:crypto";
+import { availableParallelism } from "node:os";
 
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 
@@ -78,13 +80,27 @@ function switchedOn(variable: string): boolean {
   return true;
 }
 
+/** The workers the environment names (`E2E_WORKERS`), or Playwright's own: half the processors. */
+function workers(): number {
+  const named = process.env.E2E_WORKERS;
+  if (named === undefined || named === "") {
+    return Math.max(1, Math.floor(availableParallelism() / 2));
+  }
+  const chosen = Number(named);
+  if (!Number.isInteger(chosen) || chosen < 1) {
+    throw new Error(`E2E_WORKERS must be a whole number of workers, 1 or more: ${named}`);
+  }
+  return chosen;
+}
+
 const API_PORT = port("E2E_API_PORT", 4110);
-// The port Keycloak knows the back channel of the front at, against the service (`make e2e-service`).
+// The port of the first front, the one Keycloak knows the back channel of the front at, against the
+// service (`make e2e-service`).
 const FRONT_PORT = port("E2E_FRONT_PORT", 3100);
 // An API named by the environment is played against as it is: no fake back is started for it.
 const NAMED_API = process.env.WATERFALL_API_ADDRESS;
 const API = NAMED_API ?? `http://127.0.0.1:${String(API_PORT)}`;
-const FRONT = `http://127.0.0.1:${String(FRONT_PORT)}`;
+const WORKERS = workers();
 // An address where no API answers, which `make build-front` builds the front with (#131).
 const NOWHERE = "http://127.0.0.1:9";
 const onWorkstation = process.env.CI === undefined;
@@ -144,6 +160,16 @@ const PLAYS_MEASURE = (PART === undefined && !DEVELOPMENT) || PART === "measure"
 if (PLAYS_SERVICE && NAMED_API === undefined) {
   throw new Error("E2E_PART=service plays against the service WATERFALL_API_ADDRESS names");
 }
+// One front for each worker of the paths, on the ports that follow the first: a `next start` is one
+// process, which rendered the pages of every worker in turn — busy three quarters of the time under
+// six workers, the screen of the risks still loading five seconds after its click (#1477). A worker
+// plays against the front of its place among the workers (`TEST_PARALLEL_INDEX`, which Playwright
+// gives the process of each worker, where it reads this file again). One front alone for the
+// service, whose realm knows the address of one, for the measure, played on one worker, and for the
+// development server, of which two would share `.next/dev`.
+const FRONTS = PLAYS_PATHS && !PLAYS_SERVICE && !DEVELOPMENT ? WORKERS : 1;
+const frontAt = (index: number) => `http://127.0.0.1:${String(FRONT_PORT + index)}`;
+const FRONT = frontAt(Number(process.env.TEST_PARALLEL_INDEX ?? "0") % FRONTS);
 // From the root of the repository, where `make -C ..` runs; ignored by git.
 const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
 const MEASURES = /opening\.spec\.ts$/;
@@ -266,36 +292,41 @@ function measureProjects(): Project[] {
 }
 
 /**
- * The front every part plays against: built for production and started, or the development
- * server when `E2E_DEV_SERVER=1` asks for it.
+ * The fronts the parts play against, one for each worker of the paths (`FRONTS`): built for
+ * production and started, or the development server when `E2E_DEV_SERVER=1` asks for it.
+ * Playwright starts them one after the other, each answering before the next starts: the first
+ * builds the front when it is not built, the others start on its build.
  */
-function front(): WebServer {
-  // Against the service, on every interface: Keycloak posts to the back channel of the front from
-  // its container, through the address of the workstation (`host.docker.internal`).
-  const listening = `--hostname ${PLAYS_SERVICE ? "0.0.0.0" : "127.0.0.1"} --port ${String(FRONT_PORT)}`;
-  // Built as `make build-front` builds it: with no API to reach, which the address of the API given
-  // to the server is not while it builds (#131). The build writes `.next`, the development server
-  // `.next/dev`: the two live side by side.
-  const build = BUILT ? "" : `WATERFALL_API_ADDRESS=${NOWHERE} pnpm build && `;
-  return {
-    command: DEVELOPMENT ? `pnpm dev ${listening}` : `${build}pnpm start ${listening}`,
-    url: FRONT,
-    env: FRONT_ENV,
-    reuseExistingServer: false,
-    timeout: DEVELOPMENT || BUILT ? 120_000 : 300_000,
-    // Signal the whole process group: make and pnpm start the servers as children.
-    gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
-  };
+function fronts(): WebServer[] {
+  return Array.from({ length: FRONTS }, (_, index) => {
+    // Against the service, on every interface: Keycloak posts to the back channel of the front
+    // from its container, through the address of the workstation (`host.docker.internal`).
+    const listening = `--hostname ${PLAYS_SERVICE ? "0.0.0.0" : "127.0.0.1"} --port ${String(FRONT_PORT + index)}`;
+    // Built as `make build-front` builds it: with no API to reach, which the address of the API
+    // given to the server is not while it builds (#131). The build writes `.next`, the development
+    // server `.next/dev`: the two live side by side.
+    const build = BUILT || index > 0 ? "" : `WATERFALL_API_ADDRESS=${NOWHERE} pnpm build && `;
+    return {
+      command: DEVELOPMENT ? `pnpm dev ${listening}` : `${build}pnpm start ${listening}`,
+      url: frontAt(index),
+      env: FRONT_ENV,
+      reuseExistingServer: false,
+      timeout: DEVELOPMENT || build === "" ? 120_000 : 300_000,
+      // Signal the whole process group: make and pnpm start the servers as children.
+      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+    };
+  });
 }
 
 export default defineConfig({
   testDir: "e2e",
   forbidOnly: !onWorkstation,
   retries: 0,
+  workers: WORKERS,
   reporter: [["list"]],
   use: { baseURL: FRONT, trace: "retain-on-failure" },
   // A French browser by default, the language of the reference catalogue: a path that needs
   // another language sets its own (`test.use({ locale })`).
   projects: [...pathProjects(), ...serviceProjects(), ...measureProjects()],
-  webServer: [...fakeBack(), front()],
+  webServer: [...fakeBack(), ...fronts()],
 });

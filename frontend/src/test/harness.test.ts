@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { readFileSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { join } from "node:path";
 
 import type { PlaywrightTestConfig } from "@playwright/test";
@@ -26,6 +27,8 @@ const VARIABLES = [
   "E2E_PART",
   "E2E_BUILT",
   "E2E_DEV_SERVER",
+  "E2E_WORKERS",
+  "TEST_PARALLEL_INDEX",
   "CI",
   "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
 ];
@@ -46,9 +49,14 @@ function serversOf(config: PlaywrightTestConfig) {
   return [config.webServer ?? []].flat();
 }
 
-/** The front the harness starts: the server that is told where the API is. */
+/** The fronts the harness starts: the servers that are told where the API is. */
+function frontsOf(config: PlaywrightTestConfig) {
+  return serversOf(config).filter((server) => server.env !== undefined);
+}
+
+/** The front the harness starts, when it starts one alone. */
 async function frontOf(): Promise<NonNullable<ReturnType<typeof serversOf>[number]>> {
-  const fronts = serversOf(await harness()).filter((server) => server.env !== undefined);
+  const fronts = frontsOf(await harness());
   expect(fronts).toHaveLength(1);
   const [front] = fronts;
   if (front === undefined) {
@@ -69,6 +77,8 @@ beforeEach(() => {
   for (const variable of VARIABLES) {
     vi.stubEnv(variable, undefined);
   }
+  // One worker, one front, unless a test says otherwise.
+  vi.stubEnv("E2E_WORKERS", "1");
 });
 
 afterEach(() => {
@@ -271,5 +281,72 @@ describe("the paths against the development server, on a workstation (E2E_DEV_SE
     vi.stubEnv("CI", "true");
     vi.stubEnv("E2E_BUILT", "1");
     expect((await frontOf()).command).toBe("pnpm start --hostname 127.0.0.1 --port 3100");
+  });
+});
+
+describe("the fronts of the harness, one for each worker of the paths (#1477)", () => {
+  it("starts a front for each worker, on the ports after the first, the first alone building it", async () => {
+    vi.stubEnv("E2E_WORKERS", "3");
+    const config = await harness();
+    expect(config.workers).toBe(3);
+    expect(frontsOf(config).map((server) => [server.command, server.url])).toEqual([
+      [
+        "WATERFALL_API_ADDRESS=http://127.0.0.1:9 pnpm build && pnpm start --hostname 127.0.0.1 --port 3100",
+        "http://127.0.0.1:3100",
+      ],
+      ["pnpm start --hostname 127.0.0.1 --port 3101", "http://127.0.0.1:3101"],
+      ["pnpm start --hostname 127.0.0.1 --port 3102", "http://127.0.0.1:3102"],
+    ]);
+  });
+
+  it.each([
+    ["0", "http://127.0.0.1:3050"],
+    ["2", "http://127.0.0.1:3052"],
+    ["4", "http://127.0.0.1:3051"],
+  ])("has the worker of place %s play against its own front", async (index, front) => {
+    vi.stubEnv("E2E_WORKERS", "3");
+    vi.stubEnv("E2E_FRONT_PORT", "3050");
+    vi.stubEnv("TEST_PARALLEL_INDEX", index);
+    expect((await harness()).use?.baseURL).toBe(front);
+  });
+
+  it("plays on half the processors when the environment names no number of workers", async () => {
+    vi.stubEnv("E2E_WORKERS", undefined);
+    vi.stubEnv("E2E_BUILT", "1");
+    const half = Math.max(1, Math.floor(availableParallelism() / 2));
+    const config = await harness();
+    expect(config.workers).toBe(half);
+    expect(frontsOf(config)).toHaveLength(half);
+  });
+
+  it.each([
+    ["the measure alone", { E2E_PART: "measure" }],
+    ["the development server", { E2E_DEV_SERVER: "1" }],
+  ])("starts one front alone for %s", async (_part, environment) => {
+    vi.stubEnv("E2E_WORKERS", "3");
+    for (const [variable, value] of Object.entries(environment)) {
+      vi.stubEnv(variable, value);
+    }
+    expect(frontsOf(await harness())).toHaveLength(1);
+  });
+
+  it("starts one front alone against the service, whose realm knows the address of one", async () => {
+    againstTheService();
+    vi.stubEnv("E2E_WORKERS", "3");
+    vi.stubEnv("TEST_PARALLEL_INDEX", "2");
+    const config = await harness();
+    expect(frontsOf(config)).toHaveLength(1);
+    expect(config.use?.baseURL).toBe("http://127.0.0.1:3100");
+  });
+
+  it.each(["0", "-1", "2.5", "two"])("refuses %j as a number of workers", async (named) => {
+    vi.stubEnv("E2E_WORKERS", named);
+    await expect(harness()).rejects.toThrow("E2E_WORKERS must be a whole number of workers");
+  });
+
+  it("is told the workers by make e2e, which no longer passes them to Playwright itself", () => {
+    const makefile = readFileSync(join(import.meta.dirname, "../../../Makefile"), "utf-8");
+    expect(makefile).toContain("e2e: export E2E_WORKERS = $(WORKERS)");
+    expect(makefile).not.toContain("--workers=");
   });
 });
