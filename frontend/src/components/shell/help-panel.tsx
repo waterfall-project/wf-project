@@ -163,7 +163,11 @@ type Shown =
   | { readonly kind: "failed" }
   | { readonly kind: "read"; readonly reading: HelpReading };
 
-/** The button and the panel of the help of a screen, by its code. */
+/**
+ * The button and the panel of the help of a screen, by its code. The button is an icon named
+ * « Aide », 28 points high like the line of a dense title, which it stands beside
+ * (`page-header.tsx`); its tooltip says its name and F1.
+ */
 function ScreenHelp({ code }: { readonly code: string }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
@@ -272,14 +276,15 @@ function ScreenHelp({ code }: { readonly code: string }) {
           ref={button}
           type="button"
           variant="outline"
-          size="sm"
+          size="icon"
+          className="size-7"
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
           onClick={openScreen}
         >
           <CircleHelp aria-hidden="true" />
-          {t("help.button")}
+          <span className="sr-only">{t("help.button")}</span>
         </Button>
       </CommandTooltip>
       <Sheet open={open} onOpenChange={setOpen}>

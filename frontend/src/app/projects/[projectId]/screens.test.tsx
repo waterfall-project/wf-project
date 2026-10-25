@@ -731,10 +731,10 @@ describe("the lifecycle of a project", () => {
     const page = html(await LifecyclePage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
     expect(buttons(page)).toEqual([
+      "Help",
       "Complete the project",
       "Declare the project lost",
       "Abandon the project",
-      "Help",
     ]);
   });
 
@@ -744,7 +744,7 @@ describe("the lifecycle of a project", () => {
     expect(paths()["GET /projects/{project_id}/state-transitions"]).toBe(
       `/projects/${PROJECT}/state-transitions`,
     );
-    expect(text(page)).toMatch(/^.*Project lifecycle State In progress/);
+    expect(text(page)).toMatch(/^.*Project lifecycle Help State In progress/);
     expect(text(page)).toContain(
       "History of states Date Transition By Reason " +
         "Creation Created Camille Martin Created Pricing Camille Martin Pricing In progress Camille Martin",
@@ -799,10 +799,10 @@ describe("the lifecycle of a project", () => {
       };
       const page = html(await LifecyclePage(at()));
       expect(buttons(page)).toEqual([
+        "Help",
         "Complete the project",
         "Declare the project lost",
         "Abandon the project",
-        "Help",
       ]);
     }
   });

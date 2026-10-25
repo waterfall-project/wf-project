@@ -3,8 +3,9 @@
 /**
  * The template of a screen (charter, guide « Charte graphique »): its `<main>`, dense for the
  * grids and the lists — the most information under the eyes — or airy for the indicators; and
- * its header, the title with the icon of the function, a line under it, and its commands at the
- * right, each with its icon, the button of the help of the screen last (`HelpPanel`, US-0580).
+ * its header, the title with the icon of the function and the button of the help of the screen
+ * beside it (`HelpPanel`, US-0580), a line under it, and its commands at the right, each with its
+ * icon.
  */
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -91,20 +92,26 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h1 className={cn("flex items-center gap-2 font-semibold", TITLE[density])}>
-          {Icon === undefined ? null : (
-            <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-          )}
-          {title}
-        </h1>
+        {/* The help beside the title, an icon alone no taller than its line: the width it takes
+            is the title's own room, never the commands' — which would narrow the title, wrap its
+            subtitle on one line more and push the totals of a grid out of a low window. Where the
+            title fills its room, the button goes under it, never over the commands. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className={cn("flex items-center gap-2 font-semibold", TITLE[density])}>
+            {Icon === undefined ? null : (
+              <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+            )}
+            {title}
+          </h1>
+          {helped ? <HelpPanel /> : null}
+        </div>
         {subtitle === undefined ? null : (
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         )}
       </div>
-      <div className="flex flex-wrap items-start gap-2">
-        {actions}
-        {helped ? <HelpPanel /> : null}
-      </div>
+      {actions === undefined ? null : (
+        <div className="flex flex-wrap items-start gap-2">{actions}</div>
+      )}
     </div>
   );
 }
