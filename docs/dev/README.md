@@ -2635,7 +2635,10 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   chacune, sur l'un (`SHARD=lint`, le projet `lint` de `frontend/vitest.config.ts`), les autres
   tests en deux moitiés sur les deux autres (`SHARD=1/2`, `SHARD=2/2`). Vitest répartit des
   fichiers entiers par l'empreinte de leur chemin, et les trois gardes tombaient dans le même
-  morceau. Au palier complet, un dernier runner rassemble la couverture des trois morceaux et
+  morceau. Vitest y prend un worker par processeur, quatre au plus (#1474) : le poste, douze
+  processeurs, ne gagnait rien au-delà de quatre, et chaque test y tournait plus lentement, un test
+  de la grille, moins d'une seconde seul, au-delà de ses cinq secondes sous la couverture. Au palier
+  complet, un dernier runner rassemble la couverture des trois morceaux et
   la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu
   de chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute.
   `front-cache.yml` écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche

@@ -15,7 +15,15 @@
  * - `lint`, for the guards that run ESLint on code, typed, which take a minute or more each: a
  *   project of their own, which the chain plays on a runner of its own while the two others are
  *   spread over two more (`make check-front-tests`, `.github/workflows/front.yml`).
+ *
+ * A worker for each processor, as Vitest takes by itself, four at most (#1474): the workstation, a
+ * laptop of twelve processors, gained nothing beyond four, and each test only ran slower. The
+ * coverage of the whole suite took 325 s on twelve workers, 319 s on six and 300 s on four, its
+ * slowest test of a component 5.4 s — past its five seconds —, 4.4 s and 1.9 s. A runner of the
+ * chain, four processors, keeps its four workers: on two of the workstation's cores, four workers
+ * played half the tests in 125 s, two in 148 s, for a slowest test barely lighter.
  */
+import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
@@ -33,6 +41,7 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   test: {
+    maxWorkers: Math.min(4, availableParallelism()),
     projects: [
       {
         extends: true,
