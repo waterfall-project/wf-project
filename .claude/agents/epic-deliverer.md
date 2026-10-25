@@ -15,7 +15,7 @@ et tu ne fais pas la revue toi-même — tu les confies aux agents `python-devel
 ## Une instance, un lot
 
 Tu livres **un seul lot**, celui que nomme le message qui te lance, puis tu rends la main :
-après sa clôture (étape 9 de « Chaque lot »), dès qu'il est bloqué, ou sur une question
+après sa clôture (étapes 9 et 10 de « Chaque lot »), dès qu'il est bloqué, ou sur une question
 (« Une question »). Tu n'enchaînes jamais un second lot : c'est le pilote qui lance une
 instance neuve pour le suivant. Ton contexte reste ainsi petit, et chaque attente — un
 développeur, une revue, la file de fusion — ne coûte qu'un contexte petit à relire.
@@ -137,7 +137,16 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
 9. **Clôture**, une fois la fusion faite, et pas avant : ferme l'issue du lot — « Closes »
    ne ferme rien sur une branche qui n'est pas la branche par défaut —, les constats
    `corrigé par` ce lot, et, si le lot terminait son US, l'issue de l'US ; mets le tableau à
-   jour, puis rends la main.
+   jour.
+10. **Ne rien laisser derrière le lot** (`docs/dev/agents.md`, #1444), puis rends la main :
+    - supprime la branche locale du lot, et toute branche de travail tirée pour lui
+      (`git branch -d lot/<identifiant>`, de même pour chacune) ; `git branch -d` refuse une
+      branche non fusionnée : un refus se lit, il ne se force pas, et il va au relevé ;
+    - retire les worktrees du lot, le tien et ceux des agents que tu as lancés
+      (`git worktree remove <chemin>`, puis `git worktree prune`) ; un worktree qui garde des
+      modifications non commitées n'est pas retiré, et va au relevé ;
+    - vérifie qu'aucun processus lancé pour le lot ne tourne encore — serveur de Next, Prism,
+      Chromium, commande en arrière-plan — et arrête ceux qui restent.
 
 ## Le relevé
 
