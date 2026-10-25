@@ -1,7 +1,7 @@
 ---
 id: EP-16
-titre: Le contrat figé — ses mineurs soldés, la reprise de la spécification du 2026-10-22 au contrat, au faux back et aux écrans, et des parcours joués contre le front construit
-statut: prêt
+titre: Le contrat figé — ses mineurs soldés, la reprise de la spécification du 2026-10-22 au contrat, au faux back et aux écrans, des parcours joués contre le front construit, et les aides des autres écrans
+statut: en cours
 depend_de: EP-15
 famille: front
 issue: 1312
@@ -14,14 +14,22 @@ issue: 1312
 EP-15 réalise les ajustements que la validation de l'auteur a décidés. EP-16 **fige le contrat**
 avant les EPIC de domaine, qui le serviront tel quel : tout ce qui touche le contrat, ou peut le
 toucher, y est soldé, et le reste sort (décision de l'auteur du 2026-10-22, au cadrage). Il y a
-trois parts :
-- les mineurs du contrat et du faux back reportés d'EP-14 et d'EP-15 ;
+quatre parts :
+- les mineurs du contrat et du faux back reportés d'EP-14 et d'EP-15, et les constats de contrat que
+  les lots d'EP-15 ont relevés en livrant (#1345 à #1398) ;
 - ce que la reprise de la spécification du 2026-10-22 (#1306, constats C-366 à C-375, #1304)
   ajoute au modèle, pour le contrat, le faux back et les écrans : le nom de l'entreprise, le client
   d'un projet, le code borné d'un sous-projet, la correspondance de l'extraction des coûts réels, le
   poste d'une ligne de coût ;
 - en exception au principe, des parcours de bout en bout joués contre le front construit pour la
-  production, parce qu'il faut une file de fusion stable pour livrer (#1262).
+  production, parce qu'il faut une file de fusion stable pour livrer (#1262) ;
+- les aides en ligne des écrans que les cinq écrans clés d'EP-15 ne couvrent pas, et la recherche
+  de l'aide, reprises d'EP-15 par la décision de l'auteur du 2026-10-25 (#1445) : elles décrivent
+  les écrans tels que les lots d'EP-16 les laissent, et leur relecture par l'auteur ne doit pas
+  tenir `epic/EP-15` ouverte.
+
+Recadré d'un bloc le 2026-10-25 (#1445), avec une règle qui prime : **ne reste dans EP-16 que ce qui
+concerne le durcissement ou le contrat ; tout le reste part à EP-17.**
 
 Il vient après EP-15, parce qu'on ne fige pas un contrat que les ajustements changent encore, et
 avant EP-05, le premier EPIC de domaine, qui doit servir un contrat qui ne bouge plus. Le service de
@@ -43,11 +51,18 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 - la correspondance de l'extraction des coûts réels, page propre du référentiel, et le refus de
   l'import tant qu'elle est incomplète (C-374, C-373 ; #1304 points 3 et 5) — US-0620 ;
 - le poste d'une ligne de coût (D-4, #1304 point 4) — US-0630 ;
-- les mineurs du contrat et du faux back reportés d'EP-14 et d'EP-15 (« Constats reçus ») — US-0640 ;
+- les mineurs du contrat et du faux back reportés d'EP-14 et d'EP-15, et les constats de contrat
+  relevés par les lots d'EP-15 (« Constats reçus ») — US-0640 ;
 - la résolution d'un numéro de ligne en nœud pour les prédécesseurs, et la préférence des colonnes
   connues (#1288, #1260) — US-0650 ;
-- l'adoption par les écrans de ce qu'EP-14/L42s a écrit au contrat, qui peut encore y faire
-  apparaître un manque (#1142, #779) — US-0660.
+- l'adoption par les écrans de ce que le contrat décrit — ce qu'EP-14/L42s y a écrit (#1142, #779),
+  puis ce qu'US-0640 y ajoute —, qui peut encore y faire apparaître un manque — US-0660 ;
+- les aides des autres écrans et la recherche de l'aide, reprises d'EP-15 (#1445) — US-0670 ;
+- le compte rendu préalable de la survenance d'un risque, une lecture nouvelle du contrat
+  (#1383) — US-0680 ;
+- l'adresse de retour de la connexion durcie, une redirection ouverte (#1429) — US-0690 ;
+- le filtre des écarts d'un différentiel et de la comparaison, et le décompte de la matrice des
+  risques, au contrat puis aux écrans (#1398, part contrat de #1395) — US-0700.
 
 ## Ce qui n'en fait pas partie
 
@@ -60,8 +75,25 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
   accessibilité ») :
   - le harnais d'accessibilité aux dialogues, aux menus et aux éditeurs (#782, #784, #819 point 1) ;
   - les mineurs des composants partagés et des écrans ;
-  - la stabilité restante des e2e (#1263, #1230, #776, #1264) ;
+  - la lenteur du navigateur à quitter une grille de mille tâches (#1230), une lenteur du produit et
+    non de la file — la stabilité restante des e2e (#1263, #1145, #776, #1264), d'abord reportée
+    avec elle, revient ici le 2026-10-25 : elle relève du durcissement (US-0590b) ;
   - le cosmétique ;
+- par la règle du recadrage du 2026-10-25 — ne reste dans EP-16 que ce qui concerne le durcissement
+  ou le contrat ; tout le reste part à EP-17 —, les constats du front ajoutés au label depuis le
+  cadrage et les ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat :
+  - les mineurs du front relevés par les derniers lots d'EP-15 : #1421, #1424, #1430, #1432, #1386,
+    #1364, #1377, et le point 2 de #1384 (le libellé de `ReferenceForm`) ;
+  - deux défauts visibles du front : #1438 (« Déclarer un risque » sur l'écran des révisions ne fait
+    rien) et #1428 (l'export PNG du Gantt sans les noms des tâches) ;
+  - les ajustements de la validation du 2026-10-23 qui ne demandent que le front ou le guide :
+    #1396 (le Kanban filtré), #1397 (la projection sur `kinds`), #1399 (ce que le faux back
+    n'applique pas), #1400 (l'écran du projet mène à sa révision), #1401 (la liste des projets
+    filtrée par défaut), et la part front de #1395 (la matrice sur fond blanc, la couleur sur les
+    bulles, les seuls risques identifiés) — sa part contrat, le décompte de `cells`, reste ici
+    (US-0700) ;
+- la version anglaise de l'aide en ligne : décidée par l'auteur au dernier lot d'US-0670, après la
+  relecture de toutes les aides, elle se constate avec WF-IHM-0140, qu'EP-11 clôt ;
 - les navigateurs et les largeurs d'affichage (US-0290, #92), et les dépendances sans version
   corrigée (#1291) : EP-13, reportés le 2026-10-22.
 
@@ -73,6 +105,7 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 | `WF-PRJ-0080-A` | Attributs d’un projet | début — close en EP-04 | US-0610 |
 | `WF-PRJ-0050-A` | Sous-projets | début — close en EP-04 | US-0610 |
 | `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | début — close en EP-09 | US-0620 |
+| `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0670 |
 
 Les autres travaux ne réalisent aucune exigence en propre. Comme en EP-14 et en EP-15, leurs tests
 citent les exigences du domaine dont le Vérif tient côté front, et l'EPIC du domaine les clôt.
@@ -81,11 +114,21 @@ citent les exigences du domaine dont le Vérif tient côté front, et l'EPIC du 
 
 Ajoutées au contrat :
 - la lecture et la modification de la correspondance de l'extraction des coûts réels (US-0620) ;
-- la lecture de résolution d'un numéro de ligne en nœud (US-0650).
+- la lecture de résolution d'un numéro de ligne en nœud (US-0650) ;
+- la lecture du compte rendu préalable de la survenance d'un risque, `getRiskOccurrenceReport`
+  (US-0680, #1383).
 
 Leurs noms se fixent à la conception.
 
 Modifiées :
+- `risks` : `declareRiskOccurrence` — les deux compteurs lus (US-0680) ; `listRisks` — la
+  pagination (US-0640, #1367) ; `getProjectRiskMatrix`, `getPortfolioRisks` — le décompte de
+  `cells` (US-0700, #1395) ;
+- `revisions` : `RevisionCommand` — `apply_rate_update` (US-0640, #1351) ; `listNodes`,
+  `compareRevisions` — le filtre `difference` (US-0700, #1398) ;
+- `nodes` : `createNode` — le refus d'une date manuelle un jour chômé (US-0640, #1345) ;
+  `previewPaste`, `applyPaste` — l'ancre sur un nœud retiré (US-0640, #1361) ;
+- `projects` : `ProjectCommand.declare_risk` — sa condition dite (US-0640, #1368) ;
 - `reference` : `getReferenceSettings`, `updateReferenceSettings` — le nom de l'entreprise
   (US-0600) ;
 - `projects` : `createProject`, `getProject`, `updateProject`, `listProjects` — le client ;
@@ -109,11 +152,60 @@ EP-15 livré.
   faux back et le témoin sont régénérés par l'outillage (`make mock-data`) ;
 - les EPIC de domaine nomment, dans leurs « Constats reçus », le service de chaque point de #1304 ;
 - `make check` passe sur la branche de l'EPIC ; les parcours de bout en bout s'y jouent contre le
-  front construit, en local comme dans la chaîne.
+  front construit, en local comme dans la chaîne ;
+- chaque code de la table des fonctions qui a un écran a son aide en français, relue par l'auteur ;
+  les listes des pages à venir (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) sont vides ; la version
+  anglaise est décidée, et son écart écrit sous WF-IHM-0140 (US-0670) ;
+- chaque constat ajouté au label `EP-16` depuis le cadrage du 2026-10-22 est placé : corrigé par un
+  lot, reporté vers EP-17 et listé dans son fichier, ou fermé avec sa décision.
 
 ## Constats reçus
 
-Les issues à rattacher à l'issue de l'EPIC à son ouverture, chacune sous l'US qui la règle.
+Les issues rattachées à l'issue de l'EPIC (#1312), chacune sous l'US qui la règle.
+
+Repris d'EP-15 par la décision de l'auteur du 2026-10-25 (#1445), au recadrage — US-0670 :
+
+- #1437 [ex-US-0580/L3b], #1139 [ex-US-0580/L4], #1140 [ex-US-0580/L5] — les lots de l'aide, devenus
+  US-0670/L1, L2 et L4 ; L3 (#1451) et L5 (#1452) coupés au recadrage ;
+- #1075 — front : l'aide en ligne, une aide par écran, les notions et les infobulles des colonnes
+  (WF-IHM-0140) : sa part restante, suivie par US-0670 ;
+- #1434 — front : les définitions des colonnes des tables de listes — US-0670/L2, L3 et L5 ;
+- #1435 — front : les articles du menu de la carte du reste à engager sans infobulle — US-0670/L5 ;
+- #1439 — front : les écrans hors de la table des fonctions n'ouvrent pas d'aide — US-0670/L4 ;
+- #1440 — front : les identifiants d'exigence dans les citations du glossaire — US-0670/L1 ;
+- #1442 — front : les messages d'interface du corps de l'aide sous `lang="fr"` — US-0670/L1 ;
+- #1446 — front : le guide et le commentaire du bouton d'aide — US-0670/L1 ;
+- #1441 — front : les exemples de saisie de l'aide française dans l'interface anglaise — fermé au
+  recadrage, l'écart écrit sous WF-IHM-0140 (US-0670).
+
+Relevés par les lots d'EP-15 et reportés ici parce qu'ils touchent le contrat, le faux back ou le
+harnais (décisions des 2026-10-22 au 2026-10-25) :
+
+- #1383 — contrat : la survenance d'un risque n'a pas de compte rendu préalable — US-0680 ;
+- #1345 — contrat : `createNode` accepte une date manuelle un jour chômé — US-0640/L6, US-0660/L3 ;
+- #1351 — contrat : « Appliquer la mise à jour des taux » n'est listée par aucune commande —
+  US-0640/L6, US-0660/L3 ;
+- #1367 — contrat : `listRisks` sans `limit`, `offset` ni `meta` — US-0640/L6, US-0660/L3 ;
+- #1361 — question : un collage dont la cellule visée est sur un nœud retiré — US-0640/L6 ;
+- #1368 — question : « Identifier un risque » sans révision en cours — écarté, par US-0640/L6 ;
+- #1379 — contrat : les exemples de l'encart et de l'analyse échouée — US-0640/L6 ;
+- #1384 — front, contrat : deux risques dérivés d'exemples dans les tests (point 1) — US-0640/L6 ;
+  son point 2, le libellé de `ReferenceForm`, est d'EP-17 ;
+- #1352 — contrat : la révision 101 à la version 2 sous deux états, l'ordre de `revisions.json` —
+  US-0640/L4 ;
+- #1398 — contrat, front : un filtre « Écarts seulement » (décision de l'auteur du 2026-10-23) —
+  US-0700 ;
+- #1309 — e2e : `next dev` à 9,4 Go après le préchauffage — US-0590, qui le fait disparaître ;
+- #1342 — e2e : deux expressions de test trop larges, un en-tête à resserrer — US-0590, avec #1309
+  (décision de l'auteur du 2026-10-25) ;
+- #1444 — outillage : les agents suppriment la branche locale et le worktree d'un lot — US-0590 ;
+- la stabilité restante des parcours, revenue d'EP-17 le 2026-10-25 (le durcissement) — US-0590b :
+  #1263 (le rendu serveur du Kanban à 3,2 s, le parcours d'accessibilité d'`/admin/access-roles` à
+  1 420 actions), #1145 (les cinq parcours qui échouaient au palier complet local), #776 (l'e2e « on
+  a narrow window » de `grid.spec` sous concurrence), #1264 (trois choix d'une ligne sans ordre
+  déterminé, dans des tests du back et `latest_report`) ;
+- #1429 — front : l'adresse de retour de la connexion ne refuse ni tabulation ni saut de ligne
+  (sécurité) — US-0690.
 
 Venus de la reprise de la spécification du 2026-10-22 :
 
@@ -121,8 +213,8 @@ Venus de la reprise de la spécification du 2026-10-22 :
   écrans (US-0600 à US-0630) ; son service va à EP-04 (#1337), EP-05 (#1338), EP-06
   (#1339) et EP-09 (#1340), une issue de service par EPIC ouverte au cadrage.
 - #1311 — spec : FBS-3.1.3, une feuille pour la correspondance de l'extraction des coûts réels
-  (WF-REF-0190), ouverte au cadrage (validation de la conception, 2026-10-22) ; elle bloque la page
-  de la correspondance d'US-0620 jusqu'à son intégration par l'auteur.
+  (WF-REF-0190), ouverte au cadrage (validation de la conception, 2026-10-22) ; intégrée par l'auteur
+  le même jour (PR #1344), elle ne bloque plus la page de la correspondance d'US-0620.
 
 Reportés d'EP-15 le 2026-10-22, en exception au principe (#1262), ou parce qu'ils touchent le
 contrat :
@@ -158,7 +250,10 @@ Relevés au cadrage d'EP-15 (2026-10-18) et reportés d'EP-14 — US-0660 :
   la tâche.
 
 Les autres constats du label `EP-16` passent à EP-17 ou à EP-13 (« Ce qui n'en fait pas partie ») :
-leur label et leur titre changent au cadrage, et le fichier de leur EPIC les liste.
+leur label et leur titre changent au cadrage, et le fichier de leur EPIC les liste. Le recadrage du
+2026-10-25 a fait de même pour les constats du front ajoutés au label depuis le 2026-10-22 et pour les
+ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat : titre `[EP-17]`, label
+`EP-17`, listés dans le fichier d'EP-17.
 
 ## Conception
 
@@ -258,6 +353,64 @@ une variable locale rejoue les parcours contre `next dev`.
   décision qui le rend caduc. Par exemple, la tâche rangée ailleurs de #789 que dit déjà
   `ImportDifference.fields` à `parent` (#1194).
 
+Décisions du recadrage du 2026-10-25 (#1445), toutes prises par l'auteur sur le rendu à blanc de
+l'agent de cadrage, avec deux règles qui priment :
+
+- **La règle du périmètre** : ne reste dans EP-16 que ce qui concerne le durcissement ou le
+  contrat ; tout le reste part à EP-17. Elle s'applique à chaque issue, et une issue à cheval dit
+  dans son corps ce qui va où (#1384, #1395). Écarté : un lot de mineurs du front dans EP-16, qui
+  contredirait le principe du 2026-10-22 et retarderait le gel.
+- **La règle du titre** : toute issue qui change d'EPIC est retitrée pour que son titre porte l'EPIC
+  de destination (`[EP-16] …`, `[EP-17] …`), en plus du label ; un lot transféré porte son nouvel
+  identifiant (`[US-0670/L1] …`), le fichier et le label disant son EPIC.
+- **US-0670 porte les lots de l'aide repris d'EP-15** (US-0580/L3b, L4, L5 → US-0670/L1, L2, L4 ;
+  L3 et L5 coupés). Écarté : déplacer US-0580 vers EP-16 — elle est `fini` dans EP-15 par quatre
+  lots fusionnés, une US n'a qu'un fichier, et retirer WF-IHM-0140 du tableau d'EP-15 contredirait
+  les tests qui la citent ; écarté aussi : rattacher ces lots à une US existante, aucune ne parlant
+  de l'aide. `make roadmap` accepte la forme : EP-15 et EP-16 disent tous deux « début — close en
+  EP-11 », chaque US reprenant les trois phrases de Vérif.
+- **Les lots de rédaction sont coupés et estimés avec le facteur observé** : les quatre lots
+  fusionnés d'US-0580 ont dépassé leur estimation d'un facteur ≈ 1,7 (L3 : 2 466 lignes pour
+  1 400). Les ex-L4 et L5 deviennent quatre lots (L2 à L5), chacun estimé nominalement puis avec ce
+  facteur, pour rester sous 1 500. Écarté : garder deux lots de ≈ 1 350 et 1 300 nominales, qui
+  approcheraient 2 300 au réel.
+- **Les lots de rédaction se développent en opus** — conception qui laisse une part à interpréter,
+  la rédaction du premier jet, comme US-0580/L3 — : un premier jet faible se paye en relecture de
+  l'auteur, le goulot de ces lots. Écarté : sonnet, comme les issues d'origine le disaient.
+- **#1383, option (a)** : `getRiskOccurrenceReport`, l'écart calculé par le serveur comme pour
+  l'avenant (C-361), US-0680. Écartée : (b), le front compose, qui ne montre ni `M` ni le cas du
+  jalon.
+- **#1367 : `listRisks` se pagine** (`Limit`, `Offset`, `meta` ; `totals` sur tous les risques
+  retenus) — WF-IHM-0060 vaut pour chaque table plate, et le back d'EP-08 n'est pas écrit. Écarté :
+  renoncer à « Lignes par page » sur le registre.
+- **#1345 : `createNode` refuse aussi** une date manuelle un jour chômé, `NON_WORKING_DAY`, comme
+  `updateTaskFacet` — WF-PLA-0020 dit « une date saisie ». Écarté : garder l'asymétrie.
+- **#1361 : le collage entier est refusé** quand la cellule visée est sur un nœud retiré, dit par
+  `PasteRejection` sur l'ancre. Écarté : reporter l'ancre au nœud suivant, qui écrirait ailleurs que
+  là où l'utilisateur a cliqué.
+- **#1368 : écarté** — `declare_risk` exige `revision_in_progress`, sur le projet comme sur la
+  révision (le devis propre vit dans une révision, WF-RIS-0030) ; la commande indisponible dit la
+  condition. Écarté : une lecture nouvelle pour un cas rare.
+- **#1352 : le marquage porte une version de plus** dans le témoin, et le test de #421 s'étend aux
+  révisions ; `revisions.json` est trié du plus récent au plus ancien (US-0640/L4).
+- **#1395 : le décompte de `cells` compte les seuls risques identifiés**, comme les bulles, le
+  serveur comptant et le front jamais (US-0700/L1) ; le reste de l'issue — le fond blanc, la couleur
+  sur les bulles — est du front, EP-17.
+- **#1444 : la règle de fin de lot des agents** est écrite par US-0590, premier lot, qui réécrit
+  déjà le guide des parcours. Écarté : une pull request de documentation à part.
+- **La discipline des pages à venir** : un lot d'EP-16 qui ajoute un code à `functions.json`
+  l'inscrit dans `SCREENS_TO_COME` avec le lot d'US-0670 qui l'écrit (US-0620/L2, FBS-3.1.3 →
+  US-0670/L3), et une colonne nouvelle reçoit sa clé `columns.<grille>.<colonne>.help`
+  (US-0650/L2) : sans quoi `help.test.ts` ou la section « Ses colonnes » manquent.
+- **Les écrans hors de la table des fonctions** — le compte, l'avatar, les pages d'erreur et de
+  session — n'ouvrent pas d'aide (#1439, option 1) ; la page du projet ouvre celle de sa fonction.
+- **Le bouton « Aide » garde l'icône seule**, avec son libellé accessible, comme US-0580/L3 l'a
+  livré ; US-0670/L1 retouche son guide et son commentaire (#1446).
+- **La branche du recadrage** vise `epic/EP-15`, non `main` (décision de l'utilisateur du
+  2026-10-25) : les fichiers de la roadmap qui font foi y vivent depuis le cadrage (#1341), et une
+  pull request vers `main` entrerait en conflit avec la fusion d'EP-15 — contraire à la règle
+  habituelle de l'agent de cadrage (`roadmap/EP-nn-cadrage` → `main`), ce qui s'écrit ici.
+
 ### Les modifications du contrat
 
 Chacune a son entrée dans `docs/api/DECISIONS.md`, sous une section « Le contrat figé (EP-16) »,
@@ -317,9 +470,34 @@ et ses exemples.
 - **Les colonnes connues** (US-0650) : `GridPreferences.known_columns`, au plus 64 clés, écrit par
   `updateMyPreferences`.
 - **Les mineurs** (US-0640) : chaque constat, point par point, selon sa proposition, sauf ce que
-  « Ce que le cadrage décide » tranche autrement ; aucune opération nouvelle.
+  « Ce que le cadrage décide » tranche autrement ; aucune opération nouvelle. Les constats des lots
+  d'EP-15 (US-0640/L6) : `RevisionCommand.apply_rate_update` avec ses conditions et un exemple
+  (#1351) ; `listRisks` avec `Limit`, `Offset` et `meta`, `totals` sur tous les risques retenus,
+  `risks` et `risks_empty` régénérés (#1367) ; `createNode` refuse par 422 `NON_WORKING_DAY` une date
+  manuelle un jour chômé, avec son exemple (#1345) ; la description de `previewPaste` et `applyPaste`
+  dit le refus entier d'un collage ancré sur un nœud retiré (#1361) ; celle de
+  `ProjectCommand.declare_risk` dit `revision_in_progress` (#1368) ; les exemples `revisions` portant
+  0103 et `task_import_analysis_failed` (#1379), `risk_dismissed_category_deactivated` et
+  `risk_uncited` (#1384).
+- **La survenance d'un risque** (US-0680, #1383) : `getRiskOccurrenceReport`
+  (`GET /projects/{project_id}/risks/{risk_id}/occurrence`), une lecture qui n'écrit rien et rend
+  `RiskOccurrenceReport` — `main_structure_lock_version`, `risk_lock_version`, `differences`
+  (`ImportDifference[]` : les tâches et les lignes du devis propre ajoutées sous la tâche porteuse,
+  ou après elle quand c'est un jalon ; la ligne de provision retirée ; la tâche porteuse modifiée),
+  `provision_amount` retiré du reste à engager, `refusals` (`ReportRefusal[]`) —, refusée par 409
+  pour un risque qui n'est pas identifié ; `RiskOccurrence` reçoit les deux compteurs lus, refusée
+  par 412 s'ils ont avancé, comme `StructureMerge` (WF-IHM-0110).
+- **Le filtre des écarts et le décompte de la matrice** (US-0700) : un paramètre `difference`,
+  partagé par `listNodes` et `compareRevisions`, aux valeurs `added`, `removed`, `modified`,
+  combinables ; il retient les nœuds dont l'écart est l'une des valeurs, leurs ancêtres étant
+  `modified` par leur contenu ; sans effet sur la structure principale et le devis propre d'un
+  risque — refus ou lecture inchangée, tranché au lot et écrit dans `DECISIONS.md` ; `totals` sur la
+  structure entière, `amount_deltas` restant « sur les lignes retenues » (#1398). La description de
+  `RiskMatrix.cells` dit que le décompte par case ne compte que les risques identifiés, comme les
+  bulles ; `totals` reste sur les trois états (WF-RIS-0040 ; #1395, part contrat).
 - **La version du contrat** : `info.version` passe de `1.0.0-draft` à `1.0.0` par le dernier lot
-  d'EP-16, à sa livraison.
+  de contrat d'EP-16 (US-0640/L5), après tous les lots qui touchent le contrat ou peuvent y revenir ;
+  les lots de rédaction de l'aide et US-0690 peuvent le suivre.
 
 ### Le faux back et le témoin
 
@@ -334,6 +512,11 @@ et ses exemples.
 - La correspondance du témoin déclare ses intitulés, et ses colonnes conservées sont celles du
   témoin (« Fournisseur », « Texte de commande ») : un test des outils tient les deux d'accord.
 - Les codes de sous-projet du témoin respectent déjà la borne. Le test des outils le vérifie.
+- Le devis propre du risque 751 (structure 204, 1 250 000,00) est décrit dans `mockwitness`, et
+  `mockriskwrites` engendre `risk_occurrence_report` et `nodes_risk_estimate` (US-0680).
+- Le marquage de la révision 101 porte une version de plus, le test de #421 s'étend aux révisions,
+  `revisions.json` est trié du plus récent au plus ancien (#1352, US-0640/L4) ; les exemples de
+  #1379 et #1384 sont écrits (US-0640/L6) ; `risks` et `risks_empty` portent `meta` (#1367).
 
 ### Le front
 
@@ -367,7 +550,29 @@ et ses exemples.
   - `grid/settings.ts` lit et écrit `known_columns`.
 - **US-0660** : les écrans des paramètres de coûts (#1142, points 1 et 2), des échanges (point 3),
   du lotissement (points 4 à 6) et `i18n/problem.ts` (#779) ; chaque point sur un exemple du
-  contrat.
+  contrat. Puis (L3) ce qu'US-0640/L6 écrit : `revision-commands.tsx` offre « Appliquer la mise à
+  jour des taux » comme la révision la liste (#1351) ; le registre des risques reçoit `ListPages` et
+  `PageSizeChoice` (#1367) ; le refus `NON_WORKING_DAY` d'une tâche créée se dit à la cellule par
+  `byField` (#1345) ; les tests du risque lisent les exemples nouveaux (#1384).
+- **US-0670, l'aide** : la conception d'EP-15 (« L'aide en ligne et les infobulles ») fait foi —
+  `frontend/help/fr/<code>.md`, la structure fixe de #1075, `functions.json` pour clé, les
+  définitions des colonnes dans les catalogues, `SCREENS_TO_COME` et `NOTIONS_TO_COME`
+  (`frontend/src/help/to-come.ts`) pour les pages promises. L1 reprend le code de
+  `lot/US-0580/L3b` (df6a9903) : la recherche (`searched`, `SearchResults`), `HelpColumns` depuis
+  les clés `columns.*.help`, les sept colonnes du registre des risques ; puis #1442 (`lang` sur la
+  seule page rendue), #1446, #1440 (les notions sans identifiants, `help.test.ts` les ignorant). L2
+  à L5 écrivent les pages par famille d'écrans et les définitions des colonnes des tables qui
+  passent par `HeaderCell` (#1434) ; L4 rattache la page du projet à sa fonction dans `helpCodeAt`
+  (#1439) ; L5 passe les articles du menu de la carte du Kanban à `MenuCommand` (#1435).
+- **US-0680** : `risk-detail.tsx` ouvre, pour « Déclarer survenu », le dialogue du compte rendu de
+  fusion d'US-0510b (`ImportDifference`, `DiffMark`) sur `getRiskOccurrenceReport`, dit le retrait de
+  la provision et les refus, confirme avec les deux compteurs ou abandonne, remet la survenance à
+  `TaskTracker`.
+- **US-0690** : `navigation/login.ts` refuse tout caractère de contrôle dans l'adresse de retour,
+  par la garde qu'`isScreen` (`held-writes.ts`) emploie déjà.
+- **US-0700** : le filtre « Écarts seulement » dans l'adresse des grilles de planning et de devis
+  d'un différentiel et de l'écran de comparaison, dit dans le bandeau des filtres actifs, absent sur
+  la principale et le devis propre d'un risque.
 
 ### Le harnais (US-0590)
 
@@ -385,22 +590,42 @@ et ses exemples.
   - `service.yml` construit une fois pour ses parcours.
 - Le guide (« Un parcours de bout en bout ») dit contre quel serveur les parcours se jouent, retire
   le préchauffage, et réécrit la règle de #1145. Les échecs de #1263 restent tolérés au rejeu
-  isolé jusqu'à EP-17.
+  isolé jusqu'à US-0590b. #1309 (la mémoire de `next dev` après le préchauffage) disparaît avec lui,
+  et les expressions de test de #1342 se resserrent sur le front construit.
+- **US-0590b, la stabilité restante** (décision de l'auteur du 2026-10-25 : la stabilité des e2e est
+  du durcissement, donc d'EP-16 et non d'EP-17) : le lot porte ce qui échoue encore une fois US-0590
+  fusionné — #1263, #1145, #776, #1264 —, et son contenu définitif s'arrête quand US-0590 a joué
+  trois paliers complets sur le front construit : ce qui ne tombe plus sort du lot et se ferme
+  « corrigé par US-0590 » ; ce qui tombe encore se corrige à sa cause — le rendu serveur, la
+  concurrence des parcours, l'ordre non déterminé —, jamais par une attente plus longue ; la règle
+  provisoire de #1145 disparaît du guide avec lui. #1230, une lenteur du produit, reste à EP-17.
+  Écarté : une US nouvelle, alors que le README nomme `[US-nnnnb]` la part détachée d'une US à un
+  seul lot.
+- Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
+  de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
 ### L'ordre de construction
 
-1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent.
-2. **Les contrats ensuite**, avant le front qui les consomme : US-0600 et US-0610 (petits, en un lot
+1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent ;
+   **US-0590b** quand trois paliers complets ont été joués sur le front construit, son contenu
+   arrêté sur ce qui tombe encore.
+2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
+   **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
+   EP-16), quand l'auteur peut la relire.
+3. **Les contrats ensuite**, avant le front qui les consomme : US-0600 et US-0610 (petits, en un lot
    de contrat), US-0620 et US-0630 (la correspondance et le poste, qui touchent les mêmes schémas
-   des échanges), US-0650.
-3. **US-0640**, les mineurs du contrat, en parallèle des écrans : ils ne touchent pas les mêmes
-   schémas. Chaque point se relit d'abord sur EP-15 livré.
-4. **Le front de chaque US** après son contrat ; US-0660 en dernier, parce qu'elle peut faire
-   revenir au contrat.
-5. **À la livraison**, le contrat est figé : `info.version` passe à `1.0.0`. La règle d'après
+   des échanges), US-0650, US-0680/L1, US-0700/L1.
+4. **US-0640**, les mineurs du contrat (L1 à L4, L6), en parallèle des écrans : ils ne touchent pas
+   les mêmes schémas. Chaque point se relit d'abord sur EP-15 livré.
+5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L3) en dernier
+   des fronts, parce qu'elle peut faire revenir au contrat.
+6. **Le gel** (US-0640/L5) : le contrat est figé, `info.version` passe à `1.0.0`. La règle d'après
    s'écrit en tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de
    domaine passe par une issue « contrat » que l'auteur tranche, et s'inscrit dans
    `DECISIONS.md`.
+7. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet, en fin d'EPIC : elles
+   décrivent les écrans tels que tous les lots les laissent, et ne touchent pas le contrat ; L5
+   porte la décision de la langue et passe l'US `fini`.
 
 ---
 
@@ -426,9 +651,14 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 - propre à l'US : trois passages successifs du palier complet local, à quatre workers, ne montrent
   aucun des échecs que #1262 attribue au débit du serveur de développement : `remaining`,
   `planning`, `admin`, `context`, `navigation`, `review`. Le parcours d'accessibilité
-  d'`/admin/access-roles` et le rendu serveur du Kanban relèvent de #1263, en EP-17 ;
+  d'`/admin/access-roles` et le rendu serveur du Kanban relèvent de #1263, part du lot US-0590b ;
 - propre à l'US : le guide dit contre quel serveur les parcours se jouent, et ce que deviennent le
-  préchauffage des routes et la règle provisoire de #1145 ; les trois points de #1265 sont corrigés.
+  préchauffage des routes et la règle provisoire de #1145 ; les trois points de #1265 sont corrigés ;
+  les expressions de test et l'en-tête de #1342 sont resserrés ;
+- propre à l'US (US-0590b) : les échecs qui restent après trois paliers complets sur le front
+  construit — #1263, #1145, #776, #1264, pour ce qui tombe encore — sont corrigés à leur cause, et
+  ceux qui ne tombent plus sont fermés « corrigé par US-0590 » ; la règle provisoire de #1145
+  disparaît du guide.
 
 **Notes de réalisation.**
 - Le harnais construit déjà le front pour la mesure de la seconde (US-0110/L2, port 3101) : l'US
@@ -438,8 +668,11 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   les interfaces.
 - Décision de l'auteur du 2026-10-22, sur #1262 : EP-16, en tête, tout le harnais, parcours du
   service compris, un seul build partagé entre les parts de la chaîne.
+- Décision de l'auteur du 2026-10-25 : la stabilité restante des e2e est du durcissement ; elle
+  revient d'EP-17 dans un second lot, US-0590b (#1460), part détachée de cette US, dont le contenu
+  s'arrête après trois paliers complets. #1342 et #1309 sont corrigés par le premier lot.
 
-**Hors périmètre.** #1263, #1230, #776 et #1264 : EP-17.
+**Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 
 ---
 
@@ -677,8 +910,9 @@ donne en deux lignes.
 - **issue** : #1328
 
 **En tant que** développeur, **je veux** solder les mineurs du contrat et du faux back que les
-relectures d'EP-14 ont relevés, **afin que** les EPIC de domaine servent un contrat figé, aux
-exemples complets et aux refus décrits.
+relectures d'EP-14 ont relevés, et les constats de contrat que les lots d'EP-15 ont relevés en
+livrant, **afin que** les EPIC de domaine servent un contrat figé, aux exemples complets et aux
+refus décrits.
 
 **Critères d'acceptation.**
 
@@ -700,6 +934,9 @@ exemples complets et aux refus décrits.
   appliqué.
 - #785 rend le délai de paiement saisissable sur une ligne de main-d'œuvre (WF-DEV-0020). La cellule
   du devis suit `editable_fields`, sans code propre.
+- Les constats des lots d'EP-15 — #1345, #1351, #1352, #1361, #1367, #1368, #1379, #1384 (point 1) —
+  sont tranchés dans « Ce que le cadrage décide » (recadrage du 2026-10-25) ; leur part front est
+  d'US-0660.
 
 ---
 
@@ -734,12 +971,13 @@ par une version ne bouscule pas la grille que j'ai réglée.
 
 ---
 
-## US-0660 — Ce qu'EP-14/L42s a écrit au contrat, adopté par les écrans
+## US-0660 — Ce que le contrat décrit, adopté par les écrans
 
 - **statut** : à faire
 - **exigences** : aucune en propre
-- **opérations** : celles des six points de #1142, et celles des saisies que refuse
-  `TASK_WITHOUT_WORKING_HOURS`
+- **opérations** : celles des six points de #1142, celles des saisies que refuse
+  `TASK_WITHOUT_WORKING_HOURS`, et celles qu'US-0640/L6 modifie — `listRisks`, `createNode`, les
+  commandes de la révision
 - **issue** : #1334
 
 **En tant que** chef de projet, **je veux** que les écrans disent les règles que le contrat décrit
@@ -758,8 +996,183 @@ déjà, **afin que** chaque refus et chaque indisponibilité me nomment ce qui l
   - les tâches nommées par le refus d'un poste hors du sous-arbre de son lot.
 - propre à l'US : le refus d'une saisie qui laisserait une tâche sans heure travaillée
   (`TASK_WITHOUT_WORKING_HOURS`) nomme la tâche par son libellé et les rôles par leur libellé (#779).
+- propre à l'US : les écrans adoptent ce qu'US-0640/L6 écrit au contrat : « Appliquer la mise à jour
+  des taux » s'offre comme la révision la liste, l'exception de US-0490/L2 levée (#1351) ; le
+  registre des risques reçoit « Lignes par page » et sa pagination, ses totaux restant ceux de tous
+  les risques retenus (#1367) ; le refus d'une tâche créée avec une date manuelle un jour chômé se dit
+  à la cellule (#1345) ; les tests du risque lisent les exemples nouveaux du contrat (#1384) ;
 - propre à l'US : un manque du contrat que cette adoption révèle est corrigé au contrat, dans l'US.
 
-**Notes de réalisation.** Ces deux constats ne demandent que le front, mais ils peuvent révéler un
+**Notes de réalisation.** Ces constats ne demandent que le front, mais ils peuvent révéler un
 manque du contrat, comme EP-15 l'a souvent constaté : c'est ce qui les garde en EP-16 (principe de
-l'auteur du 2026-10-22).
+l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 2026-10-25.
+
+---
+
+## US-0670 — Les aides des autres écrans et la recherche de l'aide
+
+- **statut** : à faire
+- **exigences** : `WF-IHM-0140-A`
+- **opérations** : aucune en propre ; `getComputedValueDependencies`, déjà lue par les infobulles
+- **issue** : #1447
+
+**En tant que** chef de projet, manager ou administrateur, **je veux** ouvrir sur chacun des écrans
+que l'aide ne décrit pas encore — l'administration, le portefeuille, le référentiel, le projet hors
+des cinq écrans clés — une aide qui dit ce qu'il montre, ses commandes et leurs conditions, ses
+colonnes, les gestes au clavier et les notions de la méthode, et retrouver une page de l'aide par
+son titre, **afin de** me servir de Waterfall sans manuel ni formation, quel que soit l'écran où je
+suis.
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0140-A` — « Chaque écran ouvre une aide qui le concerne. » : chaque code de la table des
+  fonctions qui a un écran et n'a pas encore sa page — les vingt et un codes de FBS-1, FBS-2 et
+  FBS-3, les vingt-trois codes de FBS-4 que les cinq écrans clés d'EP-15 ne couvrent pas, et
+  FBS-3.1.3 qu'US-0620 ajoute — reçoit son fichier français, dans la structure fixe ; les listes des
+  pages à venir (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) sont vides à la fin de l'US, et le test de
+  complétude exige un fichier par code ; la page du projet (`/projects/P`) ouvre l'aide de sa
+  fonction (#1439) ; les écrans hors de la table des fonctions — le compte, l'avatar, les pages
+  d'erreur et de session — n'ouvrent pas d'aide, et cette exclusion est écrite ici.
+- écart : `WF-IHM-0140-A` — « Dans la grille de devis, l’intitulé de la colonne du montant corrigé de
+  l’inflation porte une infobulle qui nomme l’année de référence et le taux d’inflation. » :
+  constaté par EP-15 (US-0580/L2), inchangé ici ; EP-11 clôt.
+- écart : `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'aide n'existe
+  qu'en français, et une interface en anglais la montre telle quelle ; ses exemples de saisie
+  (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
+  (#1441) ; la version anglaise se décide après la relecture par l'auteur de toutes les aides, au
+  dernier lot de cette US, et le test de complétude l'exigera alors ; EP-11 clôt.
+- propre à l'US : la recherche de l'aide porte sur les titres des pages et des notions, côté client,
+  sur l'index rendu avec le panneau ; elle a son libellé dans les deux catalogues ;
+- propre à l'US : la section « Ses colonnes » du panneau se rend depuis les clés
+  `columns.<grille>.<colonne>.help` des catalogues, jamais depuis le Markdown, pour les grilles du
+  projet comme pour les sept colonnes du registre des risques ; les tables de listes qui passent par
+  `HeaderCell` (référentiel, administration, portefeuille, échanges, coûts réels) reçoivent leurs
+  définitions, chacune avec le lot qui décrit son écran (#1434) ; les colonnes qu'US-0650 ajoute en
+  ont une ;
+- propre à l'US : les articles du menu des gestes d'une carte du reste à engager passent par
+  `MenuCommand`, avec une clé `commands.<geste>.help` par geste (#1435) ;
+- propre à l'US : les notions citent le glossaire sans ses identifiants d'exigence, et le test de
+  complétude les ignore dans sa comparaison (#1440, décision de l'auteur du 2026-10-25) ; la région
+  du corps du panneau ne porte `lang="fr"` que sur la page rendue, jamais sur les messages de
+  l'interface (#1442) ; le guide et le commentaire du bouton d'aide disent ce qu'il fait (#1446) ;
+- propre à l'US : les cinq aides d'EP-15 et les notions EVM reçoivent les retouches que la relecture
+  de l'auteur demande, et chaque aide décrit l'écran tel que les lots d'EP-16 le laissent — la
+  correspondance (US-0620), le client (US-0610), le poste (US-0630), le nom de l'entreprise
+  (US-0600), les colonnes nouvelles (US-0650), le compte rendu de survenance (US-0680), le filtre des
+  écarts (US-0700) ;
+- propre à l'US : la pull request d'un lot de rédaction ne se fusionne qu'après la relecture de
+  l'auteur, dite dans son issue.
+
+**Notes de réalisation.** Reprise d'EP-15 par la décision de l'auteur du 2026-10-25 (#1445) : les
+lots US-0580/L3b, L4 et L5 deviennent US-0670/L1, L2 et L4, et deux lots s'y ajoutent par la coupe
+du recadrage (L3, le référentiel et les notions ; L5, les indicateurs et la langue) — les quatre lots
+fusionnés d'US-0580 ayant dépassé leur estimation d'un facteur ≈ 1,7. L1 (la recherche et « Ses
+colonnes », code déjà écrit sur `lot/US-0580/L3b`, à rebaser sur `epic/EP-16`) vient juste après
+US-0590 ; L2 (l'administration et le portefeuille, écrans qu'EP-16 ne change pas) peut le suivre ;
+L3, L4 et L5 viennent en fin d'EPIC, après les lots d'écran qu'ils décrivent. La conception d'EP-15
+(« L'aide en ligne et les infobulles ») fait foi pour la mécanique. Un lot d'EP-16 qui ajoute un
+code à la table des fonctions l'inscrit dans `SCREENS_TO_COME` avec le lot de cette US qui l'écrit
+(US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue.
+
+**Hors périmètre.** La version anglaise elle-même (EP-11, après la décision de l'auteur) ; un
+tutoriel guidé ; une documentation hors de l'application ; les défauts d'écran que les aides
+révèlent, qui deviennent des constats (#1438 → EP-17).
+
+---
+
+## US-0680 — Déclarer survenu un risque avec son compte rendu préalable
+
+- **statut** : à faire
+- **exigences** : aucune en propre ; le service clôt WF-RIS-0060 en EP-08
+- **opérations** : `getRiskOccurrenceReport`, ajoutée au contrat ; `declareRiskOccurrence`,
+  `getRisk`, `listNodes`
+- **issue** : #1448
+
+**En tant que** chef de projet, **je veux** lire, avant de confirmer la survenance d'un risque, ce
+qu'elle ferait de la structure principale — les tâches et les lignes du devis propre ajoutées, la
+ligne de provision retirée, la tâche porteuse modifiée — et du reste à engager, **afin de** déclarer
+un risque survenu en sachant ce que la révision en cours deviendra.
+
+**Critères d'acceptation.**
+
+- propre à l'US : une lecture du contrat rend, sans rien écrire, ce que la survenance ferait : les
+  tâches et les lignes du devis propre en `+` sous la tâche qui porte la provision — ou après elle
+  quand c'est un jalon —, la ligne de provision en `-`, la tâche porteuse en `M`, le montant de la
+  provision retiré du reste à engager, et les refus qui s'opposeraient à la fusion ; elle est refusée
+  pour un risque qui n'est pas identifié ; son exemple est engendré sur le risque 751 du témoin, dont
+  le devis propre est décrit ;
+- propre à l'US : « Déclarer survenu » montre ce compte rendu dans les marques `+`, `-`, `M`
+  d'US-0500, dit le retrait de la provision, puis confirme ou abandonne ; la confirmation porte les
+  compteurs lus, et une version périmée (412) propose de relire ; la survenance confiée au worker
+  est suivie comme une fusion ;
+- propre à l'US : l'écart écrit sous US-0520 (EP-15) pour ce compte rendu est levé.
+
+**Notes de réalisation.** #1383, décision de l'auteur du 2026-10-23 (« d'EP-16 ») et option (a)
+retenue au recadrage du 2026-10-25 : l'écart est calculé par le serveur, comme pour l'avenant
+(C-361). Le dialogue réemploie celui du compte rendu de fusion d'US-0510b. Deux lots : le contrat et
+le témoin, puis le front.
+
+**Hors périmètre.** La fusion elle-même et ses effets sur les montants (WF-RIS-0060) : le service,
+EP-08.
+
+---
+
+## US-0690 — L'adresse de retour de la connexion durcie
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1449
+
+**En tant qu'** administrateur, **je veux** qu'une adresse de retour forgée après la connexion ne
+mène jamais hors de Waterfall, **afin qu'** un lien reçu ne serve pas à détourner une session vers un
+autre site.
+
+**Critères d'acceptation.**
+
+- propre à l'US : l'adresse de retour après la connexion refuse tout caractère de contrôle —
+  tabulation, saut de ligne et les autres —, par la même garde qu'`isScreen` emploie pour les
+  écritures retenues (#1181, point 5), que les deux partagent ; `/\t/elsewhere` et `/\n/elsewhere`
+  sont refusés par un test, et les adresses déjà refusées (`//`, `/\`) le restent (#1429).
+
+**Notes de réalisation.** Un seul lot, dont l'issue est celle de l'US. Gardé en EP-16 par la règle
+du recadrage du 2026-10-25 : une redirection ouverte est du durcissement (sécurité) ; les deux
+défauts du front proposés avec lui (#1438, #1428) sont partis à EP-17.
+
+---
+
+## US-0700 — Le filtre des écarts d'un différentiel, et le décompte de la matrice des risques
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : `listNodes`, `compareRevisions` (filtre `difference`, ajouté) ;
+  `getProjectRiskMatrix`, `getPortfolioRisks` (`cells` précisé)
+- **issue** : #1450
+
+**En tant que** chef de projet, **je veux** ne voir que les écarts d'un différentiel ou d'une
+comparaison de révisions quand je le demande, et que le décompte par case de la matrice des risques
+compte les mêmes risques que ses bulles, **afin de** relire un avenant de mille tâches sans chercher
+ses lignes à la main, et de lire une matrice qui ne se contredit pas.
+
+**Critères d'acceptation.**
+
+- propre à l'US : un filtre `difference`, aux valeurs `added`, `removed` et `modified` combinables,
+  partagé par la lecture des nœuds et la comparaison des révisions, retient les nœuds dont l'écart
+  est l'une des valeurs, leurs ancêtres compris ; l'arbre filtré reste un arbre ; sur la structure
+  principale et le devis propre d'un risque, où `difference` est nul, le contrat dit ce qu'il fait
+  (#1398, décision de l'auteur du 2026-10-23) ;
+- propre à l'US : « Écarts seulement » s'offre sur la grille de planning et la grille de devis d'un
+  différentiel et sur l'écran de comparaison, s'écrit dans l'adresse, se dit dans le bandeau des
+  filtres actifs, et la grille relit ;
+- propre à l'US : le décompte par case de la matrice des risques (`cells`) compte les seuls risques
+  identifiés, comme les bulles, et le contrat le dit ; le front ne compte rien ; les totaux de
+  provisions restent sur les trois états (#1395, part contrat ; WF-RIS-0040).
+
+**Notes de réalisation.** Les décisions de l'auteur du 2026-10-23 dans #1398 et #1395 font foi ; les
+« à trancher au lot » qu'elles nomment — les totaux sous le filtre, la structure sans écart — se
+tranchent au lot de contrat et s'écrivent dans `DECISIONS.md`. La part front de #1395 et les cinq
+autres ajustements de la validation du 2026-10-23 (#1396, #1397, #1399, #1400, #1401) sont d'EP-17
+(règle du recadrage du 2026-10-25).
+
+**Hors périmètre.** La pagination d'un différentiel, écartée par #1193 et #1201 ; tout filtre qui
+calculerait côté front.
