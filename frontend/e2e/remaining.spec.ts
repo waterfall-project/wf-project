@@ -156,9 +156,12 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     /^247\s*Préparation 1\.2\.1\s*Terminée le 01\/05\/2026$/,
   ]);
   const main = page.getByRole("main");
-  for (const role of ["textbox", "spinbutton", "slider", "button", "combobox"] as const) {
+  for (const role of ["textbox", "spinbutton", "slider", "combobox"] as const) {
     await expect(main.getByRole(role)).toHaveCount(0);
   }
+  // The only button in main is the help button of the screen header (WF-IHM-0140).
+  await expect(main.getByRole("button")).toHaveCount(1);
+  await expect(main.getByRole("button", { name: "Aide", exact: true })).toHaveCount(1);
 });
 
 test("completes a milestone without a line from the Kanban, from its menu, at a date entered [WF-RAE-0030-A]", async ({
