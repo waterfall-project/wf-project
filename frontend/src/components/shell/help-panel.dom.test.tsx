@@ -175,6 +175,23 @@ describe("the panel of the help", () => {
     await expectAccessible(dialog);
   });
 
+  it("keeps the columns of the grid, the interface's own text, out of the French page [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planification");
+    await within(dialog).findAllByRole("heading", { level: 3 });
+    const definition = within(dialog).getByText(CATALOGUES.en.columns.planning.predecessors.help);
+    expect(definition.closest("[lang]")).toHaveAttribute("lang", "en");
+    expect(
+      within(dialog).getAllByText("(value computed by the server)")[0]?.closest("[lang]"),
+    ).toHaveAttribute("lang", "en");
+    // Under lang="fr", no grid definition, status nor alert (the parts list is #1480).
+    for (const own of dialog.querySelectorAll("dl, [role='status'], [role='alert']")) {
+      expect(own.closest("[lang]")?.getAttribute("lang")).not.toBe("fr");
+    }
+  });
+
   it("puts the body, which scrolls, in the order of the keyboard, named by the title [WF-IHM-0140-A]", async () => {
     const user = userEvent.setup();
     renderHeader();
@@ -248,6 +265,42 @@ describe("the panel of the help", () => {
     expect(within(dialog).getByRole("status")).toHaveTextContent("1 page trouvée");
     await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
     await panel("La valeur acquise");
+  });
+
+  it.each([
+    ["fr", "Chercher dans l’aide", "Aide", "Aucune page de l’aide ne porte ces mots."],
+    ["en", "Search the help", "Help", "No page of the help holds these words."],
+  ] as const)(
+    "says no page holds the words searched, in %s, and clears the query on a followed link [WF-IHM-0140-A]",
+    async (locale, label, button, none) => {
+      const user = userEvent.setup();
+      renderHeader(locale);
+      await user.click(screen.getByRole("button", { name: button }));
+      const dialog = await panel("Planification");
+      const box = within(dialog).getByRole("searchbox", { name: label });
+      await user.type(box, "zzzz");
+      expect(within(dialog).getByRole("status")).toHaveTextContent(none);
+      await user.clear(box);
+      await user.type(box, "acquise");
+      await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
+      await panel("La valeur acquise");
+      expect(within(dialog).getByRole("searchbox", { name: label })).toHaveValue("");
+    },
+  );
+
+  it("keeps the alert of a failed reading when a word is typed, with no index to search [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    vi.mocked(readHelp).mockRejectedValueOnce(new Error("out of reach"));
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" }),
+      "acquise",
+    );
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("L’aide n’a pas pu être lue");
+    expect(within(dialog).queryByText(/Aucune page/)).toBeNull();
   });
 
   it("keeps the language of the interface on the messages of a search and a failed reading, the French on the titles [WF-IHM-0140-A]", async () => {

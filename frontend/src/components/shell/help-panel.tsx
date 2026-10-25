@@ -95,11 +95,13 @@ function HelpColumns({ columns }: { readonly columns: readonly HelpColumn[] }) {
   const t = useTranslations("help");
   const headings = useTranslations("grid.columns");
   const definitions = useTranslations("columns");
+  // The headers and the definitions are the interface's own: they stay out of the French page around them.
+  const locale = useLocale();
   if (columns.length === 0) {
     return null;
   }
   return (
-    <dl className="space-y-2">
+    <dl lang={locale} className="space-y-2">
       {columns.map((column) => (
         <div key={column.help}>
           <dt className="font-medium">
@@ -195,6 +197,15 @@ type Shown =
   | { readonly kind: "loading" }
   | { readonly kind: "failed" }
   | { readonly kind: "read"; readonly reading: HelpReading };
+
+/**
+ * Whether the body shows the results of a search: a word is typed, and there is an index to read
+ * them in — a reading failed or on its way, with no index yet, would answer « no page » to a word
+ * it could not look for, and hide its own alert.
+ */
+function searching(query: string, index: readonly HelpEntry[], shown: Shown): boolean {
+  return query.trim() !== "" && (index.length > 0 || shown.kind === "read");
+}
 
 /** The results of a search, each a link to its page: the count is the interface's own, the titles are French. */
 function SearchResults({
@@ -415,7 +426,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
             tabIndex={0}
             className="flex-1 overflow-y-auto p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
-            {query.trim() !== "" ? (
+            {searching(query, index, shown) ? (
               <SearchResults found={found} onFollow={follow} />
             ) : shown.kind === "loading" ? (
               <p role="status" className="text-sm text-muted-foreground">
