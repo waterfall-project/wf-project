@@ -263,7 +263,9 @@ describe("the panel of the help", () => {
     ).toHaveAttribute("lang", "fr");
     vi.mocked(readHelp).mockRejectedValueOnce(new Error("out of reach"));
     await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("The help could not be read.");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "The help could not be read.",
+    );
     expect(within(dialog).getByRole("alert").closest("[lang]")).toBeNull();
   });
 
