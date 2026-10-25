@@ -12,6 +12,7 @@ import json
 import re
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -291,25 +292,44 @@ def test_the_chain_holds_what_the_build_of_the_paths_prerendered() -> None:
     assert measured == ["make e2e-measure", "make prerendered-front"]
 
 
+def downloaded(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return what the steps of a job download."""
+    return [step["with"] for step in steps if "download-artifact" in step.get("uses", "")]
+
+
 def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> None:
-    # US-0590: one job builds the front and uploads it without Next's cache; each part of the
-    # paths and the measure wait for it, download it where the build wrote it, and say it is built.
-    jobs = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "e2e.yml").read_text())["jobs"]
-    assert set(jobs) == {"build", "paths"}
-    build = jobs["build"]["steps"]
-    assert [step["run"] for step in build if "run" in step][-1] == "make build-front"
-    (uploaded,) = [step["with"] for step in build if "upload-artifact" in step.get("uses", "")]
-    assert uploaded["path"].split() == ["frontend/.next/", "!frontend/.next/cache/"]
-    paths_job = jobs["paths"]
-    assert paths_job["needs"] == "build"
-    assert paths_job["env"] == {"E2E_BUILT": "1"}
-    assert paths_job["container"] == jobs["build"]["container"]
-    assert paths_job["strategy"]["matrix"]["part"] == ["1/3", "2/3", "3/3", "measure"]
-    (downloaded,) = [
-        step["with"] for step in paths_job["steps"] if "download-artifact" in step.get("uses", "")
+    # US-0590: one job of ci.yml builds the front whenever the paths or the paths against the
+    # service run, and uploads it without Next's cache; each part of the paths, the measure and the
+    # paths against the service wait for it, download it where the build wrote it, and say it is
+    # built: neither e2e.yml nor service.yml builds it again.
+    workflows = REPOSITORY / ".github" / "workflows"
+    chain = yaml.safe_load((workflows / "ci.yml").read_text())["jobs"]
+    build = chain["front-build"]
+    assert "needs.changes.outputs.tier == 'full'" in build["if"]
+    for family in ("front", "service"):
+        assert f"needs.changes.outputs.{family} == 'true'" in build["if"]
+    assert [step["run"] for step in build["steps"] if "run" in step][-1] == "make build-front"
+    (uploaded,) = [
+        step["with"] for step in build["steps"] if "upload-artifact" in step.get("uses", "")
     ]
-    assert downloaded == {"name": uploaded["name"], "path": "frontend/.next/"}
+    assert uploaded["path"].split() == ["frontend/.next/", "!frontend/.next/cache/"]
+    played = {"name": uploaded["name"], "path": "frontend/.next/"}
+    for job in ("e2e", "service", "gate"):
+        assert "front-build" in chain[job]["needs"]
+
+    jobs = yaml.safe_load((workflows / "e2e.yml").read_text())["jobs"]
+    assert set(jobs) == {"paths"}
+    paths_job = jobs["paths"]
+    assert paths_job["env"] == {"E2E_BUILT": "1"}
+    assert paths_job["strategy"]["matrix"]["part"] == ["1/3", "2/3", "3/3", "measure"]
+    assert downloaded(paths_job["steps"]) == [played]
     assert not [s for s in paths_job["steps"] if "build" in s.get("run", "")]
+
+    (service,) = yaml.safe_load((workflows / "service.yml").read_text())["jobs"].values()
+    assert downloaded(service["steps"]) == [played]
+    (checked,) = [step for step in service["steps"] if step.get("run") == "make check-service"]
+    assert checked["env"]["E2E_BUILT"] == "1"
+    assert not [s for s in service["steps"] if "build-front" in s.get("run", "")]
 
 
 def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:

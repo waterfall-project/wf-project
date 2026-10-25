@@ -454,7 +454,7 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 # The paths play against the front built for production (US-0590): built first by build-front, which
 # Next's cache (.next/cache) shortens after the first time, then started by the harness, told it is
 # built (E2E_BUILT). E2E_BUILT=1 set already says the front is built — the chain builds it once for
-# all its parts (e2e.yml) —, and E2E_DEV_SERVER=1, on a workstation, plays the paths against next
+# all its parts (front-build, ci.yml) —, and E2E_DEV_SERVER=1, on a workstation, plays the paths against next
 # dev, which needs no build; the measure never follows it (frontend/playwright.config.ts).
 E2E_BUILT ?=
 E2E_DEV_SERVER ?=

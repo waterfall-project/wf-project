@@ -2374,7 +2374,7 @@ garde avant d'entrer. Le cas transitif — un module sans directive qui importe
 palier rapide, sans API joignable : une page qui lirait l'API à la construction, pré-rendue
 au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, les parcours de
 bout en bout le lancent avant de jouer contre le front construit (`make e2e`, `make e2e-measure`,
-et le travail `build` d'`e2e.yml` dans la chaîne). Après l'une ou l'autre
+et le travail `front-build` de `ci.yml` dans la chaîne). Après l'une ou l'autre
 construction, `make prerendered-front` affirme qu'elle n'a prérendu aucune page (« Chaîne »).
 `make typecheck-front`, `make test-front` ;
 `make lint-docker` (hadolint).
@@ -2624,8 +2624,9 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification. Le
   front en a deux, qui tournent côte à côte (#492) : `front.yml`, tout sauf les parcours de
   bout en bout (`make check-front-code`), et `e2e.yml`, les parcours et la mesure du §4.6.2,
-  au palier complet seulement (`make build-front` une fois, puis `make e2e`, `make e2e-measure`
-  et `make prerendered-front` sur ce build) ; sur un poste, `make check-front` enchaîne les deux
+  au palier complet seulement (`make e2e`, `make e2e-measure` et `make prerendered-front`, sur
+  le build que le travail `front-build` de `ci.yml` a fait, « sur un seul build du front ») ; sur
+  un poste, `make check-front` enchaîne les deux
   moitiés, `check-front-code` puis `check-front-e2e`.
   `front.yml` répartit son travail sur plusieurs runners. L'un tient le client, le lint, les
   types, les catalogues et, au palier rapide, la construction de production
@@ -2646,7 +2647,8 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   ses tests, sur tout le code du back, dont ses tests servent l'API, et sur le contrat, auquel
   ils confrontent ses réponses (#671) ; en échec, le travail imprime les journaux de Keycloak
   (`make service-logs`). `service.yml` joue les parcours contre le vrai service, au palier
-  complet seulement (`make check-service`, soit `make e2e-service`) : la famille `service` se
+  complet seulement (`make check-service`, soit `make e2e-service`, sur le build du front que
+  partagent les parcours d'`e2e.yml`) : la famille `service` se
   réveille sur le front, le back, le contrat et les fichiers de la plateforme. Il tourne sur le
   runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
   que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
@@ -2776,12 +2778,21 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   minutes d'image, d'installation et de serveurs. Ce que le fichier ajoute se lit sur la chaîne de
   la pull request d'US-0200, et le choix se revoit quand les parcours s'allongent : les durées
   par fichier se lisent dans le journal de chaque morceau ;
-- **sur un seul build du front** (US-0590) : le travail `build` d'`e2e.yml`, dans la même image,
-  lance `make build-front` et téléverse `frontend/.next` sans son cache (`.next/cache`, que seul
-  un build suivant lirait) ; les trois morceaux et la mesure l'attendent, le téléchargent là où
-  le build l'a écrit et jouent avec `E2E_BUILT=1`, sans rien reconstruire. Le même chemin de
-  l'espace de travail et le même Node servent au build et au démarrage. `service.yml`, qui ne
-  tourne pas dans l'image, construit le front une fois pour ses parcours (`make e2e-service`).
+- **sur un seul build du front par exécution** (US-0590) : le travail `front-build` de `ci.yml`,
+  qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
+  `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les trois
+  morceaux, la mesure et les parcours du service l'attendent, le téléchargent là où le build l'a
+  écrit et jouent avec `E2E_BUILT=1`, sans rien reconstruire. Il vit dans `ci.yml` et non dans
+  l'un des deux workflows : `e2e.yml` et `service.yml` sont deux workflows appelés, et un `needs`
+  ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
+  déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
+  deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
+  Node 24 : les morceaux le démarrent dans l'image de Playwright, en Node 24 elle aussi (son
+  `NODE_VERSION`), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
+  (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le runner. Le build ne dépend
+  pas de ce chemin : seul `required-server-files.json`, que lit la sortie autonome de l'image et
+  non `next start`, le nomme, et un build déplacé ailleurs, son dossier d'origine retiré, sert ses
+  pages (vérifié le 2026-10-25).
 
 Le back suit le même modèle (#492, levier 5) :
 
@@ -3186,7 +3197,8 @@ montait à plus de 9 Go après avoir compilé chaque route (#1309). `make e2e`, 
 (#131) — un même build sert donc le faux back et le vrai service —, puis lancent Playwright, qui le
 démarre ; en local, le cache de Next (`frontend/.next/cache`) abrège les builds suivants.
 `E2E_BUILT=1` dit le front déjà construit : ni la cible ni le harnais ne le reconstruisent, ce que
-fait la chaîne, qui le construit une fois pour toutes ses parts (« Chaîne »). Sans elle, le
+fait la chaîne, qui le construit une fois par exécution pour toutes ses parts — les morceaux des
+parcours, la mesure et les parcours du service (`front-build`, « Chaîne »). Sans elle, le
 harnais lancé hors du Makefile (`pnpm exec playwright test`) construit lui-même le front avant de
 le démarrer.
 

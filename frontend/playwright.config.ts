@@ -11,7 +11,7 @@
  * US-0110/L2) and the paths against the service. The development server rendered the pages of
  * four workers in series, past the five seconds of an assertion (#1262). The front is built first
  * as `make build-front` builds it, with no API to reach (#131), unless `E2E_BUILT=1` says it is
- * built already — the chain builds it once for all its parts (`e2e.yml`). `E2E_DEV_SERVER=1`, on a
+ * built already — the chain builds it once for all its parts (`ci.yml`). `E2E_DEV_SERVER=1`, on a
  * workstation only, plays the paths against `next dev` instead, which spares a build at each run
  * again: never the measure, which says how fast the users' front is, and never in the chain (`CI`),
  * where it fails the run, saying so.
