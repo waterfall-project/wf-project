@@ -16,8 +16,9 @@
  * It stops too on a way of holding the connections to the API it does not know
  * (`WATERFALL_API_CONNECTIONS`, `apiConnections`) — a typing error would otherwise answer every
  * request with an error —, and writes once, as a warning, that each request opens a connection of
- * its own when it is `closed` out of the harness of the fake back (`WATERFALL_E2E`): a setting of
- * the end-to-end harness, which its run against the service poses too, never of production (#1145).
+ * its own when it is `closed` out of the end-to-end harness (`WATERFALL_E2E`, which the harness
+ * poses against the fake back and against the service alike): a setting of the harness, never of
+ * production (#1145, #1265).
  */
 import "server-only";
 

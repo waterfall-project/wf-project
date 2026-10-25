@@ -242,10 +242,9 @@ def dry_run(target: str, tier: str, *variables: str) -> list[str]:
     return result.stdout.splitlines()
 
 
-@pytest.mark.parametrize(("tier", "build"), [("fast", "pnpm build"), ("full", "playwright test")])
-def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(
-    tier: str, build: str
-) -> None:
+@pytest.mark.parametrize("tier", ["fast", "full"])
+def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(tier: str) -> None:
+    build = "pnpm build"
     # The layout reads the cookies, which keeps every page from being prerendered: a change of it,
     # or of any page, wakes the front family, whose check holds the manifest after the build.
     families = paths.read().touched(["frontend/src/app/layout.tsx"])
@@ -259,13 +258,30 @@ def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(
     assert commands[held[0]].endswith("frontend/.next/prerender-manifest.json")
 
 
-def test_a_part_of_the_paths_alone_builds_nothing_and_holds_no_manifest_left_behind() -> None:
-    commands = dry_run("check-front-e2e", "full", "SHARD=1/3")
-    assert any("playwright test --shard=1/3" in command for command in commands)
-    assert not [command for command in commands if "frontimage --manifest" in command]
+@pytest.mark.parametrize("target", ["e2e", "e2e-measure", "e2e-service"])
+def test_the_paths_build_the_front_then_play_against_it(target: str) -> None:
+    # US-0590: every part of the harness plays the front built for production, built as
+    # build-front builds it — with no API to reach (#131) — before Playwright starts it.
+    commands = dry_run(target, "full")
+    built = [i for i, command in enumerate(commands) if command.endswith("pnpm build")]
+    played = [i for i, command in enumerate(commands) if "playwright test" in command]
+    assert len(built) == 1
+    assert played
+    assert built[0] < played[0]
 
 
-def test_the_chain_holds_what_the_build_of_the_measure_prerendered() -> None:
+@pytest.mark.parametrize("target", ["e2e", "e2e-measure", "e2e-service"])
+def test_a_front_built_already_is_not_built_again(target: str) -> None:
+    commands = dry_run(target, "full", "E2E_BUILT=1", "SHARD=1/3")
+    assert not [command for command in commands if "pnpm build" in command]
+
+
+def test_the_paths_against_the_development_server_build_nothing_but_the_measure_does() -> None:
+    assert not [c for c in dry_run("e2e", "full", "E2E_DEV_SERVER=1") if "pnpm build" in c]
+    assert [c for c in dry_run("e2e-measure", "full", "E2E_DEV_SERVER=1") if "pnpm build" in c]
+
+
+def test_the_chain_holds_what_the_build_of_the_paths_prerendered() -> None:
     workflow = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "e2e.yml").read_text())
     measured = [
         step["run"]
@@ -273,6 +289,27 @@ def test_the_chain_holds_what_the_build_of_the_measure_prerendered() -> None:
         if step.get("if") == "matrix.part == 'measure'"
     ]
     assert measured == ["make e2e-measure", "make prerendered-front"]
+
+
+def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> None:
+    # US-0590: one job builds the front and uploads it without Next's cache; each part of the
+    # paths and the measure wait for it, download it where the build wrote it, and say it is built.
+    jobs = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "e2e.yml").read_text())["jobs"]
+    assert set(jobs) == {"build", "paths"}
+    build = jobs["build"]["steps"]
+    assert [step["run"] for step in build if "run" in step][-1] == "make build-front"
+    (uploaded,) = [step["with"] for step in build if "upload-artifact" in step.get("uses", "")]
+    assert uploaded["path"].split() == ["frontend/.next/", "!frontend/.next/cache/"]
+    paths_job = jobs["paths"]
+    assert paths_job["needs"] == "build"
+    assert paths_job["env"] == {"E2E_BUILT": "1"}
+    assert paths_job["container"] == jobs["build"]["container"]
+    assert paths_job["strategy"]["matrix"]["part"] == ["1/3", "2/3", "3/3", "measure"]
+    (downloaded,) = [
+        step["with"] for step in paths_job["steps"] if "download-artifact" in step.get("uses", "")
+    ]
+    assert downloaded == {"name": uploaded["name"], "path": "frontend/.next/"}
+    assert not [s for s in paths_job["steps"] if "build" in s.get("run", "")]
 
 
 def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:

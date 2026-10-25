@@ -23,8 +23,11 @@ const VARIABLES = [
   "WATERFALL_AUTH",
   "E2E_API_PORT",
   "E2E_FRONT_PORT",
-  "E2E_PRODUCTION_PORT",
   "E2E_PART",
+  "E2E_BUILT",
+  "E2E_DEV_SERVER",
+  "CI",
+  "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
 ];
 
 /** The configuration of the harness, read anew under the environment of the test. */
@@ -41,6 +44,25 @@ function projectsOf(config: PlaywrightTestConfig) {
 /** The servers the harness starts. */
 function serversOf(config: PlaywrightTestConfig) {
   return [config.webServer ?? []].flat();
+}
+
+/** The front the harness starts: the server that is told where the API is. */
+async function frontOf(): Promise<NonNullable<ReturnType<typeof serversOf>[number]>> {
+  const fronts = serversOf(await harness()).filter((server) => server.env !== undefined);
+  expect(fronts).toHaveLength(1);
+  const [front] = fronts;
+  if (front === undefined) {
+    throw new Error("no front");
+  }
+  return front;
+}
+
+/** Play against the service, as `make e2e-service` does. */
+function againstTheService(): void {
+  vi.stubEnv("E2E_PART", "service");
+  // Read by the configuration from the log of the proxy, which the run of the service has.
+  vi.stubEnv("E2E_SERVICE_STARTED", "2026-10-21T00:00:00.000000000Z");
+  vi.stubEnv("WATERFALL_API_ADDRESS", "http://127.0.0.1:4210");
 }
 
 beforeEach(() => {
@@ -61,7 +83,7 @@ describe("the end-to-end harness", () => {
 
   it("starts every server it plays against, and refuses a port already taken", async () => {
     const servers = serversOf(await harness());
-    expect(servers).toHaveLength(3);
+    expect(servers).toHaveLength(2);
     for (const server of servers) {
       expect(server.reuseExistingServer).toBe(false);
     }
@@ -76,8 +98,8 @@ describe("the end-to-end harness", () => {
       ...servers.map((server) => server.url),
     ].filter((address) => address !== undefined);
     const ports = addresses.map((address) => new URL(address).port);
-    // The fake back, the development server and the production server, each on its own port.
-    expect(new Set(ports)).toEqual(new Set(["4110", "3100", "3101"]));
+    // The fake back and the front, each on its own port.
+    expect(new Set(ports)).toEqual(new Set(["4110", "3100"]));
     for (const server of servers) {
       expect(server.command).toContain(new URL(server.url ?? "").port);
     }
@@ -86,13 +108,8 @@ describe("the end-to-end harness", () => {
   it("moves its ports as the environment says", async () => {
     vi.stubEnv("E2E_API_PORT", "4050");
     vi.stubEnv("E2E_FRONT_PORT", "3050");
-    vi.stubEnv("E2E_PRODUCTION_PORT", "3051");
     const servers = serversOf(await harness());
-    expect(servers.map((server) => new URL(server.url ?? "").port)).toEqual([
-      "4050",
-      "3050",
-      "3051",
-    ]);
+    expect(servers.map((server) => new URL(server.url ?? "").port)).toEqual(["4050", "3050"]);
     expect(servers[0]?.command).toContain("MOCK_PORT=4050");
   });
 
@@ -112,77 +129,147 @@ describe("the end-to-end harness", () => {
 
   it("plays against the API the environment names, and starts no fake back for it", async () => {
     vi.stubEnv("WATERFALL_API_ADDRESS", "http://api.example:8080");
+    vi.stubEnv("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY", "a-key-of-the-server-actions");
     const servers = serversOf(await harness());
     expect(servers.map((server) => server.command)).not.toContainEqual(
       expect.stringContaining("mock"),
     );
-    expect(servers).toHaveLength(2);
-    for (const server of servers) {
-      expect(server.env).toEqual({
-        WATERFALL_API_ADDRESS: "http://api.example:8080",
-        WATERFALL_API_CONNECTIONS: "closed",
-      });
-    }
+    expect(servers).toHaveLength(1);
+    expect(servers[0]?.env).toEqual({
+      WATERFALL_API_ADDRESS: "http://api.example:8080",
+      WATERFALL_API_CONNECTIONS: "closed",
+      WATERFALL_E2E: "1",
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: "a-key-of-the-server-actions",
+    });
+  });
+
+  it("gives the front built against a named API a key of its server actions, which it does not start without", async () => {
+    vi.stubEnv("WATERFALL_API_ADDRESS", "http://api.example:8080");
+    const key = (await frontOf()).env?.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY ?? "";
+    // The 32 bytes of an AES-256 key, as Next reads it.
+    expect(Buffer.from(key, "base64")).toHaveLength(32);
   });
 
   it("has the front send the token of the fake back, and say it is the harness that builds it for production", async () => {
-    const servers = serversOf(await harness());
-    const fronts = servers.filter((server) => server.env !== undefined);
-    expect(fronts).toHaveLength(2);
-    for (const front of fronts) {
-      expect(front.env).toMatchObject({ WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" });
-    }
+    expect((await frontOf()).env).toMatchObject({ WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" });
+  });
+
+  it("says it is the harness against the service too, where the real authentication stands (#1265)", async () => {
+    againstTheService();
+    const { env } = await frontOf();
+    expect(env).toMatchObject({ WATERFALL_E2E: "1", WATERFALL_API_CONNECTIONS: "closed" });
+    expect(env).not.toHaveProperty("WATERFALL_AUTH");
   });
 
   it("has the front open a connection of its own for each request to the API, which Prism closes when idle (#1145)", async () => {
-    const fronts = serversOf(await harness()).filter((server) => server.env !== undefined);
-    expect(fronts.map((front) => front.env?.WATERFALL_API_CONNECTIONS)).toEqual([
-      "closed",
-      "closed",
-    ]);
+    expect((await frontOf()).env?.WATERFALL_API_CONNECTIONS).toBe("closed");
   });
 
-  it("warms every screen before the paths, and only before them (#1145)", async () => {
-    expect((await harness()).globalSetup).toBe("./e2e/warm-up.ts");
-    vi.stubEnv("E2E_PART", "paths");
-    expect((await harness()).globalSetup).toBe("./e2e/warm-up.ts");
-    vi.stubEnv("E2E_PART", "measure");
-    expect((await harness()).globalSetup).toBeUndefined();
-    vi.stubEnv("E2E_PART", "service");
-    // Read by the configuration from the log of the proxy, which the run of the service has.
-    vi.stubEnv("E2E_SERVICE_STARTED", "2026-10-21T00:00:00.000000000Z");
-    vi.stubEnv("WATERFALL_API_ADDRESS", "http://127.0.0.1:4210");
+  it("warms no route before the paths: the built front compiles nothing on demand", async () => {
     expect((await harness()).globalSetup).toBeUndefined();
   });
 
-  it("plays the paths, then the measure once they all passed", async () => {
-    expect(projectsOf(await harness())).toEqual([
+  it("plays the paths, then the measure once they all passed, against one front", async () => {
+    const config = await harness();
+    expect(projectsOf(config)).toEqual([
       ["chromium", []],
-      ["production", ["chromium"]],
+      ["measure", ["chromium"]],
     ]);
+    for (const project of config.projects ?? []) {
+      expect(project.use?.baseURL).toBeUndefined();
+    }
   });
 
-  it("plays the paths alone, which can be spread over runners, with no production build", async () => {
+  it.each([
+    ["the whole harness", undefined],
+    ["the paths alone", "paths"],
+    ["the measure alone", "measure"],
+  ])("plays %s against the front built for production, built first", async (_part, named) => {
+    vi.stubEnv("E2E_PART", named);
+    const { command } = await frontOf();
+    expect(command).toBe(
+      "WATERFALL_API_ADDRESS=http://127.0.0.1:9 pnpm build && pnpm start --hostname 127.0.0.1 --port 3100",
+    );
+  });
+
+  it("builds the front with no API to reach, as make build-front does (#131)", () => {
+    const makefile = readFileSync(join(import.meta.dirname, "../../../Makefile"), "utf-8");
+    const nowhere = /^NOWHERE := (\S+)$/m.exec(makefile)?.[1];
+    expect(nowhere).toBe("http://127.0.0.1:9");
+    expect(makefile).toContain("build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)");
+  });
+
+  it("starts the front built already when E2E_BUILT says so", async () => {
+    vi.stubEnv("E2E_BUILT", "1");
+    expect((await frontOf()).command).toBe("pnpm start --hostname 127.0.0.1 --port 3100");
+  });
+
+  it("plays the paths against the service on the built front, listening on every interface", async () => {
+    againstTheService();
+    vi.stubEnv("E2E_BUILT", "1");
+    const config = await harness();
+    expect(serversOf(config).map((server) => server.command)).toEqual([
+      "pnpm start --hostname 0.0.0.0 --port 3100",
+    ]);
+    expect(projectsOf(config).map(([name]) => name)).not.toContain("measure");
+  });
+
+  it("plays the paths alone, which can be spread over runners", async () => {
     vi.stubEnv("E2E_PART", "paths");
-    const config = await harness();
-    expect(projectsOf(config)).toEqual([["chromium", []]]);
-    const commands = serversOf(config).map((server) => server.command);
-    expect(commands).toHaveLength(2);
-    expect(commands).not.toContainEqual(expect.stringContaining("pnpm build"));
+    expect(projectsOf(await harness())).toEqual([["chromium", []]]);
   });
 
-  it("plays the measure alone, with no development server", async () => {
+  it("plays the measure alone", async () => {
     vi.stubEnv("E2E_PART", "measure");
-    const config = await harness();
-    expect(projectsOf(config)).toEqual([["production", []]]);
-    const commands = serversOf(config).map((server) => server.command);
-    expect(commands).toHaveLength(2);
-    expect(commands).not.toContainEqual(expect.stringContaining("pnpm dev"));
-    expect(commands).toContainEqual(expect.stringContaining("pnpm build"));
+    expect(projectsOf(await harness())).toEqual([["measure", []]]);
   });
 
   it.each(["both", "chromium", "Paths"])("refuses %j as a part", async (named) => {
     vi.stubEnv("E2E_PART", named);
     await expect(harness()).rejects.toThrow("E2E_PART must be one of paths, measure");
+  });
+
+  it.each(["E2E_BUILT", "E2E_DEV_SERVER"])("refuses %s other than 1", async (variable) => {
+    vi.stubEnv(variable, "yes");
+    await expect(harness()).rejects.toThrow(`${variable} must be 1, or unset: yes`);
+  });
+});
+
+describe("the paths against the development server, on a workstation (E2E_DEV_SERVER)", () => {
+  it("plays the paths against next dev, and leaves the measure out of the whole harness", async () => {
+    vi.stubEnv("E2E_DEV_SERVER", "1");
+    const config = await harness();
+    expect(projectsOf(config)).toEqual([["chromium", []]]);
+    expect(serversOf(config).map((server) => server.command)).toContainEqual(
+      "pnpm dev --hostname 127.0.0.1 --port 3100",
+    );
+  });
+
+  it("plays the paths against the service on next dev, on every interface", async () => {
+    againstTheService();
+    vi.stubEnv("E2E_DEV_SERVER", "1");
+    expect((await frontOf()).command).toBe("pnpm dev --hostname 0.0.0.0 --port 3100");
+  });
+
+  it("never plays the measure against it: the measure alone is built and started", async () => {
+    vi.stubEnv("E2E_DEV_SERVER", "1");
+    vi.stubEnv("E2E_PART", "measure");
+    const config = await harness();
+    expect(projectsOf(config)).toEqual([["measure", []]]);
+    expect((await frontOf()).command).toContain("pnpm build && pnpm start");
+  });
+
+  it("fails the run in the chain, saying so", async () => {
+    vi.stubEnv("E2E_DEV_SERVER", "1");
+    vi.stubEnv("CI", "true");
+    await expect(harness()).rejects.toThrow(
+      "E2E_DEV_SERVER=1 plays the paths against next dev, on a workstation only",
+    );
+  });
+
+  it("is not needed in the chain, which plays against the built front", async () => {
+    vi.stubEnv("CI", "true");
+    vi.stubEnv("E2E_BUILT", "1");
+    expect((await frontOf()).command).toBe("pnpm start --hostname 127.0.0.1 --port 3100");
   });
 });
