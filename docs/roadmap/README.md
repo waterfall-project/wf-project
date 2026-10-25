@@ -122,7 +122,7 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | livré | EP-01 |
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | livré | EP-01, EP-02 |
 | [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | livré | EP-02 |
-| [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | en cours | EP-14 |
+| [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | livré | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | en cours | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | à planifier | EP-16 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-16 |
