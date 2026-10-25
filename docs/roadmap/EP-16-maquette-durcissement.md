@@ -75,7 +75,9 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
   accessibilité ») :
   - le harnais d'accessibilité aux dialogues, aux menus et aux éditeurs (#782, #784, #819 point 1) ;
   - les mineurs des composants partagés et des écrans ;
-  - la stabilité restante des e2e (#1263, #1230, #776, #1264) ;
+  - la lenteur du navigateur à quitter une grille de mille tâches (#1230), une lenteur du produit et
+    non de la file — la stabilité restante des e2e (#1263, #1145, #776, #1264), d'abord reportée
+    avec elle, revient ici le 2026-10-25 : elle relève du durcissement (US-0590b) ;
   - le cosmétique ;
 - par la règle du recadrage du 2026-10-25 — ne reste dans EP-16 que ce qui concerne le durcissement
   ou le contrat ; tout le reste part à EP-17 —, les constats du front ajoutés au label depuis le
@@ -194,7 +196,14 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
 - #1398 — contrat, front : un filtre « Écarts seulement » (décision de l'auteur du 2026-10-23) —
   US-0700 ;
 - #1309 — e2e : `next dev` à 9,4 Go après le préchauffage — US-0590, qui le fait disparaître ;
+- #1342 — e2e : deux expressions de test trop larges, un en-tête à resserrer — US-0590, avec #1309
+  (décision de l'auteur du 2026-10-25) ;
 - #1444 — outillage : les agents suppriment la branche locale et le worktree d'un lot — US-0590 ;
+- la stabilité restante des parcours, revenue d'EP-17 le 2026-10-25 (le durcissement) — US-0590b :
+  #1263 (le rendu serveur du Kanban à 3,2 s, le parcours d'accessibilité d'`/admin/access-roles` à
+  1 420 actions), #1145 (les cinq parcours qui échouaient au palier complet local), #776 (l'e2e « on
+  a narrow window » de `grid.spec` sous concurrence), #1264 (trois choix d'une ligne sans ordre
+  déterminé, dans des tests du back et `latest_report`) ;
 - #1429 — front : l'adresse de retour de la connexion ne refuse ni tabulation ni saut de ligne
   (sécurité) — US-0690.
 
@@ -581,13 +590,25 @@ et ses exemples.
   - `service.yml` construit une fois pour ses parcours.
 - Le guide (« Un parcours de bout en bout ») dit contre quel serveur les parcours se jouent, retire
   le préchauffage, et réécrit la règle de #1145. Les échecs de #1263 restent tolérés au rejeu
-  isolé jusqu'à EP-17. #1309 (la mémoire de `next dev` après le préchauffage) disparaît avec lui.
+  isolé jusqu'à US-0590b. #1309 (la mémoire de `next dev` après le préchauffage) disparaît avec lui,
+  et les expressions de test de #1342 se resserrent sur le front construit.
+- **US-0590b, la stabilité restante** (décision de l'auteur du 2026-10-25 : la stabilité des e2e est
+  du durcissement, donc d'EP-16 et non d'EP-17) : le lot porte ce qui échoue encore une fois US-0590
+  fusionné — #1263, #1145, #776, #1264 —, et son contenu définitif s'arrête quand US-0590 a joué
+  trois paliers complets sur le front construit : ce qui ne tombe plus sort du lot et se ferme
+  « corrigé par US-0590 » ; ce qui tombe encore se corrige à sa cause — le rendu serveur, la
+  concurrence des parcours, l'ordre non déterminé —, jamais par une attente plus longue ; la règle
+  provisoire de #1145 disparaît du guide avec lui. #1230, une lenteur du produit, reste à EP-17.
+  Écarté : une US nouvelle, alors que le README nomme `[US-nnnnb]` la part détachée d'une US à un
+  seul lot.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
 ### L'ordre de construction
 
-1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent.
+1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent ;
+   **US-0590b** quand trois paliers complets ont été joués sur le front construit, son contenu
+   arrêté sur ce qui tombe encore.
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
    EP-16), quand l'auteur peut la relire.
@@ -630,9 +651,14 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 - propre à l'US : trois passages successifs du palier complet local, à quatre workers, ne montrent
   aucun des échecs que #1262 attribue au débit du serveur de développement : `remaining`,
   `planning`, `admin`, `context`, `navigation`, `review`. Le parcours d'accessibilité
-  d'`/admin/access-roles` et le rendu serveur du Kanban relèvent de #1263, en EP-17 ;
+  d'`/admin/access-roles` et le rendu serveur du Kanban relèvent de #1263, part du lot US-0590b ;
 - propre à l'US : le guide dit contre quel serveur les parcours se jouent, et ce que deviennent le
-  préchauffage des routes et la règle provisoire de #1145 ; les trois points de #1265 sont corrigés.
+  préchauffage des routes et la règle provisoire de #1145 ; les trois points de #1265 sont corrigés ;
+  les expressions de test et l'en-tête de #1342 sont resserrés ;
+- propre à l'US (US-0590b) : les échecs qui restent après trois paliers complets sur le front
+  construit — #1263, #1145, #776, #1264, pour ce qui tombe encore — sont corrigés à leur cause, et
+  ceux qui ne tombent plus sont fermés « corrigé par US-0590 » ; la règle provisoire de #1145
+  disparaît du guide.
 
 **Notes de réalisation.**
 - Le harnais construit déjà le front pour la mesure de la seconde (US-0110/L2, port 3101) : l'US
@@ -642,8 +668,11 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   les interfaces.
 - Décision de l'auteur du 2026-10-22, sur #1262 : EP-16, en tête, tout le harnais, parcours du
   service compris, un seul build partagé entre les parts de la chaîne.
+- Décision de l'auteur du 2026-10-25 : la stabilité restante des e2e est du durcissement ; elle
+  revient d'EP-17 dans un second lot, US-0590b (#1460), part détachée de cette US, dont le contenu
+  s'arrête après trois paliers complets. #1342 et #1309 sont corrigés par le premier lot.
 
-**Hors périmètre.** #1263, #1230, #776 et #1264 : EP-17.
+**Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 
 ---
 

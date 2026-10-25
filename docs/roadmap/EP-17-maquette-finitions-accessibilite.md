@@ -31,8 +31,9 @@ qu'EP-16 est livré. Il peut avancer en parallèle d'eux.
 - les ajustements de la validation de la maquette du 2026-10-23 qui ne touchent pas le contrat
   (#1395 part front, #1396, #1397, #1399, #1400, #1401) et deux défauts visibles du front (#1438,
   #1428), reçus au recadrage d'EP-16 du 2026-10-25 (« Constats reçus ») ;
-- la stabilité restante des parcours de bout en bout, une fois qu'ils se jouent contre le front
-  construit (EP-16, US-0590) : #1263, #1230, #776, #1264, #1145 ;
+- la lenteur du navigateur à quitter une grille de mille tâches (#1230), une lenteur du produit ; la
+  stabilité restante des parcours de bout en bout (#1263, #1145, #776, #1264) est revenue à EP-16 le
+  2026-10-25, comme durcissement (US-0590b) ;
 - le cosmétique, chaque constat marqué comme tel dans « Constats reçus ».
 
 ## Ce qui n'en fait pas partie
@@ -96,7 +97,9 @@ que ce qui concerne le durcissement ou le contrat —, label et titre déjà `EP
   - #1430 — front : des inscriptions de l'historique sans objet hors des trois de #1181 ;
   - #1432 — front : `clear` de `cell-writes` hors de la référence synchrone ;
   - #1384, point 2 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer » (l'issue
-    reste en EP-16 pour son point 1, et se ferme avec lui ; le point se reprend ici au cadrage).
+    reste en EP-16 pour son point 1, et se ferme avec lui ; le point se reprend ici au cadrage) ;
+  - #1144 — front : la largeur mesurée de la barre des grilles denses n'est pas éprouvée au
+    redimensionnement (décision de l'auteur du 2026-10-25 : EP-17, non repris par EP-15).
 
 **Le harnais d'accessibilité.**
 
@@ -109,17 +112,11 @@ que ce qui concerne le durcissement ou le contrat —, label et titre déjà `EP
   - les points 4, 13 et 14 restent ;
   - le point 15 est **cosmétique**.
 
-**La stabilité restante des parcours.**
+**La lenteur du produit.**
 
-- #1145 — e2e : les parcours qui échouaient au palier complet local. EP-16 en traite la cause
-  principale (#1262, US-0590) ; restent ceux qui ont une autre cause ;
-- #1263 — e2e : le rendu serveur du Kanban à 3,2 s, et le parcours d'accessibilité
-  d'`/admin/access-roles` à 1 420 actions ;
 - #1230 — front : quitter un écran de grille de mille tâches coûte plusieurs secondes au navigateur
-  (#1218) ;
-- #776 — outil : l'e2e « on a narrow window » de `grid.spec` ;
-- #1264 — back : trois choix d'une ligne sans ordre déterminé, dans des tests et dans
-  `latest_report`.
+  (#1218). La stabilité restante des parcours (#1145, #1263, #776, #1264), d'abord reportée ici, est
+  revenue à EP-16 le 2026-10-25 (US-0590b) : elle relève du durcissement.
 
 **Les mineurs des composants partagés et des écrans.**
 

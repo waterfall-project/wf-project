@@ -158,13 +158,14 @@ contrat** (décision de l'auteur du 2026-10-22) : il garde tout ce qui touche le
 toucher, avec ce que la reprise de la spécification du 2026-10-22 ajoute au modèle (#1304). Il
 garde aussi, par exception, des parcours de bout en bout joués contre le front construit, faute
 desquels la file de fusion n'est pas stable. Le reste passe à EP-17, qui finit la maquette hors
-contrat : l'accessibilité des dialogues, les mineurs des écrans, la stabilité restante des
-parcours, le cosmétique. Les navigateurs passent à EP-13. Les EPIC de domaine, à partir d'EP-05,
-servent un contrat qu'EP-16 a figé, et EP-17 peut avancer en parallèle d'eux. Le 2026-10-25, EP-16
-est recadré d'un bloc (#1445) : il reprend d'EP-15 les aides en ligne des écrans que les cinq écrans
-clés ne couvrent pas, pour que leur relecture ne tienne pas `epic/EP-15` ouverte, et la règle qui
-prime est que n'y reste que ce qui concerne le durcissement ou le contrat — tout le reste, dont les
-ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat, part à EP-17.
+contrat : l'accessibilité des dialogues, les mineurs des écrans, le cosmétique. Les navigateurs
+passent à EP-13. Les EPIC de domaine, à partir d'EP-05, servent un contrat qu'EP-16 a figé, et EP-17
+peut avancer en parallèle d'eux. Le 2026-10-25, EP-16 est recadré d'un bloc (#1445) : il reprend
+d'EP-15 les aides en ligne des écrans que les cinq écrans clés ne couvrent pas, pour que leur
+relecture ne tienne pas `epic/EP-15` ouverte, et la règle qui prime est que n'y reste que ce qui
+concerne le durcissement ou le contrat — tout le reste, dont les ajustements de la validation du
+2026-10-23 qui ne touchent pas le contrat, part à EP-17 ; la stabilité restante des parcours de bout
+en bout, elle, est du durcissement et revient à EP-16 (US-0590b).
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
