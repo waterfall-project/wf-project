@@ -508,6 +508,42 @@ function writing(told?: () => boolean): {
   return { Screen, answer };
 }
 
+/**
+ * A screen whose writes the test makes when it says, each answered when it says; `told`, given
+ * with a write, says whether what asked it tells its refusal still.
+ */
+function writer(): {
+  Screen: () => ReactElement;
+  make: (told?: () => boolean) => (answer: WriteAnswer) => void;
+} {
+  const hold: { current?: (write: Promise<WriteAnswer>, told?: () => boolean) => void } = {};
+  /** The screen, which gives the test the way to make its writes. */
+  function Screen() {
+    const held = useHeldWrites();
+    useEffect(() => {
+      hold.current = held;
+    }, [held]);
+    return <main />;
+  }
+  const make = (told?: () => boolean) => {
+    let answer: (answer: WriteAnswer) => void = () => undefined;
+    const write = new Promise<WriteAnswer>((resolve) => {
+      answer = resolve;
+    });
+    hold.current?.(write, told);
+    return answer;
+  };
+  return { Screen, make };
+}
+
+/** « Précédent » or « Suivant » of the browser, towards `path`: the address changes, the screen stays. */
+function traverse(path: string): void {
+  window.history.replaceState(null, "", path);
+  act(() => {
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+}
+
 describe("the writes refused once their screen is gone (#863)", () => {
   beforeEach(dismissLeftRefusals);
 
@@ -608,10 +644,7 @@ describe("the writes refused once their screen is gone (#863)", () => {
     window.history.replaceState(null, "", "/account");
     const { Screen, answer } = writing(() => true);
     shell({}, <Screen />);
-    window.history.replaceState(null, "", "/");
-    act(() => {
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    });
+    traverse("/");
 
     await act(async () => {
       answer(false);
@@ -622,14 +655,44 @@ describe("the writes refused once their screen is gone (#863)", () => {
     );
   });
 
+  it("are signalled when made on a screen « Précédent » left already, refused once it is gone, whatever it says it tells [WF-IHM-0080-A]", async () => {
+    // Son aboutissement comme son échec sont signalés même si l'utilisateur a changé d'écran
+    // entre-temps : a write made on the screen left, before the router shows the entry traversed to.
+    window.history.replaceState(null, "", "/account");
+    const { Screen, make } = writer();
+    const view = shell({}, <Screen />);
+    traverse("/");
+    const answer = make(() => true);
+    visit("/");
+    view.rerender(inShell({}, <main />));
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("say nothing of a write whose screen « Suivant » brought back before the refusal, which tells it", async () => {
+    window.history.replaceState(null, "", "/account");
+    const { Screen, answer } = writing(() => true);
+    shell({}, <Screen />);
+    traverse("/");
+    traverse("/account");
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().queryByRole("alert")).toBeNull();
+    window.history.replaceState(null, "", "/");
+  });
+
   it("say nothing of a write that « Précédent » keeps on its screen, read with other parameters, which tells it", async () => {
     window.history.replaceState(null, "", "/account?tab=1");
     const { Screen, answer } = writing(() => true);
     shell({}, <Screen />);
-    window.history.replaceState(null, "", "/account");
-    act(() => {
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    });
+    traverse("/account");
 
     await act(async () => {
       answer(false);

@@ -177,8 +177,9 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   await page.goBack();
   await expect(page).toHaveURL("/");
   // The address changes at the popstate already, but the router of Next 16.4 shows the home only
-  // once the action under way has answered: the screen of the account, left, is still shown, and
-  // the refusal goes to the bar all the same.
+  // once the action under way has answered (vercel/next.js#99612, `useHeldWrites`): the screen of
+  // the account, left, is still shown, and the refusal goes to the bar all the same.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon compte");
   const bar = page.getByRole("banner");
   await expect(bar.getByRole("alert")).toHaveCount(0);
   cut();

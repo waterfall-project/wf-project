@@ -121,13 +121,32 @@ describe("the writes refused once their screen is gone (#863)", () => {
     expect(refusedLeft().length).toBe(0);
   });
 
-  it("leave out a write whose asker tells it still — unless released as its screen is left", async () => {
+  it("keep a write refused while its screen is away, whatever its asker tells, released or not — not one refused once its screen is back", async () => {
+    const screen = { away: true };
+    const away = () => screen.away;
     const kept = underWay();
-    const left = underWay();
-    holdNavigation(kept.write, () => true)();
-    holdNavigation(left.write, () => true)(true);
+    const released = underWay();
+    const back = underWay();
+    holdNavigation(kept.write, () => true, undefined, away);
+    holdNavigation(released.write, () => true, undefined, away)();
+    holdNavigation(back.write, () => true, undefined, away);
     kept.answer(false);
-    left.answer(false);
+    released.answer(false);
+    await settled();
+    expect(refusedLeft().length).toBe(2);
+    screen.away = false;
+    back.answer(false);
+    await settled();
+    expect(refusedLeft().length).toBe(2);
+  });
+
+  it("keep once a write refused while its screen is away, released after", async () => {
+    const write = underWay();
+    const release = holdNavigation(write.write, undefined, undefined, () => true);
+    write.answer(false);
+    release();
+    await settled();
+    release();
     await settled();
     expect(refusedLeft().length).toBe(1);
   });
