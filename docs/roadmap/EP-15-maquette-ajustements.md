@@ -1,7 +1,7 @@
 ---
 id: EP-15
 titre: La maquette ajustée après la validation de l'auteur, chaque geste du contrat montré
-statut: en cours
+statut: livré
 depend_de: EP-14
 famille: front
 issue: 1087
