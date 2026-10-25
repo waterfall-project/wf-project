@@ -55,7 +55,9 @@ Les issues du label `EP-15`, groupées par parcours de l'utilisateur :
 - le référentiel et les grilles paginées : les paramètres de coûts empilés, le nombre de lignes par
   page, les calendriers sans filtre d'heures, les unités de durée (#1044, #1045, #1047,
   #1049) — US-0570 ;
-- l'aide en ligne et les infobulles (#1071, #1075) — US-0580.
+- l'aide en ligne et les infobulles (#1071, #1075) — US-0580 : les infobulles, la mécanique de
+  l'aide, cinq écrans clés et les notions EVM ; les autres aides, la recherche et la section « Ses
+  colonnes » du panneau passent à EP-16, US-0670 (décision de l'auteur du 2026-10-25, #1445).
 
 Chaque modification du contrat que ces issues appellent, avec ses exemples, son entrée dans
 `docs/api/DECISIONS.md`, le faux back et le témoin régénérés (`make mock-data`), faite avant le
@@ -77,8 +79,11 @@ code qui la consomme (« Conception », « Modifications du contrat »).
   dialogues et aux menus (#782), les navigateurs (US-0290, #92) et les reliquats de tests (#776,
   #781, #784) — EP-16 ;
 - les 409 nommés que le service des sauvegardes ne rend pas (#1035) — EP-13 ;
-- la version anglaise de l'aide en ligne : rédigée après la relecture du français par l'auteur
-  (#1075), elle se constate avec WF-IHM-0140, qu'EP-11 clôt ;
+- les aides des écrans hors des cinq écrans clés, la recherche de l'aide et la section « Ses
+  colonnes » du panneau : EP-16, US-0670 (décision de l'auteur du 2026-10-25, #1445 — les lots
+  US-0580/L3b, L4 et L5 en sont devenus US-0670/L1 à L5) ;
+- la version anglaise de l'aide en ligne : décidée en EP-16 après la relecture de toutes les aides
+  par l'auteur (#1075, #1441), elle se constate avec WF-IHM-0140, qu'EP-11 clôt ;
 - les formats Excel de l'annexe B, dont le reste attend les fichiers d'exemple de l'auteur
   (`docs/spec/TODO.md`, entrée 1) — EP-07 et EP-09.
 
@@ -172,8 +177,10 @@ issue `specification` ouverte hors #1045 ; `make check-spec` au vert sur `main`.
   harnais d'accessibilité aux deux largeurs, roadmap ;
 - l'auteur a constaté, écran par écran, les ajustements livrés ;
 - aucune entrée nouvelle de `docs/spec/TODO.md` n'est restée sans reprise ;
-- l'aide en ligne en français est rédigée pour chaque écran et relue par l'auteur ; la version
-  anglaise est décidée, et son écart écrit sous WF-IHM-0140.
+- l'aide en ligne en français est rédigée pour les cinq écrans clés et les notions EVM, et relue
+  par l'auteur ; les autres aides et la recherche sont reportées à EP-16 (US-0670, décision de
+  l'auteur du 2026-10-25, #1445) ; la version anglaise se décide en EP-16, après la relecture de
+  toutes les aides, et son écart est écrit sous WF-IHM-0140 (US-0580, puis US-0670).
 
 ## Constats reçus
 
@@ -448,8 +455,9 @@ Ce qui ne change pas au contrat : #1058 (l'encart lit `generate_skeleton` et `im
 - **Qui écrit, qui relit.** Le premier jet français est rédigé par l'agent du lot, à partir de la
   spécification, du code des écrans et des catalogues, dans la structure fixe de #1075 ; l'auteur le
   relit sur la pull request du lot — la mécanique et cinq écrans clés d'abord, puis les familles
-  d'écrans —, et décide ensuite de la traduction. Le lot qui relit est celui qui livre le texte : sa
-  pull request ne se fusionne qu'après la relecture de l'auteur, dite dans l'issue.
+  d'écrans, en EP-16 (US-0670, décision de l'auteur du 2026-10-25, #1445) —, et décide ensuite de
+  la traduction. Le lot qui relit est celui qui livre le texte : sa pull request ne se fusionne
+  qu'après la relecture de l'auteur, dite dans l'issue.
 
 ### Le croisement contrat-maquette
 
@@ -511,7 +519,8 @@ l'écart reste.
    d'abord, la frise après US-0480 pour les inscriptions), puis **K10** et les jours chômés
    (US-0530/L4, L5), puis les exports (L3b, L2b), qui reprennent la date de calcul et la teinte.
 6. **US-0580**, l'aide et les infobulles, en dernier : elle décrit les écrans tels que les US
-   précédentes les laissent.
+   précédentes les laissent. Ses lots de rédaction des autres écrans et la recherche sont passés à
+   EP-16 (US-0670), qui les mène après les lots d'écran qu'ils décrivent (#1445).
 7. La clôture : le croisement sans manque, la définition de fini constatée par l'auteur écran par
    écran, les issues soldées.
 ---
@@ -1103,8 +1112,8 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
   confirmation ;
 - écart : « Déclarer survenu » présente le compte rendu de la fusion du devis propre dans la
   principale, dans les marques `+`, `-`, `M` d'US-0500. : la lecture `getRiskOccurrenceReport` et le
-  front de ce compte rendu sont d'EP-16 (#1383), par décision de l'auteur du 2026-10-23 ; dans
-  EP-15, la déclaration se fait par simple confirmation ;
+  front de ce compte rendu sont d'EP-16 (#1383, US-0680), par décision de l'auteur du 2026-10-23 ;
+  dans EP-15, la déclaration se fait par simple confirmation ;
 - propre à l'US : « Déclarer survenu » dit le retrait de la provision du reste à engager, puis
   confirme ou abandonne ; un risque survenu n'est plus modifiable ;
 - propre à l'US : les exemples de succès de `createRisk`, `updateRisk` et `reviewRisk` manquent au
@@ -1461,7 +1470,7 @@ l'autre, et leur taille par défaut passe à 50.
 
 ## US-0580 — L'aide en ligne et les infobulles
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : `getComputedValueDependencies`, `getRevision`, `getProject`
 - **issue** : #1135
@@ -1476,7 +1485,9 @@ et ce qu'il fait, **afin de** me servir de Waterfall sans manuel ni formation.
 - `WF-IHM-0140-A` — « Chaque écran ouvre une aide qui le concerne. » : un bouton « Aide » dans
   l'en-tête de chaque écran, ou F1, ouvre un panneau latéral (`Sheet`) qui rend le fichier Markdown
   du code FBS de l'écran ; un test vérifie que chaque code de la FBS qui a un écran a son aide en
-  français.
+  français, ou la nomme dans la liste des pages à venir avec le lot d'EP-16 qui l'écrit (US-0670) :
+  EP-15 livre la mécanique, cinq écrans clés — planning, devis, reste à engager, risques,
+  révisions — et les notions EVM (décision de l'auteur du 2026-10-25, #1445).
 - `WF-IHM-0140-A` — « Dans la grille de devis, l’intitulé de la colonne du montant corrigé de
   l’inflation porte une infobulle qui nomme l’année de référence et le taux d’inflation. » :
   l'année de référence de la révision (`reference_year`) et le taux d'inflation du projet, que le
@@ -1490,7 +1501,8 @@ et ce qu'il fait, **afin de** me servir de Waterfall sans manuel ni formation.
   valeurs calculées ; les gestes au clavier ; voir aussi — et relie les notions de la méthode
   (révisions, budget de référence et valeurs EVM, reste à engager et devis actualisé, provision et
   réserve, avenant et différentiel, lotissement, chemin critique), reprises du glossaire de
-  l'annexe A sans le réécrire ; une recherche porte sur les titres et les notions ;
+  l'annexe A sans le réécrire ; une recherche porte sur les titres et les notions (la recherche, la
+  section « Ses colonnes » du panneau et les cinq notions restantes : EP-16, US-0670) ;
 - propre à l'US : le rendu Markdown n'accepte aucun HTML brut ; le panneau est accessible — focus,
   Échap, titre ;
 - propre à l'US : un composant commun `CommandTooltip`, sur `Tooltip` de shadcn, porte le libellé,
@@ -1511,5 +1523,7 @@ vivent les fichiers (`frontend/help/fr/<code FBS>.md`, proposé), comment la tab
 (`functions.json`) en est la clé, comment les infobulles des colonnes lisent la même source, et le
 lot qui relit le texte. Lots proposés : la mécanique avec les aides de cinq écrans clés et les
 notions EVM ; les infobulles des colonnes et des valeurs calculées avec `CommandTooltip` ; les aides
-des autres écrans par familles. Hors périmètre : un tutoriel guidé et une documentation hors de
+des autres écrans par familles. Réalisé par L1, L1b, L2 et L3 (#1136, #1409, #1137, #1138) ; L3b, L4
+et L5 transférés à EP-16 comme US-0670/L1 à L5 (décision de l'auteur du 2026-10-25, #1445), et l'US
+passée `fini` par le recadrage. Hors périmètre : un tutoriel guidé et une documentation hors de
 l'application.

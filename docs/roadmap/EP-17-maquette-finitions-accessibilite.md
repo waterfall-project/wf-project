@@ -28,6 +28,9 @@ qu'EP-16 est livré. Il peut avancer en parallèle d'eux.
   option A ; #784 ; #819, point 1) ;
 - les mineurs des composants partagés et des écrans reportés d'EP-14, d'EP-03 et d'EP-15
   (« Constats reçus ») ;
+- les ajustements de la validation de la maquette du 2026-10-23 qui ne touchent pas le contrat
+  (#1395 part front, #1396, #1397, #1399, #1400, #1401) et deux défauts visibles du front (#1438,
+  #1428), reçus au recadrage d'EP-16 du 2026-10-25 (« Constats reçus ») ;
 - la stabilité restante des parcours de bout en bout, une fois qu'ils se jouent contre le front
   construit (EP-16, US-0590) : #1263, #1230, #776, #1264, #1145 ;
 - le cosmétique, chaque constat marqué comme tel dans « Constats reçus ».
@@ -64,6 +67,36 @@ EP-16 livré.
 
 Reportés d'EP-16 à son cadrage (décision de l'auteur du 2026-10-22), à rattacher à l'issue de
 l'EPIC à son ouverture. Leur label et leur titre passent à `EP-17` au cadrage d'EP-16.
+
+**Reçus au recadrage d'EP-16 (2026-10-25, #1445)**, par la règle de l'auteur — ne reste dans EP-16
+que ce qui concerne le durcissement ou le contrat —, label et titre déjà `EP-17` :
+
+- les ajustements de la validation de la maquette du 2026-10-23, décisions de l'auteur écrites dans
+  chaque issue :
+  - #1395 — front : la matrice des risques sur fond blanc, la couleur sur les bulles, les seuls
+    risques identifiés ; sa part contrat (le décompte de `cells`) est écrite par EP-16 (US-0700) ;
+  - #1396 — front : le Kanban filtré par libellé et par tâches prêtes, la marque « prête à
+    démarrer », le compteur de la colonne ;
+  - #1397 — front : la projection sur `kinds`, pour que la grille de planning ne montre pas les
+    lignes de devis que le faux back rend ;
+  - #1399 — doc, front : le guide et `MockupNotice` disent ce que le faux back n'applique pas ;
+  - #1400 — front : l'écran d'un projet mène directement à sa révision en cours ;
+  - #1401 — front : la liste des projets filtrée par défaut sur Chiffrage et En cours ;
+- deux défauts visibles du front :
+  - #1438 — front : la commande « Déclarer un risque » de l'écran des révisions ne fait rien
+    (`OfferedElsewhere`, ou un lien vers l'écran des risques) ;
+  - #1428 — front : l'export PNG du Gantt porte une colonne des noms des tâches (option B de
+    l'auteur, #1426) ;
+- les mineurs du front relevés par les derniers lots d'EP-15 :
+  - #1364 — front : `ConfirmedCommand` laisse rouvrir la commande pendant l'écriture (défaut n° 24) ;
+  - #1377 — front : le refus tardif de « Modifier » un risque n'est pas redit au retour ;
+  - #1386 — front : trois mineurs de la matrice repliable gardée ;
+  - #1421 — front : la tenue de la légende des jours chômés dure un tick ;
+  - #1424 — front : deux mineurs du test de provenance de l'écran des chronologies ;
+  - #1430 — front : des inscriptions de l'historique sans objet hors des trois de #1181 ;
+  - #1432 — front : `clear` de `cell-writes` hors de la référence synchrone ;
+  - #1384, point 2 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer » (l'issue
+    reste en EP-16 pour son point 1, et se ferme avec lui ; le point se reprend ici au cadrage).
 
 **Le harnais d'accessibilité.**
 

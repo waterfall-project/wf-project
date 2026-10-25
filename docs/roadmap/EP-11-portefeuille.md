@@ -64,7 +64,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-ARC-0010-A` | Un noyau, un service, un worker | fin — amorcée en EP-01 | — |
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | fin — amorcée en EP-01 | — |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03, EP-15 | — |
-| `WF-IHM-0140-A` | Aide en ligne | fin — amorcée en EP-15 | — |
+| `WF-IHM-0140-A` | Aide en ligne | fin — amorcée en EP-15, poursuivie en EP-16 | — |
 | `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
 
 ## Opérations du contrat

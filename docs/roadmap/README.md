@@ -123,7 +123,7 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | livré | EP-01, EP-02 |
 | [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | livré | EP-02 |
 | [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | en cours | EP-14 |
-| [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | prêt | EP-15 |
+| [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | en cours | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | à planifier | EP-16 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-16 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
@@ -160,7 +160,11 @@ garde aussi, par exception, des parcours de bout en bout joués contre le front 
 desquels la file de fusion n'est pas stable. Le reste passe à EP-17, qui finit la maquette hors
 contrat : l'accessibilité des dialogues, les mineurs des écrans, la stabilité restante des
 parcours, le cosmétique. Les navigateurs passent à EP-13. Les EPIC de domaine, à partir d'EP-05,
-servent un contrat qu'EP-16 a figé, et EP-17 peut avancer en parallèle d'eux.
+servent un contrat qu'EP-16 a figé, et EP-17 peut avancer en parallèle d'eux. Le 2026-10-25, EP-16
+est recadré d'un bloc (#1445) : il reprend d'EP-15 les aides en ligne des écrans que les cinq écrans
+clés ne couvrent pas, pour que leur relecture ne tienne pas `epic/EP-15` ouverte, et la règle qui
+prime est que n'y reste que ce qui concerne le durcissement ou le contrat — tout le reste, dont les
+ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat, part à EP-17.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
