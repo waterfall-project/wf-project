@@ -10,10 +10,13 @@
  */
 "use client";
 
+import type { RowData } from "@tanstack/react-table";
 import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode, SubmitEvent } from "react";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,8 +29,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
+import type { GridColumn, GridConfig } from "./columns";
 import { useDatedEntry } from "./dated-entry";
-import { useFoldReach } from "./fold";
+import { MENU_KEYS, useFoldReach } from "./fold";
+import { configColumn, type GridTable } from "./grid-table";
 import { SEARCH_LENGTH } from "./query";
 import { UndoCommands } from "./undo-commands";
 
@@ -37,6 +42,29 @@ export interface ToggledColumn {
   readonly label: string;
   readonly visible: boolean;
   readonly toggle: (visible: boolean) => void;
+}
+
+/** The columns the user may show or hide, for the bar of the grid. */
+export function toggledColumns<Row extends RowData, Sort extends string, Totals>(
+  table: GridTable<Row>,
+  config: GridConfig<Row, Sort, Totals>,
+  label: (column: GridColumn<Row, Sort, Totals>) => string,
+): ToggledColumn[] {
+  return table.getAllLeafColumns().flatMap((column) => {
+    const configured = configColumn(config, column.id);
+    return configured === undefined || !column.getCanHide()
+      ? []
+      : [
+          {
+            key: column.id,
+            label: label(configured),
+            visible: column.getIsVisible(),
+            toggle: (visible: boolean) => {
+              column.toggleVisibility(visible);
+            },
+          },
+        ];
+  });
 }
 
 /** How the bar folds the tree of a grid. */
@@ -69,6 +97,12 @@ export interface GridToolbarProps {
    * grid alone.
    */
   readonly grid?: string | undefined;
+  /**
+   * The width of the bar, as a CSS length: that of the frame of the table under it, the search at
+   * its start and the menu of the columns at its end, never wider than what holds it but for what
+   * it needs on one line; none, the whole width.
+   */
+  readonly width?: string | undefined;
   /** The commands the screen gives the bar, first in it: those of the work breakdown on its rows. */
   readonly commands?: ReactNode;
 }
@@ -99,7 +133,12 @@ function SearchField({
     onSearch(text);
   };
   return (
-    <form role="search" aria-label={label} onSubmit={submit} className="relative w-64">
+    <form
+      role="search"
+      aria-label={label}
+      onSubmit={submit}
+      className="relative w-64 min-w-24 shrink"
+    >
       <Search
         aria-hidden="true"
         className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -125,38 +164,40 @@ function SearchField({
  */
 function OutlineMenu({ outline }: { readonly outline: GridOutline }) {
   const t = useTranslations("grid.fold");
-  // Alt and * off a Mac alone, where Option types no * (`useFoldReach`).
+  const said = useTranslations("commands");
+  // Alt and * off a Mac alone, where Option types no * (`useFoldReach`), as in the menu of a cell.
   const reach = useFoldReach();
   const levels = Array.from({ length: Math.max(outline.levels - 1, 0) }, (_, at) => at + 2);
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
-          <ListTree aria-hidden="true" />
-          {t("open")}
-        </Button>
-      </DropdownMenuTrigger>
+      <CommandTooltip label={t("open")} help={said("outline.help")}>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+            <ListTree aria-hidden="true" />
+            {t("open")}
+          </Button>
+        </DropdownMenuTrigger>
+      </CommandTooltip>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
+        <MenuCommand
+          item={DropdownMenuItem}
+          label={t("expandAll")}
+          help={said("expandAll.help")}
+          keys={MENU_KEYS.expandAll[reach]}
+          side="left"
           onSelect={outline.expandAll}
-          aria-keyshortcuts={reach === "all" ? "Alt+*" : undefined}
-        >
-          {t("expandAll")}
-          {reach === "all" ? (
-            <span aria-hidden="true" className="ml-auto text-xs text-muted-foreground">
-              {t("expandAllKeys")}
-            </span>
-          ) : null}
-        </DropdownMenuItem>
-        <DropdownMenuItem
+        />
+        <MenuCommand
+          item={DropdownMenuItem}
+          label={t("collapseAll")}
+          help={said("collapseAll.help")}
+          side="left"
           onSelect={() => {
             outline.collapseTo(1);
           }}
-        >
-          {t("collapseAll")}
-        </DropdownMenuItem>
+        />
         {levels.map((level) => (
           <DropdownMenuItem
             key={level}
@@ -180,11 +221,16 @@ export function GridToolbar({
   undoable,
   outline,
   grid,
+  width,
   commands,
 }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
+  const said = useTranslations("commands");
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      className="flex min-w-min max-w-full items-center gap-2"
+      style={width === undefined ? undefined : { width }}
+    >
       {commands}
       {onSearch === undefined ? null : (
         <SearchField search={search} onSearch={onSearch} grid={grid} />
@@ -193,18 +239,20 @@ export function GridToolbar({
       {undoable === true ? <UndoCommands /> : null}
       {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={grid === undefined ? undefined : t("openIn", { grid })}
-            className="h-7 text-xs"
-          >
-            <Columns3 aria-hidden="true" />
-            {t("open")}
-          </Button>
-        </DropdownMenuTrigger>
+        <CommandTooltip label={t("open")} help={said("columns.help")}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={grid === undefined ? undefined : t("openIn", { grid })}
+              className="h-7 text-xs"
+            >
+              <Columns3 aria-hidden="true" />
+              {t("open")}
+            </Button>
+          </DropdownMenuTrigger>
+        </CommandTooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
           <DropdownMenuSeparator />

@@ -6,7 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
-import { ROW_REM } from "@/components/grid/dense-grid";
+import { ROW_REM } from "@/components/grid/grid-floor";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -66,7 +66,7 @@ function rates(
   locale: Locale = "fr",
   editable = true,
   rows: HourlyRateGrid = fewRows,
-  query: GridQuery<RateSort> = { sort: undefined, search: undefined },
+  query: GridQuery<RateSort> = { sort: undefined, search: undefined, size: undefined },
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -326,15 +326,16 @@ describe("the grid of the hourly rates", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("says with a rate the server refuses by its field the smallest amount it admits", async () => {
+  it("says with a rate the server refuses by its field the reason of its field and the smallest amount it admits", async () => {
     serve({
       [RATE]: { problem: example("hourly_rate_amount_refused") as Problem & { status: 422 } },
     });
     render(rates());
     cell(MECHANICAL, 2016).focus();
     await userEvent.keyboard("0{Enter}");
+    // The envelope says only that the entry is invalid; its field says why (#817.1).
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      /^Les données saisies ne sont pas valides\. Valeur minimale\s: 0,01\./,
+      /^La valeur sort des limites admises\. Valeur minimale\s: 0,01\./,
     );
     expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
   });
@@ -570,6 +571,7 @@ describe("the grid of the hourly rates", () => {
         rates("fr", true, fewRows, {
           sort: sort && { column: sort, order: "asc" },
           search: "Automatisme",
+          size: undefined,
         }),
       );
       await userEvent.click(sortButton(heading));
@@ -596,6 +598,7 @@ describe("the grid of the hourly rates", () => {
     render(
       rates("fr", true, sorted, {
         sort: { column: "rate.2026", order: "desc" },
+        size: undefined,
         search: undefined,
       }),
     );

@@ -46,8 +46,10 @@ import { findOffer, type ListedCommand } from "@/components/commands/offer";
 import type { ObjectNames } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { CellCommand } from "./cell-command";
 import {
   type ActivationTarget,
@@ -95,12 +97,6 @@ interface Opened {
   readonly trigger: HTMLElement;
 }
 
-/** What a write of a list did, said in its region, and the how-many-th it was. */
-export interface Said {
-  readonly text: string;
-  readonly count: number;
-}
-
 /** The commands of a list, its form open, and the answers of the server to the writes of its rows. */
 interface Commands {
   readonly kind: ReferenceKind;
@@ -109,7 +105,7 @@ interface Commands {
   readonly answers: ReadonlyMap<string, ReferenceObject>;
   /** Take the answers of the server to writes of rows: the newest answer of a row prevails. */
   readonly answer: (rows: readonly ReferenceObject[]) => void;
-  readonly say: (text: string) => void;
+  readonly say: Say;
   readonly open: (opened: Opened) => void;
   /** Close the form of an opening, if it is still the one open. */
   readonly close: (opened: Opened) => void;
@@ -168,7 +164,7 @@ export function CommandedList({
 }) {
   const [answers, setAnswers] = useState<ReadonlyMap<string, ReferenceObject>>(() => new Map());
   const [opened, setOpened] = useState<Opened>();
-  const [said, setSaid] = useState<Said>();
+  const [said, say] = useSaid();
   const commands = useMemo<Commands>(
     () => ({
       kind,
@@ -191,15 +187,13 @@ export function CommandedList({
           return after;
         });
       },
-      say: (text) => {
-        setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-      },
+      say,
       open: setOpened,
       close: (closing) => {
         setOpened((current) => (current === closing ? undefined : current));
       },
     }),
-    [kind, opened, said, answers],
+    [kind, opened, said, say, answers],
   );
   return <ListCommands value={commands}>{children}</ListCommands>;
 }
@@ -211,6 +205,8 @@ export interface ListForm {
   readonly row: ReferenceObject | undefined;
   /** The command and the object a refusal answered once the dialog is gone is told for. */
   readonly target: string | undefined;
+  /** The object modified, by its label, which the history of the messages notes with a refusal. */
+  readonly subject: string | undefined;
   /**
    * The answer of the server as the form takes it: the modification of another object than the one
    * modified is a failure of the service.
@@ -241,6 +237,7 @@ export function useListForm(): ListForm | undefined {
     kind,
     row,
     target: row === undefined ? undefined : `modify ${kind} ${idOf(kind, row)}`,
+    subject: row?.label,
     answering: (answer) =>
       row !== undefined && answer.kind === "done" && !isObject(kind, answer.data, idOf(kind, row))
         ? ANOTHER_OBJECT
@@ -249,7 +246,9 @@ export function useListForm(): ListForm | undefined {
       if (row !== undefined) {
         commands.answer([answer]);
       }
-      commands.say(t(row === undefined ? "created" : "saved", { name: answer.label, kind }));
+      commands.say(t(row === undefined ? "created" : "saved", { name: answer.label, kind }), {
+        object: answer.label,
+      });
       commands.close(opened);
     },
     onClose: () => {
@@ -263,12 +262,14 @@ export function useListForm(): ListForm | undefined {
 
 /**
  * Run a command of a row from the reading it is pressed on: its answer takes the place of the rows it
- * names and is said in the region of the list; its refusal is told above the list, in place of the
- * one the same command on the same object had there (`target`).
+ * names and is said in the region of the list, noted in the history of the messages about the object
+ * of the row (`subject`, by its name); its refusal is told above the list, in place of the one the
+ * same command on the same object had there (`target`).
  */
 export function useRowCommand(
   target: string,
   names: ObjectNames,
+  subject: string,
 ): readonly [
   boolean,
   (
@@ -296,7 +297,7 @@ export function useRowCommand(
       const outcome = await held(action());
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
-        commands?.say(said(outcome.data));
+        commands?.say(said(outcome.data), { object: subject });
       } else {
         list?.report({ outcome, generation, names, target });
       }
@@ -322,21 +323,24 @@ export function WrittenRegion({ said }: { readonly said: Said | undefined }) {
  * on an empty list too —, after the region that says what the last write of the list did.
  */
 export function CreateCommand({ label }: { readonly label: string }) {
+  const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <WrittenRegion said={commands?.said} />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={(event: MouseEvent<HTMLElement>) => {
-          commands?.open({ row: undefined, trigger: event.currentTarget });
-        }}
-      >
-        <Plus aria-hidden="true" />
-        {label}
-      </Button>
+      <CommandTooltip label={label} help={said("create.help")}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            commands?.open({ row: undefined, trigger: event.currentTarget });
+          }}
+        >
+          <Plus aria-hidden="true" />
+          {label}
+        </Button>
+      </CommandTooltip>
     </div>
   );
 }
@@ -344,10 +348,12 @@ export function CreateCommand({ label }: { readonly label: string }) {
 /** The command that opens the modification of a row, named after it. */
 export function ModifyCommand({ row }: { readonly row: ReferenceObject }) {
   const t = useTranslations("reference");
+  const said = useTranslations("commands");
   const commands = useContext(ListCommands);
   return (
     <CellCommand
-      aria-label={t("modifyNamed", { name: row.label })}
+      label={t("modifyNamed", { name: row.label })}
+      help={said("modify.help")}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget });
       }}
@@ -372,13 +378,16 @@ function ActivationButton({
 }) {
   const t = useTranslations("reference.state");
   const said = useTranslations("reference.form");
+  const helped = useTranslations("commands");
   const [pending, run] = useRowCommand(
     `${command} ${target.kind} ${target.id}`,
     conflict === undefined ? {} : { [conflict.id]: conflict.name },
+    name,
   );
   return (
     <CellCommand
-      aria-label={t(command, { name })}
+      label={t(command, { name })}
+      help={helped(`${command}.help`)}
       aria-busy={pending}
       onClick={() => {
         run(

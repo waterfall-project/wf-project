@@ -40,7 +40,7 @@ function NothingHere() {
   const t = useTranslations("notFound");
   return (
     <Screen>
-      <PageHeader title={t("title")} icon={SearchX} subtitle={t("explanation")} />
+      <PageHeader title={t("title")} icon={SearchX} subtitle={t("explanation")} helped={false} />
       <Link
         href={HOME}
         className={buttonVariants({ variant: "outline", size: "sm", className: "w-fit" })}
@@ -64,6 +64,7 @@ function SessionRefused({ kind }: { readonly kind: SessionRefusal }) {
         title={t(`${FAILURE_TEXTS[kind]}.title`)}
         icon={LockKeyhole}
         subtitle={t(`${FAILURE_TEXTS[kind]}.explanation`)}
+        helped={false}
       />
       <FailureWayOut kind={kind} />
     </Screen>

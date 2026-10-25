@@ -3,10 +3,9 @@
 /**
  * The settings of the resources (FBS-3.2, US-0250), outside any project: the organisation
  * (FBS-3.2.1), the resource roles (FBS-3.2.2), the calendars (FBS-3.2.3) — three dense grids, each
- * searched and filtered by the server and, for the roles and the calendars, bounded on their figures,
- * sorted and paged by it, as the address asks under the names of each grid (#301, #511, #533, #545)
- * — and the constants the units
- * of duration convert by, under the same permission as the calendars (WF-PLA-0160). Each object
+ * searched and filtered by the server and, for the roles, bounded on their figures, sorted and paged
+ * by it, as the address asks under the names of each grid (#301, #511, #533, #545); the calendars
+ * bound no hours of a day (WF-IHM-0130-A) — and the constants the units of duration convert by, under the same permission as the calendars (WF-PLA-0160). Each object
  * names those it is attached to as the server resolves them. Every figure as the API gives it: the
  * front sorts, filters and pages nothing.
  *
@@ -62,9 +61,6 @@ import {
   CALENDAR_SORTS,
   CALENDAR_STATE,
   type CalendarSort,
-  calendarDay,
-  DAYS,
-  type Day,
   ORG_CODE,
   ORG_CODE_LENGTH,
   ORG_LEVEL,
@@ -85,7 +81,6 @@ import {
 } from "@/components/reference/resource-grids";
 import {
   CalendarList,
-  type DayBounds,
   DurationUnitFacts,
   type NodeOffered,
   type OrgNodeFilters,
@@ -152,13 +147,6 @@ function bounds<Column extends string>(column: Column, { min, max }: Bounds) {
   >;
 }
 
-/** The bounds of the hours of each day, under the names of the contract. */
-function dayBounds(hours: DayBounds) {
-  return Object.fromEntries(
-    DAYS.flatMap((day) => Object.entries(bounds(day, hours[day]))),
-  ) as Partial<Record<`${Day}_min` | `${Day}_max`, string>>;
-}
-
 /** What the page asks of each list, as its address and the session say. */
 interface ResourceQueries {
   /** Whether the session may modify the settings of the resources, and its forms are offered. */
@@ -175,7 +163,6 @@ interface ResourceQueries {
   readonly roleOffset: number | undefined;
   readonly calendars: GridQuery<CalendarSort>;
   readonly calendarState: boolean | undefined;
-  readonly calendarHours: DayBounds;
   readonly calendarOffset: number | undefined;
 }
 
@@ -248,19 +235,21 @@ function readRoles(
   );
 }
 
-/** The page of the calendars the address asks, filtered, bounded and sorted as it says. */
+/**
+ * The page of the calendars the address asks, searched, filtered and sorted as it says: the
+ * contract bounds no hours of a day (C-352, #1047, WF-IHM-0130-A).
+ */
 function readCalendars(
   client: ApiClient,
-  { inactive, calendars, calendarState, calendarHours, calendarOffset }: ResourceQueries,
+  { inactive, calendars, calendarState, calendarOffset }: ResourceQueries,
 ) {
-  return readOrRefused("listCalendars", BOUNDS_REFUSED, () =>
+  return readOrFail("listCalendars", () =>
     client.GET("/reference/calendars", {
       params: {
         query: {
           ...inactive,
           ...asked(calendars, calendarOffset),
           ...given("is_active", calendarState),
-          ...dayBounds(calendarHours),
         },
       },
     }),
@@ -344,6 +333,7 @@ function readQueries(
       RESOURCE_ROLE_SORTS,
       grids?.[RESOURCE_ROLE_GRID_KEY]?.sort,
       RESOURCE_ROLE_ADDRESS,
+      grids?.[RESOURCE_ROLE_GRID_KEY]?.page_size,
     ),
     roleFilters: {
       code: textOf(search, ROLE_CODE, ORG_CODE_LENGTH),
@@ -360,11 +350,9 @@ function readQueries(
       CALENDAR_SORTS,
       grids?.[CALENDAR_GRID_KEY]?.sort,
       CALENDAR_ADDRESS,
+      grids?.[CALENDAR_GRID_KEY]?.page_size,
     ),
     calendarState: state(CALENDAR_STATE),
-    calendarHours: Object.fromEntries(
-      DAYS.map((day) => [day, readBounds(search, calendarDay(day), "decimal")]),
-    ) as DayBounds,
     calendarOffset: offsetOf(search.get(CALENDAR_ADDRESS.offset)),
   };
 }
@@ -428,16 +416,16 @@ export default async function ResourceSettingsPage({
             filters={queries.roleFilters}
           />
           <CalendarList
-            {...shownPage(calendars)}
+            rows={calendars.items}
+            page={calendars.meta}
             query={queries.calendars}
             preferences={keptBy(grids, CALENDAR_GRID_KEY)}
             readsInactive={readsInactive}
             editable={editable}
             state={queries.calendarState}
-            hours={queries.calendarHours}
           />
         </RoleNames>
-        <DurationUnitFacts units={units} />
+        <DurationUnitFacts units={units} editable={editable} />
       </PendingAddress>
     </Screen>
   );

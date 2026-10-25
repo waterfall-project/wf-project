@@ -1,29 +1,33 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The comparison of two marked revisions of a project (FBS-4.1, US-0210): the choice of the two,
- * among the marked revisions of the history, which the address carries — `from_revision_id` and
- * `to_revision_id`, named as the contract names them —, and what `compareRevisions` gives for
- * them, as it gives it (WF-REV-0080): the tasks and lines added, removed and changed, each change
- * named, and the deviations of amounts by nature of cost and by sub-project.
+ * The comparison of two marked revisions of a project (FBS-4.1, US-0210, US-0500): the choice of
+ * the two, among the marked revisions of the history, which the address carries —
+ * `from_revision_id` and `to_revision_id`, named as the contract names them —, and what
+ * `compareRevisions` gives for them, as it gives it (WF-REV-0080): the tree of the revision
+ * compared in the dense grid of the structures, each node with the mark of its difference, and the
+ * deviations of amounts by nature of cost and by sub-project.
  *
- * The server pairs the two revisions by the lineage of their objects (WF-DAT-0030): the front
- * pairs nothing, sums nothing and orders nothing (WF-ARC-0020). Each deviation is named by the
- * label the API resolves (#204); one it leaves out is said missing, never replaced by an
- * identifier.
+ * The server pairs the two revisions by the lineage of their objects (WF-DAT-0030) and marks each
+ * node of the compared tree with its `difference` (C-361): the front pairs nothing, sums nothing
+ * and orders nothing (WF-ARC-0020). It reads the nodes the server gives — its `items`, read as
+ * `listNodes` reads a structure (#1193), reduced to the fields the grid shows (`fields`, #1201) —
+ * and hands them to the grid, which marks them as it marks a differential (`ComparisonGrid`). Each
+ * deviation is named by the label the API resolves (#204); one it leaves out is said missing,
+ * never replaced by an identifier.
  */
-import { Calculator, ClipboardList, GitCompareArrows, type LucideIcon } from "lucide-react";
+import { GitCompareArrows } from "lucide-react";
 import Form from "next/form";
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
-import { CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
-import { Badge } from "@/components/ui/badge";
+import { CELL, ListSection, ListTable } from "@/components/projects/project-tables";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { TableCell, TableRow } from "@/components/ui/table";
+import type { GridPreferences } from "@/components/grid/settings";
 import { formatMoney } from "@/i18n/format";
 import {
   type ProjectContext,
@@ -32,12 +36,13 @@ import {
   UNASSIGNED,
 } from "@/navigation/context";
 
+import { ComparisonGrid } from "./comparison-grid";
+import { comparisonRows } from "./comparison-rows";
 import { type NamedRevision, useRevisionName } from "./revision-history";
 
 /** A comparison of two revisions, as the API renders it. */
 export type RevisionComparison = components["schemas"]["RevisionComparison"];
 
-type ComparedNode = components["schemas"]["ComparedNode"];
 type AmountDelta = RevisionComparison["amount_deltas"][number];
 
 /** The two revisions the address asks to compare, as the contract names them. */
@@ -55,12 +60,6 @@ export function comparedRevisions(search: SearchParameters): ComparedRevisions |
     : { from_revision_id: from, to_revision_id: to };
 }
 
-/** The icon of each kind of node: a task, a line of the estimate. */
-const KIND_ICONS: Readonly<Record<ComparedNode["kind"], LucideIcon>> = {
-  task: ClipboardList,
-  estimate_line: Calculator,
-};
-
 /** What the comparison of a screen of the revisions shows. */
 export interface RevisionComparisonProps {
   /** The revisions of the history, in the order of the server; the marked ones are offered. */
@@ -73,6 +72,8 @@ export interface RevisionComparisonProps {
   readonly compared: ComparedRevisions | undefined;
   /** What the API gives for them, if they were asked. */
   readonly comparison: RevisionComparison | undefined;
+  /** The settings of the grid of the comparison the session read, if any. */
+  readonly preferences: GridPreferences | undefined;
 }
 
 /** The context the choice carries on: the revision of the screen, and its filters. */
@@ -170,55 +171,6 @@ function Part({
   );
 }
 
-/** The tasks and lines of one part — added, removed, changed —, and what changed of each. */
-function Nodes({
-  title,
-  none,
-  nodes,
-  withChanges,
-}: {
-  readonly title: string;
-  readonly none: string;
-  readonly nodes: readonly ComparedNode[];
-  readonly withChanges: boolean;
-}) {
-  const t = useTranslations("revisionScreen.comparison");
-  const kind = useTranslations("enums.NodeKind");
-  const change = useTranslations("enums.ComparedNode.changes");
-  const columns = [t("label"), t("kind"), ...(withChanges ? [t("changes")] : [])];
-  return (
-    <Part title={title} empty={nodes.length === 0 ? none : undefined}>
-      <ListTable label={title} columns={columns}>
-        {nodes.map((node) => {
-          const Icon = KIND_ICONS[node.kind];
-          return (
-            <TableRow key={node.lineage_id}>
-              <TableCell className={`${CELL} whitespace-normal`}>{node.label}</TableCell>
-              <TableCell className={CELL}>
-                <span className="inline-flex items-center gap-1.5">
-                  <Icon aria-hidden="true" className={ICON} />
-                  {kind(node.kind)}
-                </span>
-              </TableCell>
-              {withChanges ? (
-                <TableCell className={CELL}>
-                  <span className="flex flex-wrap gap-1">
-                    {(node.changes ?? []).map((name) => (
-                      <Badge key={name} variant="outline">
-                        {change(name)}
-                      </Badge>
-                    ))}
-                  </span>
-                </TableCell>
-              ) : null}
-            </TableRow>
-          );
-        })}
-      </ListTable>
-    </Part>
-  );
-}
-
 /** The deviations of amounts, by nature of cost and by sub-project, in the order of the server. */
 function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
   const t = useTranslations("revisionScreen.comparison");
@@ -245,23 +197,20 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
 }
 
 /** What the API gives for the two revisions compared. */
-function ComparisonResult({ comparison }: { readonly comparison: RevisionComparison }) {
-  const t = useTranslations("revisionScreen.comparison");
+function ComparisonResult({
+  comparison,
+  preferences,
+}: {
+  readonly comparison: RevisionComparison;
+  readonly preferences: GridPreferences | undefined;
+}) {
   return (
     <div className="space-y-3">
-      <Nodes
-        title={t("added")}
-        none={t("noneAdded")}
-        nodes={comparison.added}
-        withChanges={false}
+      <ComparisonGrid
+        rows={comparisonRows(comparison.items)}
+        totals={comparison.totals}
+        preferences={preferences}
       />
-      <Nodes
-        title={t("removed")}
-        none={t("noneRemoved")}
-        nodes={comparison.removed}
-        withChanges={false}
-      />
-      <Nodes title={t("changed")} none={t("noneChanged")} nodes={comparison.changed} withChanges />
       <Deltas deltas={comparison.amount_deltas} />
     </div>
   );
@@ -277,6 +226,7 @@ export function RevisionComparisonSection({
   context,
   compared,
   comparison,
+  preferences,
 }: RevisionComparisonProps) {
   const t = useTranslations("revisionScreen.comparison");
   const marked = revisions.filter((revision) => revision.status === "marked");
@@ -287,7 +237,9 @@ export function RevisionComparisonSection({
       empty={marked.length < 2 ? t("needsTwo") : undefined}
     >
       <ComparisonForm marked={marked} action={action} context={context} compared={compared} />
-      {comparison === undefined ? null : <ComparisonResult comparison={comparison} />}
+      {comparison === undefined ? null : (
+        <ComparisonResult comparison={comparison} preferences={preferences} />
+      )}
     </ListSection>
   );
 }

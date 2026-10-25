@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { updateDisplay } from "@/api/actions/preferences";
 import type { ApiClient } from "@/api/client";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import type { components } from "@/api/generated/schema";
@@ -83,6 +84,7 @@ function sent(client: FakeClient, route: string): unknown[] {
 
 beforeEach(() => {
   refresh.mockReset();
+  forgetMessages();
 });
 
 describe("the preferences on the screen of the account", () => {
@@ -103,6 +105,10 @@ describe("the preferences on the screen of the account", () => {
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en", theme: "dark" }]);
     expect(refresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("status")).toHaveTextContent("Vos préférences sont enregistrées.");
+    // Kept in the history of the messages (#1043).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: "Vos préférences sont enregistrées." }),
+    ]);
   });
 
   it("sends the mode alone when the language is left as it was: the language goes to the identity provider (#877)", async () => {
@@ -231,6 +237,10 @@ describe("the avatar of the account", () => {
     expect((body as Blob).type).toBe("image/png");
     expect(refresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est enregistré.");
+    // Kept in the history of the messages (#1043).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: "Votre avatar est enregistré." }),
+    ]);
     await waitFor(() => {
       expect(upload).toHaveAttribute("aria-disabled", "true");
     });

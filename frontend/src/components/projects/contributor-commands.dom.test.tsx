@@ -9,6 +9,7 @@ import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -85,6 +86,7 @@ function list(
           contributors={shown.items}
           editing={{
             project: PROJECT,
+            label: "Tour Horizon",
             offer,
             counter: shown.lock_version,
             whole,
@@ -122,6 +124,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -165,6 +168,14 @@ describe("the modification of the contributors of a project", () => {
       "Lucas Petit",
     ]);
     expect(screen.getByRole("status")).toHaveTextContent("Liste des contributeurs enregistrée.");
+    // Noted in the history of the messages, about the project (#1181).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: "Liste des contributeurs enregistrée.",
+        object: "Tour Horizon",
+      }),
+    ]);
   });
 
   it("inscribes a contributor proposed only once the project manager confirms it, the list unchanged until then [WF-PRJ-0070-A]", async () => {
@@ -265,6 +276,14 @@ describe("the modification of the contributors of a project", () => {
     const alert = within(form).getByRole("alert");
     expect(alert).toHaveTextContent("Les données saisies ne sont pas valides.");
     expect(alert).not.toHaveTextContent("désactivé");
+    // Noted whole in the history of the messages, once: the notice of the rest notes nothing more.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Les données saisies ne sont pas valides.",
+        detail: "Ce compte est désactivé. Une valeur est requise.",
+      }),
+    ]);
   });
 
   it("says at its row each account the server refuses, a deactivated one and one the installation does not have, naming them", async () => {
@@ -290,6 +309,13 @@ describe("the modification of the contributors of a project", () => {
       within(form).getByRole("combobox", { name: "Qualité de Sacha Lefèvre" }),
     ).toHaveAccessibleDescription("Sacha Lefèvre : Compte inconnu.");
     expect(within(form).queryByRole("alert")).toBeNull();
+    // Said at its rows alone, noted all the same, once.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Les données saisies ne sont pas valides.",
+      }),
+    ]);
     expect(written(client)[0]).toMatchObject({
       contributors: [
         { user_id: user(301), kind: "project_manager" },
@@ -370,7 +396,9 @@ describe("the modification of the contributors of a project", () => {
     expect(command).toHaveFocus();
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAttribute("aria-busy", "true");
-    expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(command).toHaveAccessibleDescription(
+      `${CATALOGUES.fr.reference.form.writing} ${CATALOGUES.fr.commands.project.manage_contributors.help}`,
+    );
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
     release();

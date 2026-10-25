@@ -27,10 +27,12 @@ from wftools.mockstructure import (
     PROVISION,
     JsonObject,
     JsonValue,
+    computable,
     decimal,
     draw,
     money,
     partition,
+    share,
 )
 from wftools.mocktext import PAGE
 from wftools.mockwitness import (
@@ -502,6 +504,7 @@ class Risk:
     label: str
     probability: Decimal
     severity: Decimal
+    severity_ratio: Decimal
     provision: Decimal
     cell: tuple[int, int]
 
@@ -537,6 +540,9 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
     register = cast("list[dict[str, Any]]", cast("dict[str, Any]", read["risks"])["items"])
     matrix = cast("dict[str, Any]", read["risk_matrix"])
     levels = {"probability": matrix["probability_levels"], "severity": matrix["severity_levels"]}
+    ratios = {
+        point["risk_id"]: Decimal(point["severity_ratio"]["value"]) for point in matrix["points"]
+    }
     risks: list[Risk] = []
     for row in rows:
         if row["state"] != "in_progress":
@@ -549,6 +555,7 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
                     label=risk["label"],
                     probability=Decimal(risk["probability"]),
                     severity=Decimal(risk["severity"]),
+                    severity_ratio=ratios[risk["risk_id"]],
                     provision=Decimal(risk["provision_amount"]),
                     cell=(
                         risk["matrix_cell"]["probability_level"],
@@ -574,6 +581,7 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
                     label=_RISK_SUBJECTS[draw(f"{key}/subject", 0, len(_RISK_SUBJECTS) - 1)],
                     probability=probability,
                     severity=severity,
+                    severity_ratio=share(severity / budget),
                     provision=(severity * probability).quantize(CENT),
                     cell=cell,
                 )
@@ -599,8 +607,8 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
     """Return the answer of getPortfolioRisks over the projects in progress (WF-PTF-0090).
 
     The total, the heaviest and the matrix are those of the identified risks
-    (`identified_risks`); the risks that occurred or were dismissed over the period are the
-    witness project's and a drawn sum.
+    (`identified_risks`), each a point of the matrix with its project (#1053); the risks that
+    occurred or were dismissed over the period are the witness project's and a drawn sum.
     """
     read = mockhistory.readings()
     register = cast("list[dict[str, Any]]", cast("dict[str, Any]", read["risks"])["items"])
@@ -609,6 +617,10 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
     heaviest = sorted(risks, key=lambda risk: -risk.provision)[:10]
     matrix = cast("dict[str, Any]", read["risk_matrix"])
     counted = Counter(risk.cell for risk in risks)
+    zones = {
+        (cell["probability_level"], cell["severity_level"]): cell["zone"]
+        for cell in matrix["cells"]
+    }
     occurred = sum(
         (Decimal(risk["provision_amount"]) for risk in register if risk["state"] == "occurred"),
         Decimal(draw("risks/occurred", 2_000, 9_000) * 1_000),
@@ -652,6 +664,22 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
             "cells": [
                 cell | {"count": counted[cell["probability_level"], cell["severity_level"]]}
                 for cell in matrix["cells"]
+            ],
+            "points": [
+                {
+                    "risk_id": risk.risk_id,
+                    "label": risk.label,
+                    "probability": str(risk.probability),
+                    "severity_amount": money(risk.severity),
+                    "severity_ratio": computable(str(risk.severity_ratio)),
+                    "provision_amount": money(risk.provision),
+                    "state": "identified",
+                    "zone": zones[risk.cell],
+                    "project_id": risk.row["project_id"],
+                    "project_label": risk.row["label"],
+                    "can_open": risk.row["can_open"],
+                }
+                for risk in risks
             ],
             "totals": {
                 "identified": money(total),

@@ -2,16 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { MAX_WIDTH, MIN_WIDTH } from "./columns";
+import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
-import { initialSettings, recordedPreferences } from "./settings";
+import { PLANNING_GRID } from "./planning";
+import { endedColumns, initialSettings, keptPageSize, recordedPreferences } from "./settings";
 
 describe("the settings a grid starts from", () => {
-  it("are none without preferences", () => {
-    expect(initialSettings(undefined, ESTIMATE_GRID.columns)).toEqual({
-      visibility: {},
+  it("are the columns the grid hides, and no width, without preferences", () => {
+    expect(initialSettings(undefined, PLANNING_GRID.columns)).toEqual({
+      visibility: { timelines: false },
       sizing: {},
     });
+    expect(initialSettings({ column_widths: {} }, PLANNING_GRID.columns).visibility).toEqual({
+      timelines: false,
+    });
+    expect(initialSettings(undefined, ESTIMATE_GRID.columns)).toEqual({
+      visibility: { subproject: false },
+      sizing: {},
+    });
+  });
+
+  it("show a column hidden by default once the account kept a list of hidden columns that omits it", () => {
+    expect(initialSettings({ hidden_columns: [] }, PLANNING_GRID.columns).visibility).toEqual({});
+    expect(
+      initialSettings({ hidden_columns: ["gantt"] }, PLANNING_GRID.columns).visibility,
+    ).toEqual({ gantt: false });
+    expect(initialSettings({ hidden_columns: [] }, ESTIMATE_GRID.columns).visibility).toEqual({});
+    expect(
+      initialSettings({ hidden_columns: ["hours"] }, ESTIMATE_GRID.columns).visibility,
+    ).toEqual({ hours: false });
   });
 
   it("hide the columns the account hid, and never the label, which identifies a row", () => {
@@ -28,6 +47,29 @@ describe("the settings a grid starts from", () => {
       ESTIMATE_GRID.columns,
     );
     expect(settings.sizing).toEqual({ label: MIN_WIDTH, hours: MAX_WIDTH, quantity: 90 });
+  });
+
+  it("keep the Gantt, pinned at the end, wider than any other column, up to what a window holds", () => {
+    const wide = initialSettings(
+      { column_widths: { gantt: 1200, label: 1200 } },
+      PLANNING_GRID.columns,
+    );
+    expect(wide.sizing).toEqual({ gantt: 1200, label: MAX_WIDTH });
+    const huge = initialSettings({ column_widths: { gantt: 99_999 } }, PLANNING_GRID.columns);
+    expect(huge.sizing).toEqual({ gantt: WIDEST });
+    // Recorded within the bounds it is read within (#1390).
+    const sizing = { gantt: 1200, label: 1200 };
+    const ended = endedColumns(PLANNING_GRID.columns);
+    expect(
+      recordedPreferences(
+        undefined,
+        { visibility: {}, sizing },
+        undefined,
+        undefined,
+        undefined,
+        ended,
+      ).column_widths,
+    ).toEqual(wide.sizing);
   });
 });
 
@@ -49,6 +91,19 @@ describe("the preferences a grid records", () => {
       column_widths: { label: 413 },
       sort: { column: "budgeted_amount", order: "desc" },
     });
+  });
+
+  it("record the size of the pages chosen last, over the one that came, and keep the one that came otherwise [WF-IHM-0060-A]", () => {
+    const sized = { ...kept, page_size: 25 as const };
+    expect(recordedPreferences(sized, settings, undefined, undefined, 100).page_size).toBe(100);
+    expect(recordedPreferences(sized, settings, undefined).page_size).toBe(25);
+    expect(recordedPreferences(kept, settings, undefined, undefined, 10).page_size).toBe(10);
+    // A size no server takes is not recorded: the API would refuse the whole grid.
+    expect(recordedPreferences(kept, settings, undefined, undefined, 7)).not.toHaveProperty(
+      "page_size",
+    );
+    expect(keptPageSize(sized)).toBe(25);
+    expect(keptPageSize(undefined)).toBeUndefined();
   });
 
   it("keep no sort once it is lifted, back to the order of the plan", () => {

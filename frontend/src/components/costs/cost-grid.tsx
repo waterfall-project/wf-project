@@ -86,6 +86,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
   key: "actual_costs",
   name: "actualCosts",
   searched: false,
+  paged: true,
   rowKey: (line) => line.cost_line_id,
   columns: [
     {

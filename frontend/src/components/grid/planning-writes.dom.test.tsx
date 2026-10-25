@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { findOffer } from "@/components/commands/offer";
 import type { Revision } from "@/components/context/read-only";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
   example,
@@ -18,7 +19,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import type { NodeList, NodeSortColumn } from "./nodes";
+import type { NodeList, NodesWritten, NodeSortColumn } from "./nodes";
 import {
   type BreakdownItem,
   breakdownItems,
@@ -39,7 +40,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const TASK =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
 const SKELETON = "POST /projects/{project_id}/revisions/{revision_id}/skeleton";
@@ -55,14 +56,13 @@ const EMPTY = {
   revision_id: "01926f3a-7c00-7000-8000-000000000105",
   structure_id: "01926f3a-7c00-7000-8000-000000000207",
 };
-// The planning of the core of the witness, its tasks alone: « Poste de commande » bears the post of
+// The planning of the core of the witness, its tasks alone: « Poste de commande » bears the lot of
 // the work breakdown, « Câblage des armoires » under it nothing.
 const nested = example("nodes_nested") as NodeList;
 // The tasks of the studies, none attached.
 const studies = example("nodes_planning") as NodeList;
 const empty = example("nodes_empty") as NodeList;
-// The work breakdown of the witness: the post « Fourniture et montage des armoires », its lot
-// « Armoires ».
+// The work breakdown of the witness: the lot « Lot 1 », its post « Poste 1.1 ».
 const breakdown = breakdownItems(example("work_breakdown") as WorkBreakdownReading);
 const POST = breakdown.find((item) => item.kind === "order_item")?.id ?? "";
 const LOT = breakdown.find((item) => item.kind === "work_package")?.id ?? "";
@@ -79,7 +79,7 @@ function serve(answers: FakeAnswers, hold?: Promise<unknown>): FakeClient {
   return client;
 }
 
-/** The grid of the planning on an answer, the attachment entered when the work breakdown is given. */
+/** The grid of the planning on an answer, entered; the attachment, when the work breakdown is given. */
 function grid(
   nodes: NodeList,
   {
@@ -90,7 +90,7 @@ function grid(
   }: {
     readonly structure?: typeof STRUCTURE;
     readonly version?: number;
-    /** The posts and the lots read; `null` for none, the work breakdown not read. */
+    /** The lots and the posts read; `null` for none, the work breakdown not read. */
     readonly items?: readonly BreakdownItem[] | null;
     readonly skeleton?: ReturnType<typeof skeletonOf>;
   } = {},
@@ -105,6 +105,7 @@ function grid(
         query={NO_QUERY}
         preferences={undefined}
         undoable
+        editable
         breakdown={items ?? undefined}
         skeleton={skeleton}
       />
@@ -112,16 +113,20 @@ function grid(
   );
 }
 
-/** The cell of the attachment of the row of a label. */
-function attachmentOf(nodes: NodeList, label: string): HTMLElement {
-  const row = nodes.items.findIndex((node) => node.task?.label === label);
+/** The cell of the attachment of the row at a position. */
+function attachmentAt(row: number): HTMLElement {
   const found = screen
     .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="work_breakdown"]`);
   if (found === null) {
-    throw new Error(`no attachment for ${label}`);
+    throw new Error(`no attachment for the row ${row.toString()}`);
   }
   return found;
+}
+
+/** The cell of the attachment of the first row of a label. */
+function attachmentOf(nodes: NodeList, label: string): HTMLElement {
+  return attachmentAt(nodes.items.findIndex((node) => node.task?.label === label));
 }
 
 /** Choose an item of the list of a cell — none for an empty identifier —, and validate it. */
@@ -144,6 +149,7 @@ function written(client: FakeClient) {
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -151,63 +157,83 @@ afterEach(() => {
 });
 
 describe("the attachment of a task in the grid of the planning", () => {
-  it("shows the post or the lot a task bears by the label the server resolves, and offers the posts and the lots read, or none", async () => {
+  it("shows the lot or the post a task bears by the label the server resolves, and offers the lots and the posts read, or none", async () => {
     serve({});
     render(grid(nested));
-    const post = attachmentOf(nested, "Poste de commande");
-    expect(post).toHaveTextContent("Fourniture et montage des armoires");
+    const lot = attachmentOf(nested, "Poste de commande");
+    expect(lot).toHaveTextContent("Lot 1");
     expect(attachmentOf(nested, "Câblage des armoires")).toHaveTextContent(/^$/);
-    post.focus();
+    lot.focus();
     await userEvent.keyboard("{Enter}");
     const list = screen.getByRole("combobox", { name: "Rattachement" });
-    expect(list).toHaveValue(POST);
+    expect(list).toHaveValue(LOT);
     expect(
       within(list)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Aucun", "Poste — Fourniture et montage des armoires", "Lot — Armoires"]);
+    ).toEqual(["Aucun", "Lot — Lot 1", "Poste — Poste 1.1"]);
   });
 
-  it("attaches a leaf to a lot, the work package alone written with the version read [WF-PLA-0170-A]", async () => {
-    // Une feuille peut être rattachée à un lot: typed, the first letter finds the lot.
+  it("attaches a leaf to a post, the order item alone written with the version read [WF-PLA-0170-A]", async () => {
+    // Une feuille peut être rattachée à un poste: typed, the first letter finds the post.
     const client = serve({ [TASK]: "task_renamed" });
     render(grid(nested));
     attachmentOf(nested, "Câblage des armoires").focus();
-    await userEvent.keyboard("A{Enter}");
+    await userEvent.keyboard("P{Enter}");
     expect(written(client)).toEqual([
       {
         node: nested.items.find((node) => node.task?.label === "Câblage des armoires")?.node_id,
-        body: { work_package_id: LOT, lock_version: 1 },
+        body: { order_item_id: POST, lock_version: 1 },
       },
     ]);
     // The row the server answered takes the place of the row read.
     expect(await screen.findByText("Câblage et repérage des armoires")).toBeInTheDocument();
   });
 
-  // A variant of « Câblage des armoires », the one value changed: it bears the post, as a task the
-  // skeleton attached would.
-  const bearing: NodeList = {
-    ...nested,
-    items: nested.items.map((node) =>
-      node.task?.label === "Câblage des armoires"
-        ? { ...node, task: { ...node.task, order_item_id: POST } }
-        : node,
-    ),
-  };
+  // The tasks the skeleton of the default work breakdown answers: the summary of the lot bears the
+  // lot, as a task the skeleton attached does; the example is read as the contract gives it.
+  const generated = example("skeleton_generated") as NodesWritten;
+  const bearing: NodeList = { ...empty, items: generated.nodes };
+  const DEFAULT = breakdownItems(example("work_breakdown_default") as WorkBreakdownReading);
+  const DEFAULT_LOT = DEFAULT.find((item) => item.kind === "work_package")?.id ?? "";
+  const DEFAULT_POST = DEFAULT.find((item) => item.kind === "order_item")?.id ?? "";
+
+  it.each([
+    {
+      chosen: "the post, the lot taken off in the same write",
+      id: DEFAULT_POST,
+      sent: { order_item_id: DEFAULT_POST, work_package_id: null },
+    },
+    { chosen: "none, the lot taken off", id: "", sent: { work_package_id: null } },
+  ])(
+    "writes $chosen for a task that bears a lot, never both [WF-PLA-0170-A]",
+    async ({ id, sent }) => {
+      const client = serve({ [TASK]: "task_renamed" });
+      render(grid(bearing, { items: DEFAULT }));
+      const lot = generated.nodes[0]?.task;
+      expect(lot?.work_package_id).toBe(DEFAULT_LOT);
+      await choose(attachmentOf(bearing, lot?.label ?? ""), id);
+      expect(written(client).map(({ body }) => body)).toEqual([{ ...sent, lock_version: 1 }]);
+    },
+  );
 
   it.each([
     {
       chosen: "the lot, the post taken off in the same write",
-      id: LOT,
-      sent: { work_package_id: LOT, order_item_id: null },
+      id: DEFAULT_LOT,
+      sent: { work_package_id: DEFAULT_LOT, order_item_id: null },
     },
     { chosen: "none, the post taken off", id: "", sent: { order_item_id: null } },
   ])(
     "writes $chosen for a task that bears a post, never both [WF-PLA-0170-A]",
     async ({ id, sent }) => {
       const client = serve({ [TASK]: "task_renamed" });
-      render(grid(bearing));
-      await choose(attachmentOf(bearing, "Câblage des armoires"), id);
+      render(grid(bearing, { items: DEFAULT }));
+      // The summary of the post, the second node the skeleton answers: it bears the post alone.
+      const post = generated.nodes[1]?.task;
+      expect(post?.order_item_id).toBe(DEFAULT_POST);
+      expect(post?.work_package_id ?? null).toBeNull();
+      await choose(attachmentAt(1), id);
       expect(written(client).map(({ body }) => body)).toEqual([{ ...sent, lock_version: 1 }]);
     },
   );
@@ -215,38 +241,38 @@ describe("the attachment of a task in the grid of the planning", () => {
   it.each([
     {
       name: "task_attach_refused",
-      title: "a post another task bears, naming that task [WF-PLA-0170-A]",
-      id: POST,
+      title: "a lot another task bears, naming that task [WF-PLA-0170-A]",
+      id: LOT,
       said: [
-        "Ce poste ou ce lot est déjà porté par une autre tâche.",
+        "Ce lot ou ce poste est déjà porté par une autre tâche.",
         "Objet en conflit : Poste de commande.",
       ],
       described:
-        /^Ce poste ou ce lot est déjà porté par une autre tâche\.\s+Objet en conflit\s:\sPoste de commande\.$/,
+        /^Ce lot ou ce poste est déjà porté par une autre tâche\.\s+Objet en conflit\s:\sPoste de commande\.$/,
     },
     {
       name: "task_attach_exclusive",
-      title: "a post and a lot at once [WF-PLA-0170-A]",
-      id: LOT,
-      said: ["Une tâche porte un poste ou un lot, jamais les deux."],
-      described: /^Une tâche porte un poste ou un lot, jamais les deux\.$/,
+      title: "a lot and a post at once [WF-PLA-0170-A]",
+      id: POST,
+      said: ["Une tâche porte un lot ou un poste, jamais les deux."],
+      described: /^Une tâche porte un lot ou un poste, jamais les deux\.$/,
     },
     {
       name: "task_attach_main_structure_only",
       title: "a task out of the main structure",
-      id: LOT,
-      said: ["Seule une tâche de la structure principale porte un poste ou un lot."],
-      described: /^Seule une tâche de la structure principale porte un poste ou un lot\.$/,
+      id: POST,
+      said: ["Seule une tâche de la structure principale porte un lot ou un poste."],
+      described: /^Seule une tâche de la structure principale porte un lot ou un poste\.$/,
     },
     {
-      name: "task_attach_outside_order_item",
-      title: "a lot out of the subtree of its post, naming its tasks",
-      id: LOT,
+      name: "task_attach_outside_work_package",
+      title: "a post out of the subtree of its lot, naming its tasks [WF-PLA-0170-A]",
+      id: POST,
       said: [
-        "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste. Tâche du poste : « Poste de commande ». Tâche du lot en cause : « Études ».",
+        "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot. Tâche du lot : « Poste de commande ». Tâche du poste en cause : « Études ».",
       ],
       described:
-        /^La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste\. Tâche du poste\s:\s«\sPoste de commande\s»\. Tâche du lot en cause\s:\s«\sÉtudes\s»\.$/,
+        /^La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot\. Tâche du lot\s:\s«\sPoste de commande\s»\. Tâche du poste en cause\s:\s«\sÉtudes\s»\.$/,
     },
   ] as const)("says at its cell the refusal of $title", async ({ name, id, said, described }) => {
     const problem = example(name) as Problem & { readonly status: 422 };
@@ -270,10 +296,10 @@ describe("the attachment of a task in the grid of the planning", () => {
     serve({ [TASK]: [{ problem }, "task_renamed"] });
     render(grid(nested));
     const cell = attachmentOf(nested, "Câblage des armoires");
-    await choose(cell, POST);
+    await choose(cell, LOT);
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(cell).toHaveAttribute("aria-invalid", "true");
-    await choose(cell, LOT);
+    await choose(cell, POST);
     expect(await screen.findByText("Câblage et repérage des armoires")).toBeInTheDocument();
     expect(cell).not.toHaveAttribute("aria-invalid");
     expect(cell).not.toHaveAttribute("aria-describedby");
@@ -284,8 +310,8 @@ describe("the attachment of a task in the grid of the planning", () => {
     serve({});
     const { rerender } = render(grid(nested, { items: null }));
     expect(attachmentOf(nested, "Câblage des armoires")).toHaveAttribute("aria-readonly", "true");
-    // The lot alone read: the task that bears the post is not entered.
-    rerender(grid(nested, { items: breakdown.filter((item) => item.id === LOT) }));
+    // The post alone read: the task that bears the lot is not entered.
+    rerender(grid(nested, { items: breakdown.filter((item) => item.id === POST) }));
     expect(attachmentOf(nested, "Poste de commande")).toHaveAttribute("aria-readonly", "true");
     expect(attachmentOf(nested, "Câblage des armoires")).not.toHaveAttribute("aria-readonly");
   });
@@ -308,6 +334,10 @@ describe("the skeleton of the planning", () => {
     );
     expect(told).toHaveAttribute("role", "status");
     expect(told).toHaveFocus();
+    // Noted once in the history of the messages, as the screen says it.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: told.textContent }),
+    ]);
     expect(client.calls.map((call) => call.path)).toEqual([
       `/projects/${EMPTY.project_id}/revisions/${EMPTY.revision_id}/skeleton`,
     ]);

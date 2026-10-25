@@ -37,7 +37,11 @@ import {
   type RemainingNode,
   type RemainingWrites,
 } from "./remaining";
+import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
+import { useStructureGestures } from "./structure-gestures";
+import { useStructureVersion } from "./structure-version";
+import type { LineCategory } from "./structure-rules";
 
 /**
  * What the reading asks that is the scope of the grid, not a filter: the states of the tasks — the
@@ -51,16 +55,27 @@ export interface RemainingGridProps {
   readonly nodes: NodeRows<RemainingNode>;
   /** The structure the rows belong to. */
   readonly structure: StructurePath;
+  /** The version of the structure read with the page, which a move of the gestures carries. */
+  readonly structureVersion: number;
   /**
    * What the reading asked of the nodes besides their fields and their sort, as it was sent — the
    * states of the tasks always —, whose totals the grid reads anew by the same request.
    */
   readonly filters: NodeFilters;
   /**
-   * Whether the remaining to commit may be entered: the revision lists `edit_remaining` available
-   * to the caller. Then the grid places undo and redo too (US-0140); otherwise it is read only.
+   * Whether the remaining to commit may be entered: the main structure read lists `edit_remaining`
+   * available to the caller (`GridScreen.commands`). Then the grid places undo and redo too
+   * (US-0140); otherwise it is read only.
    */
   readonly editable: boolean;
+  /** The categories a line is created from; none, and no line is created. */
+  readonly categories?: readonly LineCategory[] | undefined;
+  /**
+   * The sub-projects of the project, which the menu of the cells of a line offers it (US-0480): a
+   * line is carried to one from the remaining to commit once the project is in progress; none, and
+   * the grid offers no submenu.
+   */
+  readonly subprojects?: readonly ChoiceOption[] | undefined;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
@@ -71,7 +86,11 @@ export interface RemainingGridProps {
  * narrows to some states of the tasks (`progress`): its totals are never those of the structure a
  * write answers, and are read anew by the same request.
  */
-function structureWrites(structure: StructurePath, filters: NodeFilters): RemainingWrites {
+function structureWrites(
+  structure: StructurePath,
+  filters: NodeFilters,
+  reach: (version: number) => void,
+): RemainingWrites {
   return {
     totals: () => readNodeTotals(structure, filters),
     line: async (node, basis) => {
@@ -79,9 +98,11 @@ function structureWrites(structure: StructurePath, filters: NodeFilters): Remain
         reestimated_amount_basis: basis,
         lock_version: node.lock_version,
       });
-      return outcome.kind === "done"
-        ? { kind: "done", data: nodesWritten(outcome.data, REMAINING_FIELDS, false) }
-        : outcome;
+      if (outcome.kind !== "done") {
+        return outcome;
+      }
+      reach(outcome.data.structure_lock_version);
+      return { kind: "done", data: nodesWritten(outcome.data, REMAINING_FIELDS, false) };
     },
   };
 }
@@ -90,8 +111,11 @@ function structureWrites(structure: StructurePath, filters: NodeFilters): Remain
 export function RemainingGrid({
   nodes,
   structure,
+  structureVersion,
   filters,
   editable,
+  categories,
+  subprojects,
   query,
   preferences,
 }: RemainingGridProps) {
@@ -101,9 +125,40 @@ export function RemainingGrid({
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
+  const account = useStructureVersion(structure.structure_id, structureVersion);
+  const { version, reach } = account;
+  // The reading always narrows to some states of the tasks: the totals of the structure a write
+  // answers are never its own.
+  const choices = useMemo<RowChoices<RemainingNode> | undefined>(
+    () =>
+      !editable || subprojects === undefined
+        ? undefined
+        : {
+            subproject: {
+              subprojects,
+              current: (node) => node.estimate_line?.subproject_id ?? null,
+            },
+            written: (written) => nodesWritten(written, REMAINING_FIELDS, false),
+          },
+    [editable, subprojects],
+  );
+  const gestures = useStructureGestures<RemainingNode>(
+    editable
+      ? {
+          structure,
+          tasks: true,
+          lines: true,
+          categories,
+          rows: nodes.items,
+          version,
+        }
+      : undefined,
+    account,
+    choices,
+  );
   const config = useMemo(
-    () => remainingGrid(editable ? structureWrites(structure, filters) : undefined),
-    [editable, structure, filters],
+    () => remainingGrid(editable ? structureWrites(structure, filters, reach) : undefined),
+    [editable, structure, filters, reach],
   );
   return (
     <DenseGrid
@@ -119,6 +174,7 @@ export function RemainingGrid({
       foldScope={structure.revision_id}
       narrowing={nodeNarrowing(filters, SCOPE)}
       undoable={editable}
+      commands={gestures}
     />
   );
 }

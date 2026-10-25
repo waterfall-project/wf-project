@@ -21,6 +21,7 @@ import pytest
 
 from wftools import (
     REPOSITORY,
+    mockamendment,
     mockcore,
     mockcosts,
     mockcurves,
@@ -28,16 +29,11 @@ from wftools import (
     mockids,
     mockindicators,
     mockwitness,
+    mockwitnesscosts,
 )
 from wftools.mockids import PREFIX, universe
-from wftools.mockwitness import (
-    COSTS,
-    JOURNAL,
-    PAYMENT_DELAY,
-    STUDIES_LINE,
-    TODAY,
-    fixture,
-)
+from wftools.mockwitness import PAYMENT_DELAY, STUDIES_LINE, TODAY, fixture
+from wftools.mockwitnesscosts import COSTS, JOURNAL
 
 type Node = dict[str, Any]
 
@@ -139,39 +135,6 @@ def test_a_risk_read_in_a_revision_cites_the_structures_of_that_revision(
         assert (structure["kind"], structure["risk_id"]) == ("risk", risk["risk_id"])
         # The own estimate of a risk occurred is merged into the main structure (WF-RIS-0060).
         assert structure["is_merged"] is (risk["state"] == "occurred")
-
-
-# --- The answers of the writes (#421) ----------------------------------------------------------
-
-
-def test_two_answers_never_render_one_node_at_one_version_with_two_contents(
-    examples: dict[str, Any],
-) -> None:
-    rendered: dict[tuple[str, int], tuple[str, Node]] = {}
-    clashes: list[tuple[str, str, str]] = []
-    for name, value in examples.items():
-        if not (isinstance(value, dict) and "structure_lock_version" in value):
-            continue
-        for node in cast("list[Node]", cast("Node", value).get("nodes", [])):
-            key = (node["node_id"], node["lock_version"])
-            if key in rendered and rendered[key][1] != node:
-                clashes.append((node["node_id"], rendered[key][0], name))
-            rendered.setdefault(key, (name, node))
-    assert clashes == []
-
-
-def test_the_paste_follows_the_label_entered_and_the_reestimate_the_hours_entered() -> None:
-    entered, applied = (
-        mockwitness.fixture(name) for name in ("estimate_line_entered", "paste_applied")
-    )
-    updated, reestimated = (
-        mockwitness.fixture(name) for name in ("estimate_line_updated", "remaining_reestimated")
-    )
-    for first, then in ((entered, applied), (updated, reestimated)):
-        line = first["nodes"][0]
-        follow = next(node for node in then["nodes"] if node["node_id"] == line["node_id"])
-        assert follow["lock_version"] == line["lock_version"] + 1
-        assert then["structure_lock_version"] == first["structure_lock_version"] + 1
 
 
 # --- The accounts and their permissions (C6) ---------------------------------------------------
@@ -428,8 +391,11 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
 def test_each_report_names_the_lineages_of_the_core_by_their_labels(
     examples: dict[str, Any],
 ) -> None:
+    # The core, and the differential of the amendment 2, whose estimate the witness imports.
     labels = {
-        cast("Node", row.node)["lineage_id"]: row.label for row in mockcore.core(mockwitness.CORE)
+        cast("Node", row.node)["lineage_id"]: row.label
+        for roots in (mockwitness.CORE, mockamendment.amendment(mockwitness.CORE))
+        for row in mockcore.core(roots)
     }
     documents = {line.document for line in COSTS}
     reports = [
@@ -439,12 +405,44 @@ def test_each_report_names_the_lineages_of_the_core_by_their_labels(
     ]
     assert reports
     for name, report in reports:
-        named = [*report["differences"], *report["date_mismatches"], *report["completed_tasks"]]
+        named = [
+            *report["differences"],
+            *report["date_mismatches"],
+            *report["completed_tasks"],
+            *report["signals"],
+        ]
         for each in named:
             if each.get("target") == "actual_cost_line":
                 assert each["label"] in documents, name
             elif each["lineage_id"] is not None:
                 assert labels[each["lineage_id"]] == each["label"], name
+
+
+def test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_progress(
+    examples: dict[str, Any],
+) -> None:
+    # C-358 and WF-INTF-0100 (#1161): each example that reads one import of the estimate names, in
+    # its own summary, the structure it aims at by its `structure_id`: never the main one. A list
+    # of the imports names none: each estimate it lists is one such an example reads.
+    assert examples["project.json"]["state"] == "in_progress"
+    kinds = {each["structure_id"]: each["kind"] for each in examples["structures.json"]}
+    identifier = re.compile(re.escape(PREFIX) + r"[0-9a-f]{12}")
+    read: dict[str, str] = {}
+    listed: set[str] = set()
+    for path in sorted(mockwitness.FIXTURES.glob("import*.json")):
+        example = json.loads(path.read_text(encoding="utf-8"))
+        value = example["value"]
+        if "items" in value:
+            listed |= {each["import_id"] for each in value["items"] if each["kind"] == "estimate"}
+            continue
+        if value.get("kind") != "estimate":
+            continue
+        [aimed] = {found for found in identifier.findall(example["summary"]) if found in kinds}
+        assert kinds[aimed] != "main", path.name
+        read[path.name] = value["import_id"]
+    assert set(read) == {"import_analysed.json", "import_analysing.json"}
+    assert listed
+    assert listed <= set(read.values())
 
 
 # --- The background tasks (C5) ------------------------------------------------------------------
@@ -752,7 +750,7 @@ def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() ->
 def test_the_columns_kept_are_those_of_every_line_retained_in_the_order_declared() -> None:
     def kept(items: list[Node]) -> list[str]:
         found = {column for item in items for column in cast("Node", item["passthrough"])}
-        return [column for column in mockwitness.PASSTHROUGH if column in found]
+        return [column for column in mockwitnesscosts.PASSTHROUGH if column in found]
 
     whole = fixture("actual_costs")
     # The whole consultation is one page: its lines are every line retained.

@@ -36,6 +36,7 @@ import { useId, useRef } from "react";
 import { setUserAccessRoles, setUserActivation } from "@/api/actions/users";
 import { useAccountNaming } from "@/components/account/account-name";
 import { useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { CellCommand } from "@/components/reference/cell-command";
@@ -73,13 +74,13 @@ export function HeldRoles({ labels }: { readonly labels: readonly string[] }) {
  */
 export function StateSwitch({ user }: { readonly user: User }) {
   const t = useTranslations("admin.users");
+  const said = useTranslations("commands");
   const writes = useUserWrites();
   const list = useListReport();
   const unmet = useUnmet();
   const naming = useAccountNaming();
   const name = naming.person(user);
   const control = useRef<HTMLButtonElement>(null);
-  const described = `${useId()}-unmet`;
   const command = user.is_active ? "deactivate" : "reactivate";
   const offer = findOffer(user.available_commands, command);
   const asked = writes?.asked.get(user.user_id);
@@ -91,49 +92,48 @@ export function StateSwitch({ user }: { readonly user: User }) {
   const lacking = offer.is_available ? undefined : unmet(offer);
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Switch
-        ref={control}
-        checked={active}
-        tabIndex={-1}
-        {...{ [CELL_COMMAND]: "" }}
-        aria-label={t("activeUser", { name })}
-        aria-busy={busy}
-        aria-disabled={lacking === undefined && !busy ? undefined : true}
-        aria-describedby={lacking === undefined ? undefined : described}
-        title={lacking}
-        className={UNAVAILABLE}
-        onCheckedChange={(checked) => {
-          if (lacking !== undefined) {
-            // An unavailable command never runs: the press says the condition it lacks.
-            list?.tell(name, offer, command);
-            return;
-          }
-          if (busy) {
-            // Marked busy and unavailable: the write of the row under way is answered first.
-            return;
-          }
-          writes.run(user, {
-            target: `activation ${user.user_id}`,
-            asked: { is_active: checked },
-            send: (shown) =>
-              setUserActivation(shown.user_id, {
-                is_active: checked,
-                lock_version: shown.lock_version,
-              }),
-            said: (answered) =>
-              t(answered.is_active ? "reactivated" : "deactivated", {
-                name: naming.person(answered),
-              }),
-            back: control.current,
-          });
-        }}
-      />
+      <CommandTooltip
+        label={t("activeUser", { name })}
+        help={said("activeUser.help")}
+        unavailable={lacking}
+      >
+        <Switch
+          ref={control}
+          checked={active}
+          tabIndex={-1}
+          {...{ [CELL_COMMAND]: "" }}
+          aria-label={t("activeUser", { name })}
+          aria-busy={busy}
+          {...(busy && lacking === undefined ? { "aria-disabled": true } : {})}
+          className={UNAVAILABLE}
+          onCheckedChange={(checked) => {
+            if (lacking !== undefined) {
+              // An unavailable command never runs: the press says the condition it lacks.
+              list?.tell(name, offer, command);
+              return;
+            }
+            if (busy) {
+              // Marked busy and unavailable: the write of the row under way is answered first.
+              return;
+            }
+            writes.run(user, {
+              target: `activation ${user.user_id}`,
+              asked: { is_active: checked },
+              send: (shown) =>
+                setUserActivation(shown.user_id, {
+                  is_active: checked,
+                  lock_version: shown.lock_version,
+                }),
+              said: (answered) =>
+                t(answered.is_active ? "reactivated" : "deactivated", {
+                  name: naming.person(answered),
+                }),
+              back: control.current,
+            });
+          }}
+        />
+      </CommandTooltip>
       <ActiveState active={active} />
-      {lacking === undefined ? null : (
-        <span id={described} className="sr-only">
-          {lacking}
-        </span>
-      )}
     </span>
   );
 }
@@ -267,10 +267,10 @@ const DEACTIVATED: CommandOffer = {
 export function SetupLinkCommand({ user }: { readonly user: User }) {
   const t = useTranslations("admin.users");
   const told = useTranslations("admin.commands");
+  const said = useTranslations("commands");
   const writes = useUserWrites();
   const unmet = useUnmet();
   const name = useAccountNaming().person(user);
-  const described = `${useId()}-unmet`;
   if (user.origin !== "local" || user.anonymized_at !== null || writes === undefined) {
     return null;
   }
@@ -279,34 +279,27 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
   const busy = writes.busy.has(user.user_id) || writes.linking;
   const held = busy || writes.asked.get(user.user_id)?.is_active === false;
   return (
-    <>
-      <CellCommand
-        aria-label={command}
-        aria-busy={busy}
-        aria-disabled={lacking === undefined && !held ? undefined : true}
-        aria-describedby={lacking === undefined ? undefined : described}
-        title={lacking}
-        className={UNAVAILABLE}
-        onClick={(event) => {
-          if (lacking !== undefined) {
-            // An unavailable command never runs: the press says the condition it lacks.
-            writes.say(told("unmet", { command, condition: lacking }));
-            return;
-          }
-          if (!held) {
-            writes.giveLink(user, name, event.currentTarget);
-          }
-        }}
-      >
-        <KeyRound aria-hidden="true" />
-        {t("link")}
-      </CellCommand>
-      {lacking === undefined ? null : (
-        <span id={described} className="sr-only">
-          {lacking}
-        </span>
-      )}
-    </>
+    <CellCommand
+      label={command}
+      help={said("password_link.help")}
+      unavailable={lacking}
+      waiting={held}
+      aria-busy={busy}
+      className={UNAVAILABLE}
+      onClick={(event) => {
+        if (lacking !== undefined) {
+          // An unavailable command never runs: the press says the condition it lacks.
+          writes.say(told("unmet", { command, condition: lacking }), { noted: false });
+          return;
+        }
+        if (!held) {
+          writes.giveLink(user, name, event.currentTarget);
+        }
+      }}
+    >
+      <KeyRound aria-hidden="true" />
+      {t("link")}
+    </CellCommand>
   );
 }
 
@@ -321,11 +314,11 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
 export function AnonymizeCommand({ user }: { readonly user: User }) {
   const t = useTranslations("admin.users");
   const told = useTranslations("admin.commands");
+  const said = useTranslations("commands");
   const writes = useUserWrites();
   const unmet = useUnmet();
   const naming = useAccountNaming();
   const control = useRef<HTMLButtonElement>(null);
-  const described = `${useId()}-unmet`;
   const offer = findOffer(user.available_commands, "anonymize");
   if (offer === undefined || writes === undefined) {
     return null;
@@ -335,34 +328,27 @@ export function AnonymizeCommand({ user }: { readonly user: User }) {
   const named = t("anonymizeUser", { name: naming.person(user) });
   const lacking = offer.is_available ? undefined : unmet(offer);
   return (
-    <>
-      <CellCommand
-        ref={control}
-        aria-label={named}
-        aria-busy={busy}
-        aria-disabled={lacking === undefined && !held ? undefined : true}
-        aria-describedby={lacking === undefined ? undefined : described}
-        title={lacking}
-        className={UNAVAILABLE}
-        onClick={() => {
-          if (lacking !== undefined) {
-            // An unavailable command never runs: the press says the condition it lacks.
-            writes.say(told("unmet", { command: named, condition: lacking }));
-            return;
-          }
-          if (!held) {
-            writes.anonymize(user, control.current);
-          }
-        }}
-      >
-        <UserRoundX aria-hidden="true" />
-        {t("anonymize")}
-      </CellCommand>
-      {lacking === undefined ? null : (
-        <span id={described} className="sr-only">
-          {lacking}
-        </span>
-      )}
-    </>
+    <CellCommand
+      ref={control}
+      label={named}
+      help={said("anonymize.help")}
+      unavailable={lacking}
+      waiting={held}
+      aria-busy={busy}
+      className={UNAVAILABLE}
+      onClick={() => {
+        if (lacking !== undefined) {
+          // An unavailable command never runs: the press says the condition it lacks.
+          writes.say(told("unmet", { command: named, condition: lacking }), { noted: false });
+          return;
+        }
+        if (!held) {
+          writes.anonymize(user, control.current);
+        }
+      }}
+    >
+      <UserRoundX aria-hidden="true" />
+      {t("anonymize")}
+    </CellCommand>
   );
 }

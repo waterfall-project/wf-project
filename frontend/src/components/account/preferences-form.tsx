@@ -144,7 +144,7 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
           setOutcome(undefined);
         }}
       />
-      <DoneNotice title={outcome?.kind === "done" ? t("account.saved") : undefined} />
+      <DoneNotice title={outcome?.kind === "done" ? t("account.saved") : undefined} of={outcome} />
       <div>
         <Button type="submit" aria-disabled={pending} className={WAITING}>
           <Save aria-hidden="true" />

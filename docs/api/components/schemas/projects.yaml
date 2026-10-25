@@ -61,7 +61,9 @@ Project:
         commande absente de la liste n'est pas présentée. Seule exception, décidée par
         l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un
         devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas
-        celle de créer une révision, indisponible, `may_create_revision` manquante.
+        celle de créer une révision, indisponible, `may_create_revision` manquante ; la
+        génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la
+        permission du planning (EP-15/US-0490/L4).
       items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -109,33 +111,40 @@ CommandCondition:
     fusion, survenance, application d'un import —, c'est aussi la saisie du lotissement
     (`ProjectCommand.update_work_breakdown`), qui retire le rattachement des tâches de la
     révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s).
-    L'analyse d'un
-    import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de
-    coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090,
-    WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
-    cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une
-    commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager
-    (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la
+    Un projet sans révision en cours en a une qui naît : l'application d'un import, en une seule
+    transaction (WF-INTF-0080), et le traitement d'une survenance créent la révision en cours
+    qu'ils écrivent (WF-INTF-0090, WF-RIS-0060), invisible jusqu'à leur fin. Pendant ce temps, le
+    projet nomme la condition aux commandes qu'il porte et qui créeraient ou ouvriraient cette
+    révision — les imports, `edit_risks`, `declare_risk`, `generate_skeleton` (EP-15/US-0490/L4).
+    L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et
+    l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010,
+    WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas
+    de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`)
+    pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à
+    engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la
     déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s) et la déclaration d'un
-    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à
-    l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred`
-    manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune
-    transition ne part ; `risk_identified` à la déclaration de survenance et au changement de la
-    catégorie ou du sous-projet de la provision d'un risque qui n'est pas identifié (WF-RIS-0010,
-    `update_provision`) ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée
-    cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son
-    409. Quatre tiennent à l'état d'un objet du référentiel, et l'objet les nomme
-    (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque à la réactivation
-    d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est
-    désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut,
-    tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par
-    défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les
-    opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. `cost_type_active`
-    manque à la réactivation d'une catégorie de coût dont la nature est désactivée : « une
-    catégorie ne peut être réactivée que si sa nature est active » (WF-REF-0010 ; EP-14/L42s,
-    C-291) ; la catégorie la nomme (`CostCategory.available_commands`), et
-    `setCostCategoryActivation` dans son 409. Trois tiennent aux
-    catégories d'une nature de coût, et la nature les nomme (`CostType.available_commands`) :
+    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) ; et pour une commande qui
+    demande d'ouvrir la révision d'abord : la génération du squelette de planning
+    (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4). Trois
+    conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) :
+    `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque
+    survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et
+    au changement de la catégorie ou du sous-projet de la provision d'un risque qui n'est pas
+    identifié (WF-RIS-0010, `update_provision`) ; `risk_not_cited` à la suppression d'un risque
+    qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ;
+    `deleteRisk` la nomme dans son 409. Quatre tiennent à l'état d'un objet du référentiel, et
+    l'objet les nomme (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque
+    à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un
+    rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation
+    du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120) ;
+    `calendar_active` à la désignation par défaut d'un calendrier désactivé, le calendrier par
+    défaut étant actif (WF-REF-0120). Les opérations d'activation et `setDefaultCalendar` les
+    nomment dans leur 409. `cost_type_active` manque à la réactivation d'une catégorie de coût
+    dont la nature est désactivée : « une catégorie ne peut être réactivée que si sa nature est
+    active » (WF-REF-0010 ; EP-14/L42s, C-291) ; la catégorie la nomme
+    (`CostCategory.available_commands`), et `setCostCategoryActivation` dans son 409. Trois
+    tiennent aux catégories d'une nature de coût, et la nature les nomme
+    (`CostType.available_commands`) :
     `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée
     est employée, `cost_type_unrated` quand l'une porte un taux horaire, `cost_type_without_role`
     quand un rôle de ressource, actif ou désactivé, est rattaché à l'une (WF-REF-0030) ;
@@ -204,9 +213,16 @@ CommandCondition:
     `project_before_in_progress` manque à la modification de la probabilité de gain
     (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
     terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré
-    la commande, `updateProject` la nomme dans son 409. Trois tiennent à un sous-projet, et le
-    sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la
-    suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les
+    la commande, `updateProject` la nomme dans son 409. Elle manque aussi à la saisie du devis de
+    la structure principale (`StructureCommand.edit_estimate`) dès En cours, la grille de devis
+    restant lisible, et `project_in_progress` à celle de son reste à engager
+    (`StructureCommand.edit_remaining`) hors de l'état En cours, avant lui comme dans un état
+    terminal : en chiffrage le devis, en réalisation le reste à engager (WF-DEV-0050, WF-RAE-0040 ;
+    C-358). `project_before_in_progress` manque de même à l'import d'un devis sur la structure
+    principale, que `openImport` et `applyImport` nomment dans leur 409 (WF-INTF-0100 ; C-358).
+    Trois tiennent à un sous-projet, et le sous-projet les nomme
+    (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression
+    d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les
     sous-projets déterminant la courbe de la valeur acquise (§4.4.1, WF-DAT-0080, WF-PRJ-0050) — ;
     `subproject_without_actual_costs` à la suppression d'un sous-projet auquel des coûts réels sont
     imputés (WF-PRJ-0050) ; `subproject_without_estimate_lines` à la suppression d'un sous-projet
@@ -217,7 +233,38 @@ CommandCondition:
     (`RevisionCommand.generate_skeleton`) dès que la structure principale de la révision comporte
     une tâche : « Elle n'est plus proposée dès que la structure principale comporte une tâche »
     (Vérif de WF-PRJ-0030) ; `generatePlanningSkeleton` nomme dans son 409 la première qui
-    manque, dans l'ordre où la commande les liste (EP-14/L42k).
+    manque, dans l'ordre où la commande les liste (EP-14/L42k). Sur un projet sans révision en
+    cours (`ProjectCommand.generate_skeleton`), elle se juge sur la révision que son ouverture
+    créerait : elle manque quand la structure principale de la dernière révision marquée, que
+    cette ouverture copierait, comporte une tâche (WF-REV-0010 ; EP-15/US-0490/L4).
+    `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche
+    terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
+    et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
+    elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans
+    leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214).
+    Quatre tiennent à la nature et aux lignes d'une tâche, et la carte du Kanban les nomme
+    (`KanbanTask.available_commands`, WF-RAE-0030, WF-PLA-0050) : `task_is_milestone` manque à
+    la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la
+    terminaison depuis le Kanban d'une tâche qui porte une ligne hors provision, que la saisie
+    d'un reste à engager nul sur toutes ses lignes termine (WF-RAE-0040) ; `task_not_milestone`
+    au démarrage d'un jalon, qui ne démarre jamais, et à la réouverture d'un jalon terminé vers
+    l'état démarré ; `completed_milestone` au retour à l'état non démarré d'une tâche qui n'est
+    pas un jalon terminé — « Aucune commande ne fait passer une tâche démarrée à l'état non
+    démarré » (WF-RAE-0030). `setTaskProgress` nomme dans son 409 la première qui manque.
+    `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun
+    différentiel de la révision n'est à fusionner, et la révision la nomme
+    (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en
+    dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211). Deux tiennent
+    à la désignation de la référence (`designate_reference`), après `revision_marked`, qui
+    manque à une révision en cours :
+    `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte
+    aucune tâche ou aucune ligne de devis — « La désignation comme référence d'une révision qui
+    ne porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition
+    manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige
+    plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
+    dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
+    première qui manque, dans cet ordre — `reference_correctable` par son code propre,
+    `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490).
   enum:
     - is_contributor
     - is_project_manager
@@ -232,8 +279,13 @@ CommandCondition:
     - revision_draft
     - revision_marked
     - reference_correctable
+    - revision_has_tasks_and_lines
     - unmerged_amendment_exists
     - task_not_completed
+    - task_is_milestone
+    - task_not_milestone
+    - task_without_lines
+    - completed_milestone
     - hourly_rates_set
     - no_background_task_running
     - may_create_revision
@@ -285,6 +337,7 @@ ProjectCommand:
     - declare_risk_occurrence
     - import_actual_costs
     - exclude_cost_lines
+    - generate_skeleton
     - import_planning
     - import_estimate
     - import_remaining
@@ -315,6 +368,10 @@ ProjectCommand:
     gardée par sa permission —, que l'import applique à la révision en cours et crée au
     besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de
     révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer.
+    `import_estimate` reste disponible sur un projet En cours, l'import du devis restant ouvert
+    sur une structure différentielle et sur le devis propre d'un risque ; sur la structure
+    principale, il est refusé (`openImport`), ce que sa commande `edit_estimate` dit d'avance
+    (`StructureCommand`, WF-INTF-0100 ; C-358).
     La saisie des risques est une commande de la révision (`RevisionCommand.edit_risks`,
     WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet
     porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions
@@ -327,6 +384,23 @@ ProjectCommand:
     `may_create_revision`. La révision que la déclaration créerait copie la dernière révision
     marquée, et n'a aucune tâche si le projet n'a aucune révision marquée, `at_least_one_task`
     manquant alors (WF-REV-0010, WF-RIS-0010 ; EP-14/L42s).
+    `generate_skeleton` dit d'avance, tant que le projet n'a pas de révision en cours, si le
+    squelette de planning s'engendrerait sur la révision que l'on ouvrirait (WF-PRJ-0030,
+    WF-REV-0010) : c'est ce que lit l'offre de démarrer le planning d'un projet tout juste créé
+    (EP-15/US-0490/L4). Elle est gardée par la permission du planning, `planning.write`, comme
+    `RevisionCommand.generate_skeleton`, et listée juste avant les imports ; dès qu'une révision
+    est en cours, elle n'est plus listée sur le projet, mais sur elle. La génération n'ouvre pas
+    la révision : l'écran l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la
+    révision que la création rend (`generatePlanningSkeleton`), qui liste à son tour
+    `generate_skeleton`. Ses conditions, dans l'ordre de `declare_risk` : celles de l'état
+    d'abord, `project_not_terminal`, sur lequel aucune révision ne s'ouvre (WF-CYC-0100), puis
+    `no_background_task_running` pendant l'application d'un import ou le traitement d'une
+    survenance, qui créent la révision en cours ; puis `main_structure_without_tasks`, jugée sur
+    la révision que l'ouverture créerait — une copie de la dernière révision marquée, sans tâche
+    si le projet n'en a aucune — ; puis `may_create_revision` à qui n'a pas la permission de
+    l'ouvrir (`revisions.write`). Sur la révision, la condition propre vient d'abord
+    (`RevisionCommand.generate_skeleton`) : la structure jugée y existe, alors qu'ici elle
+    n'existe pas encore, et que le traitement de fond qui court crée une autre révision.
 
 ProjectCommandAvailability:
   type: object
@@ -452,10 +526,10 @@ ProjectExit:
 
 WorkBreakdown:
   type: object
-  required: [order_items, lock_version]
+  required: [work_packages, lock_version]
   description: >-
-    Lotissement : postes, lots, livrables. Sa saisie est facultative ; « en son absence, le
-    lotissement vaut un poste et un lot qui portent le libellé du projet, sans livrable »
+    Lotissement : lots, postes, livrables. Sa saisie est facultative ; « en son absence, le
+    lotissement vaut un lot et un poste qui portent le libellé du projet, sans livrable »
     (WF-PRJ-0020). Le lotissement entier, que `setWorkBreakdown` écrit, et qu'il rend lu
     (`WorkBreakdownReading`). Un élément envoyé sans identifiant est nouveau : le serveur
     engendre son identifiant, que la réponse porte (WF-DAT-0060) ; un élément envoyé avec le sien
@@ -466,9 +540,9 @@ WorkBreakdown:
     deux fois est refusé à chaque occurrence après la première (`DUPLICATE_WORK_BREAKDOWN_ITEM`,
     sur `/…/<nature>_id`).
   properties:
-    order_items:
+    work_packages:
       type: array
-      items: { $ref: '#/OrderItem' }
+      items: { $ref: '#/WorkPackage' }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
@@ -477,16 +551,17 @@ WorkBreakdown:
 
 WorkBreakdownReading:
   type: object
-  required: [order_items, lock_version]
+  required: [work_packages, lock_version]
   description: >-
     Le lotissement tel que `getWorkBreakdown` le lit : entier, ou ce que ses filtres en
     retiennent (WF-PRJ-0020, WF-IHM-0130), et ce que `setWorkBreakdown` rend, entier, chaque
     élément retenu. Chaque élément rendu porte son identifiant et dit s'il est retenu
-    (`is_match`) ou rendu pour le seul contexte, ce que l'écriture ne porte pas.
+    (`is_match`) ou rendu pour le seul contexte, ce que l'écriture ne porte pas ; chaque lot et
+    chaque poste disent la tâche qui les porte (`attached_task`).
   properties:
-    order_items:
+    work_packages:
       type: array
-      items: { $ref: '#/OrderItemReading' }
+      items: { $ref: '#/WorkPackageReading' }
     lock_version:
       anyOf: [{ $ref: ../common.yaml#/LockVersion }, { type: 'null' }]
       description: >-
@@ -495,25 +570,25 @@ WorkBreakdownReading:
         renvoyer telle quelle à `setWorkBreakdown` supprimerait ce qu'elle omet, et le compteur
         nul l'en empêche (422).
 
-OrderItem:
-  type: object
-  required: [label, work_packages]
-  description: >-
-    Un poste que `setWorkBreakdown` écrit : avec son identifiant s'il existe, sans s'il est
-    nouveau (`WorkBreakdown`).
-  properties:
-    order_item_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
-    work_packages:
-      type: array
-      items: { $ref: '#/WorkPackage' }
-
 WorkPackage:
   type: object
-  required: [label, deliverables]
-  description: Un lot que `setWorkBreakdown` écrit, son identifiant comme celui d'un poste.
+  required: [label, order_items]
+  description: >-
+    Un lot que `setWorkBreakdown` écrit, au niveau 1 du lotissement : avec son identifiant s'il
+    existe, sans s'il est nouveau (`WorkBreakdown`).
   properties:
     work_package_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
+    order_items:
+      type: array
+      items: { $ref: '#/OrderItem' }
+
+OrderItem:
+  type: object
+  required: [label, deliverables]
+  description: Un poste que `setWorkBreakdown` écrit dans son lot, son identifiant comme celui d'un lot.
+  properties:
+    order_item_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     deliverables:
       type: array
@@ -522,17 +597,19 @@ WorkPackage:
 Deliverable:
   type: object
   required: [label]
-  description: Un livrable que `setWorkBreakdown` écrit, son identifiant comme celui d'un poste.
+  description: Un livrable que `setWorkBreakdown` écrit dans son poste, son identifiant comme celui d'un lot.
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
-OrderItemReading:
+WorkPackageReading:
   type: object
-  required: [order_item_id, label, is_match, work_packages]
-  description: Un poste tel que `getWorkBreakdown` le rend (`OrderItem`), et s'il est retenu.
+  required: [work_package_id, label, is_match, attached_task, order_items]
+  description: >-
+    Un lot tel que `getWorkBreakdown` le rend (`WorkPackage`), s'il est retenu, et la tâche qui
+    le porte.
   properties:
-    order_item_id: { $ref: ../common.yaml#/Uuid }
+    work_package_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
     is_match:
       type: boolean
@@ -542,21 +619,31 @@ OrderItemReading:
         retenu : « dans une grille arborescente, le filtre laisse visibles les parents des lignes
         retenues » (WF-IHM-0060). « Le filtre s'applique aux totaux qu'elle présente »
         (WF-IHM-0130) : la grille ne compte que les éléments retenus — lue par
-        `kinds=work_package`, celle du témoin compte un lot, et aucun poste (#574).
-    work_packages:
+        `kinds=order_item`, celle du témoin compte un poste, et aucun lot (#574).
+    attached_task:
+      anyOf: [{ $ref: '#/AttachedTask' }, { type: 'null' }]
+      description: >-
+        La tâche de la révision en cours qui porte le lot (WF-PLA-0170), par son nœud et son
+        libellé ; nulle quand aucune ne le porte, ou quand le projet n'a pas de révision en
+        cours. Un lot ou un poste « n'y est porté que par une tâche à la fois » : c'est elle que
+        la suppression de l'élément laisse sans rattachement, et que l'écran nomme avant de la
+        confirmer (#802).
+    order_items:
       type: array
-      items: { $ref: '#/WorkPackageReading' }
+      items: { $ref: '#/OrderItemReading' }
 
-WorkPackageReading:
+OrderItemReading:
   type: object
-  required: [work_package_id, label, is_match, deliverables]
+  required: [order_item_id, label, is_match, attached_task, deliverables]
   description: >-
-    Un lot tel que `getWorkBreakdown` le rend (`WorkPackage`), et s'il est retenu, comme un poste
-    (`OrderItemReading.is_match`).
+    Un poste tel que `getWorkBreakdown` le rend (`OrderItem`), s'il est retenu, et la tâche qui
+    le porte, comme un lot (`WorkPackageReading.is_match`, `attached_task`).
   properties:
-    work_package_id: { $ref: ../common.yaml#/Uuid }
+    order_item_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
     is_match: { type: boolean }
+    attached_task:
+      anyOf: [{ $ref: '#/AttachedTask' }, { type: 'null' }]
     deliverables:
       type: array
       items: { $ref: '#/DeliverableReading' }
@@ -567,18 +654,29 @@ DeliverableReading:
   description: >-
     Un livrable tel que `getWorkBreakdown` le rend (`Deliverable`). Il ne contient rien : rendu,
     il est toujours retenu, et sa marque, toujours vraie, ne sert qu'à lire chaque ligne de la
-    grille de même.
+    grille de même. Aucune tâche ne porte un livrable (WF-PLA-0170).
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
     is_match: { type: boolean }
 
+AttachedTask:
+  type: object
+  required: [node_id, label]
+  description: >-
+    La tâche de la structure principale de la révision en cours qui porte un lot ou un poste du
+    lotissement (WF-PLA-0170), par son nœud et son libellé, comme les refus du rattachement
+    nomment une tâche (`work_package_task`).
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+
 WorkBreakdownKind:
   type: string
-  enum: [order_item, work_package, deliverable]
+  enum: [work_package, order_item, deliverable]
   description: >-
-    Nature d'un élément du lotissement, de la plus large à la plus fine : poste, lot,
-    livrable (WF-PRJ-0020). La colonne de la nature de la grille du lotissement, que
+    Nature d'un élément du lotissement, de la plus large à la plus fine : lot, poste,
+    livrable (WF-PRJ-0020, §4.4.1). La colonne de la nature de la grille du lotissement, que
     `getWorkBreakdown` filtre (`kinds`, WF-IHM-0130).
 
 Subproject:

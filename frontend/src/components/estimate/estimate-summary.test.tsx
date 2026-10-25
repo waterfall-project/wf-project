@@ -22,6 +22,7 @@ const estimator = (example("me_estimator") as { permissions: Permission[] }).per
 function text(markup: string): string {
   return markup
     .replace(/<[^>]*>/g, " ")
+    .replace(/Calculé le|Computed on/g, "")
     .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
@@ -61,7 +62,7 @@ describe("the summary of the estimate", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(
       new RegExp(
-        `^Indicateurs du devis Calculé le .*Total du devis 66 105 223,89 ` +
+        `^Indicateurs du devis Total du devis 66 105 223,89 ` +
           `Provisions identifiées 500 000,00 Écart avec la référence -349 860,00 ` +
           `Écart avec la révision marquée précédente -349 860,00 ` +
           `Par nature de coût Main-d'œuvre 9 131 215,00 \\(13,81 %\\) ` +
@@ -69,7 +70,7 @@ describe("the summary of the estimate", () => {
           `Par sous-projet Poste de commande 22 276 516,46 \\(33,7 %\\) ` +
           `Essais et mise en service 20 807 656,85 \\(31,48 %\\) ` +
           `Hors sous-projet 23 021 050,58 \\(34,82 %\\) ` +
-          `Par poste Fourniture et montage des armoires 502 434,56 \\(0,76 %\\)$`,
+          `Par lot Lot 1 502 434,56 \\(0,76 %\\)$`,
       ),
     );
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
@@ -119,32 +120,30 @@ describe("the summary of the estimate", () => {
     expect(html).not.toContain("previous marked revision");
   });
 
-  it("breaks the total down by order item as the API gives it, and presents an order item no task bears without a total, rather than nil [WF-DEV-0060-A]", () => {
+  it("breaks the total down by work package as the API gives it, and presents a work package no task bears without a total, rather than nil [WF-DEV-0060-A]", () => {
     expect(text(summary("estimate_indicators", "missing_rates_none"))).toMatch(
-      /Par sous-projet .* Par poste Fourniture et montage des armoires 502 434,56 \(0,76 %\)$/,
+      /Par sous-projet .* Par lot Lot 1 502 434,56 \(0,76 %\)$/,
     );
-    // EP-14/L42s: every order item is given, its amount not computed when no task bears it.
+    // EP-14/L42s: every work package is given, its amount not computed when no task bears it.
     const indicators = example("estimate_indicators") as EstimateIndicators;
     const without = {
       is_computable: false,
       value: null,
-      reason: "order_item_without_task",
+      reason: "work_package_without_task",
     } as const;
-    const unborne = indicators.by_order_item.map((item) => ({
+    const unborne = indicators.by_work_package.map((item) => ({
       ...item,
       amount: without,
       share: without,
     }));
     expect(
-      text(renderSummary({ ...indicators, by_order_item: unborne }, [] satisfies MissingRates)),
-    ).toMatch(
-      /Par poste Fourniture et montage des armoires Non calculable — Aucune tâche ne porte ce poste\.$/,
-    );
+      text(renderSummary({ ...indicators, by_work_package: unborne }, [] satisfies MissingRates)),
+    ).toMatch(/Par lot Lot 1 Non calculable — Aucune tâche ne porte ce lot\.$/);
   });
 
-  it("says an amount by order item the API could not compute, with its reason", () => {
+  it("says an amount by work package the API could not compute, with its reason", () => {
     expect(text(summary("estimate_indicators_missing_rates", "missing_rates"))).toMatch(
-      /Par poste Fourniture et montage des armoires Non calculable — Taux horaire manquant pour l’année de référence\.$/,
+      /Par lot Lot 1 Non calculable — Taux horaire manquant pour l’année de référence\.$/,
     );
   });
 
@@ -196,11 +195,12 @@ describe("the summary of the estimate", () => {
   });
 
   it("says the indicators are unavailable when the API did not give them, the missing rates still named", () => {
-    const html = text(renderSummary(undefined, example("missing_rates") as MissingRates));
+    const markup = renderSummary(undefined, example("missing_rates") as MissingRates);
+    const html = text(markup);
     expect(html).toMatch(
       /^Taux horaires manquants .* Indicateurs du devis Les indicateurs du devis sont indisponibles\.$/,
     );
-    expect(html).not.toContain("Calculé le");
+    expect(markup).not.toContain("<time");
   });
 
   it("says nothing of the rates when none is missing", () => {

@@ -24,7 +24,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mocktext, mockwitness
+from wftools import REPOSITORY, mockcore, mockdating, mocktext, mockwitness
 from wftools.mockids import universe
 from wftools.mockstructure import (
     CATEGORY_LABELS,
@@ -33,13 +33,18 @@ from wftools.mockstructure import (
     JsonObject,
     JsonValue,
     described,
+    labels,
 )
 from wftools.mockwitness import (
     CABLE_FITTER,
     CORE,
     FACTORY_ACCEPTANCE,
+    FIRST_ITEM,
+    FIRST_LOT,
     GENERATED,
     LABOUR,
+    SUBPROJECT_CONTROL,
+    SUBPROJECT_TESTS,
     WIRING,
     Line,
     Link,
@@ -73,14 +78,16 @@ def written(
 ) -> JsonObject:
     """Return what a write answers, from the readings of the whole structure before and after.
 
-    The nodes written, whole, their version one further; the tasks, not summaries, whose
-    schedule changed without being written; the lines and the tasks, not summaries, whose
-    amount corrected for inflation or year of consumption changed, but those the ancestors
-    render whole; the ancestors of the nodes written, of the node deleted — read before, as it
-    is gone after — and of the tasks redated, whole. Each list in the order of the plan, each
-    node once (`NodesWritten`).
+    The nodes written, whole, their version one further — a node created, at its first —; the
+    tasks, not summaries, whose schedule changed without being written; the lines and the tasks,
+    not summaries, whose amount corrected for inflation or year of consumption changed, but those
+    the ancestors render whole; the ancestors of the nodes written, those they had before a move
+    with those they have after, of the node deleted — read before, as it is gone after — and of
+    the tasks redated, whole, but those written. Each list in the order of the plan, each node once
+    (`NodesWritten`).
     """
     was, now = _by_id(before), _by_id(after)
+    existing = [node_id for node_id in writes if node_id in was]
     moved = [
         node_id
         for node_id, node in now.items()
@@ -88,7 +95,9 @@ def written(
         and _is_activity(node)
         and _changed(node["task"], was[node_id]["task"], SCHEDULE)
     ]
-    above = _ancestors(now, [*writes, *moved]) | _ancestors(was, deleted)
+    above = (_ancestors(now, [*writes, *moved]) | _ancestors(was, [*existing, *deleted])) - {
+        *writes
+    }
     reinflated: list[JsonValue] = []
     for node_id, node in now.items():
         if node_id in writes or node_id in above or not (_is_activity(node) or _is_line(node)):
@@ -104,7 +113,11 @@ def written(
             )
     return {
         "nodes": [
-            {**now[node_id], "lock_version": was[node_id]["lock_version"] + 1} for node_id in writes
+            {
+                **now[node_id],
+                "lock_version": was[node_id]["lock_version"] + 1 if node_id in was else 1,
+            }
+            for node_id in writes
         ],
         "ancestors": [node for node_id, node in now.items() if node_id in above],
         "rescheduled": [
@@ -182,7 +195,7 @@ def on_line(number: int, **changes: Any) -> Callable[[Line], Line | None]:
     """
 
     def entered(each: Line) -> Line:
-        budgeted = mockcore.price(each, REFERENCE_YEAR).budgeted
+        budgeted = mockdating.price(each, REFERENCE_YEAR).budgeted
         return replace(each, budgeted=budgeted, **changes)
 
     return lambda each: entered(each) if each.number == number else each
@@ -248,6 +261,19 @@ def task_renamed() -> JsonObject:
     return core_write(amended(CORE, on_task(WIRING, label=RENAMED)), [WIRING])
 
 
+def task_attached() -> JsonObject:
+    """Return what updateTaskFacet answers when the factory acceptance bears the post 1.1.
+
+    The milestone of the deliverable of the post, the report of the factory acceptance, bears
+    the post of the one lot of the witness, which the summary above it bears: a leaf may bear a
+    post, and the task of the post is in the subtree of the task of its lot (WF-PLA-0170, #817).
+    Of the writes here, none other renders the milestone; the Kanban's completion of it
+    (``wftools.mockkanban``, `milestone_completed`) follows this one, one version further: two
+    answers never render it at one version (#421).
+    """
+    return core_write(amended(CORE, on_task(MILESTONE, bears=FIRST_ITEM)), [MILESTONE])
+
+
 def estimate_line_updated() -> JsonObject:
     """Return what updateEstimateLine answers when the labour of the wiring takes 14 hours."""
     return core_write(amended(CORE, line=on_line(LABOUR, hours=LABOUR_HOURS)), [LABOUR])
@@ -288,6 +314,55 @@ def completion_date_required() -> JsonObject:
             }
         ],
         "correlation_id": COMPLETION_CORRELATION,
+    }
+
+
+def estimate_line_subproject_changed() -> JsonObject:
+    """Return what updateEstimateLine answers when the commissioning passes to its subproject.
+
+    The line of the commissioning on site, borne by a task not started, leaves the control
+    station, charged with actual costs, for the tests and the commissioning: a line of a task not
+    started changes its subproject (WF-PRJ-0050). Only its subproject changes, not its budget,
+    the offer's (#467), nor any amount: the ventilation of the project alone.
+    """
+
+    def moved(each: Line) -> Line:
+        return (
+            replace(each, subproject=SUBPROJECT_TESTS)
+            if each.number == COMMISSIONING_LINE
+            else each
+        )
+
+    return core_write(amended(CORE, line=moved), [COMMISSIONING_LINE])
+
+
+SUBPROJECT_CORRELATION = universe(1168)
+
+
+def estimate_line_subproject_has_actual_costs() -> JsonObject:
+    """Return what updateEstimateLine answers when the labour of the wiring leaves its subproject.
+
+    The wiring of the cabinets is started, and the control station, the subproject of its labour
+    line, received the invoice of the screens: a share of those costs is the line's, which may
+    not leave it (WF-PRJ-0050, #1066). The refusal names the subproject, by its identifier and
+    its label, on the field sent; nothing is written.
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/subproject_id",
+                "code": "SUBPROJECT_HAS_ACTUAL_COSTS",
+                "params": {
+                    "subproject": {
+                        "subproject_id": SUBPROJECT_CONTROL,
+                        "label": labels()[SUBPROJECT_CONTROL],
+                    }
+                },
+            }
+        ],
+        "correlation_id": SUBPROJECT_CORRELATION,
     }
 
 
@@ -350,7 +425,7 @@ def volume_write(
 
 def task_lengthened() -> JsonObject:
     """Return what updateTaskFacet answers when the duration of LENGTHENED grows by its days."""
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if each.label == LENGTHENED]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if each.label == LENGTHENED]
     roots = amended(described(), on_task(task.number, days=task.days + LENGTHENED_BY))
     return volume_write(roots, [task.number])
 
@@ -396,7 +471,7 @@ PASTES = (universe(991), universe(992))
 TOO_WIDE_CORRELATION = universe(973)
 
 
-def _known() -> tuple[dict[str, str], dict[str, str]]:
+def known() -> tuple[dict[str, str], dict[str, str]]:
     """Return the categories and the roles of the universe by their label."""
     roles = {role["label"]: role["resource_role_id"] for role in fixture("resource_roles")["items"]}
     return {label: key for key, label in CATEGORY_LABELS.items()}, roles
@@ -408,7 +483,7 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
     A category or a role the reference data does not name is refused, its row and its column
     named; an empty role writes nothing (WF-IHM-0050).
     """
-    categories, roles = _known()
+    categories, roles = known()
     rejected: list[JsonValue] = []
     for row, (_, category, role, _) in enumerate(block):
         if category not in categories:
@@ -451,12 +526,12 @@ def pasted(block: Sequence[Sequence[str]]) -> tuple[tuple[Task, ...], list[int],
     that write left it (WF-IHM-0050).
     """
     entered = amended(described(), line=on_line(LINE, label=ENTERED))
-    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
     rejected = cast("list[JsonObject]", paste_plan(block, PASTES[0])["rejected"])
     refused = {cast("int", each["row"]) for each in rejected}
     rows = list(zip(_numbers(task.lines[: len(block)]), block, strict=True))
     targets = [number for row, (number, _) in enumerate(rows) if row not in refused]
-    categories, roles = _known()
+    categories, roles = known()
     roots = entered
     for number, (label, category, role, quantity) in (
         pair for row, pair in enumerate(rows) if row not in refused
@@ -531,7 +606,7 @@ def _on(instant: JsonValue) -> str:
     return mocktext.day(date.fromisoformat(cast("dict[str, str]", instant)["date"]))
 
 
-def _totals(answer: JsonObject) -> str:
+def totals_said(answer: JsonObject) -> str:
     """Say the totals of the structure an answer gives: its lines, hours and amounts."""
     totals = cast("dict[str, str]", answer["totals"])
     return (
@@ -624,10 +699,11 @@ def writes() -> dict[str, JsonObject]:
 
 
 def _core_writes() -> dict[str, JsonObject]:
-    renamed, updated = task_renamed(), estimate_line_updated()
+    renamed, updated, attached = task_renamed(), estimate_line_updated(), task_attached()
     reestimated = remaining_reestimated()
     [reestimated_line] = cast("list[Node]", reestimated["nodes"])
     deleted, linked, redated = node_deleted(), predecessor_set(), estimate_line_redated()
+    changed = estimate_line_subproject_changed()
     [line] = cast("list[Node]", updated["nodes"])
     [mounting] = cast("list[Node]", linked["nodes"])
     unmoved = "" if linked["reinflated"] else " — aucun montant corrigé de l'inflation ne change —"
@@ -642,8 +718,18 @@ def _core_writes() -> dict[str, JsonObject]:
         "task_renamed.json": mocktext.example(
             f"La tâche « {before[WIRING].label} » renommée « {RENAMED} » ; une version de plus. "
             f"Avec elle, sa récapitulative « {before[CONTROL_STATION].label} », dont rien ne "
-            f"change, et {_totals(renamed)}, inchangés (WF-PLA-0130, WF-IHM-0040).",
+            f"change, et {totals_said(renamed)}, inchangés (WF-PLA-0130, WF-IHM-0040).",
             renamed,
+        ),
+        "task_attached.json": mocktext.example(
+            f"Le jalon « {before[MILESTONE].label} » rattaché au poste « {FIRST_ITEM.label} » du "
+            f"lot « {FIRST_LOT.label} », que porte sa récapitulative "
+            f"« {before[CONTROL_STATION].label} » : une feuille peut porter un poste, et la tâche "
+            f"du poste reste dans le sous-arbre de la tâche de son lot ; il porte le poste, nommé "
+            f"pour la colonne du lotissement, et aucun lot, une version de plus. Avec lui, sa "
+            f"récapitulative, dont rien ne change, et {totals_said(attached)}, inchangés "
+            f"(WF-PLA-0170, WF-IHM-0040).",
+            attached,
         ),
         "estimate_line_updated.json": mocktext.example(
             f"La ligne de main-d'œuvre du devis, « {before[LABOUR].label} », dont la charge "
@@ -655,7 +741,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_money(_node(updated, WIRING)['task']['base_amount'])}, la récapitulative "
             f"« {before[CONTROL_STATION].label} » au-dessus, à "
             f"{_money(_node(updated, CONTROL_STATION)['task']['base_amount'])}, et "
-            f"{_totals(updated)}, le budgété inchangé (WF-DEV-0020, WF-DEV-0030, "
+            f"{totals_said(updated)}, le budgété inchangé (WF-DEV-0020, WF-DEV-0030, "
             f"WF-DEV-0050).",
             updated,
         ),
@@ -673,8 +759,27 @@ def _core_writes() -> dict[str, JsonObject]:
             f"à {_money(_node(reestimated, WIRING)['task']['reestimated_amount'])} réestimés, "
             f"la récapitulative « {before[CONTROL_STATION].label} » au-dessus, à "
             f"{_money(_node(reestimated, CONTROL_STATION)['task']['reestimated_amount'])}, et "
-            f"{_totals(reestimated)}, le budgété inchangé (WF-RAE-0040, WF-DEV-0020).",
+            f"{totals_said(reestimated)}, le budgété inchangé (WF-RAE-0040, WF-DEV-0020).",
             reestimated,
+        ),
+        "estimate_line_subproject_changed.json": mocktext.example(
+            f"La ligne « {before[COMMISSIONING_LINE].label} » de la "
+            f"{before[COMMISSIONING_TASK].label.lower()}, non démarrée, passée du sous-projet "
+            f"« {labels()[SUBPROJECT_CONTROL]} », qui a reçu des coûts réels, au sous-projet "
+            f"« {labels()[SUBPROJECT_TESTS]} » : une ligne d'une tâche non démarrée change de "
+            f"sous-projet ; une version de plus, ses montants et son budget inchangés. Avec elle, "
+            f"ses ancêtres, dont rien ne change, et {totals_said(changed)}, inchangés : seule la "
+            f"ventilation du projet change (WF-PRJ-0050).",
+            changed,
+        ),
+        "estimate_line_subproject_has_actual_costs.json": mocktext.example(
+            f"La ligne de main-d'œuvre « {before[LABOUR].label} » du "
+            f"« {before[WIRING].label} », démarré, envoyée hors du sous-projet "
+            f"« {labels()[SUBPROJECT_CONTROL]} », qui a reçu la facture des écrans : une part de "
+            f"ces coûts lui revient, et elle ne le quitte pas. Le refus nomme le sous-projet sur "
+            f"le champ envoyé, et rien n'est écrit ; la ligne ne nommait pas ce champ parmi ceux "
+            f"qu'elle accepte (editable_fields, WF-PRJ-0050).",
+            estimate_line_subproject_has_actual_costs(),
         ),
         "remaining_completion_date_required.json": mocktext.example(
             f"Variante contrefactuelle déclarée : la charge de « {before[LABOUR].label} » mise à "
@@ -692,7 +797,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"« {before[WIRING].label} » recalculée à "
             f"{_money(_node(deleted, WIRING)['task']['base_amount'])} et la récapitulative "
             f"au-dessus à {_money(_node(deleted, CONTROL_STATION)['task']['base_amount'])}, "
-            f"{_totals(deleted)}, et le compteur de la structure, passé à 2 (WF-DEV-0050, "
+            f"{totals_said(deleted)}, et le compteur de la structure, passé à 2 (WF-DEV-0050, "
             f"WF-IHM-0110).",
             deleted,
         ),

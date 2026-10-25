@@ -23,7 +23,16 @@
  */
 "use client";
 
-import { BarChart, type BarSeriesOption, LineChart, type LineSeriesOption } from "echarts/charts";
+import {
+  BarChart,
+  type BarSeriesOption,
+  CustomChart,
+  type CustomSeriesOption,
+  LineChart,
+  type LineSeriesOption,
+  ScatterChart,
+  type ScatterSeriesOption,
+} from "echarts/charts";
 import {
   AriaComponent,
   type AriaComponentOption,
@@ -31,18 +40,23 @@ import {
   type GridComponentOption,
   LegendComponent,
   type LegendComponentOption,
+  MarkAreaComponent,
+  type MarkAreaComponentOption,
   MarkLineComponent,
   type MarkLineComponentOption,
   TitleComponent,
   type TitleComponentOption,
+  TooltipComponent,
+  type TooltipComponentOption,
 } from "echarts/components";
 import { type ComposeOption, init, use as register } from "echarts/core";
 import { LabelLayout } from "echarts/features";
 import { CanvasRenderer, SVGRenderer } from "echarts/renderers";
-import { ImageDown } from "lucide-react";
+import { ChevronDown, ChevronUp, ImageDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef } from "react";
+import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
+import { type AlertZone, ZoneProbes } from "@/components/signal/signal";
 import { Button } from "@/components/ui/button";
 import { scrollingList } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
@@ -56,23 +70,34 @@ register([
   LabelLayout,
   LineChart,
   BarChart,
+  ScatterChart,
+  CustomChart,
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
   MarkLineComponent,
   TitleComponent,
+  TooltipComponent,
   AriaComponent,
   SVGRenderer,
   CanvasRenderer,
 ]);
 
-/** What a chart of the application may draw: lines and bars on a grid, a legend, marked lines. */
+/**
+ * What a chart of the application may draw: lines, bars and points on a grid, a legend, marked
+ * lines and areas, a tooltip; and the shapes of a drawing of its own — the rectangles of a timeline.
+ */
 export type ChartOption = ComposeOption<
   | LineSeriesOption
   | BarSeriesOption
+  | ScatterSeriesOption
+  | CustomSeriesOption
   | GridComponentOption
   | LegendComponentOption
+  | MarkAreaComponentOption
   | MarkLineComponentOption
   | TitleComponentOption
+  | TooltipComponentOption
   | AriaComponentOption
 >;
 
@@ -90,6 +115,8 @@ export interface ChartPalette {
   readonly grid: string;
   /** The background of the page, which an exported image is drawn on: `--background`. */
   readonly background: string;
+  /** The colour of each zone of a signal (`--signal-*`), for the area a zone fills. */
+  readonly zones: Readonly<Record<AlertZone, string>>;
   /** The font of the page. */
   readonly font: string;
 }
@@ -179,7 +206,7 @@ export function planningInstant(date: string): string {
 }
 
 /** Read the palette from the probes, as the document shows them now. */
-function readPalette(probes: HTMLElement): ChartPalette {
+export function readPalette(probes: HTMLElement): ChartPalette {
   const colour = (name: string) => {
     const probe = probes.querySelector(`[data-probe="${name}"]`);
     return probe === null ? "" : getComputedStyle(probe).color;
@@ -191,6 +218,11 @@ function readPalette(probes: HTMLElement): ChartPalette {
     axis: colour("axis"),
     grid: colour("grid"),
     background: colour("background"),
+    zones: {
+      nominal: colour("zone-nominal"),
+      watch: colour("zone-watch"),
+      alert: colour("zone-alert"),
+    },
     font: getComputedStyle(probes).fontFamily,
   };
 }
@@ -237,8 +269,28 @@ export function timeAxis(
   };
 }
 
-/** The probes of the tokens, hidden: each takes the colour of one. */
-function Probes() {
+/** A text as HTML: a label is typed by a person, and a tooltip is written as HTML. */
+export function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+/** The identifier (`id`) of a data item of a series, as ECharts hands it back; none without one. */
+export function dataId(data: unknown): string | undefined {
+  return typeof data === "object" && data !== null && "id" in data && typeof data.id === "string"
+    ? data.id
+    : undefined;
+}
+
+/**
+ * The probes of the tokens, to put in a hidden element: each takes the colour of one, which
+ * `readPalette` reads.
+ */
+export function Probes() {
   const singles = (["text", "mark", "axis", "grid", "background"] as const).map((name) => (
     <span key={name} data-probe={name} className={PROBES[name]} />
   ));
@@ -248,6 +300,7 @@ function Probes() {
         <span key={tone} data-probe={`series-${index.toString()}`} className={tone} />
       ))}
       {singles}
+      <ZoneProbes />
     </>
   );
 }
@@ -293,8 +346,8 @@ export interface ChartProvenance {
 /**
  * What the exported image of a chart says of itself: its title and the project, then the
  * revision, what else it is computed on if its provenance says it, and the date of calculation —
- * written in the local time of the workstation, at the moment of the export —, and the name of its
- * file, `file` followed by the code of the project.
+ * the instant of calculation, `computedAt`, written in the local time of the workstation —, and
+ * the name of its file, `file` followed by the code of the project.
  */
 export function useProvenance(
   provenance: ChartProvenance,
@@ -328,11 +381,11 @@ const EXPORT_SIZE = { width: 1280, height: 720 } as const;
 const EXPORT_TEXT_WIDTH = EXPORT_SIZE.width - 32;
 
 /** The size of the letters of the title and of the provenance, and the height of their lines. */
-const EXPORT_TITLE = { size: 18, line: 24 } as const;
-const EXPORT_SUBTITLE = { size: 12, line: 16 } as const;
+export const EXPORT_TITLE = { size: 18, line: 24 } as const;
+export const EXPORT_SUBTITLE = { size: 12, line: 16 } as const;
 
 /** The space above the title, between the title and the provenance, and below the provenance. */
-const EXPORT_MARGINS = { top: 12, gap: 6, bottom: 14 } as const;
+export const EXPORT_MARGINS = { top: 12, gap: 6, bottom: 14 } as const;
 
 /** How wide a text is written in a font: measured by a canvas, estimated without one. */
 type Measure = (text: string) => number;
@@ -494,14 +547,45 @@ export interface ChartProps {
    * offered for export.
    */
   readonly exported?: () => ChartExport;
+  /**
+   * Called with the identifier (`id`) of the data item a click reaches, when it has one — a point
+   * of a scatter.
+   */
+  readonly onPoint?: (id: string) => void;
+  /**
+   * Whether the drawing starts folded, so that a screen short of room keeps what follows the
+   * chart in its window: a command shows it, and folds it again. The values stay under it. Only
+   * the initial state: a later change of the prop does not fold nor unfold the drawing. A chart
+   * given no state cannot be folded.
+   */
+  readonly folded?: boolean;
+  /** Called with the state the command just gave the drawing: `true` folded, `false` shown. */
+  readonly onFold?: (folded: boolean) => void;
 }
 
 /** Render a chart: a figure, its caption, its drawing named by a sentence, its values. */
-export function Chart({ title, description, note, option, children, exported }: ChartProps) {
+export function Chart({
+  title,
+  description,
+  note,
+  option,
+  children,
+  exported,
+  onPoint,
+  folded,
+  onFold,
+}: ChartProps) {
   const t = useTranslations("chart");
   const drawing = useRef<HTMLDivElement>(null);
   const probes = useRef<HTMLSpanElement>(null);
   const caption = useId();
+  const drawingId = useId();
+  const [shown, setShown] = useState(folded !== true);
+  // The latest handler of a click, which the event reads: the chart is not drawn anew for it.
+  const clicked = useRef(onPoint);
+  useLayoutEffect(() => {
+    clicked.current = onPoint;
+  });
 
   useEffect(() => {
     const element = drawing.current;
@@ -524,6 +608,12 @@ export function Chart({ title, description, note, option, children, exported }: 
       );
     };
     draw();
+    chart.on("click", (event) => {
+      const id = dataId(event.data);
+      if (id !== undefined) {
+        clicked.current?.(id);
+      }
+    });
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
     scheme.addEventListener("change", draw);
     const theme = new MutationObserver(draw);
@@ -538,7 +628,7 @@ export function Chart({ title, description, note, option, children, exported }: 
       scheme.removeEventListener("change", draw);
       chart.dispose();
     };
-  }, [option, description]);
+  }, [option, description, shown]);
 
   const exportImage = () => {
     const tokens = probes.current;
@@ -557,18 +647,47 @@ export function Chart({ title, description, note, option, children, exported }: 
         <span id={caption} className="font-medium">
           {title}
         </span>
-        {exported === undefined ? null : (
-          <Button type="button" variant="outline" size="sm" onClick={exportImage}>
-            <ImageDown aria-hidden="true" />
-            {t("exportPng")}
-          </Button>
-        )}
+        <span className="flex flex-wrap gap-2">
+          {folded === undefined ? null : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-expanded={shown}
+              aria-controls={drawingId}
+              onClick={() => {
+                setShown(!shown);
+                onFold?.(shown);
+              }}
+            >
+              {shown ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+              {t("toggle")}
+            </Button>
+          )}
+          {exported === undefined ? null : (
+            <Button type="button" variant="outline" size="sm" onClick={exportImage}>
+              <ImageDown aria-hidden="true" />
+              {t("exportPng")}
+            </Button>
+          )}
+        </span>
       </figcaption>
       {note}
       <span ref={probes} hidden>
         <Probes />
       </span>
-      <div ref={drawing} role="img" aria-label={description} className="h-72 w-full" />
+      {shown ? (
+        <div
+          key="drawing"
+          ref={drawing}
+          id={drawingId}
+          role="img"
+          aria-label={description}
+          className="h-72 w-full"
+        />
+      ) : (
+        <div key="folded" id={drawingId} />
+      )}
       <details className="text-sm">
         <summary className="cursor-pointer text-muted-foreground">{t("values")}</summary>
         <div {...values} className={cn("mt-2 overflow-x-auto", values.className)}>

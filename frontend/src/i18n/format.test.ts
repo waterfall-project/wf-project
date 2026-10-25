@@ -18,6 +18,7 @@ import {
   formatPercent,
   formatMonth,
   formatPlanningDate,
+  formatPlanningDay,
   formatShare,
   formatTimestamp,
   localTimeOfDay,
@@ -251,10 +252,10 @@ describe("a share", () => {
   });
 
   it("says below the smallest shown the share of the contract that rounds to nil while it is not", () => {
-    // « Fourniture et montage des armoires » of the offer v1.0: 2 019,56 of 65 427 832,64, which the
-    // contract gives to its first significant digit, never nil (EP-14/L42o, #694).
+    // « Lot 1 » of the offer v1.0: 2 019,56 of 65 427 832,64, which the contract gives to its first
+    // significant digit, never nil (EP-14/L42o, #694).
     const indicators = example("estimate_indicators_breakdown") as Schemas["EstimateIndicators"];
-    const item = indicators.by_order_item[0];
+    const item = indicators.by_work_package[0];
     expect(item?.share?.value).toBe("0.00003");
     expect(share(item?.share?.value ?? "", "fr")).toBe(`<${NO_BREAK}0,01${NO_BREAK}%`);
   });
@@ -335,6 +336,12 @@ describe("a planning date", () => {
     expect(formatPlanningDate("2026-06-30", "en", "long")).toBe("30 June 2026");
     expect(formatPlanningDate("2026-06-30", "fr", "short")).toBe("30/06/2026");
     expect(formatPlanningDate("2026-06-30", "en")).toBe("30 Jun 2026");
+  });
+
+  it("names a day of planning by its weekday, in the language, whatever the zone [WF-PLA-0020-A]", () => {
+    expect(formatPlanningDay("2026-12-19", "fr")).toBe("samedi 19 décembre");
+    expect(formatPlanningDay("2026-12-21", "en")).toMatch(/^Monday,? 21 December$/);
+    expect(() => formatPlanningDay("2026-02-30", "fr")).toThrow(RangeError);
   });
 
   it("is the zone a naive reading would get wrong", () => {

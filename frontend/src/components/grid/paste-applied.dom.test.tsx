@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,7 +13,6 @@ import {
   cell,
   copied,
   FIRST,
-  LINE,
   labels,
   pasteOn,
   PREVIEW,
@@ -173,34 +172,5 @@ describe("a paste applied", () => {
     expect(labels()).toEqual(READ);
     await userEvent.click(within(refusal).getByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
-  });
-
-  it("keeps the refusal of a cell written before it on a row it did not write", async () => {
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const stale = { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const;
-    serve({ [LINE]: stale }, { hold: (route) => (route === LINE ? held : undefined) });
-    renderGrid();
-    // The label of the row 5 leaves, the server yet to answer; the block then confirmed writes the
-    // rows 4 and 6, not the row 5, whose refusal arrives after it.
-    cell(FIRST + 1, "label").focus();
-    await userEvent.keyboard("X{Enter}");
-    await pasteAndApply(UNKNOWN);
-    await act(async () => {
-      release();
-      await held;
-    });
-    await vi.waitFor(() => {
-      expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toContainEqual(
-        expect.stringMatching(/modifié cette donnée/),
-      );
-    });
-    expect(labels()).toEqual([
-      "Heures de câblage et repérage",
-      "Heures de mise en service",
-      "Matériel de câblage",
-    ]);
   });
 });

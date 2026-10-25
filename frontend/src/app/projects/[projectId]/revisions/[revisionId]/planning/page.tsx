@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The grid of the planning of a revision (WF-PLA-0080, US-0220), at the route of its function
- * (`functions.json`): the banner of its reading context (WF-IHM-0020), and the grid on the main
- * structure of the revision, its tasks alone — the server renders no line for it (`kinds`) —,
+ * (`functions.json`): the banner of its reading context (WF-IHM-0020), which names the structure
+ * read and offers the others of the revision, and the grid on the structure the address names — the
+ * main one by default, a differential, the own estimate of a risk (US-0500) —, mounted anew for
+ * each (#819.3), its tasks alone — the server renders no line for it (`kinds`) —,
  * asked and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer,
  * with the totals of the answer: a header clicked or a search entered changes the address, and
  * this page reads anew (`grid-screen.ts`). The Gantt is the last column of the grid, row for row
@@ -11,29 +13,46 @@
  * timelines (FBS-4.3.1), the imports and exports of the project (FBS-4.3.4), the task tree
  * (FBS-4.3.5) —, in the same context.
  *
- * Where the revision lists `edit_planning` available, the attachment of a task is entered in its
- * column, chosen among the posts and the lots of the work breakdown of the project, read whole
- * (WF-PLA-0170); in the empty grid, the skeleton is offered as the revision lists `generate_skeleton`
- * (WF-PRJ-0030). Once, under its header, the screen then says that the fake back keeps none of what
- * they write (`MockupNotice`, EP-14/L44d).
+ * The grid is filtered by a lot or a post of the work breakdown of the project, read whole, above
+ * it (`BreakdownFilterChoice`): the server retains the subtree of the task that bears it and its
+ * ancestors, and the banner shows the filter active; the filter is not offered when the API
+ * refuses the work breakdown. Where the revision lists `edit_planning` available, the attachment
+ * of a task is entered in its column, chosen among the same posts and lots (WF-PLA-0170), and the
+ * screen cannot do without the work breakdown; in the empty grid of the main structure, the skeleton
+ * is offered as the revision lists `generate_skeleton` (WF-PRJ-0030) — never on a differential nor on
+ * the own estimate of a risk, which the skeleton, generated on the main structure, would not fill.
+ * The timelines of the project (`listTimelines`) name the inscriptions of its tasks, in a column
+ * hidden until shown, and are the boxes of the submenu « Chronologies » of the menu of their cells
+ * (US-0480). The Gantt reads the hours of a day of the installation (`getDurationUnits`), which
+ * graduate its finest level, and is exported with the date its dates were calculated at
+ * (`meta.scheduled_at`). Once, under its header, the screen then says that the fake back keeps none of what they write
+ * (`MockupNotice`, EP-14/L44d).
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { readOrFail } from "@/api/problem";
+import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { findOffer } from "@/components/commands/offer";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { type CommandOffer, findOffer } from "@/components/commands/offer";
+import type { ListedStructure } from "@/components/context/structure";
 import { ContextBanner } from "@/components/context/context-banner";
+import { breakdownChip } from "@/components/grid/breakdown-filter";
+import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
 import type { NodeTotals } from "@/components/grid/nodes";
+import { PendingAddress } from "@/components/grid/pending-address";
 import {
   PLANNING_FIELDS,
   PLANNING_GRID,
   PLANNING_KINDS,
   PLANNING_SORT_COLUMNS,
 } from "@/components/grid/planning";
-import { breakdownItems } from "@/components/grid/planning-attachment";
-import { PlanningGrid } from "@/components/grid/planning-grid";
+import type { ProjectReading } from "@/components/context/reading";
+import { hoursOfDay } from "@/components/gantt/scale";
+import { PlanningGrid, type PlanningGridProps } from "@/components/grid/planning-grid";
+import type { ChoiceOption } from "@/components/grid/row-choices";
+import { MergeAmendmentCommand } from "@/components/revisions/merge-amendment-command";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -42,7 +61,7 @@ import type { PageSearchParams, ProjectContext } from "@/navigation/context";
 import { functionHref, leafOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../../../../title";
-import { gridAddress, readGridScreen } from "../grid-screen";
+import { gridAddress, provenanceOf, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
 /** Title the tab with the function, and with the project. */
@@ -60,10 +79,10 @@ export async function generateMetadata({
  * `leafOf`, by which `make screens` knows the page leads to it.
  */
 const LEAVES = [
-  { leaf: leafOf("FBS-4.3.1"), Icon: LEAF_ICONS["FBS-4.3.1"] },
-  { leaf: leafOf("FBS-4.3.4"), Icon: LEAF_ICONS["FBS-4.3.4"] },
-  { leaf: leafOf("FBS-4.3.5"), Icon: LEAF_ICONS["FBS-4.3.5"] },
-];
+  { leaf: leafOf("FBS-4.3.1"), Icon: LEAF_ICONS["FBS-4.3.1"], help: "timelines" },
+  { leaf: leafOf("FBS-4.3.4"), Icon: LEAF_ICONS["FBS-4.3.4"], help: "exchanges" },
+  { leaf: leafOf("FBS-4.3.5"), Icon: LEAF_ICONS["FBS-4.3.5"], help: "taskTree" },
+] as const;
 
 /**
  * The title of the grid, and what it holds: the structure, and its tasks retained; and the links to
@@ -87,17 +106,19 @@ function PlanningHeader({
       subtitle={t("planningGrid.summary", { structure: label, tasks: totals.task_count })}
       actions={
         <div className="flex flex-wrap gap-2">
-          {LEAVES.map(({ leaf, Icon }) => {
+          {LEAVES.map(({ leaf, Icon, help }) => {
             const href = functionHref(leaf, context);
             return href === undefined ? null : (
-              <Link
+              <CommandTooltip
                 key={leaf.code}
-                href={href}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
+                label={t(leaf.label)}
+                help={t(`commands.${help}.help`)}
               >
-                <Icon aria-hidden="true" />
-                {t(leaf.label)}
-              </Link>
+                <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  <Icon aria-hidden="true" />
+                  {t(leaf.label)}
+                </Link>
+              </CommandTooltip>
             );
           })}
         </div>
@@ -107,23 +128,81 @@ function PlanningHeader({
 }
 
 /**
- * The posts and the lots the attachment of a task is chosen among, from the work breakdown of the
- * project read whole — a reading filtered omits some —, where the planning may be entered; none
- * otherwise, and the attachment is read only.
+ * The timelines of the project, by their identifier and their label, which name the inscriptions of
+ * the tasks and are offered by the menu of their cells (US-0480); none when the API does not find
+ * the timelines of the project, the grid then naming none and offering no submenu.
  */
-async function readBreakdown(projectId: string, editable: boolean) {
-  if (!editable) {
-    return undefined;
-  }
-  const reading = await readOrFail("getWorkBreakdown", () =>
-    serverClient().GET("/projects/{project_id}/work-breakdown", {
+async function readTimelines(projectId: string): Promise<readonly ChoiceOption[] | undefined> {
+  const timelines = await readUnlessRefused("listTimelines", [{ status: 404 }], () =>
+    serverClient().GET("/projects/{project_id}/timelines", {
       params: { path: { project_id: projectId } },
     }),
   );
-  return breakdownItems(reading);
+  return timelines?.map((timeline) => ({ id: timeline.timeline_id, label: timeline.label }));
 }
 
-/** Render the grid of the planning on the main structure of a revision. */
+/**
+ * The contractualisation of the amendment the grid reads, as the revision lists it (US-0510); nothing
+ * on any other structure.
+ */
+function AmendmentMerge({
+  structure,
+  offer,
+  revision,
+}: {
+  /** The structure read, when it is an amendment's differential. */
+  readonly structure: ListedStructure | undefined;
+  readonly offer: CommandOffer | undefined;
+  readonly revision: RevisionParams;
+}) {
+  const amendment = structure?.kind === "amendment" ? structure : undefined;
+  if (amendment === undefined) {
+    return null;
+  }
+  return (
+    <MergeAmendmentCommand
+      key={`merge:${amendment.structure_id}`}
+      offer={offer}
+      amendment={{
+        projectId: revision.projectId,
+        revisionId: revision.revisionId,
+        structureId: amendment.structure_id,
+        label: amendment.label,
+      }}
+      merged={amendment.is_merged}
+      names={{ [amendment.structure_id]: amendment.label }}
+    />
+  );
+}
+
+/**
+ * The grid of the planning and its Gantt, which zooms down to the hours of a day of the installation
+ * and names the project, the revision and the date of calculation in its exported image.
+ */
+function PlanningWithGantt({
+  grid,
+  reading,
+  scheduledAt,
+  hoursPerDay,
+}: {
+  readonly grid: Omit<PlanningGridProps, "gantt">;
+  readonly reading: ProjectReading;
+  readonly scheduledAt: string;
+  readonly hoursPerDay: string;
+}) {
+  const t = useTranslations("contextBanner");
+  return (
+    <PlanningGrid
+      {...grid}
+      gantt={{
+        hoursPerDay: hoursOfDay(hoursPerDay),
+        exported: { provenance: provenanceOf(reading, t("currentRevision")), scheduledAt },
+      }}
+    />
+  );
+}
+
+/** Render the grid of the planning on the structure of a revision the address names. */
 export default async function PlanningPage({
   params,
   searchParams,
@@ -133,36 +212,71 @@ export default async function PlanningPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "planning");
-  const screen = await readGridScreen(at, {
-    key: PLANNING_GRID.key,
-    sortable: PLANNING_SORT_COLUMNS,
-    kinds: PLANNING_KINDS,
-    fields: PLANNING_FIELDS,
-  });
-  const editable = screen.reading.edits.has("edit_planning");
-  const skeleton = findOffer(
-    screen.reading.revision?.available_commands ?? [],
-    "generate_skeleton",
-  );
-  const breakdown = await readBreakdown(revision.projectId, editable);
+  const [screen, timelines, units] = await Promise.all([
+    readGridScreen(at, {
+      key: PLANNING_GRID.key,
+      sortable: PLANNING_SORT_COLUMNS,
+      kinds: PLANNING_KINDS,
+      fields: PLANNING_FIELDS,
+      byBreakdown: true,
+      // The attachment of a task is chosen among the lots and the posts where it is entered.
+      needsBreakdown: (reading) => reading.edits.has("edit_planning"),
+      chooses: true,
+    }),
+    readTimelines(revision.projectId),
+    readOrFail("getDurationUnits", () => serverClient().GET("/reference/duration-units")),
+  ]);
+  const editable = screen.commands.has("edit_planning");
+  const skeleton =
+    screen.kind === "main"
+      ? findOffer(screen.reading.revision?.available_commands ?? [], "generate_skeleton")
+      : undefined;
+  // One address asked for the whole screen: the structure chosen in the banner and a sort or a filter
+  // of the grid compose, whichever comes first (défaut n° 20 de `typescript.md`).
   return (
-    <>
-      <ContextBanner reading={screen.reading} />
+    <PendingAddress>
+      <ContextBanner
+        reading={screen.reading}
+        structure={screen.structures}
+        breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
+      />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
+        <AmendmentMerge
+          structure={screen.structures?.read}
+          offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
+          revision={revision}
+        />
         {editable || skeleton?.is_available === true ? <MockupNotice /> : null}
-        <PlanningGrid
-          nodes={screen.nodes}
-          structure={screen.structure}
-          structureVersion={screen.structureVersion}
-          filters={screen.filters}
-          query={screen.query}
-          preferences={screen.preferences}
-          undoable={editable}
-          breakdown={breakdown}
-          skeleton={skeleton}
+        {screen.breakdown === undefined ? null : (
+          <BreakdownFilterChoice choices={screen.breakdown} />
+        )}
+        <PlanningWithGantt
+          key={screen.structure.structure_id}
+          reading={screen.reading}
+          scheduledAt={screen.scheduledAt}
+          hoursPerDay={units.hours_per_day}
+          grid={{
+            nodes: screen.nodes,
+            structure: screen.structure,
+            structureVersion: screen.structureVersion,
+            filters: screen.filters,
+            query: screen.query,
+            preferences: screen.preferences,
+            undoable: editable,
+            editable,
+            differential: screen.kind === "amendment",
+            // The attachment is chosen among the same items, where the planning may be entered.
+            breakdown: editable ? screen.breakdown?.items : undefined,
+            skeleton,
+            timelines,
+            timelineCreation: findOffer(
+              screen.reading.project.available_commands,
+              "manage_timelines",
+            ),
+          }}
         />
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

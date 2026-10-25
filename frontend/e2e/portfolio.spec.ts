@@ -13,6 +13,8 @@ import { withinBox } from "./scroll";
 const PROJECTS = "/portfolio/projects";
 const PERFORMANCE = "/portfolio/performance";
 const COST_CURVE = "/portfolio/cost-curve";
+const WORKLOAD = "/portfolio/workload";
+const RISKS = "/portfolio/risks";
 // The columns of the cost index and of the schedule index in the grid of the projects.
 const COST_INDEX = 8;
 const SCHEDULE_INDEX = 9;
@@ -154,4 +156,81 @@ test("exports the S-curve of the portfolio as a PNG image named after the date o
     ]);
   }).toPass({ timeout: WORKING });
   expect(download?.suggestedFilename()).toBe("couts-cumules-portefeuille-2026-06-03.png");
+});
+
+test("draws the aggregated workload in stacked bars with the dashed capacity of the perimeter, the table of the roles under it, and exports it as a PNG image [WF-PTF-0060-A] [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  await page.goto(WORKLOAD);
+  const figure = page.getByRole("figure", { name: "Charge empilée par rôle et par mois" });
+  await expect(figure.getByRole("img", { name: /^Barres empilées de la charge/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  // The capacity of the perimeter, as the server sums it, said under the title of the chart.
+  await expect(figure.getByText(/^Capacité du périmètre : /)).toBeVisible();
+  // The line of the capacity, dashed, is drawn inside the plot — the axis reaches it — and says
+  // itself in its label.
+  const drawing = figure.getByRole("img", { name: /^Barres empilées de la charge/ });
+  await expect(drawing.locator("text", { hasText: /^Capacité : .* h par mois$/ })).toBeVisible();
+  // The plot is the span of its tallest vertical lines (its axis and its grid); the capacity is the
+  // one dashed horizontal line across it, wider than half the drawing, and it lies within the plot.
+  const { capacity, plot } = await drawing.evaluate((element) => {
+    const width = element.getBoundingClientRect().width;
+    const boxes = [...element.querySelectorAll("path")].map((path) => ({
+      dashed: path.hasAttribute("stroke-dasharray"),
+      box: path.getBoundingClientRect(),
+    }));
+    const tallest = Math.max(
+      ...boxes.filter(({ box }) => box.width <= 1).map(({ box }) => box.height),
+    );
+    const grid = boxes.filter(({ box }) => box.width <= 1 && box.height === tallest);
+    return {
+      plot: { top: grid[0]?.box.top ?? Number.NaN, height: tallest },
+      capacity: boxes
+        .filter(({ dashed, box }) => dashed && box.height <= 1 && box.width > width / 2)
+        .map(({ box }) => box.top),
+    };
+  });
+  expect(capacity).toHaveLength(1);
+  expect(capacity[0] ?? Number.NaN).toBeGreaterThanOrEqual(plot.top - 0.5);
+  expect(capacity[0] ?? Number.NaN).toBeLessThanOrEqual(plot.top + plot.height + 0.5);
+  // The filter by node of organisation, in the head of the view; the table of the roles after the
+  // chart, in the order of the page.
+  await expect(page.getByLabel("Nœud d’organisation")).toBeVisible();
+  const table = page.getByRole("table", { name: "Charge par rôle et par mois" });
+  const chartTop = (await figure.boundingBox())?.y ?? 0;
+  expect((await table.boundingBox())?.y ?? 0).toBeGreaterThan(chartTop);
+  const command = figure.getByRole("button", { name: "Exporter en PNG" });
+  let download: Download | undefined;
+  await expect(async () => {
+    [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 1_000 }),
+      command.click(),
+    ]);
+  }).toPass({ timeout: WORKING });
+  expect(download?.suggestedFilename()).toBe("plan-de-charge-agrege-portefeuille-2026-06-03.png");
+});
+
+test("draws the risk matrix of the portfolio as a bubble chart in place of the table, and exports it as a PNG image [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  await page.goto(RISKS);
+  const figure = page.getByRole("figure", { name: "Matrice des risques" });
+  const drawing = figure.getByRole("img", { name: /^Nuage de bulles des risques/ });
+  await expect(drawing.locator("svg")).toBeVisible({ timeout: WORKING });
+  // One bubble for each risk the server rendered, 429 of them, over the sixteen zones.
+  await expect(drawing.locator("path[fill-opacity='0.85']")).toHaveCount(429 + 1);
+  await figure.getByText("Valeurs du graphique").click();
+  await expect(
+    figure.getByRole("table", { name: "Décompte des risques par case de la matrice" }),
+  ).toBeVisible();
+  const command = figure.getByRole("button", { name: "Exporter en PNG" });
+  let download: Download | undefined;
+  await expect(async () => {
+    [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 1_000 }),
+      command.click(),
+    ]);
+  }).toPass({ timeout: WORKING });
+  expect(download?.suggestedFilename()).toBe("matrice-des-risques-portefeuille-2026-06-03.png");
 });

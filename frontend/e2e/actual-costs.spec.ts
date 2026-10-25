@@ -3,7 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
-import { scrollToFoot, withinBox } from "./scroll";
+import { scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the actual costs of the project at 3 June
 // 2026 — twenty-seven lines, the six entered by hand, five charged to the project alone, one of
@@ -45,7 +45,7 @@ test("reads the actual costs of a project: the lines and their three totals, the
   await expect.poll(() => withinBox(grid, total)).toBe(true);
   const totals = page.getByRole("region", { name: "Totaux des lignes retenues" });
   await expect(totals).toHaveText(
-    /Périmètre suivi\s*1\s412\s970,20\s*Exclu du périmètre suivi\s*650,00\s*Total général\s*1\s413\s620,20\s*Dernier import\s*3 juin 2026/,
+    /^Totaux des lignes retenues\s*Périmètre suivi\s*1\s412\s970,20\s*Exclu du périmètre suivi\s*650,00\s*Total général\s*1\s413\s620,20\s*Dernier import\s*3 juin 2026/,
   );
   await expect(page.getByRole("region", { name: "Journal des imports" })).toHaveCount(1);
   await expect(
@@ -76,12 +76,30 @@ test("reads the actual costs of a project: the lines and their three totals, the
   await expect(apply).toBeFocused();
 });
 
+test("chooses the number of rows per page of the actual costs, carried by the address and back to the first page, the rest of the query kept [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  test.slow();
+  await openHydrated(page, `${COSTS}?in_tracked_scope=false&offset=50`);
+  const size = page.getByRole("combobox", { name: "Lignes par page", exact: true });
+  await expect(size).toBeInViewport();
+  await expect(size).toHaveValue("50");
+  await expect(size.getByRole("option")).toHaveText(["10", "25", "50", "100"]);
+  await size.selectOption("25");
+  await expect(page).toHaveURL(`${COSTS}?in_tracked_scope=false&limit=25`, { timeout: WORKING });
+  // A larger one is chosen as easily, from the address of the one before.
+  await size.selectOption("100");
+  await expect(page).toHaveURL(`${COSTS}?in_tracked_scope=false&limit=100`, { timeout: WORKING });
+});
+
 test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) [WF-CRE-0040-A]", async ({
   page,
 }) => {
   test.slow();
   await openHydrated(page, COSTS);
   const grid = page.getByRole("grid", { name: "Coûts réels" });
+  // The twenty-third line is past the rows the grid renders as it opens, above the bar of its pages.
+  await scrollToPosition(grid, 23);
   await grid.getByRole("link", { name: "FA-2026-0412" }).click();
   await expect(page).toHaveURL(`${COSTS}?line=01926f3a-7c00-7000-8000-000000000c01`, {
     timeout: WORKING,

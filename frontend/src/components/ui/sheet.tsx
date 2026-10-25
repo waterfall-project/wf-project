@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The sheet of shadcn/ui, copied into the repository as far as the side bar needs it: on a
- * narrow screen, the side bar slides over the page from its edge, a dialog of Radix — the
- * focus held within it, Escape or a press outside closing it and giving the focus back.
- * Neither overlay nor close button: the page stays in sight beside it, without a scrim no
- * token was measured for, and the trigger of the bar closes it as it opened it.
+ * The sheet of shadcn/ui, copied into the repository as far as the shell needs it: on a narrow
+ * screen, the side bar slides over the page from its left edge; the panel of the tasks and the
+ * messages, from the right (`TaskPanel`). A dialog of Radix — the focus held within it, Escape or a
+ * press outside closing it and giving the focus back. No overlay: the page stays in sight beside it,
+ * without a scrim no token was measured for. The side bar has no close button, the trigger of the
+ * bar closing it as it opened it; the panel has its own.
  */
 "use client";
 
@@ -19,23 +20,39 @@ export function Sheet(props: ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
 
-/** The content of a sheet, along the left edge of the window, where the side bar lives. */
+/** The edge a sheet lies along, by its classes. */
+const SIDES = {
+  left: "left-0 border-r",
+  right: "right-0 border-l",
+} as const;
+
+/**
+ * The content of a sheet, along an edge of the window: the left by default, where the side bar
+ * lives.
+ */
 export function SheetContent({
   className,
+  side = "left",
   ...props
-}: ComponentProps<typeof SheetPrimitive.Content>) {
+}: ComponentProps<typeof SheetPrimitive.Content> & { readonly side?: keyof typeof SIDES }) {
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex h-full flex-col border-r bg-background",
+          "fixed inset-y-0 z-50 flex h-full flex-col bg-background",
+          SIDES[side],
           className,
         )}
         {...props}
       />
     </SheetPrimitive.Portal>
   );
+}
+
+/** What closes a sheet, given as its child — a button. */
+export function SheetClose(props: ComponentProps<typeof SheetPrimitive.Close>) {
+  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
 /** The heading of a sheet: its title and its description. */

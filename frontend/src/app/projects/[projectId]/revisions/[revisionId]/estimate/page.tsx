@@ -4,14 +4,20 @@
  * The estimate of a revision (WF-DEV-0050, WF-DEV-0060, US-0220), at the route of its function
  * (`functions.json`): the banner of its reading context (WF-IHM-0020); the hourly rates its
  * calculation lacks and its indicators (`EstimateSummary`), read for the sub-project the address
- * filters; and the grid on the main structure of the revision, its tasks and their lines, asked
- * and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer, with the
+ * filters; and the grid on the structure the address names — the main one by default, a
+ * differential, the own estimate of a risk (US-0500), which the banner names and offers to change,
+ * mounted anew for each (#819.3) —, its tasks and their lines, asked
+ * and handed the fields it shows alone (`grid-screen.ts`), filtered by a lot or a post of the work
+ * breakdown read whole, which the banner says restricts the grid alone: the indicators are those of
+ * the whole project, or of its sub-project. The rows come in the order of the answer, with the
  * totals of the answer: a header clicked or a search entered changes the address, and this page
  * reads anew (`grid-screen.ts`). The
  * indicators and the rates are read alongside the grid, and so are the categories and the roles a
  * line is chosen from (US-0120) — the server names those a line bears (#305). The grid is entered from the keyboard, and takes
- * a block pasted from a spreadsheet, when the revision lists `edit_estimate` available to the caller
- * (WF-IHM-0040, WF-IHM-0050). Its head leads to the workload of the project, a leaf of the estimate
+ * a block pasted from a spreadsheet, its tasks and its lines created and deleted, when the structure
+ * read lists `edit_estimate` available to the caller (WF-IHM-0040, WF-IHM-0050): on a project in
+ * progress the main one lists it unavailable, and its grid is read only, where a differential and
+ * the own estimate of a risk list it available (WF-DEV-0050). Its head leads to the workload of the project, a leaf of the estimate
  * with a screen of its own (FBS-4.4.4), in the same context, and, when the project lists the import
  * of an estimate, to the imports and exports, where it is exercised (#521). A refused read of the rates
  * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
@@ -26,9 +32,13 @@ import type { ReactNode } from "react";
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { ContextBanner } from "@/components/context/context-banner";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
+import type { ProjectReading } from "@/components/context/reading";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
+import { breakdownChip } from "@/components/grid/breakdown-filter";
+import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
 import {
   ESTIMATE_FIELDS,
   ESTIMATE_GRID,
@@ -38,10 +48,12 @@ import {
 } from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
+import { PendingAddress } from "@/components/grid/pending-address";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
+import { estimateBasis, onBasis } from "@/components/workload/workload-basis";
 import { functionHref, leafOf } from "@/navigation/functions";
 import { type Permission, requestSession } from "@/session/request";
 
@@ -183,6 +195,12 @@ async function readReference(projectId: string): Promise<EstimateReference> {
   };
 }
 
+/**
+ * The filters of the screen its indicators do not take: the lot or the post restricts the grid
+ * alone, the indicators breaking the whole project down by lot (WF-DEV-0060).
+ */
+const RESTRICTS: Restrictions = { work_package_id: "grid", order_item_id: "grid" };
+
 /** The workload of the project, a leaf of the estimate with a screen of its own (FBS-4.4.4). */
 const WORKLOAD = leafOf("FBS-4.4.4");
 
@@ -219,16 +237,29 @@ function EstimateHeader({
       actions={
         <>
           {workload === undefined ? null : (
-            <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              <WorkloadIcon aria-hidden="true" />
-              {t(WORKLOAD.label)}
-            </Link>
+            <CommandTooltip label={t(WORKLOAD.label)} help={t("commands.workload.help")}>
+              <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                <WorkloadIcon aria-hidden="true" />
+                {t(WORKLOAD.label)}
+              </Link>
+            </CommandTooltip>
           )}
           {exchanges}
         </>
       }
     />
   );
+}
+
+/**
+ * What corrects the amounts of the grid for inflation: the year of reference of the revision and the
+ * rate of the project, which the reading context holds already (WF-IHM-0140); none without a
+ * revision.
+ */
+function inflationOf({ revision, project }: ProjectReading) {
+  return revision === undefined
+    ? undefined
+    : { referenceYear: revision.reference_year, rate: project.inflation_rate };
 }
 
 /** Render the estimate of a revision: what its calculation lacks, its indicators, its grid. */
@@ -246,6 +277,8 @@ export default async function EstimatePage({
       key: ESTIMATE_GRID.key,
       sortable: ESTIMATE_SORT_COLUMNS,
       fields: ESTIMATE_FIELDS,
+      byBreakdown: true,
+      chooses: true,
     }),
     readEstimateFigures(at),
     readReference(revision.projectId),
@@ -253,16 +286,26 @@ export default async function EstimatePage({
   ]);
   // The sub-project of a line is entered from the list of the project, in a revision open to
   // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
-  const editable = screen.reading.edits.has("edit_estimate");
+  const editable = screen.commands.has("edit_estimate");
   const subprojectsEntered = editable && reference.subprojects !== undefined;
+  // One address asked for the whole screen: the structure chosen in the banner and a sort or a filter
+  // of the grid compose, whichever comes first (défaut n° 20 de `typescript.md`).
   return (
-    <>
-      <ContextBanner reading={screen.reading} />
+    <PendingAddress>
+      <ContextBanner
+        reading={screen.reading}
+        restricts={RESTRICTS}
+        structure={screen.structures}
+        breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
+      />
       <Screen density={FUNCTION_DENSITY.estimate} fill>
         <EstimateHeader
           label={screen.label}
           totals={screen.nodes.totals}
-          workload={functionHref(WORKLOAD, at.context)}
+          workload={onBasis(
+            functionHref(WORKLOAD, at.context),
+            estimateBasis(screen.reading.project),
+          )}
           exchanges={
             <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
           }
@@ -272,18 +315,24 @@ export default async function EstimatePage({
           missingRates={missingRates}
           permissions={session?.permissions ?? []}
         />
+        {screen.breakdown === undefined ? null : (
+          <BreakdownFilterChoice choices={screen.breakdown} />
+        )}
         <EstimateGrid
+          key={screen.structure.structure_id}
           nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
           structure={screen.structure}
           structureVersion={screen.structureVersion}
           filters={screen.filters}
           reference={reference}
           editable={editable}
-          tasksEditable={screen.reading.edits.has("edit_planning")}
+          tasksEditable={screen.commands.has("edit_planning")}
           query={screen.query}
           preferences={screen.preferences}
+          differential={screen.kind === "amendment"}
+          inflation={inflationOf(screen.reading)}
         />
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

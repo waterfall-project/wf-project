@@ -10,8 +10,8 @@
  * category and their calendar, and their single capacity (WF-REF-0090, WF-REF-0100), filtered by
  * code, node, category, calendar and state, and bounded on its monthly hours and its headcount, a
  * page of the list the server pages; the
- * calendars, seven values of hours, the default one marked (WF-REF-0110, WF-REF-0120), filtered by
- * state and bounded on the hours of each day, a page too; the constants the units of duration
+ * calendars, seven values of hours, the default one marked (WF-REF-0110, WF-REF-0120), searched and
+ * filtered by state, a page too; the constants the units of duration
  * convert by (WF-PLA-0160). An object attached is named as the server resolves it. Every figure as
  * the API gives it. A deactivated object, which a list shows when the address asks for them, offers
  * the command that changes its state as the server lists it (WF-REF-0150, WF-IHM-0090). A session
@@ -26,7 +26,7 @@
  * (`ListBody`).
  */
 import { CalendarDays, Network, Timer, Users } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
@@ -44,7 +44,6 @@ import type { GridQuery } from "@/components/grid/query";
 import { RangeFilter } from "@/components/grid/range-filter";
 import type { GridPreferences } from "@/components/grid/settings";
 import { TextFilter } from "@/components/grid/text-filter";
-import { formatDecimal } from "@/i18n/format";
 import type { ListPage } from "@/navigation/pages";
 
 import { listReads } from "./address";
@@ -58,9 +57,6 @@ import {
   CALENDAR_STATE,
   type Calendar,
   type CalendarSort,
-  calendarDay,
-  DAYS,
-  type Day,
   ORG_CODE,
   ORG_CODE_LENGTH,
   ORG_LEVEL,
@@ -79,6 +75,8 @@ import {
   type ResourceRoleSort,
 } from "./resource-grids";
 import { ListBody, ReferenceSection } from "./section";
+import { DurationUnitFigures } from "./setting-tables";
+import { DurationUnitSettings } from "./settings-forms";
 
 type DurationUnits = components["schemas"]["DurationUnits"];
 
@@ -417,7 +415,7 @@ export function ResourceRoleList({
           }
           pages={
             <ListPages
-              list={{ page: offset, reads: ROLE_READS }}
+              list={{ page: offset, size: RESOURCE_ROLE_ADDRESS.limit, reads: ROLE_READS }}
               title={title}
               page={page}
               shown={rows.length}
@@ -454,19 +452,12 @@ export function RoleNames({
   return <KnownNames names={names}>{children}</KnownNames>;
 }
 
-/** The parameters of the address the calendars read, their filters among them. */
-const CALENDAR_READS = listReads(
-  CALENDAR_ADDRESS,
-  CALENDAR_STATE,
-  ...boundReads(...DAYS.map(calendarDay)),
-);
-
-/** The bounds of the hours of each day of the calendars, as the address asks them. */
-export type DayBounds = Readonly<Record<Day, Bounds>>;
+/** The parameters of the address the calendars read, their filter among them. */
+const CALENDAR_READS = listReads(CALENDAR_ADDRESS, CALENDAR_STATE);
 
 /**
  * The calendars of a page of the list, each by its seven values of hours from Monday, the default
- * one marked, filtered by state and bounded on the hours of each day.
+ * one marked, searched and filtered by state; the hours of a day are no filter (WF-IHM-0130-A).
  */
 export function CalendarList({
   rows,
@@ -476,21 +467,14 @@ export function CalendarList({
   readsInactive,
   editable,
   state,
-  hours,
-  refused,
 }: ListProps<Calendar, CalendarSort> & {
   readonly page: ListPage;
   /** The state the address filters the calendars on; none, every state. */
   readonly state: boolean | undefined;
-  /** The bounds of the hours of each day the address asks. */
-  readonly hours: DayBounds;
-  /** The bounds the API refused, the list then unread; none when it was read. */
-  readonly refused?: RefusedBounds | undefined;
 }) {
   const t = useTranslations("reference");
-  const columns = useTranslations("grid.columns");
   const title = t("calendars.title");
-  const narrowed = some(query.search, state) || DAYS.some((day) => bounded(hours[day]));
+  const narrowed = some(query.search, state);
   return (
     <CommandedList kind="calendar">
       <ReferenceSection
@@ -499,10 +483,7 @@ export function CalendarList({
         commands={editable ? <CreateCommand label={t("calendars.create")} /> : undefined}
       >
         <ListBody
-          empty={
-            page.total === 0 && !narrowed && refused === undefined ? t("calendars.none") : undefined
-          }
-          refused={refused !== undefined}
+          empty={page.total === 0 && !narrowed ? t("calendars.none") : undefined}
           reads={CALENDAR_READS}
           dialog={
             <CalendarDialog
@@ -510,27 +491,14 @@ export function CalendarList({
             />
           }
           filters={
-            <>
-              {readsInactive ? (
-                <StateFilter
-                  name={CALENDAR_STATE}
-                  label={t("stateFilter.of", { list: title })}
-                  chosen={state}
-                  page={CALENDAR_ADDRESS.offset}
-                />
-              ) : null}
-              <RangeFilter
-                label={t("boundsOf", { list: title })}
-                kind="decimal"
-                columns={DAYS.map((day) => ({
-                  column: calendarDay(day),
-                  label: columns(day),
-                  bounds: hours[day],
-                  refused: refusedSides(refused, day),
-                }))}
+            readsInactive ? (
+              <StateFilter
+                name={CALENDAR_STATE}
+                label={t("stateFilter.of", { list: title })}
+                chosen={state}
                 page={CALENDAR_ADDRESS.offset}
               />
-            </>
+            ) : null
           }
           grid={
             <ResourceGrid
@@ -544,7 +512,11 @@ export function CalendarList({
           }
           pages={
             <ListPages
-              list={{ page: CALENDAR_ADDRESS.offset, reads: CALENDAR_READS }}
+              list={{
+                page: CALENDAR_ADDRESS.offset,
+                size: CALENDAR_ADDRESS.limit,
+                reads: CALENDAR_READS,
+              }}
               title={title}
               page={page}
               shown={rows.length}
@@ -556,25 +528,23 @@ export function CalendarList({
   );
 }
 
-/** The three constants the days, the weeks and the months of work convert into hours by. */
-export function DurationUnitFacts({ units }: { readonly units: DurationUnits }) {
+/**
+ * The three constants the days, the weeks and the months of work convert into hours by, under the
+ * same permission as the calendars (WF-PLA-0160); for a session that may modify the settings of the
+ * resources, with the command that modifies them and its form.
+ */
+export function DurationUnitFacts({
+  units,
+  editable,
+}: {
+  readonly units: DurationUnits;
+  /** Whether the session may modify the settings of the resources (`platformOffer`). */
+  readonly editable: boolean;
+}) {
   const t = useTranslations("reference.durationUnits");
-  const locale = useLocale();
-  const facts = [
-    ["hoursPerDay", units.hours_per_day],
-    ["hoursPerWeek", units.hours_per_week],
-    ["daysPerMonth", units.days_per_month],
-  ] as const;
   return (
     <ReferenceSection title={t("title")} icon={Timer}>
-      <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
-        {facts.map(([key, value]) => (
-          <div key={key} className="contents">
-            <dt className="text-muted-foreground">{t(key)}</dt>
-            <dd className="text-right tabular-nums">{formatDecimal(value, locale)}</dd>
-          </div>
-        ))}
-      </dl>
+      {editable ? <DurationUnitSettings units={units} /> : <DurationUnitFigures units={units} />}
     </ReferenceSection>
   );
 }

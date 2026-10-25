@@ -1,11 +1,11 @@
 {
-  "summary": "Le rattachement de la récapitulative « Poste de commande » au lot « Armoires », refusé : elle porte déjà le poste « Fourniture et montage des armoires », que le corps ne met pas à null — une tâche porte un poste ou un lot, jamais les deux (WF-PLA-0170).",
+  "summary": "Le rattachement de la récapitulative « Poste de commande » au poste « Poste 1.1 », refusé : elle porte déjà le lot « Lot 1 », que le corps ne met pas à null — celui d'une grille lue avant que la récapitulative porte son lot, qui ne savait rien à retirer ; une tâche porte un lot ou un poste, jamais les deux (WF-PLA-0170).",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,
     "fields": [
       {
-        "pointer": "/work_package_id",
+        "pointer": "/order_item_id",
         "code": "WORK_BREAKDOWN_ITEMS_EXCLUSIVE"
       }
     ],

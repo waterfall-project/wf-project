@@ -19,8 +19,8 @@
  */
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 import {
   applyPaste,
@@ -30,6 +30,7 @@ import {
   updateTaskFacet,
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
+import { formatPercent } from "@/i18n/format";
 
 import { DenseGrid } from "./dense-grid";
 import {
@@ -51,9 +52,13 @@ import {
   nodesWritten,
   pasteSpan,
   type StructurePath,
+  withDifference,
 } from "./nodes";
 import type { GridQuery } from "./query";
+import type { RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
+import { useStructureGestures } from "./structure-gestures";
+import { useStructureVersion } from "./structure-version";
 
 /** What the grid of the estimate shows. */
 export interface EstimateGridProps {
@@ -75,18 +80,29 @@ export interface EstimateGridProps {
   /** The categories and roles a line is entered from: the server names those it bears. */
   readonly reference: EstimateReference;
   /**
-   * Whether the estimate may be entered: the revision is open and lists `edit_estimate` available
-   * to the caller (`availableEdits`). Otherwise the grid is read only, and offers no entry the
+   * Whether the estimate may be entered: the main structure read lists `edit_estimate` available
+   * to the caller (`GridScreen.commands`). Otherwise the grid is read only, and offers no entry the
    * API would refuse.
    */
   readonly editable: boolean;
   /**
    * Whether the label of a task may be entered too: it is the planning's (`updateTaskFacet`), which
-   * the revision lists as `edit_planning`.
+   * the main structure read lists as `edit_planning`.
    */
   readonly tasksEditable: boolean;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
+  /**
+   * Whether the structure read is a differential, whose nodes bear the difference the server marks:
+   * the grid then has its column of marks (US-0500).
+   */
+  readonly differential?: boolean | undefined;
+  /**
+   * What the amount corrected of inflation is corrected by, which the header of its column names:
+   * the year of reference of the revision and the rate of inflation of the project, as the server
+   * rates them; none, and the column bears no definition.
+   */
+  readonly inflation?: { readonly referenceYear: number; readonly rate: string } | undefined;
 }
 
 /**
@@ -200,27 +216,61 @@ export function EstimateGrid({
   tasksEditable,
   query,
   preferences,
+  differential,
+  inflation,
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
+  const locale = useLocale();
 
   const columns = useTranslations("enums.NodeColumn");
   // The version of the structure moves with each write answered: the highest one told — writes
   // of different rows leave together, and an answer may come back after a later one —, or the
   // one read with the page when a new reading is more recent.
-  const [moved, setMoved] = useState(structureVersion);
-  const version = Math.max(structureVersion, moved);
+  const account = useStructureVersion(structure.structure_id, structureVersion);
+  const { version, reach } = account;
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
-  const config = useMemo(() => {
+  // The sub-project of a line is chosen from the menu of its cell, among those of the project, where
+  // the estimate may be entered and the project lists its sub-projects.
+  const { subprojects } = reference;
+  // A reading that asks nothing but its fields and its sort is the whole structure.
+  const whole = Object.keys(filters).length === 0;
+  const choices = useMemo<RowChoices<EstimateNode> | undefined>(
+    () =>
+      !editable || subprojects === undefined
+        ? undefined
+        : {
+            subproject: {
+              subprojects: subprojects.map(({ id, label, code }) => ({ id, label, code })),
+              current: (node) => node.estimate_line?.subproject_id ?? null,
+            },
+            written: (written) => nodesWritten(written, ESTIMATE_FIELDS, whole),
+          },
+    [editable, subprojects, whole],
+  );
+  // The tasks and the lines are created and deleted where the estimate may be entered; the tasks where
+  // the planning may too. The version the structure moves on to is the next paste's.
+  const gestures = useStructureGestures<EstimateNode>(
+    editable
+      ? {
+          structure,
+          tasks: tasksEditable,
+          lines: true,
+          categories: reference.categories,
+          rows: nodes.items,
+          version,
+        }
+      : undefined,
+    account,
+    choices,
+  );
+  const read = useMemo(() => {
     const told: Moved = {
-      to: (next) => {
-        setMoved((before) => Math.max(before, next));
-      },
-      // A reading that asks nothing but its fields and its sort is the whole structure.
-      whole: Object.keys(filters).length === 0,
+      to: reach,
+      whole,
     };
     const name = (column: NodeColumn) => columns(column);
     return estimateGrid(
@@ -228,8 +278,24 @@ export function EstimateGrid({
       editable
         ? structureWrites(structure, version, told, tasksEditable, name, filters)
         : undefined,
+      inflation === undefined
+        ? undefined
+        : { year: String(inflation.referenceYear), rate: formatPercent(inflation.rate, locale) },
     );
-  }, [reference, editable, tasksEditable, structure, version, filters, columns]);
+  }, [
+    reference,
+    editable,
+    tasksEditable,
+    structure,
+    version,
+    reach,
+    filters,
+    whole,
+    columns,
+    inflation,
+    locale,
+  ]);
+  const config = useMemo(() => withDifference(read, differential), [read, differential]);
   return (
     <DenseGrid
       config={config}
@@ -244,6 +310,7 @@ export function EstimateGrid({
       foldScope={structure.revision_id}
       narrowing={nodeNarrowing(filters)}
       undoable={editable}
+      commands={gestures}
     />
   );
 }

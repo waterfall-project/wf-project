@@ -53,10 +53,12 @@ import {
 import { setContributors } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { UnmetConditions } from "@/components/commands/command";
+import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { WritingNote } from "@/components/reference/reference-form";
 import { ActiveState } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
@@ -91,6 +93,8 @@ const AT_CONTRIBUTOR = /^\/contributors\/(\d+)(?:\/|$)/;
 /** What the list of the contributors is written from, for the project it is of. */
 export interface ContributorEditing {
   readonly project: string;
+  /** The label of the project, the object the history of the messages notes a list written about. */
+  readonly label: string;
   /** The command `manage_contributors` the project lists: absent, nothing is offered. */
   readonly offer: CommandOffer | undefined;
   /** The counter of the reading the grid shows: null when it is filtered. */
@@ -113,7 +117,7 @@ interface Opened {
 interface Commands {
   readonly editing: ContributorEditing;
   readonly answered: ContributorReading | undefined;
-  readonly said: { readonly text: string; readonly count: number } | undefined;
+  readonly said: Said | undefined;
   /** A refusal answered once the dialog is gone, told under the head of the list. */
   readonly refusal: Outcome<unknown> | undefined;
   readonly opened: Opened | undefined;
@@ -122,7 +126,7 @@ interface Commands {
   readonly answer: (list: ContributorReading) => void;
   /** Told that a write of the list leaves, then that it is answered. */
   readonly write: (writing: boolean) => void;
-  readonly say: (text: string) => void;
+  readonly say: Say;
   readonly refuse: (refusal: Outcome<unknown> | undefined) => void;
   readonly open: (opened: Omit<Opened, "opening">) => void;
   /** Close the dialog; given an opening, only if it is still the one open. */
@@ -174,7 +178,7 @@ export function ContributorCommands({
   readonly children: ReactNode;
 }) {
   const [answered, setAnswered] = useState<ContributorReading>();
-  const [said, setSaid] = useState<Commands["said"]>();
+  const [said, say] = useSaid();
   const [refusal, refuse] = useState<Outcome<unknown>>();
   const [opened, setOpened] = useState<Opened>();
   // How many times the dialog was opened: what tells an opening from the next.
@@ -193,9 +197,7 @@ export function ContributorCommands({
         answer: (list) => {
           setAnswered((before) => (before === undefined ? list : newer(before, list)));
         },
-        say: (text) => {
-          setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-        },
+        say,
         refuse,
         open: (next) => {
           openings.current += 1;
@@ -207,7 +209,7 @@ export function ContributorCommands({
           );
         },
       },
-    [editing, answered, said, refusal, opened, writing],
+    [editing, answered, said, say, refusal, opened, writing],
   );
   return <ContributorContext value={commands}>{children}</ContributorContext>;
 }
@@ -226,6 +228,8 @@ function ModifyContributors({
   readonly from: ContributorReading | undefined;
 }) {
   const t = useTranslations("projectLists.contributors");
+  const helps = useTranslations("commands");
+  const unmetText = useUnmet();
   const id = useId();
   const { offer } = commands.editing;
   // What the dialog starts from: the rows and the counter of the reading, whole.
@@ -239,24 +243,30 @@ function ModifyContributors({
   const why = `${id}-writing`;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-disabled={offer.is_available && !writing ? undefined : true}
-        aria-busy={writing}
-        aria-describedby={writing ? why : unmet}
-        className={UNAVAILABLE}
-        onClick={(event: MouseEvent<HTMLElement>) => {
-          if (offer.is_available && !writing && reading !== undefined) {
-            commands.refuse(undefined);
-            commands.open({ ...reading, trigger: event.currentTarget });
-          }
-        }}
+      <CommandTooltip
+        label={t("modify")}
+        help={helps("project.manage_contributors.help")}
+        unavailable={unmet === undefined ? undefined : unmetText(offer)}
+        describedBy={writing ? why : unmet}
       >
-        <Users aria-hidden="true" />
-        {t("modify")}
-      </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-disabled={offer.is_available && !writing ? undefined : true}
+          aria-busy={writing}
+          className={UNAVAILABLE}
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            if (offer.is_available && !writing && reading !== undefined) {
+              commands.refuse(undefined);
+              commands.open({ ...reading, trigger: event.currentTarget });
+            }
+          }}
+        >
+          <Users aria-hidden="true" />
+          {t("modify")}
+        </Button>
+      </CommandTooltip>
       <UnmetConditions id={unmet} offer={offer} />
       <WritingNote id={why} writing={writing} />
     </>
@@ -328,6 +338,7 @@ function ContributorEditor({
   readonly suggestions: readonly Suggestion[];
 }) {
   const t = useTranslations("projectLists.contributors");
+  const helps = useTranslations("commands");
   const form = useTranslations("reference.form");
   const kinds = useTranslations("enums.ContributorKind");
   const locale = useLocale();
@@ -338,6 +349,7 @@ function ContributorEditor({
   const [pending, startTransition] = useTransition();
   const first = useRef<HTMLSelectElement>(null);
   const table = useRef<HTMLTableElement>(null);
+  const noteRefusal = useNoteRefusal();
   const open = useRef(true);
   const id = useId();
   // The first row a refusal by field points at takes the focus, as a field of a form does.
@@ -354,7 +366,7 @@ function ContributorEditor({
   const take = (answer: Outcome<ContributorReading>, sent: readonly Contributor[]) => {
     if (answer.kind === "done") {
       commands.answer(answer.data);
-      commands.say(t("saved"));
+      commands.say(t("saved"), { object: commands.editing.label });
       // Closed if it is still the opening the answer was sent from, never a later one.
       open.current = false;
       commands.close(opened.opening);
@@ -374,8 +386,14 @@ function ContributorEditor({
       // What is said at a row is not said again under the form; the rest of the refusal is.
       if (placed.size === 0 || !("problem" in answer)) {
         setOutcome(answer);
-      } else if (rest.length > 0) {
-        setOutcome({ ...answer, problem: { ...answer.problem, fields: rest } });
+      } else {
+        const told =
+          rest.length > 0 ? { ...answer, problem: { ...answer.problem, fields: rest } } : undefined;
+        // Said at its rows: noted whole, the notice of the rest noting nothing more.
+        noteRefusal(answer, { parts: [told] });
+        if (told !== undefined) {
+          setOutcome(told);
+        }
       }
     }
   };
@@ -472,17 +490,22 @@ function ContributorEditor({
                     </NativeSelect>
                   </td>
                   <td className="py-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label={t("withdraw", { name: row.display_name })}
-                      onClick={() => {
-                        setDraft(draft.filter((each) => each !== row));
-                      }}
+                    <CommandTooltip
+                      label={t("withdraw", { name: row.display_name })}
+                      help={helps("contributorWithdraw.help")}
                     >
-                      <UserMinus aria-hidden="true" />
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={t("withdraw", { name: row.display_name })}
+                        onClick={() => {
+                          setDraft(draft.filter((each) => each !== row));
+                        }}
+                      >
+                        <UserMinus aria-hidden="true" />
+                      </Button>
+                    </CommandTooltip>
                   </td>
                 </tr>
               );
@@ -507,27 +530,32 @@ function ContributorEditor({
                       })}
                     </span>
                   </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Inscribed as the server tells the account (EP-14/L42i): active, a
-                      // deactivated one being no longer proposed (WF-ADM-0060).
-                      setDraft([
-                        ...draft,
-                        {
-                          user_id: one.user_id,
-                          display_name: one.display_name,
-                          kind: "contributor",
-                          is_active: one.is_active,
-                        },
-                      ]);
-                    }}
+                  <CommandTooltip
+                    label={t("inscribe", { name: one.display_name })}
+                    help={helps("contributorInscribe.help")}
                   >
-                    <UserPlus aria-hidden="true" />
-                    {t("inscribe", { name: one.display_name })}
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Inscribed as the server tells the account (EP-14/L42i): active, a
+                        // deactivated one being no longer proposed (WF-ADM-0060).
+                        setDraft([
+                          ...draft,
+                          {
+                            user_id: one.user_id,
+                            display_name: one.display_name,
+                            kind: "contributor",
+                            is_active: one.is_active,
+                          },
+                        ]);
+                      }}
+                    >
+                      <UserPlus aria-hidden="true" />
+                      {t("inscribe", { name: one.display_name })}
+                    </Button>
+                  </CommandTooltip>
                 </li>
               ))}
             </ul>

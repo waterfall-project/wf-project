@@ -17,10 +17,10 @@ import type { BreakdownKind, BreakdownRow, WorkBreakdown } from "./settings-grid
 /** The work breakdown as `setWorkBreakdown` writes it. */
 export type BreakdownWrite = components["schemas"]["WorkBreakdown"];
 
-/** An order item as `setWorkBreakdown` writes it. */
-type OrderItem = components["schemas"]["OrderItem"];
+/** A work package as `setWorkBreakdown` writes it. */
+type WorkPackage = components["schemas"]["WorkPackage"];
 
-/** A gesture on the work breakdown: add under a row — or an order item —, rename, delete. */
+/** A gesture on the work breakdown: add under a row — or a work package —, rename, delete. */
 export type Gesture =
   | { readonly kind: "add"; readonly parent: BreakdownRow | undefined }
   | { readonly kind: "rename"; readonly row: BreakdownRow }
@@ -38,12 +38,12 @@ interface Slot {
 }
 
 /** The work breakdown of a reading as `setWorkBreakdown` writes it: each element, without its mark. */
-function written(reading: WorkBreakdown): OrderItem[] {
-  return reading.order_items.map(({ order_item_id, label, work_packages }) => ({
-    order_item_id,
+function written(reading: WorkBreakdown): WorkPackage[] {
+  return reading.work_packages.map(({ work_package_id, label, order_items }) => ({
+    work_package_id,
     label,
-    work_packages: work_packages.map(({ work_package_id, label, deliverables }) => ({
-      work_package_id,
+    order_items: order_items.map(({ order_item_id, label, deliverables }) => ({
+      order_item_id,
       label,
       deliverables: deliverables.map(({ deliverable_id, label }) => ({ deliverable_id, label })),
     })),
@@ -51,37 +51,37 @@ function written(reading: WorkBreakdown): OrderItem[] {
 }
 
 /** Each element of what is sent, in the order entered, with its pointer. */
-function slots(items: OrderItem[]): Slot[] {
-  return items.flatMap((item, i): Slot[] => {
-    const at = `/order_items/${String(i)}`;
+function slots(packs: WorkPackage[]): Slot[] {
+  return packs.flatMap((pack, i): Slot[] => {
+    const at = `/work_packages/${String(i)}`;
     return [
       {
-        id: item.order_item_id,
-        kind: "order_item",
+        id: pack.work_package_id,
+        kind: "work_package",
         pointer: at,
-        element: item,
+        element: pack,
         add: (label) =>
-          `${at}/work_packages/${String(item.work_packages.push({ label, deliverables: [] }) - 1)}`,
-        remove: () => items.splice(i, 1),
+          `${at}/order_items/${String(pack.order_items.push({ label, deliverables: [] }) - 1)}`,
+        remove: () => packs.splice(i, 1),
       },
-      ...item.work_packages.flatMap((pack, j): Slot[] => {
-        const under = `${at}/work_packages/${String(j)}`;
+      ...pack.order_items.flatMap((item, j): Slot[] => {
+        const under = `${at}/order_items/${String(j)}`;
         return [
           {
-            id: pack.work_package_id,
-            kind: "work_package",
+            id: item.order_item_id,
+            kind: "order_item",
             pointer: under,
-            element: pack,
+            element: item,
             add: (label) =>
-              `${under}/deliverables/${String(pack.deliverables.push({ label }) - 1)}`,
-            remove: () => item.work_packages.splice(j, 1),
+              `${under}/deliverables/${String(item.deliverables.push({ label }) - 1)}`,
+            remove: () => pack.order_items.splice(j, 1),
           },
-          ...pack.deliverables.map((deliverable, k): Slot => ({
+          ...item.deliverables.map((deliverable, k): Slot => ({
             id: deliverable.deliverable_id,
             kind: "deliverable",
             pointer: `${under}/deliverables/${String(k)}`,
             element: deliverable,
-            remove: () => pack.deliverables.splice(k, 1),
+            remove: () => item.deliverables.splice(k, 1),
           })),
         ];
       }),
@@ -100,13 +100,13 @@ export function edited(
   gesture: Gesture,
   label: string,
 ): { readonly sent: BreakdownWrite; readonly at: string | undefined } {
-  const items = written(from);
-  const find = (row: BreakdownRow) => slots(items).find((slot) => slot.id === row.id);
+  const packs = written(from);
+  const find = (row: BreakdownRow) => slots(packs).find((slot) => slot.id === row.id);
   let at: string | undefined;
   if (gesture.kind === "add") {
     at =
       gesture.parent === undefined
-        ? `/order_items/${String(items.push({ label, work_packages: [] }) - 1)}`
+        ? `/work_packages/${String(packs.push({ label, order_items: [] }) - 1)}`
         : find(gesture.parent)?.add?.(label);
   } else if (gesture.kind === "rename") {
     const slot = find(gesture.row);
@@ -117,19 +117,21 @@ export function edited(
   } else {
     find(gesture.row)?.remove();
   }
-  return { sent: { order_items: items, lock_version: counter }, at };
+  return { sent: { work_packages: packs, lock_version: counter }, at };
 }
 
 /**
  * The element of what was sent a refusal by field points at — the deepest one whose pointer starts
- * it: `/order_items/0/work_packages/1/label` is the second work package of the first order item —,
+ * it: `/work_packages/0/order_items/1/label` is the second order item of the first work package —,
  * by its kind, its label and its pointer; none for a field of no element (`/lock_version`).
  */
 export function elementAt(
   sent: BreakdownWrite,
   pointer: string,
 ): { readonly kind: BreakdownKind; readonly label: string; readonly pointer: string } | undefined {
-  const holding = slots(sent.order_items).filter((slot) => pointer.startsWith(`${slot.pointer}/`));
+  const holding = slots(sent.work_packages).filter((slot) =>
+    pointer.startsWith(`${slot.pointer}/`),
+  );
   const deepest = holding.at(-1);
   return deepest === undefined
     ? undefined

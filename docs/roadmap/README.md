@@ -21,7 +21,7 @@ c'est le fichier qu'on relira dans cinq ans.
 **Les EPIC couvrent tout l'horizon ; les US ne sont détaillées qu'un EPIC à l'avance.**
 Détailler aujourd'hui les US de la dernière tranche coûterait le prix de les réécrire :
 ce que le premier incrément apprend change le découpage du suivant. Ce qui est fixé pour
-tout l'horizon, ce sont les 211 exigences — pas leur découpage en travaux.
+tout l'horizon, ce sont les 212 exigences — pas leur découpage en travaux.
 
 ## Organisation
 
@@ -123,8 +123,9 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | livré | EP-01, EP-02 |
 | [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | livré | EP-02 |
 | [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | en cours | EP-14 |
-| [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | à planifier | EP-15 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
+| [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | en cours | EP-15 |
+| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | à planifier | EP-16 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-16 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
@@ -152,8 +153,19 @@ attendre : il avance en parallèle d'EP-03, sans toucher à son domaine. EP-15 s
 validation, par l'auteur, de la spécification 1.0, de la maquette et du contrat, faite après la
 fusion d'EP-03 puis d'EP-14 (décision de l'auteur du 2026-10-11) : il réalise les ajustements
 qu'elle a décidés, de sorte que chaque opération d'écriture du contrat ait un geste dans la
-maquette. EP-16 le suit et durcit — mineurs, accessibilité des dialogues, navigateurs, reliquats de
-tests — ce qu'EP-14 puis EP-15 ont reporté (décision de l'auteur du 2026-10-18).
+maquette. EP-16 le suit (décision de l'auteur du 2026-10-18). Depuis son cadrage, il **fige le
+contrat** (décision de l'auteur du 2026-10-22) : il garde tout ce qui touche le contrat ou peut le
+toucher, avec ce que la reprise de la spécification du 2026-10-22 ajoute au modèle (#1304). Il
+garde aussi, par exception, des parcours de bout en bout joués contre le front construit, faute
+desquels la file de fusion n'est pas stable. Le reste passe à EP-17, qui finit la maquette hors
+contrat : l'accessibilité des dialogues, les mineurs des écrans, le cosmétique. Les navigateurs
+passent à EP-13. Les EPIC de domaine, à partir d'EP-05, servent un contrat qu'EP-16 a figé, et EP-17
+peut avancer en parallèle d'eux. Le 2026-10-25, EP-16 est recadré d'un bloc (#1445) : il reprend
+d'EP-15 les aides en ligne des écrans que les cinq écrans clés ne couvrent pas, pour que leur
+relecture ne tienne pas `epic/EP-15` ouverte, et la règle qui prime est que n'y reste que ce qui
+concerne le durcissement ou le contrat — tout le reste, dont les ajustements de la validation du
+2026-10-23 qui ne touchent pas le contrat, part à EP-17 ; la stabilité restante des parcours de bout
+en bout, elle, est du durcissement et revient à EP-16 (US-0590b).
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.

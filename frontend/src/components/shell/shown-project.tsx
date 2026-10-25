@@ -22,6 +22,7 @@
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -29,6 +30,7 @@ import {
 } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { readContext } from "@/navigation/context";
 
 /** What the shell shows of a project: its identifier, its label, its code and its state. */
 export type ShownProject = Pick<
@@ -102,6 +104,21 @@ export function useShownProject(projectId: string | undefined): ShownProject | u
   const store = useContext(ShownContext);
   const shown = useSyncExternalStore(store.subscribe, store.read, noneShown);
   return projectId !== undefined && shown?.project_id === projectId ? shown : undefined;
+}
+
+/**
+ * What reads, when asked, the label of the project the address shows — none when the screen has not
+ * handed it on, or shows another —, without subscribing to it: the history of the messages notes the
+ * project of the screen a notice was told on, and nothing renders again when it changes.
+ */
+export function useShownProjectLabel(): () => string | undefined {
+  const { read } = useContext(ShownContext);
+  return useCallback(() => {
+    const { pathname, search } = window.location;
+    const shown = read();
+    const context = readContext(pathname, new URLSearchParams(search));
+    return shown !== undefined && context?.projectId === shown.project_id ? shown.label : undefined;
+  }, [read]);
 }
 
 /**

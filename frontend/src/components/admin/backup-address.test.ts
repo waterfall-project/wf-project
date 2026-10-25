@@ -31,7 +31,9 @@ describe("what the list of the backups reads of its address", () => {
       size: { min: "1000000000", max: "1313656012" },
     });
     expect(narrows(filters)).toBe(true);
-    expect(backupsQuery(filters, { sort: NEWEST_FIRST, search: undefined }, 50)).toEqual({
+    expect(
+      backupsQuery(filters, { sort: NEWEST_FIRST, search: undefined, size: undefined }, 50),
+    ).toEqual({
       sort_by: "taken_at",
       sort_order: "desc",
       offset: 50,
@@ -50,7 +52,9 @@ describe("what the list of the backups reads of its address", () => {
       new URLSearchParams("from=yesterday&origins=cloud&is_retained=yes&size_bytes_max=1.5"),
     );
     expect(narrows(filters)).toBe(false);
-    expect(backupsQuery(filters, { sort: undefined, search: undefined }, undefined)).toEqual({});
+    expect(
+      backupsQuery(filters, { sort: undefined, search: undefined, size: undefined }, undefined),
+    ).toEqual({});
   });
 
   it("holds every parameter the list asks of the server, but its page: a filter under way reads another list", () => {
@@ -60,7 +64,7 @@ describe("what the list of the backups reads of its address", () => {
           "from=2026-05-31T22:00:00Z&to=2026-06-30T22:00:00Z&origins=manual&verifications=passed&is_retained=false&size_bytes_min=1&size_bytes_max=2",
         ),
       ),
-      { sort: NEWEST_FIRST, search: undefined },
+      { sort: NEWEST_FIRST, search: undefined, size: undefined },
       50,
     );
     const asked = Object.keys(query).filter((name) => name !== BACKUPS_LIST.page);

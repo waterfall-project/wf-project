@@ -14,15 +14,23 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from fastapi.testclient import TestClient
+from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, insert, select, update
-from support import ContractClient, bearer, wait_for_a_lock
+from support import ContractClient, bearer, nowhere, wait_for_a_lock
 
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.core.users.interface import image_type
 from waterfall.core.users.personal import merged
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database, utc_now
+from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.installation import THE_ROW, Installation
+from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.settings import ServiceSettings
 
 ME = "/api/v1/me"
 PREFERENCES = "/api/v1/me/preferences"
@@ -35,6 +43,10 @@ JPEG = b"\xff\xd8\xff\xe0" + b"\x01" * 24
 # The settings of the table of the accounts, as its grid keeps them (WF-IHM-0060).
 USERS_GRID = {"hidden_columns": ["origin"], "column_widths": {"email": 240}, "sort": None}
 ROLES_GRID = {"column_widths": {"label": 180}, "filters": {"is_predefined": "true"}}
+# The layout of a timeline: the lane of each task placed, by its node (EP-15/US-0530).
+STEERING = {"lanes": {"n1": 0, "n2": 1}}
+# The state of a chart its screen folds: here unfolded (EP-15/US-0550).
+UNFOLDED = {"folded": False}
 
 
 def person(database: Database, realm: TestRealm, *roles: UUID, **columns: object) -> Any:
@@ -170,6 +182,64 @@ def test_the_preferences_merge_what_a_change_carries_into_what_they_were() -> No
     assert merged(current, {"grids": {"users": None}}) == {"language": "fr", "grids": {}}
     assert merged({}, {"grids": {"roles": ROLES_GRID}}) == {"grids": {"roles": ROLES_GRID}}
     assert merged(current, {}) == current
+    # So in ``timelines``, by timeline: a layout sent replaces it whole, a null forgets it.
+    laid = {"grids": {"users": USERS_GRID}, "timelines": {"t1": STEERING, "t2": STEERING}}
+    assert merged(laid, {"timelines": {"t1": None, "t3": {"lanes": {}}}}) == {
+        "grids": {"users": USERS_GRID},
+        "timelines": {"t2": STEERING, "t3": {"lanes": {}}},
+    }
+
+
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_lines_per_page_of_a_table_are_found_again_without_changing_those_of_another(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # « Le nombre de lignes par page choisi pour une table est retrouvé à sa réouverture, sans
+    # changer celui des autres tables » : one of 10, 25, 50 and 100, by grid (C-351, #1045).
+    roles = {**ROLES_GRID, "page_size": 100}
+    _, headers = person(database, realm, display_preferences={"grids": {"roles": roles}})
+    users = {**USERS_GRID, "page_size": 25}
+    response = api.patch(PREFERENCES, headers=headers, json={"grids": {"users": users}})
+    assert response.status_code == 200, response.text
+    assert api.get(ME, headers=headers).json()["display_preferences"]["grids"] == {
+        "roles": roles,
+        "users": users,
+    }
+
+
+@pytest.mark.requirement("WF-ADM-0040-A")
+def test_the_layout_of_a_timeline_is_kept_by_timeline_and_forgotten_when_sent_null(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # The lane of each task placed, a preference of display of the person alone (EP-15/US-0530).
+    user_id, headers = person(database, realm, display_preferences={"timelines": {"t1": STEERING}})
+    customer = {"lanes": {"n3": 0}}
+    response = api.patch(PREFERENCES, headers=headers, json={"timelines": {"t2": customer}})
+    assert response.status_code == 200, response.text
+    assert response.json() == {"timelines": {"t1": STEERING, "t2": customer}}
+    forgotten = api.patch(PREFERENCES, headers=headers, json={"timelines": {"t1": None}})
+    assert forgotten.json() == {"timelines": {"t2": customer}}
+    assert preferences_of(database, user_id) == forgotten.json()
+
+
+@pytest.mark.requirement("WF-ADM-0040-A")
+def test_the_state_of_a_chart_is_kept_by_chart_and_forgotten_when_sent_null(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # The risk matrix of a project unfolded is found unfolded again, on every project, until the
+    # person folds it or forgets it: it then starts as its screen has it (EP-15/US-0550, #1252).
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    response = api.patch(PREFERENCES, headers=headers, json={"charts": {"risk_matrix": UNFOLDED}})
+    assert response.status_code == 200, response.text
+    assert response.json() == {"theme": "dark", "charts": {"risk_matrix": UNFOLDED}}
+    assert api.get(ME, headers=headers).json()["display_preferences"]["charts"] == {
+        "risk_matrix": UNFOLDED
+    }
+    folded = api.patch(PREFERENCES, headers=headers, json={"charts": {"other": {"folded": True}}})
+    assert folded.json()["charts"] == {"risk_matrix": UNFOLDED, "other": {"folded": True}}
+    forgotten = api.patch(PREFERENCES, headers=headers, json={"charts": {"risk_matrix": None}})
+    assert forgotten.json() == {"theme": "dark", "charts": {"other": {"folded": True}}}
+    assert preferences_of(database, user_id) == forgotten.json()
 
 
 @pytest.mark.parametrize(
@@ -180,6 +250,13 @@ def test_the_preferences_merge_what_a_change_carries_into_what_they_were() -> No
         ({"grids": None}, "/grids"),
         ({"grids": {"users": {"hidden_columns": None}}}, "/grids/users/hidden_columns"),
         ({"grids": {"a/b": {"filters": None}}}, "/grids/a~1b/filters"),
+        ({"grids": {"users": {"page_size": None}}}, "/grids/users/page_size"),
+        ({"timelines": None}, "/timelines"),
+        ({"timelines": {"t1": {"lanes": None}}}, "/timelines/t1/lanes"),
+        ({"timelines": {"t1": {}}}, "/timelines/t1/lanes"),
+        ({"charts": None}, "/charts"),
+        ({"charts": {"risk_matrix": {"folded": None}}}, "/charts/risk_matrix/folded"),
+        ({"charts": {"risk_matrix": {}}}, "/charts/risk_matrix/folded"),
         (
             {"grids": {"users": {"column_widths": {"email": 19}}}},
             "/grids/users/column_widths/email",
@@ -228,6 +305,15 @@ BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
         {"grids": {"users": {"filters": {"is_predefined": True}}}},
         ("/grids/users/filters/is_predefined", "VALIDATION_FAILED"),
     ),
+    ({"timelines": {f"t{rank}": None for rank in range(101)}}, ("/timelines", "VALUE_TOO_LONG")),
+    (
+        {"timelines": {"t1": {"lanes": {f"n{rank}": 0 for rank in range(65)}}}},
+        ("/timelines/t1/lanes", "VALUE_TOO_LONG"),
+    ),
+    ({"timelines": {LONG: None}}, ("/timelines", "VALUE_TOO_LONG")),
+    ({"timelines": {"t1": {"lanes": {LONG: 0}}}}, ("/timelines/t1/lanes", "VALUE_TOO_LONG")),
+    ({"charts": {f"c{rank}": None for rank in range(101)}}, ("/charts", "VALUE_TOO_LONG")),
+    ({"charts": {LONG: None}}, ("/charts", "VALUE_TOO_LONG")),
 ]
 
 
@@ -245,6 +331,45 @@ def test_preferences_that_pass_a_bound_are_refused_and_nothing_is_written(
     assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
     assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [fault]
     assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+@pytest.mark.parametrize("table", ["timelines", "grids", "charts"])
+def test_a_table_the_changes_would_take_past_a_hundred_entries_is_refused_and_kept(
+    api: ContractClient, database: Database, realm: TestRealm, table: str
+) -> None:
+    # #1235: a hundred entries a change, and a hundred once it applies. Sixty, then forty-one
+    # more: the second change would hold a hundred and one, and is refused on the table, nothing
+    # written; forty, the hundred, are written.
+    def entries(first: int, count: int) -> dict[str, Any]:
+        entry = {"timelines": STEERING, "charts": UNFOLDED}.get(table, USERS_GRID)
+        return {f"e{rank}": entry for rank in range(first, first + count)}
+
+    user_id, headers = person(database, realm)
+    sixty = api.patch(PREFERENCES, headers=headers, json={table: entries(0, 60)})
+    assert sixty.status_code == 200, sixty.text
+    response = api.patch(PREFERENCES, headers=headers, json={table: entries(60, 41)})
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [
+        (f"/{table}", "VALUE_TOO_LONG")
+    ]
+    assert preferences_of(database, user_id) == {table: entries(0, 60)}
+    hundred = api.patch(PREFERENCES, headers=headers, json={table: entries(60, 40)})
+    assert hundred.status_code == 200, hundred.text
+    assert len(preferences_of(database, user_id)[table]) == 100
+
+
+def test_a_change_that_does_not_grow_a_table_is_not_refused_for_its_size() -> None:
+    # A table already past the bound — held before it was counted once merged — may still lose
+    # entries or have them replaced; it may not grow. Each table is counted alone.
+    held = {"timelines": {f"t{rank}": STEERING for rank in range(120)}}
+    forgotten = merged(held, {"timelines": {"t0": None, "t1": {"lanes": {}}}})
+    assert len(forgotten["timelines"]) == 119
+    assert len(merged(held, {"timelines": {"t2": {"lanes": {}}}})["timelines"]) == 120
+    with pytest.raises(UnprocessableError) as refused:
+        merged(held, {"timelines": {"t120": STEERING}, "grids": {"users": USERS_GRID}})
+    assert [(fault.pointer, fault.code) for fault in refused.value.fields] == [
+        ("/timelines", "VALUE_TOO_LONG")
+    ]
 
 
 @pytest.mark.parametrize(
@@ -285,6 +410,78 @@ def test_preferences_at_their_bounds_are_written(
     response = api.patch(PREFERENCES, headers=headers, json=sent)
     assert response.status_code == 200, response.text
     assert preferences_of(database, user_id) == sent
+    timelines: dict[str, Any] = {
+        name: {"lanes": {f"{rank:064d}": rank for rank in range(64)}},
+        **{f"t{rank}": {"lanes": {}} for rank in range(99)},
+    }
+    response = api.patch(PREFERENCES, headers=headers, json={"timelines": timelines})
+    assert response.status_code == 200, response.text
+    assert preferences_of(database, user_id) == {**sent, "timelines": timelines}
+
+
+# A value the contract does not admit, refused by its true cause: a lane under the first, by
+# ``VALUE_OUT_OF_RANGE``, the bound named; a number of lines per page not of the four, by the same
+# code without parameter; a value of another kind — a boolean for a number, an integer for a
+# theme, a string or a decimal not of the four for a number of lines (#1236) —, by
+# ``VALIDATION_FAILED``.
+NOT_ADMITTED: list[tuple[dict[str, Any], dict[str, Any]]] = [
+    (
+        {"timelines": {"t1": {"lanes": {"n1": -1}}}},
+        {
+            "pointer": "/timelines/t1/lanes/n1",
+            "code": "VALUE_OUT_OF_RANGE",
+            "params": {"minimum": 0},
+        },
+    ),
+    (
+        {"grids": {"users": {"page_size": 30}}},
+        {"pointer": "/grids/users/page_size", "code": "VALUE_OUT_OF_RANGE"},
+    ),
+    (
+        {"grids": {"users": {"page_size": 0}}},
+        {"pointer": "/grids/users/page_size", "code": "VALUE_OUT_OF_RANGE"},
+    ),
+    (
+        {"grids": {"users": {"page_size": True}}},
+        {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
+    ),
+    (
+        {"grids": {"users": {"page_size": "30"}}},
+        {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
+    ),
+    (
+        {"grids": {"users": {"page_size": 30.0}}},
+        {"pointer": "/grids/users/page_size", "code": "VALIDATION_FAILED"},
+    ),
+    ({"theme": 3}, {"pointer": "/theme", "code": "VALIDATION_FAILED"}),
+]
+
+
+@pytest.mark.parametrize(("sent", "fault"), NOT_ADMITTED)
+def test_a_value_not_admitted_is_refused_by_its_true_cause_and_nothing_is_written(
+    api: ContractClient,
+    database: Database,
+    realm: TestRealm,
+    sent: dict[str, Any],
+    fault: dict[str, Any],
+) -> None:
+    # 10, 25, 50 or 100 lines per page (C-351, #1045); a lane is a rank from 0 (EP-15/US-0530).
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    assert refusal(response) == (422, "VALIDATION_FAILED", [fault])
+    assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+def test_a_number_of_lines_per_page_sent_as_a_string_is_written_as_the_integer(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # ``"25"`` reads as 25, one of the four, as any integer of a body reads from its text.
+    user_id, headers = person(database, realm)
+    sent = {"grids": {"users": {"page_size": "25"}}}
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    assert response.status_code == 200, response.text
+    assert response.json() == {"grids": {"users": {"page_size": 25}}}
+    assert preferences_of(database, user_id) == {"grids": {"users": {"page_size": 25}}}
 
 
 # A key that holds ``/`` or ``~``, and where its fault is pointed at.
@@ -350,6 +547,48 @@ def test_the_language_of_an_account_of_a_directory_is_not_asked_of_the_provider(
     response = api.patch(PREFERENCES, headers=headers, json={"language": "en"})
     assert response.status_code == 200, response.text
     assert preferences_of(database, user_id) == {"language": "en"}
+
+
+class Told(KeycloakAdmin):
+    """An administration client that notes the languages it is given, as a provider that took them.
+
+    The realm of test answers nothing of the administration API: the language a change carries
+    reaches no provider, and what the API does once it has been told is tried here.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings) -> None:
+        """No language is given yet."""
+        super().__init__(keycloak, settings)
+        self.given: list[tuple[str, str | None]] = []
+
+    def set_locale(self, subject: str, locale: str | None) -> None:
+        """Note the language given to an account, as the provider would hold it."""
+        self.given.append((subject, locale))
+
+
+def test_a_language_told_to_the_provider_stays_there_when_the_size_is_refused_after(
+    contract: OpenAPI,
+    database: Database,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+    realm: TestRealm,
+) -> None:
+    # The size of a table once merged is judged under the lock of the account, after the provider
+    # was told the language (#1235): nothing is written in Waterfall, but the provider has it.
+    told = Told(keycloak, realm_settings)
+    app = create_app(Services(database, keycloak, told, *nowhere()))
+    api = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+    held = {"language": "fr", "timelines": {f"t{rank}": STEERING for rank in range(100)}}
+    user_id, headers = person(database, realm, display_preferences=held)
+    response = api.patch(
+        PREFERENCES, headers=headers, json={"language": "en", "timelines": {"t100": STEERING}}
+    )
+    assert refusal(response)[:2] == (422, "VALIDATION_FAILED")
+    assert [(field["pointer"], field["code"]) for field in refusal(response)[2]] == [
+        ("/timelines", "VALUE_TOO_LONG")
+    ]
+    assert [locale for _, locale in told.given] == ["en"]
+    assert preferences_of(database, user_id) == held
 
 
 def test_two_changes_at_once_of_two_grids_each_keep_the_other(

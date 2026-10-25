@@ -4,12 +4,13 @@
  * The functions of the FBS the navigation offers, read from `functions.json`: for each
  * function of the second level, its code, the key of its label in the catalogues, its route,
  * whether it lives outside any project or in one, and the permission that lets a user read
- * it (WF-ADM-0100). The navigation is drawn from this table. A leaf of the FBS with a screen of its own — the workload of the
- * project, FBS-4.4.4 — is a leaf of its function in the table: of the same scope and permission,
- * reached from the screen of its function rather than from the navigation, and read in its
- * context as its function is. A leaf the screen of its function shows itself — the calendars on the
- * settings of the resources, FBS-3.2.3 — is a section of its function: addressed by its route, and
- * found on its screen by its role and its name, or by its text in the named list of its facts.
+ * it (WF-ADM-0100). The navigation is drawn from this table. A leaf of the FBS with a screen of
+ * its own — the workload of the project, FBS-4.4.4 — is a leaf of its function in the table: of
+ * the same scope and permission, shown by the navigation under its function and led to from the
+ * screen of its function, and read in its context as its function is. A leaf the screen of its
+ * function shows itself — the calendars on the settings of the resources, FBS-3.2.3 — is a
+ * section of its function: addressed by its route, and found on its screen by its role and its
+ * name, or by its text in the named list of its facts.
  *
  * The table is data: functions.test.ts checks it against the catalogues, `make screens` against
  * the FBS of the specification and the pages of the application, and `e2e/screens.spec.ts` reaches
@@ -18,7 +19,7 @@
 import type { components } from "@/api/generated/schema";
 import type { Catalogue } from "@/i18n/catalogues";
 
-import { contextQuery, type ProjectContext } from "./context";
+import { contextQuery, type ProjectContext, readsStructure } from "./context";
 import table from "./functions.json";
 
 type PermissionCode = components["schemas"]["PermissionCode"];
@@ -123,7 +124,8 @@ const CONTEXT_SEGMENTS = { projectId: "[projectId]", revisionId: "[revisionId]" 
 
 /**
  * The groups and functions a user may read: a function whose read permission the session
- * lacks is not offered, and a group left without a function nor a page of its own neither.
+ * lacks is not offered, with its leaves, which share its permission, and a group left without a
+ * function nor a page of its own neither.
  */
 export function readableGroups(permissions: readonly PermissionCode[]): FunctionGroup[] {
   const granted = new Set<string>(permissions);
@@ -171,8 +173,8 @@ export function functionOf(permission: FunctionPermission): NavigationFunction {
 }
 
 /**
- * A leaf of the table, by its code of the FBS — `FBS-4.3.4` —: a function the navigation does not
- * offer, reached from the screen of its function.
+ * A leaf of the table, by its code of the FBS — `FBS-4.3.4` —: a function the navigation shows
+ * under its function, and the screen of its function leads to.
  */
 export function leafOf(code: string): NavigationFunction {
   return (
@@ -219,7 +221,8 @@ export function functionHref(
     return undefined;
   }
   return (
-    inProject.replace(CONTEXT_SEGMENTS.revisionId, () => revisionId) + contextQuery(context, false)
+    inProject.replace(CONTEXT_SEGMENTS.revisionId, () => revisionId) +
+    contextQuery(context, false, readsStructure(fn.route))
   );
 }
 

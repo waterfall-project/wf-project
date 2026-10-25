@@ -24,7 +24,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mocktext, mockwitness, mockwrites
+from wftools import mockcore, mocktext, mockwitnessrisks, mockwrites
 from wftools.mockcurves import Era, cost_curve, earned_value_curves, workload
 from wftools.mockids import universe
 from wftools.mockindicators import (
@@ -49,7 +49,6 @@ from wftools.mockstructure import described
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CORE,
-    COSTS,
     ELECTRICAL_ENGINEERING,
     GENERATED,
     LABOUR,
@@ -63,14 +62,17 @@ from wftools.mockwitness import (
     SUBPROJECT_TESTS,
     fixture,
 )
+from wftools.mockwitnesscosts import COSTS
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
 
-AMENDMENT_2 = Decimal("15000.00")
-AMENDMENT_2_ON = date(2026, 3, 10)
+OTHER_AMENDMENT = Decimal("15000.00")
+OTHER_AMENDMENT_ON = date(2026, 3, 10)
 """The counterfactual amendment of ``cost_curve_amendment``: the rework of the detailed studies,
-15,000 more on their line of subcontracting, as if contracted on 10 March 2026."""
+15,000 more on their line of subcontracting, as if contracted on 10 March 2026. Another amendment
+than the amendment 2 the current revision bears, not merged (``mockamendment``, #791): it is
+named by no number."""
 
 WORKSHOP = universe(472)
 """The node of organisation the filtered workload retains: the cabling workshop, under the
@@ -120,7 +122,7 @@ def alone() -> Witness:
     """
     return Witness(
         offer(CORE),
-        reference(mockwitness.reference(CORE)),
+        reference(mockwitnessrisks.reference(CORE)),
         today(CORE),
         actual_costs(COSTS),
     )
@@ -156,7 +158,7 @@ def values() -> dict[str, JsonValue]:
         mockwrites.amended(
             mockcore.REFERENCE,
             line=lambda line: (
-                replace(line, unit=cast("Decimal", line.unit) + AMENDMENT_2)
+                replace(line, unit=cast("Decimal", line.unit) + OTHER_AMENDMENT)
                 if line.number == STUDIES_LINE
                 else line
             ),
@@ -180,7 +182,9 @@ def values() -> dict[str, JsonValue]:
         "milestone_tracking": milestone_tracking(points[:-1], points[-1]),
         "cost_curve": cost_curve(now, found.eras, costs),
         "cost_curve_payment_delays": cost_curve(now, found.eras, costs, delays=True),
-        "cost_curve_amendment": cost_curve(now, [*found.eras, Era(AMENDMENT_2_ON, amended)], costs),
+        "cost_curve_amendment": cost_curve(
+            now, [*found.eras, Era(OTHER_AMENDMENT_ON, amended)], costs
+        ),
         "cost_curve_subproject": cost_curve(now, found.eras, costs, scope=SUBPROJECT_CONTROL),
         "cost_curve_subproject_empty": cost_curve(
             core.today, core.eras, core.costs, scope=SUBPROJECT_TESTS
@@ -254,7 +258,7 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
         _get(found, "estimate_indicators_missing_rates"),
     )
     offered = _get(found, "estimate_indicators_breakdown")
-    [item] = _objs(now["by_order_item"])
+    [lot] = _objs(now["by_work_package"])
     coverage = _obj(_get(found, "remaining_indicators")["coverage"])
     natures = ", ".join(
         f"{_of(part['amount'])} de {cast('str', part['label']).lower()}"
@@ -263,7 +267,7 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     touched = [
         *_labels(missing["by_cost_type"], computed=False),
         *_labels(missing["by_subproject"], computed=False),
-        *_labels(missing["by_order_item"], computed=False),
+        *_labels(missing["by_work_package"], computed=False),
     ]
     untouched = [
         *_labels(missing["by_cost_type"], computed=True),
@@ -282,8 +286,8 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
         "estimate_indicators": (
             f"Les indicateurs du devis de la révision courante au {_TODAY} : {_of(now['total'])} "
             f"au total, dont {natures} — la provision du risque encore identifié —, ventilés par "
-            f"nature, par sous-projet et par le poste « {item['label']} » du lotissement, que "
-            f"porte le lot « Poste de commande », {_of(item['amount'])}. L'écart avec la "
+            f"nature, par sous-projet et par le lot « {lot['label']} » du lotissement, que "
+            f"porte la récapitulative « Poste de commande », {_of(lot['amount'])}. L'écart avec la "
             f"référence, {_of(now['delta_to_reference'])}, est aussi celui avec la révision "
             f"marquée précédente, la référence elle-même : les "
             f"{_money(coverage['remaining_provisions'])} de provision et les "
@@ -297,10 +301,9 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"(WF-DAT-0040) : {_of(offered['total'])} au total, "
             f"aux taux de 2025, sans provision — aucun risque n'était identifié —, par nature en "
             f"montant et en part du total, dont la somme vaut cent pour cent ; tout dans "
-            f"l'ensemble hors sous-projet, aucun n'étant encore déclaré (WF-PRJ-0050) ; le poste "
-            f"du lotissement que "
-            f"porte le lot « Poste de commande ». Ni révision de référence ni révision marquée "
-            f"avant elle : aucun écart (WF-DEV-0060)."
+            f"l'ensemble hors sous-projet, aucun n'étant encore déclaré (WF-PRJ-0050) ; le lot "
+            f"du lotissement que porte la récapitulative « Poste de commande ». Ni révision de "
+            f"référence ni révision marquée avant elle : aucun écart (WF-DEV-0060)."
         ),
         "estimate_indicators_missing_rates": (
             f"Le devis de la révision courante au {_TODAY} {variant} : le total, les écarts et ce "
@@ -539,9 +542,10 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
             f"(WF-IND-0100)."
         ),
         "cost_curve_amendment": (
-            f"La même courbe si un avenant 2 — reprise des études de détail, "
+            f"La même courbe si un autre avenant que l'avenant 2 « reprise des essais », que la "
+            f"révision courante porte sans l'avoir fusionné — la reprise des études de détail, "
             f"{_money(second['amount'])} de plus sur leur ligne de sous-traitance — avait été "
-            f"contractualisé le {_day(AMENDMENT_2_ON)} : une seconde marche, le budget de "
+            f"contractualisé le {_day(OTHER_AMENDMENT_ON)} : une seconde marche, le budget de "
             f"référence portant deux points à cette date, avant et après — {_money(before)} puis "
             f"{_money(after)} —, puis cumulé sur la nouvelle référence, jusqu'à "
             f"{_money(_series(amended, 'reference_budget')[-1]['amount'])} ; les études étant "
@@ -635,6 +639,17 @@ def _loads(plan: JsonObject) -> str:
     return " ; ".join(said)
 
 
+def _totals(plan: JsonObject) -> str:
+    """Say the totals of the months of a workload: their span, the least and the greatest."""
+    totals = _objs(plan["monthly_totals"])
+    hours = [Decimal(cast("str", month["hours"])) for month in totals]
+    return (
+        f"le total de chaque mois, de {_month(totals[0]['month'])} à "
+        f"{_month(totals[-1]['month'])} sans trou, de {mocktext.amount(min(hours))} à "
+        f"{mocktext.amount(max(hours))} h, que le sommet de la barre porte (monthly_totals, #1247)"
+    )
+
+
 def _workload_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     now, filtered = _get(found, "workload"), _get(found, "workload_org_node")
     kept = {cast("str", role["resource_role_id"]) for role in _objs(filtered["roles"])}
@@ -652,11 +667,12 @@ def _workload_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"Le plan de charge du projet sur le reste à engager de la révision en cours, au "
             f"{_TODAY} : par rôle et par mois, les heures des lignes de main-d'œuvre des tâches "
             f"non terminées, chacune étalée sur les heures ouvrées de sa tâche après la date de "
-            f"calcul — aucun mois passé — : {_loads(now)} (WF-DEV-0070)."
+            f"calcul — aucun mois passé — : {_loads(now)} ; et {_totals(now)} (WF-DEV-0070)."
         ),
         "workload_reference_budget": (
             f"Le même plan de charge sur les montants budgétés de la révision de référence, chaque "
-            f"ligne étalée sur toute la durée de sa tâche : {reference} (WF-DEV-0070)."
+            f"ligne étalée sur toute la durée de sa tâche : {reference} ; et "
+            f"{_totals(_get(found, 'workload_reference_budget'))} (WF-DEV-0070)."
         ),
         "workload_marked_remaining": (
             f"Le même plan de charge sur les montants réestimés de la révision marquée "

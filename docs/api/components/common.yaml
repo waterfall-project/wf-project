@@ -54,6 +54,31 @@ WorkInstant:
     date: { $ref: '#/PlanningDate' }
     hours: { $ref: '#/Hours' }
 
+WorkInstantWrite:
+  type: object
+  required: [date]
+  description: >-
+    Début ou fin d'une tâche saisis (`TaskFacetUpdate`, WF-PLA-0020) : la date, et
+    facultativement les heures de travail écoulées ce jour-là (WF-DAT-0100). Le client ne
+    connaît pas le calendrier applicable (WF-PLA-0010) : sans `hours`, le serveur les
+    complète sur ce calendrier, le début au début de son jour (`0`), la fin au bout des
+    heures que le calendrier accorde ce jour-là — `8` un vendredi d'un calendrier de huit
+    heures. Une date sur un jour sans aucune heure travaillée au calendrier applicable est
+    refusée, et le refus nomme le jour travaillé suivant ; rien n'est écrit (WF-PLA-0020 ;
+    #1271) : 422 `VALIDATION_FAILED`, `fields` sur `/start/date` ou `/finish/date` par
+    `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour
+    travaillé suivant ; les heures envoyées avec elle ne sont pas jugées. Envoyées avec un jour
+    travaillé, les heures sont prises telles quelles, jamais bornées : hors de `0` aux heures
+    que le calendrier accorde ce jour-là, elles sont refusées par 422 `VALIDATION_FAILED`,
+    `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE`,
+    `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la seule borne franchie,
+    jamais nulle. La lecture rend toujours un `WorkInstant`, ses heures complétées ; une date
+    importée d'un fichier MS Project un jour chômé y est gardée, le début et la fin à `0`, et le
+    compte rendu la signale (`ImportReport.signals`).
+  properties:
+    date: { $ref: '#/PlanningDate' }
+    hours: { $ref: '#/Hours' }
+
 Language:
   type: string
   enum: [fr, en]
@@ -145,15 +170,20 @@ Problem:
         plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux
         revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un
         projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au
-        moins `0`, la position d'un nœud et le délai de paiement d'une ligne, au moins `0`, le
+        moins `0`, le délai de paiement d'une ligne, au moins `0`, le
         niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde
-        hebdomadaire, au moins `1`, ou la largeur d'une colonne des préférences de grille, au
-        moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop
-        grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
-        portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et
-        le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`,
-        le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier,
-        au plus `24`, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un
+        hebdomadaire, au moins `1`, les heures d'un instant de travail envoyé (`/start/hours`,
+        `/finish/hours` de `updateTaskFacet`), au moins `0`, ou la largeur d'une colonne des
+        préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur
+        trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du
+        portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le
+        taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le
+        délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au
+        plus `24`, les heures d'un instant de travail envoyé (`/start/hours`, `/finish/hours` de
+        `updateTaskFacet`), au plus les heures que le calendrier de la tâche accorde ce jour-là,
+        jamais `0` — un jour sans heure travaillée est refusé par sa date, `NON_WORKING_DAY`
+        (#1244, #1271) —, ou le jour d'une sauvegarde hebdomadaire, au plus
+        `7`), `component` (un
         `PlatformComponent`, WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
@@ -191,10 +221,10 @@ Problem:
         portent des lignes de devis de la révision en cours
         (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`,
         WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son
-        libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `order_item_task` et
-        `work_package_tasks` pour une fusion qui sortirait la tâche d'un lot du sous-arbre de la
-        tâche de son poste (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `mergeCostStructure`, WF-PLA-0170)
-        : la tâche du poste et celles des lots qui en sortiraient, nœuds de la structure
+        libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `work_package_task` et
+        `order_item_tasks` pour une fusion qui sortirait la tâche d'un poste du sous-arbre de la
+        tâche de son lot (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170)
+        : la tâche du lot et celles des postes qui en sortiraient, nœuds de la structure
         principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de
         `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ;
         EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif
@@ -202,20 +232,57 @@ Problem:
         (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la
         durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche
         en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que
-        le fichier ou le différentiel crée. Les paramètres d'un motif par champ sont dans
+        le fichier ou le différentiel crée — et, pour une saisie qui déplace une date
+        (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460), la
+        tâche que la saisie écrit : celle dont la durée, les dates ou les prédécesseurs se
+        saisissent, celle que la création ajouterait, nommée par le libellé envoyé et son nœud nul,
+        la tâche déplacée ou celle qui reçoit la ligne déplacée ; `cycle` pour des prédécesseurs
+        qui fermeraient une boucle de liaisons (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030) : les
+        tâches de la boucle, chacune par son nœud et son libellé (`node_id`, `label`), de celle
+        dont les prédécesseurs se saisissent au prédécesseur envoyé qui la suit déjà, chacune
+        précédant la suivante — « la raison en est nommée à l'utilisateur », la grille, filtrée,
+        pouvant ne pas les lire ; quand plusieurs prédécesseurs envoyés ferment une boucle, la
+        plus courte est rendue, puis, à longueur égale, la première dans l'ordre des liaisons, et
+        une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche ; et
+        pour un déplacement ou une mise en retrait qui fermerait une boucle à travers la
+        récapitulative qui recevrait le nœud (`moveNodes`, WF-PLA-0030, WF-PLA-0040 ; #1164,
+        #1167) — une récapitulative couvre ses subordonnées : ce qui la précède les
+        précède, ce qui la suit les suit —, les tâches de la chaîne de liaisons qui mène de cette
+        récapitulative, ou de l'un de ses ancêtres, à la tâche qu'elle recevrait ou à l'une de
+        ses subordonnées, ou de celles-ci à celle-là, chacune précédant la suivante : la plus
+        courte, puis, à longueur égale, celle qui part de l'ancêtre le plus proche, puis de la
+        tâche reçue et de ses subordonnées dans l'ordre du plan ; pour une sélection, jugée sur la
+        structure que le déplacement laisserait, tous ses nœuds déplacés, la boucle que ferme le
+        premier nœud en cause dans l'ordre du plan de la structure lue — non dans celui de
+        `node_ids`, qui ne règle que leur placement (`NodeMove` ; #1169). Une chaîne d'une seule
+        liaison est la liaison d'une récapitulative et de sa subordonnée : `LINK_FORBIDDEN`, sans
+        paramètre. Une chaîne, d'un déplacement comme de prédécesseurs, suit les liaisons et
+        traverse la hiérarchie, une récapitulative couvrant ses subordonnées : d'une tâche
+        atteinte à son début à l'une de ses subordonnées, que ce qui la précède précède, et d'une
+        tâche à sa récapitulative, que ce qui la suit suit ; elle nomme chaque tâche qu'elle
+        traverse, la récapitulative et la subordonnée — une boucle P → W, W récapitulative d'une
+        tâche Z qui précède M, M déplacée sous P, nomme P, W, Z et M (#1169). Entre deux chaînes
+        aussi courtes, celle qui est rendue prend, à chaque tâche, ses liaisons avant la
+        hiérarchie, et ses subordonnées avant sa récapitulative.
+        Les paramètres d'un motif par champ sont dans
         `fields[].params` : ainsi `conflicting_object_id` et
-        `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le poste ou
-        le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
-        WF-PLA-0170 ; EP-14/L42k) ; `order_item_task` et `work_package_tasks`, la tâche du poste
-        et celles de ses lots qui sortiraient de son sous-arbre, chacune par son nœud et son
-        libellé (`node_id`, `label`), comme l'échec d'une fusion (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+        `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou
+        le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
+        WF-PLA-0170 ; EP-14/L42k) ; `work_package_task` et `order_item_tasks`, la tâche du lot
+        et celles de ses postes qui sortiraient de son sous-arbre, chacune par son nœud et son
+        libellé (`node_id`, `label`), comme l'échec d'une fusion (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
         `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul
         pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres
         au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`,
         dans
         `fields[].params`, la tâche
         qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
-        WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
+        WF-RAE-0040) ; `subproject`, dans `fields[].params`, le sous-projet qu'une ligne d'une
+        tâche démarrée ou terminée ne peut pas quitter, parce qu'il a reçu des coûts réels, par
+        son identifiant et son libellé (`subproject_id`, `label` ; `SUBPROJECT_HAS_ACTUAL_COSTS`,
+        WF-PRJ-0050), et le même paramètre au motif d'une cellule de sous-projet collée
+        (`PasteRejection.params`) ou d'une ligne d'import rejetée (`ImportRejection.params`,
+        WF-INTF-0100, WF-INTF-0120) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
         déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`,
         dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ
         (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de
@@ -225,6 +292,15 @@ Problem:
         `backup_version` et `installed_version`, dans `params`, la version de l'application qui a
         pris la sauvegarde et celle de l'installation qui refuse de la restaurer
         (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ;
+        `risk`, dans `fields[].params`, le risque dont une ligne de provision déplacée dans
+        la grille relève, par son identifiant et son libellé (`risk_id`, `label` ;
+        `PROVISION_LINE_MOVED_BY_RISK`, `moveNodes`, WF-RIS-0010, #1227) : la ligne se déplace
+        par le formulaire du risque ;
+        `date` et `next_working_day`, dans `fields[].params`, la date d'une tâche manuelle
+        envoyée un jour sans aucune heure travaillée au calendrier de la tâche, et le jour
+        travaillé suivant, que la saisie peut prendre — « le refus nomme le jour travaillé
+        suivant » (`NON_WORKING_DAY`, `updateTaskFacet`, WF-PLA-0020 ; #1271) —, et les mêmes
+        paramètres au signalement d'une telle date importée (`ImportSignal.params`) ;
         `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux
         n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160).
     fields:
@@ -321,6 +397,12 @@ ErrorCode:
     - VALIDATION_FAILED
     - COMPUTED_VALUE
     - SUMMARY_TASK_DERIVED
+    # Des prédécesseurs qui fermeraient une boucle de liaisons, `params.cycle` nommant ses
+    # tâches, ou une liaison entre une récapitulative et l'une de ses subordonnées, sans
+    # paramètre (`setPredecessors`, WF-PLA-0030, WF-PLA-0040 ; EP-15/US-0460) ; de même un
+    # déplacement ou une mise en retrait qui ferait d'une tâche la récapitulative d'une tâche
+    # qui lui est liée, ou fermerait une boucle à travers elle (`moveNodes` ; #1164). Une
+    # création ne porte aucune liaison : `createNode` ne rend ni l'un ni l'autre (#1167).
     - LINK_CYCLE
     - LINK_FORBIDDEN
     - RESOURCE_ROLE_REQUIRED
@@ -370,6 +452,14 @@ ErrorCode:
     # Un nœud d'organisation déplacé sous lui-même ou sous l'un de ses descendants : l'arbre
     # aurait une boucle (`/parent_id`, `updateOrgNode`, WF-REF-0070).
     - ORG_NODE_CYCLE
+    # Le nœud après lequel une création ou un déplacement se place, qui n'est pas un frère sous le
+    # parent visé : un nœud d'un autre parent, l'un des nœuds déplacés, ou un nœud que la
+    # structure n'a pas (`/after_node_id`, `createNode`, `moveNodes` ; #1183).
+    - NODE_NOT_SIBLING
+    # Une entrée `milestone_tracking` envoyée pour une tâche qui n'est pas un jalon : le suivi
+    # temps/temps est celui des jalons (`/entries/<n>/kind`, `setNodeTracking`, WF-PLA-0060 ;
+    # #1159).
+    - MILESTONE_REQUIRED
     # Un dépôt désigné pour un autre usage que le sien : un import ouvert sur une sauvegarde
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).
@@ -389,6 +479,10 @@ ErrorCode:
     # provision d'un risque (`/provision_cost_category_id`, `createRisk`, `updateRisk`,
     # `reviewRisk`, WF-RIS-0010).
     - PROVISION_CATEGORY_REQUIRED
+    # Une ligne de provision déplacée dans la grille : elle se déplace par le formulaire de son
+    # risque, qui désigne sa tâche (`/node_ids/<n>`, `moveNodes`, `fields[].params.risk`,
+    # WF-RIS-0010 ; #1227).
+    - PROVISION_LINE_MOVED_BY_RISK
     # Une réestimation qui termine la tâche sans la date de terminaison que la validation
     # demande (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
     - COMPLETION_DATE_REQUIRED
@@ -413,14 +507,18 @@ ErrorCode:
     # Un seuil d'indice qui n'est pas strictement compris entre 0 et 1 (`IndexThreshold`,
     # WF-REF-0170) ; le pointeur désigne le seuil, sans paramètre.
     - THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE
-    # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
+    # Une constante de conversion des unités de durée nulle (`DurationUnitsWrite`,
+    # `setDurationUnits`, WF-PLA-0160) : elle est strictement positive ; le pointeur désigne la
+    # constante, sans paramètre.
+    - DURATION_UNIT_NOT_POSITIVE
+    # Motifs par champ du rattachement d'une tâche à un lot ou à un poste du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0170) ; le premier aussi d'un identifiant que la saisie du
-    # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; le dernier aussi d'un
-    # déplacement (`moveNodes`) qui sortirait la tâche d'un lot du sous-arbre de celle de son
-    # poste, le motif qui rejette entier un fichier d'import (`ImportReport.refusals`,
+    # lotissement envoie et qu'il n'a pas (`setWorkBreakdown`) ; `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`
+    # aussi d'un déplacement (`moveNodes`) qui sortirait la tâche d'un poste du sous-arbre de
+    # celle de son lot, le motif qui rejette entier un fichier d'import (`ImportReport.refusals`,
     # EP-14/L42s), et le code d'une fusion qui échoue pour ce motif (`mergeCostStructure`) — une
     # saisie du
-    # lotissement qui range un lot sous un autre poste retire le rattachement, sans refus
+    # lotissement qui range un poste sous un autre lot retire le rattachement, sans refus
     # (`setWorkBreakdown`, EP-14/L42k). `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` refuse un
     # rattachement posé sur une tâche d'un différentiel ou du devis propre d'un risque, qui n'en
     # portent pas (EP-14/L42k). `DUPLICATE_WORK_BREAKDOWN_ITEM` refuse, dans une saisie du
@@ -429,20 +527,35 @@ ErrorCode:
     - UNKNOWN_WORK_BREAKDOWN_ITEM
     - WORK_BREAKDOWN_ITEMS_EXCLUSIVE
     - WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED
-    - WORK_PACKAGE_OUTSIDE_ORDER_ITEM
+    - ORDER_ITEM_OUTSIDE_WORK_PACKAGE
     - WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY
     - DUPLICATE_WORK_BREAKDOWN_ITEM
     # Un planning qui porterait la durée du projet, de la date de début de sa première tâche à la
     # date de fin de sa dernière, au-delà de quinze ans ; le motif qui rejette entier un fichier
     # d'import, `params.task` nommant la tâche en cause (`ImportReport.refusals`, WF-PLA-0150 ;
-    # EP-14/L42s).
+    # EP-14/L42s), et le refus, par 422, d'une saisie qui déplace une date (`updateTaskFacet`,
+    # `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460).
     - PROJECT_HORIZON_EXCEEDED
     # Un champ que le nœud n'accepte pas, ni saisi ni calculé pour lui (`editable_fields`) : le
     # délai de paiement d'une ligne de provision, qui n'en porte pas (WF-DEV-0020), un champ
     # d'une autre nature de ligne (`EstimateLineWrite`, `EstimateLineUpdate`), la durée d'un
     # jalon (`TaskFacetUpdate`), et le motif d'une cellule collée sur une telle colonne
-    # (`PastePreview` ; EP-14/L42s).
+    # (`PastePreview` ; EP-14/L42s), sauf le sous-projet d'une ligne qui ne peut pas le quitter,
+    # refusé par `SUBPROJECT_HAS_ACTUAL_COSTS`.
     - FIELD_NOT_ACCEPTED
+    # Une date d'une tâche manuelle sur un jour sans aucune heure travaillée au calendrier
+    # applicable de la tâche (WF-PLA-0020, WF-PLA-0010 ; #1271, #1289) : refusée à la saisie
+    # (`/start/date` ou `/finish/date`, `updateTaskFacet`), rien n'est écrit ; gardée à l'import
+    # d'un fichier MS Project, et signalée au compte rendu (`ImportReport.signals`).
+    # `params.date` nomme la date, `params.next_working_day` le jour travaillé suivant.
+    - NON_WORKING_DAY
+    # Une ligne dont la tâche est démarrée ou terminée, passée hors d'un sous-projet qui a reçu
+    # des coûts réels (`/subproject_id`, `updateEstimateLine`, WF-PRJ-0050) ;
+    # `fields[].params.subproject` nomme ce sous-projet. Aussi le motif d'une cellule de
+    # sous-projet collée sur une telle ligne (`PasteRejection`) et d'une ligne d'un devis ou
+    # d'un reste à engager importée dans un autre sous-projet (`ImportRejection`, WF-INTF-0100,
+    # WF-INTF-0120 ; C-359, #1152), `params.subproject` nommant le sous-projet.
+    - SUBPROJECT_HAS_ACTUAL_COSTS
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
     - COMPONENT_UNAVAILABLE

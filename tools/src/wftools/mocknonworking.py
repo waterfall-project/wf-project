@@ -1,0 +1,243 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""A date of a manual task on a day without hours of work: refused entered, kept imported.
+
+« Une date saisie sur un jour sans aucune heure travaillée au calendrier applicable est refusée,
+et le refus nomme le jour travaillé suivant ; rien n'est écrit. L'import d'un fichier MS Project
+garde une telle date telle quelle, et le compte rendu la signale » (WF-PLA-0020; the decision of
+the author of 2026-10-22, #1271, #1289, which replaces the day kept at no hour of #1244). Both
+say one motive, `NON_WORKING_DAY`, with the same parameters — the date, and the next working day
+on the calendar of the task —, so that the front says the entry refused and the line of the
+report by one sentence. The day is judged on the applicable calendar of the commissioning, as
+``mockdating`` dates it, never written by hand: the entry on the Saturday before its start, and
+the same date in a planning exported today and imported back, the commissioning made manual in
+it, which the report keeps and signals.
+"""
+
+from __future__ import annotations
+
+from datetime import date
+from typing import TYPE_CHECKING, Any, cast
+
+from wftools import mockcore, mockdating, mocktext
+from wftools.mockids import hex_identifier, universe
+from wftools.mockstructure import described
+from wftools.mockwitness import N, fixture
+
+if TYPE_CHECKING:
+    from wftools.mockcalendar import Calendar
+    from wftools.mockstructure import JsonObject, JsonValue
+
+CODE = "NON_WORKING_DAY"
+
+SATURDAY = date(2026, 12, 19)
+"""The start entered on the commissioning, manual, and imported: the Saturday before the Monday
+it starts on today."""
+
+REFUSED_CORRELATION = universe(1542)
+
+_WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+
+
+def said(value: date) -> str:
+    """Write a day with its name, as the front says the refusal: le samedi 19 décembre 2026."""
+    return f"le {_WEEKDAYS[value.weekday()]} {mocktext.day(value)}"
+
+
+def calendar() -> Calendar:
+    """Return the applicable calendar of the commissioning, that of the role of its labour."""
+    return mockdating.schedule(described())[N.COMMISSIONING].calendar
+
+
+def judged(day: date) -> JsonObject | None:
+    """Return the parameters of the motive a date carries, or None on a day of work.
+
+    A day the calendar of the task grants no hour of work names the next one that grants some:
+    the day the entry may take (WF-PLA-0020, WF-PLA-0010).
+    """
+    on = calendar()
+    if on.hours_on(day) > 0:
+        return None
+    return {"date": day.isoformat(), "next_working_day": on.next_working_day(day).isoformat()}
+
+
+def _judged(day: date) -> JsonObject:
+    params = judged(day)
+    if params is None:
+        message = f"{day} is a day of work on the calendar of the commissioning"
+        raise ValueError(message)
+    return params
+
+
+def task_date_non_working_day() -> JsonObject:
+    """Return what updateTaskFacet answers to the start of the commissioning sent on SATURDAY.
+
+    Refused on its field, the next working day named; nothing is written, and the hours, none
+    sent, are not judged (#1271).
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": "/start/date", "code": CODE, "params": _judged(SATURDAY)}],
+        "correlation_id": REFUSED_CORRELATION,
+    }
+
+
+# --- The same date imported from MS Project ----------------------------------------------------
+
+IMPORTED_IMPORT, IMPORTED_TASK = hex_identifier(0xA18), universe(950)
+
+SUBMITTED, ANALYSED, EXPIRES = (
+    "2026-06-03T11:02:05Z",
+    "2026-06-03T11:03:00Z",
+    "2026-06-04T11:03:00Z",
+)
+"""When the import was opened today, analysed, and until when it applies (WF-ARC-0100)."""
+
+
+def imported_dates() -> tuple[date, date]:
+    """Return the dates of the commissioning in the file: SATURDAY, and the finish it has today."""
+    finish = mockdating.schedule(described())[N.COMMISSIONING].finish.day
+    return SATURDAY, finish
+
+
+def calendars_ignored() -> JsonObject:
+    """Return the calendars the file carries, ignored: those the export wrote of each task.
+
+    The export writes its applicable calendar as the calendar of each task (WF-INTF-0050); the
+    import never reads one (WF-INTF-0040). They are named in the order the reference reads them.
+    """
+    used = {dated.calendar.calendar_id for dated in mockdating.schedule(described()).values()}
+    labels = [
+        entry["label"]
+        for entry in cast("list[dict[str, str]]", fixture("calendars")["items"])
+        if entry["calendar_id"] in used
+    ]
+    if len(labels) != len(used):
+        message = "a task of the witness is dated on a calendar the reference does not list"
+        raise ValueError(message)
+    return {"kind": "calendars", "count": len(labels), "labels": cast("list[JsonValue]", labels)}
+
+
+def signals(lineage: str, label: str, dates: tuple[date, date]) -> list[JsonValue]:
+    """Return the signals of the start and finish of a task in the file, one per column.
+
+    A column whose day has no hour of work is signalled by the motive and the parameters of the
+    refusal of the entry. The signal follows the cell, not the day, as the refusal follows the
+    field: a milestone whose start and finish fall on the same such day is signalled twice, like
+    a task whose two dates do (#1271).
+    """
+    found: list[JsonValue] = []
+    for column, day in zip(("start", "finish"), dates, strict=True):
+        params = judged(day)
+        if params is not None:
+            found.append(
+                {
+                    "lineage_id": lineage,
+                    "label": label,
+                    "column": column,
+                    "code": CODE,
+                    "params": params,
+                }
+            )
+    return found
+
+
+def import_report() -> JsonObject:
+    """Return the report of the planning exported today, the commissioning made manual in it.
+
+    A round trip on the identifiers the export wrote (WF-INTF-0060): nothing differs but the
+    commissioning, its mode and its start, which the file puts on SATURDAY. The date is kept as
+    the file carries it, and the report signals it, the next working day named (WF-PLA-0020).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    node = cast("dict[str, Any]", rows[N.COMMISSIONING].node)["task"]
+    first, last = imported_dates()
+    fields: list[JsonValue] = []
+    if node["scheduling_mode"] != "manual":
+        fields.append("scheduling_mode")
+    fields += [
+        column
+        for column, day in (("start", first), ("finish", last))
+        if node[column]["date"] != day.isoformat()
+    ]
+    lineage, label = mockcore.lineage(N.COMMISSIONING), rows[N.COMMISSIONING].label
+    return {
+        "format_version": None,
+        "read_count": len(mockdating.tasks_in_order(described())),
+        "rejected": [],
+        "refusals": [],
+        "differences": [
+            {
+                "change": "updated",
+                "target": "task",
+                "lineage_id": lineage,
+                "label": label,
+                "predecessor_label": None,
+                "fields": fields,
+            }
+        ],
+        "ignored": [calendars_ignored()],
+        "completed_tasks": [],
+        "date_mismatches": [],
+        "signals": signals(lineage, label, (first, last)),
+        "requires_confirmation_reasons": [],
+    }
+
+
+def import_planning_non_working_day() -> JsonObject:
+    """Return what getImport answers of that planning, analysed today."""
+    return {
+        "import_id": IMPORTED_IMPORT,
+        "kind": "ms_project_schedule",
+        "filename": "planning-poste-de-commande.xml",
+        "status": "analysed",
+        "created_at": SUBMITTED,
+        "expires_at": EXPIRES,
+        "report": import_report(),
+        "task": {
+            "task_id": IMPORTED_TASK,
+            "kind": "import_analysis",
+            "status": "succeeded",
+            "progress": 100,
+            "submitted_at": SUBMITTED,
+            "finished_at": ANALYSED,
+            "problem": None,
+            "result_url": None,
+        },
+    }
+
+
+# --- The examples ------------------------------------------------------------------------------
+
+
+def examples() -> dict[str, JsonObject]:
+    """Return the refusal of the date entered and the import that keeps it, by file name."""
+    refused = task_date_non_working_day()
+    [field] = cast("list[dict[str, dict[str, str]]]", refused["fields"])
+    following = date.fromisoformat(field["params"]["next_working_day"])
+    commissioning = {row.number: row.label for row in mockcore.current()}[N.COMMISSIONING]
+    imported = import_planning_non_working_day()
+    report = cast("dict[str, list[dict[str, Any]]]", imported["report"])
+    [ignored] = report["ignored"]
+    return {
+        "task_date_non_working_day.json": mocktext.example(
+            f"Le début de la « {commissioning} », en mode manuel (task_mode_changed), envoyé "
+            f"{said(SATURDAY)}, un jour sans heure travaillée au calendrier de la tâche : la date "
+            f"est refusée sur son champ, et le refus nomme le jour travaillé suivant, "
+            f"{said(following)} ; rien n'est écrit (WF-PLA-0020, WF-PLA-0010, #1271).",
+            refused,
+        ),
+        "import_planning_non_working_day.json": mocktext.example(
+            f"L'import d'un planning MS Project lu aujourd'hui à {mocktext.hour(SUBMITTED)} et "
+            f"analysé à {mocktext.hour(ANALYSED)}, une variante qu'imports ne reprend pas : le "
+            f"planning de la structure principale du projet témoin exporté aujourd'hui, la « "
+            f"{commissioning} » passée en mode "
+            f"manuel et commencée {said(SATURDAY)}, un jour sans heure travaillée à son "
+            f"calendrier. Un aller-retour sur les identifiants que l'export a écrits : seule la "
+            f"tâche diffère ; sa date est gardée telle que le fichier la porte, et le compte rendu "
+            f"la signale, nommant {said(following)} ; les {ignored['count']} calendriers du "
+            f"fichier sont ignorés et dits (WF-PLA-0020, WF-INTF-0040, WF-INTF-0080, #1271).",
+            imported,
+        ),
+    }

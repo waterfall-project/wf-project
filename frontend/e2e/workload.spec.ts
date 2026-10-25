@@ -3,7 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -13,19 +13,26 @@ const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
 
 test.use({ colorScheme: "light" });
 
-test("leads from the estimate to the workload, drawn in bars, the capacity in its table, which a node of organisation filters at the server's", async ({
+test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's", async ({
   page,
 }) => {
   await compile(page.request, SCREEN);
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
-  await page.getByRole("link", { name: "Plan de charge" }).click();
-  await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16`);
-  // The five seconds of an assertion, which the screen overran once under load: measures in #500.
-  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible();
+  await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
+  // Within the bound of a screen of grid (`WORKING`), as the paths of the screens follow a link:
+  // the click leaves the estimate, whose thousand tasks the browser takes down before it shows the
+  // workload — over five seconds under load on the runners of the chain, the server answering in a
+  // fraction of a second (#500).
+  await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16&basis=reference_budget`, {
+    timeout: WORKING,
+  });
+  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible({
+    timeout: WORKING,
+  });
   const region = page.getByRole("region", { name: "Plan de charge du projet" });
   const figure = region.getByRole("figure", { name: "Charge par rôle et par mois" });
   await expect(
-    figure.getByRole("img", { name: /^Barres de la charge/ }).locator("svg"),
+    figure.getByRole("img", { name: /^Barres empilées de la charge/ }).locator("svg"),
   ).toBeVisible();
   // The capacity of each role in the table of the values, in regard of its load; no ratio of the
   // load to it in the plan of a project (#375, option b) [WF-DEV-0070-A].
@@ -42,7 +49,7 @@ test("leads from the estimate to the workload, drawn in bars, the capacity in it
   // The choice is an address, the context kept: the server asks the API, the front filters nothing.
   await expect(page).toHaveURL(
     new RegExp(
-      `^[^?]*${SCREEN}\\?as_of=2026-03-16&basis=current_remaining&.*org_node_id=${ORG_NODE}$`,
+      `^[^?]*${SCREEN}\\?as_of=2026-03-16&basis=reference_budget&.*org_node_id=${ORG_NODE}$`,
     ),
   );
 });

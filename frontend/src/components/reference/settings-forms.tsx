@@ -28,15 +28,17 @@ import { Pencil } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { type ComponentType, type ReactNode, useId, useRef, useState } from "react";
 
-import { updateReferenceSettings } from "@/api/actions/reference";
+import { setDurationUnits, updateReferenceSettings } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
 import { UNAVAILABLE } from "@/components/commands/offer";
+import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
 import { type Draft, type FormField, ReferenceForm, WritingNote } from "./reference-form";
 import {
+  DurationUnitFigures,
   IndexThresholdTable,
   LEVELS,
   ReviewDelay,
@@ -46,6 +48,7 @@ import {
 } from "./setting-tables";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
+type DurationUnits = components["schemas"]["DurationUnits"];
 type AlertZone = components["schemas"]["AlertZone"];
 type FieldProblem = components["schemas"]["FieldProblem"];
 
@@ -128,11 +131,16 @@ function brokenThresholds(values: Draft): ReadonlyMap<string, FieldProblem> {
   return new Map(alerts);
 }
 
+/** Settings written by version: what the answer of the server is judged newer by. */
+interface Versioned {
+  readonly lock_version: number;
+}
+
 /** What a form of the settings is opened with, and what it hands back. */
-interface SettingsFormProps {
+interface SettingsFormProps<Settings extends Versioned = ReferenceSettings> {
   /** The settings the form opened on, whose version it writes from. */
-  readonly settings: ReferenceSettings;
-  readonly onDone: (answer: ReferenceSettings) => void;
+  readonly settings: Settings;
+  readonly onDone: (answer: Settings) => void;
   readonly onWriting: (writing: boolean) => void;
   readonly onClose: () => void;
   readonly onClosed: () => void;
@@ -281,10 +289,52 @@ function IndicatorForm({ settings, ...handlers }: SettingsFormProps) {
   );
 }
 
-/** What the last write did, and the how-many-th it was. */
-interface Said {
-  readonly text: string;
-  readonly count: number;
+/** The three constants of the units of duration, by the name of each in the contract. */
+const UNITS = [
+  ["hoursPerDay", "hours_per_day"],
+  ["hoursPerWeek", "hours_per_week"],
+  ["daysPerMonth", "days_per_month"],
+] as const;
+
+/**
+ * The form of the three constants of the units of duration, entered as decimals in the language of
+ * the reader; the server refuses a constant that is not strictly positive (422), at its field. Under
+ * the fields, what the change does to the schedules (WF-PLA-0160, WF-REF-0130).
+ */
+function DurationUnitsForm({ settings, ...handlers }: SettingsFormProps<DurationUnits>) {
+  const t = useTranslations("reference");
+  const locale = useLocale();
+  const fields = UNITS.map(([word, name]): FormField => ({
+    name,
+    label: t(`durationUnits.${word}`),
+    control: "number",
+    required: true,
+  }));
+  const initial: Draft = Object.fromEntries(
+    UNITS.map(([, name]) => [name, editableDecimal(settings[name], locale)]),
+  );
+  const ask = (values: Draft) =>
+    setDurationUnits({
+      hours_per_day: values.hours_per_day ?? "",
+      hours_per_week: values.hours_per_week ?? "",
+      days_per_month: values.days_per_month ?? "",
+      lock_version: settings.lock_version,
+    });
+  return (
+    <ReferenceForm<DurationUnits>
+      kind="settings"
+      title={t("durationUnitsForm.modify")}
+      hint={t("durationUnitsForm.hint")}
+      creating={false}
+      fields={fields}
+      initial={initial}
+      ask={ask}
+      after={() => <p className="text-sm text-muted-foreground">{t("durationUnitsForm.effect")}</p>}
+      target="update duration_units"
+      answering={(answer) => answer}
+      {...handlers}
+    />
+  );
 }
 
 /**
@@ -293,28 +343,29 @@ interface Said {
  * command, a refusal answered once the dialog is gone told above the settings (`Reactivations`). The
  * command waits, inactive and saying why, while a write is under way (#661).
  */
-function SettingsWriter({
+function SettingsWriter<Settings extends Versioned>({
   settings,
   command,
   saved,
   form: Form,
   children,
 }: {
-  readonly settings: ReferenceSettings;
+  readonly settings: Settings;
   readonly command: string;
   readonly saved: string;
-  readonly form: ComponentType<SettingsFormProps>;
-  readonly children: (shown: ReferenceSettings) => ReactNode;
+  readonly form: ComponentType<SettingsFormProps<Settings>>;
+  readonly children: (shown: Settings) => ReactNode;
 }) {
-  const [answered, setAnswered] = useState<ReferenceSettings>();
+  const [answered, setAnswered] = useState<Settings>();
   // The version the form opened on, which it writes from, and the how-many-th opening it is: none
   // while it is closed. An answer closes only the opening it was sent from — a guard: the command
   // waiting for the write, no other opening can come before the answer.
-  const [editing, setEditing] = useState<{ settings: ReferenceSettings; opening: number }>();
+  const [editing, setEditing] = useState<{ settings: Settings; opening: number }>();
   const openings = useRef(0);
   // Whether a write is under way: the command waits for its answer, which brings the version.
   const [writing, setWriting] = useState(false);
-  const [said, setSaid] = useState<Said>();
+  // What the last write did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const trigger = useRef<HTMLButtonElement>(null);
   const why = useId();
   const shown =
@@ -356,7 +407,7 @@ function SettingsWriter({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
-            setSaid((before) => ({ text: saved, count: (before?.count ?? 0) + 1 }));
+            say(saved);
             // A guard of the waiting command (`onWriting`), which serves in no normal use: no other
             // opening can come before the answer.
             setEditing((current) => (current?.opening === editing.opening ? undefined : current));
@@ -406,6 +457,24 @@ export function IndicatorSettings({ settings }: { readonly settings: ReferenceSe
           <ReviewDelay weeks={shown.max_weeks_between_reviews} />
         </>
       )}
+    </SettingsWriter>
+  );
+}
+
+/**
+ * The constants the units of duration convert by, and their form, for a session that may modify the
+ * settings of the resources.
+ */
+export function DurationUnitSettings({ units }: { readonly units: DurationUnits }) {
+  const t = useTranslations("reference.durationUnitsForm");
+  return (
+    <SettingsWriter
+      settings={units}
+      command={t("modify")}
+      saved={t("saved")}
+      form={DurationUnitsForm}
+    >
+      {(shown) => <DurationUnitFigures units={shown} />}
     </SettingsWriter>
   );
 }

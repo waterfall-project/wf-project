@@ -56,7 +56,11 @@ import {
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
+import {
+  type ObjectNames,
+  OutcomeNotice,
+  useNoteRefusal,
+} from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +74,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import { isPlanningDate, parseDecimal } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
@@ -89,11 +94,12 @@ export interface FormField {
   readonly name: string;
   readonly label: string;
   /**
-   * A text, a number, a whole number — a count, sent as its digits, a sign kept: its bounds are the
+   * A text, a text of several lines, a number, a whole number — a count, sent as its digits, a sign kept: its bounds are the
    * server's (#678) —, a date of planning, a time of day — `HH:MM` —, a choice, or a value shown
    * fixed — read-only, by the text of its choice.
    */
-  readonly control: "text" | "number" | "whole" | "date" | "time" | "choice" | "fixed";
+  readonly control:
+    "text" | "multiline" | "number" | "whole" | "date" | "time" | "choice" | "fixed";
   /**
    * Whether the field may not be left empty: always, or as what the form holds says — the frequency
    * of a schedule on, not of a suspended one.
@@ -124,23 +130,13 @@ export interface FormField {
 
 /**
  * What a command that opens a form says while a write of the form is under way, which keeps it
- * inactive (`onWriting`): rendered then alone, for the command to be described by it — hidden but
- * from a reader of the screen for a command of a cell of a dense grid, which has no room for it, its
- * title saying it to the eye.
+ * inactive (`onWriting`): rendered then alone, for the command to be described by it. A command of a
+ * cell of a dense grid, which has no room for it, says it in its tooltip (`CellCommand`).
  */
-export function WritingNote({
-  id,
-  writing,
-  srOnly = false,
-}: {
-  readonly id: string;
-  readonly writing: boolean;
-  /** Whether the note is said to a reader of the screen alone — in a cell of a dense grid. */
-  readonly srOnly?: boolean;
-}) {
+export function WritingNote({ id, writing }: { readonly id: string; readonly writing: boolean }) {
   const t = useTranslations("reference.form");
   return writing ? (
-    <span id={id} className={srOnly ? "sr-only" : "text-xs text-muted-foreground"}>
+    <span id={id} className="text-xs text-muted-foreground">
       {t("writing")}
     </span>
   ) : null;
@@ -168,11 +164,19 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
    * when neither the list nor the refusal does (`takenByAnother`).
    */
   readonly kind:
-    ListForm["kind"] | "project" | "subproject" | "timeline" | "settings" | "backup_schedule";
+    | ListForm["kind"]
+    | "project"
+    | "subproject"
+    | "timeline"
+    | "settings"
+    | "backup_schedule"
+    | "risk";
   readonly title: string;
   readonly hint: string;
   /** Whether the form creates an object rather than modifies one. */
   readonly creating: boolean;
+  /** What the button that sends says when it is neither « Créer » nor « Enregistrer »: a review. */
+  readonly submit?: string | undefined;
   readonly fields: readonly FormField[];
   /** What the form starts from: the object modified, or nothing typed. */
   readonly initial: Draft;
@@ -204,6 +208,11 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
    * (#661).
    */
   readonly onWriting?: ((writing: boolean) => void) | undefined;
+  /**
+   * What the form writes, by its name — the object modified —, which the history of the messages
+   * notes with a refusal; none for a creation, which names no object yet.
+   */
+  readonly subject?: string | undefined;
 }
 
 /**
@@ -329,10 +338,13 @@ function grouped(fields: readonly FormField[]): [FormField, ...FormField[]][] {
   return parts;
 }
 
+/** The element a control of a field is. */
+type ControlElement = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
 /** What every control of a field takes: its identity, its value, what describes it, its change. */
 interface ControlProps {
   readonly id: string;
-  readonly ref: (element: HTMLInputElement | HTMLSelectElement | null) => void;
+  readonly ref: (element: ControlElement | null) => void;
   readonly value: string;
   readonly "aria-required": true | undefined;
   readonly "aria-invalid": true | undefined;
@@ -383,6 +395,9 @@ function FieldControl({
       </NativeSelect>
     );
   }
+  if (control === "multiline") {
+    return <Textarea {...props} maxLength={maxLength} />;
+  }
   if (control === "fixed") {
     const shown = choices.find(([option]) => option === props.value)?.[1] ?? props.value;
     return <Input {...props} readOnly value={shown} />;
@@ -402,6 +417,7 @@ export function ReferenceForm<T = ReferenceObject>({
   title,
   hint,
   creating,
+  submit: submitLabel,
   fields,
   initial,
   ask,
@@ -415,6 +431,7 @@ export function ReferenceForm<T = ReferenceObject>({
   onWriting,
   onClose,
   onClosed,
+  subject,
 }: ReferenceFormProps<T>) {
   const t = useTranslations("reference.form");
   const locale = useLocale();
@@ -429,7 +446,8 @@ export function ReferenceForm<T = ReferenceObject>({
   // refusal: the dialog closed meanwhile, its click is held all the same (#688).
   const own = useHeldCommand();
   const held = list?.held ?? own;
-  const controls = useRef<Partial<Record<string, HTMLInputElement | HTMLSelectElement | null>>>({});
+  const noteRefusal = useNoteRefusal();
+  const controls = useRef<Partial<Record<string, ControlElement | null>>>({});
   const open = useRef(true);
   useEffect(() => {
     open.current = true;
@@ -477,9 +495,13 @@ export function ReferenceForm<T = ReferenceObject>({
         if (answer.kind === "done") {
           onDone(answer.data);
         } else if (!open.current) {
-          list?.report({ outcome: answer, generation, names, target });
+          list?.report({ outcome: answer, generation, names, target, subject });
         } else {
           const told = placed(fields, answer);
+          if (told.refused.size > 0) {
+            // Said at its fields: noted whole, the notice of the rest noting nothing more.
+            noteRefusal(answer, { subject, parts: [told.told] });
+          }
           refuse(told.refused);
           setOutcome(told.told);
         }
@@ -520,7 +542,7 @@ export function ReferenceForm<T = ReferenceObject>({
     const own = `${id}-${name}`;
     const props: ControlProps = {
       id: own,
-      ref: (element: HTMLInputElement | HTMLSelectElement | null) => {
+      ref: (element: ControlElement | null) => {
         controls.current[name] = element;
       },
       value: draft[name] ?? "",
@@ -608,6 +630,7 @@ export function ReferenceForm<T = ReferenceObject>({
               setOutcome(undefined);
             }}
             onDismissed={onClose}
+            subject={subject}
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
@@ -616,7 +639,9 @@ export function ReferenceForm<T = ReferenceObject>({
             </Button>
             <Button type="submit" aria-busy={pending}>
               {creating ? <Plus aria-hidden="true" /> : <Save aria-hidden="true" />}
-              {t(pending ? "sending" : creating ? "create" : "save")}
+              {pending || submitLabel === undefined
+                ? t(pending ? "sending" : creating ? "create" : "save")
+                : submitLabel}
             </Button>
           </DialogFooter>
         </form>

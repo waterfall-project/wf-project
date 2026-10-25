@@ -238,7 +238,7 @@ describe("the number of a line in the grid", () => {
     totals: COSTS.totals,
     kept: COSTS.meta.passthrough_columns,
   };
-  const query = { sort: undefined, search: undefined };
+  const query = { sort: undefined, search: undefined, size: undefined };
 
   it("shows the line where the user may exclude it, a link out of the tabulation, the line shown marked", () => {
     const cables = line("FA-2026-0412");

@@ -16,7 +16,16 @@
  * sort, and the address asks none. The total float and the physical progress are always computed
  * (WF-PLA-0100, WF-IND-0060): columns computed whole. The dates, the duration and the progress are
  * computed for some tasks only — automatic, summary —, which `computed_fields` names node by
- * node: those cells are computed, the others entered (WF-IHM-0030).
+ * node: those cells are computed, traversed and never entered, the others entered (WF-IHM-0030,
+ * WF-PLA-0020).
+ *
+ * Where the structure lists `edit_planning`, a task is entered from the keyboard alone, cell by cell
+ * (US-0470, WF-IHM-0040), by `updateTaskFacet`: its label, its description, its mode, its duration
+ * with the suffix of its unit (WF-PLA-0160), the start and the finish of a task in manual mode, and
+ * its attachment — each where the node names its field among those it accepts (`editable_fields`),
+ * never by its mode nor its nature. Its predecessors are typed as Microsoft Project writes them,
+ * « 3FD+2 j ; 5DD » (`predecessors-entry.ts`), and written whole by `setPredecessors`, where the
+ * structure lists `edit_planning`: the contract names no field for them.
  *
  * The Gantt comes to the right of this grid, row for row (US-0220/L2): its columns keep to the width
  * the mock-up gives the grid beside it — the dates a little wider, for the mark of a computed date
@@ -24,13 +33,18 @@
  */
 import { Contrast, Zap } from "lucide-react";
 
-import { GanttAxis, GanttCell } from "@/components/gantt/gantt";
+import { GanttAxis, GanttCell, GanttZoom } from "@/components/gantt/gantt";
 
+import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 
+import { durationEntered, durationOf } from "./cell-values";
 import {
+  type CellValue,
   type Choice,
   type ComputedCells,
+  type DurationUnit,
+  type EntryKind,
   type GridColumn,
   type GridConfig,
   type RowsWritten,
@@ -49,12 +63,17 @@ import {
   type NodeTotals,
   type RowOf,
 } from "./nodes";
+import type { ChoiceOption } from "./row-choices";
+import { attachmentChange, borne, type BreakdownItem } from "./planning-attachment";
 import {
-  type AttachmentChange,
-  attachmentChange,
-  borne,
-  type BreakdownItem,
-} from "./planning-attachment";
+  parsePredecessors,
+  type PredecessorNames,
+  predecessorsOf,
+  predecessorsText,
+  predecessorsValue,
+  type PredecessorWrite,
+  predecessorsWritten,
+} from "./predecessors-entry";
 import {
   DurationCell,
   FloatCell,
@@ -62,6 +81,7 @@ import {
   PredecessorsCell,
   ProgressCell,
   SchedulingModeCell,
+  TrackingCell,
 } from "./planning-cells";
 
 /** What the grid of the planning asks the server to render: the tasks, not the lines. */
@@ -87,6 +107,9 @@ export const PLANNING_FIELDS = {
     "order_item_id",
     "work_package_id",
     "work_breakdown_label",
+    "tracking",
+    // The days off the Gantt tints in the row of the task (US-0530/L5).
+    "calendar_hours",
   ],
   line: [],
 } as const satisfies AnyNodeFields;
@@ -119,6 +142,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "description",
       label: "description",
+      help: "planning.description",
       format: "text",
       width: 120,
       contract: "description",
@@ -127,6 +151,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "scheduling_mode",
       label: "schedulingMode",
+      help: "planning.schedulingMode",
       format: "text",
       align: "center",
       width: 44,
@@ -138,6 +163,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "duration",
       label: "duration",
+      help: "planning.duration",
       format: "decimal",
       width: 64,
       computed: computedWhereNamed("task.duration"),
@@ -151,6 +177,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "start",
       label: "startDate",
+      help: "planning.startDate",
       format: "date",
       width: 100,
       computed: computedWhereNamed("task.start"),
@@ -160,6 +187,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "finish",
       label: "finishDate",
+      help: "planning.finishDate",
       format: "date",
       width: 100,
       computed: computedWhereNamed("task.finish"),
@@ -169,6 +197,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "progress",
       label: "progress",
+      help: "planning.progress",
       format: "text",
       align: "center",
       width: 44,
@@ -181,6 +210,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "physical_progress",
       label: "physicalProgress",
+      help: "planning.physicalProgress",
       format: "percent",
       width: 72,
       computed: COMPUTED_PHYSICAL_PROGRESS,
@@ -191,6 +221,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "total_float",
       label: "totalFloat",
+      help: "planning.totalFloat",
       format: "decimal",
       width: 72,
       computed: COMPUTED_FLOAT,
@@ -201,6 +232,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "predecessors",
       label: "predecessors",
+      help: "planning.predecessors",
       format: "text",
       width: 104,
       contract: "predecessors",
@@ -212,20 +244,38 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
     {
       key: "work_breakdown",
       label: "attachment",
+      help: "planning.attachment",
       format: "text",
       width: 160,
       contract: "work_breakdown",
       value: (node) => node.task?.work_breakdown_label,
     },
+    // The timelines the task is inscribed to (WF-PLA-0060), by their names; hidden until the account
+    // shows it, and read only: they are chosen in the menu of the cell (`row-choices.tsx`).
+    {
+      key: "timelines",
+      label: "timelines",
+      help: "planning.timelines",
+      format: "text",
+      width: 160,
+      hidden: true,
+      // Never shown: the cell renders the names of the timelines (`planningGrid`).
+      value: () => undefined,
+      render: (node) => <TrackingCell node={node} names={new Map()} />,
+    },
     {
       key: "gantt",
       label: "gantt",
+      help: "planning.gantt",
       format: "text",
       width: 400,
+      // At the end, over the columns before it as it widens, as in Microsoft Project (US-0530).
+      pinned: "end",
       // No column of the contract, nor a value shown: the cell draws the row of the task.
       value: () => undefined,
       render: (node) => <GanttCell row={node} />,
       axis: (width) => <GanttAxis width={width} />,
+      corner: () => <GanttZoom />,
     },
   ],
 };
@@ -233,18 +283,240 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
 /** The columns of the contract the grid of the planning sorts by: none (§3.4, WF-IHM-0060). */
 export const PLANNING_SORT_COLUMNS = sortColumns(PLANNING_GRID);
 
+/** A field of a facet a node may accept, as the contract names it. */
+type EditableField = components["schemas"]["EditableField"];
+
+/** The scheduling mode of a task (WF-PLA-0020). */
+type SchedulingMode = components["schemas"]["SchedulingMode"];
+
+/**
+ * The modes of a task, in the order of the contract: every one, one it adds failing the type check
+ * here (défaut n° 4).
+ */
+const SCHEDULING_MODES = {
+  automatic: true,
+  manual: true,
+} as const satisfies Record<SchedulingMode, true>;
+
+/** Whether a value chosen is a mode of a task. */
+function isMode(value: string | null): value is SchedulingMode {
+  return value !== null && Object.hasOwn(SCHEDULING_MODES, value);
+}
+
+/** The modes of a task, in the order of the contract. */
+const MODES: readonly SchedulingMode[] = Object.keys(SCHEDULING_MODES).filter(isMode);
+
+/**
+ * The fields of a task an entry writes: the cell entered, nothing else (#178) — and, for the
+ * attachment, the other item set to `null` in the same write (`attachmentChange`).
+ */
+export type TaskChange = Partial<
+  Pick<
+    components["schemas"]["TaskFacetUpdate"],
+    | "label"
+    | "description"
+    | "scheduling_mode"
+    | "duration"
+    | "start"
+    | "finish"
+    | "order_item_id"
+    | "work_package_id"
+  >
+>;
+
 /**
  * How the grid of the planning writes the attachment of a task: the posts and the lots it is chosen
- * among, each named by its kind — a function, never the list (défaut n° 14) —, and the write of the
- * fields it changes, with the row the server answers.
+ * among, each named by its kind — a function, never the list (défaut n° 14).
  */
 export interface PlanningAttachment {
   readonly items: ReadonlyMap<string, BreakdownItem>;
   readonly choices: () => readonly Choice[];
+}
+
+/**
+ * How the grid of the planning writes the cells of a task (US-0470): the fields it changes, with the
+ * row the server answers; the names of the modes and the suffixes of the units of a duration in the
+ * language of the interface; the attachment, where the work breakdown was read.
+ */
+export interface PlanningWrites {
+  readonly task: (
+    node: PlanningNode,
+    change: TaskChange,
+  ) => Promise<Outcome<RowsWritten<PlanningNode, NodeTotals>>>;
+  /** The modes a task is set to, each named in the language. */
+  readonly modes: (mode: SchedulingMode) => string;
+  /** The suffix of a unit of a duration in the language (`enums.DurationUnit`). */
+  readonly suffix: (unit: DurationUnit) => string;
+  /** A duration written as the cell shows it: its value formatted, and its suffix. */
+  readonly written: (value: string, unit: DurationUnit) => string;
+  readonly attachment?: PlanningAttachment | undefined;
+  /** The predecessors of a task (WF-PLA-0030): what the column names, and how it writes. */
+  readonly predecessors: PlanningPredecessors;
+}
+
+/**
+ * How the grid of the planning writes the predecessors of a task (US-0470/L2): the names of the
+ * types of link and of the units of a lag in the language, the task a row number names among the
+ * rows the grid read, and the write — the links to send in place of the task's, with the rows the
+ * server answers, the tasks it redated among them.
+ */
+export interface PlanningPredecessors extends PredecessorNames {
   readonly write: (
     node: PlanningNode,
-    change: AttachmentChange,
+    links: readonly PredecessorWrite[],
   ) => Promise<Outcome<RowsWritten<PlanningNode, NodeTotals>>>;
+}
+
+/**
+ * How a column of a task is entered: what it takes, the field the node must accept for it, the value
+ * an entry starts from, and what a value validated writes, from the row it is written from.
+ */
+interface TaskEntered {
+  readonly kind: EntryKind;
+  readonly field: EditableField;
+  readonly value: (node: PlanningNode) => CellValue;
+  readonly change: (task: PlanningTask, value: string | null) => TaskChange;
+}
+
+/** The task of a node of the planning, which a cell of a task is entered from. */
+type PlanningTask = NonNullable<PlanningNode["task"]>;
+
+/**
+ * The start or the finish of a task, entered as a date: the date alone goes, with no hours — the
+ * front knows no calendar, and the server completes them (WF-DAT-0100, #1244); the grid shows the
+ * date alone, and the cell shows what the server answered.
+ */
+function instant(
+  field: "start" | "finish",
+): (task: PlanningTask, value: string | null) => TaskChange {
+  return (_task, value) => ({
+    [field]: value === null ? null : { date: value },
+  });
+}
+
+/** The columns of a task that take an entry, by the key of their column. */
+function taskColumns(writes: PlanningWrites): Readonly<Record<string, TaskEntered>> {
+  const modes = MODES.map((mode) => ({ id: mode, label: writes.modes(mode), active: true }));
+  return {
+    // The contract takes a label of 1 to 300 characters.
+    label: {
+      kind: { type: "text", maxLength: 300 },
+      field: "task.label",
+      value: (node) => node.task?.label,
+      change: (_, value) => ({ label: value ?? "" }),
+    },
+    // A description the contract does not bound, emptied to none.
+    description: {
+      kind: { type: "text", maxLength: undefined, nullable: true },
+      field: "task.description",
+      value: (node) => node.task?.description,
+      change: (_, value) => ({ description: value }),
+    },
+    scheduling_mode: {
+      kind: { type: "choice", choices: () => modes, nullable: false },
+      field: "task.scheduling_mode",
+      value: (node) => node.task?.scheduling_mode,
+      // A value that is no mode is no change to send: it would leave with the version alone
+      // (#819.8, #1250). The editor only offers the modes; a path that is not the editor may not.
+      change: (_, value) => {
+        if (!isMode(value)) {
+          throw new Error(`${String(value)} is not a scheduling mode`);
+        }
+        return { scheduling_mode: value };
+      },
+    },
+    // A duration with the suffix of its unit, kept in that unit (WF-PLA-0160).
+    duration: {
+      kind: { type: "duration", suffix: writes.suffix, written: writes.written },
+      field: "task.duration",
+      value: (node) => durationEntered(node.task?.duration),
+      change: (_, value) => {
+        const duration = value === null ? undefined : durationOf(value);
+        if (duration === undefined) {
+          throw new Error(`${String(value)} is not a duration`);
+        }
+        return { duration };
+      },
+    },
+    start: {
+      kind: { type: "date" },
+      field: "task.start",
+      value: (node) => node.task?.start?.date,
+      change: instant("start"),
+    },
+    finish: {
+      kind: { type: "date" },
+      field: "task.finish",
+      value: (node) => node.task?.finish?.date,
+      change: instant("finish"),
+    },
+  };
+}
+
+/**
+ * A column of a task entered through `writes`, where its node accepts the field — which the node
+ * says, never the grid by its mode or its nature (#219) — and the server does not compute it there:
+ * a computed cell is traversed, and refuses the entry (WF-IHM-0030, WF-PLA-0020). A node read
+ * without its task refuses it too: no change is made up for a task the grid did not read.
+ */
+function taskColumn(
+  column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
+  spec: TaskEntered,
+  writes: PlanningWrites,
+): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
+  return {
+    ...column,
+    entry: {
+      kind: spec.kind,
+      in: (node) =>
+        node.task != null &&
+        node.editable_fields.includes(spec.field) &&
+        column.computed?.in(node) !== true,
+      value: spec.value,
+      // A node without its task never gets here, its cells refusing the entry (`in`), nor does a
+      // value its column cannot write (`change`). Should a path bypass that, nothing is sent: an
+      // empty change would carry the version alone (#819.8), and the write fails as unexpected,
+      // which the grid tells.
+      write: async (node, value) => {
+        if (node.task == null) {
+          throw new Error(`the node ${node.node_id} was read without its task`);
+        }
+        return writes.task(node, spec.change(node.task, value));
+      },
+    },
+  };
+}
+
+/**
+ * The column of the predecessors, entered through `predecessors`: the links of a task that was read
+ * with its task, typed as « 3FD+2 j ; 5DD » in the language, the whole list sent in place of the
+ * task's (`setPredecessors`). The cell follows the node (`editable_fields`, `task.predecessors`,
+ * #1257): every task names it, and none a differential removes, which is read only; the server
+ * refuses what it must (WF-PLA-0030, WF-PLA-0040).
+ */
+function predecessorsColumn(
+  column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
+  predecessors: PlanningPredecessors,
+): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
+  return {
+    ...column,
+    entry: {
+      kind: {
+        type: "predecessors",
+        parse: (text, locale) => parsePredecessors(text, locale, predecessors),
+        text: (value, locale) => predecessorsText(value, locale, predecessors),
+      },
+      in: (node) => node.task != null && node.editable_fields.includes("task.predecessors"),
+      value: (node) => predecessorsValue(node.predecessors),
+      write: async (node, value) => {
+        const links = value === null ? [] : predecessorsOf(value);
+        if (node.task == null || links === undefined) {
+          throw new Error(`the predecessors of the node ${node.node_id} cannot be written`);
+        }
+        return predecessors.write(node, predecessorsWritten(links));
+      },
+    },
+  };
 }
 
 /** Whether the node accepts the attachment, which it says (`editable_fields`, #219). */
@@ -259,6 +531,7 @@ function attachable(node: PlanningNode): boolean {
 function attachmentColumn(
   column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
   attachment: PlanningAttachment,
+  writes: PlanningWrites,
 ): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
   return {
     ...column,
@@ -272,7 +545,7 @@ function attachmentColumn(
       },
       value: (node) => borne(node.task),
       write: (node, value) =>
-        attachment.write(
+        writes.task(
           node,
           attachmentChange(node.task, value === null ? undefined : attachment.items.get(value)),
         ),
@@ -280,20 +553,46 @@ function attachmentColumn(
   };
 }
 
+/** The column of the timelines, naming each of the project by its label. */
+function timelinesColumn(
+  column: GridColumn<PlanningNode, NodeSortColumn, NodeTotals>,
+  timelines: readonly ChoiceOption[],
+): GridColumn<PlanningNode, NodeSortColumn, NodeTotals> {
+  const names = new Map(timelines.map((timeline) => [timeline.id, timeline.label]));
+  return { ...column, render: (node) => <TrackingCell node={node} names={names} /> };
+}
+
 /**
- * The grid of the planning: the attachment of its tasks entered through `attachment` — a revision
- * whose planning may be entered (`edit_planning`), and the work breakdown read whole —; none, and the
- * grid is read only.
+ * The grid of the planning: the cells of its tasks entered through `writes` — a structure whose
+ * planning may be entered (`edit_planning`) —, its label, its description, its mode, its duration
+ * with its unit, the dates of a manual task, and the attachment where the work breakdown was read
+ * whole; none, and the grid is read only. The timelines of the project name the inscriptions of its
+ * tasks.
  */
 export function planningGrid(
-  attachment?: PlanningAttachment,
+  writes?: PlanningWrites,
+  timelines: readonly ChoiceOption[] = [],
 ): GridConfig<PlanningNode, NodeSortColumn, NodeTotals> {
-  return attachment === undefined
-    ? PLANNING_GRID
-    : {
-        ...PLANNING_GRID,
-        columns: PLANNING_GRID.columns.map((column) =>
-          column.key === "work_breakdown" ? attachmentColumn(column, attachment) : column,
-        ),
-      };
+  const specs = writes === undefined ? {} : taskColumns(writes);
+  return {
+    ...PLANNING_GRID,
+    columns: PLANNING_GRID.columns.map((column) => {
+      if (column.key === "timelines") {
+        return timelinesColumn(column, timelines);
+      }
+      if (writes === undefined) {
+        return column;
+      }
+      const spec = specs[column.key];
+      if (spec !== undefined) {
+        return taskColumn(column, spec, writes);
+      }
+      if (column.key === "predecessors") {
+        return predecessorsColumn(column, writes.predecessors);
+      }
+      return writes.attachment !== undefined && column.key === "work_breakdown"
+        ? attachmentColumn(column, writes.attachment, writes)
+        : column;
+    }),
+  };
 }

@@ -24,6 +24,7 @@ import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatMoney, formatPercent, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
+import type { PredecessorsProblem } from "./predecessors-entry";
 import type { GridAddress } from "./query";
 
 /**
@@ -42,6 +43,17 @@ export type CellAlign = "start" | "end" | "center";
 /** The key of the heading of a column in the catalogue, under `grid.columns`. */
 export type ColumnLabel = keyof Catalogue["grid"]["columns"];
 
+/**
+ * The key of the definition of a column in the catalogue, `columns.<grid>.<column>.help`, written
+ * `<grid>.<column>`: the sentence its header shows in its tooltip, and the help of the screen reads
+ * from the same keys (US-0580).
+ */
+export type ColumnHelp = {
+  [
+    G in Extract<keyof Catalogue["columns"], string>
+  ]: `${G}.${Extract<keyof Catalogue["columns"][G], string>}`;
+}[Extract<keyof Catalogue["columns"], string>];
+
 /** The key of the accessible name of a grid in the catalogue, under `grid.names`. */
 export type GridName = keyof Catalogue["grid"]["names"];
 
@@ -58,6 +70,16 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * heading of its label, which then says what the column holds.
    */
   readonly heading?: string;
+  /**
+   * What the column designates, the definition its header shows in a tooltip (`ColumnHelp`); none,
+   * and the header bears no tooltip.
+   */
+  readonly help?: ColumnHelp;
+  /**
+   * The values of the sentence of `help`, already formatted — the year of reference and the rate of
+   * inflation of the amount corrected of it.
+   */
+  readonly helpValues?: Readonly<Record<string, string>>;
   readonly format: CellFormat;
   /** Where the column aligns; by default, as its format does. */
   readonly align?: CellAlign;
@@ -76,10 +98,18 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   /** How its cells are entered from the keyboard (WF-IHM-0040); none, and no cell of it is. */
   readonly entry?: CellEntry<Row, Totals> | undefined;
   /**
-   * The identifying column: it stays at the start when the grid scrolls sideways, and cannot
-   * be hidden. The first of them carries the tree, when the grid has one.
+   * The identifying column (`true`): it stays at the start when the grid scrolls sideways, and
+   * cannot be hidden. The first of them carries the tree, when the grid has one. Or the column that
+   * stays at the end (`"end"`), the Gantt: it slides over the columns before it as it widens, by the
+   * handle on its left edge, up to the room of the frame less the identifying columns and the widest
+   * other column (US-0530, `endMaxOf`).
    */
-  readonly pinned?: boolean;
+  readonly pinned?: boolean | "end";
+  /**
+   * Whether it starts hidden, for an account that has kept no choice of columns: it is shown by the
+   * menu of the columns (US-0480). A pinned column is never hidden.
+   */
+  readonly hidden?: true;
   /**
    * The column of the contract it shows, as the server names it: the one it sorts by, where the
    * grid sorts (`GridConfig.sorts`) and the column too (`sorts`), and the one a block pasted on its
@@ -120,7 +150,15 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * of the Gantt —; its heading then names it to the readers of the screen alone.
    */
   readonly axis?: (width: number) => ReactNode;
+  /**
+   * What its header holds in its corner besides its heading — the zoom of the Gantt —: out of the
+   * name of the header and, as its button and handle, out of the order of tabulation.
+   */
+  readonly corner?: () => ReactNode;
 }
+
+/** The unit of a duration, kept as it was entered (WF-PLA-0160). */
+export type DurationUnit = components["schemas"]["DurationUnit"];
 
 /** A field whose value the server computes, as the contract names it: `task.finish`. */
 export type ComputedValueField = components["schemas"]["ComputedValueField"];
@@ -190,15 +228,42 @@ export interface Choice {
 }
 
 /**
- * What a cell takes (WF-IHM-0040): a text, never blank, of `maxLength` characters at most, as the
- * contract bounds it; a number in the format of the language, which travels as the exact decimal
- * of the contract — an amount keeps two decimals at most —; a whole number, of digits alone, as
- * the contract takes an integer — a number of days —; one of the choices of a list. A cell that
- * may be emptied (`nullable`) writes `null` then.
+ * What a cell takes (WF-IHM-0040): a text, of `maxLength` characters at most where the contract
+ * bounds it, blank only where it may be emptied; a number in the format of the language, which
+ * travels as the exact decimal of the contract — an amount keeps two decimals at most —; a whole
+ * number, of digits alone, as the contract takes an integer — a number of days —; one of the choices
+ * of a list; a duration with the suffix of its unit (WF-PLA-0160); a date of planning in the form the
+ * language writes it; the links of a task to its predecessors (WF-PLA-0030), a cell always emptied
+ * by a blank text. A cell that may be emptied (`nullable`) writes `null` then.
  */
 export type EntryKind =
-  | { readonly type: "text"; readonly maxLength: number }
+  | {
+      readonly type: "text";
+      readonly maxLength: number | undefined;
+      readonly nullable?: boolean | undefined;
+    }
   | { readonly type: "decimal" | "money" | "integer"; readonly nullable: boolean }
+  | {
+      readonly type: "duration";
+      /** The suffix of a unit in the language of the interface (`enums.DurationUnit`). */
+      readonly suffix: (unit: DurationUnit) => string;
+      /** A duration written as the cell shows it: its value, formatted, and the suffix of its unit. */
+      readonly written: (value: string, unit: DurationUnit) => string;
+    }
+  | { readonly type: "date" }
+  | {
+      readonly type: "predecessors";
+      /**
+       * Validate the text typed in the language: the links as the value an entry holds, `null`
+       * for none, or why the text is not one (`predecessors-entry.ts`).
+       */
+      readonly parse: (
+        text: string,
+        locale: Locale,
+      ) => { readonly value: string | null } | { readonly problem: PredecessorsProblem };
+      /** A value validated as it is typed in the language, which the entry starts from. */
+      readonly text: (value: string, locale: Locale) => string;
+    }
   | {
       readonly type: "choice";
       /** The choices, read by the entry alone: a function, never the list (défaut n° 14). */
@@ -334,6 +399,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    */
   readonly searched: boolean;
   /**
+   * Whether the server pages its rows - a flat table with "Lignes par page" (WF-IHM-0060) -, so
+   * that the size of its pages the address names is recorded with its settings; by default it does
+   * not: a table the server answers whole, or a tree, has no such size to keep.
+   */
+  readonly paged?: boolean;
+  /**
    * The names under which the grid writes its sort and its search in the address: those of the
    * contract when none — a grid alone on its screen —, or its own among several (`prefixedAddress`).
    */
@@ -341,6 +412,13 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   /** The number of a row, shown first and pinned, as the API computes it; none, no column. */
   readonly rowNumber?: (row: Row) => number;
   readonly tree?: GridTree<Row>;
+  /**
+   * The difference a row bears with the structure it is read against, as the server marks it
+   * (`Node.difference`, US-0500): given, the grid has a column of marks at its start, `+`, `-` or `M`
+   * written on the row, tinted by it; none, and it has no such column. A row with none, or
+   * unchanged, bears nothing.
+   */
+  readonly difference?: (row: Row) => RowDifference | null | undefined;
   /**
    * Whether its headers sort its rows, each by the column of the contract it shows (WF-IHM-0060);
    * by default they do. A grid of a tree whose rows keep the order of the plan sorts none — the
@@ -381,11 +459,23 @@ export interface GridConfig<Row, Sort extends string, Totals> {
 /** The key of the column of row numbers, which no configuration may take. */
 export const ROW_NUMBER_KEY = "row_number";
 
+/** The key of the column of the marks of a difference, which no configuration may take either. */
+export const DIFF_MARK_KEY = "diff_mark";
+
+/** What a row bears with the structure it is read against: added, removed, modified, unchanged. */
+export type RowDifference = components["schemas"]["NodeDifference"];
+
 /** The narrowest a column gets: the contract keeps no width under 20. */
 export const MIN_WIDTH = 40;
 
 /** The widest a column gets. */
 export const MAX_WIDTH = 800;
+
+/**
+ * The widest a column pinned at the end gets, the room of its frame unknown: that of a window of
+ * 4K. The room, once measured, bounds it.
+ */
+export const WIDEST = 3840;
 
 /** What names a column: its label in the catalogue, and the heading the answer gives it, if any. */
 export interface ColumnName {

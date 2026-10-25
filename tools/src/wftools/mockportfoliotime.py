@@ -53,15 +53,8 @@ from wftools import (
 from wftools.mockids import MILESTONES, identifier, universe
 from wftools.mockportfolio import Earned, earned, identified_risks, portfolio, role_shares
 from wftools.mockstructure import CENT, LABOUR_RATES, JsonObject, JsonValue, decimal, draw, money
-from wftools.mockwitness import (
-    AMENDMENT_MERGED,
-    COST_IMPORTS,
-    IDENTIFIED,
-    REGISTER,
-    TODAY,
-    by_identifier,
-    fixture,
-)
+from wftools.mockwitness import AMENDMENT_MERGED, COST_IMPORTS, TODAY, by_identifier, fixture
+from wftools.mockwitnessrisks import IDENTIFIED, REGISTER
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -289,7 +282,9 @@ def portfolio_workload(rows: list[JsonObject], org: str | None = None) -> JsonOb
     For each active role under the node asked, each month of the horizon: the hours of the witness
     as its workload reads them, and those of every other project spread over its days after today;
     the capacity of the role, its monthly hours, all its people counted — the headcount a mere
-    information (WF-REF-0100); the load ratio and its zone.
+    information (WF-REF-0100); the load ratio and its zone. The capacity of the scope is the sum
+    of those of the roles kept, and each month has the total of their hours, that the chart draws
+    without summing (#1051).
     """
     kept = None if org is None else mockcurves.org_subtree(org)
     months = _months(DAY, HORIZON)
@@ -297,16 +292,20 @@ def portfolio_workload(rows: list[JsonObject], org: str | None = None) -> JsonOb
     witness = _witness_hours() if _holds_witness(rows) else {}
     courses = [found for row in rows if row["project_id"] != witness_id and (found := course(row))]
     roles: list[JsonValue] = []
+    capacities = Decimal(0)
+    totals = dict.fromkeys(months, Decimal(0))
     for role in by_identifier("resource_roles", "resource_role_id"):
         if not role["is_active"] or (kept is not None and role["org_node_id"] not in kept):
             continue
         identifier_ = role["resource_role_id"]
         capacity = Decimal(role["capacity"]["monthly_hours"])
+        capacities += capacity.quantize(CENT)
         entries: list[JsonValue] = []
         for end in months:
             hours = witness.get((identifier_, _month(end)), Decimal(0)) + sum(
                 (_spread_hours(each, identifier_, end) for each in courses), Decimal(0)
             )
+            totals[end] += hours
             entries.append(
                 {
                     "month": _month(end),
@@ -326,7 +325,11 @@ def portfolio_workload(rows: list[JsonObject], org: str | None = None) -> JsonOb
     return {
         "scope": scope(rows, ["in_progress", "pricing"], org),
         "under_load_threshold": decimal(UNDER_LOAD),
+        "capacity_monthly_hours": decimal(capacities),
         "months": [_month(end) for end in months],
+        "monthly_totals": [
+            {"month": _month(end), "hours": decimal(hours)} for end, hours in totals.items()
+        ],
         "roles": roles,
     }
 
@@ -789,6 +792,18 @@ def _roles_said(plan: JsonObject) -> str:
     return " ; ".join(said)
 
 
+def _hours_said(value: JsonValue) -> str:
+    """Write a number of hours of the contract as French does: 1 213,33."""
+    return mocktext.amount(Decimal(cast("str", value)))
+
+
+def _totals_said(plan: JsonObject) -> str:
+    """Say the least and the greatest totals of the months of a workload: de 10,00 à 20,00."""
+    totals = cast("list[JsonObject]", plan["monthly_totals"])
+    hours = [Decimal(cast("str", month["hours"])) for month in totals]
+    return f"de {mocktext.amount(min(hours))} à {mocktext.amount(max(hours))}"
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the examples of the views of the portfolio over time, by file name."""
     rows = cast("list[JsonObject]", portfolio()["items"])
@@ -816,14 +831,20 @@ def examples() -> dict[str, JsonObject]:
             f"probabilité de gain ; {_roles_said(plan)}. La capacité d'un rôle est ses heures "
             f"mensuelles, tout son effectif compris, seules comparées à la charge — l'effectif "
             f"n'est qu'une information (WF-REF-0100) — ; chaque mois porte sa zone, que le serveur "
-            f"classe (WF-PTF-0060, WF-IHM-0070).",
+            f"classe (WF-PTF-0060, WF-IHM-0070). La capacité du périmètre, "
+            f"{_hours_said(plan['capacity_monthly_hours'])} heures par mois, est la somme de "
+            f"celles des rôles retenus, le monteur câbleur sans charge compris, et chaque mois "
+            f"porte le total de ses heures, {_totals_said(plan)} : la droite et le sommet des "
+            f"barres du graphique, que le front ne somme pas (#375, #1051).",
             plan,
         ),
         "portfolio_workload_org_node.json": mocktext.example(
             f"Le même plan de charge agrégé, restreint à la "
             f"{node} : les trois rôles relèvent de ses descendants, le bureau d'études "
             f"électricité et l'atelier de câblage, et restent retenus, avec les mêmes charges ; "
-            f"l'en-tête de la vue nomme le nœud (WF-PTF-0010, WF-PTF-0060, WF-REF-0070).",
+            f"l'en-tête de la vue nomme le nœud (WF-PTF-0010, WF-PTF-0060, WF-REF-0070) ; la "
+            f"capacité du périmètre, la somme de celles des rôles du nœud, et le total de chaque "
+            f"mois sont donc ceux du plan entier (#1051).",
             filtered,
         ),
         "portfolio_cost_curve.json": mocktext.example(

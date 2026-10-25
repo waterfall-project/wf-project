@@ -11,7 +11,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
-import { ROW_REM } from "./dense-grid";
+import { ROW_REM } from "./grid-floor";
 import { EstimateGrid } from "./estimate-grid";
 import { triesEntry } from "./grid-keyboard";
 import type { NodeList, NodeSortColumn } from "./nodes";
@@ -29,7 +29,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const DEPENDENCIES =
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies";
 // The main structure of the current revision of the witness project, as the examples name it.

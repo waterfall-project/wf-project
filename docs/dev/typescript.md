@@ -135,7 +135,7 @@ focus, un contour ou un anneau qu'il ne porte pas sans lui, sur lui ou sur la bo
 son contenu, peint au-dessus de ce qu'il contient et que nulle boîte qui défile ne coupe. Une liste
 dont les cellules ne prennent pas le focus a la boîte où elle défile dans l'ordre du clavier, un
 groupe nommé comme elle, son focus un contour tracé à l'intérieur de son bord (`list` de `Table`,
-que `ListTable` et `TimelineTable` posent ; `scrollingList` pour une autre boîte, les valeurs d'une
+que `ListTable` et la lecture en table d'une chronologie (`TimelineChart`) posent ; `scrollingList` pour une autre boîte, les valeurs d'une
 courbe) : plus large que sa boîte, elle défile alors aux flèches dans tous les navigateurs — Safari
 ne rend pas focalisable de lui-même un conteneur qui défile.
 
@@ -169,7 +169,9 @@ harnais n'ouvre pas (#782 pour le reste) ; le reste, la revue.
   réponse qui manque est un exemple que le contrat cite pour l'opération.
 - Un composant serveur de `src/app/` se teste dans le projet `node` (`*.test.tsx`), sans
   document, comme il s'exécute ; un composant client, dans le projet `dom`
-  (`*.dom.test.tsx`), par Testing Library.
+  (`*.dom.test.tsx`), par Testing Library. Un `*.dom.test.tsx` sous `src/app/` compose une page lue
+  sur le serveur et les composants client qu'elle monte, dans un document : il tient en
+  non-régression ce que seul un rendu montre (le défaut n° 20, #819.3), sans citer d'exigence.
 - Un test unitaire rend le composant et vérifie ce qu'il produit ; un parcours de bout en
   bout trouve les éléments par `getByRole` ou `getByLabel` de Playwright, jamais par une
   classe CSS.
@@ -274,8 +276,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
     d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`), et celles
     qu'atteint une redirection ou Keycloak, qui ne répondent pas une page sans session
-    (`compileAnswered`). Aucun outil
-    ne le tient : la revue le cherche.
+    (`compileAnswered`). Sous la charge de quatre workers, la compilation mangeait encore les
+    cinq secondes d'une route qu'aucun parcours ne compilait d'abord (#1145) : `make e2e`
+    préchauffe désormais chaque route avant le premier parcours (`e2e/warm-up.ts`), et l'on
+    n'allonge pas une attente pour une route froide. Aucun outil ne tient `compile` : la revue
+    le cherche.
 18. **Contexte de la coquille changé pendant qu'une page attend d'être révélée.** La coquille
     est au-dessus de chaque page, dont `loading.tsx` fait une frontière `Suspense`. Le serveur
     envoie la page avec le document, mais React en retient la révélation un instant (`<!--$~-->`) ;
@@ -430,5 +435,17 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     version de la réponse — et dans `contributor-commands.dom.test.tsx`, chacun par un `it.each` sur
     un succès, un refus et une action rejetée, qui affirme ce que l'écran dit de la réponse — le
     succès dans la région de la liste, le refus et l'API hors d'atteinte en alerte, l'action rejetée
-    n'ayant rien demandé —, puis la commande levée et le dialogue rouvert. Aucun outil ne le tient :
-    la revue le cherche.
+    n'ayant rien demandé —, puis la commande levée et le dialogue rouvert. Le même défaut guette
+    les commandes d'une grille sur ses lignes (`RowCommands`, `undo-commands.tsx`) : un écran qui
+    déplace des lignes sélectionnées — par ses gestes, ou en posant `drag` — pose aussi `busy`,
+    vrai tant qu'une écriture ou la relecture qui la suit est en route : ses gestes le lisent, et la
+    grille ne dépose rien tant qu'il n'est pas faux (`useRowSelection`). Sans lui, le déplacement
+    suivant partirait des voisines d'avant la relecture, avec une version déjà avancée. Le type le
+    tient pour le glisser : `drag` posé exige `busy` (`RowDragging`, `undo-commands.tsx`) ; pour les
+    gestes, `busy` reste optionnel, pour les écrans qui n'écrivent pas l'arbre, et le poser est la
+    règle de tout écran qui l'écrit. La preuve : `row-selection.dom.test.tsx`, « holds the next move
+    until the reading anew is over », « drops nothing while the grid is busy » et « demands busy of
+    a screen that drags ». Toute écriture de la grille, pas seulement celles de ses gestes — une
+    cellule saisie, un collage appliqué, un squelette engendré —, passe par `writing`
+    (`StructureAccount`, `structure-version.ts`) et tient `busy` vrai jusqu'à sa réponse (#1224) :
+    `structure-busy.dom.test.tsx` le prouve. La revue cherche le reste.

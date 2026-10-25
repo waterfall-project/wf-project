@@ -24,7 +24,8 @@ import { updateGridPreferences } from "@/api/actions/preferences";
 import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
 
-import { MAX_WIDTH, MIN_WIDTH } from "./columns";
+import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
+import { pageSizeOf } from "./query";
 
 /** The settings of a grid, as the account keeps them. */
 export type GridPreferences = components["schemas"]["GridPreferences"];
@@ -40,21 +41,35 @@ export interface GridSettings {
 /** How long the grid waits after a change before recording it, in milliseconds. */
 export const WRITE_DELAY = 500;
 
-/** What of a column the settings read: its key, and whether it can be hidden. */
+/**
+ * What of a column the settings read: its key, whether it can be hidden, and whether it starts
+ * hidden.
+ */
 interface SettledColumn {
   readonly key: string;
-  readonly pinned?: boolean;
+  readonly pinned?: boolean | "end";
+  readonly hidden?: boolean;
 }
 
-/** A width within the bounds of the grid. */
-function bounded(width: number): number {
-  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width)));
+/**
+ * A width within the bounds of the grid: those of any column, or, for the column pinned at the
+ * end, whose bound is the room of its frame, the widest a window holds (`WIDEST`).
+ */
+function bounded(width: number, max: number): number {
+  return Math.min(max, Math.max(MIN_WIDTH, Math.round(width)));
+}
+
+/** The keys of the columns a grid pins at its end, bounded by the room of their frame. */
+export function endedColumns(columns: readonly SettledColumn[]): ReadonlySet<string> {
+  return new Set(columns.filter((c) => c.pinned === "end").map((column) => column.key));
 }
 
 /**
  * The settings a grid starts with, from the preferences the session read: the columns it has
  * and may hide, the widths of the columns it has. A key of another version of the grid is left
- * aside, and a width out of bounds is brought within them.
+ * aside, and a width out of bounds is brought within them. An account that has kept no list of
+ * hidden columns starts from the columns the grid hides (`GridColumn.hidden`); one that has kept
+ * a list, empty or not, shows what it does not name: the grid records the list whole.
  */
 export function initialSettings(
   preferences: GridPreferences | undefined,
@@ -62,12 +77,23 @@ export function initialSettings(
 ): GridSettings {
   const hideable = new Set(columns.filter((column) => column.pinned !== true).map((c) => c.key));
   const known = new Set(columns.map((column) => column.key));
-  const hidden = (preferences?.hidden_columns ?? []).filter((key) => hideable.has(key));
+  const ended = endedColumns(columns);
+  const kept =
+    preferences?.hidden_columns ??
+    columns.filter((column) => column.hidden === true).map((column) => column.key);
+  const hidden = kept.filter((key) => hideable.has(key));
   const widths = Object.entries(preferences?.column_widths ?? {}).filter(([key]) => known.has(key));
   return {
     visibility: Object.fromEntries(hidden.map((key) => [key, false])),
-    sizing: Object.fromEntries(widths.map(([key, width]) => [key, bounded(width)])),
+    sizing: Object.fromEntries(
+      widths.map(([key, width]) => [key, bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH)]),
+    ),
   };
+}
+
+/** The number of rows per page the account keeps for a grid; none, the default of the contract. */
+export function keptPageSize(preferences: GridPreferences | undefined): number | undefined {
+  return preferences?.page_size;
 }
 
 /** The sort the account keeps for a grid, as the contract gives it: none is `null`. */
@@ -77,13 +103,17 @@ export type KeptGridSort = GridPreferences["sort"];
  * The preferences to record for a grid: its settings, the sort to keep — the one a header just
  * asked, or the one the account kept, as it came —, the filters to keep — those the page last
  * showed (`kept-filters.ts`), or, for a grid whose screen keeps none, those the account kept, as
- * they came —, and what the account kept of it besides, as it came: the grid is replaced whole.
+ * they came —, the size of its pages, the one chosen last, and what the account kept of it besides, as
+ * it came: the grid is replaced whole. Each width is bounded as the reading bounds it — the room of
+ * a window for a column pinned at the end (`ended`), the widest column for the others.
  */
 export function recordedPreferences(
   preferences: GridPreferences | undefined,
   settings: GridSettings,
   sort: KeptGridSort,
   filters?: Readonly<Record<string, string>>,
+  size?: number,
+  ended: ReadonlySet<string> = new Set(),
 ): GridPreferences {
   const recorded: GridPreferences = {
     ...preferences,
@@ -91,23 +121,31 @@ export function recordedPreferences(
       .filter(([, visible]) => !visible)
       .map(([key]) => key),
     column_widths: Object.fromEntries(
-      Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width)]),
+      Object.entries(settings.sizing).map(([key, width]) => [
+        key,
+        bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH),
+      ]),
     ),
   };
-  const sorted = sort === undefined ? recorded : { ...recorded, sort };
+  const sized = pageSizeOf(size);
+  const paged = sized === undefined ? recorded : { ...recorded, page_size: sized };
+  const sorted = sort === undefined ? paged : { ...paged, sort };
   return filters === undefined ? sorted : { ...sorted, filters };
 }
 
 /** What the writer of the settings gives the grid. */
-export interface SettingsWriter {
+export type SettingsWriter = KeptWriter<GridPreferences>;
+
+/** What a writer of preferences gives its screen, whatever the preferences it keeps (`P`). */
+export interface KeptWriter<P> {
   /** Record preferences once the user pauses — or once the page is shown, if it is awaited. */
-  readonly record: (preferences: GridPreferences) => void;
+  readonly record: (preferences: P) => void;
   /**
    * Record preferences once the page shows what they go with (`shown`), built then — from the
    * settings of that moment —, whatever waited dropped: they replace it. Left, hidden or gone
    * before, the page writes them as it writes what waits.
    */
-  readonly recordShown: (build: () => GridPreferences) => void;
+  readonly recordShown: (build: () => P) => void;
   /** The page shows what it was asked: record at once what awaited it, if anything. */
   readonly shown: () => void;
   /** Record at once what waits, if anything. */
@@ -120,23 +158,34 @@ export interface SettingsWriter {
 
 /** Record the settings of a grid under its key: after a pause, or once the page is shown. */
 export function useSettingsWriter(grid: string): SettingsWriter {
+  return useKeptWriter(grid, updateGridPreferences);
+}
+
+/**
+ * Record the preferences of one key — a grid, a chart — with the action that writes them: after a
+ * pause, or once the page is shown, the outcome of the last write alone being told.
+ */
+export function useKeptWriter<P>(
+  grid: string,
+  write: (key: string, preferences: P) => Promise<Settled>,
+): KeptWriter<P> {
   const [outcome, setOutcome] = useState<Settled>();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // What waits, built as it is written; and whether it awaits the page shown rather than a pause.
-  const waiting = useRef<() => GridPreferences>(undefined);
+  const waiting = useRef<() => P>(undefined);
   const awaitsPage = useRef(false);
   const latest = useRef(0);
 
   const send = useCallback(
-    async (sent: GridPreferences) => {
+    async (sent: P) => {
       latest.current += 1;
-      const write = latest.current;
-      const result = await updateGridPreferences(grid, sent);
-      if (write === latest.current) {
+      const order = latest.current;
+      const result = await write(grid, sent);
+      if (order === latest.current) {
         setOutcome(result.kind === "done" ? undefined : result);
       }
     },
-    [grid],
+    [grid, write],
   );
 
   const flush = useCallback(() => {
@@ -168,7 +217,7 @@ export function useSettingsWriter(grid: string): SettingsWriter {
   }, [flush]);
 
   const record = useCallback(
-    (preferences: GridPreferences) => {
+    (preferences: P) => {
       // Awaiting the page, what waits is built once it is shown, from the settings of then: this
       // change among them.
       if (awaitsPage.current) {
@@ -180,7 +229,7 @@ export function useSettingsWriter(grid: string): SettingsWriter {
     },
     [flush],
   );
-  const recordShown = useCallback((build: () => GridPreferences) => {
+  const recordShown = useCallback((build: () => P) => {
     clearTimeout(timer.current);
     waiting.current = build;
     awaitsPage.current = true;

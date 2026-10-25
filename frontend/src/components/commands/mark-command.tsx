@@ -149,6 +149,7 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
       <OutcomeNotice
         outcome={outcome}
         names={names}
+        subject={names[revision.revision_id]}
         onClear={() => {
           setOutcome(undefined);
         }}
@@ -160,6 +161,7 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
 /** Offer the marking of a revision, and open the entry of its version name when pressed. */
 export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
   const t = useTranslations("enums.RevisionCommand");
+  const helps = useTranslations("commands");
   const form = useId();
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -172,6 +174,7 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
       <Command
         offer={offer}
         label={t("mark")}
+        help={helps("revision.mark.help")}
         icon={commandIcon(REVISION_COMMAND_ICONS.mark)}
         names={names}
         disclosure={{

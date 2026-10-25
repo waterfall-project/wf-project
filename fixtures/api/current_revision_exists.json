@@ -1,0 +1,8 @@
+{
+  "summary": "Une seconde ouverture de révision demandée aujourd'hui sur le projet créé à 14 h 05, « Rénovation du poste de livraison », depuis un écran lu avant que sa révision 103 ne s'ouvre à la même heure (revision_created) : un projet comporte au plus une révision en cours, et le refus le dit par son code, sans paramètre ; rien n'est écrit, et l'écran relit le projet, qui porte désormais sa révision en cours (WF-REV-0010).",
+  "value": {
+    "code": "CURRENT_REVISION_EXISTS",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001308"
+  }
+}

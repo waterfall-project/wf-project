@@ -1,5 +1,5 @@
 {
-  "summary": "Le squelette de planning engendré aujourd'hui sur la révision ouverte à 14 h 05 sur le projet créé à la même heure, « Rénovation du poste de livraison » (revision_without_tasks), sa structure principale encore vide (nodes_empty) : le lotissement par défaut (work_breakdown_default), un poste et un lot qui portent le libellé du projet, donne une récapitulative de poste et une récapitulative de lot sans feuille, rattachées au poste et au lot, et leurs deux jalons de fin, celui du poste succédant à celui du lot — à la fin de la journée de travail qui précède, la lecture d'une fin que la liaison de fin à début lui donne ; sans ligne, rien n'est chiffré, et le compteur de la structure, lu à 0, passe à 1 (WF-PRJ-0030, WF-PLA-0170, WF-PLA-0050, WF-IHM-0110).",
+  "summary": "Le squelette de planning engendré aujourd'hui sur la révision ouverte à 14 h 05 sur le projet créé à la même heure, « Rénovation du poste de livraison » (revision_without_tasks), sa structure principale encore vide (nodes_empty) : le lotissement par défaut (work_breakdown_default), un lot et un poste qui portent le libellé du projet, donne une récapitulative de lot et une récapitulative de poste sans feuille, rattachées au lot et au poste, et leurs deux jalons de fin, celui du lot succédant à celui du poste — à la fin de la journée de travail qui précède, la lecture d'une fin que la liaison de fin à début lui donne ; sans ligne, rien n'est chiffré, et le compteur de la structure, lu à 0, passe à 1 (WF-PRJ-0030, WF-PLA-0170, WF-PLA-0050, WF-IHM-0110).",
   "value": {
     "nodes": [
       {
@@ -7,7 +7,7 @@
         "lineage_id": "01926f3a-7c00-7000-8000-000000000671",
         "kind": "task",
         "parent_id": null,
-        "position": 0,
+        "position": 1,
         "row_number": 1,
         "level": 1,
         "lock_version": 1,
@@ -30,8 +30,17 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
-          "order_item_id": "01926f3a-7c00-7000-8000-000000000714",
-          "work_package_id": null,
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
+          "order_item_id": null,
+          "work_package_id": "01926f3a-7c00-7000-8000-000000000714",
           "work_breakdown_label": "Rénovation du poste de livraison",
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
@@ -52,8 +61,10 @@
         "editable_fields": [
           "task.label",
           "task.description",
+          "task.predecessors",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       },
       {
@@ -61,7 +72,7 @@
         "lineage_id": "01926f3a-7c00-7000-8000-000000000672",
         "kind": "task",
         "parent_id": "01926f3a-7c00-7000-8000-000000000571",
-        "position": 0,
+        "position": 1,
         "row_number": 2,
         "level": 2,
         "lock_version": 1,
@@ -84,8 +95,17 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
-          "order_item_id": null,
-          "work_package_id": "01926f3a-7c00-7000-8000-000000000715",
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
+          "order_item_id": "01926f3a-7c00-7000-8000-000000000715",
+          "work_package_id": null,
           "work_breakdown_label": "Rénovation du poste de livraison",
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
@@ -106,8 +126,10 @@
         "editable_fields": [
           "task.label",
           "task.description",
+          "task.predecessors",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       },
       {
@@ -115,7 +137,7 @@
         "lineage_id": "01926f3a-7c00-7000-8000-000000000673",
         "kind": "task",
         "parent_id": "01926f3a-7c00-7000-8000-000000000572",
-        "position": 0,
+        "position": 1,
         "row_number": 3,
         "level": 3,
         "lock_version": 1,
@@ -138,6 +160,15 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -158,8 +189,10 @@
           "task.description",
           "task.scheduling_mode",
           "task.progress",
+          "task.predecessors",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       },
       {
@@ -167,7 +200,7 @@
         "lineage_id": "01926f3a-7c00-7000-8000-000000000674",
         "kind": "task",
         "parent_id": "01926f3a-7c00-7000-8000-000000000571",
-        "position": 1,
+        "position": 2,
         "row_number": 4,
         "level": 2,
         "lock_version": 1,
@@ -190,6 +223,15 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
+          "calendar_hours": {
+            "monday": "8",
+            "tuesday": "8",
+            "wednesday": "8",
+            "thursday": "8",
+            "friday": "8",
+            "saturday": "0",
+            "sunday": "0"
+          },
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -220,8 +262,10 @@
           "task.description",
           "task.scheduling_mode",
           "task.progress",
+          "task.predecessors",
           "task.order_item_id",
-          "task.work_package_id"
+          "task.work_package_id",
+          "task.tracking"
         ]
       }
     ],

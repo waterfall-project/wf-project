@@ -1,51 +1,20 @@
 {
-  "summary": "Une variante déclarée : un différentiel de la révision courante, « Avenant 3 — pupitres déportés », qui retire les « Pupitres opérateurs », démarrés, ajoute la tâche « Pupitres déportés » et sa ligne, et allonge la « Mise en service » — dans le témoin, la révision courante ne porte aucun différentiel. Le compte rendu préalable de sa fusion : la tâche et la ligne ajoutées, la durée modifiée, et les « Pupitres opérateurs », que la fusion ne retire pas mais conserve et termine, leur reste à engager porté à zéro, sans date tant qu'elle n'est pas appliquée ; aucun motif de refus, la confirmation est offerte, qui renverra les compteurs lus — celui de la structure principale de la révision courante, 1, comme `structures` le dit, et celui du différentiel, 2 (WF-REV-0050, WF-IHM-0110).",
+  "summary": "Le compte rendu préalable de la fusion de l'avenant 2 du témoin, « Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante (nodes_amendment) : « Essais sur site », « Reprise des essais de câblage » et « Assistance à la reprise des essais », qu'il ajoute ; la « Mise en service » déplacée sous les « Essais sur site », liée à la « Reprise des essais de câblage » au lieu du « Montage des armoires sur site », sa durée et la charge de sa ligne modifiées ; « Assistance aux essais de câblage », retirée ; aucune tâche démarrée retirée, aucune terminée, aucun motif de refus : la confirmation est offerte, qui renverra les compteurs lus — celui de la structure principale, 1, et celui du différentiel, 2, comme `structures` les dit (WF-REV-0050, WF-IHM-0110, #791, #1194).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "main_structure_lock_version": 1,
     "amendment_lock_version": 2,
     "differences": [
-      {
-        "change": "added",
-        "target": "task",
-        "lineage_id": null,
-        "label": "Pupitres déportés",
-        "predecessor_label": null,
-        "fields": []
-      },
-      {
-        "change": "added",
-        "target": "estimate_line",
-        "lineage_id": null,
-        "label": "Pupitres déportés",
-        "predecessor_label": null,
-        "fields": []
-      },
-      {
-        "change": "updated",
-        "target": "task",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000665",
-        "label": "Mise en service",
-        "predecessor_label": null,
-        "fields": [
-          "duration"
-        ]
-      },
-      {
-        "change": "kept",
-        "target": "task",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
-        "label": "Pupitres opérateurs",
-        "predecessor_label": null,
-        "fields": []
-      }
+      {"change":"added","target":"task","lineage_id":null,"label":"Essais sur site","predecessor_label":null,"fields":[]},
+      {"change":"added","target":"task","lineage_id":null,"label":"Reprise des essais de câblage","predecessor_label":null,"fields":[]},
+      {"change":"added","target":"estimate_line","lineage_id":null,"label":"Assistance à la reprise des essais","predecessor_label":null,"fields":[]},
+      {"change":"added","target":"link","lineage_id":"01926f3a-7c00-7000-8000-000000000665","label":"Mise en service","predecessor_label":"Reprise des essais de câblage","fields":[]},
+      {"change":"updated","target":"task","lineage_id":"01926f3a-7c00-7000-8000-000000000665","label":"Mise en service","predecessor_label":null,"fields":["duration","parent"]},
+      {"change":"updated","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000666","label":"Mise en service sur site","predecessor_label":null,"fields":["hours"]},
+      {"change":"removed","target":"link","lineage_id":"01926f3a-7c00-7000-8000-000000000665","label":"Mise en service","predecessor_label":"Montage des armoires sur site","fields":[]},
+      {"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000664","label":"Assistance aux essais de câblage","predecessor_label":null,"fields":[]}
     ],
-    "completed_tasks": [
-      {
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
-        "label": "Pupitres opérateurs",
-        "completed_on": null
-      }
-    ],
+    "completed_tasks": [],
     "refusals": []
   }
 }

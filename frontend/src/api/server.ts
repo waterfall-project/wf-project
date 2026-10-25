@@ -11,7 +11,9 @@
  * mode of the fake back, which grants the session the mock-up starts from: a fixed token
  * (`MOCK_TOKEN`). The mode is refused in a production build, except in the end-to-end
  * harness, which builds the front for production to measure it and says so with
- * `WATERFALL_E2E=1`. Nothing else tells the fake back and the real service apart.
+ * `WATERFALL_E2E=1`, and in the public demonstration, which serves the production image against
+ * the fake back and says so with `WATERFALL_DEMO=1` (`deploy/compose/compose.demo.yaml`). Nothing
+ * else tells the fake back and the real service apart.
  * Only the server of Next imports it (§4.3.1): ESLint refuses it in a client component, and
  * `server-only` fails the build of one.
  */
@@ -19,7 +21,7 @@ import "server-only";
 
 import { requestBearer } from "@/session/tokens";
 
-import { type ApiClient, createApiClient } from "./client";
+import { type ApiClient, type Connections, createApiClient } from "./client";
 
 /** The address used when none is configured: the fake back of `make mock`. */
 export const DEFAULT_ADDRESS = "http://localhost:4010";
@@ -36,15 +38,42 @@ export function isMockAuthentication(): boolean {
   if (mode !== "mock") {
     throw new Error(`WATERFALL_AUTH must be "mock", or unset: ${mode}`);
   }
-  if (process.env.NODE_ENV === "production" && process.env.WATERFALL_E2E !== "1") {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.WATERFALL_E2E !== "1" &&
+    process.env.WATERFALL_DEMO !== "1"
+  ) {
     throw new Error("WATERFALL_AUTH=mock is refused in production");
   }
   return true;
 }
 
-/** The address of the API, as configured. */
-function apiAddress(): string {
-  return process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS;
+/** The variable that says how the connections to the API are held (`Connections`). */
+export const API_CONNECTIONS = "WATERFALL_API_CONNECTIONS";
+
+/**
+ * How the connections to the API are held, as configured: `closed` in the end-to-end harness alone
+ * (`playwright.config.ts`, `Connections`); unset, empty or `kept`, kept alive. Anything else — a
+ * typing error, `close` — is refused: the server of the front does not start with it
+ * (`src/startup.ts`), rather than answer every request with an error.
+ */
+export function apiConnections(): Connections {
+  const named = process.env[API_CONNECTIONS];
+  if (named === undefined || named === "" || named === "kept") {
+    return "kept";
+  }
+  if (named !== "closed") {
+    throw new Error(`${API_CONNECTIONS} must be "kept" or "closed", or unset: ${named}`);
+  }
+  return "closed";
+}
+
+/** Where the API is, and how its connections are held, as configured. */
+function apiAt(): { readonly address: string; readonly connections: Connections } {
+  return {
+    address: process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS,
+    connections: apiConnections(),
+  };
 }
 
 /**
@@ -53,7 +82,7 @@ function apiAddress(): string {
  */
 export function serverClient(): ApiClient {
   return createApiClient({
-    address: apiAddress(),
+    ...apiAt(),
     bearer: isMockAuthentication() ? () => MOCK_TOKEN : requestBearer,
   });
 }
@@ -64,7 +93,7 @@ export function serverClient(): ApiClient {
  * token that closes the sessions of the account (#689). Kept nowhere.
  */
 export function tokenClient(token: string): ApiClient {
-  return createApiClient({ address: apiAddress(), bearer: () => token });
+  return createApiClient({ ...apiAt(), bearer: () => token });
 }
 
 /**
@@ -72,5 +101,5 @@ export function tokenClient(token: string): ApiClient {
  * says the maintenance of a restoration (`getLiveness`), asked while the sessions are closed (#604).
  */
 export function publicClient(): ApiClient {
-  return createApiClient({ address: apiAddress() });
+  return createApiClient(apiAt());
 }

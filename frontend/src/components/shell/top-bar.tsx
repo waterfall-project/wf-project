@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The bar of the shell, above the page: the button that folds the side bar, and where the page
- * sits (`Breadcrumbs`); at the right, the search, the button of the background tasks, and the
- * menu of the account. Without a side bar — no session —, the logo takes the place of its
+ * sits (`Breadcrumbs`); at the right, the search, the button of the panel of the tasks and the
+ * messages, and the menu of the account. Without a side bar — no session —, the logo takes the place of its
  * button; without an account, there is no menu of the account. Under them, when it has one to
  * tell, the notice of the writes refused once their screen was gone (`LeftRefusals`, #863).
  *

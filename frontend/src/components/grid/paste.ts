@@ -25,11 +25,13 @@
  * the server wrote taking the place of what was read (`CellWrites.applied`), the navigations of the
  * page held until it answers, and dropped when it is refused (`useHeldCommand`, #688) — its valid
  * rows, a plan that refuses some applied all the same, the refused rows left as they were
- * (EP-14/L42q). What the
+ * (EP-14/L42q). The confirmation waits for any other write of the grid under way — a cell entered,
+ * a gesture —, whose answer moves on the version of the structure it carries (`busy`, #1224). What the
  * confirmation did not write — the refusals of the preview, and those the server adds judging the
  * accepted rows again — is told with the cell the block was pasted from and the number of rows
  * written, the refusals in a region whose height is bounded, until the next paste or until the user
- * dismisses it (`applied`). A paste abandoned asks nothing more, and an answer that arrives after
+ * dismisses it (`applied`) — a paste that wrote every row tells nothing, the grid showing them,
+ * and both are noted in the history of the messages. A paste abandoned asks nothing more, and an answer that arrives after
  * it is dropped. The grid judges nothing of what is pasted: the server reads the cells, and says why.
  *
  * A grid without `paste` in its configuration — read only — takes no paste: the browser does what
@@ -114,9 +116,9 @@ export interface Pasting {
 }
 
 /**
- * What a paste confirmed did not write, told once it is applied: where the block was pasted from,
- * how many rows the server wrote, the rows it refused, each with its reason, and the block they are
- * rows of.
+ * What a paste confirmed wrote and did not write, once it is applied: where the block was pasted
+ * from, how many rows the server wrote, the rows it refused — none, it wrote every row —, each with
+ * its reason, and the block they are rows of.
  */
 export interface PasteReport {
   readonly target: PasteTarget;
@@ -239,6 +241,60 @@ interface ReadRows<Row> {
   readonly narrowed: boolean;
 }
 
+/** Where a block pasted lands in the plan, as the server fills it. */
+interface PlanWalk {
+  /** The numbers of the rows the differential removes, which the server skips. */
+  readonly removed: ReadonlySet<number>;
+  /** The number of the row of the plan the first row out of place should have shown. */
+  readonly expected: number;
+  /** The number of the row of the plan the last line of the block lands on. */
+  readonly end: number;
+}
+
+/**
+ * Walk the rows of the plan under a cell, line by line of the block. The server skips the nodes a
+ * differential removes and writes the next ones (#1278): they hold no line of the block, nor a rank
+ * of it, so a row removed counts for nothing, shown or not. Nothing when each line lands on the row
+ * shown below it.
+ */
+function walkPlan<Row extends RowData, Sort extends string, Totals>(
+  config: GridConfig<Row, Sort, Totals>,
+  numberOf: (row: Row) => number,
+  read: ReadRows<Row>,
+  at: number,
+  count: number,
+  first: number,
+): PlanWalk | undefined {
+  const removedRow = (each: Row) => config.difference?.(each) === "removed";
+  const removed = new Set(read.answered.filter(removedRow).map(numberOf));
+  const after = (number: number) => {
+    let next = number + 1;
+    while (removed.has(next)) {
+      next += 1;
+    }
+    return next;
+  };
+  const alive = read.shown.slice(at + 1).filter((each) => !removedRow(each));
+  let below = 1;
+  let expected = after(first);
+  while (below < count) {
+    const under = alive[below - 1];
+    if (under === undefined || numberOf(under) !== expected) {
+      break;
+    }
+    below += 1;
+    expected = after(expected);
+  }
+  if (below >= count) {
+    return undefined;
+  }
+  let end = first;
+  for (let line = 1; line < count; line += 1) {
+    end = after(end);
+  }
+  return { removed, expected, end };
+}
+
 /**
  * Why a block of rows pasted on the row shown at an index would fill a row of the plan the grid does
  * not show at the same distance under it (L40, #527); nothing when each row of the block lands on
@@ -265,26 +321,19 @@ function unshownRows<Row extends RowData, Sort extends string, Totals>(
     return undefined;
   }
   const first = numberOf(row);
-  const landsOn = (below: number) => {
-    const under = read.shown[at + below];
-    return under !== undefined && numberOf(under) === first + below;
-  };
-  let below = 1;
-  while (below < count && landsOn(below)) {
-    below += 1;
-  }
-  if (below >= count) {
+  const walk = walkPlan(config, numberOf, read, at, count, first);
+  if (walk === undefined) {
     return undefined;
   }
+  const { removed, expected, end } = walk;
   const shown = new Set(read.shown.map(numberOf));
   const answered = read.answered.map(numberOf);
   const held = new Set(answered);
-  for (let number = first + 1; number < first + count; number += 1) {
-    if (held.has(number) && !shown.has(number)) {
+  for (let number = first + 1; number <= end; number += 1) {
+    if (held.has(number) && !shown.has(number) && !removed.has(number)) {
       return "folded";
     }
   }
-  const expected = first + below;
   if (shown.has(expected)) {
     return "sorted";
   }
@@ -306,6 +355,14 @@ export interface GridPasteOptions<Row extends RowData, Sort extends string, Tota
   readonly answered?: readonly Row[] | undefined;
   /** Whether the reading is narrowed by a search or a filter, which may leave rows of the plan out. */
   readonly narrowed?: boolean | undefined;
+  /** Tell the screen a paste applied is under way, whose gestures wait for it (#1224). */
+  readonly writing?: ((write: Promise<unknown>) => void) | undefined;
+  /**
+   * Whether another write of the grid is under way — a cell entered, a gesture — or the reading anew
+   * that follows a gesture: the confirmation waits for it, since it carries the version of the
+   * structure that write's answer is about to move on, and would be refused (412, #1224).
+   */
+  readonly busy?: boolean | undefined;
 }
 
 /** Paste a block into a grid: read it, show its plan, apply it once confirmed, or abandon it. */
@@ -317,12 +374,14 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   scroller,
   answered,
   narrowed,
+  writing,
+  busy = false,
 }: GridPasteOptions<Row, Sort, Totals>) {
   const [pasting, setPasting] = useState<Pasting>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // The column the grid does not show a refused block would reach, named to the user (#200).
   const [hidden, setHidden] = useState<Unshown>();
-  // What the last paste applied did not write, told until the next one.
+  // What the last paste applied wrote and did not write, kept until the next one.
   const [applied, setApplied] = useState<PasteReport>();
   // The paste an answer belongs to: one abandoned, or another started, drops the answer.
   const current = useRef(0);
@@ -420,28 +479,35 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   /**
    * Apply the plan shown, once: what the server wrote takes the place of what was read, the rows it
    * did not write are told, and a refusal is told. The dialog stays until the server answers, and
-   * cannot be abandoned meanwhile: what is under way is written whatever happens to it.
+   * cannot be abandoned meanwhile: what is under way is written whatever happens to it. Confirmed
+   * while another write of the grid is under way, it does nothing: it is offered again once that one
+   * answered, with the version it moved the structure on to (#1224).
    */
   const apply = () => {
     const plan = pasting?.plan;
-    if (paste === undefined || pasting === undefined || plan === undefined || pasting.applying) {
+    if (
+      paste === undefined ||
+      pasting === undefined ||
+      plan === undefined ||
+      pasting.applying ||
+      busy
+    ) {
       return;
     }
     setPasting({ ...pasting, applying: true });
-    void held(paste.apply(plan)).then((answer) => {
+    const applying = paste.apply(plan);
+    writing?.(applying);
+    void held(applying).then((answer) => {
       if (answer.kind === "done") {
         const { written, rejected: refused } = answer.data;
         writes.applied(written);
-        setApplied(
-          refused.length === 0
-            ? undefined
-            : {
-                target: pasting.target,
-                written: written.rows.length,
-                rejected: refused,
-                block: pasting.block,
-              },
-        );
+        // Told on the grid when rows were refused; noted in the history of the messages either way.
+        setApplied({
+          target: pasting.target,
+          written: written.rows.length,
+          rejected: refused,
+          block: pasting.block,
+        });
       }
       current.current += 1;
       setPasting(undefined);
@@ -451,10 +517,12 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
 
   return {
     pasting,
+    /** Whether the paste shown waits for another write of the grid before it may be applied. */
+    waiting: busy && pasting?.applying !== true,
     outcome,
     /** The column the grid does not show a refused block would reach, if one was refused for it. */
     hidden,
-    /** What the last paste applied did not write; none when it wrote every row. */
+    /** What the last paste applied wrote and did not write. */
     applied,
     apply,
     /** Abandon the paste shown, before it is applied: nothing more is asked, nothing written. */

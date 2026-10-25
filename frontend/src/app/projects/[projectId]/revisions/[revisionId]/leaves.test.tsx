@@ -86,6 +86,8 @@ beforeEach(() => {
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /projects/{project_id}/timelines": "timelines",
+    "GET /reference/duration-units": "duration_units",
   };
 });
 
@@ -102,6 +104,6 @@ describe("the leaves with a screen of their own", () => {
 
   it("is led to from the head of the estimate, by its name, in the same context: the workload of the project", async () => {
     const found = links(html(await EstimatePage({ params: PARAMS, searchParams: SEARCH })));
-    expect(found[nameOf("FBS-4.4.4")]).toBe(leafHref("workload"));
+    expect(found[nameOf("FBS-4.4.4")]).toBe(`${leafHref("workload")}&basis=reference_budget`);
   });
 });

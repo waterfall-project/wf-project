@@ -17,6 +17,7 @@
     "provision_cost_category_is_active": true,
     "provision_subproject_id": null,
     "provision_subproject_label": null,
+    "provision_task": null,
     "matrix_cell": {"probability_level":3,"severity_level":1,"zone":"nominal"},
     "last_review_on": "2026-02-20",
     "computed_fields": [

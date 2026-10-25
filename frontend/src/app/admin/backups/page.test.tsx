@@ -24,6 +24,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 import { buttons, instants, links, rows, sortable, text } from "@/test/markup";
+import { queryOfCall } from "@/test/queries";
 
 import BackupsPage, { generateMetadata as backupsMetadata } from "./page";
 
@@ -51,6 +52,8 @@ vi.mock("next/navigation", async (original) => ({
 // The session of the contract, some of its permissions withdrawn for a test: no example lacks the
 // modification of the backups alone, and one would ripple through the accounts, the roles and the
 // journal of the witness.
+// The sizes of pages the account keeps, set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
 const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
@@ -62,6 +65,10 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
             permissions: session.permissions.filter(
               (permission) => !withdrawn.permissions.includes(permission),
             ),
@@ -94,10 +101,11 @@ function queriesOf(route: string) {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 beforeEach(() => {
+  kept.grids = {};
   withdrawn.permissions = [];
   shown.path = "/admin/backups";
   server.clients = [];
@@ -301,6 +309,7 @@ describe("the backups", () => {
     // The filters and the choice of the columns alone: readings, which write nothing of the
     // backups — no start, no marking, no restoration, no deposit.
     expect(buttons(page)).toEqual([
+      "Aide",
       "Filtrer",
       "Tous les déclenchements",
       "Manuelle",
@@ -419,6 +428,7 @@ describe("the backups", () => {
     expect(text(page).split("Aucune sauvegarde").length - 1).toBe(1);
     expect(page).not.toContain('aria-label="Sauvegardes" role="grid"');
     expect(buttons(page)).toEqual([
+      "Aide",
       "Modifier la planification",
       "Sauvegarder maintenant",
       "Déposer",
@@ -442,5 +452,27 @@ describe("the backups", () => {
       "8 sauvegardes Cette page est au-delà de la fin de la liste. Page précédente",
     );
     expect(links(page)).toEqual(["/admin/backups"]);
+  });
+});
+
+describe("the backups, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await BackupsPage(searched(search));
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /backups");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+
+  it("reads the page size kept by the account when the address asks none [WF-IHM-0060-A]", async () => {
+    kept.grids = { backups: { page_size: 25 } };
+    await BackupsPage(searched({}));
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /backups");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
   });
 });

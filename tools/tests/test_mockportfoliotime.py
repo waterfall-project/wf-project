@@ -12,7 +12,14 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcurves, mockids, mockindicators, mockportfolio, mockstructure, mockwitness
+from wftools import (
+    mockcurves,
+    mockids,
+    mockindicators,
+    mockportfolio,
+    mockstructure,
+    mockwitness,
+)
 from wftools import mockportfoliotime as views
 from wftools.mockids import universe
 from wftools.mockwitness import TODAY
@@ -99,6 +106,42 @@ def test_the_cable_fitter_shows_his_capacity_without_load_and_every_month_its_zo
             zones.add(month["zone"])
     # A month over its capacity, one under the threshold, one between (WF-PTF-0060).
     assert zones == {"alert", "watch", "nominal"}
+
+
+@pytest.mark.parametrize("org", [None, views.ORG_NODE, universe(472)])
+def test_the_workload_gives_the_capacity_of_its_roles_and_the_total_of_each_month(
+    rows: list[Node], org: str | None
+) -> None:
+    # #1051: the capacity of the scope is the sum of those of the roles kept — all, those of the
+    # node filtered —, the cable fitter without load counted (#375); each month of `months`, in
+    # its order, the total of the hours of those roles, that the chart draws without summing.
+    plan = workload(rows, org)
+    roles = cast("list[Node]", plan["roles"])
+    assert Decimal(plan["capacity_monthly_hours"]) == sum(
+        (Decimal(role["capacity_monthly_hours"]) for role in roles), Decimal(0)
+    )
+    totals = cast("list[Node]", plan["monthly_totals"])
+    assert [month["month"] for month in totals] == plan["months"]
+    hours = _hours(plan)
+    for month in totals:
+        assert Decimal(month["hours"]) == sum(
+            (hours[role["resource_role_id"], month["month"]] for role in roles), Decimal(0)
+        )
+
+
+def test_the_capacity_of_the_cable_fitter_alone_is_that_of_his_workshop(rows: list[Node]) -> None:
+    workshop = workload(rows, universe(472))
+    [fitter] = cast("list[Node]", workshop["roles"])
+    assert workshop["capacity_monthly_hours"] == fitter["capacity_monthly_hours"] == "216662.5"
+    assert {month["hours"] for month in workshop["monthly_totals"]} == {"0"}
+
+
+def test_the_examples_give_the_capacity_of_the_whole_portfolio() -> None:
+    plan = mockwitness.fixture("portfolio_workload")
+    assert plan["capacity_monthly_hours"] == "1360640.5"
+    filtered = mockwitness.fixture("portfolio_workload_org_node")
+    assert filtered["capacity_monthly_hours"] == plan["capacity_monthly_hours"]
+    assert filtered["monthly_totals"] == plan["monthly_totals"]
 
 
 @pytest.mark.parametrize(

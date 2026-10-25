@@ -11,19 +11,19 @@ y ajoute la section qu'elle établit, et une section encore vide nomme celle qui
 
 ## Arborescence
 
-| Chemin | Contenu | PBS |
-|---|---|---|
-| `backend/` | un seul projet Python, un seul paquet `waterfall` : le noyau (`core/`, un sous-paquet par module, calqué sur un bloc FBS), le service d'API (`api/`), le worker (`worker/`) ; les tests dans `backend/tests/` | PBS-2 |
-| `frontend/` | l'application Next.js ; le client engendré dans `frontend/src/api/` ; les parcours de bout en bout dans `frontend/e2e/` | PBS-1 |
-| `fixtures/` | le relevé engendré des exemples chiffrés des Vérif, et les fixtures qui s'y rattachent | — |
-| `tools/` | les outils du dépôt, un seul paquet Python, `wftools`, et leurs tests | PBS-5.2 |
-| `deploy/compose/`, `deploy/helm/` | l'empaquetage : Compose, puis le chart Helm en EP-13 | PBS-5.1 |
-| `deploy/keycloak/` | l'image de Keycloak : l'extension Java (`extension/`), les thèmes, le royaume `waterfall` (`realm/`), et ce que la plateforme de développement lui ajoute (`development/`) | PBS-5.4 |
-| `.github/workflows/` | la chaîne | PBS-5.2 |
-| `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap | — |
-| `docs/dev/` | ce guide, et les règles de codage par langage | — |
-| `LICENSES/`, `REUSE.toml` | les textes des licences, et la licence des fichiers qui ne portent pas d'en-tête | — |
-| `docs/legal/` | l'accord de licence de contribution, et les engagements envers l'édition communautaire | — |
+| Chemin                                     | Contenu                                                                                                                                                                                                       | PBS     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `backend/`                                 | un seul projet Python, un seul paquet `waterfall` : le noyau (`core/`, un sous-paquet par module, calqué sur un bloc FBS), le service d'API (`api/`), le worker (`worker/`) ; les tests dans `backend/tests/` | PBS-2   |
+| `frontend/`                                | l'application Next.js ; le client engendré dans `frontend/src/api/` ; les parcours de bout en bout dans `frontend/e2e/`                                                                                       | PBS-1   |
+| `fixtures/`                                | le relevé engendré des exemples chiffrés des Vérif, et les fixtures qui s'y rattachent                                                                                                                        | —       |
+| `tools/`                                   | les outils du dépôt, un seul paquet Python, `wftools`, et leurs tests                                                                                                                                         | PBS-5.2 |
+| `deploy/compose/`, `deploy/helm/`          | l'empaquetage : Compose, puis le chart Helm en EP-13                                                                                                                                                          | PBS-5.1 |
+| `deploy/keycloak/`                         | l'image de Keycloak : l'extension Java (`extension/`), les thèmes, le royaume `waterfall` (`realm/`), et ce que la plateforme de développement lui ajoute (`development/`)                                    | PBS-5.4 |
+| `.github/workflows/`                       | la chaîne                                                                                                                                                                                                     | PBS-5.2 |
+| `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap                                                                                                                                                                      | —       |
+| `docs/dev/`                                | ce guide, et les règles de codage par langage                                                                                                                                                                 | —       |
+| `LICENSES/`, `REUSE.toml`                  | les textes des licences, et la licence des fichiers qui ne portent pas d'en-tête                                                                                                                              | —       |
+| `docs/legal/`                              | l'accord de licence de contribution, et les engagements envers l'édition communautaire                                                                                                                        | —       |
 
 Un répertoire naît avec le lot qui y met le premier fichier : `backend/`, `frontend/`,
 `fixtures/` et `deploy/` n'existent pas encore tous. La conception d'EP-01 dit pourquoi
@@ -53,7 +53,7 @@ typées — vit dans `waterfall.platform`, sous le noyau : le noyau, l'API et le
 il n'importe aucun d'eux, et aucun de ses modules ne connaît une table du noyau. Le contrat de
 couches de `backend/pyproject.toml` le garde.
 
-*Contrôle* : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
+_Contrôle_ : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
 un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`). Une requête
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
 imports : elle relève des règles SQL d'EP-03 et de la revue.
@@ -90,7 +90,7 @@ validation des paramètres et du corps, après sa lecture : un corps illisible e
 l'appelant, 404 `NOT_FOUND` ; sans une autre, 403 `PERMISSION_MISSING`, `params.missing_permission` la
 nommant (WF-ADM-0110). L'évaluation elle-même, `require(actor, permission)`, est celle du module
 `waterfall.core.access_roles`, que les EPIC suivants complètent (la qualité de contributeur en
-EP-04). *Contrôle* : `backend/tests/test_access_evaluation.py` liste les permissions de chaque
+EP-04). _Contrôle_ : `backend/tests/test_access_evaluation.py` liste les permissions de chaque
 opération servie et vérifie que le contrat déclare le refus qu'elles peuvent donner — une route
 nouvelle s'y ajoute.
 
@@ -107,15 +107,20 @@ avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `
 que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
 et les composants serveur de `src/app/`, qui se rendent sans document comme en production —,
 `dom` pour les `*.dom.test.ts` et `*.dom.test.tsx` — les composants client, que Testing
-Library rend dans le document de happy-dom. Un test du projet `dom` qui écrit sur la sortie
-d'erreur — `console.error`, `console.warn`, `console.trace` — échoue une fois son document
-nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) : un avertissement de React
-ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du test ou du code, pas un
-bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la console la fait taire
-lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut dit. happy-dom ne
-mesure rien : un test qui monte une courbe donne à son dessin la place qu'une page lui donne
-(`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit qu'il n'a
-ni largeur ni hauteur (EP-02/L37).
+Library rend dans le document de happy-dom. Un `*.dom.test.tsx` peut vivre sous `src/app/` quand
+il éprouve ce qu'une page compose avec ses composants client : la page se lit comme en production,
+sur le serveur, et l'arbre qu'elle rend se monte dans un document, où seul un rendu montre ce que
+la bannière et la grille partagent (`structure-screens.dom.test.tsx`). Un tel test n'éprouve pas
+le Vérif d'une exigence et n'en cite pas : il tient en non-régression le défaut n° 20 de
+`typescript.md` et #819.3, les mêmes écrans ayant leurs parcours sous `e2e/`. Un test du projet
+`dom` qui écrit sur la sortie d'erreur — `console.error`, `console.warn`, `console.trace` —
+échoue une fois son document nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) :
+un avertissement de React ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du
+test ou du code, pas un bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la
+console la fait taire lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut
+dit. happy-dom ne mesure rien : un test qui monte une courbe donne à son dessin la place qu'une
+page lui donne (`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit
+qu'il n'a ni largeur ni hauteur (EP-02/L37).
 
 ### La navigation : la table des fonctions et ses routes
 
@@ -129,9 +134,12 @@ permission : les chronologies, FBS-4.3.1, les imports et exports, FBS-4.3.4, et 
 tâches, FBS-4.3.5, sous le planning (`/projects/[projectId]/revisions/[revisionId]/timelines`,
 `…/exchanges`, `…/task-tree`), le plan de charge du projet,
 FBS-4.4.4, sous le devis (`…/workload`), et le Kanban, FBS-4.5.3, sous le reste à engager
-(`…/kanban`). La navigation ne l'offre pas —
-l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
-mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
+(`…/kanban`). La navigation la montre, en retrait sous sa
+fonction, dans une liste imbriquée dans l'élément de celle-ci, avec la garde de la feuille et dans le
+même contexte ; l'écran de sa fonction y mène aussi. Le lien courant, `aria-current="page"`, est celui de la
+feuille ; sa fonction, qui est le chemin, porte `aria-current="true"`. Repliée en icônes, la barre ne
+montre que la fonction, marquée ainsi quand la page est l'une de ses feuilles. `readContext` la lit
+comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
 que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
 (`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
 montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
@@ -142,7 +150,7 @@ prend pas son nom de ce qu'il dit — : il se trouve par son texte dans la liste
 `within`, comme le taux d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ;
 `functions.test.ts` refuse toute autre section sans rôle.
 
-*Contrôle* : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
+_Contrôle_ : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
 modification, puisqu'il lit la projection comme le front) confronte la table aux fonctions de
 la FBS de la projection — les boîtes des figures de l'arborescence et de chaque bloc, qui les
 nomment toutes, et les titres de leurs paragraphes, lus en protection ; une flèche dont l'enfant ne
@@ -207,7 +215,7 @@ groupes — la plateforme, par bloc de la FBS repliable ; le projet, avec la lis
 le « retour au projet » ; la révision lue —, le bouton qui la replie au pied ; au-dessus de la
 page, la barre (`top-bar.tsx`) : le bouton qui replie la barre latérale, le fil d'Ariane
 (`frontend/src/navigation/breadcrumbs.ts`), la recherche — en place, sans fonction encore —, le
-bouton des tâches de fond et le menu du compte. La barre latérale repliée garde son état dans
+bouton du panneau des tâches et des messages et le menu du compte. La barre latérale repliée garde son état dans
 un témoin du front, `wf_sidebar_state`, que le layout racine lit pour la rendre telle
 côté serveur. Le layout, rendu une fois, ne connaît pas l'adresse : le libellé du projet vient
 de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à la coquille par
@@ -217,7 +225,8 @@ mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le 
 clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconnexion
 (`closeMySessions`, qui ferme toutes les sessions du compte ; un 401 valant session déjà close,
 le compte désactivé ou non admis compris) oublie ce que le navigateur gardait de la session — le
-témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi — puis charge en
+témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi, l'historique des
+messages (`wf_messages`) — puis charge en
 document entier l'adresse que rend l'action : `/login`, d'ordinaire. `/login?next=…` est un
 gestionnaire de route (`src/app/login/route.ts`), non une page : Waterfall n'a ni formulaire de
 connexion, ni liste de fournisseurs, ni mot de passe oublié, le fournisseur d'identité tenant ses
@@ -331,8 +340,9 @@ ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation pro
 (`router.push`), « Précédent » et « Suivant » du navigateur, un lien qui ouvre ailleurs —
 autre onglet, touche de modification, téléchargement, autre site. Une écriture encore en route quand
 son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
-survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `leftRefusals` de
-`held-writes.ts`, #863) ; une écriture refusée avant le départ de son écran y a été dite, et ne
+survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `refusedLeft` de
+`held-writes.ts`, #863), et l'inscrit dans l'historique des messages avec son refus et l'écran
+d'où elle était partie ; une écriture refusée avant le départ de son écran y a été dite, et ne
 l'est pas deux fois.
 Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion, désactivation, retrait
 des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du front et non une
@@ -418,18 +428,18 @@ modification du projet, sur ses paramètres (EP-02/L44a, plus bas), et, sur ses 
 commandes de ses sous-projets et de ses contributeurs (EP-02/L44b, plus bas). Les tables de données des
 paramètres sont trois grilles denses (#301,
 `settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
-`subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque poste, ses lots
+`subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque lot, ses postes
 sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie, cherchée
 par le serveur sur ses libellés (`breakdown_search`) et filtrée par nature (`breakdown_kinds`,
-EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses postes et
-ses lots ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
+EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses lots et
+ses postes ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
 à `setWorkBreakdown` ; sa ligne de totaux compte les seuls éléments retenus, par nature (`is_match`,
 #574), et il se saisit dans sa grille comme le projet liste `update_work_breakdown`, indisponible
 aussi pendant un traitement de fond (EP-14/L42s ; `breakdown-commands.tsx`, EP-14/L44c) : chaque
 geste — un élément ajouté, renommé ou supprimé, du menu d'une cellule sur sa ligne ou de la barre
 sur la ligne de la cellule active (`RowCommands` de `DenseGrid`) — envoie le lotissement entier
 depuis sa lecture entière, que la page relit quand la grille le lit filtré, l'élément ajouté sans
-identifiant ; une suppression se confirme, celle d'un poste ou d'un lot en disant que les tâches qui
+identifiant ; une suppression se confirme, celle d'un lot ou d'un poste en disant que les tâches qui
 le portent restent et perdent leur rattachement (WF-PLA-0170) ; un refus par champ qui vise
 l'élément du dialogue est dit à son champ, celui qui en vise un autre le nomme ; les
 sous-projets, cherchés par le serveur sur leur code et leur libellé (`subproject_search`), triés par
@@ -565,11 +575,25 @@ Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
 fois par requête — et le montre par `ContextBanner`, au-dessus de son `<main>`
 (WF-IHM-0020). La lecture porte `edits`, les commandes `edit_*` de la révision que
-l'appelant peut exercer (`read-only.ts`), qu'un écran reçoit plutôt que de les déduire : une
-grille lit sa propre commande — `edits.has("edit_planning")` pour le planning —, car un
-chiffreur peut saisir le devis sans toucher au planning. `readOnly` — révision marquée, ou
-aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une valeur sous
-enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
+l'appelant peut exercer (`read-only.ts`), qu'un écran reçoit plutôt que de les déduire. Ce qu'une
+grille offre — la saisie, les gestes, le collage — ne se lit pourtant pas là, mais dans la
+structure qu'elle lit (`screen.commands`, de `grid-screen.ts`, d'après
+`available_commands`) : sa propre commande — `edit_planning` pour le planning —, car la phase du
+projet n'est pas celle de la révision (le devis de la principale d'un projet En cours est en
+lecture seule, le reste à engager non, le devis d'un différentiel ou d'un risque non plus) et qu'un
+chiffreur peut saisir le devis sans toucher au planning. Le planning et le devis lisent la
+structure que nomme l'adresse (`structure`, `components/context/structure.ts`) — la principale
+par défaut, un différentiel d'avenant, le devis propre d'un risque —, que la révision liste
+(`listCostStructures`), une autre étant introuvable ; le reste à engager, les chronologies et
+l'arborescence, la seule principale (`GridReading.chooses`). Le bandeau nomme la structure lue,
+sa nature quand ce n'est pas la principale, et offre les autres de la révision
+(`StructureChoice`) ; ce paramètre est celui de la grille : les liens entre fonctions ne le portent
+que du planning au devis et du devis au planning, qui lisent la même structure, et jamais vers un
+autre écran, qui retombe sur la principale (`readsStructure`, `navigation/context.ts`, #1220). La
+grille se monte par structure (`key`), et le squelette ne s'offre que sur la principale
+(US-0500). `readOnly` —
+révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
+valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
 (`enums.NotComputableReason.*`, `indicator.tsx`).
 
@@ -588,7 +612,18 @@ mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe. Elle
 coup, sans animation, et une légende y est inerte : un clic, à la souris seule, ne cache aucune
 série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur nombre — pas de
 légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
-chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; une
+chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; un plan de
+charge est un histogramme empilé (`stackedRoles` de `workload/stacked-load.ts` : une barre par mois,
+divisée par rôle, les motifs gardés), dont l'infobulle d'un mois liste les rôles et leurs heures
+(`monthTooltip`, libellés échappés) ; celui du projet n'a pas de droite de capacité (#375) mais porte au sommet
+de chaque barre le total du mois que le serveur rend (`monthly_totals`, `monthTotals`), comme celui
+du portefeuille qui porte aussi, en pointillés, la capacité
+du périmètre (`capacity_monthly_hours`), la table des rôles, de leur taux et de leurs signaux étant
+sous le graphique ; les liens vers le plan de charge ouvrent une base (`basis`,
+`workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis `reference_budget`
+d'un projet en cours ou terminé qui a une référence, `current_remaining` sinon ; le lien du reste à
+engager vers ce plan est une icône seule (`aria-label`, `title`), le titre de l'écran et les totaux
+de sa grille ne tenant dans la fenêtre de 1280 points qu'à ce prix (`remaining.spec.ts`) ; une
 courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; une série de barres
 (`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ;
 `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire des instants
@@ -599,16 +634,35 @@ dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de plann
 courbe trace les chaînes de l'API telles quelles — ECharts en tire une position —, une valeur
 non calculable étant un trou, un cumul d'événements datés — valeur acquise, coût réel — en
 escalier (`step`), une marche verticale par deux points à la même date, et le tableau les écrit
-par `src/i18n/format.ts`, les zones par `Signal`. Une figure qui reçoit `exported` offre la
-commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une instance hors
-écran, en rendu canvas, à la taille d'une image, son titre et sa provenance (`useProvenance`) —
-projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs (`detail` : la base et
-le nœud d'organisation filtré du plan de charge), date de calcul, écrite dans l'heure du poste au
-moment de l'export —
-en tête, repliés à la largeur de l'image (`wrapLines`), la figure descendue de la hauteur de
-leurs lignes, sur le fond de la charte, puis libère l'instance. Un choix qui change ce qu'une
-courbe lit — les délais de paiement, la base et le nœud d'organisation du plan de charge — est un
-paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre ni ne décale rien.
+par `src/i18n/format.ts`, les zones par `Signal`. La matrice des risques est un nuage de bulles
+(`risks/risk-bubble-chart.tsx`, `RiskBubbleChart`, partagé par le projet et le portefeuille) : un
+`scatter` par état de risque — le cercle, le losange, le triangle, que la légende montre —, sur
+seize `markArea` d'une série à part, une par case, que `ChartPalette.zones` colore des jetons des
+zones (`ZoneProbes` de `signal/signal.tsx`, le seul fichier qui nomme ces jetons) ; une zone
+se nomme dans son aire quand sa bande a la place d'une ligne, et son bord a un trait à elle (plein,
+tireté, pointillé), la couleur ne la portant jamais seule. Les axes vont du zéro à la fin du dernier
+niveau — que le serveur laisse sans borne haute, et qu'ECharts ne prolonge pas pour une aire —, à
+la bulle la plus haute près ; une bulle est à la probabilité et à la part de gravité exactes de son
+point, et sa taille, bornée, suit la gravité en montant ; l'infobulle dit le risque, son projet au
+portefeuille, et le clic (`onPoint` de `Chart`, par l'`id` de la donnée) ouvre le détail du risque
+dans l'adresse d'un projet, ou le projet d'un point que `can_open` permet d'ouvrir. La table du
+décompte par case (`RiskCountsTable`, `cells`) est celle des valeurs de la figure. Aucune bulle
+n'est atteignable au clavier, et c'est dit : la grille des risques, sur le même écran (projet),
+donne au clavier l'accès aux mêmes données, par le lien du libellé de chaque ligne, et au
+portefeuille le tableau des plus lourds et `/portfolio/projects` y suffisent (#1253). Les axes
+restent linéaires, aux valeurs exactes (WF-IHM-0100), même si la bande de 0 à 1 % de gravité n'y
+mesure qu'une quinzaine de points : une échelle par morceaux fausserait la lecture des positions.
+`folded` de `Chart` ne vaut que pour l'état initial du dessin — un bouton l'affiche et le replie
+ensuite —, et un changement ultérieur de la prop ne le plie ni ne le déplie. Une figure qui reçoit
+`exported` offre la commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une
+instance hors écran, en rendu canvas, à la taille d'une image, son titre et sa provenance
+(`useProvenance`) — projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs
+(`detail` : la base et le nœud d'organisation filtré du plan de charge), date de calcul, écrite dans
+l'heure du poste au moment de l'export — en tête, repliés à la largeur de l'image (`wrapLines`), la
+figure descendue de la hauteur de leurs lignes, sur le fond de la charte, puis libère l'instance. Un
+choix qui change ce qu'une courbe lit — les délais de paiement, la base et le nœud d'organisation du
+plan de charge — est un paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre
+ni ne décale rien.
 
 ### L'écran des indicateurs
 
@@ -631,6 +685,30 @@ des indicateurs nuls ; une courbe sans point dit qu'elle n'a rien à tracer plut
 zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphique — le budget de
 référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
 la décaler, et, décalée, garde la commande qui retire le décalage.
+
+### Les chiffres clés en cartes
+
+Les chiffres clés d'un écran se présentent par `FiguresCard` (`src/components/figures-card.tsx`),
+jamais en ligne dans un `<dl className="flex …">` posé sur la page : une carte est une région
+nommée par son titre (`role="region"`, `aria-label` du titre), qui porte la date de calcul quand la
+réponse a un contexte (`context`, `CalculationDate`, WF-IHM-0020) et ses chiffres dans une liste de
+termes (`FiguresList`, un `dl`) — le nom, puis la valeur, pour un lecteur d'écran. Les cartes d'un
+écran sont rangées dans `FiguresGrid`, qui passe à la ligne selon la largeur ; les cartes y
+partagent la largeur, et une carte seule s'étire sur toute la rangée. La date de calcul se répète sur chaque
+carte d'une réponse qui en a une : chaque région se lit seule, avec son titre et sa date, sans
+qu'il faille remonter à une autre. Elle se place sous le titre, jamais à sa suite sur la
+même ligne : écrite après l'hydratation (`LocalTime`), elle ferait sauter la carte d'une ligne. Une carte porte un bloc de chiffres qui se lit ensemble — les
+totaux, une ventilation en liste, la couverture des risques —, jamais la page entière. Les valeurs,
+leur format et leurs signaux (`Signal`, WF-IHM-0070) sont ceux que l'écran avait : la carte
+n'ajoute que l'encadré. `IndicatorCard` (écran des indicateurs) la réemploie en gardant son aspect d'avant (`spacious`), les courbes et les tableaux qu'elle porte ayant besoin de la place ; les autres cartes sont compactes, pour que la grille garde ses totaux dans la fenêtre. Les six écrans qui
+la suivent sont les risques, le devis, le reste à engager, les coûts réels et les deux vues du
+portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau du contexte de
+lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la ligne des
+totaux de la grille reste dans la fenêtre sous les cartes, à 1366 et à 911 de large sur 768 de
+haut : `e2e/grid-frame.spec.ts` le vérifie, risques compris : le graphique de leur matrice, entre les
+cartes et la grille, démarre replié (`folded` de `Chart`), un bouton l'affiche et le replie, car dépliée
+sa hauteur (288 points, `h-72`) ne laisse pas les totaux dans la fenêtre à 768 de haut (#1252). _Contrôle_ : la revue ;
+`src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
 ### Les grilles
 
@@ -696,7 +774,7 @@ qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hy
 premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
-lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les
+lecture de la structure que nomme l'adresse (`grid-screen.ts`) ; le planning demande au serveur les
 seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâche, récapitulative
 comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
 l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
@@ -737,9 +815,26 @@ sur le fond `muted` de la charte : `TableHead` le pose à l'en-tête d'une colon
 non à celui d'une ligne, et un `<thead>` écrit à la main le prend de même (#508), ce que
 `frontend/src/components/thead-guard.test.ts` vérifie dans les sources. La grille prend la hauteur que lui laisse son écran : un
 écran de grille est un `Screen` qui remplit la fenêtre (`fill`), la page bornée à sa hauteur
-(`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher —
+(`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher, dix rem au plus et jamais
+plus que son contenu (`min(10rem, 2 × EDGE_REM + max(lignes, 1) × ROW_REM)`, `grid-floor.ts`, #1041) —
 aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
-plancher fait défiler la page. Colonnes masquées, largeurs et tri sont une préférence
+plancher fait défiler la page. L'enveloppe de la grille et de sa barre porte ce plancher, plus la
+barre, en hauteur minimale : les enveloppes de l'écran, qui rétrécissent à ce qui reste (`min-h-0`),
+ne poussent pas le cadre sous son plancher sur ce qui le suit dans la même enveloppe — les filtres
+au-dessus, les pages en dessous. Le plancher ne remonte pas plus haut : une enveloppe en `min-h-0`
+peut rester plus basse que le cadre, ce que la page absorbe en défilant, tant que rien ne la suit.
+Un écran qui a du contenu sous l'enveloppe de sa grille, hors de la chaîne qui la contient — fût-ce
+seulement dans une fenêtre étroite, où le contenu voisin se range dessous (les coûts réels, les
+risques) —, ne remplit pas la fenêtre là où il l'a dessous (`fillWide`,
+`lg:min-h-0`), de même que `/admin/backups` et le référentiel des ressources et des coûts, qui empilent leurs
+grilles, ne la remplissent pas :
+la grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les neuf
+écrans qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre
+ne chevauche rien. La barre et le bouton « Colonnes » ont la largeur du cadre de la table, telle que
+le navigateur la pose (barres de défilement comprises, `frame-width.ts`), sans la dépasser, et jamais
+moins que ce que la barre tient sur une ligne (`min-w-min`, la recherche rétrécissant avant que
+rien ne s'enroule, hors la liste de commandes d'un écran, qui s'enroule d'elle-même) ; les avis — refus, collage appliqué, colonnes non montrées, problème de saisie —
+gardent toute la largeur (#1042). Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
 et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
@@ -767,11 +862,51 @@ ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #1
 deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
 (`EstimateSummary`).
 
+Une grille qui lit un différentiel (`CostStructure.kind` = `amendment`) est un diff avec la structure
+principale, que le serveur calcule (`Node.difference`, rendu sur chaque nœud, avec les nœuds retirés
+à leur place) : elle reçoit `GridConfig.difference` (`withDifference`, `nodes.tsx`) et une colonne
+`DiffMark` en tête (`diff-mark.tsx`, `DIFF_MARK_KEY`), avant le numéro. Le caractère dit la
+différence — `+` un ajout, `-` un retrait, `M` une modification, une récapitulative dont le contenu
+change comprise —, la couleur le double, la marque dans le vert, le rouge ou le jaune de son jeton
+et la ligne teintée du même (`--diff-added`, `--diff-removed`, `--diff-modified` et leurs `-mark`, avec
+leurs valeurs sombres), jamais la couleur seule : le mot — « Ajouté », « Retiré », « Modifié » — est
+lu par qui ne voit ni l'un ni l'autre, et un nœud inchangé ne porte rien. Les jetons sont mesurés
+dans les deux modes (`contrast.test.ts`), et les grilles du planning et du devis sur l'avenant 2 sont
+des écrans du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`, `e2e/routes.ts`). Un nœud retiré se lit
+et ne se touche pas : aucun geste de structure ne lui est offert, ni « Insérer » ni « Supprimer » ni
+Ctrl+Suppr, il ne se déplace pas, rien ne se dépose à côté de lui (`isRemoved`, `structure-rules.ts`,
+#1185), et la cellule des prédécesseurs suit `editable_fields` (`task.predecessors`) : celle d'une tâche
+retirée, qui ne le nomme pas, n'est pas saisissable (#1257).
+
+La comparaison de deux révisions (`/revisions?from_revision_id=…&to_revision_id=…`) est la même
+grille, en lecture seule (`comparison-grid.tsx`, `components/revisions/`) : les nœuds de
+`compareRevisions` — l'arbre de la révision comparée, les nœuds retirés à leur place —, chacun avec
+la marque que le serveur rend (`difference`, `changes`, une tâche déplacée sous une autre
+récapitulative marquée modifiée, WF-REV-0080), la colonne `DiffMark` en tête, puis le numéro, le
+libellé indenté par son niveau sous l'icône de sa nature, et ce qui change du nœud, nommé comme le
+serveur le nomme. La comparaison ne se pagine pas, comme `listNodes` (#1201) : l'écran demande
+l'arbre entier, réduit par `fields` aux colonnes qu'il montre (`COMPARISON_FIELDS`, `kind`,
+`task.label`, `estimate_line.label`) et projeté (`comparisonRows`) ; le serveur rend toujours le
+numéro, le niveau, la version et la marque. Faute de parent dans ces champs, l'arbre ne se plie
+pas ; rien ne se trie ni ne se cherche, l'ordre est celui du plan. Les 5 999 nœuds de l'exemple de
+volume (`volume/comparison_volume.json`, dont 2 770 modifiés) ne montent qu'une fenêtre de lignes,
+et l'écran garde la borne d'un écran de grille (`WORKING`, 15 s, `revisions.spec.ts`) ; le parcours
+joue l'exemple de la fenêtre, le faux back servant le premier exemple de l'opération. Les écarts
+de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
+d'accessibilité (`DIFFERENTIAL_SCREENS`).
+
 ### La grille de planning et le Gantt
 
 La grille de planning présente aussi la description d'une tâche et l'avancement physique d'une
 récapitulative, un pourcentage calculé ou non calculable, son motif en titre ; puis le Gantt
-(FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule. Chaque cellule
+(FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule, épinglée à
+droite (`GridColumn.pinned: "end"`, `pinning.ts`, US-0530) : elle glisse sur les colonnes qui la
+précèdent quand elle s'élargit, et la grille les fait défiler hors de dessous elle
+(`scroll-padding-inline-end`). Sa poignée, sur son bord gauche — la souris, ou Maj et les flèches,
+la flèche gauche l'élargissant —, règle sa largeur, celle de `gantt` dans `column_widths`, et ne
+modifie aucune tâche, d'un minimum jusqu'à la place du cadre à sa plus grande largeur
+(`useFrameRoom`), moins les colonnes épinglées en tête et la plus large des autres, où se montre la
+cellule active (`endMaxOf`). Chaque cellule
 dessine en SVG la ligne de sa tâche — sa barre, les morceaux des liaisons qui la quittent, la longent
 ou l'atteignent, les mois de l'axe — : le dessin est aligné ligne à ligne sur la grille, rendu avec
 ses seules lignes visibles, et suit la largeur de sa colonne, en part de cette largeur. La
@@ -787,23 +922,90 @@ dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâ
 sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
 « critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
 seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
-déplier. Sa colonne « Rattachement » présente le poste ou le lot que porte une tâche, par le libellé
-que le serveur résout (`work_breakdown_label`) ; là où la révision liste `edit_planning`, la cellule le
-choisit parmi les postes et les lots du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
+déplier. Son niveau le plus fin divise chaque jour en heures travaillées, numérotées dans leur jour,
+que la page lit de `getDurationUnits` : `hoursOfDay` (`scale.ts`) arrondit `hours_per_day` à l'heure
+entière la plus proche, la demi-heure vers le haut, de 1 à 24, sur les chiffres de la chaîne, jamais
+par un flottant (#1393). « Exporter en PNG », après le zoom dans le coin de l'en-tête et au menu
+d'une cellule, dessine sur un canevas (`gantt-image.ts`) toute l'étendue au niveau montré — la
+largeur du dessin zoomé, celle de la colonne une fois ajusté au projet —, une ligne par tâche que la grille
+montre, pliée comme elle, les jours chômés du même hachurage que l'écran (`DAY_OFF_HATCH`, lu par
+les classes de ses jetons) et leur légende, la provenance en tête comme pour toute courbe
+(`useProvenance`, `provenanceOf` de `grid-screen.ts`) ; deux fois plus dense que l'écran tant qu'un
+canevas le tient, aussi dense sinon, et indisponible, son motif dit, au-delà des bornes des
+navigateurs (32 767 points de côté, 268 millions en tout). Sa colonne « Rattachement » présente le lot ou le poste que porte une tâche, par le libellé
+que le serveur résout (`work_breakdown_label`) ; là où la structure lue liste `edit_planning`, la cellule le
+choisit parmi les lots et les postes du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
 — le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte
 (`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
-déjà l'élément ou celles qui sortiraient du sous-arbre de leur poste (WF-PLA-0170) ; comme tout refus
-de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est décrite
-(`aria-invalid`, `aria-describedby`). Dans la grille vide, le squelette s'offre comme la révision
-liste `generate_skeleton`, indisponible avec sa condition dès que la structure comporte une tâche
-(WF-PRJ-0030) ; engendré, ses tâches remplissent la grille tant que le compteur de la structure
-qu'il rend est plus récent que celui de la lecture (EP-14/L44d). Les autres feuilles du planning ont
+déjà l'élément ou celles qui sortiraient du sous-arbre de leur lot (WF-PLA-0170) ; comme tout refus
+de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est
+décrite (`aria-invalid`, `aria-describedby`). Là aussi, la tâche se saisit au clavier, cellule par
+cellule, par `updateTaskFacet` (US-0470, `planning.tsx`) : le libellé, la description — vidée, elle
+est nulle —, le mode (une liste), la durée avec le suffixe de son unité et les dates, chacune là où
+le nœud porte sa tâche, nomme son champ parmi ceux qu'il accepte (`editable_fields`) et ne le
+calcule pas (`computed_fields`) : les dates d'une tâche automatique, la durée d'une récapitulative
+sont traversées sans entrer en saisie (WF-PLA-0020). La durée se lit dans la langue de l'interface
+(`parseDuration`, `cell-values.ts`), sans égard à la casse, un nombre seul en jours : les suffixes
+que nomme WF-PLA-0160 sont lus en toutes langues — « m » un mois, « min » une minute, « h », « j »,
+« sem », et leurs pareils écoulés préfixés d'un « e » —, plus ceux que le catalogue écrit dans la
+langue courante (`enums.DurationUnit`), et aucun autre : en anglais « d », « wk », « mo » sont lus,
+en français ils ne le sont pas. Elle part dans son unité, que le serveur garde. Une date se tape
+dans la forme courte de la langue, ou sous sa forme ISO (`parsePlanningDate`), et part seule, sans
+heures : le front ne connaît pas le calendrier, le serveur complète les heures — le début au début
+du jour ouvré, la fin au bout de ses heures —, et la cellule montre ce qu'il rend (#1244). Les prédécesseurs d'une tâche se saisissent comme
+dans MS Project, « 3FD+2 j ; 5DD » (`predecessors-entry.ts`) : le numéro de ligne, le code du type
+de la liaison dans la langue de l'interface — FD, DD, FF, DF en français, FS, SS, FF, SF en anglais,
+rien pour une fin à début —, puis le décalage, positif ou négatif, avec l'unité d'une durée (les
+suffixes de `parseDuration`) ou en pourcentage de la durée du prédécesseur ; la liste entière part
+en place de celle de la tâche, par `setPredecessors`, avec la version du nœud lu. Le numéro se résout
+sur les lignes que la grille a lues (celles d'un prédécesseur qu'une recherche a écarté se retrouvent
+par les liaisons d'une ligne lue) : un numéro qu'elles ne connaissent pas laisse la saisie ouverte,
+qui le dit, sans rien envoyer. Un refus du serveur se dit à la cellule par son code — une boucle de
+liaisons, avec les tâches qu'elle traverse (`cycle`, `problemDetails`), une liaison entre une
+récapitulative et sa subordonnée, un projet qui dépasserait quinze ans —, et les lignes écrites, avec
+les tâches que le serveur redate, prennent la place des lignes lues, le Gantt suivant ; le front ne
+date rien. La validation de la dernière cellule saisissable
+d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée.
+Toute écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ
+(`byField` de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API
+hors d'atteinte, une version périmée ou une session perdue ne disant rien de ce qui a été saisi
+(#819.2) ; une valeur que la ligne répondue porte déjà n'écrit rien, faute de quoi le corps ne
+porterait que la version (#819.8), et lève le refus de sa cellule, avec l'avis qui le dit. Au-dessus
+de la grille du planning et de celle du devis, un
+filtre choisit un lot ou un poste parmi le même lotissement lu entier (`BreakdownFilterChoice`,
+`readGridScreen` avec `byBreakdown`), écrit dans l'adresse sous le nom du contrat —
+`work_package_id` ou `order_item_id`, l'un levant l'autre, un identifiant mal formé ignoré — et
+envoyé à `listNodes`, qui retient le sous-arbre de la tâche rattachée ; le bandeau le montre actif
+et le lève (`breakdownChip`), au devis sur la grille seulement, ses indicateurs restant ceux du
+projet. Un lotissement que l'API refuse (404, 422, 503) n'ôte que le filtre, sauf là où le
+rattachement se saisit, qui ne s'en passe pas (`needsBreakdown`). Dans la grille vide, le squelette
+s'offre comme la révision liste `generate_skeleton`, indisponible avec sa condition dès que la
+structure comporte une tâche (WF-PRJ-0030) ; engendré, ses tâches remplissent la grille tant que le
+compteur de la structure qu'il rend est plus récent que celui de la lecture (EP-14/L44d). Les
+autres feuilles du planning ont
 leur écran, où son en-tête mène : l'arborescence de
 tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
-(FBS-4.3.1, `…/timelines`), une par lien (`timeline`), leurs tâches sur l'axe qu'elles partagent,
-dessinées comme le Gantt ; elles se créent par leur nom et la chronologie montrée se supprime après
+(FBS-4.3.1, `…/timelines`), une par lien (`timeline`), chacune une frise à couloirs, distincte du
+Gantt (`gantt/timeline-chart.tsx`, US-0530, #1068) : sur l'axe du Gantt, à ses niveaux et à son zoom
+(`GanttRows`, `GanttAxis`), une tâche est un rectangle de son début à sa fin, son nom tronqué et
+entier dans l'infobulle et le nom accessible — la tâche, ses dates, son couloir —, un jalon une ligne
+verticale sur toute la hauteur, son nom et sa date au pied. Les rectangles s'empilent en couloirs
+(`lanes.ts`, un calcul de présentation) : chacun dans celui où l'utilisateur l'a placé tant qu'il
+y tient, les autres, dans l'ordre du plan, au premier couloir où ils n'en chevauchent aucun, les
+couloirs vides refermés. Un rectangle se glisse à la souris d'un couloir à l'autre, ou se déplace par
+Alt et les flèches haut et bas sur celui que le clavier désigne — la frise est un seul arrêt de
+tabulation, les flèches gauche et droite passant d'un rectangle à l'autre (`aria-activedescendant`).
+Un couloir où il en chevaucherait un autre est refusé, le refus dit, et rien ne bouge ; sous le
+dernier couloir s'en offre toujours un vide, jamais au-dessus d'un autre, et le clavier vise le plus
+proche couloir où le rectangle tient, passant ceux où il chevaucherait, pour atteindre tout ce
+qu'atteint la souris. La disposition est une préférence d'affichage par chronologie
+(`DisplayPreferences.timelines`, WF-ADM-0040), écrite après une pause comme les réglages d'une grille
+(`useKeptWriter`, `updateTimelinePreferences`) : les couloirs de tous les rectangles montrés, le
+déplacé d'abord, dans la borne de 64 du contrat, pour qu'un déplacement ne déplace rien d'autre ;
+« Disposition automatique » l'oublie (`null`). La lecture en table, sous la frise, dit chaque tâche,
+ses dates et son couloir ; elles se créent par leur nom et la chronologie montrée se supprime après
 confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
 demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
 chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
@@ -823,14 +1025,38 @@ risques retenus, par état et le total général, tels que le serveur les rend ;
 contrat) ; la grille dense, une configuration de plus (`risk-grid.tsx`), en lecture, où la
 gravité et la provision sont des colonnes calculées entières — aucun champ de nœud à demander
 (`field` rend `undefined`), leur refus nomme les règles que le risque porte pour chacune
-(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
-par les bornes que rend le serveur, chaque case par son signal et son nombre de risques ; et,
-quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provision présente ou
+(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice des risques, un nuage de bulles
+(`RiskBubbleChart`, « Les courbes ») sur toute la largeur entre les cartes et la grille — la colonne
+de droite n'existe plus —, dont les bulles sont les risques des états du filtre, et sous lui la table du
+décompte par case, ses axes nommés par les bornes que rend le serveur, chaque case par son signal et
+son nombre de risques ; et,
+quand l'adresse nomme un risque (`risk`) — d'un clic sur sa bulle ou sur son libellé —, son détail, dans
+une colonne à côté de la grille qui garde de quoi le lire (la page défile dans une fenêtre trop basse) : notes, ligne de provision présente ou
 retirée à la survenance, avec la catégorie et le sous-projet que le risque désigne pour elle, par les
 libellés que le serveur résout — la catégorie dite désactivée quand elle ou sa nature l'est
 (`provision_cost_category_is_active`), la provision hors sous-projet quand il n'en désigne aucun
-(EP-14/L42p) —, historique des réexamens. L'écran ne déclare, ne modifie ni ne réexamine aucun
-risque : la maquette n'en a pas le formulaire. Le libellé d'un risque est un lien hors de la
+(EP-14/L42p) —, historique des réexamens. « Identifier un risque » (`risk-commands.tsx`), dans
+l'en-tête de l'écran, suit `declare_risk` comme la révision de la route le liste : absente, rien ; indisponible,
+décrite par la condition qui manque (`at_least_one_task`, `active_provision_category`) ; disponible, elle ouvre
+le formulaire `risk-form.tsx` (`ReferenceForm`) — libellé, description, actions de mitigation, probabilité en
+pourcentage envoyée en rapport, catégorie de la provision demandée seulement quand plusieurs catégories actives
+de type provision se proposent, sous-projet et tâche porteuse facultatifs, lus par la page quand une commande
+les demande (`provision-options.ts`) —, dit le 409 sous le formulaire et, la création faite, ouvre le devis
+propre du risque (`structure_id`) dans la grille de devis, pour une session qui lit le devis. « Modifier »,
+dans le détail, suit `update`, et la provision `update_provision` : indisponible, la catégorie, le sous-projet et
+la tâche se montrent fixes et ne sont pas envoyés. Les deux commandes attendent, inactives, qu'une écriture de
+leur formulaire fermé soit répondue (défaut n° 24 de `typescript.md`). Les commandes du détail
+(`RiskCommands`) partagent par risque l'écriture en route et la réponse la plus récente. « Réexaminer »
+(`risk-review.tsx`, `review`) part de la probabilité et de l'état que le risque porte — le confirmer
+sans rien changer produit un réexamen daté (`reviewRisk`), que l'historique montre à la relecture — et
+offre les états que le contrat laisse retenir (identifié, écarté) ; un risque écarté dont la catégorie
+n'est plus active (`provision_cost_category_is_active`) en demande une autre, parmi plusieurs actives,
+au retour à l'état identifié. « Supprimer le risque » (`risk-lifecycle.tsx`, `delete`) demande une
+confirmation, est indisponible pour un risque cité (`risk_not_cited`) et, supprimé, quitte le détail par
+l'adresse sans le risque. « Déclarer survenu » (`declare_occurrence`) confirme, met la survenance en
+file (202) et la remet au suivi des tâches de fond (`Following`) ; le compte rendu préalable de la
+fusion n'a pas de source au contrat (#1383) et n'est pas présenté. Un risque survenu liste toutes ses
+commandes indisponibles. Le registre ne se pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 
@@ -850,17 +1076,45 @@ précédent, puis les grandeurs et le réestimé courants (WF-RAE-0040) ; les tr
 colonnes calculées, les grandeurs précédentes des valeurs conservées, jamais saisies ; les grandeurs
 d'une ligne se réestiment une par une par `setLineRemaining`,
 là où la ligne dit l'accepter (`remaining_entry`) et où son nœud accepte le champ — jamais d'après
-l'avancement de sa tâche —, la commande `edit_remaining` posant Annuler et Rétablir ; la fin d'une
+l'avancement de sa tâche —, la commande `edit_remaining` de la structure lue (`screen.commands`)
+posant Annuler et Rétablir, et la grille, en lecture seule quand elle ne la liste pas ; elle se
+filtre aussi par un lot ou un poste du lotissement lu entier, comme le planning et le devis
+(`order_item_id`, `work_package_id`, restreignant la grille seule) ; la fin d'une
 tâche s'y montre sans se saisir, et la fin dépassée par une marque propre, que le serveur dit
-(`finish_overdue`). Son bandeau ne montre que le sous-projet, seul paramètre de contexte que ses
-lectures prennent, et dit qu'il ne restreint que la grille, ses indicateurs étant ceux du projet
-entier (`gridOnly` de `ContextBanner`, #459). Le Kanban du démarrage des tâches, FBS-4.5.3, est une
-feuille de la fonction, `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches
-non démarrées, les démarrées et les terminées avec leur date, telles que les rend
+(`finish_overdue`). Les sous-projets du projet (`listSubprojects`, lus avec le bandeau, une fois par
+requête) ne sont lus que là où la structure liste `edit_remaining` disponible, et refusés ils ne
+donnent pas le sous-menu « Sous-projet » ; la colonne et le sous-menu sont ceux du devis, décrits
+avec le menu contextuel des cellules (`choice-menu.tsx`). Son bandeau ne montre que le
+sous-projet, seul paramètre de contexte que ses lectures prennent, et dit qu'il ne restreint que la
+grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Le
+Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
+`…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
+démarrées et les terminées avec leur date, telles que les rend
 `listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
-signalé à terminer (`predecessors_completed`) ; aucun pourcentage, aucune commande. L'opération lit
-la révision en cours : sur une
-révision marquée, l'écran le dit et ne demande rien.
+signalé à terminer (`predecessors_completed`, un texte et une icône) ; aucun pourcentage. La page
+découpe les cartes (`kanban-cards.ts` : ce que la carte montre et ses gestes, jamais le nœud entier
+d'un millier de tâches) et lit la structure principale de la révision (`listCostStructures`), où les
+gestes s'écrivent. Une carte se choisit au clic ou aux flèches (haut et bas dans la colonne, gauche
+et droite d'une colonne à l'autre ; un seul arrêt de tabulation) et fait les gestes que sa tâche
+liste (`available_commands`, jamais déduits de la nature de la tâche ni de ses lignes) : par son
+menu, qui garde les gestes indisponibles avec leurs conditions, par glisser-déposer sur une
+colonne, ou au clavier — Maj et flèche droite ou gauche portent la carte à la colonne voisine,
+et à elle seule : un glisser vers une colonne plus loin n'a pas de touche. Le menu de la carte,
+ouvert par Entrée, offre tous les gestes que la tâche liste : c'est lui l'équivalent clavier
+complet du glisser (WF-IHM-0100). Le glisser pose un type qui lui est propre
+(`application/x-waterfall-card`), non `text/plain`, qu'un champ de texte où l'on dépose
+insérerait. Le geste qui mène à l'état de la colonne visée est celui que la carte liste avec cet
+état (`progress`) ; sans lui, la carte le dit. Une carte qui demande sa date n'est pas
+glissable, et aucune autre demande ne s'ouvre tant qu'elle l'attend : la saisie n'est jamais
+perdue en silence.
+Démarrer et terminer demandent la date de l'événement, celle du jour proposée ; « Saisir le reste à
+engager » est un lien vers la grille du reste à engager, cherchée sur le libellé de la tâche
+(`remainingHref`). La réponse de `setTaskProgress` remplace la carte dans la colonne de son nouvel
+état, tant que la lecture qui suit n'a pas le nœud à sa version ou à une plus récente (le
+compteur du nœud départage, `replaced`) ; la carte répondue ne liste aucun geste avant cette
+lecture. Le focus suit la carte, un refus se dit sur elle (`OutcomeNotice`), et une écriture à la
+fois. L'opération lit la révision en cours : sur une révision marquée, l'écran le dit et ne
+demande rien.
 
 ### L'écran des coûts réels
 
@@ -877,7 +1131,9 @@ colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
 (`passthrough.<colonne>`), chaque colonne triée par le serveur — les colonnes conservées sont
 celles de toutes les lignes retenues, dans l'ordre où le serveur les nomme
 (`meta.passthrough_columns`, #414) : les mêmes d'une page à l'autre — ; et le journal des imports,
-paginé à part (`imports_offset`). Quand le projet liste l'exclusion de ses lignes
+paginé à part (`imports_offset`, `imports_limit`), avec son « Lignes par page » et sa clé de grille
+(`cost_imports`, `KeptListSize` de `grid/kept-list-size.tsx`, qui enregistre la taille comme une grille
+dense : le journal n'est pas une grille). Les imports d'un projet (`imports`) font de même. Quand le projet liste l'exclusion de ses lignes
 (`exclude_cost_lines`), le numéro de pièce d'une ligne est un lien hors de la tabulation, que la
 grille suit à Entrée, vers la même adresse nommant la ligne (`line`) : sa place dans le périmètre
 suivi s'y montre (`CostLineScope`), avec la commande qui l'exclut, sur le motif saisi, ou la
@@ -895,7 +1151,7 @@ en attente —, il mène à leur première page.
 Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
 US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
 de l'installation et présentent la grille des taux horaires — une configuration de plus de la
-grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, son état, une colonne par
+grille dense (`rate-grid.tsx`), la troisième section de l'écran, sous les natures et les catégories, une ligne par catégorie de main-d'œuvre, son état, une colonne par
 année de toute la grille, quelle que soit la page, dont l'en-tête est l'année elle-même
 (`GridColumn.heading`) —, cherchée, filtrée par état et sur les bornes du taux d'une année
 (`RateFilterBar`, #545), triée et paginée par le serveur sous les noms du contrat (`search`,
@@ -911,12 +1167,12 @@ que la colonne est celle de la grille, vide, à sa place parmi les années, jusq
 saisie d'une de ses cellules écrive ce premier taux, et elle se retire tant qu'aucun taux n'y est
 saisi ni en cours d'écriture ; une année déjà présente, ou hors des bornes de `Year`, est refusée
 dans la page ; la colonne ajoutée se trie comme les autres, le serveur laissant l'ordre du code
-pour une année sans taux. À côté, les natures et les catégories de coût, deux grilles denses
+pour une année sans taux. Au-dessus d'elle, les natures puis les catégories de coût, deux grilles denses
 (`cost-grids.tsx`, #510), triées sur chaque colonne, cherchées, filtrées — les natures par type
 (`kinds`, `ValuesFilter`) et par état, les catégories par nature, offerte parmi toutes celles que la
-session lit, et par état — et paginées par le serveur — l'écran ne
-remplit la fenêtre qu'à partir de la grande largeur (`Screen`, `fillWide`) : en fenêtre étroite, la
-grille et les listes s'empilent et la page défile. Les paramètres de ressources présentent trois
+session lit, et par état — et paginées par le serveur — les trois
+sections s'empilent comme celles des paramètres de ressources, dans une page qui défile (`Screen`
+sans `fill`, US-0570/L3, #1044), chaque grille plafonnée à la fenêtre (`max-h-svh` de `DenseGrid`). Les paramètres de ressources présentent trois
 grilles denses (#301, #511, #533) : l'organisation, une grille arborescente qui ne se trie pas et
 ne se pagine pas, dans l'ordre de `listOrgNodes`, chaque nœud par son libellé décalé de sa
 profondeur (`level`), qui plie ce qui est sous lui comme les grilles de tâches (`GridTree.parent`,
@@ -927,9 +1183,10 @@ serveur sur chacune de leurs colonnes, cherchés par lui sur le libellé et le c
 (`code`, comme celui des nœuds), par nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
 calendrier (`calendar_id`) — chacun offert parmi tous ceux que la session lit, lus comme une liste
 de choix (#303), les catégories absentes quand l'API les refuse — et par état, et paginés ; les
-calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, filtrés par
-état et paginés. Les colonnes de nombres se bornent (#545, WF-IHM-0130) : les heures mensuelles et
-l'effectif d'un rôle, les heures de chaque jour d'un calendrier, le taux d'une année de la grille des
+calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, cherchés,
+filtrés par état et paginés, sans filtre sur les heures de leurs jours (WF-IHM-0130-A, #1047). Les
+colonnes de nombres se bornent (#545, WF-IHM-0130) : les heures mensuelles et l'effectif d'un rôle,
+le taux d'une année de la grille des
 taux — l'année choisie parmi celles de la grille, écrite avec ses bornes (`rate_year`) —, sous la
 convention du contrat pour toute liste, `<colonne>_min` et `<colonne>_max`, incluses
 (`docs/api/DECISIONS.md`). Le filtre est un composant de la grille, réutilisable pour les montants
@@ -957,7 +1214,13 @@ page part de la dernière adresse demandée, et mène à la première page quand
 autrement que celle montrée — le tri d'une autre liste de l'écran n'y comptant pas (`ListPages` de
 `components/grid/list-pages.tsx`, nommé d'après sa liste, la seule règle de « même liste » de
 `readingOf`) ; la ligne des totaux dit combien le serveur en retient (`meta.total`). Les
-unités de durée suivent. Les paramètres des risques présentent les bornes de la matrice et la zone
+unités de durée suivent : trois constantes, que la commande « Modifier les unités de durée » —
+offerte à qui porte `resource_settings.write`, comme les calendriers — ouvre en formulaire
+(`DurationUnitSettings` de `settings-forms.tsx`, `setDurationUnits`), en décimaux de la langue ; le
+refus (422) se dit au champ, la version périmée (412) propose de relire, la réponse prend la place des
+valeurs lues, et une phrase sous les champs dit que le changement vaut pour tous les projets, les
+plannings des révisions en cours étant recalculés et une révision marquée gardant ses heures
+(WF-PLA-0160, WF-REF-0130, #1049). Les paramètres des risques présentent les bornes de la matrice et la zone
 de chaque case, placée par son rang dans l'ordre du contrat, ceux des indicateurs les seuils des
 indices et le délai entre deux revues : des matrices de taille fixe, qui restent des tables
 simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). Un objet rattaché se nomme
@@ -1515,6 +1778,27 @@ le refus dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un
 et l'ôte de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont
 l'adresse change (#416).
 
+La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
+(`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
+de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
+`start-offers.ts`) : la révision en cours liste `generate_skeleton` — l'appelant peut modifier le
+planning — sans qu'il lui manque `main_structure_without_tasks` ; le front n'en déduit rien d'autre.
+La page la prend dans la liste de ses révisions, dont chaque élément est une révision entière, sans
+la relire. Ce que la génération produit (une récapitulative par lot et par poste, leurs jalons de fin)
+est l'affaire du back : le front envoie la commande et mène à la grille, et le critère de
+`WF-PRJ-0030-A` sur le résultat se porte au test du back, non à l'encart.
+« Planning automatique depuis le lotissement » mène au lotissement (`settings?start=skeleton`), où
+« Engendrer le planning » (`GeneratePlanning`) appelle `generatePlanningSkeleton`, relit la page
+après la génération comme après un 409 (#819.5, #819.6) et mène à la grille. « Importer un fichier MS
+Project » ouvre la zone de dépôt (`FileDrop`, `components/exchanges/file-drop.tsx`) : un bouton qui
+ouvre le sélecteur, la zone nommée et décrite, le type (`.xml`) et la taille vérifiés avant l'envoi ;
+elle envoie comme le formulaire de l'écran des imports (`useOpenImport`, `open-import.ts`), le compte
+rendu s'affichant sur la page, et l'application confirmée mène à la grille. « Plus tard » replie
+l'encart pour la session de l'onglet (`start-fold.ts`, `sessionStorage`) ; un bouton le rouvre. Le
+faux back, sans état, sert au témoin une structure à mille tâches : l'encart n'y paraît jamais, et les
+deux parcours de bout en bout (lotissement puis génération ; dépôt puis compte rendu) ne se jouent
+qu'aux tests des composants, contre les exemples du contrat (`project-start.dom.test.tsx`, #1350).
+
 ### Les écrans du portefeuille
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
@@ -1571,7 +1855,9 @@ un bloc dont une ligne ne tomberait pas sur celle que le serveur écrit : le ser
 lignes du plan sous la ligne visée, que la grille connaît par leur numéro dans toute la structure
 (`row_number`), non les lignes affichées après elle. Une seule garde compare, de la cible à la
 dernière ligne du bloc, le numéro de chaque ligne affichée à celui qu'elle aurait dans l'ordre du
-plan — une grille qui colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
+plan (sur un différentiel, le serveur saute les nœuds que l'avenant retire et remplit les
+suivants : la garde ne compte ni leur rang ni leur ligne, comme l'aperçu, #1278) — une grille qui
+colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
 (`fold.tsx`), déplacée par un tri, cachée par la recherche ou un filtre, ou au-delà de la dernière
 ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527).
 Sinon `previewPaste` rend le plan, que
@@ -1581,10 +1867,15 @@ cellules telles que copiées et son motif, une ligne refusée pour plusieurs cel
 fois —, et `applyPaste` l'applique sur confirmation, en une seule opération : les lignes valides sont
 écrites, les lignes refusées ne le sont pas (WF-IHM-0050, EP-14/L42q). Un plan qui refuse des lignes
 et en écrit d'autres le dit, et se confirme ; un plan qui n'écrit aucune ligne n'offre que
-l'abandon. Ce que la confirmation rend prend la place de ce qui était lu (`CellWrites.applied`) ; une
-écriture de cellule partie avant le collage et répondue après se prend comme toute réponse, le
-compteur de la structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et seul son
-refus se tait quand le collage a écrit sa ligne depuis. Ce qu'elle n'a pas écrit
+l'abandon. La confirmation attend toute autre écriture de la grille en cours — une cellule saisie, un
+geste — et la relecture qui suit un geste : elle porterait la version de la structure que leur
+réponse va avancer, et serait refusée (412) ; « Appliquer le collage » reste offert, inactif, occupé
+et décrit par l'attente, jusqu'à leur réponse (`busy` de `useGridPaste`, #1224). Ce que la
+confirmation rend prend la place de ce qui était lu (`CellWrites.applied`), comme les lignes qu'écrit
+un choix du menu d'une cellule ; une écriture de cellule partie avant elles et répondue après se
+prend comme toute réponse, le compteur de la structure décidant laquelle des deux une ligne montre
+(`answers.ts`, #202, #421), et seul son refus se tait quand elles ont écrit sa ligne depuis. Ce que
+le collage n'a pas écrit
 (`PasteApplied.rejected`) — les refus de l'aperçu, et ceux que le serveur ajoute en jugeant de
 nouveau les lignes acceptées, une catégorie ou un rôle désactivés entre-temps — est dit au-dessus de
 la grille avec la cellule d'où le bloc a été collé et le nombre de lignes écrites
@@ -1607,7 +1898,7 @@ collage partiel n'est éprouvé que par les tests de la grille (`paste-applied.d
 ### Les grilles : annuler et rétablir
 
 Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
-toute grille dont la révision en cours se saisit par sa commande `edit_*` les pose (`undoable`
+toute grille dont la structure lue liste sa commande `edit_*` disponible les pose (`undoable`
 de `DenseGrid`) — le devis par `edit_estimate`, le planning par `edit_planning`, le reste à
 engager par `edit_remaining` (#115) ; aucune grille hors d'une révision en cours ne les pose : ni
 le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne s'annulent. Une telle
@@ -1622,6 +1913,136 @@ recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 
 navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
 annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
 (EP-14/L42p).
+
+### Les grilles : créer et supprimer des tâches et des lignes
+
+Une grille se saisit, et offre ses gestes de structure, selon la commande de la structure qu'elle
+lit (`CostStructure.available_commands`, WF-IHM-0090) : `readGridScreen` rend celles qui sont
+disponibles (`commands`), le planning lit `edit_planning`, le devis `edit_estimate`, le reste à
+engager `edit_remaining`. Le front ne déduit jamais la phase du projet : sur la structure principale
+d'un projet En cours le devis est en lecture seule, le reste à engager l'est avant (WF-DEV-0050,
+WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
+ligne », « Indenter », « Désindenter », « Monter », « Descendre », « Supprimer » — sont dans le menu
+contextuel des cellules et aux touches Insert, Alt+Insert, Ctrl+Insert, Alt+Maj+→, Alt+Maj+←,
+Alt+Maj+↑, Alt+Maj+↓ et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans
+`structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
+sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne sous laquelle il agit
+(libellé ; pour une ligne, catégorie et quantité, que le contrat exige), `createNode` et
+`deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une création désigne sa place par le
+nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un rang qu'une grille filtrée ne
+saurait compter : la ligne active pour « Insérer au-dessous » et pour une ligne sous une ligne ;
+sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous une tâche après sa dernière
+ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183, #1187).
+
+La cellule du numéro de chaque ligne en est la poignée (`row-selection.tsx`), dans une grille dont
+l'écran déplace des lignes (`RowCommands.drag`) : nommée par le numéro de sa ligne, décrite
+par la façon de sélectionner et de déplacer, elle se traverse aux flèches comme les autres cellules.
+Un clic la sélectionne seule, Maj et un clic étendent la sélection depuis son ancre ; au clavier,
+sur la colonne des poignées, Espace sélectionne, Maj+↑ et Maj+↓ étendent la sélection avec la cellule
+active, Échap la lève. La sélection est faite de lignes contiguës, gardées par leur identité : une
+relecture qui les déplace les garde sélectionnées, et la cellule active les suit ; une relecture
+qui ne montre plus l'une de ses extrémités — un filtre, un pliage — la lève. Plier une ligne qui
+porte une extrémité de la sélection, son parent par exemple, la lève donc, sans le dire ; plier des
+lignes sous la sélection, ses extrémités restant montrées, la garde. La cellule active suit
+aussi la ligne qu'un geste a déplacée, sélectionnée ou non (`RowCommands.moved`), à l'arrivée de la
+relecture, qui lui rend le focus s'il était dans la grille. Chaque ligne dit si elle l'est
+(`aria-selected`), la grille qu'elle en prend plusieurs (`aria-multiselectable`), un statut combien
+— les lignes montrées : les subordonnées pliées sous une récapitulative sélectionnée la suivent
+sans être comptées. Une cellule calculée sélectionnée garde son ombre. Un geste de déplacement
+porte sur la sélection quand la ligne d'où il part en est, sur cette ligne seule sinon, et sur les
+nœuds qui portent les autres (`topsOf`) : une récapitulative emporte ses subordonnées. La
+suppression ne porte que sur une ligne seule.
+
+« Indenter » place les tâches sous celle qui précède la première parmi ses frères, en dernière place
+(`after_node_id` absent) ; « Désindenter » les place après leur parent, sous le parent de celui-ci
+(`after_node_id` = l'ancien parent) ; « Descendre » les place après la sœur de leur genre qui suit
+la dernière, et « Monter » place la sœur qui précède la première après la dernière — le même ordre,
+sans reposer sur une ligne que la grille ne montre pas. Les lignes que la grille montre ne sont pas
+toujours l'arbre : une recherche, un filtre, le reste à engager, qui ne lit par défaut que les
+tâches commencées, ou le planning, qui ne lit aucune ligne, en laissent. Un déplacement n'est donc
+offert, au menu comme à la touche, que si les nœuds déplacés sont des frères de rang en rang, d'un
+même genre, et que la voisine sur laquelle il repose est rendue : son rang (`Node.position`, à
+partir de 1, les lignes d'une tâche comptant avant ses sous-tâches) est celui de la première moins
+un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni sous une ligne.
+« Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent (`parent_id`,
+`node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine. Alt+Maj et
+une flèche, là où le déplacement n'est pas offert, sont pris sans effet : la cellule active ne bouge
+pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours — un geste, une cellule
+saisie, un collage appliqué, toute écriture de la grille (décision de l'auteur du 2026-10-21, #1224) —,
+puis la relecture qui suit un geste, retiennent les gestes et la confirmation d'un collage, la
+grille se disant occupée (`aria-busy`) : le suivant part des voisines que la relecture a rendues,
+jamais de celles d'avant avec une version déjà avancée. La grille dit ses propres écritures aux
+commandes de son écran (`RowCommands.writing`), qui les comptent avec les leurs
+(`useStructureVersion`), chacune pour la structure où elle est partie : une réponse arrivée quand la
+grille en montre une autre n'en avance pas la version et ne la relit pas.
+
+La poignée glisse la sélection — ou sa seule ligne, qui n'en est pas — à côté d'une autre ligne :
+avant elle ou après elle, à son niveau, par le quart haut ou bas de la ligne, ou sous elle, en
+dernière place de son genre, par son milieu ; entre deux lignes, c'est avant celle du bas, et au
+bas de la dernière ligne de la grille, après elle. La cellule active suit la première des lignes
+glissées (`RowCommands.moved`) ; quand la relecture ne la montre pas — glissée sous une
+récapitulative pliée, ou hors d'un filtre —, la cellule active reste à son indice et le focus lui
+revient, comme après une suppression, au lieu de tomber sur la page ; ce focus n'est rendu qu'à une
+cellule de la grille, jamais à un élément hors d'elle. Une ligne se glisse sous une
+tâche qui porte des lignes, une tâche sous une tâche qui n'est pas un jalon. Avant une ligne, la
+place est celle qui suit la sœur de rang moins un, rendue, ou la tête (`after_node_id` nul) au
+rang 1 : le planning, qui ne lit aucune ligne, n'offre donc pas de dépôt avant la première
+sous-tâche d'une tâche qui porte des lignes, sa sœur de rang moins un étant une ligne qu'il ne rend
+pas ; la glisser sous la tâche la met en dernière place. L'indicateur — un trait entre les lignes,
+ou la ligne grisée — ne paraît qu'où le dépôt est accepté (`dropOf`) : jamais parmi les lignes
+glissées ni sous elles, ni à côté d'une ligne d'un autre genre, ni tant que la grille est occupée
+(`RowCommands.busy`, qu'exige `drag`). Le glisser ne porte que son type
+(`application/x-waterfall-rows`) : un dépôt venu d'ailleurs, un texte par exemple, ne déplace rien.
+Le glisser a son équivalent au clavier, Alt+Maj et les flèches sur la sélection ; mais une place
+éloignée, ou une sélection qui n'est pas faite de frères, y demandent plusieurs gestes, là où un
+seul dépôt suffit.
+
+`moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure
+qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :
+la plus haute entre celle de la page et celles que les écritures ont rendues
+(`NodesWritten.structure_lock_version`), cellule saisie, création, déplacement, suppression ou
+collage, car le contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Ce
+suivi tient la version et les écritures en cours par structure : ce qu'une réponse applique — la
+version qu'elle a atteinte, la ligne que la cellule active suit, la relecture — l'est pour la
+structure où elle a été envoyée, et rien n'est relu pour elle une fois que la grille en montre une
+autre (défaut n° 1). Un
+refus par champ se dit par la raison du champ (`byField`), pour toute écriture du hook — création,
+déplacement et `deleteNode`, dont le contrat ne cite aucun champ, son refus se disant alors par son
+code —, comme celui d'une cellule ; `NODE_NOT_SIBLING`, qui vient d'une lecture périmée, relit en
+outre la grille, le focus rendu à la grille si la relecture retire la cellule qui l'avait. La
+suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et
+le focus revient alors à la cellule active de la grille. La grille est relue après une écriture, la
+lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version que la
+structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de tâche du
+devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de `edit_estimate` :
+créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que saisir le devis n'en
+crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la grille en nommant la
+ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une création sans ligne
+(la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit par `useSaid` et le
+refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
+
+Le menu contextuel des cellules offre deux sous-menus de plus (`choice-menu.tsx`, règles pures dans
+`row-choices.ts`, US-0480). « Chronologies » : une case par chronologie du projet (`listTimelines`),
+cochée quand la tâche y est inscrite, et « Suivi temps/temps » pour un jalon ; la tâche l'offre quand
+elle nomme `task.tracking` dans ses `editable_fields`. « Sous-projet » : des boutons radio,
+« Aucun sous-projet » et chaque sous-projet du projet (`listSubprojects`), nommé par son code et son
+libellé — le code seul est unique dans un projet —, celui de la ligne coché ;
+la ligne l'offre quand elle nomme `estimate_line.subproject_id`, ce que ne fait ni une ligne de
+provision, ni celle d'une tâche démarrée dont le sous-projet a reçu des coûts réels
+(`SUBPROJECT_HAS_ACTUAL_COSTS`) : le front ne déduit aucune de ces gardes. Dans le devis, le choix se
+fait tant que le projet n'est pas En cours, dans le reste à engager ensuite, selon ce que la ligne
+nomme. Un sous-menu s'applique à la sélection, ou à la ligne seule : un appel par ligne qui nomme le
+champ, avec la version de cette ligne — `setNodeTracking` avec la liste complète de ses inscriptions,
+`updateEstimateLine` avec `subproject_id` —, dans l'ordre de la grille — sans écriture pour une
+ligne déjà dans l'état visé — et jusqu'au premier refus, dit pour sa ligne comme celui d'un geste :
+les lignes écrites avant lui le restent, celles d'après ne sont pas écrites. Chaque réponse prend la
+place de la ligne lue (`applied` de `RowCommands.menu`), puis la grille est relue comme après un
+geste. Un projet sans chronologie propose « Créer une chronologie… » (`createTimeline`), nommée dans
+un dialogue, à laquelle les tâches sont inscrites, selon l'offre `manage_timelines` du projet :
+absente, l'entrée n'est pas présentée ; indisponible, elle l'est grisée avec sa condition. Les
+colonnes « Chronologies » du planning et « Sous-projet » du devis et du reste à engager sont en
+lecture et masquées (`GridColumn.hidden`) tant que le compte n'a gardé aucune liste de colonnes
+masquées (`initialSettings`) ; il les montre par le choix des colonnes.
 
 ### Les grilles arborescentes : plier et déplier
 
@@ -1640,7 +2061,7 @@ que la disposition du clavier demande pour taper le caractère, sur le pavé num
 caractère est celui que la touche a tapé, et, quand il ne nomme aucune commande, celui que la
 touche porte dans la disposition que le navigateur dit (`navigator.keyboard.getLayoutMap`) —
 jamais la seule place de la touche, qui porte un autre caractère sur une autre disposition. Ctrl
-et AltGr sont exclus ; Alt+Maj+flèches restent libres pour l'indentation d'EP-06. Ces raccourcis
+et AltGr sont exclus ; Alt+Maj et les flèches déplacent les tâches. Ces raccourcis
 ne sont que des accélérateurs : sans `getLayoutMap`, sous Safari et Firefox pour Mac, Option et une
 touche tapent un autre caractère, et ils ne sont pas reconnus. Le menu contextuel des cellules
 (Maj+F10, touche Menu, clic droit), offert dans toute grille arborescente, Annuler et Rétablir ou
@@ -1684,6 +2105,111 @@ d'un projet, qu'aucun projet ne liste ; les commandes d'une sauvegarde sont cell
 commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
 par `OutcomeNotice`.
 
+### Les infobulles des commandes
+
+Un bouton porte `CommandTooltip` (`frontend/src/components/commands/command-tooltip.tsx`, US-0580,
+#1071), jamais un attribut `title=`, que le navigateur montre tard, sans mise en forme ni thème sombre,
+et jamais au focus du clavier. Un lien dessiné comme un bouton et un article de menu le portent de
+même. L'infobulle dit :
+
+- **le nom** de la commande, celui que le contrôle porte déjà ;
+- **une phrase d'aide**, la prop `help`, déjà traduite : pour une commande, `commands.<commande>.help`,
+  dans les deux langues, tenue par `make catalogs` et lue par `t("commands.<commande>.help")`, que le
+  typage du catalogue refuse pour une commande qui n'en a pas (`CommandHelp` nomme celles qui en ont,
+  pour une table de commandes) ; pour l'en-tête d'une colonne, sa définition
+  (`columns.<grille>.<colonne>.help`) ; ou une phrase à paramètres, comme le montant corrigé de
+  l'inflation, qui nomme l'année de référence et le taux. `help` et `unavailable` ne prennent jamais un
+  littéral (`make lint-front`) ;
+- **ses touches**, en `<kbd>`, écrites selon le poste — ⌘ sur un Mac, Ctrl ailleurs —, chaque touche
+  par son nom du catalogue (`commands.keys`, `commands.macKeys`). Elles n'ont qu'une source : la prop
+  `keys`, écrite comme `aria-keyshortcuts` la nomme (`"Control+Z Meta+Z"`), que `CommandTooltip` pose
+  sur le contrôle et montre à la fois (`shortcut.ts`) ;
+- **la condition qui manque**, pour une commande indisponible (WF-IHM-0090) : `unavailable`, qui
+  marque le contrôle `aria-disabled` — jamais `disabled`, qui l'ôterait du survol et du clavier. La
+  condition décrit le contrôle, infobulle fermée comme ouverte : par le texte qui la dit déjà à côté de
+  la commande, que `describedBy` désigne, ou, l'écran ne la disant nulle part ailleurs, par un texte
+  caché de `CommandTooltip` lui-même.
+
+Un article de menu s'écrit par `MenuCommand` (`menu-command.tsx`), qui prend l'article
+(`item={ContextMenuItem}` ou `DropdownMenuItem`), le nom, l'aide, les touches, la condition, l'icône
+et `onSelect` : le nom est à la fois le texte de l'article et celui de l'infobulle, et les touches
+sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie.
+
+L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
+aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`,
+que `MenuCommand` pose) ; elle se ferme par Échap sans déplacer le focus — dans un menu, le premier
+Échap ferme l'infobulle, le second le menu —, et reste ouverte tant que le pointeur passe dessus, même
+dans un menu modal, qui ôte le pointeur au reste de la page (`pointer-events-auto` de `TooltipContent`).
+Ouverte, elle décrit en outre le contrôle (`aria-describedby`) par sa phrase d'aide : elle ne porte
+jamais seule ce qu'il faut savoir, le nom restant celui du contrôle et la condition sa description. Le
+contrôle est un seul élément, qui reçoit les attributs et les événements de l'infobulle : il ne pose
+lui-même ni `aria-keyshortcuts`, ni `aria-disabled`, ni `aria-describedby`, que `CommandTooltip`
+pose ; il ne fait rien, pressé indisponible. Les infobulles partagent un seul `TooltipProvider`, à la
+racine de la coquille (`shell.tsx`) : l'une fermée, la suivante que le pointeur atteint s'ouvre sans
+attendre ; chacune dit son délai (`delayDuration` de `Tooltip`), et une infobulle rendue hors de la
+coquille, dans le test d'un composant, apporte le sien.
+
+_Contrôle_ : `src/components/button-title-guard.test.ts` (`make test-front`) lit chaque composant par
+l'analyseur de TypeScript et refuse un `title=` sur un bouton — `<button>`, `Button`, `CellCommand`,
+`Command`, un interrupteur, un article de menu, coché ou au choix, ou un déclencheur, un élément de
+rôle `button`, un lien dessiné par `buttonVariants`, écrit en place ou par une constante du même
+fichier —, et un `title` passé par la décomposition d'un objet écrit ou nommé dans le fichier. Restent
+à la revue : des classes ou des props importées d'un autre module, la décomposition des props qu'un
+composant reçoit (`{...props}`), et un composant à nous qui dessine un bouton sous un autre nom. Les
+commandes d'objet passent à `CommandTooltip` avec US-0580/L2 (#1137), et la garde ne tolère plus aucun
+`title=` sur un bouton : `Command` et `ConfirmedCommand` prennent `help` (pour une commande d'objet,
+`commands.project.<commande>.help` ou `commands.revision.<commande>.help`, d'après les énumérations du
+contrat), `CellCommand` et `UnavailableCellCommand` prennent le nom (`label`), `help` et la condition qui
+manque (`unavailable`), que `CommandTooltip` pose en `aria-disabled` et en description, sans texte caché
+écrit à la main. L'en-tête d'une colonne porte sa définition de la même façon (`GridColumn.help`, clé
+`<grille>.<colonne>` du catalogue `columns`, et `helpValues` pour la phrase à paramètres du montant
+corrigé de l'inflation, que `estimateGrid` pose d'après l'année de référence de la révision et le taux du
+projet). La garde suit les noms liés dans le bloc le plus proche du bouton qui les lie, non plus dans le
+fichier entier. Les boutons de validation et d’annulation d’un formulaire ou d’un dialogue, dont le libellé
+est l’action, ne portent pas de phrase d’aide. Les tests du composant sont dans
+`command-tooltip.dom.test.tsx` (survol, focus, Échap dans un menu, touches, condition, fournisseur partagé,
+axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,
+et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à engager sans définition.
+
+### L'aide en ligne
+
+Chaque écran que la table des fonctions connaît ouvre son aide (WF-IHM-0140, US-0580) : le bouton
+« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, de la hauteur d'une ligne du titre,
+qui suit son dernier mot dans le même flux de texte : à droite, parmi les commandes, il rétrécirait le
+titre ; élément d'une rangée qui passe à la ligne, il prendrait une ligne à lui sous un titre sur deux
+lignes, celui du reste à engager en 1280 × 720 ; dans les deux cas, l'en-tête grandirait et
+pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
+`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine —, ou F1
+partout sur l'écran, ouvre à côté de lui un panneau
+latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code de la FBS — celui de la route que
+suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, la liste des projets
+(FBS-4). Une page est un fichier Markdown, `frontend/help/fr/<code>.md` ; une notion de la méthode,
+`frontend/help/fr/notions/<notion>.md`. Le serveur les lit à l'ouverture du panneau, par l'action
+`readHelp` (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), qui ne nomme aucun fichier
+d'après la requête sans l'avoir confronté aux codes de la table ou à la forme d'un nom de notion, et
+dont la lecture refuse, là où le chemin s'écrit, tout fichier hors du dossier de l'aide (#1462) ; le
+standalone les emporte par `outputFileTracingIncludes` (`next.config.ts`). Le panneau les rend par
+`react-markdown` et `remark-gfm`, sans HTML brut (`skipHtml`) et dans les seuls éléments d'un texte ;
+un code entre accents graves s'y lit comme une touche (`<kbd>`). Un lien relatif vers un code ou une
+notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` depuis une notion) montre sa page
+dans le panneau ; tout autre lien se lit comme du texte. Le panneau tient le focus, se ferme par Échap et rend le focus
+à ce qui l'avait — le bouton, ou la cellule où F1 a été pressée ; une page suivie par un lien donne le
+focus à son titre. Une réponse arrivée après une autre demande est ignorée.
+
+La page d'un écran suit la structure de #1075, ses titres de second niveau dans cet ordre
+(`SCREEN_HEADINGS`) : « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses valeurs
+calculées », « Les gestes au clavier », « Voir aussi ». Une notion cite le glossaire de l'annexe A mot pour mot, une citation par
+terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
+« Voir aussi ». L'aide n'existe qu'en français : une interface en anglais la montre en français, écart
+de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075).
+
+_Contrôle_ : `src/help/help.test.ts` (`make test-front`) exige une page française par code de la table
+qui a un écran, ou sa place dans la liste des pages à venir avec le lot qui l'écrit (`SCREENS_TO_COME`,
+`NOTIONS_TO_COME`) — liste qui échoue dès qu'un code qu'elle nomme reçoit son fichier ; il tient la
+structure des pages, les citations du glossaire, les liens, qui mènent à une page écrite ou à venir, et
+l'absence de HTML brut. Une page à venir se dit telle dans le panneau. `help-panel.dom.test.tsx` éprouve
+le panneau, et `e2e/accessibility.spec.ts` l'audite ouvert par F1 sur le planning.
+
 ### Les actions longues et le suivi des tâches de fond
 
 Une action longue rend la main à la réception de sa tâche de fond (WF-ARC-0090) : son action
@@ -1694,11 +2220,21 @@ y en a un, le nom que l'utilisateur lui a donné (WF-IHM-0080). Le suivi est com
 genres de tâche : il relit la tâche toutes les deux secondes tant qu'elle court, par l'action
 serveur `readBackgroundTask`, en montre l'avancement, ajoute sa fin à un journal
 (`role="log"`) lu quel que soit l'écran, offre de recharger l'écran quand elle a abouti — il
-ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Son panneau est
-sous la barre de la coquille, dans le flux de la page ; le bouton des tâches de fond
-(`TasksButton`), qui en dit le nombre, le montre ou le cache, et une tâche remise le montre.
-Caché, le panneau suit encore ses tâches — ses entrées restent montées — et son journal, hors
-de ce qui se cache, parle toujours. Une relance
+ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Son panneau est une
+feuille (`Sheet`) le long du bord droit de la fenêtre, qui porte aussi l'historique des messages
+(ci-dessous) : un dialogue modal titré « Tâches et messages », qui garde le focus tant qu'il est
+ouvert et que ferment Échap, son bouton de fermeture, un clic hors du panneau ou « Recharger
+l'écran », le focus rendu au bouton de la barre. Le bouton de la barre (`TasksButton`) l'ouvre et dit, dans
+son nom et ses pastilles, le nombre des tâches suivies et celui des refus non lus. Rien ne l'ouvre
+de lui-même, sauf le refus d'un résultat au retour du navigateur, dont le téléchargement est parti
+du panneau. Une tâche remise ou finie se dit sous la barre, dans le flux de la page, sur l'écran où
+l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante — la confirmation sur
+place d'un succès que l'écran ne montre pas —, sans annonce, le journal parlant pour les fins ; son
+bouton la ferme, au clavier comme à la souris, et rend le focus au bouton de la barre, la tâche
+restant suivie (décision de l'auteur, #1179).
+Fermé, le panneau suit encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées
+— et son journal parle toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est
+gardé. Une relance
 refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
 (404, 401) interrompt le suivi, qui le dit. Aucun écran ne suit ses tâches lui-même. Une
 réponse ne s'applique qu'à la tâche pour laquelle elle a été demandée, jamais à celle qu'une
@@ -1719,6 +2255,70 @@ liste ne se relance pas du suivi : échouée, son entrée dit de la relancer dep
 objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de
 version.
+« Contractualiser l'avenant » (`MergeAmendmentCommand`, `revisions/`) en est un autre : offerte par
+la grille de planning d'un différentiel non fusionné, comme la révision liste `merge_structure`, elle
+lit le compte rendu à l'ouverture (`getStructureMergeReport`), le présente dans les marques `+`, `-`,
+`M` de la grille, demande le nom de version et confirme avec les deux compteurs lus ; une version
+périmée (412) propose de relire le compte rendu, et l'abandon n'envoie rien. La fusion remise au
+suivi, `useWhenTaskSucceeds` dit à l'écran qu'elle a abouti, et il énonce la nouvelle référence.
+« Préparer un avenant » (`create_structure`) demande un libellé et ouvre le différentiel créé dans
+la grille de planning.
+
+### L'historique des messages
+
+L'historique des messages (#1043, `components/notices/message-history.ts`) garde chaque issue d'une
+commande que les écrans ont dite, succès comme refus, pour qu'un avis fermé ou laissé sur un autre
+écran se relise. Ce n'est pas le journal d'audit (WF-SEC-0030) : une aide à l'utilisateur, pour lui
+seul, propre à la session de navigation — le stockage de session de l'onglet (`wf_messages`), les
+cent dernières, effacé à la déconnexion —, sans opération du contrat. Le panneau des tâches et des
+messages le montre, la dernière en tête (`MessageList`) ; ouvert, il les a toutes montrées, et le
+compte des refus non lus retombe à zéro.
+
+Une entrée (`Message`) garde :
+
+- **l'heure** où l'avis a été dit, un instant du poste, montré par `LocalTime` ;
+- **le ton** — `success` ou `refusal`, dit en mots, jamais par la seule couleur ; le service
+  injoignable, une tâche échouée ou interrompue, des lignes refusées d'un collage sont des refus ;
+- **la phrase de l'avis**, telle qu'elle a été dite, dans la langue du moment : l'historique répète,
+  il ne réécrit pas ; et, pour une tâche échouée, **le motif** en seconde phrase (`detail`) ;
+- **l'objet**, quand l'avis en nomme un : celui que l'écran donne — `subject` d'`OutcomeNotice`, de
+  `Command`, de `DoneNotice` et de `ReferenceForm` (l'objet modifié : une ligne du référentiel, un
+  projet, un sous-projet ; le projet d'une sortie du cycle de vie, la révision d'une commande de
+  révision), `object` de `useSaid` —, sinon l'objet en conflit, la tâche — son genre et le nom que
+  l'utilisateur lui a donné —, la copie externe éprouvée ;
+- **la référence de corrélation** d'une erreur inattendue (`INTERNAL_ERROR`, WF-OBS-0020) ;
+- **l'écran** : son adresse, où ramène un lien, et le projet qu'il montrait (`useShownProjectLabel`) ;
+  le lien se nomme comme la fin du fil d'Ariane (`crumbsOf`), suivi du projet ; un écran que le fil
+  ne nomme pas est « Écran d'origine ». La fin d'une tâche garde l'écran d'où elle a été lancée ;
+  une tâche retrouvée — par la liste de l'API, après un rechargement — l'écran où sa fin est dite.
+
+Ce qui l'alimente — l'issue de chaque commande, succès comme refus :
+
+- **les refus** : `OutcomeNotice`, pour chaque refus qu'il dit — les avis de la grille compris, qui
+  passent par lui —, `UnshownNotice` de la grille ; un refus dit hors d'un avis, par
+  `useNoteRefusal`, dans la phrase même qu'un avis lui donnerait : un refus dit aux champs d'un
+  formulaire (`ReferenceForm`, la création d'un compte, d'un rôle, la liste des contributeurs, le
+  découpage), la date refusée d'une restauration, le refus d'une écriture partie d'un écran quitté,
+  que dit la barre (`LeftRefusals`) avec l'écran d'où elle était partie, et celui du suivi d'une
+  tâche, inscrit par `TaskPolling`, monté avec la coquille, panneau fermé ;
+- **les succès** : chaque statut d'un écran qui dit ce qu'une écriture a fait, par `useSaid`
+  (`components/notices/said.ts`), seul point d'entrée de ces statuts, qui le dit et l'inscrit ;
+  `DoneNotice` (son `of` : l'issue qu'il dit, une par enregistrement) ; le squelette engendré, le
+  dépôt d'une sauvegarde, le test d'une copie externe (`LocationTest`) ;
+- **les collages** : `PasteAppliedNotice`, un succès quand toutes les lignes sont écrites — rien ne
+  se dit alors sur place, la grille les montre —, un refus sinon, le nombre des lignes refusées en
+  seconde phrase ;
+- **le suivi** : une tâche remise (`useTrackTask`) et chaque fin de son journal.
+
+Chacun y inscrit l'issue une fois, quelle que soit la fréquence de ses rendus (l'identité de l'issue,
+`noteMessage`), sans rien annoncer : l'avis sur place reste l'alerte (`role="alert"`) ou le statut, et
+l'historique n'est pas une région vivante. Un refus dit en partie aux champs est inscrit entier, et la
+part que dit l'avis sous le formulaire n'est pas inscrite une seconde fois (`parts`). Sur place, rien
+ne change. N'y entrent pas, faute d'une commande partie : ce qu'une commande indisponible pressée
+n'a pas — ses conditions, que redit un statut (`noted: false` de `useSaid`, `ToldConditions` des
+listes du référentiel) —, et le refus d'une saisie que l'écran juge avant d'envoyer quoi que ce soit
+(un champ requis, un fichier trop lourd, une cellule mal tapée). Ni le statut « Sauvegarde lancée »,
+dont la tâche remise est déjà inscrite par le suivi.
 
 ### L'image de développement
 
@@ -1737,11 +2337,31 @@ toutes (`explode: false`, que `make lint-openapi` exige de chaque paramètre de 
 le contrat cite par opération et par statut (`wftools.exampleroutes`), qui type les réponses du
 faux client des tests. Une opération qui
 manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
-fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
+fichier engendré se versionne avec elle.
+
+Le client garde ses connexions ouvertes, et la suivante réutilise celle qu'une réponse a libérée.
+L'API ferme une connexion inactive après un délai à elle — cinq secondes pour Prism comme pour
+uvicorn —, et undici, le `fetch` du serveur de Next, ne réutilise la sienne qu'en deçà d'une marge
+sous ce délai ; mais son minuteur est celui de la boucle du serveur, qu'une charge retient plus
+longtemps que la marge : la requête part alors sur une connexion que l'API vient de fermer, et
+`fetch` la rejette (`UND_ERR_SOCKET`, `other side closed`, ou `ECONNRESET`), sans qu'aucun délai
+plus court n'y change rien, retenu de même. Une lecture (`GET`, `HEAD`) ainsi coupée part une
+seconde fois, sur une connexion nouvelle, et la coupure s'écrit au journal du serveur
+(`console.warn`) ; coupée encore, c'est l'API hors d'atteinte (`Unreachable`), jamais un silence.
+Une écriture ne repart jamais : l'API a pu la faire avant de fermer. `WATERFALL_API_CONNECTIONS`
+dit comment le serveur tient ses connexions : `kept`, ou rien, en production comme en développement ;
+`closed`, une connexion par requête, fermée une fois répondue (`Connection: close`), que seul le
+harnais pose (« Un parcours de bout en bout »), et que le serveur, démarré ainsi hors du harnais du
+faux back (`WATERFALL_E2E`), signale une fois au journal ; aucun fichier de `deploy/` ni l'image du
+front ne la nomme, ce que `src/api/server.test.ts` vérifie. Toute autre valeur arrête le serveur à
+son démarrage (`src/startup.ts`), plutôt que de répondre une erreur à chaque requête. La coupure
+écrite au journal n'en dit que la méthode et le chemin, jamais la recherche.
+`src/api/client.test.ts`, `src/api/connections.test.ts` — contre un serveur sur une vraie socket,
+qui coupe la connexion réutilisée — et `src/api/server.test.ts` l'éprouvent. Aucun appel réseau ne s'écrit hors de
 `frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
 n'importe de `src/api/` que ses actions serveur (`src/api/actions/`) et des types.
 
-*Contrôles* : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
+_Contrôles_ : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
 contrat produit ; une modification du contrat réveille donc la famille front. ESLint refuse
 hors de `src/api/client.ts` les moyens connus d'atteindre le réseau — `fetch`,
 `XMLHttpRequest`, `WebSocket`, `EventSource`, un client http importé —, et, dans un fichier
@@ -1784,7 +2404,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   autour de lui, datée en heures sur le calendrier de chaque tâche et lue aujourd'hui
   (`wftools.mockstructure`, datée et émise par `wftools.mockcore`), premier exemple de
   `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
-  durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; les trois cents projets de
+  durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; la comparaison de l'offre et
+  de la référence sur toute cette structure, lue avec `fields`, deuxième exemple de
+  `compareRevisions` (`wftools.mockcomparisons`, #1201) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
   structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
   catégories de coût et quinze ans de taux horaires, en une page et par pages, la grille triée
@@ -1793,8 +2415,18 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `tools/paths.toml` : les lectures de son cœur (`wftools.mockcore`, décrit une fois dans
   `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`, ses lignes triées sous
   chaque tâche par `wftools.mocksort`) ; les réponses des
-  écritures de grille, différence de deux lectures (`wftools.mockwrites`) ; son histoire, ses
-  révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
+  écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
+  de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un
+  nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur
+  l'avenant 2, et la saisie et le collage qu'y font les parcours, dans
+  `wftools.mockamendmentwrites`), les gestes des cartes du Kanban et leurs
+  réponses (`wftools.mockkanban`), et les refus
+  d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
+  (`wftools.mockexchanges`), et une date manuelle sur un jour chômé, refusée à la saisie et
+  signalée à l'import (`wftools.mocknonworking`, #1271) ; son
+  histoire (`wftools.mockhistory`), ses révisions lues avant la désignation de l'offre, quand elle
+  est encore proposée (`wftools.mockcycle`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
+  saisies d'un risque (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
   les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`) ;
@@ -1832,7 +2464,28 @@ sauf là où le numéro est ce que le test éprouve (#400).
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune sécurité exigée (`security`
 retiré) — le faux back accorde la session dont part la maquette (EP-02), et Prism n'exige donc pas le
-jeton. Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
+jeton. Une troisième différence : Prism sert le premier exemple d'une opération quel que soit son
+chemin, si bien que `listNodes` de l'avenant aurait rendu la structure principale. La variante
+répète donc les chemins de `listNodes`, `updateEstimateLine`, `previewPaste` et `applyPaste` pour
+chaque structure de nature `amendment` que liste le premier exemple de `listCostStructures`, son
+identifiant écrit dans le chemin, et y place l'exemple `amendment` de chaque opération en tête
+(`wftools.mock`, #1219, #1277) : la lecture de l'installation sur l'avenant, la charge de sa ligne
+ajoutée saisie, et un bloc collé sur ses lignes 7 à 9, aperçu puis appliqué
+(`wftools.mockamendmentwrites`). Prism classe un chemin par ses segments écrits, devant celui qui
+les laisse en gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du
+chemin. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme ceux de la
+principale ; les avenants 212 et 213 et les structures de risque ne sont pas aiguillés (EP-16).
+**Où jouent les parcours d'écriture.** La structure principale du projet en cours liste le devis en
+lecture seule (#1176) : un parcours qui écrit le devis ne le lit donc pas là. Celui de la saisie
+d'une ligne (`entry.spec.ts`) et celui du collage (`paste.spec.ts`) jouent sur l'avenant 2, structure
+203, dont le faux back sert les trois exemples `amendment` ; le collage y retrouve `[WF-IHM-0050-A]`,
+les trois lignes du bloc de `paste_applied_amendment` écrites après la confirmation. Les parcours
+qui n'ont pas d'exemple propre à l'avenant restent sur la structure qui les sert, le devis propre
+du risque du recâblage (structure 204, qui reçoit le premier exemple de chaque opération) : le
+collage d'une catégorie inconnue, le collage d'un bloc trop large, et la ligne de provision, que
+l'avenant ne porte pas. Un parcours qui écrit sur un autre différentiel attend ses exemples, à
+EP-16.
+Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
 en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
 (`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
 navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si
@@ -1860,7 +2513,7 @@ Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'app
 la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
 front qui ne font que lire, jamais à éprouver une écriture.
 
-*Contrôles* : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
+_Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
 famille contract, que `fixtures/api/` réveille comme le contrat), `make lint-compose`.
 
@@ -1871,43 +2524,43 @@ Une commande que la chaîne exécute existe dans le Makefile, et un workflow n'�
 logique de contrôle de son côté ; un échec de la chaîne se reproduit donc par la même
 commande.
 
-| Commande | Ce qu'elle fait |
-|---|---|
-| `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
-| `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production` |
-| `make changes BASE=…` | les familles qu'une modification touche |
-| `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne |
-| `make service-install` | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite |
-| `make service-up`, `make service-down` | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal |
-| `make keycloak-authority` | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage |
-| `make e2e-service` | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` |
-| `make service-logs` | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut |
-| `make migrate` | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL` |
-| `make build-keycloak` | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste |
-| `make test-keycloak` | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service` |
-| `make check-keycloak` | la famille `keycloak` : `build-keycloak`, puis `test-keycloak` |
-| `make images` | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne ») |
-| `make prerendered-front` | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne ») |
-| `make check-front-image` | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne ») |
-| `make production-trial` | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948), que la chaîne demande (`production.yml`, `images.yml`) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
-| `make check-production` | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites |
+| Commande                                                                | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make check BASE=origin/epic/EP-nn`                                     | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `make check-all`                                                        | toutes les familles de contrôles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make check-<famille>`                                                  | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make changes BASE=…`                                                   | les familles qu'une modification touche                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `make build-keycloak`                                                   | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make test-keycloak`                                                    | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service`                                                                                                 |
+| `make check-keycloak`                                                   | la famille `keycloak` : `build-keycloak`, puis `test-keycloak`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make images`                                                           | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `make prerendered-front`                                                | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make check-front-image`                                                | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `make production-trial`                                                 | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948), que la chaîne demande (`production.yml`, `images.yml`) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make check-production`                                                 | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
-| Variable | Ce qu'elle protège |
-|---|---|
-| `WATERFALL_POSTGRES_PASSWORD` | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL |
-| `WATERFALL_SERVICE_DATABASE_PASSWORD` | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement |
-| `WATERFALL_BACKUP_DATABASE_PASSWORD` | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement |
-| `WATERFALL_REDIS_PASSWORD` | Redis |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur |
-| `WATERFALL_STORAGE_SECRET` | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut) |
-| `WATERFALL_STORAGE_RPC_SECRET` | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme |
-| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD` | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
-| `WATERFALL_FRONT_CLIENT_SECRET` | le client `waterfall-front` du royaume |
-| `WATERFALL_SERVICE_CLIENT_SECRET` | le client `waterfall-service`, le compte de service de l'API et du worker |
-| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652), et qui donne au royaume la langue de l'installation (`manage-realm`, #873) : ni l'API ni le worker ne le tiennent |
+| Variable                               | Ce qu'elle protège                                                                                                                                                                                                                                                                                  |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WATERFALL_POSTGRES_PASSWORD`          | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL                                                                                                                                 |
+| `WATERFALL_SERVICE_DATABASE_PASSWORD`  | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement                                                                            |
+| `WATERFALL_BACKUP_DATABASE_PASSWORD`   | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement                                                                      |
+| `WATERFALL_REDIS_PASSWORD`             | Redis                                                                                                                                                                                                                                                                                               |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur                                                                                                                                                                                                              |
+| `WATERFALL_STORAGE_SECRET`             | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut)                                                                                                                   |
+| `WATERFALL_STORAGE_RPC_SECRET`         | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme                                                                                                                                                                                   |
+| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`    | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
+| `WATERFALL_FRONT_CLIENT_SECRET`        | le client `waterfall-front` du royaume                                                                                                                                                                                                                                                              |
+| `WATERFALL_SERVICE_CLIENT_SECRET`      | le client `waterfall-service`, le compte de service de l'API et du worker                                                                                                                                                                                                                           |
+| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652), et qui donne au royaume la langue de l'installation (`manage-realm`, #873) : ni l'API ni le worker ne le tiennent                                                                   |
 
 Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
 exemple. Keycloak répond en HTTPS sur `https://localhost:8443/auth`, sa console d'administration
@@ -2169,7 +2822,7 @@ Règles des workflows :
 - un outil téléchargé hors d'une action est épinglé par sa version et vérifié par son
   empreinte, comme pandoc dans `spec.yml`.
 
-*Contrôle* : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
+_Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
 
 La protection des branches est un réglage de GitHub, fait par le propriétaire du dépôt :
 sur `epic/*`, pas de poussée directe, la porte exigée, la file de fusion ; sur `main`, la
@@ -2185,17 +2838,19 @@ objets du domaine sont ceux du tableau de correspondance du §4.4.1 de la spéci
 (`estimate_line`, `cost_line`, `revision`…), et les conventions du contrat — `snake_case`,
 `operationId` en `camelCase`, identifiants UUID — sont dans `docs/api/README.md`.
 
-*Contrôle* : aucun outil ne vérifie la langue d'un nom ; la revue le fait.
+_Contrôle_ : aucun outil ne vérifie la langue d'un nom ; la revue le fait.
 
 ## En-têtes et licences
 
 Chaque fichier de code commence par deux lignes, après la ligne `#!` s'il en a une :
 
 <!-- REUSE-IgnoreStart -->
+
 ```text
 SPDX-FileCopyrightText: 2026 waterfall-project
 SPDX-License-Identifier: AGPL-3.0-only
 ```
+
 <!-- REUSE-IgnoreEnd -->
 
 dans la syntaxe de commentaire du langage. Le nom du fichier n'y figure pas : il deviendrait
@@ -2210,7 +2865,7 @@ Un document qui cite ces deux lignes, comme celui-ci, les encadre de
 `REUSE-IgnoreStart` et `REUSE-IgnoreEnd`, faute de quoi l'outil les lirait comme la licence
 du document.
 
-*Contrôle* : `make reuse` échoue sur un fichier couvert ni par un en-tête ni par
+_Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni par
 `REUSE.toml`.
 
 ## Outils du dépôt
@@ -2222,7 +2877,7 @@ diverger sur ce qu'une exigence dit. Il compare les textes après normalisation 
 et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
 §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
 
-*Contrôle* : `make test-tools`.
+_Contrôle_ : `make test-tools`.
 
 ## La roadmap et les exigences
 
@@ -2247,7 +2902,7 @@ Il échoue aussi sur une commande `make` que cite un agent (`.claude/agents/`,
 `docs/dev/agents.md`) et que le Makefile n'a pas : une cible renommée ne laisse pas un agent
 appeler une commande disparue.
 
-*Contrôle* : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
+_Contrôle_ : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
 changement de la projection ou des agents.
 
 ## Commentaires
@@ -2255,7 +2910,7 @@ changement de la projection ou des agents.
 Un commentaire dit pourquoi, pas ce que fait le code : la raison d'un choix, un invariant,
 un cas limite. Il est en anglais, comme le code.
 
-*Contrôle* : aucun outil ne juge ce qu'un commentaire dit ; la revue le fait. La forme des
+_Contrôle_ : aucun outil ne juge ce qu'un commentaire dit ; la revue le fait. La forme des
 docstrings, le code commenté et les `TODO` — toujours `TODO(#12): …`, avec le numéro de
 l'issue — sont contrôlés : voir « Lint, typage et format ».
 
@@ -2280,7 +2935,7 @@ une, s'écrit dans la configuration de l'outil — `per-file-ignores` de `ruff.t
 raison. Aucun fichier source ne dépasse 1 000 lignes, lignes vides et commentaires compris ;
 les fichiers engendrés en sont exclus.
 
-*Contrôles* : `make lint-back`, `make typecheck-back`, `make lint-tools`,
+_Contrôles_ : `make lint-back`, `make typecheck-back`, `make lint-tools`,
 `make typecheck-tools` ; `make sources` pour les commentaires d'exemption et la taille des
 fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
 les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se déclare dans
@@ -2310,14 +2965,14 @@ Les commentaires de configuration dans le code ne sont pas honorés (`noInlineCo
 `TODO(#12): …` ; les autres étiquettes d'attente sont refusées — c'est `make sources` qui le
 vérifie, ESLint n'ayant pas d'équivalent aux règles `TD` et `FIX` de Ruff.
 
-*Contrôles* : `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
+_Contrôles_ : `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
 
 **Contrat** — `docs/api/redocly.yaml` étend `recommended-strict` : toute règle de Redocly
 bloque. Une opération à laquelle une règle ne s'applique pas — une sonde sans réponse 4xx,
 une redirection OIDC sans réponse 2xx — est déclarée dans `docs/api/.redocly.lint-ignore.yaml`,
 avec sa raison.
 
-*Contrôle* : `make lint-openapi`.
+_Contrôle_ : `make lint-openapi`.
 
 ## Règles de codage
 
@@ -2369,7 +3024,7 @@ indice de révision compris (WF-QUA-0010).
 Un test cite l'exigence dont il éprouve le Vérif, pas celle dont il parle. Un test qui ne
 couvre aucune exigence — un outil, un détail de réalisation — n'en cite aucune.
 
-*Contrôles* : `make requirements` lit les citations dans les fichiers de test, sans les
+_Contrôles_ : `make requirements` lit les citations dans les fichiers de test, sans les
 lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
 famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
 bout en bout contre le service (`frontend/e2e/service/**`, qui prime sur les autres parcours),
@@ -2515,6 +3170,39 @@ chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les 
 (`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
+
+Avant le premier parcours, le harnais demande une fois chaque route au serveur de développement
+(`globalSetup`, `frontend/e2e/warm-up.ts`, #1145) : celui-ci compile une route à sa première
+demande, et sous la charge de quatre workers la compilation dépassait les cinq secondes de
+l'assertion qui attend l'écran qu'un clic atteint. Les écrans sont ceux de `frontend/e2e/routes.ts`,
+que `src/app/screens.test.ts` tient à chaque page de `src/app`, avec les pages qui ne font que
+rediriger : une page ajoutée est préchauffée avec elles. Les route handlers le sont aussi, chacun à
+une adresse qui ne change rien — `/auth/sign-out` sans suivre sa redirection, `/auth/backchannel-logout`
+par un `GET` qu'il refuse, un téléchargement à une adresse qui ne nomme rien —, ou déclarés exempts
+avec leur raison — `/login`, qui commence hors du faux back une connexion, un état gardé dans
+Redis — ;
+`src/app/route-handlers.test.ts` tient ces deux listes à chaque `route.ts` de `src/app`. Quatre à la
+fois, la redirection non suivie ; ce qu'une route répond reste aux parcours. Une connexion que le
+serveur coupe (`ECONNRESET`, `EPIPE`, `socket hang up`), ce que fait le serveur de développement
+sous charge, n'est pas une erreur de l'écran : la route est redemandée une fois, et la sortie
+l'écrit (#1301) ; un serveur qui redémarre refuse la connexion (`ECONNREFUSED`), ce qui n'est pas
+une coupure. Une erreur du serveur — un statut de 500 ou plus, jamais redemandé, ou aucune réponse,
+une seconde coupure comprise, dont l'erreur garde le message de la première — s'écrit dans la
+sortie au moment où elle survient. Elle fait échouer le lancement une fois toutes les routes
+demandées, en nommant chaque adresse en cause : un écran qui ne compile pas se voit là, pas dans
+chaque parcours. Le préchauffage écrit sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois
+passages du 2026-10-21, pour les 38 écrans d'alors. Il ne précède ni la mesure jouée seule
+(`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques écrans de
+l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans session
+enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un projet
+que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui compile
+lui-même ce qu'il atteint.
+
+Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
+(`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
+back ou mandataire du contrat, qui ferme une connexion inactive depuis cinq secondes, et le serveur de
+développement chargé envoyait une requête sur une connexion que Prism venait de fermer
+(`UND_ERR_SOCKET: other side closed`, puis `Unreachable` dans `readOrFail`, #1145).
 
 `make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
 (`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la
@@ -2771,7 +3459,7 @@ contraste d'un texte posé sur le dessin d'une courbe, et le contraste de l'indi
 (WCAG 1.4.11) n'est mesuré que par les jetons de `contrast.test.ts`. Ce qui les couvre ailleurs, et
 ce qui reste, est dit dans la note d'US-0200 (EP-14) et dans #782.
 
-*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
+_Contrôle_ : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
 échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
 
 ### Couverture du code
@@ -2791,7 +3479,7 @@ mesure par un commentaire ; une exclusion s'écrit dans la configuration, avec s
 `frontend/vitest.config.ts`). Un test qui passe sur des lignes sans rien vérifier est un
 défaut, que la revue relève.
 
-*Contrôles* : `make coverage-back`, `make coverage-front`, au palier complet : ils nomment
+_Contrôles_ : `make coverage-back`, `make coverage-front`, au palier complet : ils nomment
 les fichiers les moins couverts quand un seuil n'est pas atteint.
 
 ### Un test qui reprend un exemple chiffré
@@ -2812,7 +3500,7 @@ Les sockets y sont fermées : un exemple qui passe ne demande ni base, ni servic
 navigateur. Une phrase modifiée dans le document change de clé ; la fixture de l'ancienne
 fait alors échouer la chaîne, et on la réécrit d'après la nouvelle phrase.
 
-*Contrôles* : `make check-fixtures` — le relevé est à jour, chaque clé citée existe, et les
+_Contrôles_ : `make check-fixtures` — le relevé est à jour, chaque clé citée existe, et les
 exemples qu'aucune fixture ne cite encore sont listés, sans échec : leur nombre décroît avec
 les EPIC de calcul (EP-06 à EP-11).
 
@@ -2831,9 +3519,10 @@ ses paramètres, jamais une phrase.
   un identifiant, un compteur d'écriture — n'en reçoit pas. Un composant rend un refus par
   `problemMessage(problem, { locale, messages })`, jamais en écrivant la phrase.
 
-  *Contrôles* : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
+  _Contrôles_ : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
   catalogue français, que `problem.ts` lit par `errors.${code}` ; `make catalogs`, sur un
   code sans clé dans l'un des deux, ou sur une clé `errors.` que le contrat n'a plus.
+
 - **Réagir à un refus côté front** — une action serveur ne rend jamais la réponse brute de
   l'API : elle appelle le client par `decode` de `frontend/src/api/problem.ts`, le seul
   décodeur, et rend son `Outcome` — `done` ; `refused`, un `Problem` à dire tel quel ;
@@ -2869,8 +3558,9 @@ ses paramètres, jamais une phrase.
   adresse d'un autre site — et ramène sinon à l'accueil. Un 401 `ACCOUNT_DEACTIVATED` n'y mène
   pas, il bouclerait : `kindOf` le range en `refused`, et une lecture lève `AccountDeactivated`.
 
-  *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
+  _Contrôles_ : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
   qu'une action serveur passe par `decode`, et qu'un rejet passe par `rejected`, la revue.
+
 - **Ajouter un code côté service** — le code existe d'abord au contrat (`ErrorCode`), puis dans
   les modèles du service que `make generate-server-models` en engendre
   (`backend/src/waterfall/api/contract/models.py`, versionnés ; `make server-models-up-to-date`,
@@ -2910,10 +3600,11 @@ ses paramètres, jamais une phrase.
   valeur d'un objet compris ; un paramètre de requête ou de chemin en texte se type `Text`, du
   même module.
 
-  *Contrôles* : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
+  _Contrôles_ : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
   `test_access_roles_guard.py` pour le NUL) ; que tout paramètre en texte est un `Text`, que le
   code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
   réponses des tests d'API contre le contrat.
+
 - **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
   (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :
   une réponse hors schéma fait échouer le test. Les journaux sont ceux de structlog en JSON
@@ -2941,7 +3632,7 @@ ses paramètres, jamais une phrase.
   porte un `lock_version` le teste dans l'écriture même et lève `PreconditionFailedError` si la
   version n'est plus la bonne.
 
-  *Contrôles* : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
+  _Contrôles_ : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
   les frontières ; que l'écriture teste son `lock_version` dans la requête, la revue.
 
 - **Connaître l'appelant** — une route gardée prend `Caller` et, si elle lit ou écrit la base,
@@ -2972,7 +3663,7 @@ ses paramètres, jamais une phrase.
   (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak
   (`waterfall.platform.keycloak_admin`) s'éprouve contre la plateforme (`make test-keycloak`).
 
-  *Contrôles* : `make test-back` (`tests/test_api_authentication.py`, qui compte aussi les
+  _Contrôles_ : `make test-back` (`tests/test_api_authentication.py`, qui compte aussi les
   connexions prises pendant l'appel à Keycloak, `Watching` de `tests/support.py`),
   `make test-keycloak` (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne
   `Caller`, la revue.
@@ -3043,7 +3734,7 @@ langue se choisit.
   britannique (`en-GB`), comme ses catalogues s'écrivent : « 31 May 2026, 16:30 », les
   nombres restant « 1,234.56 ».
 
-*Contrôles* : `make typecheck-front` — next-intl est typé par le catalogue français, et une
+_Contrôles_ : `make typecheck-front` — next-intl est typé par le catalogue français, et une
 clé que le code emploie sans qu'il l'ait casse le typage, comme une clé qui manque au
 catalogue anglais (`frontend/src/i18n/catalogues.ts`) ; `make lint-front` —
 `react/jsx-no-literals` refuse le texte écrit dans le JSX, et `no-restricted-syntax` un
@@ -3091,6 +3782,11 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   (`[color:…]`, `[--primary:…]`), ni `color-mix(`, ni une couleur écrite dans une chaîne,
   dans un `style` ou dans l'attribut d'un SVG. Une police s'ajoute de même, par un jeton
   `--font-<nom>`.
+- **La marque d'un différentiel** (US-0500) a trois jetons de ligne et trois jetons de marque,
+  `--diff-added`, `--diff-removed`, `--diff-modified` et leurs `-mark` — un vert, un rouge, un jaune —,
+  que `DiffMark` pose (`frontend/src/components/grid/diff-mark.tsx`) ; la couleur double le caractère
+  `+`, `-` ou `M` et le mot, elle ne les remplace jamais. Le texte de la page et la marque atteignent
+  4,5:1 sur chaque teinte dans les deux modes (`contrast.test.ts`).
 - **Le contraste** d'un texte sur son fond atteint 4,5:1, celui de ce qui montre un contrôle —
   bord d'un champ, anneau du focus — 3:1, dans les deux modes (WCAG AA, §3.6).
 - **Un signalement passe par `Signal`** (`frontend/src/components/signal/`), et seulement
@@ -3131,8 +3827,8 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
 - **La mise en page** suit la maquette validée par l'utilisateur (EP-02, « Charte
   graphique ») : la barre latérale est le Sidebar de shadcn/ui, repliable en rail d'icônes dont
   chaque entrée garde son nom et le montre en infobulle ; la barre du haut porte le fil
-  d'Ariane, la recherche, les tâches de fond et, à droite, le bouton de l'avatar qui déroule le
-  menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
+  d'Ariane, la recherche, le bouton du panneau des tâches et des messages et, à droite, le
+  bouton de l'avatar qui déroule le menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
   `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et `PageHeader`,
   le titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
 - **La densité** : les grilles et les listes sont denses — le plus d'informations sous les
@@ -3156,7 +3852,7 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
   le mode sombre s'applique.
 
-*Contrôles* : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
+_Contrôles_ : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
 `frontend/eslint.config.mjs`) refuse, dans toute chaîne du code, une classe de couleur de la
 palette, une valeur arbitraire d'un utilitaire de couleur qui n'est ni une longueur ni un
 nombre, une variable passée à un utilitaire de couleur ou de police, une police arbitraire, une propriété arbitraire qui peint, pose une police ou une
@@ -3233,7 +3929,7 @@ celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
 lot, et seules les révisions qu'un outil engendre seul seraient déclarées dans
 `tools/paths.toml`.
 
-*Contrôles* : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
+_Contrôles_ : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
 appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
 vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
 contre PostgreSQL (voir « Tests ») ; la compatibilité
@@ -3250,3 +3946,45 @@ suivent ce guide comme une personne, et leurs règles propres sont dans
 Les règles sont dans le [README de la roadmap](../roadmap/README.md), sections « Lots » et
 « Branches », et dans [CONTRIBUTING](../../CONTRIBUTING.md) : un lot, une issue, une branche
 `lot/<identifiant>` tirée de `epic/EP-nn`, une pull request qui y revient.
+
+## Signature des commits
+
+Les commits qui arrivent sur `main` sont signés : la règle « Require signed commits » de
+GitHub protège `main`, et un commit qu'elle ne reconnaît pas bloque la fusion. Ce que GitHub
+crée lui-même (le merge commit d'une pull request, un squash, un commit de Dependabot) est
+signé par GitHub ; ce qu'une personne ou un agent commite est signé par la clé de cette
+personne.
+
+**Configurer sa machine** (clé SSH, la plus simple) :
+
+```bash
+ssh-keygen -t ed25519 -C "<adresse des commits>" -f ~/.ssh/id_ed25519_signing
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519_signing.pub
+git config --global commit.gpgsign true
+```
+
+Puis ajouter le contenu de `~/.ssh/id_ed25519_signing.pub` dans GitHub, *Settings → SSH and
+GPG keys → New SSH key*, avec le type **Signing Key** et l'adresse des commits. La clé ne doit
+pas demander sa phrase secrète à chaque commit, faute de quoi un agent s'arrête : la charger
+dans `ssh-agent` (`ssh-add`) ou dans le trousseau du système. Se vérifier avec
+`git log --show-signature -1`, puis lire le badge « Verified » sur GitHub après un push.
+
+**Les agents** (`.claude/agents/`) commitent avec la configuration git de la machine où ils
+tournent : lancés sur la machine d'une personne dont la clé est enregistrée, leurs commits sont
+signés et vérifiés. Lancés dans une session cloud, ils signent avec une clé d'environnement
+que GitHub ne connaît pas : leurs commits ne sont pas « Verified » et ne doivent pas arriver
+sur `main` tels quels.
+
+**Fusions.** `main` reçoit les branches d'EPIC par merge commit, qui porte leurs commits : il
+faut donc qu'ils soient tous vérifiés. Pour ne pas bloquer une fusion, ne commiter sur
+`epic/EP-nn` et `lot/*` qu'avec une clé enregistrée, et mettre une branche à jour depuis `main`
+par le bouton « Update branch » de la pull request ou par un merge local signé. Éviter le « Rebase and merge » : GitHub
+réécrit alors les commits sans les signer.
+
+**Mise en place sur `main`.** La règle ne s'active qu'une fois l'EPIC en cours, EP-15,
+fusionné, car il contient des commits non signés et la règle ne revérifie pas l'historique
+déjà fusionné. Ordre : la clé enregistrée et vérifiée, la fusion d'EP-15, puis « Require signed
+commits » sur `main` (*Settings → Rules*), avant de tirer la branche de l'EPIC suivant. La règle
+ne vise ni `epic/*` ni `lot/*`. Aucun contrôle de la chaîne ne la double : c'est GitHub qui
+refuse, d'où cette section.

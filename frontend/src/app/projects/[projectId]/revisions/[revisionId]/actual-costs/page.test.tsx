@@ -15,6 +15,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import ActualCostsPage, { generateMetadata } from "./page";
 
@@ -30,6 +31,26 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The session of the contract, some of the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 // The grid renders as it would, and keeps what its page handed it.
 const grids = vi.hoisted((): { costs: CostsGridProps[] } => ({ costs: [] }));
 vi.mock("@/components/costs/costs-grid", async (original) => {
@@ -89,10 +110,11 @@ function queryOf(route: string): Record<string, string> {
   const calls = server.clients.flatMap((client) => client.calls);
   const [call, ...more] = calls.filter((each) => each.route === route);
   expect(more).toEqual([]);
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.costs = [];
   server.clients = [];
   server.answers = {
@@ -118,8 +140,8 @@ describe("the screen of the actual costs", () => {
     const page = await costsAt();
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
-    expect(queryOf(IMPORTS)).toEqual({ limit: "12" });
-    expect(text(page)).toContain("Actual costs 27 lines retained");
+    expect(queryOf(IMPORTS)).toEqual({});
+    expect(text(page)).toContain("Actual costs Help 27 lines retained");
   });
 
   it("leads from its head to the imports and exports of the project, where the actual costs are imported, in the same context", async () => {
@@ -184,6 +206,7 @@ describe("the screen of the actual costs", () => {
       to: "2026-04-30",
       offset: "50",
       imports_offset: "12",
+      imports_limit: "25",
       search: "câbles",
     });
     expect(queryOf(COSTS)).toEqual({
@@ -195,7 +218,7 @@ describe("the screen of the actual costs", () => {
       sort_by: "amount",
       sort_order: "desc",
     });
-    expect(queryOf(IMPORTS)).toEqual({ limit: "12", offset: "12" });
+    expect(queryOf(IMPORTS)).toEqual({ limit: "25", offset: "12" });
     expect(grids.costs[0]?.query.sort).toEqual({ column: "amount", order: "desc" });
   });
 
@@ -224,7 +247,7 @@ describe("the screen of the actual costs", () => {
   it("shows the way to the next page when the server holds more lines than the page [WF-CRE-0040-A]", async () => {
     server.answers = { ...server.answers, [COSTS]: { example: "actual_costs_page", status: 200 } };
     const page = await costsAt({ offset: "1" });
-    expect(text(page)).toContain("Actual costs 27 lines retained");
+    expect(text(page)).toContain("Actual costs Help 27 lines retained");
     expect(page).toContain('aria-label="Pages of the actual costs"');
     expect(page).toContain(`href="${PATHNAME}?offset=2"`);
   });
@@ -236,7 +259,7 @@ describe("the screen of the actual costs", () => {
       [IMPORTS]: { example: "cost_imports_empty", status: 200 },
     };
     const said = text(await costsAt());
-    expect(said).toContain("Actual costs no line retained");
+    expect(said).toContain("Actual costs Help no line retained");
     expect(said).toContain("General total 0.00 Last import No import");
     expect(said).toContain("No row matches the request.");
     expect(said).toContain("Journal of the imports No actual cost has been imported yet.");
@@ -363,5 +386,29 @@ describe("the screen of the actual costs", () => {
       "Excluded from the tracked scope: Câbles d'un autre projet, à réimputer",
     );
     expect(after).toContain("Reinstate in the tracked scope");
+  });
+});
+
+describe("the actual costs, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await costsAt(search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === COSTS);
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+});
+
+describe("the journal of the imports, the size of the pages", () => {
+  it.each([
+    ["no limit in the address", {}, "25"],
+    ["a limit in the address, which wins over the preference", { imports_limit: "10" }, "10"],
+  ])("reads it with the page size kept, %s [WF-IHM-0060-A]", async (_name, search, limit) => {
+    kept.grids = { cost_imports: { page_size: 25 } };
+    await costsAt(search);
+    expect(queryOf(IMPORTS).limit).toBe(limit);
   });
 });

@@ -28,11 +28,30 @@ export interface GridSort<Sort extends string> {
   readonly order: SortOrder;
 }
 
+/**
+ * The numbers of rows a page of a flat table may hold, as the contract admits them
+ * (`GridPreferences.page_size`, WF-IHM-0060), and the one it holds by default (`limit`, C-351).
+ */
+export const PAGE_SIZES = [10, 25, 50, 100] as const;
+export type PageSize = (typeof PAGE_SIZES)[number];
+export const DEFAULT_PAGE_SIZE: PageSize = 50;
+
+/** The page size a value names, as the address writes it or the preferences keep it; none otherwise. */
+export function pageSizeOf(value: unknown): PageSize | undefined {
+  const size = typeof value === "string" && /^\d{1,3}$/.test(value) ? Number(value) : value;
+  return PAGE_SIZES.find((candidate) => candidate === size);
+}
+
 /** What a grid asks the server, besides its reading context. */
 export interface GridQuery<Sort extends string> {
   readonly sort: GridSort<Sort> | undefined;
   /** The search on the labels; none when the address holds none. */
   readonly search: string | undefined;
+  /**
+   * The rows of a page: the address asks it, else the account keeps it, else fifty; a query built by
+   * hand (a tree) says none, explicitly.
+   */
+  readonly size: PageSize | undefined;
 }
 
 /** The parameters of the address a grid writes, as the contract names them. */
@@ -44,6 +63,8 @@ export const SEARCH = "search";
  * names it): a sort or a search changed starts again from the first page.
  */
 export const OFFSET = "offset";
+/** The number of rows of a page (`limit`, as the contract names it), which the address carries. */
+export const LIMIT = "limit";
 
 /**
  * The names under which a grid writes its sort, its search and the first row of its page in the
@@ -54,6 +75,7 @@ export interface GridAddress {
   readonly sortBy: string;
   readonly sortOrder: string;
   readonly offset: string;
+  readonly limit: string;
 }
 
 /** The names of the contract, for a grid alone on its screen. */
@@ -62,6 +84,7 @@ export const CONTRACT_ADDRESS: GridAddress = {
   sortBy: SORT_BY,
   sortOrder: SORT_ORDER,
   offset: OFFSET,
+  limit: LIMIT,
 };
 
 /**
@@ -75,6 +98,7 @@ export function prefixedAddress(prefix: string): GridAddress {
     sortBy: `${prefix}${SORT_BY}`,
     sortOrder: `${prefix}${SORT_ORDER}`,
     offset: `${prefix}${OFFSET}`,
+    limit: `${prefix}${LIMIT}`,
   };
 }
 
@@ -85,8 +109,14 @@ export function prefixedAddress(prefix: string): GridAddress {
 export function pagedList(address: GridAddress, ...filters: readonly string[]): PagedList {
   return {
     page: address.offset,
-    reads: [address.search, address.sortBy, address.sortOrder, ...filters],
+    size: address.limit,
+    reads: [address.search, address.sortBy, address.sortOrder, address.limit, ...filters],
   };
+}
+
+/** The size of a page a list asks of the server, as the address asks it; none for a query built by hand. */
+export function limited<Sort extends string>(query: GridQuery<Sort>) {
+  return query.size === undefined ? {} : { limit: query.size };
 }
 
 /**
@@ -104,6 +134,7 @@ export function searched<Sort extends string>(query: GridQuery<Sort>) {
 export function asked<Sort extends string>(query: GridQuery<Sort>, offset?: number) {
   return {
     ...searched(query),
+    ...limited(query),
     ...(query.sort === undefined
       ? {}
       : { sort_by: query.sort.column, sort_order: query.sort.order }),
@@ -136,13 +167,16 @@ function sortOf<Sort extends string>(
  * the contract accepts. Anything else in the address is not asked: the API would refuse it.
  * The address is the truth of the screen: the sort the account keeps for the grid serves only
  * when the address says nothing of the sort (WF-IHM-0060). A grid among several reads them under
- * its own names (`names`).
+ * its own names (`names`). The size of a page follows the same rule as the sort: the address's, when it
+ * is one of the sizes admitted (`PAGE_SIZES`), else the one the account keeps for the grid (`size`), else
+ * fifty.
  */
 export function readGridQuery<Sort extends string>(
   search: SearchParameters,
   sortable: readonly Sort[],
   kept?: KeptSort | null,
   names: GridAddress = CONTRACT_ADDRESS,
+  size?: number | null,
 ): GridQuery<Sort> {
   const text = search.get(names.search) ?? "";
   const by = search.get(names.sortBy);
@@ -154,6 +188,7 @@ export function readGridQuery<Sort extends string>(
         : (sortOf(sortable, by, search.get(names.sortOrder)) ??
           sortOf(sortable, kept?.column, kept?.order)),
     search: text === "" || text.length > SEARCH_LENGTH ? undefined : text,
+    size: pageSizeOf(search.get(names.limit)) ?? pageSizeOf(size) ?? DEFAULT_PAGE_SIZE,
   };
 }
 

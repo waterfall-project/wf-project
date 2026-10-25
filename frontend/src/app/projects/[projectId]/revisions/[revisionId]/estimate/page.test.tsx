@@ -4,9 +4,11 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
 
 import EstimatePage from "./page";
 
@@ -30,12 +32,22 @@ vi.mock("@/components/grid/estimate-grid", () => ({
     return null;
   },
 }));
+// The filter by a lot or a post reads the address the browser shows.
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+  usePathname: () => "/projects/p/revisions/r/estimate",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+// The lot of the witness and its post, as its work breakdown names them.
+const LOT = "01926f3a-7c00-7000-8000-000000000711";
+const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 
 /** The query the page asked a list of the reference with, by the end of its route. */
 function queryOf(end: string): URLSearchParams | undefined {
@@ -44,11 +56,14 @@ function queryOf(end: string): URLSearchParams | undefined {
 }
 
 /** The markup of the estimate of the witness revision for the session given. */
-async function estimatePage(session: "me" | "me_estimator" | "me_manager"): Promise<string> {
+async function estimatePage(
+  session: "me" | "me_estimator" | "me_manager",
+  search: Record<string, string> = {},
+): Promise<string> {
   server.answers = { ...server.answers, "GET /me": session };
   const page = await EstimatePage({
     params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
-    searchParams: Promise.resolve({}),
+    searchParams: Promise.resolve(search),
   });
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
@@ -77,7 +92,73 @@ beforeEach(() => {
     "GET /reference/cost-categories": "volume/cost_categories",
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
   };
+});
+
+describe("the grid of the estimate, entered as the structure lists it", () => {
+  const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+
+  it("hands the grid read only on the main structure of a project in progress, and entered on a project in pricing [WF-DEV-0050-A]", async () => {
+    // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune
+    // saisie ni aucune commande d'écriture : the structure lists `edit_estimate` unavailable
+    // (`project_before_in_progress`), and the planning available besides, which opens nothing of the
+    // estimate. The front reads the structure, it deduces no phase from the project.
+    const inProgress = await estimateFor("me");
+    expect(inProgress?.editable).toBe(false);
+    // Handed so, the grid takes no entry and no paste: every cell reads `aria-readonly`.
+    const readOnly = estimateGrid(estimateReference());
+    expect(readOnly.columns.filter((column) => column.entry !== undefined)).toEqual([]);
+    expect(readOnly.paste).toBeUndefined();
+    server.answers = { ...server.answers, [STRUCTURES]: "structures_without_tasks" };
+    const inPricing = await estimateFor("me");
+    expect([inPricing?.editable, inPricing?.tasksEditable]).toEqual([true, true]);
+  });
+
+  it("hands the grid the year of reference of the revision and the rate of inflation of the project, which its amount corrected of inflation names [WF-IHM-0140-A]", async () => {
+    // The witness: revision of the reference year 2026, project inflated at 3 %.
+    const grid = await estimateFor("me");
+    expect(grid?.inflation).toEqual({ referenceYear: 2026, rate: "0.03" });
+  });
+
+  it.each([
+    {
+      kind: "the amendment 2, a differential",
+      structure: "01926f3a-7c00-7000-8000-000000000203",
+      version: 2,
+    },
+    {
+      kind: "the own estimate of a risk",
+      structure: "01926f3a-7c00-7000-8000-000000000204",
+      version: 1,
+    },
+  ])(
+    "hands the grid entered on $kind the address names, at its version, the project in progress",
+    async ({ structure, version }) => {
+      // The differential and the own estimate of a risk list `edit_estimate` available whatever
+      // the state of the project (`structures`): their estimate is entered where the main one is not.
+      await estimatePage("me", { structure });
+      const grid = grids.estimate.at(-1);
+      expect(grid?.structure.structure_id).toBe(structure);
+      expect([grid?.editable, grid?.tasksEditable]).toEqual([true, true]);
+      expect(grid?.structureVersion).toBe(version);
+    },
+  );
+
+  it("presents neither the duration nor the predecessors of a task, which the planning enters [WF-DEV-0050-A]", () => {
+    // La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs d'une tâche :
+    // the entered grid has no such column.
+    const unwritten = () => Promise.reject(new Error("nothing is written here"));
+    const entered = estimateGrid(estimateReference(), {
+      line: unwritten,
+      task: unwritten,
+      paste: { preview: unwritten, apply: unwritten, span: () => [], name: () => "" },
+    });
+    const keys: string[] = entered.columns.map((column) => column.key);
+    expect(keys).not.toContain("duration");
+    expect(keys).not.toContain("predecessors");
+    expect(keys).toContain("label");
+  });
 });
 
 describe("the reference data the estimate is entered from", () => {
@@ -91,11 +172,16 @@ describe("the reference data the estimate is entered from", () => {
   it("asks only the active ones of a part of the reference the session may not read, and still enters the estimate on them (#351)", async () => {
     // The estimator reads the cost settings, not the resource settings: the contract would refuse
     // him the deactivated roles (403), and he enters on the active ones.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_estimator",
+    };
     const grid = await estimateFor("me_estimator");
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
     expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
     expect(grid?.reference.roles).toBeDefined();
-    expect(grid?.editable).toBe(true);
+    // The lines, not the label of a task, which is the planning's.
+    expect([grid?.editable, grid?.tasksEditable]).toEqual([true, false]);
   });
 });
 
@@ -122,9 +208,29 @@ describe("the way from the estimate to the imports and exports (#521)", () => {
   });
 });
 
+describe("the link of the estimate to the workload (#1069)", () => {
+  const WORKLOAD = `/projects/${PROJECT}/revisions/${REVISION}/workload`;
+
+  it("opens the workload on the reference budget once the project is in progress, and on the remaining of the revision under way while it is priced [WF-DEV-0070-A]", async () => {
+    expect(await estimatePage("me")).toContain(`href="${WORKLOAD}?basis=reference_budget"`);
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing_estimator",
+    };
+    expect(await estimatePage("me_estimator")).toContain(
+      `href="${WORKLOAD}?basis=current_remaining"`,
+    );
+  });
+
+  it("keeps the context of the address, and adds the basis to it [WF-DEV-0070-A]", async () => {
+    const page = await estimatePage("me", { as_of: "2026-03-16" });
+    expect(page).toContain(`href="${WORKLOAD}?as_of=2026-03-16&amp;basis=reference_budget"`);
+  });
+});
+
 describe("the shares of the estimate (#626)", () => {
   it("says a share too small to show below the smallest shown, never « 0% »", async () => {
-    // The estimate the offer v1.0 kept at its marking: its order item, 2,019.56 of 65,427,832.64,
+    // The estimate the offer v1.0 kept at its marking: its work package, 2,019.56 of 65,427,832.64,
     // the server gives a share of « 0.00003 », to its first significant digit (EP-14/L42o).
     server.answers = {
       ...server.answers,
@@ -134,7 +240,46 @@ describe("the shares of the estimate (#626)", () => {
       .replace(/<[^>]+>/g, " ")
       .replace(/&lt;/g, "<")
       .replace(/\s+/g, " ");
-    expect(page).toContain("By order item Fourniture et montage des armoires 2,019.56 (<0.01%)");
-    expect(page).toContain("No subproject 65,427,832.64 (100%)");
+    expect(page).toContain("By work package Computed on Lot 1 2,019.56 (<0.01%)");
+    expect(page).toContain("Computed on No subproject 65,427,832.64 (100%)");
+  });
+});
+
+describe("the filter of the estimate by a lot or a post", () => {
+  it("offers the lots and the posts of the work breakdown read whole, named by their kind", async () => {
+    const page = await estimatePage("me");
+    expect(page).toMatch(/<label[^>]*>Work package or order item<\/label>/);
+    expect(page).toContain(
+      `<option value="" selected="">All work packages and order items</option>` +
+        `<option value="${LOT}">Work package: Lot 1</option>` +
+        `<option value="${ITEM}">Order item: Poste 1.1</option>`,
+    );
+    expect(queryOf("/work-breakdown")?.toString()).toBe("");
+  });
+
+  it("asks the server for the subtree of the lot the address names, the indicators of the whole project, and says it restricts the grid alone", async () => {
+    const page = await estimatePage("me", { work_package_id: LOT });
+    expect(queryOf("/nodes")?.get("work_package_id")).toBe(LOT);
+    expect(queryOf("/estimate-indicators")?.has("work_package_id")).toBe(false);
+    // The grid reads its totals anew, those of the structure a write answers not being its own.
+    expect(grids.estimate.at(-1)?.filters).toMatchObject({ work_package_id: LOT });
+    expect(page).toContain(`<option value="${LOT}" selected="">Work package: Lot 1</option>`);
+    expect(page).toContain("Work package: Lot 1, on the grid only");
+    expect(page).toContain(
+      'aria-label="Remove the filter “Work package: Lot 1, on the grid only”"',
+    );
+  });
+
+  it("opens without the filter when the API refuses the work breakdown, the grid read whole", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/work-breakdown": {
+        problem: { code: "VALIDATION_FAILED", status: 422 },
+      },
+    };
+    const page = await estimatePage("me");
+    expect(page).not.toContain("Work package or order item");
+    expect(queryOf("/nodes")?.has("work_package_id")).toBe(false);
+    expect(grids.estimate).not.toHaveLength(0);
   });
 });

@@ -82,6 +82,21 @@
   --chart-2: light-dark(#b45309, #f59e0b);
   --chart-3: light-dark(#7e22ce, #c084fc);
   --chart-4: light-dark(#047857, #34d399);
+  /* The mark of a difference (US-0500): the tint of the row of a node a differential adds, removes
+     or modifies, and the mark written on it, `+`, `-` or `M`, in a green, a red and a yellow. The
+     character says it first and the colour doubles it, never alone; each reaches 4.5:1 on its tint,
+     and the text of the page does too (contrast.test.ts). */
+  --diff-added: light-dark(#e3f4e8, #0f2e1b);
+  --diff-added-mark: light-dark(#166534, #4ade80);
+  --diff-removed: light-dark(#fbe9e9, #3b1414);
+  --diff-removed-mark: light-dark(#b91c1c, #f87171);
+  --diff-modified: light-dark(#fbf1c7, #33290a);
+  --diff-modified-mark: light-dark(#854d0e, #facc15);
+  /* The days off of a task in the Gantt (US-0530/L5): a cool grey-blue tint, and the hatching drawn
+     on it, which tells them apart without the colour (WF-PLA-0100, WCAG 1.4.1). The hatching
+     reaches 3:1 on the page and on the tint (contrast.test.ts). */
+  --day-off: light-dark(#eceff6, #1c2130);
+  --day-off-mark: light-dark(#6b7599, #8c96bb);
   /* What floats over the page — a menu, the panel of a sub-menu —: the surface of a card. */
   --popover: var(--card);
   --popover-foreground: var(--card-foreground);
@@ -146,6 +161,14 @@
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
+  --color-diff-added: var(--diff-added);
+  --color-diff-added-mark: var(--diff-added-mark);
+  --color-diff-removed: var(--diff-removed);
+  --color-diff-removed-mark: var(--diff-removed-mark);
+  --color-diff-modified: var(--diff-modified);
+  --color-diff-modified-mark: var(--diff-modified-mark);
+  --color-day-off: var(--day-off);
+  --color-day-off-mark: var(--day-off-mark);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-sidebar: var(--sidebar);

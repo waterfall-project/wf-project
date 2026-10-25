@@ -33,7 +33,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
@@ -214,12 +214,24 @@ describe("undo and redo, placed in the grids", () => {
     render(estimateGrid());
     const cell = focusLabel();
     await userEvent.pointer({ keys: "[MouseRight]", target: cell });
-    // Undo and redo, after the folding of the row, the grid being a tree.
+    // The gestures of structure, then the folding of the row, the grid being a tree, then undo and
+    // redo; each with the keys it sets on its item, shown off a Mac (US-0580).
     expect(
       within(cellMenu())
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Plier la ligne", "Tout déplier", "AnnulerCtrl+Z", "RétablirCtrl+Maj+Z"]);
+    ).toEqual([
+      "Insérer au-dessousInser",
+      "Insérer une sous-tâcheAlt+Inser",
+      "Insérer une ligneCtrl+Inser",
+      "DésindenterAlt+Maj+←",
+      "DescendreAlt+Maj+↓",
+      "SupprimerCtrl+Suppr",
+      "Plier la ligneAlt+-",
+      "Tout déplierAlt+*",
+      "AnnulerCtrl+Z",
+      "RétablirCtrl+Maj+Z",
+    ]);
     await userEvent.keyboard("{Escape}");
     // The grid stays one stop: its active cell, the only one in the order of tabulation.
     expect(screen.getByRole("treegrid").querySelectorAll('[tabindex="0"]')).toHaveLength(1);
@@ -275,6 +287,7 @@ describe("undo and redo, placed in the grids", () => {
         <PlanningGrid
           nodes={example("nodes_planning") as NodeList}
           structure={STRUCTURE}
+          structureVersion={1}
           filters={{}}
           query={NO_QUERY}
           preferences={undefined}
@@ -342,7 +355,7 @@ describe("what no command undoes", () => {
             totals: list.totals,
             kept: list.meta.passthrough_columns,
           }}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
         />,
       ),

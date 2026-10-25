@@ -17,13 +17,15 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
+import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
-import { RiskMatrixView } from "@/components/risks/risk-matrix";
+import { PortfolioRiskMatrix } from "@/components/risks/risk-bubble-chart";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
 
 import { ComputableValue, Figure, ViewSection } from "./portfolio-value";
+import { PortfolioWorkloadChart } from "./workload-chart";
 
 type Schemas = components["schemas"];
 type IndexValue = Schemas["IndexValue"];
@@ -88,24 +90,26 @@ export function PerformanceView({
   ] as const;
   return (
     <>
-      <ViewSection title={t("portfolio.performance.indices")}>
-        <dl className="flex flex-wrap gap-x-10 gap-y-3">
-          <PortfolioIndex name={t("indicator.names.costIndex")} index={performance.cost_index} />
-          <PortfolioIndex
-            name={t("indicator.names.scheduleIndex")}
-            index={performance.schedule_index}
-          />
-          <Figure name={t("projectIndicators.figures.costVariance")}>
-            <Amount amount={performance.cost_variance} />
-          </Figure>
-          <Figure name={t("projectIndicators.figures.scheduleVariance")}>
-            <Amount amount={performance.schedule_variance} />
-          </Figure>
-          <Figure name={t("projectIndicators.figures.referenceBudget")}>
-            <Amount amount={performance.reference_budget} />
-          </Figure>
-        </dl>
-      </ViewSection>
+      <FiguresGrid>
+        <FiguresCard title={t("portfolio.performance.indices")}>
+          <FiguresList>
+            <PortfolioIndex name={t("indicator.names.costIndex")} index={performance.cost_index} />
+            <PortfolioIndex
+              name={t("indicator.names.scheduleIndex")}
+              index={performance.schedule_index}
+            />
+            <Figure name={t("projectIndicators.figures.costVariance")}>
+              <Amount amount={performance.cost_variance} />
+            </Figure>
+            <Figure name={t("projectIndicators.figures.scheduleVariance")}>
+              <Amount amount={performance.schedule_variance} />
+            </Figure>
+            <Figure name={t("projectIndicators.figures.referenceBudget")}>
+              <Amount amount={performance.reference_budget} />
+            </Figure>
+          </FiguresList>
+        </FiguresCard>
+      </FiguresGrid>
       <ViewSection title={t("portfolio.performance.projections")}>
         <ListTable
           label={t("portfolio.performance.projections")}
@@ -231,18 +235,25 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
   const t = useTranslations("portfolio.risks");
   return (
     <>
-      <dl className="flex flex-wrap gap-x-8 gap-y-2">
-        <ComputedTotal name={t("identifiedTotal")} amount={risks.identified_total} />
-        <ComputedTotal name={t("occurred")} amount={risks.period_outcome.occurred_provisions} />
-        <ComputedTotal name={t("dismissed")} amount={risks.period_outcome.dismissed_provisions} />
-      </dl>
-      <ViewSection title={t("coverage")}>
-        <dl className="flex flex-wrap gap-x-8 gap-y-2">
-          {COVERAGE.map(([field, name]) => (
-            <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
-          ))}
-        </dl>
-      </ViewSection>
+      <FiguresGrid>
+        <FiguresCard title={t("provisions")}>
+          <FiguresList>
+            <ComputedTotal name={t("identifiedTotal")} amount={risks.identified_total} />
+            <ComputedTotal name={t("occurred")} amount={risks.period_outcome.occurred_provisions} />
+            <ComputedTotal
+              name={t("dismissed")}
+              amount={risks.period_outcome.dismissed_provisions}
+            />
+          </FiguresList>
+        </FiguresCard>
+        <FiguresCard title={t("coverage")}>
+          <FiguresList>
+            {COVERAGE.map(([field, name]) => (
+              <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
+            ))}
+          </FiguresList>
+        </FiguresCard>
+      </FiguresGrid>
       <div className="space-y-6">
         <ViewSection title={t("heaviest")}>
           <ListTable label={t("heaviest")} columns={[t("risk"), t("project"), t("provision")]}>
@@ -259,15 +270,17 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
             ))}
           </ListTable>
         </ViewSection>
-        <div className="max-w-3xl">
-          <RiskMatrixView matrix={risks.matrix} />
-        </div>
+        <PortfolioRiskMatrix matrix={risks.matrix} scope={risks.scope} />
       </div>
     </>
   );
 }
 
-/** Render the aggregated workload: for each role, its capacity and, month by month, its load. */
+/**
+ * Render the aggregated workload: its chart — the stack of the load by role, the total of each
+ * month and the dashed line of the capacity of the perimeter —, then the table under it: for each
+ * role, its capacity and, month by month, its load, its rate and its signal (WF-PTF-0060).
+ */
 export function WorkloadView({ workload }: { readonly workload: Schemas["PortfolioWorkload"] }) {
   const t = useTranslations("portfolio.workload");
   const bounds = useTranslations("share");
@@ -276,41 +289,46 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
     return <p className="text-sm text-muted-foreground">{t("none")}</p>;
   }
   return (
-    <div className="overflow-x-auto">
-      <ListTable
-        label={t("title")}
-        columns={[
-          t("role"),
-          t("capacity"),
-          // The months of the horizon head the columns; each role has one for each, in order.
-          ...workload.months.map((month) => formatMonth(month, locale)),
-        ]}
-      >
-        {workload.roles.map((role) => (
-          <TableRow key={role.resource_role_id}>
-            <TableCell className={CELL}>{role.label}</TableCell>
-            <TableCell className={`${CELL} tabular-nums`}>
-              {role.capacity_monthly_hours === undefined
-                ? null
-                : t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
-            </TableCell>
-            {role.months.map((month) => (
-              <TableCell key={month.month} className={`${CELL} tabular-nums`}>
-                <span className="flex flex-col">
-                  <span>{t("hours", { hours: formatDecimal(month.hours, locale) })}</span>
-                  <span className="inline-flex items-center gap-1">
-                    {month.zone === undefined ? null : <Signal zone={month.zone} variant="icon" />}
-                    <ComputableValue
-                      value={month.load_ratio}
-                      format={(ratio) => formatShare(ratio, locale, bounds)}
-                    />
-                  </span>
-                </span>
+    <div className="space-y-4">
+      <PortfolioWorkloadChart workload={workload} />
+      <div className="overflow-x-auto">
+        <ListTable
+          label={t("title")}
+          columns={[
+            t("role"),
+            t("capacity"),
+            // The months of the horizon head the columns; each role has one for each, in order.
+            ...workload.months.map((month) => formatMonth(month, locale)),
+          ]}
+        >
+          {workload.roles.map((role) => (
+            <TableRow key={role.resource_role_id}>
+              <TableCell className={CELL}>{role.label}</TableCell>
+              <TableCell className={`${CELL} tabular-nums`}>
+                {role.capacity_monthly_hours === undefined
+                  ? null
+                  : t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
               </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </ListTable>
+              {role.months.map((month) => (
+                <TableCell key={month.month} className={`${CELL} tabular-nums`}>
+                  <span className="flex flex-col">
+                    <span>{t("hours", { hours: formatDecimal(month.hours, locale) })}</span>
+                    <span className="inline-flex items-center gap-1">
+                      {month.zone === undefined ? null : (
+                        <Signal zone={month.zone} variant="icon" />
+                      )}
+                      <ComputableValue
+                        value={month.load_ratio}
+                        format={(ratio) => formatShare(ratio, locale, bounds)}
+                      />
+                    </span>
+                  </span>
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </ListTable>
+      </div>
     </div>
   );
 }

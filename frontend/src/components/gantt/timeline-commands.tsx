@@ -43,9 +43,11 @@ import {
 
 import { createTimeline, deleteTimeline } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
-import { UnmetConditions } from "@/components/commands/command";
+import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
+import { useSaid } from "@/components/notices/said";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -152,6 +154,72 @@ export function TimelineChoice(props: TimelineChoiceProps) {
   );
 }
 
+/** The commands that create a timeline and delete the one shown, as the project lists them. */
+function ManageButtons({
+  offer,
+  unmet,
+  current,
+  open,
+}: {
+  readonly offer: CommandOffer;
+  /** The identifier of the text that names the conditions the offer lacks. */
+  readonly unmet: string | undefined;
+  readonly current: Timeline | undefined;
+  readonly open: (deleting: Timeline | undefined, trigger: HTMLElement) => void;
+}) {
+  const t = useTranslations("timelines");
+  const helps = useTranslations("commands");
+  const unmetText = useUnmet();
+  const unavailable = offer.is_available ? undefined : unmetText(offer);
+  return (
+    <>
+      <CommandTooltip
+        label={t("create")}
+        help={helps("create.help")}
+        unavailable={unavailable}
+        describedBy={unmet}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-disabled={offer.is_available ? undefined : true}
+          className={UNAVAILABLE}
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            open(undefined, event.currentTarget);
+          }}
+        >
+          <Plus aria-hidden="true" />
+          {t("create")}
+        </Button>
+      </CommandTooltip>
+      {current === undefined ? null : (
+        <CommandTooltip
+          label={t("deleteNamed", { label: current.label })}
+          help={helps("deleteTimeline.help")}
+          unavailable={unavailable}
+          describedBy={unmet}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t("deleteNamed", { label: current.label })}
+            aria-disabled={offer.is_available ? undefined : true}
+            className={UNAVAILABLE}
+            onClick={(event: MouseEvent<HTMLElement>) => {
+              open(current, event.currentTarget);
+            }}
+          >
+            <Trash2 aria-hidden="true" />
+            {t("delete")}
+          </Button>
+        </CommandTooltip>
+      )}
+    </>
+  );
+}
+
 /** The links, the commands, the region that says what a write did, and the dialog open. */
 function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps) {
   const t = useTranslations("timelines");
@@ -163,7 +231,8 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
   const held = list?.held ?? own;
   const id = useId();
   const { deleted, drop } = useDeletions();
-  const [said, setSaid] = useState<{ readonly text: string; readonly count: number }>();
+  // What the last write did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const [opened, setOpened] = useState<Opened>();
   // How many times a dialog was opened: what tells an opening from the next.
   const openings = useRef(0);
@@ -190,9 +259,6 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
   }, []);
   const unmet = offer === undefined ? undefined : unmetId(offer, id);
   const deleting = opened?.deleting;
-  const say = (text: string) => {
-    setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-  };
   const open = (deleting: Timeline | undefined, trigger: HTMLElement) => {
     if (offer?.is_available === true) {
       openings.current += 1;
@@ -218,7 +284,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
       const outcome = await held(deleteTimeline(project, timeline.timeline_id));
       if (outcome.kind === "done") {
         drop(timeline.timeline_id);
-        say(t("deleted", { label: timeline.label }));
+        say(t("deleted", { label: timeline.label }), { object: timeline.label });
         // The timeline still shown deleted, the screen shows the first one the project keeps — what
         // the page shows when its address names none it has; left, or another timeline shown since,
         // the screen stays where it is.
@@ -263,37 +329,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
       )}
       {offer === undefined ? null : (
         <>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-disabled={offer.is_available ? undefined : true}
-            aria-describedby={unmet}
-            className={UNAVAILABLE}
-            onClick={(event: MouseEvent<HTMLElement>) => {
-              open(undefined, event.currentTarget);
-            }}
-          >
-            <Plus aria-hidden="true" />
-            {t("create")}
-          </Button>
-          {current === undefined ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label={t("deleteNamed", { label: current.label })}
-              aria-disabled={offer.is_available ? undefined : true}
-              aria-describedby={unmet}
-              className={UNAVAILABLE}
-              onClick={(event: MouseEvent<HTMLElement>) => {
-                open(current, event.currentTarget);
-              }}
-            >
-              <Trash2 aria-hidden="true" />
-              {t("delete")}
-            </Button>
-          )}
+          <ManageButtons offer={offer} unmet={unmet} current={current} open={open} />
           <UnmetConditions id={unmet} offer={offer} />
         </>
       )}
@@ -310,7 +346,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
           target={undefined}
           answering={(answer) => answer}
           onDone={(timeline) => {
-            say(t("created", { label: timeline.label }));
+            say(t("created", { label: timeline.label }), { object: timeline.label });
             close(opened.opening);
           }}
           onClose={() => {

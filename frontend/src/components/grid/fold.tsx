@@ -39,6 +39,9 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import type { CommandHelp } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
+import { onMac } from "@/components/commands/shortcut";
 import { ContextMenuItem } from "@/components/ui/context-menu";
 import { cn } from "@/components/ui/utils";
 
@@ -454,12 +457,6 @@ export function foldShortcut(
  */
 export type FoldReach = "all" | "row" | "none";
 
-/** Whether the browser runs on a Mac, whose Option types another character than the key bears. */
-function onMac(): boolean {
-  const nav = navigator as Navigator & { readonly userAgentData?: { readonly platform?: string } };
-  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.userAgent);
-}
-
 /** How far the keys of the folding reach, decided once for the browser. */
 function reachNow(): FoldReach {
   if (!onMac()) {
@@ -649,7 +646,9 @@ export function useFoldCommands<Row>({
  * The keys of a command of the folding the menu of a cell tells, as far as they reach: minus and
  * plus where the keys of a row do, * off a Mac alone.
  */
-const MENU_KEYS: Readonly<Record<FoldCommand, Readonly<Record<FoldReach, string | undefined>>>> = {
+export const MENU_KEYS: Readonly<
+  Record<FoldCommand, Readonly<Record<FoldReach, string | undefined>>>
+> = {
   collapse: { all: "Alt+-", row: "Alt+-", none: undefined },
   expand: { all: "Alt+Plus", row: "Alt+Plus", none: undefined },
   expandAll: { all: "Alt+*", row: undefined, none: undefined },
@@ -674,29 +673,31 @@ export function FoldMenuItems({
   readonly onRun: () => void;
 }) {
   const t = useTranslations("grid.fold");
+  const said = useTranslations("commands");
   const reach = useFoldReach();
   const { collapse, expand } = folding.offers(at);
   const collapseLabel =
     collapse?.above === undefined
       ? t("collapseRow")
       : t("collapseAbove", { label: collapse.above });
-  const items: readonly (readonly [FoldCommand, string | undefined])[] = [
-    ["collapse", collapse === undefined ? undefined : collapseLabel],
-    ["expand", expand ? t("expandRow") : undefined],
-    ["expandAll", t("expandAll")],
+  const items: readonly (readonly [FoldCommand, CommandHelp, string | undefined])[] = [
+    ["collapse", "collapseRow", collapse === undefined ? undefined : collapseLabel],
+    ["expand", "expandRow", expand ? t("expandRow") : undefined],
+    ["expandAll", "expandAll", t("expandAll")],
   ];
-  return items.map(([command, label]) =>
+  return items.map(([command, help, label]) =>
     label === undefined ? null : (
-      <ContextMenuItem
+      <MenuCommand
         key={command}
-        aria-keyshortcuts={MENU_KEYS[command][reach]}
+        item={ContextMenuItem}
+        label={label}
+        help={said(`${help}.help`)}
+        keys={MENU_KEYS[command][reach]}
         onSelect={() => {
           onRun();
           folding.run(command, at);
         }}
-      >
-        {label}
-      </ContextMenuItem>
+      />
     ),
   );
 }

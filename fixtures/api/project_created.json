@@ -1,5 +1,5 @@
 {
-  "summary": "Le projet créé aujourd'hui à 14 h 05 par Camille Martin, sans code projet — il se chiffrera sans lui (WF-PRJ-0010) —, à l'état Créé (WF-CYC-0010) ; sa créatrice en est chef de projet et contributrice (WF-PRJ-0060), et aucune révision n'est encore ouverte.",
+  "summary": "Le projet créé aujourd'hui à 14 h 05 par Camille Martin, sans code projet — il se chiffrera sans lui (WF-PRJ-0010) —, à l'état Créé (WF-CYC-0010) ; sa créatrice en est chef de projet et contributrice (WF-PRJ-0060), et aucune révision n'est encore ouverte. Il offre de démarrer son planning (EP-15/US-0490/L4) : le squelette s'engendrerait sur la révision que l'on ouvrirait, sans tâche (generate_skeleton, WF-PRJ-0030), et un planning MS Project s'importe, l'import créant la révision (import_planning, WF-INTF-0040).",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000003",
     "label": "Rénovation du poste de livraison",
@@ -93,6 +93,11 @@
         "missing_conditions": [
           "project_in_progress"
         ]
+      },
+      {
+        "command": "generate_skeleton",
+        "is_available": true,
+        "missing_conditions": []
       },
       {
         "command": "import_planning",

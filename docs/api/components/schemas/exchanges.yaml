@@ -161,7 +161,8 @@ Import:
 
 ImportReport:
   type: object
-  required: [read_count, rejected, refusals, differences, ignored, completed_tasks, date_mismatches]
+  required:
+    [read_count, rejected, refusals, differences, ignored, completed_tasks, date_mismatches, signals]
   description: >-
     Compte rendu présenté avant application, et relu après elle : lignes lues, lignes
     rejetées avec leur motif, écarts avec les données existantes (WF-INTF-0080), ce que
@@ -185,14 +186,18 @@ ImportReport:
     rejected:
       type: array
       description: >-
-        Les lignes rejetées, chacune avec son motif ; les autres s'appliquent (WF-INTF-0080).
+        Les lignes rejetées, chacune par son rang, et son onglet quand le fichier en a plusieurs,
+        avec son motif ; les autres s'appliquent (WF-INTF-0080).
+        Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet
+        qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`,
+        WF-INTF-0100, WF-INTF-0120).
       items: { $ref: '#/ImportRejection' }
     refusals:
       type: array
       description: >-
         Les motifs qui rejettent le fichier entier, au lieu d'une ligne (`ReportRefusal`) : un
-        planning MS Project qui déplacerait la tâche d'un lot hors du sous-arbre de la tâche de
-        son poste — sur la structure principale, seule à porter des rattachements —, « rejeté au
+        planning MS Project qui déplacerait la tâche d'un poste hors du sous-arbre de la tâche de
+        son lot — sur la structure principale, seule à porter des rattachements —, « rejeté au
         compte rendu, qui nomme les deux tâches, comme un planning qui dépasse l'horizon »
         (WF-INTF-0040, WF-PLA-0170), et un planning qui porterait la durée du projet au-delà de
         quinze ans (WF-PLA-0150). Vide quand le fichier s'applique (EP-14/L42s).
@@ -228,6 +233,16 @@ ImportReport:
         fait foi, et l'écart dit que les deux moteurs ne datent pas de même. Vide sur un
         aller-retour sans modification (WF-INTF-0060), et pour les imports Excel.
       items: { $ref: '#/ImportDateMismatch' }
+    signals:
+      type: array
+      description: >-
+        Ce que l'import garde tel que le fichier le porte, et que le compte rendu signale
+        (`ImportSignal`) : d'un planning MS Project, la date d'une tâche manuelle sur un jour sans
+        aucune heure travaillée au calendrier applicable de la tâche — « la même date importée
+        d'un fichier MS Project est gardée et signalée au compte rendu » (WF-PLA-0020 ; #1271,
+        #1289). Une information, pas un motif de confirmation ni de rejet. Vide quand il n'y a
+        rien à signaler, et pour les imports Excel.
+      items: { $ref: '#/ImportSignal' }
     requires_confirmation_reasons:
       type: array
       description: >-
@@ -302,20 +317,70 @@ ImportDateMismatch:
         `finish`), nommées comme les colonnes de la grille de planning.
       items: { $ref: revisions.yaml#/NodeColumn }
 
+ImportSignal:
+  type: object
+  required: [lineage_id, label, column, code, params]
+  description: >-
+    Une valeur du fichier gardée et signalée (`ImportReport.signals`) : la tâche, la colonne qui
+    porte la valeur, et le motif, avec les paramètres qu'il porte dans un refus
+    (`Problem.params`), pour que la saisie et l'import se disent d'une même phrase
+    (WF-ARC-0110). Ainsi `NON_WORKING_DAY`, une date de début ou de fin d'une tâche manuelle sur
+    un jour sans aucune heure travaillée à son calendrier applicable, gardée telle quelle, le
+    début et la fin à `0` heure : `params.date` la date du fichier, `next_working_day` le jour
+    travaillé suivant (WF-PLA-0020, WF-PLA-0010 ; #1271). Une tâche dont le début et la fin
+    tombent l'un et l'autre un jour chômé est signalée deux fois, une par colonne ; un jalon dont
+    le début et la fin sont le même jour chômé l'est aussi deux fois : le signalement suit la
+    cellule, non le jour, comme le refus de la saisie suit le champ.
+  properties:
+    lineage_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: La lignée de la tâche ; nulle pour une tâche que l'import crée.
+    label: { type: string }
+    column:
+      allOf: [{ $ref: revisions.yaml#/NodeColumn }]
+      description: La colonne de la grille de planning qui porte la valeur, `start` ou `finish`.
+    code:
+      allOf: [{ $ref: ../common.yaml#/ErrorCode }, { const: NON_WORKING_DAY }]
+      description: >-
+        Le motif du signalement, un code d'erreur pour que la saisie et l'import se disent d'une
+        même phrase : `NON_WORKING_DAY` seul, tant qu'aucun autre signalement n'existe ; un
+        signalement nouveau élargit cette liste, par une modification du contrat.
+    params:
+      type: object
+      additionalProperties: true
+
 ImportRejection:
   type: object
   required: [row, code]
   description: >-
-    Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs :
+    Une ligne du fichier rejetée, par son onglet, son rang et son motif (WF-INTF-0080) :
+    l'utilisateur la retrouve dans son fichier, deux onglets pouvant porter une ligne au même
+    rang (#1162). Parmi les motifs :
     une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée
     (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), ses `params` nommant les rôles et la tâche en
     cause comme ceux d'une saisie d'une révision (`resource_role_ids`, `tasks`, chaque tâche par
     `project_id`, `node_id` et `label`), une ligne de devis d'une catégorie de type provision
     pour risques, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`,
-    WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus. Une tâche que le fichier
-    placerait hors du sous-arbre de la tâche du poste de son lot ne rejette pas sa ligne mais le
-    fichier entier (`ImportReport.refusals` ; EP-14/L42s).
+    WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus ; une ligne existante dont
+    la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, que le
+    fichier ferait changer de sous-projet — placée dans l'onglet d'un autre sous-projet, ou dans
+    l'onglet « Hors sous-projet », d'un reste à engager (WF-INTF-0120), ou portant un autre
+    sous-projet, ou une cellule vide, dans la colonne d'un devis (WF-INTF-0100) — :
+    `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le sous-projet qu'elle ne peut pas
+    quitter (`subproject_id`, `label`), comme le refus de `updateEstimateLine` (WF-PRJ-0050 ;
+    C-359, #1152, #1153). Une ligne d'une tâche non démarrée change de sous-projet, et le compte
+    rendu le présente comme un écart (`ImportDifference`, `fields` à `subproject`).
+    Une tâche que le fichier placerait hors du sous-arbre de la tâche du lot de son poste ne
+    rejette pas sa ligne mais le fichier entier (`ImportReport.refusals` ; EP-14/L42s).
   properties:
+    sheet:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        L'onglet qui porte la ligne, par son nom tel que le fichier le porte : le lot d'un devis,
+        le sous-projet d'un reste à engager, ou un onglet que Waterfall nomme, « Hors lot » ou
+        « Hors sous-projet », dont le nom ne dépend pas de la langue (ANNEXE B, WF-INTF-0180).
+        Nul pour un fichier à un seul onglet — un planning MS Project, une extraction de coûts
+        réels (WF-INTF-0040, WF-INTF-0140) — (#1162).
     row: { type: integer, minimum: 1 }
     code: { $ref: ../common.yaml#/ErrorCode }
     params:
@@ -329,8 +394,8 @@ ReportRefusal:
     Un motif qui refuse un import ou une fusion entière, présenté au compte rendu avant
     l'application (WF-INTF-0040, WF-REV-0050 ; EP-14/L42s) : son code et les paramètres qu'il
     porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure
-    principale et leur libellé. Ainsi `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, la tâche d'un lot sortie
-    du sous-arbre de la tâche de son poste, `params.order_item_task` et `work_package_tasks`
+    principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie
+    du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks`
     (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans,
     `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS`, sur
     lequel sa tâche de fond échoue déjà (WF-PLA-0010). Un cycle de liaisons (WF-PLA-0030) et
@@ -384,24 +449,35 @@ ImportDifference:
     work_breakdown_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du poste ou du lot
+        Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste
         qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte
-        rendu nomme le poste ou le lot qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou
+        rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou
         absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k).
     fields:
       type: array
       description: >-
         Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet
-        conservé, nommés
-        comme les colonnes de leur grille, que le front rend par son catalogue
+        conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue
         (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une
         liaison changée de type ou de décalage par `predecessors`, la colonne qui la
         présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du
-        fichier par `passthrough.<colonne>`.
+        fichier par `passthrough.<colonne>`. Une tâche ou une ligne déplacée sous un autre parent
+        — une autre récapitulative, une autre tâche porteuse — nomme `parent`, qu'aucune colonne
+        ne présente, comme `NodeChange.parent` : « Une tâche déplacée sous une autre
+        récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194).
       items:
         anyOf:
           - $ref: revisions.yaml#/NodeColumn
           - $ref: '#/ActualCostColumn'
+          - $ref: '#/ImportDifferenceField'
+
+ImportDifferenceField:
+  type: string
+  enum: [parent]
+  description: >-
+    Champ d'un écart `updated` qu'aucune colonne ne présente (`ImportDifference.fields`) : le
+    parent d'une tâche ou d'une ligne déplacée sous une autre récapitulative ou une autre tâche
+    porteuse, comme `NodeChange.parent` (WF-REV-0080, WF-REV-0050 ; #1194).
 
 ActualCostColumn:
   type: string

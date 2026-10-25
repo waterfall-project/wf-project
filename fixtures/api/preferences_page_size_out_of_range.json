@@ -1,0 +1,14 @@
+{
+  "summary": "Les préférences enregistrées avec 30 lignes par page sur la table des comptes : refusées, le nombre n'étant pas l'un des quatre admis, 10, 25, 50 et 100 ; le champ désigné, sans paramètre ; rien n'est enregistré (WF-IHM-0060, C-351).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/grids/users/page_size",
+        "code": "VALUE_OUT_OF_RANGE"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001300"
+  }
+}

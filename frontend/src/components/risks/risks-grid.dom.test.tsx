@@ -35,7 +35,7 @@ vi.mock("next/navigation", async (original) => ({
 
 type RiskList = { readonly items: components["schemas"]["Risk"][] } & Pick<RiskRows, "totals">;
 
-const NO_QUERY: GridQuery<RiskSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<RiskSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The spaces of the French formats: before a sign, and between thousands.
 const NBSP = "\u00a0";
 const NARROW = "\u202f";
@@ -233,6 +233,7 @@ describe("the grid of the risks", () => {
       risksGrid(risksOf("risks"), "fr", {
         sort: { column: "provision_amount", order: "asc" },
         search: undefined,
+        size: undefined,
       }),
     );
     expect(heading()).toHaveAttribute("aria-sort", "ascending");
@@ -432,5 +433,15 @@ describe("the changes the screen makes to its address, before the server has ans
       `${PATHNAME}?sort_by=provision_amount&sort_order=asc&risk=01926f3a-7c00-7000-8000-000000000752`,
       { scroll: false },
     );
+  });
+
+  it("keeps no number of rows per page, a flat table the server does not page: a limit in the address is not recorded [WF-IHM-0060-A]", async () => {
+    page.search = "limit=25";
+    renderRisks();
+    await new Promise((done) => setTimeout(done, 50));
+    const writes = (server.client as FakeClient).calls.filter(
+      ({ route }) => route === "PATCH /me/preferences",
+    );
+    expect(writes).toEqual([]);
   });
 });

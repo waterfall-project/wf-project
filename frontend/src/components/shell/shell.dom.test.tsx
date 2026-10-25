@@ -10,9 +10,11 @@ import type { components } from "@/api/generated/schema";
 import { useHeldWrites } from "@/components/commands/held";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
-import { dismissLeftRefusals } from "@/navigation/held-writes";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
+import { dismissLeftRefusals, type WriteAnswer } from "@/navigation/held-writes";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
 import { Shell, type ShellProps } from "./shell";
 import { ShowProject } from "./shown-project";
@@ -116,7 +118,7 @@ describe("the shell", () => {
       );
       expect(bar().getByRole("searchbox", { name: search })).toBeInTheDocument();
       expect(
-        bar().getByRole("button", { name: /^(Tâches de fond|Background tasks)$/ }),
+        bar().getByRole("button", { name: /^(Tâches et messages|Tasks and messages)$/ }),
       ).toHaveAttribute("aria-expanded", "false");
       expect(bar().getByRole("button", { name: account })).toHaveAttribute("aria-haspopup", "menu");
       expect(
@@ -383,6 +385,21 @@ describe("the shell", () => {
     expect(within(nav).queryByRole("link", { name: "Portefeuille de projets" })).toBeNull();
   });
 
+  it("shows, in the rail, the function alone, marked current when the page is one of its leaves, and hides the list of its leaves", () => {
+    visit(`/projects/${PROJECT}/revisions/${REVISION}/workload`);
+    shell({ sidebarOpen: false });
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    const estimate = within(nav).getByRole("link", { name: "Chiffrage et devis" });
+    expect(estimate).toHaveAttribute("aria-current", "true");
+    expect(document.querySelector("[data-slot=sidebar]")).toHaveAttribute(
+      "data-state",
+      "collapsed",
+    );
+    const leaves = within(nav).getByRole("link", { name: "Plan de charge" }).closest("ul");
+    expect(leaves).toHaveAttribute("data-rail-hidden");
+    expect(leaves?.parentElement).toBe(estimate.closest("li"));
+  });
+
   it("shows no breadcrumb where the address leads nowhere, nor its separator alone", () => {
     visit("/admin/nobody");
     shell();
@@ -430,9 +447,7 @@ describe("the shell", () => {
       await Promise.resolve();
       return rendered;
     });
-    expect(screen.getByRole("region", { name: "Tâches de fond" })).toHaveTextContent(
-      "Marquage d’une révision",
-    );
+    expect(tasksRegion()).toHaveTextContent("Marquage d’une révision");
     // Nothing is asked as the shell mounts: the layout streamed the tasks.
     expect(signedIn.calls).toEqual([]);
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
@@ -466,10 +481,10 @@ describe("the shell", () => {
   });
 });
 
-/** A screen that makes a write, answered when the test says: whether it was applied. */
-function writing(): { Screen: () => ReactElement; answer: (applied: boolean) => void } {
-  let answer: (applied: boolean) => void = () => undefined;
-  const write = new Promise<boolean>((resolve) => {
+/** A screen that makes a write, answered when the test says: whether it was applied, or its outcome. */
+function writing(): { Screen: () => ReactElement; answer: (answer: WriteAnswer) => void } {
+  let answer: (answer: WriteAnswer) => void = () => undefined;
+  const write = new Promise<WriteAnswer>((resolve) => {
     answer = resolve;
   });
   /** The screen, its write made once mounted. */
@@ -509,6 +524,75 @@ describe("the writes refused once their screen is gone (#863)", () => {
     await expectAccessible(view.container);
     await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
     expect(bar().queryByRole("alert")).toBeNull();
+  });
+
+  it("are signalled to a user who changed screens meanwhile, each noted in the history of the messages in the sentence of its refusal, with the object it names and the screen the write was made on [WF-IHM-0080-A]", async () => {
+    // Son aboutissement comme son échec sont signalés même si l'utilisateur a changé d'écran
+    // entre-temps : the screen is left before the write answers, and the refusal arrives on another.
+    forgetMessages();
+    const made = `/projects/${PROJECT}/settings`;
+    window.history.replaceState(null, "", made);
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    window.history.replaceState(null, "", "/system");
+    visit("/system");
+    view.rerender(inShell({}, <main />));
+    expect(readMessages().messages).toEqual([]);
+
+    await act(async () => {
+      answer({
+        kind: "refused",
+        problem: {
+          code: "ALREADY_EXISTS",
+          status: 409,
+          params: { conflicting_object_id: REVISION, conflicting_object_label: "Lot A" },
+        },
+        conflictingObjectId: REVISION,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().getByRole("alert")).toBeInTheDocument();
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Cet élément existe déjà.",
+        object: "Lot A",
+        screen: { href: made, project: undefined },
+      }),
+    ]);
+    // Rendered again, the bar notes nothing more.
+    view.rerender(inShell({}, <main />));
+    expect(readMessages().messages).toHaveLength(1);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("note a write refused without an outcome in the sentence of the bar, for one write, with the screen it was made on", async () => {
+    forgetMessages();
+    const made = `/projects/${PROJECT}/settings`;
+    window.history.replaceState(null, "", made);
+    const { Screen, answer } = writing();
+    const view = shell({}, <Screen />);
+    window.history.replaceState(null, "", "/system");
+    visit("/system");
+    view.rerender(inShell({}, <main />));
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().getByRole("alert")).toBeInTheDocument();
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence:
+          "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.",
+        object: undefined,
+        screen: { href: made, project: undefined },
+      }),
+    ]);
+    view.rerender(inShell({}, <main />));
+    expect(readMessages().messages).toHaveLength(1);
+    window.history.replaceState(null, "", "/");
   });
 
   it("say nothing of a write applied once its screen was gone", async () => {

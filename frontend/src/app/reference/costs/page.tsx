@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the costs (FBS-3.1, US-0250), outside any project: the currency of the
- * installation, every amount expressed in it (WF-REF-0140); the grid of the hourly rates, a row for
- * each category of labour and a column for each year, on the dense grid, searched, filtered on the
- * state of its categories and on the bounds of the rate of a year, sorted and paged by the server
- * as the address asks under the names of the contract (#509, #545), its cells entered where
- * the session may modify the cost settings (FBS-3.1.2, WF-REF-0050); and, beside it, the natures and
- * the categories of cost (FBS-3.1.1), two dense grids searched, filtered, sorted and paged by the
- * server, as the address asks under the names of each grid (#510). Every figure as the API gives
- * it: the front computes, sorts, filters and pages nothing.
+ * installation, every amount expressed in it (WF-REF-0140); then, stacked one under the other in a
+ * page that scrolls, as the settings of the resources are (US-0570, #1044), the natures and the
+ * categories of cost (FBS-3.1.1), two dense grids searched, filtered, sorted and paged by the
+ * server, as the address asks under the names of each grid (#510), and the grid of the hourly rates
+ * (FBS-3.1.2), a row for each category of labour and a column for each year, on the dense grid,
+ * searched, filtered on the state of its categories and on the bounds of the rate of a year, sorted
+ * and paged by the server under the names of the contract (#509, #545), its cells entered where the
+ * session may modify the cost settings (WF-REF-0050). Each grid keeps a height of its own, no taller
+ * than the window; its size is the rows per page the account chose for it (WF-IHM-0060). Every
+ * figure as the API gives it: the front computes, sorts, filters and pages nothing.
  *
  * The lists and the grid hold the active objects alone, and the deactivated ones too when the
  * address asks for them and the session bears the permission of reading of the cost settings,
@@ -23,8 +25,10 @@
  * field; any other read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
  */
+import { Coins } from "lucide-react";
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { readEveryPage } from "@/api/every-page";
 import { type ExpectedRefusal, readOrFail, type ReadOrRefused, readOrRefused } from "@/api/problem";
@@ -81,7 +85,7 @@ import {
 } from "@/components/reference/rate-columns";
 import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid";
 import { InactiveSwitch } from "@/components/reference/reference-filters";
-import { BoundsRefused } from "@/components/reference/section";
+import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -158,7 +162,13 @@ function readQueries(
   const state = (name: string) => stateOf(search, name, permissions, "cost_settings.read");
   return {
     inactive: inactiveQuery(asksInactive(search), permissions, "cost_settings.read"),
-    rates: readGridQuery(search, RATE_SORTS, grids?.[RATE_GRID_KEY]?.sort),
+    rates: readGridQuery(
+      search,
+      RATE_SORTS,
+      grids?.[RATE_GRID_KEY]?.sort,
+      CONTRACT_ADDRESS,
+      grids?.[RATE_GRID_KEY]?.page_size,
+    ),
     rateOffset: offsetOf(search.get(CONTRACT_ADDRESS.offset)),
     rateFilters: readRateFilters(search, state(RATE_STATE)),
     types: readGridQuery(
@@ -166,6 +176,7 @@ function readQueries(
       COST_TYPE_SORTS,
       grids?.[COST_TYPE_GRID_KEY]?.sort,
       COST_TYPE_ADDRESS,
+      grids?.[COST_TYPE_GRID_KEY]?.page_size,
     ),
     typeOffset: offsetOf(search.get(COST_TYPE_ADDRESS.offset)),
     kinds: readValues(search, COST_TYPE_KINDS, COST_TYPE_KIND_VALUES),
@@ -175,6 +186,7 @@ function readQueries(
       COST_CATEGORY_SORTS,
       grids?.[COST_CATEGORY_GRID_KEY]?.sort,
       COST_CATEGORY_ADDRESS,
+      grids?.[COST_CATEGORY_GRID_KEY]?.page_size,
     ),
     categoryOffset: offsetOf(search.get(COST_CATEGORY_ADDRESS.offset)),
     nature: identifierOf(search, CATEGORY_COST_TYPE),
@@ -309,6 +321,16 @@ function typesOf(
   return editable ? (typed ?? natures).map(natureChoice) : undefined;
 }
 
+/** The section of the grid of the hourly rates, under its title, with its filters. */
+function RatesSection({ children }: { readonly children: ReactNode }) {
+  const t = useTranslations("reference.rates");
+  return (
+    <ReferenceSection title={t("title")} icon={Coins}>
+      {children}
+    </ReferenceSection>
+  );
+}
+
 /** Render the settings of the costs: the grid of the hourly rates, the natures, the categories. */
 export default async function CostSettingsPage({
   searchParams,
@@ -329,57 +351,53 @@ export default async function CostSettingsPage({
     readCosts(queries, { editable, readsInactive }),
   ]);
   return (
-    <Screen density={FUNCTION_DENSITY.cost_settings} fillWide>
+    <Screen density={FUNCTION_DENSITY.cost_settings}>
       <PendingAddress>
         <CostsHeader
           currency={settings.currency_code}
           inactive={readsInactive ? queries.inactive.include_inactive === true : undefined}
           writes={editable}
         />
-        <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
-          <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
-            <RateFilterBar
-              filters={queries.rateFilters}
-              readsInactive={readsInactive}
-              {...rateFiltered(rates, queries.rateFilters)}
-            />
-            {rates.kind === "read" ? (
-              <RateGrid
-                grid={rates.data}
-                currency={settings.currency_code}
-                editable={editable}
-                query={queries.rates}
-                preferences={grids?.[RATE_GRID_KEY] ?? undefined}
-              />
-            ) : (
-              <BoundsRefused />
-            )}
-          </div>
-          <aside className="flex shrink-0 flex-col gap-4 lg:w-[34rem] lg:overflow-y-auto">
-            <CostTypeList
-              rows={types.items}
-              page={types.meta}
-              query={queries.types}
-              preferences={grids?.[COST_TYPE_GRID_KEY] ?? undefined}
-              state={queries.typeState}
-              readsInactive={readsInactive}
+        <CostTypeList
+          rows={types.items}
+          page={types.meta}
+          query={queries.types}
+          preferences={grids?.[COST_TYPE_GRID_KEY] ?? undefined}
+          state={queries.typeState}
+          readsInactive={readsInactive}
+          editable={editable}
+          kinds={queries.kinds}
+        />
+        <CostCategoryList
+          rows={categories.items}
+          page={categories.meta}
+          query={queries.categories}
+          preferences={grids?.[COST_CATEGORY_GRID_KEY] ?? undefined}
+          state={queries.categoryState}
+          readsInactive={readsInactive}
+          editable={editable}
+          natures={natures.map(natureChoice)}
+          every={typesOf(editable, typed, natures)}
+          nature={queries.nature}
+        />
+        <RatesSection>
+          <RateFilterBar
+            filters={queries.rateFilters}
+            readsInactive={readsInactive}
+            {...rateFiltered(rates, queries.rateFilters)}
+          />
+          {rates.kind === "read" ? (
+            <RateGrid
+              grid={rates.data}
+              currency={settings.currency_code}
               editable={editable}
-              kinds={queries.kinds}
+              query={queries.rates}
+              preferences={grids?.[RATE_GRID_KEY] ?? undefined}
             />
-            <CostCategoryList
-              rows={categories.items}
-              page={categories.meta}
-              query={queries.categories}
-              preferences={grids?.[COST_CATEGORY_GRID_KEY] ?? undefined}
-              state={queries.categoryState}
-              readsInactive={readsInactive}
-              editable={editable}
-              natures={natures.map(natureChoice)}
-              every={typesOf(editable, typed, natures)}
-              nature={queries.nature}
-            />
-          </aside>
-        </div>
+          ) : (
+            <BoundsRefused />
+          )}
+        </RatesSection>
       </PendingAddress>
     </Screen>
   );

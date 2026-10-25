@@ -7,7 +7,8 @@
  * started, started and completed, as the API gives them (`listStartableTasks`). The API reads them in the
  * revision in progress of the project, whatever revision the address names: a marked revision,
  * whose tasks it would not show, says so and asks nothing, rather than showing the tasks of another
- * revision under its banner. No percentage is entered, no command offered (`Kanban`).
+ * revision under its banner. No percentage is entered; a card makes the gestures it lists
+ * (`Kanban`), written in the main structure of the revision (`listCostStructures`).
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -17,13 +18,18 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
-import { Kanban, type StartableTasks } from "@/components/remaining/kanban";
+import { Kanban } from "@/components/remaining/kanban";
+import {
+  columnsOf,
+  type KanbanColumns,
+  type KanbanStructure,
+} from "@/components/remaining/kanban-cards";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
 
 import { screenMetadata } from "../../../../../title";
-import { gridAddress } from "../grid-screen";
+import { gridAddress, mainStructure } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
 /** Title the tab with the leaf, and with the project. */
@@ -36,8 +42,15 @@ export async function generateMetadata({
   return screenMetadata("functions.kanban", projectId);
 }
 
+/** What the board is given: the cards, the structure the gestures write in, the grid they lead to. */
+interface Board {
+  readonly columns: KanbanColumns;
+  readonly structure: KanbanStructure;
+  readonly remaining: string;
+}
+
 /** The head of the screen, and the Kanban — or why a marked revision shows none. */
-function KanbanScreen({ tasks }: { readonly tasks: StartableTasks | undefined }) {
+function KanbanScreen({ board }: { readonly board: Board | undefined }) {
   const t = useTranslations();
   return (
     <Screen density={FUNCTION_DENSITY.remaining}>
@@ -47,13 +60,48 @@ function KanbanScreen({ tasks }: { readonly tasks: StartableTasks | undefined })
         density={FUNCTION_DENSITY.remaining}
         subtitle={t("kanban.summary")}
       />
-      {tasks === undefined ? (
+      {board === undefined ? (
         <p className="text-sm text-muted-foreground">{t("kanban.inProgressOnly")}</p>
       ) : (
-        <Kanban tasks={tasks} />
+        <Kanban
+          // Another structure starts the board anew: an answer never lands on another.
+          key={board.structure.structure_id}
+          columns={board.columns}
+          structure={board.structure}
+          remaining={board.remaining}
+        />
       )}
     </Screen>
   );
+}
+
+/**
+ * The cards of the Kanban, and the main structure of the revision, where the gestures of the cards
+ * are written — the tasks of the Kanban belong to it; a revision without one, which the contract
+ * rules out, is an unexpected answer.
+ */
+async function readBoard(
+  path: { readonly project_id: string; readonly revision_id: string },
+  client: ReturnType<typeof serverClient>,
+): Promise<Board> {
+  const [tasks, structures] = await Promise.all([
+    readOrFail("listStartableTasks", () =>
+      client.GET("/projects/{project_id}/remaining-indicators/startable-tasks", {
+        params: { path: { project_id: path.project_id } },
+      }),
+    ),
+    readOrFail("listCostStructures", () =>
+      client.GET("/projects/{project_id}/revisions/{revision_id}/structures", {
+        params: { path },
+      }),
+    ),
+  ]);
+  const main = mainStructure(structures);
+  return {
+    columns: columnsOf(tasks),
+    structure: { ...path, structure_id: main.structure_id },
+    remaining: `/projects/${path.project_id}/revisions/${path.revision_id}/remaining`,
+  };
 }
 
 /** Render the Kanban of the start of the tasks of a project. */
@@ -70,18 +118,13 @@ export default async function KanbanPage({
   if (reading === "not_found") {
     notFound();
   }
-  const tasks =
-    reading.revision?.status === "marked"
-      ? undefined
-      : await readOrFail("listStartableTasks", () =>
-          serverClient().GET("/projects/{project_id}/remaining-indicators/startable-tasks", {
-            params: { path: { project_id: revision.projectId } },
-          }),
-        );
+  const client = serverClient();
+  const path = { project_id: revision.projectId, revision_id: revision.revisionId };
+  const board = reading.revision?.status === "marked" ? undefined : await readBoard(path, client);
   return (
     <>
       <ContextBanner reading={reading} />
-      <KanbanScreen tasks={tasks} />
+      <KanbanScreen board={board} />
     </>
   );
 }

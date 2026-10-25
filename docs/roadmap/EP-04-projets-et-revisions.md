@@ -82,9 +82,9 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-REV-0090-A` | Attributs d’une révision | entière | — |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | début — close en EP-08, amorcée aussi en EP-15 | — |
 | `WF-PRJ-0010-A` | Code projet | début — close en EP-07 | — |
-| `WF-PRJ-0080-A` | Attributs d’un projet | entière | — |
+| `WF-PRJ-0080-A` | Attributs d’un projet | fin — amorcée en EP-16 | — |
 | `WF-PRJ-0020-A` | Lotissement | fin — amorcée en EP-15 | — |
-| `WF-PRJ-0050-A` | Sous-projets | fin — amorcée en EP-15 | — |
+| `WF-PRJ-0050-A` | Sous-projets | fin — amorcée en EP-15, EP-16 | — |
 | `WF-PRJ-0060-A` | Liste des contributeurs | entière | — |
 | `WF-PRJ-0090-A` | Probabilité de gain | début — close en EP-11 | — |
 | `WF-ARC-0070-A` | Autorité du serveur | début — close en EP-10 | — |
@@ -95,7 +95,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0030-A` | Identité de lignée des objets d’une révision | début — close en EP-10 | — |
 | `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | début — close en EP-10 | — |
 | `WF-DAT-0050-A` | Partitionnement par projet | entière | — |
-| `WF-EXP-0020-A` | Amorçage d'une installation neuve | fin — amorcée en EP-03, EP-05 | — |
+| `WF-EXP-0020-A` | Amorçage d'une installation neuve | fin — amorcée en EP-03, EP-05, EP-16 | — |
 | `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13 | — |
 | `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02, EP-15 | — |
 | `WF-ADM-0040-A` | Préférences d’affichage | fin — amorcée en EP-02, EP-03 | — |
@@ -141,6 +141,12 @@ EP-05 livré : la création d'un projet exige un référentiel complet.
 
 ## Constats reçus
 
+- #1337, pour #1304, points 2 et 6 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
+  - le client d'un projet, facultatif, saisissable à tout moment, exigé par aucune transition
+    (WF-PRJ-0080) : la colonne et sa migration ;
+  - le code d'un sous-projet borné aux règles d'un nom d'onglet : 31 caractères au plus, sans
+    `: \ / ? * [ ]`, ni « Synthèse » ni « Hors sous-projet » (WF-PRJ-0050, D-7). Il faut sa
+    validation, et vérifier les données existantes avant la migration.
 - #513, #524 — les commandes d'écriture du projet dans la maquette, sur décision de l'auteur du
   2026-10-08 (EP-02/L44), une entorse assumée au cadrage qui laissait les formulaires du projet à
   cet EPIC. EP-02/L44a (#583) fait le projet lui-même : « Créer un projet » sur l'accueil, à la

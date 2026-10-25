@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
@@ -28,7 +29,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const LINE =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line";
 // The main structure of the current revision of the witness project, as the examples name it.
@@ -94,7 +95,7 @@ function grid(
         tasksEditable
         query={query}
         filters={filters}
-        preferences={undefined}
+        preferences={{ hidden_columns: [] }}
       />
     </NextIntlClientProvider>
   );
@@ -171,7 +172,7 @@ describe("what a write answers besides the row written", () => {
   it("reads anew the totals of a reading a search narrowed, by its own request, once its writes answered, never taking those of the structure [WF-ARC-0020-A]", async () => {
     // The reading anew answers other totals than the reading: the example of another subtree.
     const client = serve({ [NODES_ROUTE]: "nodes" });
-    const search = { sort: undefined, search: "borniers" };
+    const search = { sort: undefined, search: "borniers", size: undefined };
     render(grid(estimate, search, { search: "borniers" }));
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
@@ -201,7 +202,7 @@ describe("what a write answers besides the row written", () => {
       { hold: (route, index) => (route === NODES_ROUTE && index === 0 ? held : undefined) },
     );
     server.client = client;
-    const search = { sort: undefined, search: "borniers" };
+    const search = { sort: undefined, search: "borniers", size: undefined };
     render(grid(estimate, search, { search: "borniers" }));
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
@@ -226,13 +227,47 @@ describe("what a write answers besides the row written", () => {
   it("tells a reading anew of the totals the server refuses, the totals of the reading left as they were", async () => {
     const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
     serve({ [NODES_ROUTE]: lost });
-    const search = { sort: undefined, search: "borniers" };
+    const search = { sort: undefined, search: "borniers", size: undefined };
     render(grid(estimate, search, { search: "borniers" }));
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals()[5]).toBe("12,5");
+  });
+
+  it("notes in the history of the messages a reading anew of the totals refused while a refusal is told, which it keeps quiet on the screen (#1181)", async () => {
+    // The first write refused, the second done: the totals read anew are refused in turn, behind
+    // the refusal the grid tells.
+    forgetMessages();
+    // Noting is no effect of a state update: React warns of none (« Cannot update a component while
+    // rendering a different component »).
+    const errors = vi.spyOn(console, "error");
+    const stale = { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const;
+    const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+    const client = serve({ [LINE]: [stale, "estimate_line_updated"], [NODES_ROUTE]: lost });
+    const search = { sort: undefined, search: "borniers", size: undefined };
+    render(grid(estimate, search, { search: "borniers" }));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    const told = (await screen.findByRole("alert")).textContent;
+    cell(LABOUR, "quantity").focus();
+    await userEvent.keyboard("3{Enter}");
+    await vi.waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toEqual([LINE, LINE, NODES_ROUTE]);
+    });
+    await vi.waitFor(() => {
+      expect(readMessages().messages.map((message) => message.tone)).toEqual([
+        "refusal",
+        "refusal",
+      ]);
+    });
+    expect(screen.getByRole("alert").textContent).toBe(told);
+    expect(readMessages().messages.map((message) => message.sentence)).toEqual([
+      expect.stringContaining("modifié"),
+      "Vous devez vous connecter.",
+    ]);
+    expect(errors).not.toHaveBeenCalled();
   });
 
   it("reads nothing anew for a reading of the whole structure, whose totals the writes answer", async () => {

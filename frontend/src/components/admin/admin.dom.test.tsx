@@ -102,7 +102,7 @@ describe("the state of the platform and its backups", () => {
         <BackupList
           read={{ kind: "read", items: backups.items, page: backups.meta }}
           filters={readBackupFilters(new URLSearchParams())}
-          query={{ sort: NEWEST_FIRST, search: undefined }}
+          query={{ sort: NEWEST_FIRST, search: undefined, size: undefined }}
           preferences={undefined}
           startable={false}
           refused={undefined}

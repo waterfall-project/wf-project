@@ -4,52 +4,53 @@
 
 The core is described once in ``wftools.mockwitness`` (#287), the thousand tasks drawn about it
 in ``wftools.mockstructure``: here the whole structure, the core first, is dated in hours of work
-on the calendar of each task (``wftools.mockcalendar``, WF-PLA-0010), its total float and its
-critical path found from its links (WF-PLA-0100), its lines priced at the rates of the universe
-(WF-DEV-0020) and its summaries summed (WF-DEV-0050), and its nodes emitted as the server
-renders them, numbered from its first row (EP-02/L27, #376). The named examples of ``listNodes`` —
-``nodes``, ``nodes_planning``, ``nodes_estimate``, ``nodes_milestone``, ``nodes_risk_occurred``
-— are readings of this one tree, by ``subtree_of``, ``kinds``, ``search`` and the sort of the
-lines under each task (``wftools.mocksort``, #526), and the
+on the calendar of each task, its total float and its critical path found, its lines priced
+(``wftools.mockdating``, WF-PLA-0010, WF-PLA-0100, WF-DEV-0020), its summaries summed
+(WF-DEV-0050) and its lines consumed in the year their task starts, and its nodes emitted as
+the server renders them, numbered from its first row (EP-02/L27, #376). The named examples of
+``listNodes`` — ``nodes``, ``nodes_planning``, ``nodes_estimate``, ``nodes_milestone``,
+``nodes_risk_occurred`` — are readings of this one tree, by ``subtree_of``, ``kinds``,
+``search`` and the sort of the lines under each task (``wftools.mocksort``, #526), and the
 ``dependencies_*`` examples say what its computed values depend on: one identifier, one lineage
 and one figure for each node, whatever the example (EP-02/L21).
 
-The formulas are simple and said here, to be replaced by the kernel of EP-06 to EP-08: a
-backward pass gives each task the latest it may finish, its float being the hours of work from
-its finish to that instant; the physical progress of a summary is the budget of its completed
-tasks over the budget of its subtree; a line is consumed in the year its task starts. Nothing
-here reads the clock: the examples are read at ``mockwitness.TODAY``. The lines of the current
-revision show the quantities and the amount of its previous review, the reference 101 as marked
-(``current``, WF-RAE-0040); the readings of a marked revision show none.
+The formulas of the dating are simple and said in ``wftools.mockdating``, to be replaced by the
+kernel of EP-06 to EP-08. Nothing here reads the clock: the examples are read at
+``mockwitness.TODAY``. The lines of the current revision show the quantities and the amount of
+its previous review, the reference 101 as marked (``current``, WF-RAE-0040); the readings of a
+marked revision show none.
 """
 
 from __future__ import annotations
 
 import functools
-import heapq
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockcalendar import (
-    FINISH_TO_START,
-    HOURS_PER_DAY,
     Calendar,
     Instant,
-    Predecessor,
-    applicable,
-    follow,
     to_hours,
+)
+from wftools.mockdating import (
+    Amounts,
+    Dated,
+    payment_delay,
+    price,
+    progress_at,
+    schedule,
+    tasks_in_order,
 )
 from wftools.mockstructure import (
     LABOUR_RATES,
     JsonObject,
     JsonValue,
+    charged_subprojects,
     computable,
     decimal,
     described,
-    inflated,
     labels,
     line_fields,
     money,
@@ -59,21 +60,22 @@ from wftools.mockstructure import (
 from wftools.mockwitness import (
     CORE,
     INSCRIBED,
-    STUDIES_STARTED,
+    MILESTONE_TRACKING,
+    SCHEDULED_AT,
     TODAY,
     TRACKED,
+    WEEKDAYS,
     Line,
     Task,
-    default_calendar,
+    WorkPackage,
     lineage_id,
     node_id,
-    reference,
-    role_calendars,
 )
+from wftools.mockwitnessrisks import reference
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
-    from datetime import date
+    from datetime import date, datetime
 
     from wftools.mocksort import LineSort
 
@@ -100,265 +102,6 @@ def lineage(number: int) -> str:
     return lineage_id(number)
 
 
-# --- Dating the core --------------------------------------------------------------------------
-
-
-@dataclass(slots=True)
-class Dated:
-    """A task of the core placed in time: its calendar, its dates, the latest it may finish.
-
-    A summary and a task in manual mode have no latest finish: the first is not scheduled, the
-    second is a date imposed, with no float and never critical (WF-PLA-0100).
-    """
-
-    task: Task
-    calendar: Calendar
-    start: Instant
-    finish: Instant
-    late_finish: Instant | None = None
-
-    @property
-    def hours(self) -> Decimal:
-        """Return the duration of the task in hours of work (WF-PLA-0160)."""
-        return to_hours(self.task.days, "d")
-
-    @property
-    def total_float(self) -> Decimal | None:
-        """Return the float in days of work: the hours from the finish to the latest finish.
-
-        Negative when a date entered by hand downstream asks the task to finish earlier than it
-        can (WF-PLA-0100).
-        """
-        if self.late_finish is None:
-            return None
-        return self.calendar.work_between(self.finish, self.late_finish) / HOURS_PER_DAY
-
-
-def tasks_in_order(roots: Iterable[Task] = CORE) -> list[Task]:
-    """Return the tasks of the core depth first, in the order of the plan."""
-    found: list[Task] = []
-    for root in roots:
-        found.append(root)
-        found.extend(tasks_in_order(root.children))
-    return found
-
-
-def schedule(roots: Iterable[Task] = CORE) -> Mapping[int, Dated]:
-    """Date the core from its links, by number of task, and find the latest finish of each.
-
-    Forward: each task in automatic mode starts where its links allow, at the start of the
-    studies without any, on the calendar of the roles of its labour lines (WF-PLA-0010,
-    WF-PLA-0030); a task in manual mode keeps its dates; a summary spans its subordinates
-    (WF-PLA-0040). The tasks are dated in the order of their links, each after its
-    predecessors, whatever their order in the plan. Backward: a task may finish as late as its
-    successors allow, at the finish of the core without any. A structure is dated once: the
-    readings of the indicators and of the curves date it again and again.
-    """
-    return _schedule(tuple(roots))
-
-
-@functools.cache
-def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
-    roles, default = role_calendars(), default_calendar()
-    origin = Instant(STUDIES_STARTED.on)
-    tasks = tasks_in_order(roots)
-    linked = in_link_order(tasks)
-    dated: dict[int, Dated] = {}
-    for task in linked:
-        if task.children:
-            continue
-        if task.manual is not None:
-            # A milestone in manual mode is an instant, like any other (WF-PLA-0050).
-            first, last = task.manual
-            finish = Instant(last, HOURS_PER_DAY)
-            start = finish if task.is_milestone else Instant(first)
-            dated[task.number] = Dated(task, default, start, finish)
-            continue
-        calendar = applicable(
-            [roles[line.role] for line in task.lines if line.role is not None], default
-        )
-        predecessors = [
-            Predecessor(
-                dated[link.predecessor].start,
-                dated[link.predecessor].finish,
-                link.link_type,
-                to_hours(link.lag, link.unit),
-            )
-            for link in task.links
-        ]
-        start, finish = follow(calendar, predecessors, to_hours(task.days, "d"), origin)
-        dated[task.number] = Dated(task, calendar, start, finish)
-    for task in reversed(tasks):
-        if task.children:
-            placed = [dated[child.number] for child in task.children]
-            start = min(each.start for each in placed)
-            finish = max(each.finish for each in placed)
-            dated[task.number] = Dated(task, default, start, finish)
-    _backward(dated, linked)
-    return dated
-
-
-def in_link_order(tasks: list[Task]) -> list[Task]:
-    """Return the tasks so that each comes after its predecessors, else in the order of the plan.
-
-    A link that closes a loop is refused, as the server refuses it (WF-PLA-0030).
-    """
-    rank = {task.number: index for index, task in enumerate(tasks)}
-    waits = {task.number: len(task.links) for task in tasks}
-    followers: dict[int, list[Task]] = {}
-    for task in tasks:
-        for link in task.links:
-            followers.setdefault(link.predecessor, []).append(task)
-    entries = [(rank[task.number], task.number) for task in tasks if not task.links]
-    heapq.heapify(entries)
-    by_number = {task.number: task for task in tasks}
-    ordered: list[Task] = []
-    while entries:
-        _, number = heapq.heappop(entries)
-        ordered.append(by_number[number])
-        for follower in followers.get(number, []):
-            waits[follower.number] -= 1
-            if waits[follower.number] == 0:
-                heapq.heappush(entries, (rank[follower.number], follower.number))
-    if len(ordered) < len(tasks):
-        # Each task left waits for another left: a loop, and what follows it.
-        placed = {task.number for task in ordered}
-        names = ", ".join(task.label for task in tasks if task.number not in placed)
-        message = f"the links close a loop among the tasks left undated: {names}"
-        raise ValueError(message)
-    return ordered
-
-
-def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
-    """Give each task in automatic mode the latest it may finish (WF-PLA-0100), in link order.
-
-    Its successors, each by its link, say where it must finish or start: a finish-to-start
-    link, its lag before the successor's latest start; a start-to-start link, there for the
-    task's start, its own duration after. The lag is placed on the successor's calendar, as the
-    forward pass places it. A successor in manual mode bounds its predecessors by the dates
-    entered, its latest start being its start (WF-PLA-0100, #402): a predecessor that cannot
-    finish in time has a negative float.
-    """
-    activities = [each for each in dated.values() if not each.task.children]
-    core_finish = max(each.finish for each in activities)
-    successors: dict[int, list[tuple[Dated, Decimal, str]]] = {}
-    for task in tasks:
-        for link in task.links:
-            successors.setdefault(link.predecessor, []).append(
-                (dated[task.number], to_hours(link.lag, link.unit), link.link_type)
-            )
-    for task in reversed(tasks):
-        each = dated[task.number]
-        if task.children or task.manual is not None:
-            continue
-        latest = core_finish
-        for successor, lag, link_type in successors.get(task.number, []):
-            calendar = successor.calendar
-            if successor.task.manual is not None:
-                latest_start = calendar.elapsed(successor.start) - lag
-            elif successor.late_finish is None:
-                continue
-            else:
-                latest_start = calendar.elapsed(successor.late_finish) - successor.hours - lag
-            if link_type == FINISH_TO_START:
-                bound = calendar.instant(latest_start, finish=True)
-            else:
-                start = calendar.instant(latest_start, finish=False)
-                bound = each.calendar.finish_after(start, each.hours)
-            latest = min(latest, bound)
-        each.late_finish = latest
-
-
-def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
-    """Return the progress of a task at a day: read from its dates in automatic mode.
-
-    A task in manual mode carries the progress its user declared; a summary is completed after
-    the last of its subordinates, not started before the first, started otherwise — one
-    completed and one not started, none started, still make it started (WF-PLA-0040).
-    """
-    placed = dated[number]
-    if placed.task.children:
-        states = {progress_at(dated, child.number, today) for child in placed.task.children}
-        return states.pop() if len(states) == 1 else "started"
-    declared = placed.task.progress
-    # A completion declared is a gesture made on the day the task completed: before it, the
-    # task reads as its dates say (WF-PLA-0130).
-    if declared is not None and not (declared == "completed" and placed.finish.day > today):
-        return declared
-    if placed.task.is_milestone:
-        # Nothing completes by itself (WF-RAE-0030): a milestone is completed by a gesture
-        # alone, its date passed or not.
-        return "not_started"
-    if placed.finish.day < today:
-        return "completed"
-    if placed.start.day <= today and not placed.task.is_milestone:
-        return "started"
-    return "not_started"
-
-
-# --- Pricing the lines, summing the tasks -----------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class Amounts:
-    """The four amounts of a line or of a task (WF-DEV-0020, WF-DEV-0040)."""
-
-    base: Decimal = Decimal(0)
-    budgeted: Decimal = Decimal(0)
-    reestimated: Decimal = Decimal(0)
-    inflated: Decimal = Decimal(0)
-
-    def __add__(self, other: Amounts) -> Amounts:
-        return Amounts(
-            self.base + other.base,
-            self.budgeted + other.budgeted,
-            self.reestimated + other.reestimated,
-            self.inflated + other.inflated,
-        )
-
-    def rendered(self) -> JsonObject:
-        """Return the amounts as the contract carries them."""
-        return {
-            "base_amount": money(self.base),
-            "budgeted_amount": money(self.budgeted),
-            "reestimated_amount": money(self.reestimated),
-            "inflated_amount": money(self.inflated),
-        }
-
-
-def payment_delay(line: Line) -> int | None:
-    """Return the payment delay a line renders, in days: nought unless the witness gives one.
-
-    Every line of the estimate has a payment delay (WF-DEV-0020) — labour included, paid as it is
-    worked unless said otherwise —, but a provision, which carries none and stays at the date of
-    its task (WF-DEV-0020, WF-IND-0100; EP-14/L42s): it renders nil. The curve of the
-    disbursements shifts each line by the delay its node renders.
-    """
-    return None if line.is_provision else line.payment_delay_days
-
-
-def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) -> Amounts:
-    """Return the amounts of a line: hours at the rate of its category, or its disbursement.
-
-    The amount at the year of reference is the product of the quantity, one, and of the hours
-    by the hourly rate for a labour line, of the quantity and the unit disbursement otherwise
-    (WF-DEV-0030); the budget is what the reference revision gives it, the amount unless the
-    line says otherwise; the re-estimate is the amount; the amount corrected for inflation is
-    the amount projected on the year of consumption (WF-DEV-0040). The hourly rates are those
-    of the reference year of the revision priced, one for each category: by default, the core's,
-    of 2026 (WF-DEV-0020, WF-REV-0060).
-    """
-    if line.hours is not None:
-        amount = line.quantity * line.hours * rates[line.category]
-    elif line.unit is not None:
-        amount = line.quantity * line.unit
-    else:
-        message = f"the line {line.number} has neither hours nor a unit disbursement"
-        raise ValueError(message)
-    budgeted = amount if line.budgeted is None else line.budgeted
-    return Amounts(amount, budgeted, amount, inflated(amount, year))
-
-
 # --- Emitting the nodes -----------------------------------------------------------------------
 
 
@@ -378,7 +121,11 @@ class Row:
 
 @dataclass(frozen=True, slots=True)
 class Place:
-    """Where a node sits: under which task, at which rank among its siblings, its row, its level."""
+    """Where a node sits: under which task, at which rank among its siblings, its row, its level.
+
+    The rank counts the siblings in the order of the plan — the lines of the task, then its
+    subordinates — from one, as the contract reads `Node.position` (#1183).
+    """
 
     parent: Task | None
     position: int
@@ -405,6 +152,7 @@ class _Emitter:
     previous: Mapping[int, Line] = field(default_factory=dict[int, Line])
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
+    charged: frozenset[str] = field(default_factory=charged_subprojects)
 
     def task(self, task: Task, parent: Task | None, position: int, level: int) -> Amounts:
         """Append a task, its lines and its subordinates; return the amounts it sums."""
@@ -430,21 +178,26 @@ class _Emitter:
         node["editable_fields"] = fields.editable
         above = None if parent is None else parent.number
         self.rows.append(Row(task.number, above, place.row, TASK, task.label, node))
-        completed = facet["progress"] == "completed"
         amounts = Amounts()
-        for index, line in enumerate(task.lines):
-            below = Place(task, index, self._number(line.number), level + 1)
-            amounts += self._line(line, below, completed=completed)
-        for rank, child in enumerate(task.children):
+        for rank, line in enumerate(task.lines, start=1):
+            below = Place(task, rank, self._number(line.number), level + 1)
+            amounts += self._line(line, below, progress=str(facet["progress"]))
+        for rank, child in enumerate(task.children, start=len(task.lines) + 1):
             amounts += self.task(child, task, rank, level + 1)
         facet.update(amounts.rendered())
         if task.children:
             facet["physical_progress"] = self._physical_progress(task)
         return amounts
 
-    def _line(self, line: Line, place: Place, *, completed: bool) -> Amounts:
-        """Append a line of a task, consumed in the year its task starts; return its amounts."""
+    def _line(self, line: Line, place: Place, *, progress: str) -> Amounts:
+        """Append a line of a task, consumed in the year its task starts; return its amounts.
+
+        A line of a task started or completed does not leave a subproject charged with actual
+        costs (WF-PRJ-0050): it does not name it among the fields it accepts.
+        """
         task = place.bearing
+        completed = progress == "completed"
+        held = progress != "not_started" and line.subproject in self.charged
         year = self.dated[task.number].start.day.year
         amounts = price(line, year, self.rates)
         facet: JsonObject = {
@@ -470,7 +223,9 @@ class _Emitter:
             },
         }
         node = self._node(line.number, place, ESTIMATE_LINE, facet)
-        fields = line_fields(is_labour=line.hours is not None, is_provision=line.is_provision)
+        fields = line_fields(
+            is_labour=line.hours is not None, is_provision=line.is_provision, is_held=held
+        )
         node["computed_fields"] = fields.computed
         node["editable_fields"] = fields.editable
         hours = Decimal(0) if line.hours is None else line.hours
@@ -505,11 +260,14 @@ class _Emitter:
         """Return the facet of a task: its mode, its dates, its progress, its float."""
         task = placed.task
         state = progress_at(self.dated, task.number, self.today)
-        duration = placed.calendar.work_between(placed.start, placed.finish) / HOURS_PER_DAY
+        # The duration in the unit it was entered in, as kept (WF-PLA-0160).
+        work = placed.calendar.work_between(placed.start, placed.finish)
+        duration = work / to_hours(1, task.unit)
         facet: JsonObject = {
             "label": task.label,
+            **({} if task.description is None else {"description": task.description}),
             "scheduling_mode": "automatic" if task.manual is None else "manual",
-            "duration": {"value": decimal(duration), "unit": "d"},
+            "duration": {"value": decimal(duration), "unit": task.unit},
             "start": _instant(placed.start),
             "finish": _instant(placed.finish),
             "progress": state,
@@ -523,13 +281,15 @@ class _Emitter:
             facet["completed_on"] = completed_on.isoformat()
         facet["is_summary"] = bool(task.children)
         facet["is_milestone"] = task.is_milestone
-        if task.order_item is not None:
-            # A summary bears its order item, named, that the grid shows without reading the
-            # work breakdown (WF-PLA-0130, WF-ARC-0020).
-            facet["order_item_id"] = task.order_item.identifier
-            facet["work_package_id"] = None
-            facet["work_breakdown_label"] = task.order_item.label
-        tracking = _tracking(task.number)
+        facet["calendar_hours"] = calendar_hours(placed.calendar)
+        if task.bears is not None:
+            # A task bears a lot or a post, never both, named, that the grid shows without
+            # reading the work breakdown (WF-PLA-0130, WF-PLA-0170, WF-ARC-0020).
+            lot = isinstance(task.bears, WorkPackage)
+            facet["order_item_id"] = None if lot else task.bears.identifier
+            facet["work_package_id"] = task.bears.identifier if lot else None
+            facet["work_breakdown_label"] = task.bears.label
+        tracking = _tracking(task)
         if tracking:
             facet["tracking"] = tracking
         if not task.children:
@@ -544,7 +304,8 @@ class _Emitter:
     def _dates_of(self, task: Task, state: str) -> tuple[date | None, date | None]:
         """Return when a task started and when it completed, as far as it has (WF-PLA-0130).
 
-        A task starts on its first day and completes on its last; a milestone goes from not
+        A task starts on its first day and completes on its last, or on the day of the gesture
+        that declared it (``Task.declared_on``); a milestone goes from not
         started to completed and never starts (WF-PLA-0050); a summary starts with the first of
         its subordinates and completes with the last.
         """
@@ -560,11 +321,11 @@ class _Emitter:
             return min(starts, default=None), max(
                 ends, default=None
             ) if state == "completed" else None
-        placed = self.dated[task.number]
-        completed = placed.finish.day if state == "completed" else None
+        placed, on = self.dated[task.number], task.declared_on
+        completed = (on or placed.finish.day) if state == "completed" else None
         if task.is_milestone or state == "not_started":
             return None, completed
-        return placed.start.day, completed
+        return on if on is not None and state == "started" else placed.start.day, completed
 
     def _physical_progress(self, summary: Task) -> JsonObject:
         """Return the physical progress of a summary (WF-IND-0060).
@@ -600,14 +361,37 @@ class _Emitter:
         }
 
 
-def _tracking(number: int) -> list[JsonValue]:
-    """Return the inscriptions of a task: to its timelines, and to the time/time tracking."""
+def _tracking(task: Task) -> list[JsonValue]:
+    """Return the inscriptions of a task: to its timelines, and to the time/time tracking.
+
+    Those a write gave it, or else those of the witness (``INSCRIBED``, ``TRACKED``).
+    """
+    if task.inscriptions is not None:
+        return [
+            {"kind": MILESTONE_TRACKING, "timeline_id": None}
+            if entry == MILESTONE_TRACKING
+            else {"kind": "timeline", "timeline_id": entry}
+            for entry in task.inscriptions
+        ]
     entries: list[JsonValue] = [
-        {"kind": "timeline", "timeline_id": timeline} for timeline in INSCRIBED.get(number, ())
+        {"kind": "timeline", "timeline_id": timeline} for timeline in INSCRIBED.get(task.number, ())
     ]
-    if number in TRACKED:
+    if task.number in TRACKED:
         entries.append({"kind": "milestone_tracking", "timeline_id": None})
     return entries
+
+
+def calendar_hours(calendar: Calendar) -> JsonObject:
+    """Return the hours of each day of a calendar as `WeeklyHours` carries them, 0 for a day off.
+
+    The calendar applicable to a task, the one its dates are counted on (WF-PLA-0010).
+    """
+    return {day: decimal(hours) for day, hours in zip(WEEKDAYS, calendar.week, strict=True)}
+
+
+def stamp(at: datetime) -> str:
+    """Return an instant as the contract carries it, in universal time: 2026-06-03T14:05:00Z."""
+    return at.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _instant(at: Instant) -> JsonObject:
@@ -660,8 +444,8 @@ def _core(
 ) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
     emitter = _Emitter(schedule(roots), labels(), today, dict(rates), before, row_of=rows_of(roots))
-    for position, root in enumerate(roots):
-        emitter.task(root, None, position, 1)
+    for rank, root in enumerate(roots, start=1):
+        emitter.task(root, None, rank, 1)
     return tuple(emitter.rows)
 
 
@@ -717,6 +501,37 @@ def subtree(
 def whole(rows: list[Row]) -> JsonObject:
     """Return the reading of the whole structure, without a filter: every node, every total."""
     return _answer(rows, rows, [])
+
+
+ALWAYS = ("node_id", "row_number", "level", "lock_version")
+"""What a reading renders of each node whatever `fields` names (`NodeFields`, #166)."""
+
+
+def with_fields(
+    nodes: Iterable[JsonObject], names: Iterable[str], always: Iterable[str] = ALWAYS
+) -> list[JsonObject]:
+    """Return the nodes as a reading that names `fields` renders them (`NodeFields`, #166).
+
+    A property of `Node` named is rendered whole; a property of a facet, `task.label`, renders
+    the facet with its properties named alone; a facet of which nothing is named is omitted, and
+    what a node does not bear is not rendered. What is always rendered comes first, in its order.
+    """
+    named = list(names)
+    kept = [*always, *(name for name in named if "." not in name)]
+    facets: dict[str, list[str]] = {}
+    for name in named:
+        if "." in name:
+            facet, key = name.split(".", 1)
+            facets.setdefault(facet, []).append(key)
+    read: list[JsonObject] = []
+    for node in nodes:
+        rendered: JsonObject = {key: node[key] for key in kept if key in node}
+        for facet, keys in facets.items():
+            if facet in node and facet not in rendered:
+                values = cast("JsonObject", node[facet])
+                rendered[facet] = {key: values[key] for key in keys if key in values}
+        read.append(rendered)
+    return read
 
 
 def search(rows: list[Row], text: str) -> JsonObject:
@@ -832,7 +647,8 @@ def _answer(
     amounts of the tasks, which would count the lines twice. ``kinds`` chooses what is rendered,
     never what is summed: a reading of the tasks alone has the totals of the full one (#487). The
     meta says what the structure read holds whatever the reading retains: the level of its deepest
-    summary, which the task tree offers down to (`NodeListMeta`, #494).
+    summary, which the task tree offers down to (`NodeListMeta`, #494), and when its dates were last
+    computed (#1404).
     """
     shown = sorted(
         (row for row in [*retained, *readable] if kinds is None or row.kind in kinds),
@@ -850,7 +666,7 @@ def _answer(
             "hours": decimal(sum((row.hours for row in lines), Decimal(0))),
             **amounts.rendered(),
         },
-        "meta": {"summary_depth": summary_depth(structure)},
+        "meta": {"summary_depth": summary_depth(structure), "scheduled_at": stamp(SCHEDULED_AT)},
     }
 
 

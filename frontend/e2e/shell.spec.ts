@@ -39,6 +39,44 @@ test("the side bar folds into a rail of icons, whose entries keep their names in
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des utilisateurs");
 });
 
+test("folded into a rail on the page of a leaf, the bar shows its function alone as the path, and no Tab stops on a leaf", async ({
+  page,
+}) => {
+  await page.goto(`/projects/${PROJECT}/revisions/${REVISION}/workload`);
+  const bar = page.getByRole("banner");
+  const nav = page.getByRole("navigation", { name: "Fonctions" });
+  const leaf = nav.getByRole("link", { name: "Plan de charge", exact: true });
+  const parent = nav.getByRole("link", { name: "Chiffrage et devis", exact: true });
+  await expect(leaf).toBeVisible();
+  await setExpanded(bar.getByRole("button", { name: /la barre latérale$/ }), false);
+  await expect.poll(async () => (await nav.boundingBox())?.width).toBeLessThanOrEqual(48);
+
+  await expect(leaf).toBeHidden();
+  await expect(parent).toBeVisible();
+  await expect(parent).toHaveAttribute("aria-current", "true");
+
+  // From the first entry of the bar on, Tab goes entry by entry until it leaves the bar: never
+  // to a leaf, which the rail hides.
+  await nav.getByRole("link").first().focus();
+  let left = false;
+  for (let step = 0; step < 80 && !left; step += 1) {
+    const where = await page.evaluate(() => {
+      const active = document.activeElement;
+      return {
+        inBar: active?.closest("nav[aria-label='Fonctions']") != null,
+        inLeaves: active?.closest("[data-slot=sidebar-menu-sub]") != null,
+      };
+    });
+    left = !where.inBar;
+    expect(where.inLeaves).toBe(false);
+    if (!left) {
+      await page.keyboard.press("Tab");
+    }
+  }
+  // Eighty steps that never left the bar would prove nothing of the leaves past them.
+  expect(left).toBe(true);
+});
+
 test("an open block of the FBS is not painted as the page shown", async ({ page }) => {
   await page.goto("/portfolio/projects");
   const nav = page.getByRole("navigation", { name: "Fonctions" });

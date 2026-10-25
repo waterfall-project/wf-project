@@ -58,7 +58,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const ROLE_ACTIVATION = "PUT /reference/resource-roles/{resource_role_id}/activation";
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 
 const nodes = example("org_nodes") as OrgNode[];
 const rolePage = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
@@ -192,6 +192,27 @@ describe("the tree of the organisation", () => {
     expect(tree.querySelector("tfoot tr")?.textContent).toBe("4 nœuds");
   });
 
+  it("offers no number of rows per page, and records none whatever the address holds [WF-IHM-0060-A]", async () => {
+    const client = serve();
+    page.search = `${ORG_NODE_ADDRESS.limit}=25&limit=25`;
+    render(
+      inFrench(
+        <ResourceGrid
+          editable={false}
+          kind="orgNodes"
+          rows={nodes}
+          query={NO_QUERY}
+          preferences={undefined}
+          narrowing={{}}
+        />,
+      ),
+    );
+    expect(screen.getByRole("treegrid", { name: "Arbre d’organisation" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Lignes par page")).toBeNull();
+    await new Promise((done) => setTimeout(done, 50));
+    expect(client.calls.filter(({ route }) => route === "PATCH /me/preferences")).toEqual([]);
+  });
+
   it("asks the server for the nodes a search retains, under the names of its grid", async () => {
     serve();
     page.search = "role_sort_by=label";
@@ -232,7 +253,7 @@ describe("the grid of the resource roles", () => {
       expect(lastAddress()).toBe(ascending);
       // The page answers the sort asked: a second click asks the other way.
       page.search = ascending.split("?")[1] ?? "";
-      rerender(roleGrid({ sort: { column, order: "asc" }, search: undefined }));
+      rerender(roleGrid({ sort: { column, order: "asc" }, search: undefined, size: undefined }));
       await userEvent.click(header());
       expect(lastAddress()).toBe(
         `/reference/resources?role_sort_by=${column}&role_sort_order=desc`,
@@ -243,7 +264,7 @@ describe("the grid of the resource roles", () => {
   it("says in its totals how many roles the server retains, never a count of the page [WF-IHM-0130-A]", () => {
     serve();
     // A page of the two first roles of the witness, of the five the server retains.
-    render(roleGrid({ sort: undefined, search: "Ing" }, roles.slice(0, 2)));
+    render(roleGrid({ sort: undefined, search: "Ing", size: undefined }, roles.slice(0, 2)));
     const grid = screen.getByRole("grid", { name: "Rôles de ressources" });
     expect(grid.querySelector("tfoot tr")?.textContent).toBe("5 rôles");
     expect(
@@ -567,7 +588,9 @@ describe("the grid of the calendars", () => {
       expect(lastAddress()).toBe(ascending);
       // The page answers the sort asked: a second click asks the other way.
       page.search = ascending.split("?")[1] ?? "";
-      rerender(calendarGrid({ sort: { column, order: "asc" }, search: undefined }));
+      rerender(
+        calendarGrid({ sort: { column, order: "asc" }, search: undefined, size: undefined }),
+      );
       await userEvent.click(header());
       expect(lastAddress()).toBe(
         `/reference/resources?calendar_sort_by=${column}&calendar_sort_order=desc`,

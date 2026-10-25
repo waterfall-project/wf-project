@@ -14,16 +14,16 @@ import type { Locator } from "@playwright/test";
  */
 export async function columnsOf<K extends string>(
   grid: Locator,
-  headings: Readonly<Record<K, string>>,
+  headings: Readonly<Record<K, string | RegExp>>,
 ): Promise<Readonly<Record<K, number>>> {
   const entries = await Promise.all(
-    Object.entries<string>(headings).map(async ([key, heading]) => {
+    Object.entries<string | RegExp>(headings).map(async ([key, heading]) => {
       const header = grid.getByRole("columnheader", { name: heading });
       const position = await header.evaluate((cell) =>
         cell instanceof HTMLTableCellElement ? cell.cellIndex : -1,
       );
       if (position < 0) {
-        throw new Error(`no column headed ${heading}`);
+        throw new Error(`no column headed ${String(heading)}`);
       }
       return [key, position] as const;
     }),

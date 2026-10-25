@@ -31,7 +31,7 @@ vi.mock("next/navigation", async (original) => ({
 
 type Node = components["schemas"]["Node"];
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
@@ -72,6 +72,7 @@ function planning(
       <PlanningGrid
         nodes={nodes}
         structure={{ ...STRUCTURE, revision_id: revision }}
+        structureVersion={1}
         filters={filters}
         query={query}
         preferences={undefined}
@@ -106,6 +107,7 @@ function remaining(progress: NonNullable<NodeFilters["progress"]>, subproject?: 
       <RemainingGrid
         nodes={example("nodes_estimate") as NodeList}
         structure={STRUCTURE}
+        structureVersion={1}
         filters={subproject === undefined ? { progress } : { progress, subproject_id: subproject }}
         editable={false}
         query={NO_QUERY}
@@ -389,7 +391,7 @@ describe("the tree of the grid of the planning", () => {
     };
     rerender(
       planning(searched, {
-        query: { sort: undefined, search: "Relance" },
+        query: { sort: undefined, search: "Relance", size: undefined },
         filters: { kinds: ["task"], search: "Relance" },
       }),
     );
@@ -643,7 +645,12 @@ describe("the keys the grid tells", () => {
       render(planning());
       expect(cellOf(OCCURRED, "label")).toHaveAttribute("aria-keyshortcuts", "Shift+F10");
       const menu = await openMenuOf(cellOf(OCCURRED, "label"));
-      for (const item of within(menu).getAllByRole("menuitem")) {
+      // The folding alone: the zoom of the Gantt is Cmd and plus or minus there.
+      const folding = within(menu)
+        .getAllByRole("menuitem")
+        .filter((item) => /plier/i.test(item.textContent));
+      expect(folding.length).toBeGreaterThan(0);
+      for (const item of folding) {
         expect(item).not.toHaveAttribute("aria-keyshortcuts");
       }
       await userEvent.keyboard("{Escape}");
@@ -676,6 +683,7 @@ describe("the keys the grid tells", () => {
         <RemainingGrid
           nodes={{ ...empty, items: [] }}
           structure={STRUCTURE}
+          structureVersion={1}
           filters={{ progress: ["started"] }}
           editable={false}
           query={NO_QUERY}
@@ -692,7 +700,7 @@ describe("the keys the grid tells", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Tout déplier"]);
+    ).toEqual(["Tout déplierAlt+*"]);
   });
 });
 

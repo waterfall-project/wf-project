@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The public demonstration on one machine: the front of production against the fake back — Prism
+# serving the examples of the contract —, behind Caddy and a shared password. No Keycloak, no
+# database, no Redis: WATERFALL_AUTH=mock grants every visitor the same session, and a write is
+# answered but kept nowhere. The front is the image the chain publishes on
+# ghcr.io/waterfall-project, built nothing here but the fake back. How to install and update it:
+# README.md, « Déployer la démonstration publique ».
+name: waterfall-demo
+
+x-hardened: &hardened
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+
+services:
+  # The only door, and the only one with a way out to the Internet (Let's Encrypt).
+  caddy:
+    <<: *hardened
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.demo", "--adapter", "caddyfile"]
+    # Ports below 1024 are the one capability it keeps.
+    cap_add: [NET_BIND_SERVICE]
+    environment:
+      WATERFALL_DOMAIN: ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
+      WATERFALL_ACME_EMAIL: ${WATERFALL_ACME_EMAIL:?set WATERFALL_ACME_EMAIL in .env}
+      WATERFALL_DEMO_USER: ${WATERFALL_DEMO_USER:?set WATERFALL_DEMO_USER in .env}
+      WATERFALL_DEMO_PASSWORD_HASH: ${WATERFALL_DEMO_PASSWORD_HASH:?set WATERFALL_DEMO_PASSWORD_HASH in .env}
+    volumes:
+      - ./Caddyfile.demo:/etc/caddy/Caddyfile.demo:ro
+      - caddy-data:/data
+      - caddy-config:/config
+      # On the machine, where fail2ban reads it.
+      - /var/log/caddy:/var/log/caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    networks: [default, inner]
+
+  front:
+    <<: *hardened
+    image: ghcr.io/waterfall-project/front:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+    user: "1000:1000"
+    environment:
+      # The fake back grants the session; the production image refuses it without WATERFALL_DEMO.
+      WATERFALL_AUTH: mock
+      WATERFALL_DEMO: "1"
+      WATERFALL_API_ADDRESS: http://mock:4010
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${WATERFALL_SERVER_ACTIONS_KEY:?set WATERFALL_SERVER_ACTIONS_KEY in .env}
+    # The one place Next writes (its cache), and the temporary files.
+    tmpfs:
+      - /app/.next/cache:uid=1000,gid=1000
+      - /tmp
+    depends_on:
+      mock:
+        condition: service_healthy
+    networks: [inner]
+    mem_limit: 512m
+    pids_limit: 200
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mock:
+    <<: *hardened
+    build:
+      context: .
+      dockerfile: mock.Dockerfile
+      args:
+        PRISM_VERSION: ${PRISM_VERSION:?set PRISM_VERSION in .env (the Makefile pins it)}
+    image: waterfall-demo-mock:${PRISM_VERSION}
+    volumes:
+      - ./waterfall.mock.json:/contract/waterfall.mock.json:ro
+    tmpfs:
+      - /tmp
+    networks: [inner]
+    mem_limit: 512m
+    pids_limit: 200
+    healthcheck:
+      # Prism answers 404 to a path the contract does not know: alive is anything under 500.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4010/').then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+networks:
+  # The front and the fake back reach nothing but each other and Caddy: no way out, no way in.
+  inner:
+    internal: true
+
+volumes:
+  caddy-data:
+  caddy-config:

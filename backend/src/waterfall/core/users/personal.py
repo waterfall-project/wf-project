@@ -18,9 +18,16 @@ from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import lock_account
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.errors import FieldError, UnprocessableError
 
-# The settings of each grid, by the name of the grid (WF-IHM-0060).
-GRIDS = "grids"
+# The settings of each grid, by the name of the grid (WF-IHM-0060), the layout of each timeline,
+# by its identifier (WF-PLA-0140), and the state of each chart, folded or not, by the name of the
+# chart (EP-15/US-0550): tables whose entries a change replaces one by one.
+TABLES = ("grids", "timelines", "charts")
+# The entries a table holds at most, once a change applies as when it is sent (#874, #1235).
+MOST_ENTRIES = 100
+VALIDATION_FAILED = "VALIDATION_FAILED"
+VALUE_TOO_LONG = "VALUE_TOO_LONG"
 PNG = "image/png"
 JPEG = "image/jpeg"
 # The first bytes of each kind of image an avatar may be: its signature, whatever it is said to be.
@@ -31,17 +38,30 @@ def merged(current: Mapping[str, Any], sent: Mapping[str, Any]) -> dict[str, Any
     """Give the preferences once a change applies: only what it carries changes.
 
     In ``grids``, only the grids it names, each replaced whole; a grid sent ``None`` is forgotten,
-    and finds its settings by default again.
+    and finds its settings by default again. So in ``timelines``, by timeline (EP-15/US-0530), and
+    in ``charts``, by chart (EP-15/US-0550).
+
+    The preferences are read with the account at each request: a table grows by successive
+    changes no further than one change may carry, a hundred entries, and a change that would take
+    it past them is refused on the table, ``VALUE_TOO_LONG`` (#874, #1235). One that does not
+    grow it — that forgets or replaces entries — is never refused for its size.
     """
-    preferences = {**current, **{name: value for name, value in sent.items() if name != GRIDS}}
-    if GRIDS in sent:
-        grids: dict[str, Any] = dict(current.get(GRIDS) or {})
-        for name, grid in sent[GRIDS].items():
-            if grid is None:
-                grids.pop(name, None)
-            else:
-                grids[name] = grid
-        preferences[GRIDS] = grids
+    preferences = {**current, **{name: value for name, value in sent.items() if name not in TABLES}}
+    faults: list[FieldError] = []
+    for table in TABLES:
+        if table in sent:
+            before: dict[str, Any] = dict(current.get(table) or {})
+            entries = dict(before)
+            for name, entry in sent[table].items():
+                if entry is None:
+                    entries.pop(name, None)
+                else:
+                    entries[name] = entry
+            if len(entries) > max(MOST_ENTRIES, len(before)):
+                faults.append(FieldError(f"/{table}", VALUE_TOO_LONG))
+            preferences[table] = entries
+    if faults:
+        raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     return preferences
 
 
@@ -49,7 +69,7 @@ def change_preferences(session: Session, user_id: UUID, sent: Mapping[str, Any])
     """Apply a change to the preferences of an account, and give them as they now are.
 
     The account is locked, then its preferences read under the lock: two changes at once, of two
-    grids, each keep the other's.
+    grids, each keep the other's, and their sum is bounded as each is (#1235).
     """
     account = lock_account(session, user_id)
     preferences = merged(account.display_preferences, sent)

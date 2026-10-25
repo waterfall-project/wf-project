@@ -1,9 +1,9 @@
 {
-  "summary": "La réponse à cette saisie : le lotissement entier, lu comme après une lecture entière, chaque élément retenu ; le lot « Mise en service sur site » et son livrable portent les identifiants que le serveur leur a donnés, et le compteur suivant, jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110).",
+  "summary": "La réponse à cette saisie : le lotissement entier, lu comme après une lecture entière, chaque élément retenu, le lot « Lot 1 » porté par « Poste de commande » ; le poste « Poste 1.2 » et son livrable portent les identifiants que le serveur leur a donnés, aucune tâche ne le porte, et le compteur suivant, jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110, #802).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "order_items": [
-      {"order_item_id":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","is_match":true,"work_packages":[{"work_package_id":"01926f3a-7c00-7000-8000-000000000712","label":"Armoires","is_match":true,"deliverables":[{"deliverable_id":"01926f3a-7c00-7000-8000-000000000713","label":"Procès-verbal de réception usine des armoires","is_match":true}]},{"work_package_id":"01926f3a-7c00-7000-8000-000000000716","label":"Mise en service sur site","is_match":true,"deliverables":[{"deliverable_id":"01926f3a-7c00-7000-8000-000000000717","label":"Procès-verbal de mise en service","is_match":true}]}]}
+    "work_packages": [
+      {"work_package_id":"01926f3a-7c00-7000-8000-000000000711","label":"Lot 1","is_match":true,"attached_task":{"node_id":"01926f3a-7c00-7000-8000-000000000551","label":"Poste de commande"},"order_items":[{"order_item_id":"01926f3a-7c00-7000-8000-000000000712","label":"Poste 1.1","is_match":true,"attached_task":null,"deliverables":[{"deliverable_id":"01926f3a-7c00-7000-8000-000000000713","label":"Procès-verbal de réception usine des armoires","is_match":true}]},{"order_item_id":"01926f3a-7c00-7000-8000-000000000716","label":"Poste 1.2","is_match":true,"attached_task":null,"deliverables":[{"deliverable_id":"01926f3a-7c00-7000-8000-000000000717","label":"Procès-verbal de mise en service","is_match":true}]}]}
     ],
     "lock_version": 2
   }

@@ -1,0 +1,11 @@
+{
+  "summary": "La fusion de l'avenant 2 confirmée aujourd'hui avec les compteurs d'un compte rendu lu quand le différentiel était à sa première version, modifié depuis, à la deuxième (structures) : le compte rendu est périmé, rien n'est fusionné, et la version courante du différentiel, l'objet que le chemin nomme, est rendue ; l'écran propose de relire le compte rendu (WF-REV-0050, WF-IHM-0110).",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {
+      "expected_lock_version": 2
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001185"
+  }
+}

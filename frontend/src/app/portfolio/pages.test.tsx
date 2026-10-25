@@ -16,6 +16,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import CostCurvePage, { generateMetadata as costCurveTitle } from "./cost-curve/page";
 import CostStructurePage, { generateMetadata as costStructureTitle } from "./cost-structure/page";
@@ -56,6 +57,26 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/portfolio/projects",
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -91,10 +112,11 @@ function queryOf(route: string): Record<string, string> {
   const calls = server.clients.flatMap((client) => client.calls);
   const [call, ...more] = calls.filter((each) => each.route === route);
   expect(more).toEqual([]);
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.projects = [];
   server.clients = [];
   server.answers = {
@@ -213,6 +235,7 @@ describe("the screens of the portfolio", () => {
       'href="/projects/01926f3a-7c00-7000-8000-000300000119">Extension de la sous-station — Grenoble</a>',
     );
     expect(page).toContain("Risk matrix");
+    expect(markup).toContain("Export as PNG");
     // The cell of the highest probability and severity, by its signal and its count.
     expect(markup).toMatch(/aria-label="Alert"(?:(?!<\/td>)[\s\S])*?<\/span>32<\/span>/);
   });
@@ -441,5 +464,27 @@ describe("a period of the portfolio the server refuses", () => {
       "The start of the period may not follow its default end, the date of calculation, 3 Jun 2026.",
     );
     expect(text(markup)).toContain("The view is not read: the server refuses the period asked.");
+  });
+});
+
+describe("the portfolio, the size of the pages of the list of projects", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await render(ProjectsPage, search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /portfolio/projects");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+
+  it("reads the page size kept by the account when the address asks none [WF-IHM-0060-A]", async () => {
+    kept.grids = { portfolio_projects: { page_size: 25 } };
+    await render(ProjectsPage, {});
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /portfolio/projects");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
   });
 });

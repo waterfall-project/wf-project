@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type Risk, RiskDetail } from "@/components/risks/risk-detail";
+import type { ProjectRiskMatrixProps } from "@/components/risks/risk-bubble-chart";
+import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/risk-detail";
 import type { RisksGridProps } from "@/components/risks/risks-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
@@ -38,6 +39,32 @@ vi.mock("@/components/risks/risks-grid", async (original) => {
     },
   };
 });
+// The detail renders as it would, and keeps what its page handed it.
+const details = vi.hoisted((): { props: RiskDetailProps[] } => ({ props: [] }));
+vi.mock("@/components/risks/risk-detail", async (original) => {
+  const actual = await original<typeof import("@/components/risks/risk-detail")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    RiskDetail: (props: RiskDetailProps) => {
+      details.props.push(props);
+      return createElement(actual.RiskDetail, props);
+    },
+  };
+});
+// The matrix renders as it would, and keeps what its page handed it.
+const matrices = vi.hoisted((): { props: ProjectRiskMatrixProps[] } => ({ props: [] }));
+vi.mock("@/components/risks/risk-bubble-chart", async (original) => {
+  const actual = await original<typeof import("@/components/risks/risk-bubble-chart")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    ProjectRiskMatrix: (props: ProjectRiskMatrixProps) => {
+      matrices.props.push(props);
+      return createElement(actual.ProjectRiskMatrix, props);
+    },
+  };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
@@ -60,6 +87,10 @@ const MATRIX = "GET /projects/{project_id}/risks/matrix";
 const COVERAGE = "GET /projects/{project_id}/risks/coverage";
 const RISK = "GET /projects/{project_id}/risks/{risk_id}";
 const REVIEWS = "GET /projects/{project_id}/risks/{risk_id}/reviews";
+const CATEGORIES = "GET /reference/cost-categories";
+const SUBPROJECTS = "GET /projects/{project_id}/subprojects";
+const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+const NODES = `${STRUCTURES}/{structure_id}/nodes` as const;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -97,6 +128,8 @@ function queryOf(route: string): Record<string, string> {
 
 beforeEach(() => {
   grids.risks = [];
+  details.props = [];
+  matrices.props = [];
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -108,8 +141,19 @@ beforeEach(() => {
     [COVERAGE]: "risk_coverage",
     [RISK]: "risk",
     [REVIEWS]: "risk_reviews",
+    // What the form of a risk chooses its provision among, read while the declaration is available.
+    [CATEGORIES]: "volume/cost_categories",
+    [SUBPROJECTS]: "subprojects",
+    [STRUCTURES]: "structures",
+    [NODES]: "nodes",
   };
 });
+
+/** The markup of a region of the page, from its opening to the next region. */
+function regionOf(page: string, name: string): string {
+  const parts = page.split('role="region"');
+  return parts.find((part) => part.startsWith(` aria-label="${name}"`)) ?? "";
+}
 
 describe("the screen of the risks", () => {
   it("titles the tab with the function and the project", async () => {
@@ -127,10 +171,32 @@ describe("the screen of the risks", () => {
     // No risk named, no detail read.
     expect(callsTo(RISK)).toEqual([]);
     expect(callsTo(REVIEWS)).toEqual([]);
-    expect(text(page)).toContain("Risk management 3 risks retained");
-    expect(text(page)).toContain(
-      "Choose a risk in the register to read its description, its mitigation actions and the history of its reviews.",
-    );
+    expect(text(page)).toContain("Risk management Help 3 risks retained");
+    // The matrix is not in a column beside the grid: with no risk named, nothing is.
+    expect(page).not.toContain("<aside");
+  });
+
+  it("draws the matrix over the whole width, between the cards and the grid, as a bubble chart [WF-RIS-0040-A]", async () => {
+    const page = await risksAt();
+    const figure = page.indexOf("<figure aria-labelledby");
+    expect(figure).toBeGreaterThan(page.indexOf('aria-label="Risk coverage"'));
+    expect(figure).toBeLessThan(page.indexOf('role="grid"'));
+    expect(text(page.slice(figure, figure + 400))).toContain("Risk matrix");
+    expect(page).toContain("Export as PNG");
+    expect(page).not.toContain("<aside");
+    // A risk named opens its detail in a column beside the grid, the matrix staying above.
+    const opened = await risksAt({ risk: CABLING });
+    expect(opened.indexOf("<aside")).toBeGreaterThan(opened.indexOf('role="grid"'));
+    expect(opened.indexOf("<figure aria-labelledby")).toBeLessThan(opened.indexOf('role="grid"'));
+  });
+
+  it("starts the matrix as the account kept it, folded when it kept nothing", async () => {
+    await risksAt();
+    expect(matrices.props.map(({ folded }) => folded)).toEqual([true]);
+    matrices.props = [];
+    server.answers = { ...server.answers, "GET /me": "me_grid_settings" };
+    await risksAt();
+    expect(matrices.props.map(({ folded }) => folded)).toEqual([false]);
   });
 
   it("hands the grid the risks in the order of the answer, of each the fields it reads alone", async () => {
@@ -172,6 +238,7 @@ describe("the screen of the risks", () => {
     expect(grids.risks[0]?.query).toEqual({
       sort: { column: "provision_amount", order: "desc" },
       search: "armoires",
+      size: 50,
     });
   });
 
@@ -191,15 +258,22 @@ describe("the screen of the risks", () => {
     expect(text(page)).toContain(
       "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
     );
-    expect(page).toContain('<section aria-label="Provisions of the risks retained"><dl');
+    expect(page).toMatch(/role="region" aria-label="Provisions of the risks retained"/);
+    // The card is a list of terms under its title, within its own region.
+    expect(regionOf(page, "Provisions of the risks retained")).toMatch(
+      /<h2[^>]*>Provisions of the risks retained<\/h2>.*?<dl/,
+    );
   });
 
   it("shows the risk reserve of the reference revision in the coverage alone, never among the totals of the provisions", async () => {
     // Decision of the author of 2026-10-07 (#409): the reserve has its sense beside the provisions
     // remaining, the cost of the risks occurred and the variance.
     const page = await risksAt();
-    const start = page.indexOf('<section aria-label="Provisions of the risks retained">');
-    const totals = page.slice(start, page.indexOf("</section>", start));
+    const start = page.indexOf(
+      "<dl",
+      page.indexOf('aria-label="Provisions of the risks retained"'),
+    );
+    const totals = page.slice(start, page.indexOf("</dl>", start));
     expect(text(totals)).toBe(
       "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
     );
@@ -209,7 +283,9 @@ describe("the screen of the risks", () => {
   it("reads the coverage of the risks in the revision of its route, and shows its four amounts as the server computes them, the variance signed [WF-RIS-0050-A]", async () => {
     const page = await risksAt();
     expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
-    expect(page).toContain('<section aria-label="Risk coverage"><dl');
+    expect(page).toMatch(/role="region" aria-label="Risk coverage"/);
+    // Dated like every card, the region reading alone [WF-IHM-0020-A].
+    expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
       "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
     );
@@ -217,8 +293,11 @@ describe("the screen of the risks", () => {
 
   it("names the axes of the matrix by their bounds, and each cell by its signal and its count [WF-IHM-0070-A]", async () => {
     const page = await risksAt();
-    // The table of the matrix, named by its caption.
-    const start = page.lastIndexOf("<table", page.indexOf("Risk matrix</h2></caption>"));
+    // The table of the counts of the matrix, under the chart, named by its caption.
+    const start = page.lastIndexOf(
+      "<table",
+      page.indexOf("Count of the risks by cell of the matrix, all states together</caption>"),
+    );
     const matrix = page.slice(start, page.indexOf("</table>", start));
     expect(text(matrix)).toContain(
       "Probability Severity, as a share of the reference budget " +
@@ -247,7 +326,7 @@ describe("the screen of the risks", () => {
     expect(queryOf(REVIEWS)).toEqual({ revision_id: REVISION });
     const said = text(page);
     expect(said).toContain(
-      "Risque de reprise du câblage State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
+      "Risque de reprise du câblage Modify Review Declare occurred Delete the risk Unmet condition: risk cited by no marked revision. State Identified Probability 40% Severity 1,250,000.00 Provision 500,000.00 Last review 2 Mar 2026",
     );
     expect(said).toContain(
       "Description Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
@@ -296,7 +375,7 @@ describe("the screen of the risks", () => {
     const risk: Risk = { ...(example("risk") as Risk), provision_cost_category_is_active: false };
     const detail = renderToStaticMarkup(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
-        <RiskDetail risk={risk} reviews={[]} />
+        <RiskDetail risk={risk} reviews={[]} projectId="01926f3a-7c00-7000-8000-000000000001" />
       </NextIntlClientProvider>,
     );
     expect(text(detail)).toContain("Category Provisions pour risques (deactivated)");
@@ -316,7 +395,7 @@ describe("the screen of the risks", () => {
   it("says a risk retained by none of its filters, its totals those of the server", async () => {
     server.answers = { ...server.answers, [LIST]: { example: "risks_empty", status: 200 } };
     const page = await risksAt({ states: "occurred" });
-    expect(text(page)).toContain("Risk management no risk retained");
+    expect(text(page)).toContain("Risk management Help no risk retained");
     expect(text(page)).toContain(
       "Identified risks 0.00 Occurred risks 0.00 Dismissed risks 0.00 General total 0.00",
     );
@@ -335,5 +414,89 @@ describe("the screen of the risks", () => {
     });
     server.answers = { ...server.answers, "GET /projects/{project_id}": NOT_FOUND };
     await expect(risksAt()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+  });
+});
+
+describe("the commands of the risks", () => {
+  /** The command that identifies a risk in the markup of the page, and its tag. */
+  function command(page: string): string {
+    return /<button[^>]*>(?:(?!<\/button>).)*Identify a risk<\/button>/s.exec(page)?.[0] ?? "";
+  }
+
+  it("offers « Identify a risk » as the revision lists `declare_risk`, and reads once each of the listings the provision is chosen among", async () => {
+    const page = await risksAt();
+    expect(command(page)).not.toBe("");
+    expect(command(page)).not.toContain(`aria-disabled="true"`);
+    // The active categories of the type provision, the sub-projects, and the tasks of the main
+    // structure of the revision: read once each.
+    expect(callsTo(CATEGORIES)).toHaveLength(1);
+    expect(callsTo(SUBPROJECTS)).toHaveLength(1);
+    expect(callsTo(NODES)).toHaveLength(1);
+    expect(callsTo(NODES)[0]?.path).toContain(`/revisions/${REVISION}/structures/`);
+    expect(Object.fromEntries(callsTo(NODES)[0]?.query ?? [])).toMatchObject({ kinds: "task" });
+  });
+
+  it.each([
+    ["the sub-projects", SUBPROJECTS],
+    ["the tasks of the main structure", NODES],
+    ["the categories of cost", CATEGORIES],
+  ] as const)(
+    "renders the screen and offers the command when the session may not read %s, the server judging the declaration",
+    async (_listing, route) => {
+      server.answers = {
+        ...server.answers,
+        [route]: { problem: { code: "PERMISSION_MISSING", status: 403 } },
+      };
+      const page = await risksAt();
+      expect(command(page)).not.toBe("");
+      expect(command(page)).not.toContain(`aria-disabled="true"`);
+      expect(grids.risks).not.toEqual([]);
+    },
+  );
+
+  it("offers it unavailable on a revision without a task, described by the condition it lacks, and reads nothing for a form it cannot open [WF-RIS-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_without_tasks",
+    };
+    const page = await risksAt();
+    expect(command(page)).toContain('aria-disabled="true"');
+    expect(text(page)).toContain("Unmet condition: at least one task.");
+    expect(callsTo(CATEGORIES)).toEqual([]);
+    expect(callsTo(NODES)).toEqual([]);
+  });
+
+  it("offers nothing to a caller whose revision lists no declaration", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
+    };
+    expect(command(await risksAt())).toBe("");
+  });
+
+  it("offers « Modify » in the detail of a risk, and reads the choices of its provision", async () => {
+    const page = await risksAt({ risk: CABLING });
+    expect(page).toContain("Modify</button>");
+    expect(callsTo(NODES)).toHaveLength(1);
+  });
+
+  it("reads nothing for the forms of a risk occurred, which lists no command of entry available, on a revision that offers no declaration either", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_without_tasks",
+      [RISK]: "risk_occurred_detail",
+    };
+    const page = await risksAt({ risk: CABLING });
+    expect(page).toContain("Review</button>");
+    expect(callsTo(CATEGORIES)).toEqual([]);
+    expect(callsTo(NODES)).toEqual([]);
+  });
+
+  it("hands the detail the choices of the provision it read: the categories of the type, the sub-projects, the tasks of the main structure", async () => {
+    await risksAt({ risk: CABLING });
+    const handed = details.props.at(-1)?.options;
+    expect(handed?.categories.length).toBeGreaterThan(0);
+    expect(handed?.subprojects.length).toBeGreaterThan(0);
+    expect(handed?.tasks.map(({ label }) => label)).toContain("Études de détail");
   });
 });

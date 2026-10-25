@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { askSubprojects, readProjectContext } from "@/components/context/reading";
@@ -34,6 +35,8 @@ import {
   COSTS_LIST,
   costsQuery,
   COSTS_PAGE,
+  COST_IMPORT_GRID_KEY,
+  IMPORTS_ADDRESS,
   IMPORTS_PAGE,
   readCostFilters,
   readCostLine,
@@ -54,7 +57,8 @@ import { CostsGrid } from "@/components/costs/costs-grid";
 import { ImportJournal } from "@/components/costs/import-journal";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { refusedPeriod } from "@/components/grid/period";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -65,9 +69,6 @@ import { requestSession } from "@/session/request";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
 import type { RevisionParams } from "../page";
-
-/** The lines of the journal a page holds: an import a month, a year and some. */
-const IMPORTS_LIMIT = 12;
 
 /** The refusal of filters the server cannot apply (`listActualCosts`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
@@ -113,14 +114,14 @@ async function readCosts(
   filters: CostFilters,
   asked: Promise<GridQuery<CostSortColumn>>,
 ) {
-  const { sort } = await asked;
+  const { sort, size } = await asked;
   const subproject = context.parameters.get("subproject_id") ?? undefined;
   const offset = readPage(address, COSTS_PAGE);
   const read = await readOrRefused("listActualCosts", FILTERS_REFUSED, () =>
     serverClient().GET("/projects/{project_id}/actual-costs", {
       params: {
         path: { project_id: revision.projectId },
-        query: costsQuery({ offset, subproject, filters, sort }),
+        query: costsQuery({ offset, subproject, filters, sort, size }),
       },
     }),
   );
@@ -141,13 +142,20 @@ async function readCosts(
 }
 
 /** A page of the journal of the imports, from the place the address asks. */
-async function readImports({ revision, address }: GridAddress) {
+async function readImports(
+  { revision, address }: GridAddress,
+  kept: Promise<GridPreferences | undefined>,
+) {
   const offset = readPage(address, IMPORTS_PAGE);
+  const { size } = readGridQuery(address, [], undefined, IMPORTS_ADDRESS, (await kept)?.page_size);
   return readOrFail("listCostImports", () =>
     serverClient().GET("/projects/{project_id}/cost-imports", {
       params: {
         path: { project_id: revision.projectId },
-        query: { limit: IMPORTS_LIMIT, ...(offset === 0 ? {} : { offset }) },
+        query: {
+          ...(size === undefined ? {} : { limit: size }),
+          ...(offset === 0 ? {} : { offset }),
+        },
       },
     }),
   );
@@ -188,10 +196,12 @@ function CostsHeader({
       subtitle={count === undefined ? undefined : t("actualCosts.summary", { count })}
       actions={
         exchanges === undefined ? undefined : (
-          <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            <ExchangesIcon aria-hidden="true" />
-            {t(EXCHANGES.label)}
-          </Link>
+          <CommandTooltip label={t(EXCHANGES.label)} help={t("commands.exchanges.help")}>
+            <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <ExchangesIcon aria-hidden="true" />
+              {t(EXCHANGES.label)}
+            </Link>
+          </CommandTooltip>
         )
       }
     />
@@ -215,22 +225,33 @@ export default async function ActualCostsPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "actual-costs");
   const filters = readCostFilters(at.address);
-  const settings = requestSession().then(
-    (session) => session?.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
+  const session = requestSession();
+  const settings = session.then(
+    (account) => account?.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
+  );
+  const journal = session.then(
+    (account) => account?.display_preferences?.grids?.[COST_IMPORT_GRID_KEY] ?? undefined,
   );
   // A column kept from the file sorts by its name, which no list of the screen knows beforehand.
   const asked = settings.then((kept) => {
     const named = [at.address.get("sort_by"), kept?.sort?.column].filter(isKeptSort);
-    return readGridQuery(at.address, [...COST_SORT_COLUMNS, ...named], kept?.sort);
+    return readGridQuery(
+      at.address,
+      [...COST_SORT_COLUMNS, ...named],
+      kept?.sort,
+      CONTRACT_ADDRESS,
+      kept?.page_size,
+    );
   });
-  const [reading, costs, imports, subprojects, preferences, query] = await Promise.all([
+  const [reading, costs, imports, subprojects, preferences, query, imported] = await Promise.all([
     // The costs are read for the filtered sub-project alone (`listActualCosts`): no date (#302).
     readProjectContext(at.pathname, at.context, ["subproject_id"]),
     readCosts(at, filters, asked),
-    readImports(at),
+    readImports(at, journal),
     readSubprojects(at),
     settings,
     asked,
+    journal,
   ]);
   if (reading === "not_found") {
     notFound();
@@ -246,7 +267,7 @@ export default async function ActualCostsPage({
       <ContextBanner reading={reading} />
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
-        <Screen density={FUNCTION_DENSITY.actual_costs} fill>
+        <Screen density={FUNCTION_DENSITY.actual_costs} fillWide>
           <CostsHeader
             count={"refused" in costs ? undefined : costs.page.total}
             exchanges={functionHref(EXCHANGES, at.context)}
@@ -260,8 +281,8 @@ export default async function ActualCostsPage({
             subprojects={subprojects}
             refused={"refused" in costs ? costs.period : undefined}
           />
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
+            <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
               {"refused" in costs ? (
                 <CostsRefused reason={costs.refused} />
               ) : (
@@ -291,7 +312,7 @@ export default async function ActualCostsPage({
                   offer={exclusion}
                 />
               )}
-              <ImportJournal imports={imports.items} page={imports.meta} />
+              <ImportJournal imports={imports.items} page={imports.meta} preferences={imported} />
             </aside>
           </div>
         </Screen>

@@ -64,7 +64,6 @@
         "command": "merge_structure",
         "is_available": false,
         "missing_conditions": [
-          "unmerged_amendment_exists",
           "no_background_task_running"
         ]
       },
@@ -79,7 +78,8 @@
         "command": "designate_reference",
         "is_available": false,
         "missing_conditions": [
-          "revision_marked"
+          "revision_marked",
+          "reference_correctable"
         ]
       },
       {

@@ -17,6 +17,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import HomePage, { generateMetadata } from "./page";
 
@@ -60,6 +61,26 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -106,10 +127,11 @@ function listQuery(): Record<string, string> {
   const call = server.clients
     .flatMap((client) => client.calls)
     .find((each) => each.route === "GET /projects");
-  return Object.fromEntries(call?.query ?? []);
+  return queryOfCall(call?.query ?? []);
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.props = [];
   server.clients = [];
   server.unreachable = false;
@@ -152,6 +174,7 @@ describe("the home, the list of projects", () => {
       sort_order: "desc",
       search: "poste",
       offset: "50",
+      limit: "25",
     });
     expect(listQuery()).toEqual({
       is_contributor: "true",
@@ -160,10 +183,12 @@ describe("the home, the list of projects", () => {
       sort_order: "desc",
       search: "poste",
       offset: "50",
+      limit: "25",
     });
     expect(grids.props.at(-1)?.query).toEqual({
       sort: { column: "updated_at", order: "desc" },
       search: "poste",
+      size: 25,
     });
   });
 
@@ -328,7 +353,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home();
     expect(text(html)).toMatch(
-      /^Projects Create a project Projects you contribute to Show all projects Mock-up: .* Every state .* You contribute to no project\.$/,
+      /^Projects Help Create a project Projects you contribute to Show all projects Mock-up: .* Every state .* You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -354,7 +379,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false" });
     expect(text(html)).toMatch(
-      /^Projects Create a project Show only my projects Mock-up: .* Every state .* No project\.$/,
+      /^Projects Help Create a project Show only my projects Mock-up: .* Every state .* No project\.$/,
     );
   });
 
@@ -381,7 +406,7 @@ describe("the empty states of the home", () => {
       const html = await home();
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
+          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
         ),
       );
       expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
@@ -418,7 +443,7 @@ describe("the empty states of the home", () => {
     );
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html)).toBe(
-      "Projects Create a project The minimum reference data is incomplete. Show only my projects " +
+      "Projects Help Create a project The minimum reference data is incomplete. Show only my projects " +
         `${MOCKUP} Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
         "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
@@ -433,5 +458,27 @@ describe("the empty states of the home", () => {
   it("never says there is no project when the API cannot be reached: it is announced", async () => {
     server.unreachable = true;
     await expect(home()).rejects.toBeInstanceOf(Unreachable);
+  });
+});
+
+describe("the home, the size of the pages of the list of projects", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await home(search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /projects");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+
+  it("reads the page size kept by the account when the address asks none [WF-IHM-0060-A]", async () => {
+    kept.grids = { projects: { page_size: 25 } };
+    await home({});
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /projects");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
   });
 });

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { ROW_REM } from "@/components/grid/dense-grid";
+import { ROW_REM } from "@/components/grid/grid-floor";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
@@ -51,7 +51,7 @@ function permissionsOf(name: string): readonly components["schemas"]["Permission
   return (example(name) as components["schemas"]["UserSelf"]).permissions;
 }
 const second = example("audit_events_page") as Journal;
-const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined };
+const NEWEST: GridQuery<AuditSort> = { sort: NEWEST_FIRST, search: undefined, size: undefined };
 const facets = example("audit_facets") as components["schemas"]["AuditFacets"];
 const AUTHORS: AuditFilterBarProps["users"] = facets.actors.map((actor) => ({
   id: actor.user_id,
@@ -178,7 +178,11 @@ describe("the grid of the journal", () => {
       async (shown, _asked, search, address) => {
         page.search = search;
         const order = shown === "ascending" ? "asc" : "desc";
-        render(journal({ query: { sort: { ...NEWEST_FIRST, order }, search: undefined } }));
+        render(
+          journal({
+            query: { sort: { ...NEWEST_FIRST, order }, search: undefined, size: undefined },
+          }),
+        );
         const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
         expect(header).toHaveAttribute("aria-sort", shown);
         await userEvent.click(within(header).getByRole("button"));
@@ -214,7 +218,11 @@ describe("the grid of the journal", () => {
       "asks the server for a column the other way, its sort %s [WF-IHM-0060-A]",
       async (order, shown, asked) => {
         page.search = `sort_by=actor&sort_order=${order}`;
-        render(journal({ query: { sort: { column: "actor", order }, search: undefined } }));
+        render(
+          journal({
+            query: { sort: { column: "actor", order }, search: undefined, size: undefined },
+          }),
+        );
         const header = within(grid()).getByRole("columnheader", { name: "Auteur" });
         expect(header).toHaveAttribute("aria-sort", shown);
         await userEvent.click(within(header).getByRole("button"));
@@ -224,7 +232,11 @@ describe("the grid of the journal", () => {
 
     it("asks the most recent first for the dates from another sort, as the server gives them unasked [WF-IHM-0060-A]", async () => {
       page.search = "sort_by=actor&sort_order=desc";
-      render(journal({ query: { sort: { column: "actor", order: "desc" }, search: undefined } }));
+      render(
+        journal({
+          query: { sort: { column: "actor", order: "desc" }, search: undefined, size: undefined },
+        }),
+      );
       const header = within(grid()).getByRole("columnheader", { name: /^Date/ });
       await userEvent.click(within(header).getByRole("button"));
       expect(lastAddress()).toBe("/admin/audit-log?sort_by=occurred_at&sort_order=desc");
@@ -315,7 +327,7 @@ describe("the grid of the journal", () => {
   it("leads the import of an estimate applied to a revision to the exchanges of that revision, its report shown", () => {
     render(journal({ shown: applied }));
     expect(
-      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+      within(grid()).getByRole("link", { name: "devis-avenant-2-reprise-des-essais.xlsx" }),
     ).toHaveAttribute("href", `${CURRENT}/exchanges?import=01926f3a-7c00-7000-8000-000000000a11`);
   });
 
@@ -328,7 +340,7 @@ describe("the grid of the journal", () => {
       within(grid()).getByRole("link", { name: "Retard de livraison des armoires" }),
     ).toHaveAttribute("href", CURRENT);
     expect(
-      within(grid()).getByRole("link", { name: "devis-poste-de-commande.xlsx" }),
+      within(grid()).getByRole("link", { name: "devis-avenant-2-reprise-des-essais.xlsx" }),
     ).toHaveAttribute("href", CURRENT);
     expect(
       within(grid()).getByRole("link", { name: "Avenant 1 — extension du poste" }),
@@ -340,7 +352,7 @@ describe("the grid of the journal", () => {
     rerender(journal({ shown: applied, session: "me_auditor" }));
     for (const name of [
       "Retard de livraison des armoires",
-      "devis-poste-de-commande.xlsx",
+      "devis-avenant-2-reprise-des-essais.xlsx",
       "Avenant 1 — extension du poste",
       "Référence",
     ]) {

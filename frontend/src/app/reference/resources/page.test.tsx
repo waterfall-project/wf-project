@@ -6,13 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
-import { DAYS } from "@/components/reference/resource-grids";
-import {
-  CalendarList,
-  type DayBounds,
-  OrgNodeList,
-  ResourceRoleList,
-} from "@/components/reference/resource-lists";
+import { CalendarList, OrgNodeList, ResourceRoleList } from "@/components/reference/resource-lists";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import type { ListPage } from "@/navigation/pages";
@@ -23,6 +17,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import ResourceSettingsPage from "./page";
 
@@ -46,6 +41,8 @@ vi.mock("@/api/server", () => ({
 }));
 // The session of the contract, some of its permissions withdrawn for a test: no account of the
 // witness modifies the settings of the resources without reading those of the costs.
+// The sizes of pages the account keeps, set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
 const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
@@ -57,6 +54,10 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
             permissions: session.permissions.filter(
               (permission) => !withdrawn.permissions.includes(permission),
             ),
@@ -86,13 +87,10 @@ const BUREAU = "01926f3a-7c00-7000-8000-000000000471";
 const ELECTRICAL = "01926f3a-7c00-7000-8000-000000000402";
 const STANDARD = "01926f3a-7c00-7000-8000-000000000481";
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 
 /** No bound on either side of a column. */
 const NO_BOUNDS = { min: undefined, max: undefined };
-
-/** No bound on the hours of any day. */
-const NO_HOURS = Object.fromEntries(DAYS.map((day) => [day, NO_BOUNDS])) as DayBounds;
 
 /** The roles of the witness, as the server pages them. */
 const ROLE_PAGE = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
@@ -161,10 +159,11 @@ function queriesOf(route: string): Record<string, string>[] {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 beforeEach(() => {
+  kept.grids = {};
   server.clients = [];
   withdrawn.permissions = [];
   server.answers = {
@@ -336,8 +335,15 @@ describe("the settings of the resources", () => {
       "État",
     ]);
     expect(text(page)).toContain(
-      "Unités de durée Heures par jour 8 Heures par semaine 40 Jours par mois 20",
+      "Unités de durée Modifier les unités de durée Heures par jour 8 Heures par semaine 40 Jours par mois 20",
     );
+  });
+
+  it("offer the calendars no filter on the hours of their days, only their search and their state [WF-IHM-0130-A]", async () => {
+    const page = await resourcesAt();
+    expect(page).not.toContain('aria-label="Bornes de «\u00a0Calendriers\u00a0»"');
+    expect(page).not.toMatch(/aria-label="(Lun|Mar|Mer|Jeu|Ven|Sam|Dim)\.[^"]*(min|max)\.?"/);
+    expect(page).toContain('aria-label="État des objets de «\u00a0Calendriers\u00a0»"');
   });
 
   it("ask each list of the server by the names of the contract, as the address asks it under the names of its grid [WF-IHM-0060-A] [WF-IHM-0130-A]", async () => {
@@ -394,8 +400,6 @@ describe("the settings of the resources", () => {
         sort_by: "wednesday",
         sort_order: "asc",
         is_active: "true",
-        monday_min: "8",
-        friday_max: "0",
         offset: "50",
       },
       // Every calendar, which the filter of the roles offers.
@@ -473,25 +477,6 @@ describe("the settings of the resources", () => {
     expect(rows(page, "Calendriers").at(-1)).toBe("2 calendriers");
   });
 
-  it("say at its field the upper bound of the hours of a day the server refuses, the calendars unread", async () => {
-    server.answers = {
-      ...server.answers,
-      // The page refused; every calendar, which the filter of the roles offers, read.
-      "GET /reference/calendars": [
-        { problem: example("calendars_bounds_inverted") as Problem & { status: 422 } },
-        "calendars",
-      ],
-    };
-    const page = await resourcesAt({ calendar_friday_min: "10", calendar_friday_max: "8" });
-    expect(queriesOf("GET /reference/calendars")).toEqual([
-      { friday_min: "10", friday_max: "8" },
-      WHOLE,
-    ]);
-    expect(page).toMatch(/aria-label="Ven., max."[^>]*aria-invalid="true"/);
-    expect(text(page)).toContain("La borne supérieure ne peut précéder la borne inférieure, 10.");
-    expect(page).not.toMatch(/<table[^>]*aria-label="Calendriers"/);
-  });
-
   it("ask the tree between the bounds of the depth, and say at its field the upper bound the server refuses", async () => {
     await resourcesAt({ org_level_min: "2", org_level_max: "3", org_level: "0" });
     expect(queriesOf("GET /reference/org-nodes")).toEqual([{ level_min: "2", level_max: "3" }, {}]);
@@ -539,7 +524,7 @@ describe("the settings of the resources", () => {
   });
 
   it("keep the grid of a list a search or a filter narrows to nothing, the search shown to be changed, and say empty a list nothing narrows", () => {
-    const query = { sort: undefined, search: "Personne" };
+    const query = { sort: undefined, search: "Personne", size: undefined };
     const none = { ...ROLE_PAGE.meta, total: 0 };
     const filters = {
       code: undefined,
@@ -579,7 +564,6 @@ describe("the settings of the resources", () => {
         readsInactive={false}
         editable={false}
         state={undefined}
-        hours={NO_HOURS}
       />,
     );
     expect(text(empty)).toBe("Calendriers Aucun calendrier.");
@@ -654,4 +638,41 @@ describe("the settings of the resources", () => {
       { include_inactive: "true", ...WHOLE },
     ]);
   });
+});
+
+describe("the settings of the resources, the size of the pages", () => {
+  it.each([
+    ["the resource roles", "GET /reference/resource-roles", "role_limit"],
+    ["the calendars", "GET /reference/calendars", "calendar_limit"],
+  ])(
+    "sends the limit of the reading of %s: 50 unasked, the page size asked [WF-IHM-0060-A]",
+    async (_name, route, name) => {
+      for (const [search, limit] of [
+        [{}, "50"],
+        [{ [name]: "25" }, "25"],
+      ] as const) {
+        server.clients = [];
+        await resourcesAt(search);
+        const [call] = server.clients
+          .flatMap((client) => client.calls)
+          .filter((each) => each.route === route);
+        expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+      }
+    },
+  );
+
+  it.each([
+    ["the resource roles", "GET /reference/resource-roles", "resource_roles"],
+    ["the calendars", "GET /reference/calendars", "calendars"],
+  ])(
+    "reads the page size kept for %s when the address asks none [WF-IHM-0060-A]",
+    async (_name, route, key) => {
+      kept.grids = { [key]: { page_size: 25 } };
+      await resourcesAt({});
+      const call = server.clients
+        .flatMap((client) => client.calls)
+        .filter((each) => each.route === route);
+      expect(Object.fromEntries(call[0]?.query ?? []).limit).toBe("25");
+    },
+  );
 });

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Route, test } from "@playwright/test";
+import { expect, type Page, type Route, test } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated } from "./hydration";
@@ -14,7 +14,15 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // The task of the marking queued (`task_mark_queued`), which the tracker reads by its id.
 const TASK = "01926f3a-7c00-7000-8000-000000000931";
 
-test("marking a revision gives the hand back, shows its progress, and announces on another screen its end, which comes after the change [WF-IHM-0080-A]", async ({
+/**
+ * The line under the bar that says the last task handed over or ended, apart from the log of the
+ * ends, which says the same to a reader of the screen.
+ */
+function said(page: Page, text: RegExp) {
+  return page.locator("p:not([role=log] p)", { hasText: text });
+}
+
+test("marking a revision gives the hand back, shows its progress, and tells on another screen its end, which comes after the change, kept in the history with a link back [WF-IHM-0080-A]", async ({
   page,
 }) => {
   // The read of the task comes when the test lets it come — after the change of screen, not
@@ -43,13 +51,28 @@ test("marking a revision gives the hand back, shows its progress, and announces 
   await commands.getByRole("textbox", { name: "Nom de version" }).fill("V2");
   await commands.getByRole("button", { name: "Marquer", exact: true }).click();
 
-  // The hand is back at once: the form has closed, and the task is followed with its progress.
+  // The hand is back at once: the form has closed, the line under the bar says the marking
+  // started, and the panel, opened by its button, follows it with its progress.
   await expect(commands.getByRole("form")).toHaveCount(0);
-  const tasks = page.getByRole("region", { name: "Tâches de fond" });
+  await expect(said(page, /^Tâche lancée\s: Marquage d’une révision «\sV2\s»\.$/)).toBeVisible();
+  const button = page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ });
+  await button.click();
+  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
+  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
   await expect(tasks.getByText("Marquage d’une révision « V2 »")).toBeVisible();
   await expect(
     tasks.getByRole("progressbar", { name: "Marquage d’une révision « V2 »" }),
   ).toBeVisible();
+  // Escape closes it, the focus back on its button.
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(button).toBeFocused();
+  // So does a click outside it, on the page its overlay covers, the focus back on its button.
+  await button.click();
+  await expect(panel).toBeVisible();
+  await page.mouse.click(10, 200);
+  await expect(panel).toHaveCount(0);
+  await expect(button).toBeFocused();
 
   // The user goes to another screen meanwhile, within the application — the document stays,
   // as the marker left on it shows —; the end of the marking is announced there.
@@ -63,15 +86,31 @@ test("marking a revision gives the hand back, shows its progress, and announces 
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
   // On the new screen, its read still held, the marking still runs: nothing has been read out.
-  await expect(tasks.getByRole("log")).toBeEmpty();
-  await expect(tasks.getByRole("progressbar")).toBeVisible();
+  const log = page.getByRole("log");
+  await expect(log).toBeEmpty();
 
   release();
-  await expect(tasks.getByRole("log")).toHaveText(
-    /^Tâche terminée\s: Marquage d’une révision «\sV2\s»\.$/,
-  );
-  await expect(tasks.getByText("Réussie")).toBeVisible();
+  const ended = /^Tâche terminée\s: Marquage d’une révision «\sV2\s»\.$/;
+  await expect(log).toHaveText(ended);
+  await expect(said(page, ended)).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-visited", "revisions");
+
+  // The panel shows the task ended, and the history keeps the end with a link back to the screen
+  // it was started from.
+  await button.click();
+  await expect(tasks.getByText("Réussie")).toBeVisible();
+  const last = panel.getByRole("region", { name: "Messages" }).getByRole("listitem").first();
+  await expect(last).toContainText("Tâche terminée");
+  const back = last.getByRole("link", {
+    name: "Gestion des révisions — Modernisation du poste de commande",
+  });
+  await expect(back).toHaveAttribute(
+    "href",
+    `/projects/${PROJECT}/revisions?revision_id=${REVISION}`,
+  );
+  await back.click();
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
 });
 
 test("tells, by the entry of its task, the refusal of a result the browser came back with from its route, and takes it away from the address (#416)", async ({

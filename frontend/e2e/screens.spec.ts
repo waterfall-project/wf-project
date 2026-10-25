@@ -8,8 +8,9 @@
  * of its own by a link of the screen of its function; the list of projects by the navigation.
  * Each screen reached names its function, and shows the leaves the table says it shows itself
  * (`sections`), found by their role and their name, or a fact by its text in the list of facts
- * that names it. `make screens` holds the table against the FBS and the pages of the application;
- * this path proves the links in a browser: a link hidden, or that a click does not reach, fails it.
+ * that names it. A leaf is reached too by a link of the navigation, under its function.
+ * `make screens` holds the table against the FBS and the pages of the application; this path
+ * proves the links in a browser: a link hidden, or that a click does not reach, fails it.
  *
  * The route reached is compiled before the path starts (`compile`, #142), and a screen of a project
  * the path starts from is opened hydrated (`openHydrated`, #471). The session of the fake back
@@ -49,10 +50,11 @@ async function start(page: Page, address: string): Promise<void> {
 
 /**
  * Follow a link by a click, and check the screen it leads to names what the link does: within the
- * bound of a screen of grid, which several of them are (`WORKING`).
+ * bound of a screen of grid, which several of them are (`WORKING`) — the screen the link is on too,
+ * a grid whose main part may come after the shell has hydrated.
  */
 async function follow(page: Page, link: Locator, route: string, name: string): Promise<void> {
-  await expect(link).toHaveAttribute("href", at(route));
+  await expect(link).toHaveAttribute("href", at(route), { timeout: WORKING });
   await expect(link).toBeVisible();
   await link.click();
   await expect(page).toHaveURL((url) => url.pathname === path(route), { timeout: WORKING });
@@ -104,6 +106,24 @@ for (const group of FUNCTION_GROUPS) {
     });
 
     for (const leaf of fn.leaves ?? []) {
+      test(`${leaf.code} ${leaf.route}: reached from the navigation, under ${fn.code}, which is the path to it`, async ({
+        page,
+      }) => {
+        await compile(page.request, path(leaf.route));
+        await start(page, path(fn.route));
+        const nav = page.getByRole("navigation", { name: text("navigation.label") });
+        const name = text(leaf.label);
+        await follow(page, nav.getByRole("link", { name, exact: true }), leaf.route, name);
+        await expect(nav.getByRole("link", { name, exact: true })).toHaveAttribute(
+          "aria-current",
+          "page",
+        );
+        await expect(nav.getByRole("link", { name: text(fn.label), exact: true })).toHaveAttribute(
+          "aria-current",
+          "true",
+        );
+      });
+
       test(`${leaf.code} ${leaf.route}: reached from the screen of ${fn.code}`, async ({
         page,
       }) => {

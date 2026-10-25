@@ -12,13 +12,15 @@ import { History } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { KeptListSize } from "@/components/grid/kept-list-size";
 import { ListPages } from "@/components/grid/list-pages";
+import type { GridPreferences } from "@/components/grid/settings";
 import { LocalTime } from "@/components/local-time";
 import { Actor, CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 
-import { IMPORTS_LIST } from "./address";
+import { COST_IMPORT_GRID_KEY, IMPORTS_ADDRESS, IMPORTS_LIST } from "./address";
 import type { ListPage } from "./cost-grid";
 
 /** An entry of the journal, as the contract gives it. */
@@ -44,9 +46,12 @@ function Period({ entry }: { readonly entry: CostImport }) {
 export function ImportJournal({
   imports,
   page,
+  preferences,
 }: {
   readonly imports: readonly CostImport[];
   readonly page: ListPage;
+  /** What the account kept for the journal, whose size of pages it records. */
+  readonly preferences?: GridPreferences | undefined;
 }) {
   const t = useTranslations("actualCosts.imports");
   const locale = useLocale();
@@ -97,8 +102,14 @@ export function ImportJournal({
       <ListPages
         list={IMPORTS_LIST}
         texts="actualCosts.pages.imports"
+        title={t("title")}
         page={page}
         shown={imports.length}
+      />
+      <KeptListSize
+        gridKey={COST_IMPORT_GRID_KEY}
+        address={IMPORTS_ADDRESS}
+        preferences={preferences}
       />
     </section>
   );

@@ -489,6 +489,10 @@ absents plutôt que nuls, comme le Vérif le veut —, et chaque poste est nomm�
 *Remplacé en partie par EP-14/L42s : `by_order_item` n'est jamais nul ; chaque poste du lotissement
 y est, celui qu'aucune tâche ne porte sans total (`order_item_without_task`, WF-DEV-0060).*
 
+*Remplacé en partie par US-0450/L1 : le total par niveau est celui des lots, au niveau 1 du
+lotissement, `by_work_package`, motif `work_package_without_task`, section « Le lotissement en lots,
+postes et livrables ».*
+
 **Toute opération gardée par la session déclare le 401, et une règle du contrat l'exige**
 (`rule/session-operation-declares-401` de `redocly.yaml`, #141). Le contrat ne le déclarait que sur
 une minorité d'opérations, quand toute opération gardée par la session peut répondre 401 — session
@@ -1373,6 +1377,11 @@ ci-dessus est gardé pour l'histoire.*
 et leur libellé (`order_item_task`, `work_package_tasks`), et une ligne importée hors du sous-arbre
 rejette le fichier entier (`ImportReport.refusals`).*
 
+*Remplacé en partie par US-0450/L1 : l'imbrication s'inverse, des lots qui contiennent des postes ;
+le refus devient `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste hors du sous-arbre de celle
+de son lot, nommées par `params.work_package_task` et `params.order_item_tasks`, et l'exemple
+`task_attach_outside_work_package`, section « Le lotissement en lots, postes et livrables ».*
+
 **La marge totale est signée** (#402 ; WF-PLA-0100). Une tâche manuelle borne la fin au plus tard
 de ses prédécesseurs : `TaskFacet.total_float` et `NodeSchedule.total_float` peuvent être négatifs,
 sans minimum — `Duration.value` n'en posait pas, sa description disait « jamais négative » et dit
@@ -1738,7 +1747,7 @@ la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 
 ### Les lectures de la grille (EP-02/L21)
 
 **Les exemples nommés de `listNodes` sont des lectures d'un seul arbre, engendrées** (#287 ; C1,
-C14). `wftools.mockcore` date le cœur décrit dans `mockwitness` en heures de travail sur le
+C14). `wftools.mockdating` date le cœur décrit dans `mockwitness` en heures de travail sur le
 calendrier de chaque tâche (`mockcalendar`), à partir du début des études (2 mars 2026) et de ses
 liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin la plus tardive que ses
 successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
@@ -1909,7 +1918,7 @@ comme le raccordement des borniers, et l'écart de main-d'œuvre vaut 3 515,00. 
 à la main, donne encore 80,00 de taux précédent à la mise en service : EP-02/L24 l'alignera sur le
 volume (C15 de #287, #232).
 
-**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitness.REGISTER`) : ce que l'utilisateur a
+**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitnessrisks.REGISTER`) : ce que l'utilisateur a
 saisi, leurs réexamens datés — l'identification la première, la survenance la dernière —, la
 ligne de provision qu'ils portent et celle que portait la référence. `risks`, `risk`,
 `risk_occurred_detail`, `risk_matrix`, `risk_reviews` et `risk_coverage` en sont lus : la
@@ -2046,7 +2055,7 @@ EP-02/L26.
 ### Coûts, échanges, tâches, comptes (EP-02/L25)
 
 **Les coûts réels du témoin sont décrits une fois et engendrés** (#287, C3 ; WF-CRE-0010 à
-WF-CRE-0050). `wftools.mockwitness` décrit les six lignes de coût — pièce, date, montant signé,
+WF-CRE-0050). `wftools.mockwitnesscosts` décrit les six lignes de coût — pièce, date, montant signé,
 code de sous-projet lu dans l'OTP s'il en a un, colonnes conservées dans l'ordre que les imports
 déclarent (`PASSTHROUGH`), imports qui les ont apportées, exclusion — et les cinq imports du
 journal, aux instants de la chronologie (3 avril, 4, 6 et 11 mai, 3 juin) ; `wftools.mockcosts` en
@@ -2254,7 +2263,7 @@ précédente : chaque ligne de la révision courante porte ses grandeurs à 101 
 `previous_hours`, `previous_unit_disbursement` — et le montant réestimé qu'elles donnaient,
 `previous_reestimated_amount`. La provision de 751, à 500 aujourd'hui, y était à 250 ; les lignes
 fusionnées par la survenance de 752, absentes de 101, les portent nulles, comme toute lecture d'une
-révision marquée. La description de la référence passe de `mockhistory` à `mockwitness`, que
+révision marquée. La description de la référence passe de `mockhistory` à `mockwitnessrisks`, que
 `mockcore` lit (`mockcore.current`). `remaining.dom.test.tsx`, avec les colonnes des grandeurs
 précédentes qu'EP-02/L36 a ajoutées à la grille, lit des valeurs affichées et leur format — la
 charge précédente de la main-d'œuvre, 12,5, les débours unitaires précédents des borniers,
@@ -2273,8 +2282,8 @@ son code, sans lien (`can_open`, WF-PTF-0030).
 WF-PLA-0010, WF-PLA-0160). `wftools.mockstructure` décrit, comme le cœur l'est dans
 `mockwitness`, en tâches et en lignes, neuf phases tirées après lui — les approvisionnements à la
 réception, les études étant le cœur —, chacune des trois lots, chaque lot ses tâches de travail en
-trois chaînes et un jalon ; `wftools.mockcore` date le tout ensemble, en heures de travail sur le
-calendrier des rôles de chaque tâche, le chiffre et l'émet. Les compteurs du §4.6.2 sont gardés :
+trois chaînes et un jalon ; `wftools.mockdating` date le tout ensemble, en heures de travail sur le
+calendrier des rôles de chaque tâche, le chiffre, et `mockcore` l'émet. Les compteurs du §4.6.2 sont gardés :
 mille tâches, dont les quinze du cœur, et cinq mille lignes, dont ses neuf — cinq sur chacune des
 922 tâches de travail tirées et une sixième sur 381 d'entre elles. **Deux calendriers** : le
 câblage est confié au monteur câbleur, toutes ses heures de main-d'œuvre, et ses 103 tâches
@@ -2442,7 +2451,7 @@ les deux Kanban ne présentent que les tâches du cœur. Leurs résumés le dise
 (`mocktext.CORE_ONLY`, « jusqu'à EP-14/L45b »).
 
 **Le générateur à cette échelle.** Une structure est datée et émise une fois pour une date, des taux
-et une revue précédente donnés (`mockcore.core`, `mockcore.schedule`), une révision lue une fois
+et une revue précédente donnés (`mockcore.core`, `mockdating.schedule`), une révision lue une fois
 (`mockindicators.read`) ; les flux d'une courbe sont sommés d'un coup une fois dépensés en entier et
 lus un à un tant qu'ils courent (`mockcurves.Spread`), les bornes de chacun comptées une fois sur son
 calendrier. `make mock-data` écrit le tout en une quinzaine de secondes.
@@ -3352,6 +3361,11 @@ tâches correspondantes et leurs parents » (Vérif de WF-PLA-0080). Exemples en
 son lot) et `work_breakdown_work_packages` (`kinds=work_package` : le lot, sans son livrable, sous
 son poste).
 
+*Remplacé en partie par US-0450/L1 : la nature liste lot, poste, livrable, dans l'ordre des niveaux
+(`[work_package, order_item, deliverable]`) ; `work_breakdown_work_packages` devient
+`work_breakdown_order_items` (`kinds=order_item` : le poste, sans son livrable, sous son lot), et
+`work_breakdown_search` cherche « lot », section « Le lotissement en lots, postes et livrables ».*
+
 **Une lecture filtrée n'a pas de compteur** (revue du lot ; WF-IHM-0110). `setWorkBreakdown` et
 `setContributors` écrivent le lotissement et la liste des contributeurs entiers : une lecture
 filtrée, renvoyée telle quelle avec le compteur du tout, supprimerait sans un mot ce qu'elle omet,
@@ -3376,6 +3390,8 @@ elle, rend toujours le tout avec son compteur suivant, jamais nul : la réponse 
 `setContributors` rend la sienne — section « Le squelette, le rattachement, les chronologies et les
 nœuds retenus d'un lotissement filtré (EP-14/L42k) ». Le texte ci-dessus est gardé pour
 l'histoire.*
+
+*Remplacé en partie par US-0450/L1 : `work_breakdown_work_packages` devient `work_breakdown_order_items`.*
 
 **Les comptes se filtrent par leur état** (`is_active`, revue du lot ; WF-IHM-0130, WF-ADM-0060).
 `include_inactive` ne faisait qu'ajouter les désactivés aux actifs : la colonne de l'état ne se
@@ -3413,6 +3429,8 @@ témoin, dont il écrit désormais la forme pour `mockdata` : `users_by_access_r
 `work_breakdown_work_packages` ; `test_mocklists.py` éprouve la recherche, les filtres et les bornes
 sur des lignes de synthèse, et chaque exemple contre ce qu'il lit. Le client est régénéré ; le front
 les adoptera.
+
+*Remplacé en partie par US-0450/L1 : `work_breakdown_work_packages` devient `work_breakdown_order_items`.*
 
 ## Les écritures des paramètres de ressources (EP-02/L43b)
 
@@ -4601,6 +4619,11 @@ les rétentions de L42m — n'est publiée sans refus.
 colonne (#711), et `test_mockbounds.py` parcourt les corps de toutes les écritures, chaque borne
 publiée devant avoir son refus et son exemple.*
 
+*Remplacé en partie par US-0460/L3b (#1183) : `createNode` et `moveNodes` n'écrivent plus de
+`position` — leur place se désigne par `after_node_id`, refusé par `NODE_NOT_SIBLING` —, et
+n'en publient plus la borne ; `nodes_move_position_out_of_range` est remplacé par
+`nodes_move_after_not_sibling`, et `node_create_out_of_range` ne garde que le délai de paiement.*
+
 **Une sauvegarde déposée est vérifiée par sa restauration, avant toute déconnexion** (#679 ;
 WF-ADM-0150, WF-ADM-0160, WF-ARC-0090). Une sauvegarde de la liste ne se restaure que vérifiée
 après sa production (`backup_verified`, EP-14/L42h) ; une archive déposée n'avait aucune
@@ -5350,6 +5373,10 @@ fait pendant un traitement de fond, et les compteurs qu'elle avance, sont ouvert
 *Remplacé en partie par EP-14/L42s : la saisie attend la fin d'un traitement de fond
 (`update_work_breakdown`, `no_background_task_running`), et dit les compteurs qu'elle avance (#775).*
 
+*Remplacé en partie par US-0450/L1 : c'est un poste rangé sous un autre lot qui retire le
+rattachement de sa tâche, hors du sous-arbre de la tâche de ce lot, section « Le lotissement en
+lots, postes et livrables ».*
+
 **Une fusion qui sortirait la tâche d'un lot du sous-arbre de celle de son poste échoue en nommant
 les tâches** (#586, point 2 ; WF-PLA-0170 : « Une fusion qui déplacerait la tâche d'un lot hors du
 sous-arbre de la tâche de son poste est refusée en nommant la tâche » ; WF-IHM-0080 : « l'échec
@@ -5369,6 +5396,10 @@ est ouvert en #775.
 *Remplacé en partie par EP-14/L42s : le compte rendu préalable de la fusion existe
 (`getStructureMergeReport`, #771), et le refus de `moveNodes` nomme les tâches de même (#775).*
 
+*Remplacé en partie par US-0450/L1 : la fusion échoue par `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, qui
+nomme la tâche du lot et celles des postes (`work_package_task`, `order_item_tasks`), exemple
+`task_merge_outside_work_package`, section « Le lotissement en lots, postes et livrables ».*
+
 **Le compte rendu d'un import nomme le poste ou le lot qui perd sa tâche** (#586, point 4 ;
 WF-INTF-0040 : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le
 poste ou le lot qui perd sa tâche. »). `ImportDifference.work_breakdown_label`, nullable et
@@ -5385,6 +5416,10 @@ sans total »), que ni L44c ni L44d ne consomme.
 *Remplacé en partie par EP-14/L42s : le fichier qui sortirait la tâche d'un lot du sous-arbre de son
 poste, ou dépasserait l'horizon, est rejeté entier (`ImportReport.refusals`), et le poste sans tâche
 rattachée est présenté sans total (#771).*
+
+*Remplacé en partie par US-0450/L1 : c'est la tâche d'un poste qui ne sort pas du sous-arbre de
+celle de son lot, et le total est celui des lots (`by_work_package`), section « Le lotissement en
+lots, postes et livrables ».*
 
 **Le projet liste les chronologies parmi ses commandes** (`ProjectCommand.manage_timelines` ;
 WF-PLA-0140 : « Un projet peut porter plusieurs chronologies. Chacune porte un nom, conserve la
@@ -5425,6 +5460,11 @@ proposition du constat, que la grille aurait dû croiser avec l'arbre ; des comp
 auraient servi la ligne des totaux sans marquer les lignes de contexte ; la marque sur les éléments
 partagés avec l'écriture, qu'un client aurait renvoyée ; le nom `matched` du constat, le contrat
 nommant ses booléens `is_…`. Les quatre lectures engendrées du lotissement portent la marque.
+
+*Remplacé en partie par US-0450/L1 : `work_breakdown_order_items`, qui remplace
+`work_breakdown_work_packages`, rend le lot marqué faux, et la ligne des totaux dit « 1 poste » ;
+chaque lot et chaque poste lus portent aussi `attached_task`, section « Le lotissement en lots,
+postes et livrables ».*
 
 **Identifiants et corrélations** : 1130 à 1135 ; la tâche de fond 939 ; la révision 103 et sa
 structure 207, réemployées par `revision_without_tasks`, `structures_without_tasks`, `nodes_empty`,
@@ -5530,7 +5570,7 @@ fermé la modification, le réexamen et la suppression d'un risque, qui n'en dé
 paiement, en jours, qui […] reste saisissable sur toute ligne autre qu'une ligne de provision, qui
 n'en porte pas » ; WF-IND-0100 : « une ligne de provision, qui n'en porte pas, reste à la date de la
 tâche qui la porte »). Le délai quitte les `editable_fields` de la ligne de provision, sa lecture le
-rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockcore.payment_delay`,
+rend nul, et la courbe des décaissements la laisse à la date de sa tâche (`mockdating.payment_delay`,
 `mockindicators.delays`) ; envoyé, il est refusé par 422, `fields` sur `/payment_delay_days`, motif
 `FIELD_NOT_ACCEPTED`, code nouveau, celui de tout champ qu'un nœud n'accepte pas, ni saisi ni
 calculé pour lui, que le contrat refusait jusqu'ici sans le nommer : un champ d'une autre nature de
@@ -5628,6 +5668,13 @@ motifs, et `import_apply_rejected` (corrélation 1153) ; les quatre comptes rend
 garder la ligne rejetée, contre « comme un planning qui dépasse l'horizon ». Le code de l'horizon
 n'est encore déclaré ni par les saisies ni par la fusion : #788.
 
+*Remplacé en partie par US-0450/L1 : le motif rejeté entier est `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+la tâche d'un poste hors du sous-arbre de celle de son lot, section « Le lotissement en lots, postes
+et livrables ».*
+
+*Complété par US-0460/L2 : les saisies déclarent le code de l'horizon, section « Les gestes de
+structure et la saisie des tâches » ; la fusion reste à EP-16 (#788).*
+
 **Un poste sans tâche rattachée est présenté sans total** (#771, point 3 ; WF-DEV-0060 : « un poste
 sans tâche rattachée est présenté sans total » ; Vérif : « les totaux par poste sont absents plutôt
 que nuls »). `EstimateIndicators.by_order_item` n'est plus nullable : chaque poste du lotissement,
@@ -5642,6 +5689,10 @@ un total nul, et la part d'un total nul reste à dire (#774, L42t) — l'exemple
 omettre le poste, que l'écran ne pourrait présenter sans relire le lotissement ; un montant nul dans
 un schéma propre, quand l'enveloppe `Computable` dit déjà qu'une valeur ne se calcule pas ; la liste
 nulle, qui ne présente aucun poste.
+
+*Remplacé en partie par US-0450/L1 : le total est celui des lots,
+`EstimateIndicators.by_work_package`, motif `work_package_without_task`, section « Le lotissement en
+lots, postes et livrables ».*
 
 **Le lotissement attend la fin d'un traitement de fond** (#775, point 1 ; WF-PLA-0170, WF-IHM-0090).
 La saisie du lotissement retire le rattachement des tâches de la révision en cours : pendant un
@@ -5670,6 +5721,10 @@ pour la tâche que `createNode` crée, son nœud nul, et pour une cellule `work_
 un bloc contigu après le premier exemple — et non juste après lui : deux opérations citent d'autres
 refus avant ceux de leurs bornes. Écarté : garder les identifiants et leur adjoindre des libellés,
 deux noms pour un rôle.
+
+*Remplacé en partie par US-0450/L1 : le refus est `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, ses paramètres
+`work_package_task` et `order_item_tasks`, ses exemples `task_attach_outside_work_package` et
+`nodes_move_outside_work_package`, section « Le lotissement en lots, postes et livrables ».*
 
 **Corrélations** 1150 à 1154 ; l'import a16. `test_mockprovision.py` tient C-291, l'installation
 neuve et le risque sans tâche ; `test_mockcostsettings.py` les catégories nommées ;
@@ -6105,6 +6160,1470 @@ d'attribution) ; deux tâches d'EP-03 (`task_restore_backup_newer_version`,
 `task_interrupted_by_restore`) prennent les identifiants libres …0945 et …0946, la première mise en
 file à 14 h 08, et la lecture des comptes (`identity_sync_queued`, `identity_sync_succeeded`) à
 14 h 03 min 30 s : chaque tâche à son instant (`test_mockuniverse.py`).
+
+## Le lotissement en lots, postes et livrables (EP-15/US-0450)
+
+**Le lotissement découpe la commande en lots, qui contiennent des postes, qui contiennent des
+livrables** (C-350, WF-PRJ-0020 : « Le lotissement découpe la commande en lots, chaque lot contenant
+des postes, chaque poste contenant des livrables »). La spécification inversait les deux premiers
+niveaux, et le contrat l'avait suivie (#1054). Les identifiants gardent leur sens, comme le tableau
+du §4.4.1 le dit désormais — « Lot, Poste, Livrable — work_package, order_item, deliverable » — :
+`WorkPackage` désigne toujours un lot et `OrderItem` un poste ; c'est leur imbrication qui s'inverse
+(décision 2 de #1054). `WorkBreakdown` et `WorkBreakdownReading` portent `work_packages` au
+niveau 1, chaque lot ses `order_items`, chaque poste ses `deliverables` ; `WorkBreakdownKind` liste
+`[work_package, order_item, deliverable]`, dans l'ordre des niveaux, et les pointeurs des refus de
+`setWorkBreakdown` suivent (`/work_packages/<i>/order_items/<j>/…`). Chaque règle reste attachée à
+son niveau : « la suppression d'un lot emporte ses postes » (WF-DAT-0080), « lorsque le lot d'un
+poste est rattaché, la tâche de ce poste se trouve dans le sous-arbre de la tâche de ce lot »
+(WF-PLA-0170), et le squelette engendre la récapitulative d'un poste sous celle de son lot
+(WF-PRJ-0030). Écarté : échanger les identifiants avec les noms, `order_items` au niveau 1, qui
+ferait lire « poste » là où le code dit `work_package` et changerait le sens de chaque rattachement
+déjà écrit.
+
+**Ce qui s'attache à un niveau le suit, nom compris** (défaut n° 10 du guide : un nom qui dit autre
+chose que la cause). Le total par niveau de WF-DEV-0060 est celui des lots, au niveau 1 :
+`EstimateIndicators.by_order_item` devient `by_work_package`, et son motif
+`order_item_without_task` devient `work_package_without_task` (« un lot sans tâche rattachée est
+présenté sans total »). La règle du sous-arbre prend le code `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, à la
+place de `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, et ses paramètres `params.work_package_task` — la tâche
+du lot — et `params.order_item_tasks` — celles des postes qui en sortiraient —, partout où elle
+refuse : `updateTaskFacet`, `createNode`, `moveNodes`, l'échec de `mergeCostStructure`, les
+`refusals` de `ImportReport` et de `StructureMergeReport`, `PasteRejection`. Écarté : garder les
+codes et les noms d'ancienne lecture avec une description inversée. Les clés des deux catalogues
+qui nomment un niveau suivent : `errors.ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+`enums.NotComputableReason.work_package_without_task`, `enums.WorkBreakdownKind` dans l'ordre des
+niveaux ; « poste » au sens du poste de travail ou d'un rôle de ressource ne bouge pas.
+
+**Chaque lot et chaque poste lus disent la tâche qui les porte** (#802 ; WF-PLA-0170 : « un lot ou
+un poste n'y est porté que par une tâche à la fois »). `WorkPackageReading` et `OrderItemReading`
+portent `attached_task`, exigé, `AttachedTask` — le nœud et le libellé de la tâche de la structure
+principale de la révision en cours qui porte l'élément, comme les refus du rattachement nomment une
+tâche — ou nul : l'écran qui supprime un lot ou un poste ne confirme que ce qui est porté, et nomme
+la tâche qui perdra son rattachement. Un livrable n'en porte pas : aucune tâche ne porte un
+livrable. L'écriture ne le porte pas, comme `is_match` : un renvoi de la lecture le laisse. Écarté :
+un booléen `is_attached`, qui obligerait l'écran à relire le planning pour nommer la tâche.
+
+**Les exemples suivent le témoin renommé** : son lot 711, « Lot 1 », porté par la récapitulative
+« Poste de commande », son poste 712, « Poste 1.1 », qu'aucune tâche ne porte, et le livrable 713 ;
+le poste 716, « Poste 1.2 », ajouté par `work_breakdown_entered`. `work_breakdown_work_packages`
+devient `work_breakdown_order_items` (`kinds=order_item`, les postes sous leur lot), et les variantes
+`task_attach_outside_order_item`, `task_merge_outside_order_item`, `nodes_move_outside_order_item`
+deviennent `…_outside_work_package`, leurs noms d'exemple aussi (`outside_work_package`,
+`merge_outside_work_package`). Exemples ajoutés ou repris pour `updateTaskFacet` (#817 point 2a,
+#819 points 9 et 10) : `task_attached`, engendré, le succès d'un rattachement — le jalon
+« Réception usine » porte le poste 1.1, une feuille sous la récapitulative qui porte le lot ;
+`task_attach_refused` refuse désormais sur `/work_package_id` le lot déjà porté par « Poste de
+commande » ; `task_attach_exclusive` refuse `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` sur `/order_item_id`,
+le scénario que le front produit : une grille lue avant que la récapitulative porte son lot, qui
+envoie le poste sans mettre le lot à nul.
+
+**Ce que ces décisions remplacent en partie**, une mention le disant à sa place : « Le devis dit son
+écart à la référence et ses totaux par poste » (#160) ; « Toute tâche porte son rattachement au
+lotissement » (#411) ; « Le lotissement se cherche sur ses libellés et se filtre par nature »
+(#560) ; et, d'EP-14, « Un lot rangé sous un autre poste retire le rattachement de sa tâche, sans
+refus », « Une fusion qui sortirait la tâche d'un lot du sous-arbre de celle de son poste échoue en
+nommant les tâches », « Le compte rendu d'un import nomme le poste ou le lot qui perd sa tâche »
+(#586), « Chaque élément d'une lecture du lotissement dit s'il est retenu » (#574), « Un fichier
+d'import rejeté entier », « Un poste sans tâche rattachée est présenté sans total » (#771) et « Les
+tâches du refus d'un lot hors de son poste sont nommées par leur libellé » (#775),
+« Une lecture filtrée n'a pas de compteur » (revue du lot, EP-02/L42f) et la liste des exemples que
+`mocklists` engendre (EP-02/L42f). Leur texte est gardé pour l'histoire.
+
+## La structure lue, sa phase et son diff (EP-15/US-0460, US-0480, US-0500)
+
+**Chaque structure dit ses commandes de saisie** (C-358, #1067 ; WF-DEV-0050, WF-RAE-0040,
+WF-IHM-0090). En chiffrage, le planning et le devis travaillent la structure principale ; en
+réalisation, le planning et le reste à engager, la grille de devis restant lisible en lecture
+seule. Le serveur ne refuse aucune écriture selon la grille qui l'envoie — une tâche créée sur la
+structure principale d'un projet En cours est la même écriture depuis le planning et depuis le
+reste à engager —, si bien que la lecture seule du devis est une règle de présentation, que le
+serveur doit dire et que le front ne déduit pas de l'état du projet. `CostStructure` porte
+`available_commands`, exigé, une liste de `StructureCommandAvailability` sur une énumération
+nouvelle, `StructureCommand` : `edit_planning`, `edit_estimate`, `edit_remaining`, chacune gardée
+par la permission de la commande de même nom de la révision, présente ou absente comme elle. Sur
+la structure principale, `edit_estimate` manque de `project_before_in_progress` dès En cours, ou
+dans un état terminal — la condition existait pour la probabilité de gain (#590), et dit le même
+fait — ; `edit_remaining` manque de `project_in_progress` hors de l'état En cours, avant comme
+après — la condition existait aussi, pour la clôture et l'import des coûts réels : elle est
+nouvelle pour cette commande, sans valeur nouvelle de `CommandCondition`. Sur un différentiel et
+sur le devis propre d'un risque, `edit_planning` et `edit_estimate` n'ont pas de condition de
+phase (WF-DEV-0050), et `edit_remaining` n'est jamais listée (WF-RAE-0040 : seule la principale).
+La condition de phase vient d'abord, puis les conditions d'état de la révision — `revision_draft`,
+`no_background_task_running`, `project_not_terminal` — telles que la commande de même nom de la
+révision les nomme : la condition propre à la commande d'abord, comme `update_win_probability`
+(« Sur un projet clos, `project_not_terminal` vient en dernier »). Les commandes de la révision
+(`RevisionCommand`) ne changent pas, et gardent ce qui ne lit pas une structure : le squelette, le
+marquage, les exports, les risques. Écartés : une condition sur `RevisionCommand.edit_estimate`,
+qui aurait fermé avec la principale le devis propre d'un risque et le différentiel ; des
+`editable_fields` vides sur le devis d'un projet En cours, qui ne disent rien de la création ni de
+la suppression ; lire `Project.state`, que le front ne déduit pas. Les exemples `structures`,
+`structures_amendments` et `structures_without_tasks`, écrits à la main, disent leurs commandes ;
+`test_mockphase.py` les confronte à la révision et au projet qu'ils lisent.
+
+**L'inscription aux chronologies est un champ que la tâche accepte** (#1065 ; WF-PLA-0060).
+`EditableField` gagne `task.tracking`, que nomme toute tâche de la structure principale,
+récapitulative, feuille ou jalon, en dernier, et aucune autre : la grille de planning offre le
+sous-menu des chronologies d'après le nœud, sans le déduire de la structure lue. L'écriture reste
+`setNodeTracking`, sous la commande de saisie du planning, comme les autres champs de la tâche :
+`editable_fields` dit ce que le nœud accepte, la commande ce que l'appelant a le droit d'écrire.
+Écarté : une commande propre à la tâche, qui doublerait une liste que le nœud porte déjà.
+
+**Une ligne d'une tâche démarrée ne quitte pas un sous-projet qui a reçu des coûts réels** (C-359,
+#1066, #1067 ; WF-PRJ-0050). `updateEstimateLine` le refuse par 422 `VALIDATION_FAILED`, `fields`
+sur `/subproject_id`, motif nouveau `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le
+sous-projet quitté par son identifiant et son libellé — « est refusé et nomme ce sous-projet » —,
+et la ligne ne nomme pas `estimate_line.subproject_id` dans `editable_fields` : la grille n'offre
+pas d'avance un choix qu'elle refuserait. Le champ n'est pas pour autant calculé, et ne va pas dans
+`computed_fields`. « Démarrée » s'entend comme le complément de « non démarrée », la seule à
+pouvoir changer de sous-projet : une tâche terminée retient ses lignes comme une tâche démarrée. Le
+pointeur est celui du corps de `updateEstimateLine`, `EstimateLineUpdate`, plat comme pour
+`/payment_delay_days` et `/cost_category_id` — la conception d'EP-15 l'écrivait
+`/estimate_line/subproject_id`, le chemin d'un `NodeCreate`, que ce refus ne concerne pas. Écarté :
+un 409 `STATE_FORBIDS_OPERATION`, qui aurait dit l'état d'un objet là où c'est la valeur d'un champ
+qui est refusée. Exemples engendrés (`mockwrites`) : `estimate_line_subproject_changed`, la ligne
+« Mise en service sur site », d'une tâche non démarrée, passée du Poste de commande aux Essais et
+mise en service ; `estimate_line_subproject_has_actual_costs`, la main-d'œuvre du câblage, démarré,
+refusée hors du Poste de commande, qui a reçu la facture des écrans. Les deux sous-projets du témoin
+ayant reçu des coûts réels, les lignes des tâches démarrées ou terminées qui portent l'un d'eux ne
+nomment plus le champ, dans le cœur comme dans la structure de mille tâches.
+
+**La création d'un nœud ne dépend pas de la grille qui l'envoie** (K9 de la conception d'EP-15 ;
+WF-DEV-0050, WF-RAE-0040, WF-RAE-0050). La description de `createNode` le dit : aucun refus de
+phase, la phase étant une commande de la structure ; une tâche créée sans mode ni durée — depuis la
+grille de devis ou de reste à engager, qui ne les présentent pas — est une feuille en mode
+automatique, d'un jour, sans prédécesseur ; une ligne ajoutée après la référence porte un montant
+budgété nul. La phrase « une tâche ajoutée après la référence porte un montant budgété nul » devient
+celle d'une ligne : une tâche n'a de montant que la somme de ses lignes.
+
+**Un exemple ajouté par un lot de front, hors conception : `structures_estimator`** (US-0460/L3,
+#1094 ; WF-IHM-0090, WF-DEV-0050). Aucun exemple existant ne dit la structure d'un estimateur — il
+n'a ni `planning.write` ni `remaining.write`, si bien que la principale ne liste que
+`edit_estimate`, disponible. L'exemple se lit sur la révision `revision_without_tasks` et sa
+structure principale, d'un projet qui n'est pas En cours, où le devis se saisit, comme
+`structures_without_tasks` ; il ne porte pas ceux du témoin, dont le projet est En cours. Il sert
+aux tests de l'écran de devis : l'estimateur y saisit les lignes, non le libellé d'une tâche, qui
+est au planning.
+
+## Les gestes de structure et la saisie des tâches (EP-15/US-0460, US-0470, US-0480)
+
+**Chaque geste de structure et chaque saisie d'une tâche a son exemple de succès** (K3 de la
+conception d'EP-15, #1056, #1073, #1065 ; WF-IHM-0040). Les grilles d'US-0460 à US-0480 créent,
+déplacent, mettent en retrait et suppriment, saisissent le mode, les dates, la durée et la
+description d'une tâche, ses prédécesseurs et ses inscriptions ; le contrat ne donnait l'exemple que
+de quelques-unes de ces écritures. Ils sont engendrés, comme les autres écritures de grille, par la
+différence de deux lectures du témoin (`wftools.mockgestures`, qui reprend `wftools.mockwrites`) :
+`node_created`, une tâche créée à côté du dossier de conception, son libellé seul envoyé — une
+feuille automatique d'un jour, sans prédécesseur, à la date de début de planning, non démarrée
+(K9) ; `node_created_child`, une sous-tâche créée sous elle, qui en fait sa récapitulative — elle
+suit la première, la structure à sa troisième version (#421) — ; `estimate_line_created`, une ligne
+de matériel sous la mise en service, au budgété nul (WF-RAE-0050) ; `nodes_moved`, une sélection de
+deux lignes d'une tâche tirée autour du cœur déplacées sous la suivante ; `nodes_indented`,
+l'installation sur site mise en retrait sous le poste de commande — une mise en retrait est un
+déplacement sous la tâche au-dessus, sans opération propre — ; `node_summary_deleted`,
+l'installation, non démarrée, supprimée avec ses subordonnées, leurs lignes et leurs liaisons
+(Vérif de WF-PLA-0070 : « le devis diminue d'autant ») ; `task_mode_changed`, la mise en service
+passée en mode manuel à ses dates, son prédécesseur devenu critique, puis `task_dates_entered`, ses
+dates saisies en 2027, qui la suit ; `task_duration_entered`, une durée saisie en semaines et rendue
+dans cette unité (WF-PLA-0160) ; `task_description_entered` ; `predecessors_entered`, deux liaisons
+de types différents, le décalage en semaines ; `node_tracked`, la revue de conception inscrite à la
+chronologie « Revue client ». Un nœud créé est rendu à sa première version, et les anciens ancêtres
+d'un nœud déplacé avec ses nouveaux, comme `NodesWritten` le dit déjà. Le témoin gagne ce qu'il faut
+pour les engendrer : une tâche porte l'unité de sa durée, une description et ses inscriptions quand
+une écriture les lui donne. Chaque nœud écrit l'est par ce seul exemple à sa version : les nœuds
+créés sont les tâches 581 et 582 et la ligne 583. La règle de #421 — deux exemples ne rendent
+jamais un même nœud, à une même version, avec deux contenus — vise les nœuds écrits, `nodes`, et
+non les `ancestors` : un exemple qui en suit un autre (`following`) fait évoluer ses ancêtres sans
+changer leur version, puisqu'il ne les écrit pas. Ainsi le nœud 581, feuille à sa version 1 dans
+`node_created`, revient à la même version, devenu récapitulative, parmi les ancêtres de
+`node_created_child`.
+
+**Une date calculée envoyée est refusée sans paramètre** (WF-PLA-0020, WF-IHM-0030).
+`task_date_computed_refused` : la fin du montage, en mode automatique, envoyée à `updateTaskFacet`,
+refusée par 422 `VALIDATION_FAILED`, `fields` sur `/finish`, motif `COMPUTED_VALUE`, comme le
+contrat le disait. Ce dont la valeur dépend se lit par `getComputedValueDependencies`, que la grille
+appelle déjà : le refus ne le recopie pas.
+
+**Les refus des liaisons sont des 422, et la boucle nomme ses tâches** (WF-PLA-0030, WF-PLA-0040 ;
+#788). `setPredecessors` déclarait `LINK_CYCLE` et `LINK_FORBIDDEN` sous un 409, quand le
+catalogue des codes les range parmi les 422 des règles métier et que la conception d'EP-15 dit « le
+422 `LINK_CYCLE` » : ce n'est pas l'état d'un objet qui refuse, c'est la valeur envoyée. Le 409 de
+l'opération reprend la réponse commune des conflits d'état. `LINK_CYCLE` porte `params.cycle`, les
+tâches de la boucle, chacune par son nœud et son libellé, de la tâche saisie au prédécesseur envoyé
+qui la suit déjà, chacune précédant la suivante — « la raison en est nommée à l'utilisateur »
+(Vérif de WF-PLA-0030), la grille, filtrée, pouvant ne pas les lire ; `LINK_FORBIDDEN`, la liaison
+d'une récapitulative et de sa subordonnée, n'a pas de paramètre, son code disant la raison et la
+conception n'en prévoyant pas. Exemples : `predecessors_cycle_refused`, la réception usine donnée à
+suivre la mise en service, qui la suit par le montage — trois tâches, dans l'ordre des liaisons — ;
+`predecessors_forbidden`, le montage donné à suivre sa propre récapitulative. Écartés : garder le
+409, contre le catalogue ; un refus par champ, `/predecessors/<n>`, qui localiserait la liaison mais
+pas la boucle, faite de liaisons déjà enregistrées.
+
+**Un déplacement ou une mise en retrait refusent les mêmes liaisons** (#1164, tranché par l'auteur
+le 2026-10-19, et #1167 ; WF-PLA-0030, WF-PLA-0040). Une récapitulative couvre ses subordonnées : ce
+qui la précède les précède, ce qui la suit les suit. Mettre en retrait B sous A quand A est le
+prédécesseur de B fait de A la récapitulative de B avec la liaison A → B, celle que WF-PLA-0030
+refuse ; déplacer une tâche sous une autre qu'elle suit déjà par une chaîne de liaisons ferme une
+boucle à travers la hiérarchie. `moveNodes` déclare donc `LINK_FORBIDDEN`, sans paramètre comme pour
+`setPredecessors`, et `LINK_CYCLE`, `params.cycle` nommant les tâches de la chaîne, de la
+récapitulative qui recevrait le nœud — ou de l'un de ses ancêtres — à la tâche reçue ou à l'une de
+ses subordonnées, ou dans l'autre sens, chacune précédant la suivante, la plus courte rendue. Une
+chaîne d'une seule liaison est la liaison interdite : le code le plus précis l'emporte. Exemples,
+engendrés par `wftools.mockgestures` : `nodes_indent_forbidden`, la mise en service mise en retrait
+sous le montage, la tâche au-dessus d'elle et son prédécesseur ; `nodes_move_cycle_refused`,
+« Documentation 1.1.7 », tâche tirée autour du cœur, déplacée sous « Préparation 1.1.1 », qu'elle
+suit par « Réalisation 1.1.4 ». `mockdating.schedule` refuse les deux structures que ces gestes
+laisseraient, comme celle que `predecessors_cycle_refused` laisserait : le faux back ne date pas ce
+que le serveur refuse. `createNode` ne déclare ni l'un ni l'autre (#1167, tranché par l'auteur le
+2026-10-19) : son corps ne porte pas de liaison (`TaskFacetWrite`, sans `predecessors`), et créer un
+enfant sous une tâche ne lie ni elle ni l'un de ses ancêtres au nœud créé — les deux refus y sont
+inatteignables. #1164 les y étendait ; une création qui portera des liaisons les déclarera avec
+elles. Écartés : nommer la liaison interdite par un paramètre, que la conception ne prévoit pas plus
+que pour `setPredecessors` ; un 409, pour la raison dite plus haut.
+
+**L'horizon refuse les saisies qui déplacent une date** (WF-PLA-0150 : « une saisie, un import ou une
+fusion qui la porterait au-delà est refusé, et le refus nomme la tâche en cause » ; #788, part
+« saisies »). `PROJECT_HORIZON_EXCEEDED`, code du rejet entier d'un import (EP-14/L42s), devient
+aussi le refus, par 422 sans `fields`, de `updateTaskFacet`, `setPredecessors`, `createNode` et
+`moveNodes` ; `params.task` nomme la tâche que la saisie écrit — celle dont la durée, les dates ou
+les prédécesseurs se saisissent, celle que la création ajouterait, par le libellé envoyé et son
+nœud nul comme une tâche qu'un fichier crée, la tâche déplacée ou celle qui reçoit la ligne
+déplacée —, pas la dernière tâche de la structure qu'elle repousse : c'est la cellule saisie que la
+grille marque (Vérif : « le déplacement d'une tâche … est refusé, et la tâche est nommée »). Un
+refus sans `fields`, parce que la cause n'est pas une valeur hors de ses bornes mais la durée du
+projet entier. Exemples : `task_horizon_exceeded`, la fin des pupitres opérateurs, manuels, saisie
+quinze ans et un jour après le début du projet, le 2 mars 2026 — le Vérif mot pour mot — ;
+`predecessors_horizon_exceeded`, la mise en service décalée de deux cents mois de travail ;
+`node_create_horizon_exceeded`, une tâche créée de deux cents mois. `moveNodes` n'a pas d'exemple :
+un déplacement ne change une date qu'en changeant le calendrier d'une tâche, et aucun déplacement du
+témoin ne porte si loin. Les refus sont engendrés avec les succès, pour que leurs libellés soient ceux
+des lectures ; la conception d'EP-15 les disait écrits à la main. La part « fusion » de #788 — le
+refus de l'horizon et du cycle par `mergeCostStructure` et son compte rendu — reste à EP-16.
+
+**Le suivi temps/temps d'une tâche qui n'est pas un jalon n'a pas encore d'exemple.** La conception
+nomme `node_tracking_milestone_refused`, un 422, sans dire le code ni le pointeur, que le catalogue
+n'a pas : ce lot ne l'invente pas, et le refus reste à trancher avant le lot d'écran qui le
+dit.
+
+**Le collage et l'import ne déplacent pas une ligne retenue par son sous-projet** (C-359, #1152 ;
+WF-PRJ-0050, WF-IHM-0050, WF-INTF-0100, WF-INTF-0120 ; décision de l'auteur du 2026-10-19). Une
+ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne
+nomme plus `estimate_line.subproject_id` dans `editable_fields` depuis US-0460/L1 : par la règle
+générale du collage, sa cellule aurait été refusée par `FIELD_NOT_ACCEPTED`, un code qui ne dit pas
+la cause (défaut n° 10 du guide). Elle l'est par `SUBPROJECT_HAS_ACTUAL_COSTS`, le motif de
+`updateEstimateLine`, avec le même `params.subproject` (`subproject_id`, `label`), sur la colonne
+`subproject` (`PasteRejection`) ; au compte rendu d'un import, la ligne est rejetée de même par son
+rang (`ImportRejection`) — placée, dans un reste à engager, dans l'onglet d'un autre sous-projet ou
+dans « Hors sous-projet », ou portant, dans un devis, un autre sous-projet ou une cellule vide —, et
+le compte rendu « nomme ce sous-projet » (WF-INTF-0120) : celui que la ligne ne peut pas quitter, ce
+que le refus de `updateEstimateLine` nomme déjà. La spécification ne dit pas la forme du motif : ce
+lot prend la plus proche des refus existants, le code et les paramètres que la ligne recevrait
+saisie, comme `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` au collage et `TASK_WITHOUT_WORKING_HOURS` à
+l'import. Une cellule ou un onglet qui nomme le sous-projet de la ligne ne la déplace pas, et n'est
+pas refusé : un bloc ou un fichier repris d'un export porte les sous-projets tels qu'ils sont. Une
+cellule vide se lit autrement au collage et à l'import : collée, elle n'écrit rien, comme toute
+cellule vide (`PastePreview`), et n'est pas refusée ; importée dans la colonne d'un devis, elle
+laisserait la ligne hors sous-projet — ce qu'un reste à engager dit par son onglet « Hors
+sous-projet » —, et la ligne est rejetée. Une ligne d'une tâche non démarrée change de sous-projet, et le compte rendu le présente comme un écart,
+`fields` à `subproject`. Exemples engendrés (`wftools.mockexchanges`), jugés sur la lecture du
+témoin comme le serveur les juge : `paste_plan_subproject_held`, deux sous-projets collés depuis la
+main-d'œuvre du câblage, démarré — l'un refusé, l'autre, celui des borniers, le leur, accepté — ;
+`import_remaining_subproject_held`, un reste à engager dont l'onglet « Essais et mise en service »
+porte la mise en service sur site, non démarrée, qui en change, et la main-d'œuvre du câblage,
+rejetée, le Poste de commande nommé. Écarté : garder `FIELD_NOT_ACCEPTED` au collage, qui aurait fait
+dire à la grille « ce champ ne s'écrit pas » d'une ligne que la saisie refuse pour une autre raison.
+
+**Une ligne rejetée d'un import est désignée par son onglet** (#1162, tranché par l'auteur le
+2026-10-19 ; WF-INTF-0080, WF-INTF-0180). ANNEXE B place chaque lot d'un devis et chaque
+sous-projet d'un reste à engager dans un onglet : le rang seul, `ImportRejection.row`, ne disait pas
+lequel, et deux lignes de deux onglets peuvent avoir le même rang ; l'utilisateur doit pouvoir
+retrouver dans son fichier la ligne que le compte rendu rejette. `ImportRejection` gagne `sheet`,
+le nom de l'onglet tel que le fichier le porte — le lot ou le sous-projet, ou « Hors lot » et « Hors
+sous-projet », que Waterfall fixe sans égard à la langue (WF-INTF-0180) —, nul pour un fichier à un
+seul onglet, un planning MS Project ou une extraction de coûts réels. Le champ n'est pas exigé :
+un compte rendu sans onglet reste lisible. L'exemple engendré `import_remaining_subproject_held` le
+renseigne, l'onglet « Essais et mise en service », et son résumé dit la ligne 3 de cet onglet.
+L'exemple écrit à la main `import_analysed`, un devis Excel dont deux lignes sont rejetées, ne le
+porte pas encore : il n'est pas réécrit ici, mais l'a été depuis, par US-0500/L1. Le contrat
+garde sa citation de WF-INTF-0100, dont le texte complété attend son intégration par l'auteur
+(#1166).
+
+**L'import du devis est refusé sur la structure principale d'un projet En cours** (C-358, #1153 ;
+WF-INTF-0100 : « l'import du devis est refusé sur la structure principale, en nommant la
+condition »). `openImport` le refuse par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `project_before_in_progress` — la condition que la structure principale
+nomme déjà à la saisie de son devis (`StructureCommand.edit_estimate`, K2) —, et rien n'est analysé ;
+`applyImport` la nomme de même pour un devis analysé avant le passage à En cours, l'état étant
+revérifié à l'exécution (WF-ARC-0100). La spécification dit « en nommant la condition » sans la
+nommer : ce lot reprend celle qui existe, plutôt qu'une condition nouvelle qui dirait la même chose.
+`ProjectCommand.import_estimate` reste disponible sur un projet En cours, l'import restant ouvert
+sur un différentiel et sur le devis propre d'un risque : le front lit la commande de la structure
+visée. Exemple engendré : `import_estimate_main_in_progress`, sa condition lue à la structure
+principale de `structures`. Écartés : un motif au compte rendu (`ImportReport.refusals`), qui aurait
+lu le fichier pour refuser ce que l'état du projet suffit à refuser ; une condition sur
+`import_estimate`, qui aurait fermé l'import du différentiel avec celui de la principale. Les
+descriptions d'`openImport`, `getImport` et `applyImport` citent WF-INTF-0100 et, pour les deux
+premières, WF-INTF-0120.
+
+## La place d'un nœud créé ou déplacé (EP-15/US-0460/L3b, #1183)
+
+**Une création et un déplacement désignent leur place par le nœud qu'ils suivent** (décision de
+l'auteur du 2026-10-20, #1183, relevée à la revue de US-0460/L3b). Le contrat ne disait pas le sens
+de `position` à l'écriture — un index parmi les frères, à partir de 0 ou de 1, ou une clé d'ordre —,
+et les exemples se contredisaient : l'unique racine de `nodes_estimate` portait 1, son index étant
+0. Une grille filtrée ne lit qu'une partie des frères d'un nœud : elle ne peut pas compter un rang,
+seulement nommer le nœud qu'elle montre. `NodeCreate` et `NodeMove` portent donc `after_node_id`,
+le nœud après lequel se placer parmi les frères sous `parent_id` : nul, le nœud se place en tête de
+son genre ; absent, à la fin de son genre, ce que font les gestes existants — une sous-tâche, une
+ligne sous une tâche, un déplacement sous une autre tâche (`node_created`, `estimate_line_created`,
+`nodes_moved`, `nodes_indented`) ; le paragraphe suivant dit les deux genres, les lignes d'une
+tâche puis ses sous-tâches. Les nœuds déplacés se suivent dans l'ordre de `node_ids`. `position`
+n'est plus écrit.
+
+**Les lignes d'une tâche précèdent toujours ses sous-tâches**, à la création comme au déplacement
+(relevé à la revue du contrat de L3b, à valider avec le reste de #1187). Une ligne et une tâche
+sont frères sous une même tâche, et `after_node_id` peut nommer un frère de l'autre genre ;
+« absent, en fin » ne disait pas où va une ligne sous une tâche qui a des sous-tâches. La règle
+retenue est celle que `Node.position` lisait déjà et que suit le témoin, `wftools.mockcore`, qui
+rend les lignes d'une tâche puis ses subordonnées : nul, une ligne se place en tête des lignes,
+une tâche en tête des sous-tâches ; absent, une ligne après la dernière ligne, une tâche après la
+dernière sous-tâche ; un `after_node_id` d'un autre genre se replie sur la frontière entre lignes
+et sous-tâches — une ligne envoyée après une sous-tâche se place après la dernière ligne, une
+tâche envoyée après une ligne en tête des sous-tâches. Une sélection de `moveNodes` qui mêle
+lignes et tâches applique la règle à chaque nœud, dans l'ordre de `node_ids` : le premier nœud de
+chaque genre prend la place que la règle lui donne après `after_node_id`, chacun des suivants se
+place après le précédent de son genre. Écartés : refuser un `after_node_id` de l'autre genre, un
+refus de plus pour une place que la règle sait dire ; mêler lignes et sous-tâches dans un ordre
+libre, que ni la lecture ni le témoin ne connaissent. Exemple engendré par
+`wftools.mockgestures` : `estimate_line_created_after_subtask`, une ligne créée sous le poste de
+commande, qui n'en porte aucune, après la réception usine, sa dernière subordonnée — elle devient
+son premier enfant, au rang 1, avant le câblage des armoires.
+
+**Un `after_node_id` qui n'est pas un frère est refusé** : 422 `VALIDATION_FAILED`,
+`fields[].pointer` à `/after_node_id`, motif nouveau `NODE_NOT_SIBLING`, sans paramètre — la grille
+nomme le nœud qu'elle a envoyé —, rien n'étant écrit. Est un tel nœud celui d'un autre parent, l'un
+des nœuds déplacés, ou un nœud que la structure n'a pas. Écartés : `UNKNOWN_TASK`, qui dit une tâche
+inconnue alors que le nœud suivi peut être une ligne, et connu sous un autre parent ;
+`VALUE_OUT_OF_RANGE`, qui dit une borne. Exemples engendrés par `wftools.mockgestures`, aux
+corrélations 1178 et 1179 : `node_create_after_not_sibling` (une tâche créée sous les études après
+le câblage des armoires, du poste de commande) et `nodes_move_after_not_sibling` (les borniers
+déplacés sous la mise en service après le raccordement des borniers, qui reste sous le câblage),
+celui-ci premier sous le 422 de `moveNodes`, à la place de `nodes_move_position_out_of_range`.
+
+**`Node.position` reste lu, en lecture seule** : le rang du nœud parmi les frères de son parent —
+ses tâches et ses lignes, dans l'ordre du plan —, à partir de 1. Le témoin le portait à partir de 0,
+lignes et sous-tâches comptées à part : `wftools.mockcore` le compte désormais à partir de 1, les
+lignes d'une tâche puis ses subordonnées, et `make mock-data` réécrit les lectures et les écritures
+qui le portent ; l'exemple écrit à la main `skeleton_generated` suit.
+`test_positions_count_the_siblings_of_one_parent_from_one` (`tools/tests/test_mockstructure.py`) le
+tient. Le front envoie `after_node_id` : le nœud actif pour « Insérer au-dessous » et pour une
+ligne sous une ligne, rien pour une sous-tâche et une ligne sous une tâche, qui vont en fin
+(`bodyOf`, `structure-rules.ts`) ; `errors.NODE_NOT_SIBLING` a sa phrase dans les deux catalogues.
+
+## Le diff d'un différentiel, la comparaison en arbre, l'avenant 2 du témoin (EP-15/US-0500/L1)
+
+**Le serveur rend l'écart de chaque nœud, le front ne calcule rien** (C-361, #1060 ; WF-REV-0080,
+WF-REV-0100 ; partie K2 de la conception d'EP-15). `Node` gagne `difference`, sur une énumération
+nouvelle `NodeDifference` — `added`, `removed`, `modified`, `unchanged` —, et `changes`, l'énumération
+qu'avait `ComparedNode.changes`, nommée `NodeChange`, `parent` compris. Ils sont rendus sur deux
+lectures, toujours, que `fields` les nomme ou non : la lecture d'un différentiel (`listNodes`), par
+rapport à la structure principale de sa révision, et la comparaison de deux révisions, par rapport
+à la révision de base ; nuls, ou omis, sur la principale et sur le devis propre d'un risque, qui ne
+se lisent par rapport à rien. Les nœuds sont rapprochés par la lignée. Un nœud retiré est rendu à la
+place qu'il avait, après le dernier des frères qui le précédaient et que l'arbre rendu garde sous le
+même parent, en lecture seule (`editable_fields` vide) ; il occupe sa ligne, si bien que
+`row_number` et `position` comptent l'arbre rendu, nœuds retirés compris, et qu'un prédécesseur est
+nommé par la ligne où il est rendu. Un nœud déplacé est rendu une fois, à sa place nouvelle,
+`parent` parmi ses `changes`. Une tâche est `modified` par ses propres valeurs — dates, durée,
+avancement, parent —, une ligne par ses montants ou son parent, et une tâche aussi par son seul
+contenu, `changes` vide : une ligne ou une subordonnée ajoutée, retirée ou modifiée sous elle, ou
+déplacée d'elle — la marque « M » d'une récapitulative dont le contenu change, que l'US-0500 veut.
+Les totaux d'une lecture d'un différentiel ne comptent pas les nœuds retirés. Les tâches modifiées
+par leurs propres valeurs se comptent sur un `changes` non vide, celles modifiées par leur seul
+contenu ayant un `changes` vide (relecture 1) ; les descriptions de `NodeDifference`, de
+`Node.row_number` et de `Node.position` le disent, et que les nœuds retirés comptent dans le rang et
+la ligne. Écartés : le diff
+calculé par le front, en lisant deux structures, contraire au principe que le front ne déduit rien
+(WF-ARC-0020) ; un nœud retiré rendu à part, en fin de lecture, qui ne se lirait pas « à sa place ».
+
+**`RevisionComparison` rend l'arbre comparé** : `nodes`, la structure principale de la révision
+comparée dans l'ordre du plan, sans pagination, comme `listNodes`, chaque nœud avec sa marque et les
+champs que `fields` nomme — `compareRevisions` prend `fields`, le paramètre `NodeFields` partagé avec
+`listNodes`, et déclare son 400 —, à la place de `added`, `removed` et `changed`. `amount_deltas`
+reste. `ComparedNode` disparaît ; ses clés de catalogue deviennent `enums.NodeChange`, et
+`enums.NodeDifference` s'ajoute. Une paire identique rend chaque nœud inchangé. L'exemple
+`comparison`, engendré, rend l'arbre entier de la référence 101 comparée à l'offre 100 — 5 999
+nœuds rendus entiers, puisqu'un exemple sans `fields` les rend tels, 7,4 Mo —, `comparison_identical`
+devient engendré, le cœur de l'offre comparé à lui-même, variante déclarée : la structure entière
+de l'offre aurait pesé autant que `comparison` pour ne rien montrer de plus.
+
+**L'avenant 2 « reprise des essais » est un différentiel non fusionné de la révision courante 102**
+(#791, constat de la relecture 1 d'EP-14/L42s). Il coexistait dans la référence 101 avec l'avenant
+1 ; la révision 102, créée d'elle, l'a repris (WF-REV-0100) : `structures` le liste, structure 203,
+`edit_planning` et `edit_estimate` disponibles, compteur 2. `wftools.mockamendment` le décrit sur la
+structure principale de 102 : sous l'installation sur site, une récapitulative « Essais sur site »
+porte la « Reprise des essais de câblage », nouvelle, avec sa ligne, et la « Mise en service »,
+déplacée sous elle, liée à la reprise au lieu du montage, allongée à quinze jours et sa ligne à
+120 h ; l'« Assistance aux essais de câblage » est retirée du montage. Ses tâches ne portent ni
+lot, ni poste, ni inscription, et ne nomment pas `task.order_item_id`, `task.work_package_id` ni
+`task.tracking` (WF-PLA-0170, WF-PLA-0060). `wftools.mockdiff` marque l'arbre, pour le différentiel
+comme pour la comparaison. Exemples engendrés : `nodes_amendment`, l'installation sur site lue sur
+le différentiel (`subtree_of`) ; `structure_merge_report`, devenu une lecture du témoin — les tâches
+et la ligne ajoutées, la liaison de la mise en service, sa durée et la charge de sa ligne, la ligne
+retirée ; aucune tâche démarrée retirée. Le Vérif de WF-REV-0050 qu'il portait (« Le compte rendu
+d'une fusion dont le différentiel retire une tâche démarrée nomme cette tâche comme terminée ») passe
+à une variante déclarée, écrite à la main, `structure_merge_report_started_task`, l'ancien premier
+exemple (« Avenant 3 — pupitres déportés »). Le déplacement de la mise en service ne se disait pas
+au compte rendu, `ImportDifference.fields` ne nommant que des colonnes (`NodeColumn`) ; il s'y dit
+depuis par `parent` (#1194, EP-15/US-0490/L1, ci-dessous), avec la liaison et la durée.
+
+**La révision courante offre la fusion** (relecture 1). Puisqu'elle porte l'avenant 2 non fusionné,
+`merge_structure` y est disponible, sans condition manquante, dans `revision` et l'item 102 de
+`revisions` ; pendant un marquage ou un import (`revision_marking`, `revision_importing`), il ne
+manque que de `no_background_task_running`. `revision_without_tasks`, sur le projet créé
+aujourd'hui, sans différentiel, garde `unmerged_amendment_exists`.
+`test_a_revision_offers_the_merge_and_not_a_differential_iff_it_bears_one_not_merged`
+(`tools/tests/test_mockcycle.py`, depuis EP-15/US-0490/L1) tient, sur la révision courante et sur
+celle du projet créé aujourd'hui, que la commande est disponible si et seulement si `structures`
+liste un différentiel non fusionné, dans les deux sens (#1196). La variante
+`cost_curve_amendment`, dont la marche du 10 mars s'appelait « avenant 2 », dit désormais « un
+autre avenant » que celui du témoin (`mocktoday.OTHER_AMENDMENT`).
+
+**Un nœud, à une version, n'a qu'un contenu, sur toutes les lectures d'une révision** (#421 étendu,
+relecture 1). Les nœuds de l'avenant 2 portaient les identifiants de ceux de la structure principale
+qu'ils copient — l'installation sur site, 561 à 566, à la version 1 —, avec d'autres valeurs : deux
+lectures rendaient un même nœud, à une même version, sous deux contenus. Ils ont désormais leurs
+identifiants à eux, sur une plage dédiée : le nœud 5nn de la principale est 12nn dans le
+différentiel, un nœud tiré a sa famille engendrée (`mockids`, `mockamendment.own_id`), et ceux que
+l'avenant ajoute vont de 1291 à 1293 ; ils gardent la lignée de la principale, qui les rapproche
+(6nn, de 691 à 693 pour les ajoutés), si bien que le compte rendu de la fusion et l'import du devis
+de l'avenant (`import_analysed` : 663 retirée, 693 mise à jour), qui nomment des lignées, ne changent
+pas. Le parent et les prédécesseurs d'un nœud du différentiel sont nommés par ces identifiants, et
+une ligne est numérotée dans l'arbre rendu. La règle : deux exemples ne rendent jamais un même nœud,
+à une même version, avec deux contenus — sur les clés que tous deux rendent, une lecture ne rendant
+que les champs qu'elle demande —, qu'il s'agisse des lectures d'une structure ou des réponses de
+ses écritures (`nodes`). En sont exemptés, nommément : la comparaison de deux révisions marquées
+(`comparison`), qui nomme ses nœuds par les identifiants de la révision courante selon la
+convention de #287 (C12) ; les variantes contrefactuelles déclarées, dont le résumé s'ouvre par
+« Variante contrefactuelle » — `comparison_identical`, `nodes_summaries`, lecture de la variante à
+quatre niveaux, et `startable_tasks_milestone`, le Kanban du câblage supposé terminé, une lecture
+contrefactuelle et non la suite d'une écriture (#1196) — ; et ce qu'une écriture rend sans l'écrire
+(`ancestors`, `rescheduled`, `reinflated`), qui évolue sans changer de version.
+`test_two_examples_never_render_one_node_at_one_version_with_two_contents`
+(`tools/tests/test_mockversions.py`, où le test des écritures est passé) la tient.
+
+**Le suivi temps/temps d'une tâche qui n'est pas un jalon est refusé** (#1159, décision de l'auteur
+du 2026-10-19 ; WF-PLA-0060). `setNodeTracking` le refuse par 422 `VALIDATION_FAILED`,
+`fields[].pointer` sur le genre de l'entrée qui le demande, `/entries/<n>/kind`, `n` son rang dans
+`entries` à partir de 0, motif nouveau `MILESTONE_REQUIRED`, sans paramètre, rien n'étant écrit ;
+`errors.MILESTONE_REQUIRED` a sa phrase dans les deux catalogues. Exemple engendré par
+`wftools.mockgestures`, corrélation 1180 : `node_tracking_milestone_refused`, la mise en service
+envoyée avec son inscription au comité de pilotage et une entrée au suivi temps/temps, la seconde.
+
+**L'import du devis du témoin vise l'avenant 2** (#1161, décision de l'auteur du 2026-10-19 ; C-358,
+WF-INTF-0100). Il visait la structure principale de PRJ-001, En cours, que C-358 refuse
+(`import_estimate_main_in_progress`). `import_analysed`, écrit à la main, est réécrit comme l'import
+du devis de l'avenant 2, le résumé nommant sa structure par son `structure_id` : ses lignes sont
+celles du différentiel (`nodes_amendment`), et ses deux lignes rejetées nomment leur onglet,
+« Hors lot », aucune tâche d'un différentiel ne portant de lot (#1168). `imports`, `import_analysing`,
+`file_upload`, `task_import_queued`, `task_import_succeeded` et le journal d'audit qui l'applique
+(`mockaudit`) suivent son nom de fichier et son résumé ; `imports_page`, qui ne le liste pas, ne
+change pas. `test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_progress`
+(`tools/tests/test_mockuniverse.py`) tient qu'aucun import du devis du témoin ne vise la principale
+d'un projet En cours.
+
+**Deux corrections de rédaction** (#1170). La description d'`ImportReport.rejected` dit chaque
+ligne « par son rang, et son onglet quand le fichier en a plusieurs », `sheet` étant nul pour un
+fichier à un seul onglet. Le résumé d'`import_remaining_subproject_held` écrit « qu'imports », et
+tire ses heures des instants de l'import (`mocktext.hour`).
+
+## La comparaison de révisions se lit comme `listNodes` (EP-15/US-0500/L5)
+
+**`compareRevisions` adopte la mécanique de `listNodes`** (décision de l'auteur du 2026-10-20 sur
+#1193). L'arbre entier de la comparaison — 5 999 nœuds rendus entiers, un exemple `comparison` de
+7,4 Mo (US-0500/L1, ci-dessus) — se lisait autrement que les grilles de la structure ; il se lit
+désormais comme elles, et la grille dense, déjà virtualisée, le lira comme les autres. Les mêmes
+paramètres : les filtres, la recherche et le tri de `listNodes`, écrits jusqu'ici dans son chemin,
+deviennent des paramètres partagés — `NodeKinds`, `NodeSubtreeOf`, `NodeCostTypeFilter`,
+`NodeOrderItemFilter`, `NodeWorkPackageFilter`, `NodeCostCategoryFilter`, `NodeResourceRoleFilter`,
+`NodeProgressFilter`, `NodeCriticalFilter`, `NodeSummariesOnly`, `NodeMaxLevel`,
+`NodeTimelineFilter`, `NodeSortBy` —, que les deux opérations citent avec `Search`,
+`SubprojectFilter`, `SortOrder` et `NodeFields`, sans que `listNodes` en change. La même réponse :
+`RevisionComparison` rend `items`, à la place de `nodes`, `totals` (`NodeTotals`) et `meta`
+(`NodeListMeta`), de la révision comparée, à côté de `from_revision_id`, `to_revision_id` et
+`amount_deltas`. La même mécanique : `listNodes` rend la structure entière, sans pagination — un
+arbre ne se lit pas par pages, une page couperait une tâche de ses lignes (EP-02, « `listNodes` rend
+la structure entière ») —, et une lecture filtrée en est une fenêtre ; la comparaison de même, ses
+filtres s'appliquant comme à la lecture d'un différentiel. `difference` et `changes` restent
+toujours rendus, `totals` ne compte pas les nœuds retirés, qui ne sont plus de la structure
+comparée.
+
+**`amount_deltas` vient dans chaque réponse, comme `totals`**, et se calcule de même sur les lignes
+que la lecture retient — les lignes retirées comprises, rendues à leur place —, quel que soit
+`kinds` : sans filtre, les écarts de toute la structure ; d'un sous-arbre, les siens. `listNodes`
+n'ayant pas de pagination, il n'y a pas de « première fenêtre » : chaque lecture porte ses écarts,
+comme chaque lecture de `listNodes` ses totaux. Écarté : des écarts toujours de toute la structure,
+qui feraient d'`amount_deltas` la seule valeur de la réponse que ses filtres ne restreignent pas.
+
+**L'écart se compte par ligne retenue, selon le parent de la révision comparée.** Le diff rend un
+nœud déplacé une fois, à sa place nouvelle ; la fenêtre le retient par cette place, et ses écarts
+de même : une ligne déplacée dans un sous-arbre y apporte son écart entier — son montant dans la
+révision comparée moins celui de la révision de base —, une ligne déplacée hors de lui n'y compte
+plus rien. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière,
+chaque ligne comptée une fois. Écarté : compter une ligne déplacée dans chaque fenêtre, pour son
+montant de base dans celle qu'elle quitte et son montant comparé dans celle où elle entre — la
+ligne y serait sans être rendue, et une fenêtre compterait ce qu'elle ne montre pas.
+
+**`subtree_of` sur une tâche retirée** rend le sous-arbre qu'elle avait dans la révision de base,
+ses nœuds retirés à leur place : la tâche est de l'arbre rendu, et la grille offre de la déplier
+comme les autres. Ses totaux sont nuls, la révision comparée n'en ayant aucune ligne, et ses écarts
+sont ceux de ses lignes retirées. Écarté : un refus 422, qui rendrait illisible une tâche que la
+comparaison rend. **Le tri** ne réordonne que les lignes sous chaque tâche ; la place qu'il donne
+à une ligne retirée, dans une comparaison comme dans la lecture d'un différentiel par `listNodes`,
+restait à trancher (#1201, point 4) ; tranché depuis (#1205, EP-15/US-0490/L1, ci-dessous) : sur
+ses valeurs de base, comme tout nœud. `NodeSortBy`, partagé, dit le tri sans nommer les exemples ni
+les grilles de `listNodes`, que son chemin dit désormais.
+
+**Les exemples sont des fenêtres**, engendrés par `wftools.mockcomparisons`. `comparison`, le premier,
+est le sous-arbre de l'installation sur site (`subtree_of`), comme `nodes_amendment` sur le
+différentiel : 9 nœuds, et chaque marque — deux ajoutés, la tâche et la ligne retirées, à leur
+place, deux lignes réestimées, trois tâches modifiées par leur seul contenu —, les totaux de
+`listNodes` sur ce sous-arbre de la référence, les écarts de ses lignes ; 13 ko au lieu de 7,4 Mo.
+`comparison_identical` garde le cœur de l'offre comparé à lui-même, lu entier. Le sous-arbre d'un
+arbre marqué se prend par `wftools.mockdiff.window`, que `nodes_amendment` emploie aussi. Les faits
+de toute la structure — 5 999 nœuds, 2 770 modifiés par leurs valeurs, 1 027 251,25 d'écart — restent
+tenus par `tools/tests/test_mockhistory.py` sur la comparaison lue entière, que le générateur calcule
+sans qu'un exemple la rende. Aucune variante ne montre une page suivante : `listNodes` n'en a pas.
+
+## L'exemple de volume de la comparaison, et ses nœuds partiels (EP-15/US-0500/L6)
+
+**Un exemple de volume pour la comparaison** (décision de l'auteur du 2026-10-20 sur #1201,
+point 2). Les fenêtres de L5 ne disent pas ce que pèse la comparaison que l'écran lit entière ;
+`volume`, cité en deuxième sous `compareRevisions`, la rend : la comparaison de l'offre et de la
+référence sur toute la structure du témoin, 5 999 nœuds, lue sans filtre et avec `fields` réduit à
+ce que l'écran montre — `kind`, `task.label`, `estimate_line.label` —, 1,3 Mo au lieu de 7,4 Mo.
+Il est engendré par `wftools.mockcomparisons` comme `nodes_thousand` pour `listNodes`
+(`fixtures/api/volume/comparison_volume.json`), la lecture avec `fields` par
+`wftools.mockcore.with_fields`. US-0500/L4 éprouve dessus la borne de 15 s d'US-0500, et le fera
+passer en premier.
+
+**Les nœuds de la comparaison sont décrits par un schéma partiel** (décision de l'auteur du
+2026-10-20, #1208). « Une lecture de `listNodes` choisit les champs qu'elle rend » (#166, ci-dessus)
+laissait aux schémas le nœud entier, que rend une lecture sans `fields`, et à une lecture avec
+`fields` des propriétés exigées qu'elle omet ; un exemple ainsi lu n'était pas conforme, et
+`make lint-openapi` le refusait. `RevisionComparison.items` est désormais un tableau de
+`ComparedNodeRead`, dont seules sont exigées les propriétés toujours rendues — `node_id`,
+`row_number`, `level`, `lock_version` — et la marque du nœud, `difference`, jamais nul, et
+`changes` ; ses facettes, `ComparedTaskFacet` et `ComparedEstimateLineFacet`, n'exigent rien. Le
+schéma de `listNodes`, `Node` et ses facettes, ne change pas : il reste la seule réponse dont le
+schéma ne dit pas tout d'une lecture avec `fields`. Les propriétés sont reprises de `Node`, de
+`TaskFacet` et d'`EstimateLineFacet` par des ancres YAML (`&node_properties`, `<<:`), que le
+bundle résout en copies : une propriété ajoutée au nœud l'est aux deux, et aucune ne dérive.
+Écartés : un `$ref` par propriété (`#/Node/properties/…`), que le bundle hisse en composants
+renommés (`budgeted_amount-2`) et dont les modèles du service faisaient des classes vides ; une
+exception dans `.redocly.lint-ignore.yaml`, qui laisserait l'exemple non vérifié. Le front de la
+comparaison lit les types partiels : il ne suppose plus `kind` ni `lineage_id`, ses lignes sont
+clés par `node_id`, toujours rendu.
+
+## La saisie et le collage sur l'avenant, et les prédécesseurs que la tâche accepte (EP-15/US-0500/L4)
+
+**La saisie et le collage du devis sur l'avenant ont leurs exemples** (décision de l'auteur du
+2026-10-22 sur #1277). Le faux back servait `nodes_amendment` à l'adresse de la structure 203
+(#1219), mais `updateEstimateLine`, `previewPaste` et `applyPaste` y répondaient des nœuds du
+témoin, que l'avenant ne contient pas : la grille les lisait comme une autre ligne, et les parcours
+de saisie et de collage lisaient le devis propre d'un risque. Trois exemples, nommés `amendment`
+sous leur opération, engendrés par `wftools.mockamendmentwrites` comme les gestes du devis sur
+l'avenant (#1214) : `estimate_line_updated_amendment`, la charge de la ligne que l'avenant ajoute,
+« Assistance à la reprise des essais » (nœud 1293), portée de 40 à 48 h ; `paste_plan_amendment`,
+un bloc de trois lignes et quatre colonnes collé sur son libellé, et `paste_applied_amendment`, ce
+bloc confirmé. Chaque ligne du bloc écrit la ligne de la grille à la même distance sous la cellule
+visée (`PastePreview`) : les lignes 7 à 9 de `nodes_amendment`, la ligne ajoutée, la mise en
+service et sa ligne. La mise en service est une tâche : elle prend son libellé, et ses cellules
+vides, qui tombent sur des colonnes de ligne, n'écrivent rien ; le bloc est accepté entier, ce que
+dit le premier Vérif de WF-IHM-0050. Le collage suit la saisie, comme celui du témoin suit son
+libellé saisi (#421) : la ligne 1293 y est à la version 3, la structure au compteur 4. Sur un
+différentiel, le budgété suit les grandeurs, d'où la fusion tirera le budget (WF-REV-0050).
+`wftools.mock` répète, pour chaque différentiel que liste le premier exemple de
+`listCostStructures`, les chemins de ces trois opérations avec celui de `listNodes`, et y place
+l'exemple `amendment` en tête ; Prism classe un chemin par ses segments écrits, devant celui qui
+les laisse en gabarit. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme
+ceux de la principale. Écartés : un aperçu commun au témoin et à l'avenant, dont le collage
+identifié (`paste_id`) n'aurait pas été celui du bloc collé ; l'aiguillage des avenants 212 et 213
+et des structures de risque, qui va à EP-16 avec la même décision.
+
+**Une réponse d'écriture ne rend pas parmi les ancêtres un nœud qu'elle écrit** (`NodesWritten`,
+« hors des nœuds écrits »). Le collage sur l'avenant écrit une tâche et sa ligne : la tâche est un
+nœud écrit, rendu dans `nodes`, et non dans `ancestors`. `wftools.mockwrites.written` l'écarte
+désormais ; aucun exemple existant n'écrivait un nœud et l'un de ses ancêtres à la fois.
+
+**Les prédécesseurs sont un champ que la tâche accepte** (décision de l'auteur du 2026-10-22 sur
+#1257, point 2). La cellule des prédécesseurs était offerte à toute tâche lue avec sa tâche, faute
+de champ qui la nomme : un nœud retiré d'un différentiel, en lecture seule, l'aurait gardée
+saisissable, une commande que le service refuserait (WF-IHM-0090). `EditableField` gagne
+`task.predecessors`, écrit par `setPredecessors` (WF-PLA-0030), que nomme toute tâche,
+récapitulative, feuille ou jalon, de toute structure, après ses autres champs de planning et avant
+le rattachement au lotissement ; un nœud retiré n'en nomme aucun (`editable_fields` vide). Une
+liaison n'est refusée qu'à sa saisie, par ce qu'elle relie — une récapitulative et sa subordonnée
+(`LINK_FORBIDDEN`), une boucle (`LINK_CYCLE`) — : la tâche ne dit pas d'avance une liaison qu'elle
+refuserait. `editable_fields` dit ce que le nœud accepte, `edit_planning` ce que l'appelant a le
+droit d'écrire, comme pour `task.tracking`. Écarté : garder la colonne par la marque du différentiel
+dans la grille (US-0500), qui déduirait la règle de la structure lue au lieu de la lire au nœud.
+
+## Du projet créé au projet En cours, et l'avenant (EP-15/US-0490, US-0510)
+
+**Le cycle des révisions a ses exemples de succès** (partie K4 de la conception d'EP-15, #1074,
+#1072, #1061 ; US-0490/L1). Ils sont écrits à la main dans la chronologie du témoin, et
+`tools/tests/test_mockcycle.py` les date et les confronte aux lectures qu'ils suivent. Ces tests
+devaient aller dans `test_mockhistory.py`, mais il aurait dépassé les mille lignes.
+- `revision_created` (201) : la révision 103, ouverte aujourd'hui à 14 h 05 sur le projet créé à
+  la même heure. C'est celle que lit `revision_without_tasks`, à sa première version.
+- `reference_designated` (200) : le projet témoin le 15 janvier 2026 à 11 h, au moment où l'offre
+  v1.0, marquée pendant le chiffrage, est désignée référence à la commande. Le projet porte son
+  code, et passe donc En cours à cet instant, comme ses transitions et le journal le disent. Sa
+  version est 5 : la fusion de l'avenant 1 et l'ouverture de la révision courante la porteront à
+  7.
+- `rate_update_applied` (200) : la révision 101, le 12 janvier 2026 à 10 h 15. Ouverte un quart
+  d'heure plus tôt par une saisie de risque, elle portait les taux de l'offre projetés. La mise à
+  jour, toujours proposée depuis la révision en cours, est acceptée ensuite (C-362, WF-REV-0060).
+  Une version de plus : les lectures de la 101 marquée la portent désormais à 2, au lieu de 1,
+  qu'aucune écriture n'expliquait. `mockwitness.RATES_UPDATED` date cet instant antérieur, que
+  `test_mockhistory.py` admet pour cet exemple seul.
+- `amendment_created` (201) : l'avenant 2 « reprise des essais », ouvert dans la révision 101
+  alors en cours, pendant que l'avenant 1 « extension du poste » l'est encore, à sa première
+  version. Deux différentiels coexistent ainsi dans une même révision (WF-REV-0100, #1211).
+- `task_merge_queued` (202) : la fusion de l'avenant 2, confirmée aujourd'hui à 14 h 09, la suite
+  d'une écriture, à un instant à elle.
+- `merge_running` et `merge_succeeded` (`getBackgroundTask`, fichiers `task_merge_running` et
+  `task_merge_succeeded` ; #1362, US-0510) : la même tâche que `task_merge_queued` (…948,
+  `structure_merge`, soumise à 14 h 09), en cours à 60 %, puis aboutie à 14 h 10 min 30 s. Les
+  tâches de fond suivent ainsi la fusion par son propre identifiant, comme l'import et l'export ;
+  `task_running` et `task_succeeded` restent le marquage …931, premier exemple servi. Les lectures
+  des structures, d'avant la confirmation, montrent encore l'avenant 2 à fusionner : aucun exemple
+  ne lit la structure après la fusion, et #421 n'est pas en jeu, une tâche n'ayant pas de version.
+  Écrits à la main, comme les autres tâches ; `test_mockcycle.py` les tient à la tâche en file.
+
+**L'abandon est hors de l'annulation** (C-363, WF-IHM-0110). La description d'`abandonRevision`
+le dit : l'abandon est irréversible, et l'écran le dit dans sa confirmation. Celle
+d'`applyRateUpdate` dit qu'une mise à jour refusée à la création s'accepte ensuite, tant que la
+révision n'est pas marquée (C-362).
+
+**Les refus du cycle, chacun avec son exemple** (corrélations 1181 à 1185) :
+- **`designateReferenceRevision`** dit son 409 dans l'ordre de la commande `designate_reference`.
+  - `revision_marked` d'abord.
+  - Puis la condition nouvelle `revision_has_tasks_and_lines` : une révision dont la structure
+    principale ne porte aucune tâche ou aucune ligne de devis (WF-CYC-0030).
+    `reference_without_tasks` montre ce refus sur la révision du projet créé aujourd'hui, marquée
+    sitôt ouverte. `revision_without_tasks` nomme aussi cette condition parmi celles qui manquent
+    à sa désignation.
+  - Puis `reference_correctable`, refusée par son code propre, `REFERENCE_NOT_CORRECTABLE`, sans
+    paramètre (WF-REV-0040 ; `reference_not_correctable`, l'offre désignée de nouveau
+    aujourd'hui). La révision courante 102 la nomme aussi, après `revision_marked` : le témoin a
+    reçu des coûts réels et marqué la 101 depuis la désignation de l'offre. `revision`,
+    `revisions`, `revision_marking` et `revision_importing` la portent, et
+    `test_mockcycle.py` le tient.
+
+  Écartée : l'enveloppe commune, `STATE_FORBIDS_OPERATION` à `reference_correctable`. Le
+  catalogue porte ce code depuis EP-02, comme `CURRENT_REVISION_EXISTS` pour `createRevision`, et
+  le cadrage le nomme. `test_mockproject.py` tient qu'un refus qui nomme une condition est celui de
+  l'enveloppe commune : ce code n'en nomme donc aucune.
+- **`applyRateUpdate`** refuse une révision marquée par 409 `STATE_FORBIDS_OPERATION` à
+  `revision_draft` (`rate_update_revision_marked`). C'est une écriture de la révision, comme son
+  marquage, et non une saisie d'une grille, qu'une révision marquée refuse par 403. Aucune
+  `RevisionCommand` ne la dit d'avance : son 409 seul nomme `revision_draft`, ou
+  `no_background_task_running` pendant un traitement de fond sur la révision.
+- **`mergeCostStructure`** a l'exemple de son 412 : `merge_report_stale`, dont
+  `expected_lock_version` est le compteur courant du différentiel.
+
+**La désignation proposée a son exemple** (US-0490/L2, WF-REV-0040). Aujourd'hui, aucune révision
+du témoin ne propose sa désignation : il a reçu des coûts réels et marqué la 101 depuis celle de
+l'offre. Le Vérif — « proposée tant que le projet n'a ni coût réel ni révision marquée depuis la
+dernière désignation » — n'avait donc aucun exemple du côté où elle l'est.
+`revisions_designation_open`, de `listRevisions`, lit l'historique à un instant antérieur de la
+même chronologie : le 15 janvier 2026 à 10 h 59 (`mockcycle.READ_AT`), juste avant la réception de
+la commande et la désignation de 11 h (`reference_designated`), sans coût réel encore. L'offre
+v1.0 y liste `designate_reference` disponible, et c'est la seule révision marquée. La 101, alors
+en cours, attend son marquage ; la 102 n'est pas ouverte. L'exemple est engendré par
+`wftools.mockcycle` : l'offre est celle que liste `revisions`, à la même version, sa seule
+désignation changée, et la 101 celle que rend `rate_update_applied`, sa dernière écriture.
+L'égalité de #421 — une révision rendue à une version n'a qu'un contenu — tient pour l'offre 100.
+Elle ne tient pas pour la 101 : elle garde sa version 2 avant et après son marquage, `draft` ici
+et dans `rate_update_applied`, `marked` dans `revisions` et `revisions_marked`. C'est une exemption
+connue, suivie par #1352. `test_mockcycle.py` le tient, et n'admet que cette exemption parmi les
+révisions qu'au moins deux exemples rendent à une même version ; `test_mockhistory.py` date la 101
+de la mise à jour des taux, comme dans `rate_update_applied`. Écartée : une variante
+contrefactuelle du témoin aujourd'hui, qui aurait contredit ses coûts réels.
+
+**Un avenant non fusionné empêche d'en ouvrir un autre** (#1061, #1195). `create_structure` est
+indisponible sur la révision courante 102, qui porte l'avenant 2. La condition qui manque est
+nouvelle, `no_unmerged_amendment`. C'est le contraire d'`unmerged_amendment_exists`, qui manque à
+la fusion quand aucun différentiel n'est à fusionner : garder un seul nom pour les deux aurait
+nommé la cause à l'envers. `createCostStructure` la nomme dans son 409, pour un différentiel
+(`amendment_unmerged_exists`). Pendant un marquage ou un import, la condition vient avant
+`no_background_task_running`, comme pour la fusion. La révision du projet créé aujourd'hui, sans
+différentiel, garde la commande disponible. Le test du « si et seulement si » de #1196 tient les
+deux commandes, dans les deux sens, sur les deux révisions en cours.
+
+La règle contredisait WF-REV-0100 : son corps dit que plusieurs différentiels coexistent, et son
+Vérif qu'il y en a deux dans une même révision. Elle contredisait aussi le témoin, dont la
+révision 101 a porté les avenants 1 et 2 ensemble.
+
+*Remplacé par la décision de l'auteur du 2026-10-20 sur #1211, réalisée par US-0490/L1 : on suit
+WF-REV-0100, et plusieurs avenants non fusionnés coexistent. `create_structure` reste disponible
+quand un avenant de la révision n'est pas fusionné ; la condition `no_unmerged_amendment`, sa clé
+de catalogue, le 409 `amendment_unmerged_exists` de `createCostStructure` et son exemple sont
+retirés, et `createCostStructure` garde la réponse 409 commune. `unmerged_amendment_exists` reste
+la condition qui manque à `merge_structure` quand aucun différentiel n'est à fusionner.
+`amendment_created` montre l'ouverture de l'avenant 2 pendant que l'avenant 1 est ouvert. Le test
+du « si et seulement si » de #1196 tient la fusion dans les deux sens, et l'ouverture offerte sur
+les deux révisions en cours. Le texte ci-dessus est gardé pour l'histoire.*
+
+**Le compte rendu de la fusion dit le déplacement d'un nœud** (#1194, tranché par l'auteur le
+2026-10-20). `ImportDifference.fields` gagne `parent`, comme `NodeChange`, par un schéma nommé,
+`ImportDifferenceField`. Aucune colonne ne le présente, et le front le rend par sa clé
+`enums.ImportDifferenceField.parent`.
+`structure_merge_report` dit la « Mise en service » déplacée sous les « Essais sur site ».
+
+**Un filtre et un tri jugent un nœud retiré sur ses valeurs de base** (#1205, tranché par l'auteur
+le 2026-10-20). Un nœud retiré d'un différentiel n'a plus que les valeurs de la structure
+principale, ou de la révision de base pour une comparaison. Un filtre sur une tâche, la recherche
+et un tri le jugent sur ces valeurs, comme tout autre nœud sur les siennes. Sans tri, il reste à
+la place qu'il avait. Les descriptions de `listNodes` et de `compareRevisions` le disent, à la
+place du renvoi à #1201. Écarté : le placer en fin de ses frères, ce qui l'aurait sorti de la
+place que le diff lui donne.
+
+**La boucle d'un déplacement traverse la hiérarchie** (#1169). `mocklinks` refuse déjà une boucle
+qui passe par une récapitulative. Exemple : P → W, W récapitulative d'une tâche Z qui précède M, et
+M déplacée sous P. `params.cycle` ne parlait que de chaînes de liaisons. Désormais, une chaîne
+suit les liaisons et traverse la hiérarchie, pour un déplacement comme pour des prédécesseurs :
+- d'une tâche atteinte à son début vers ses subordonnées, que ce qui la précède précède ;
+- d'une tâche vers sa récapitulative, que ce qui la suit suit.
+
+Elle nomme chaque tâche traversée : P, W, Z, M. `wftools.mocktree` (`chain`, `move_loop`,
+`cycle`) le calcule sur la structure que le déplacement laisserait. Les exemples existants ne
+changent pas. Une sélection se juge sur la structure que le déplacement laisserait, tous ses
+nœuds déplacés : un refus qui nomme un nœud nomme le premier en cause dans l'ordre du plan de la
+structure lue, et `cycle` la boucle que ferme celui-ci (`NodeMove`). L'ordre du refus est celui du
+plan ; celui de `node_ids` ne règle que le placement. `move_loop` juge ainsi une sélection, et
+lève une `ValueError` pour un parent qui est l'une des tâches déplacées ou l'une de leurs
+subordonnées. Entre deux chaînes aussi courtes, `chain` prend, à chaque tâche, les liaisons avant
+la hiérarchie, les subordonnées avant la récapitulative ; `params.cycle` le dit, et des tests de
+`tools/tests/test_mockgestures.py` le fixent, comme le jugement d'une sélection.
+
+**La règle du rang est une fonction, éprouvée cas par cas** (#1188).
+- `mocktree.placed` dit la règle de `NodeCreate` et `NodeMove`. Les gestes engendrés passent par
+  elle.
+- `test_the_rank_follows_the_rule_of_the_contract` (`tools/tests/test_mockgestures.py`) en
+  éprouve les cas : nul pour une ligne et pour une tâche, absent, après un frère de chaque genre,
+  la sélection mêlée, et les nœuds déplacés.
+- « Absent » se lit hors nœuds déplacés : un nœud déplacé ne compte pas parmi les frères qu'il
+  suivrait.
+- L'exemple de requête `nodes_move_mixed` montre une sélection mêlée : une ligne et une tâche sous
+  le poste de commande, après le câblage, sur l'avenant 2 (structure 203), dont le devis est
+  ouvert. La structure principale d'un projet En cours ne saisit plus son devis (WF-DEV-0050), et
+  une ligne déplacée change de tâche.
+- Les descriptions de `Node.position`, `NodeCreate`, `NodeMove` et `deleteNode` sont refluées.
+
+**Les gestes ont les exemples de leurs refus** (#1184).
+- `estimate_line_completed_refused` : une ligne créée sous les « Études de détail », terminées,
+  sur l'avenant 2 (structure 203), refusée par 409 `STATE_FORBIDS_OPERATION` à
+  `task_not_completed` (WF-DEV-0050, WF-RAE-0030 ; corrélation 1186). Sur la structure principale,
+  le projet étant En cours, la création d'une ligne manquerait d'abord le devis lui-même.
+  `CommandCondition` dit que `task_not_completed` manque aussi à la création d'une ligne.
+- Le 412 de `deleteNode` n'a pas d'exemple : la requête ne porte aucun compteur, et le 412 est
+  inatteignable (#1210, à trancher).
+  *Tranché par l'auteur le 2026-10-20 et réalisé par US-0520/L1 : `deleteNode` reçoit le compteur
+  du nœud, et son 412 a son exemple, `node_delete_stale`.*
+
+**Les exemptions de #421 se réduisent** (#1196). `ELSEWHERE` ne garde que `comparison`. Les
+résumés de `nodes_summaries` et de `startable_tasks_milestone` s'ouvrent par « Variante
+contrefactuelle » : la seconde est une lecture contrefactuelle, et non la suite d'une écriture.
+
+**Un collage saute les nœuds qu'un différentiel retire** (décision de l'auteur du 2026-10-22,
+#1278 ; US-0510). La lecture d'un différentiel rend ses nœuds retirés à leur place, en lecture
+seule (`NodeDifference`), et `PastePreview` voulait que chaque ligne du bloc écrive « la ligne de la
+grille à la même distance sous le nœud visé » : un bloc qui couvrait une ligne retirée serait tombé
+sur un nœud que rien n'écrit. Un tel bloc saute les nœuds retirés et remplit les suivants, sans
+refus : chaque ligne du bloc écrit le nœud suivant qui n'est pas retiré, et `PastePlan.accepted`
+comme `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds sautés. `previewPaste`,
+`applyPaste` et `PastePreview` le disent, et `PastePlan.accepted` comme `PasteRejection.row` y
+renvoient. Deux exemples engendrés par `wftools.mockamendmentwrites`, sur l'avenant 2 (structure
+203), le montrent : un bloc de deux lignes collé sur le libellé du « Câblage sur site » (nœud 1263),
+la ligne qui précède l'« Assistance aux essais de câblage » que l'avenant retire (1264), aperçu
+(`paste_plan_amendment_skipping`, deux lignes acceptées, aucun refus, collage 995) puis appliqué
+(`paste_applied_amendment_skipping`) : le câblage passe à deux ingénieurs, et la seconde ligne,
+sautant la ligne retirée, renomme les « Essais sur site » que l'avenant ajoute (1291) ; les deux
+nœuds écrits à leur version 2, le compteur du différentiel à 3, comme toute écriture qui suit sa
+lecture (#421). C'est le seul endroit de `nodes_amendment` où une ligne retirée en précède d'autres.
+`wftools.mockamendmentwrites.paste_targets` écarte désormais les nœuds retirés ; le bloc des
+parcours, sur les lignes 7 à 9, n'en couvre aucun, et son exemple ne change pas. Ce que devient un
+collage dont la cellule visée est elle-même sur un nœud retiré, qui ne nomme aucun champ
+(`editable_fields` vide), n'est pas tranché ici. Écarté : un refus de la ligne du bloc tombée sur un
+nœud retiré, que la décision écarte.
+
+## L'encart « Démarrer le projet » sur un projet sans révision (EP-15/US-0490/L4, #1358)
+
+**Ce que le front lit.** Décision de l'auteur du 2026-10-23 sur #1358 : l'encart paraît dès la
+création d'un projet, quand il n'a encore aucune révision (`current_revision_id` nul). Le front ne
+déduit rien : il lui faut savoir, d'une lecture du projet, si le squelette s'engendrerait et si
+l'appelant peut écrire le planning. `create_revision` ne le dit pas : elle est gardée par
+`revisions.write`, et ne dit rien de la structure que la révision ouverte copierait. Le projet
+porte donc une commande nouvelle, `ProjectCommand.generate_skeleton`, sur le modèle des imports
+et de la saisie des risques :
+- listée tant que le projet n'a pas de révision en cours, à qui a la permission du planning,
+  `planning.write`, comme `RevisionCommand.generate_skeleton`, et juste avant les imports ; dès
+  qu'une révision est en cours, c'est elle qui la liste, et le projet ne la liste plus ;
+- jugée sur la révision que l'ouverture créerait, une copie de la dernière révision marquée
+  (WF-REV-0010) : `main_structure_without_tasks` manque quand sa structure principale comporte
+  une tâche, comme `at_least_one_task` à `declare_risk` quand elle n'en comporte aucune ;
+- ses conditions dans l'ordre de `declare_risk`, sa sœur au niveau du projet : celles de l'état
+  d'abord, `project_not_terminal` puis `no_background_task_running`, puis la condition propre,
+  `main_structure_without_tasks`, puis `may_create_revision` à qui ne peut pas ouvrir la
+  révision, comme pour les imports et `declare_risk`. C'est l'exception du 2026-10-05
+  (`Project.available_commands`), étendue à cette commande.
+
+**L'ordre des conditions** (relecture 1 du lot). La première rédaction mettait la condition
+propre avant le traitement de fond, « comme sur la révision » (`RevisionCommand.generate_skeleton`,
+EP-14/L42k). Sur le projet, l'ordre de `declare_risk` l'emporte : la structure jugée n'existe pas
+encore, c'est celle de la révision qu'une ouverture créerait, et un traitement de fond qui court
+est justement en train d'en créer une autre ; nommer `main_structure_without_tasks` à ce moment
+dirait un état que la fin du traitement rendra faux, comme `at_least_one_task` à `declare_risk`
+inviterait à une saisie elle-même refusée (EP-14/L42s). Sur la révision, la structure existe et
+l'ordre de L42k reste, celui du 409 de `generatePlanningSkeleton`. Le front ne lit que la présence
+de `main_structure_without_tasks`, et l'ordre ne change rien à l'encart.
+
+**`no_background_task_running` sur un projet sans révision en cours** (relecture 1 du lot). La
+condition est atteignable, et elle reste. L'application d'un import de planning, de devis ou de
+reste à engager écrit en une seule transaction (`applyImport`, WF-INTF-0080) et crée la révision
+en cours au besoin (WF-INTF-0090) ; le traitement d'une survenance la crée de même au préalable
+(`declareRiskOccurrence`, WF-RIS-0060). Pendant ces traitements, confiés au worker, le projet lu
+n'a pas encore de révision en cours, et ce sont eux qui la créent : ouvrir une révision et y
+engendrer le squelette se heurterait à la leur — `createRevision` refusé par
+`CURRENT_REVISION_EXISTS` à leur fin, ou leur révision refusée à la sienne. C'est le cas qui fait
+déjà nommer la condition aux imports, à `edit_risks` et à `declare_risk` que porte un projet sans
+révision en cours ; `CommandCondition` le dit désormais pour les quatre. Aucun exemple ne le
+montre : le témoin abandonné n'a ni import ni survenance qui court. Écarté : retirer la condition,
+ce qui aurait fait de `generate_skeleton` la seule commande du projet sans révision qui ne la
+nomme pas.
+
+**Le refus de `createRevision`** (relecture 1 du lot). Son 409 n'avait pas d'exemple, et le test
+de l'encart en inventait un, `STATE_FORBIDS_OPERATION`, quand le code est
+`CURRENT_REVISION_EXISTS`, sans paramètre, au catalogue depuis EP-02. L'exemple
+`current_revision_exists` (corrélation 1308, seconde suite) le donne : une seconde ouverture sur
+le projet créé aujourd'hui, demandée depuis un écran lu avant que sa révision 103 ne s'ouvre. Le
+409 le décrit, et `tools/tests/test_mockstart.py` le tient.
+
+L'encart s'offre ainsi quand le projet liste `generate_skeleton` sans
+`main_structure_without_tasks`, ou, avec une révision en cours, quand celle-ci la liste ainsi,
+comme jusqu'ici. Le choix du fichier MS Project suit `import_planning`, que le projet liste déjà.
+
+**Ce que chaque choix appelle.** La spécification ne fait créer la révision en cours que par un
+import (« Lorsque le projet n'en comporte pas, l'import en crée une », WF-INTF-0040) et par une
+saisie des risques (WF-RIS-0020) ; WF-PRJ-0030 ne le dit pas de la génération. La voie la plus
+sobre est retenue : aucune opération nouvelle, et la génération n'ouvre pas la révision.
+- **Lotissement puis squelette.** Le lotissement est une donnée du projet, saisi sans révision
+  (`setWorkBreakdown`, `update_work_breakdown`). « Engendrer le planning » ouvre la révision en
+  cours (`createRevision`, sans corps obligatoire), puis engendre le squelette sur la révision
+  rendue (`generatePlanningSkeleton`), qui liste `generate_skeleton`. Si la génération est
+  refusée, la révision reste ouverte, sa structure vide : l'encart la relit et l'offre de
+  nouveau, ce qui est l'état d'avant cette décision. Un 409 de `createRevision` — une révision
+  ouverte entre-temps — se relit de même.
+- **Fichier MS Project.** `uploadFile` puis `openImport` `ms_project_schedule`, comme l'écran
+  FBS-4.3.4 : l'import crée la révision (WF-INTF-0040), rien ne change au contrat.
+
+Les descriptions de `ProjectCommand`, `RevisionCommand.generate_skeleton`, `CommandCondition`
+(`may_create_revision`, `main_structure_without_tasks`), `createRevision` et
+`generatePlanningSkeleton` le disent. Écartés : faire ouvrir la révision par la génération, ou
+une opération du projet qui engendre, que la spécification ne prévoit pas et qui aurait donné deux
+chemins pour une même génération ; lire `create_revision`, qui ne dit ni la permission du
+planning ni la structure copiée.
+
+**Les exemples.** Écrits à la main, comme le projet. `project_created` (le projet créé
+aujourd'hui, sans révision), `project_pricing` et l'offre de `projects` (en chiffrage, sans
+révision marquée) listent `generate_skeleton` disponible ; `project_without_current_revision` (le
+témoin, sa révision courante abandonnée) l'indisponible, `main_structure_without_tasks` manquante,
+sa dernière révision marquée portant des tâches. `project_pricing_estimator` ne la liste pas : le
+chiffreur n'a pas `planning.write`. Les lectures triées et filtrées de l'accueil suivent
+(`make mock-data`). Le parcours se lit ensuite sur les exemples qui existent : `revision_created`,
+la révision 103 ouverte à 14 h 05 et qui liste `generate_skeleton` disponible, puis
+`skeleton_generated`. `tools/tests/test_mockstart.py` les tient.
+
+**Le faux back sert le projet créé à son adresse** (`wftools.mock`, `CREATED_PATHS`). Prism sert
+le premier exemple d'une opération quel que soit le chemin : la page du projet …003, où mène la
+création (`createProject`, `created`), aurait lu le témoin. Quatre chemins sont répétés, son
+identifiant écrit, chacun menant par l'exemple qui le décrit : `getProject` par `created`,
+`getProjectNextState` par `created`, `listRevisions` par `empty`, `getWorkBreakdown` par
+`default`. Un chemin dont la lecture n'a pas cet exemple fait échouer la dérivation. Le parcours
+de bout en bout qui créait un projet et lisait le témoin à sa place lit désormais le projet créé.
+
+## La déclaration d'un risque désigne la tâche de sa provision, et les saisies du risque ont leurs exemples (EP-15/US-0520)
+
+**La tâche de la provision se désigne** (partie K5 de la conception d'EP-15, #786 ; US-0520/L1).
+WF-RIS-0010 veut la ligne de provision « portée par la tâche de la structure principale que
+l'utilisateur désigne à la déclaration du risque », déplaçable sur une autre, et « à défaut de
+désignation » portée par la première tâche de premier niveau. Le contrat ne permettait ni l'un ni
+l'autre.
+- `RiskWrite.provision_task_id`, facultatif, nul ou omis à la déclaration : la première tâche de
+  premier niveau. Une récapitulative la porte comme une feuille, la ligne n'entrant pas dans
+  l'état de sa tâche.
+- À la modification (`RiskUpdate`), omis, il garde la tâche ; nul, il rend la ligne à la première
+  tâche de premier niveau ; une autre tâche y déplace la ligne, le total du devis inchangé. Il
+  relève d'`update_provision`, comme la catégorie et le sous-projet : changé pour un risque qui
+  n'est pas identifié, 409 à `risk_identified`.
+- Un nœud qui n'est pas une tâche de la structure principale de la révision en cours — une ligne,
+  une tâche d'un différentiel, un identifiant inconnu — est refusé par 422 `VALIDATION_FAILED`,
+  `/provision_task_id`, `UNKNOWN_TASK`, code que `FieldErrorCode` portait déjà.
+- `Risk.provision_task`, exigé, `{node_id, label}` par un schéma nommé, `ProvisionTask`, comme
+  `AttachedTask` nomme la tâche d'un lot : la tâche qui porte la ligne, nulle quand le risque
+  n'est pas identifié et ne porte donc pas de ligne, comme `provision_node_id`. Le formulaire la
+  présente sans relire la structure. `risks`, `risk` et `risk_occurred_detail` la nomment : le
+  « Câblage des armoires » pour 751, rien pour 752, survenu, ni pour 753, écarté.
+
+Écarté : un `provision_task_id` exigé, que la spécification dit facultatif. Deux points restaient
+hors de cette partie, tranchés par l'auteur le 2026-10-21 (#1227) et portés par US-0570/L1 :
+- **`moveNodes` refuse une ligne de provision.** La ligne se déplace par le formulaire de son
+  risque, seul chemin : une ligne de provision parmi `node_ids` est refusée par 422
+  `VALIDATION_FAILED`, `fields` sur elle (`/node_ids/<n>`), motif nouveau
+  `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant le risque par `risk_id` et
+  `label`, que la grille ne lit pas et vers le formulaire duquel le front renvoie. Une tâche qui
+  porte une ligne de provision se déplace avec elle : la tâche de la ligne ne change pas. Exemple
+  engendré par `wftools.mockriskwrites`, `nodes_move_provision_refused` : la ligne de 751 envoyée
+  du « Câblage des armoires » sous le « Montage des armoires sur site » (corrélation 1304).
+  Écarté : accepter le déplacement comme un changement de `provision_task_id`, un second chemin
+  vers la même écriture.
+- **Le risque écarté qui redevient identifié** : sa ligne de provision est portée par la tâche
+  qu'il désignait si elle est encore une tâche de la structure principale, et sinon par la
+  première tâche de premier niveau ; `provision_task` reste nul tant qu'il est écarté. La
+  description de `reviewRisk` le dit ; le texte de WF-RIS-0010 est intégré par l'auteur (#1227).
+
+**Les saisies du risque ont leurs exemples** (#763). Elles sont engendrées, depuis les risques de
+`mockwitness` et la lecture du registre (`mockhistory.risk_item`), par `wftools.mockriskwrites` :
+`mockhistory` aurait passé les mille lignes. `tools/tests/test_mockriskwrites.py` les tient.
+- `risk_created` (201) : « Indisponibilité de la grue de levage », 754, déclaré aujourd'hui à
+  20 % sans tâche désignée. Sa structure propre, 208, est ouverte vide : sa gravité et sa
+  provision sont nulles jusqu'au chiffrage de son devis propre. Sa ligne de provision, 585, est
+  portée par « Études », la première tâche de premier niveau. À sa première version.
+- `risk_updated` (200) : le même, sa ligne déplacée sur le « Montage des armoires sur site » et
+  ses actions de mitigation saisies, une version de plus.
+- `risk_reviewed` (201) : 751 confirmé aujourd'hui sans modification, un réexamen daté du jour,
+  une version de plus que `risk`.
+- `task_occurrence_queued` (202) : la survenance de 752, confirmée le 20 février 2026 à 16 h, la
+  tâche de fond 949 en file : un instant antérieur de la chronologie, celui de son dernier
+  réexamen.
+- `risk_provision_task_refused` (422) : une provision désignée sur la « Reprise des essais de
+  câblage », que seul l'avenant 2 porte (corrélation 1193).
+- `risk_probability_out_of_range` (422) : une probabilité de 120, un pourcentage envoyé pour un
+  rapport, refusée sur `/probability` par `VALUE_OUT_OF_RANGE`, `params.maximum` à `1`
+  (corrélation 1306). Celui-là est écrit à la main, hors de `paths.toml` : un refus statique, que
+  rien du témoin ne fait varier, comme `project_rates_out_of_range`. Le front s'en sert pour dire
+  la borne en pourcentage ; le schéma la dit sur `RiskWrite.probability`.
+
+**La modification dit la même borne de la probabilité** (US-0520/L2b, #1371). `RiskUpdate`
+portait déjà la borne de `RiskWrite.probability`, un rapport de 0 à 1 inclus, mais le 422
+d'`updateRisk` ne la disait pas : il la dit, `/probability` hors de 0 à 1 refusé par
+`VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme celui de `createRisk`. Son exemple
+est propre, `risk_update_probability_out_of_range` : la même probabilité de 120 envoyée en
+modifiant le risque, `params.maximum` à `1` (corrélation 1307), écrit à la main comme celui de la
+déclaration. Le résumé de chacun dit son geste, et le test 422 de « Modifier »
+(`risk-commands.dom.test.tsx`) lit l'exemple de l'opération qu'il éprouve, et non celui de
+`createRisk`. Écarté : citer `risk_probability_out_of_range` sous les deux opérations, son résumé
+élargi aux deux gestes — un résumé qui ne dirait plus lequel l'exemple montre, et que le réexamen
+d'US-0520/L3 aurait à élargir encore. Le réexamen (`reviewRisk`) dira sa borne avec US-0520/L3
+(#1114).
+
+**Le réexamen dit la même borne, et ses réponses ont leurs exemples** (US-0520/L3, #1371, #1114).
+`RiskReviewWrite.probability`, le corps du réexamen, dit la borne de `RiskWrite.probability` : « De
+`0` à `1` inclus, un rapport (WF-RIS-0010). » ; le 422 de `reviewRisk` dit `/probability` hors de 0 à
+1 refusé par `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, avec son exemple propre,
+`risk_review_probability_out_of_range` (corrélation 1309), écrit à la main comme ceux de la
+déclaration et de la modification, le résumé disant le geste du réexamen. `RiskReview`, le réexamen
+lu dans l'historique, ne la redit pas, comme `Risk.probability` : la borne est celle de ce qui
+s'envoie. Les autres réponses du réexamen, dont le formulaire « Réexaminer » a besoin :
+- `risk_dismissed` (201), engendré par `wftools.mockriskwrites` : 751 écarté aujourd'hui, sa
+  probabilité inchangée, sans ligne ni tâche de provision, `update_provision` et
+  `declare_occurrence` indisponibles par `risk_identified`. Variante contrefactuelle : le témoin
+  confirme 751 aujourd'hui (`risk_reviewed`), à la version que l'écarter lui donnerait (#421).
+- `risk_reidentified` (201), engendré : 753, écarté le 2 février, redevenu identifié aujourd'hui à
+  sa probabilité ; sa catégorie encore active n'est pas redemandée, et sa ligne de provision,
+  recréée, est le nœud 586, qu'aucune lecture du témoin ne rend, porté par la « Mise en service »,
+  la tâche qui portait sa ligne dans la référence et que la structure principale porte encore
+  (#1227). La suite d'une écriture faite aujourd'hui, comme la confirmation de 751.
+- `risk_reviews_reviewed` (200 de `listRiskReviews`), engendré : l'historique de 751 relu après sa
+  confirmation, le réexamen daté du jour en tête — ce que l'historique rendu porte après
+  « Réexaminer » (Vérif de WF-RIS-0010).
+- `risk_review_occurred` (409), écrit à la main : le réexamen de 752, survenu, refusé par
+  `risk_not_occurred`, la condition que sa commande `review` dit manquante (corrélation 1310).
+
+Prism sert le premier exemple de chaque réponse : la confirmation de 751 (`risk_reviewed`) et
+l'historique du témoin (`risk_reviews`) le restent. `deleteRisk` avait déjà ce dont « Supprimer le
+risque » a besoin : le refus `risk_delete_cited`, et la commande `delete` indisponible par
+`risk_not_cited` dans `risk` et `risks`. `declareRiskOccurrence` a sa mise en file
+(`task_occurrence_queued`), la structure qui en résulte (`nodes_risk_occurred`) et le risque survenu
+(`risk_occurred_detail`), mais aucune opération ne rend le compte rendu préalable de la fusion du
+devis propre : à trancher (#1383).
+
+Le résumé de `risk_created` s'ouvre par « Variante contrefactuelle », comme le veut la convention
+de #1196 (#1228).
+
+Écarté : la déclaration de 751 le 12 janvier, que le registre aurait donnée. Le témoin la dit
+identifiée avec une gravité de 1 000 000, quand une structure propre vide, à la création, n'en
+porterait aucune ; et la révision 101 de ce jour-là n'est pas celle dont les exemples nomment les
+nœuds.
+
+**`deleteNode` porte le compteur du nœud supprimé** (#1210, tranché par l'auteur le 2026-10-20).
+Le 412 que l'opération déclarait était inatteignable : la requête ne portait aucun compteur. Elle
+reçoit `lock_version`, paramètre de requête exigé, le compteur lu du nœud désigné, comme toute
+modification ; les subordonnées qu'une récapitulative emporte ne se jugent pas. Elle déclare donc
+aussi 422, pour un paramètre de requête hors de son schéma. Son 412 a son exemple engendré,
+`node_delete_stale` : sur l'avenant 2, la ligne « Matériel » supprimée avec le compteur lu, 1, que
+le déplacement de la sélection (`nodes_moved`) a porté à 2 (corrélation 1194) — une écriture que la
+grille d'un différentiel propose quel que soit l'état du projet. Le front envoie
+le compteur de la ligne (`src/api/actions/nodes.ts`), et `structure-gestures.dom.test.tsx` lit cet
+exemple au lieu du refus qu'il écrivait : il le rejoue sur une grille de devis de la structure
+principale, et n'en consomme que le corps — le code, le statut et le compteur rendu —, son résumé
+décrivant le différentiel de l'avenant (#1228). `test_every_writing_that_declares_a_412_sends_a_counter`
+(`backend/tests/test_contract_declarations.py`) tient le sens inverse de
+`test_every_writing_that_carries_a_lock_version_declares_its_412` : une écriture qui déclare un
+412 envoie un compteur, `lock_version` ou `…_lock_version`, dans son corps ou ses paramètres. Écarté :
+retirer le 412 (proposition (a) de #1210).
+
+**Les gestes du devis s'écrivent sur l'avenant 2** (#1214, tranché par l'auteur le 2026-10-20).
+Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
+(Vérif de WF-DEV-0050, `structures`). `estimate_line_created`, `estimate_line_created_after_subtask`
+et `nodes_moved` portent donc sur l'avenant 2, structure 203, par ses identifiants propres
+(`mockamendment.own_id`) : chaque réponse est la différence de deux lectures du différentiel,
+marquées contre la structure principale, la ligne créée `added`, les lignes déplacées `modified`
+par leur parent, le compteur du différentiel passé à 3. Une ligne créée sur un différentiel porte
+les grandeurs de référence d'où la fusion tirera son budget (WF-REV-0050), comme la reprise des
+essais : son montant budgété est son montant, et non le budget nul d'une ligne ajoutée en revue
+périodique. `wftools.mockamendmentwrites` les engendre, avec `nodes_move_mixed` et
+`estimate_line_completed_refused` que `mockgestures` portait : il aurait passé les mille lignes.
+- Le refus de `moveNodes` vers une tâche terminée est décrit : « le déplacement d'une ligne vers
+  elle, est refusé » (Vérif de WF-DEV-0050). 409 `STATE_FORBIDS_OPERATION` à
+  `task_not_completed`, pour une ligne déplacée vers une tâche terminée ou depuis elle, à la place
+  de la réponse 409 commune. Exemple engendré, `nodes_move_completed_refused` : les « Borniers »
+  déplacés sous les « Études de détail », sur l'avenant 2 (corrélation 1195). `CommandCondition`
+  le dit.
+- `row-selection.dom.test.tsx` lit le compteur que rend `nodes_moved` au lieu de l'écrire.
+
+**Le tri d'un nœud retiré passe par celui du faux back** (#1216). Le test de #1205
+(`tools/tests/test_mockdiff.py`) lit le différentiel marqué comme `listNodes` le lit, trié par le
+montant décroissant par `mockcore.subtree(…, sort=…)`, la ligne retirée lue sur ses valeurs de base
+et dernière de ses sœurs, au lieu de refaire le tri à la main.
+
+## Le nombre de lignes par page, la disposition d'une chronologie, les calendriers sans bornes d'heures, les unités de durée (EP-15/US-0530, US-0570)
+
+Partie K8 de la conception d'EP-15 (US-0570/L1), sur les décisions de l'auteur du 2026-10-18
+(#1045, #1068, #1047, #1049).
+
+**Le nombre de lignes par page est une préférence de la grille** (C-351, #1045).
+`GridPreferences.page_size`, un entier parmi 10, 25, 50 et 100, absent pour 50, le défaut de
+`limit` : la table plate l'envoie en `limit` à chaque lecture, et le retrouve à sa réouverture
+sans changer celui des autres tables (WF-IHM-0060). Une autre valeur est refusée par 422
+`VALIDATION_FAILED`, `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`, sans paramètre : ce
+ne sont pas des bornes mais quatre valeurs, que le schéma énumère et que `minimum` ni `maximum` ne
+diraient. Le service, dont les modèles sont engendrés du contrat, dit ainsi un entier — ni un
+booléen, ni une chaîne — envoyé à une énumération dont toutes les valeurs sont des entiers, et
+qu'elle n'admet pas (`waterfall.api.problems`, d'après les valeurs attendues que Pydantic nomme) ;
+toute autre valeur refusée par une énumération l'est par `VALIDATION_FAILED`, ainsi un entier
+envoyé au thème, une énumération de mots (`{"theme": 3}`) : ce n'est pas une valeur hors de sa
+plage, mais une valeur d'une autre nature. Une chaîne qui se lit comme l'une des quatre (`"25"`)
+est admise par conversion, comme tout entier d'un corps. Un nul est refusé comme les autres
+réglages d'une grille. Exemples `preferences_page_size` et
+`preferences_page_size_out_of_range` (corrélation 1300) ; `me_grid_settings` lit 25 lignes sur la
+table des comptes. Écarté : un nombre libre borné entre 10 et 100, que l'écran n'offrirait pas.
+
+**La disposition d'une chronologie est une préférence d'affichage, par chronologie** (#1068,
+WF-PLA-0140, WF-ADM-0040). `DisplayPreferences.timelines`, une table par `timeline_id` de
+`TimelinePreferences` — `lanes`, exigé, le couloir de chaque tâche placée par son `node_id`, un rang
+à partir de 0 —, bornée comme `grids` (#874) : cent chronologies, 64 tâches placées par chronologie,
+des noms de 64 caractères au plus, `VALUE_TOO_LONG` au-delà. Une modification ne remplace que les
+chronologies qu'elle nomme, chacune entière, et une chronologie à `null` retrouve sa disposition
+automatique ; une tâche absente prend le couloir automatique, une tâche qui n'est plus inscrite
+s'ignore. Un couloir négatif est refusé par `VALUE_OUT_OF_RANGE`,
+`/timelines/<chronologie>/lanes/<tâche>`, `params.minimum` à `0`, comme toute borne d'une écriture
+(`tools/tests/test_mockbounds.py`). Exemples `preferences_timeline_lanes` et
+`preferences_lane_out_of_range` (corrélation 1301), sur le « Comité de pilotage » du témoin ;
+`me_grid_settings` porte la même disposition, et le couloir d'une tâche (#1406, plus bas). Le
+refus d'un couloir où un rectangle en chevaucherait un autre se tranche au lot d'écran
+(US-0530/L3).
+
+**La table des calendriers ne se filtre pas sur les heures de ses jours** (C-352, #1047). Les
+quatorze paramètres `monday_min` à `sunday_max` de `listCalendars` sont retirés, avec l'exemple
+`calendars_bounds_inverted` : WF-IHM-0130 fait de ces heures une exception à la règle commune.
+Elles se trient toujours ; la recherche et le filtre d'état restent. La convention des bornes
+(#545, ci-dessus) vaut pour les autres colonnes de nombres. Le front cesse d'envoyer
+ces bornes (`src/app/reference/resources/page.tsx`) ; la barre qui les saisit est retirée par
+US-0570/L3.
+
+**Les unités de durée ont leurs exemples** (C-360, #1049). `setDurationUnits` répond
+`duration_units_updated` — 7 heures par jour et 35 par semaine, réglées aujourd'hui, à la
+version 2 : « 2 j » vaut quatorze heures dans les révisions en cours, recalculées, seize dans une
+révision marquée —, refuse une constante nulle par `duration_units_zero` (422, `/hours_per_day`
+par `DURATION_UNIT_NOT_POSITIVE`, sans paramètre ; corrélation 1302) et une version périmée par
+`duration_units_stale` (412, la version 2 rendue ; corrélation 1303). Sa description dit le recalcul
+des plannings en cours et les heures gardées d'une révision marquée (WF-PLA-0160, WF-REF-0130).
+Une constante est strictement positive : l'intervalle ]0, ∞[ est ouvert et n'a pas de plus petite
+valeur admise que `params.minimum` pourrait nommer — la raison pour laquelle EP-14/L42h et L42m
+ont écarté `VALUE_OUT_OF_RANGE` pour les seuils d'indice, et pour laquelle `waterfall.api.problems`
+dit une borne exclusive par `VALIDATION_FAILED`. Elle est donc refusée par un motif par champ
+nouveau au catalogue, `DURATION_UNIT_NOT_POSITIVE`, sur le modèle de
+`THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, que le front dit en clair (« La constante doit être
+strictement positive ») ; une constante qui n'est pas un décimal sans signe garde
+`VALIDATION_FAILED` au même pointeur. `tools/tests/test_mockbounds.py` tient que seul un nombre
+de lignes par page hors des quatre est refusé par `VALUE_OUT_OF_RANGE` sans paramètre. Écartés :
+`VALUE_OUT_OF_RANGE` sans paramètre, qui donnerait une borne exclue pour une borne franchie ;
+`VALUE_OUT_OF_RANGE` nommant `minimum` à `0`, que le front dirait admis ; `VALIDATION_FAILED` seul
+au pointeur, qui ne distinguerait pas zéro d'une valeur mal écrite.
+
+**Le service suit le contrat engendré** (revue 1 de US-0570/L1). La conception d'EP-15 ne prévoit
+ni table, ni migration, ni module du noyau pour K8, et le lot n'en ajoute pas ; mais ses modèles
+étant engendrés du contrat, le back qui sert déjà les préférences change avec lui, sans quoi il le
+contredirait : `waterfall.core.users.personal.merged` fusionne `timelines` chronologie par
+chronologie, comme `grids` grille par grille ; `waterfall.api.me` refuse un `timelines` ou un
+`page_size` nul, comme les autres réglages qui ne le sont jamais ; `waterfall.api.problems` dit un
+entier hors d'une énumération d'entiers par `VALUE_OUT_OF_RANGE`, comme ci-dessus. Le refus du
+déplacement d'une ligne de provision (`PROVISION_LINE_MOVED_BY_RISK`) n'est que dans le contrat et
+ses exemples : le back ne sert pas encore `moveNodes`.
+
+**Les corrélations écrites à la main ouvrent une nouvelle plage** (#1228). La famille
+« corrélations, suite » (1010-1199) étant presque épuisée, « corrélations, seconde suite »
+(1300-1599, `wftools.mockids`) la prolonge après les nœuds de l'avenant 2 ; les exemples de ce lot
+l'emploient, de 1300 à 1304. Les suivantes la prennent après eux : 1305 pour
+`task_hours_beyond_day` (US-0470/L2), 1306 pour `risk_probability_out_of_range` (US-0520/L2),
+1307 pour `risk_update_probability_out_of_range` (US-0520/L2b), 1309 pour
+`risk_review_probability_out_of_range` et 1310 pour `risk_review_occurred` (US-0520/L3).
+
+## Le plan de charge agrégé porte sa capacité, la matrice ses points (EP-15/US-0550)
+
+Partie K7 de la conception d'EP-15 (US-0550/L1), sur les décisions de l'auteur du 2026-10-18
+(#1051, #1053). Le front ne calcule rien de ce qu'il trace (WF-ARC-0020) : ce que les graphiques
+d'US-0550 placent, le serveur le rend.
+
+**Le plan agrégé porte la capacité de son périmètre et le total de chaque mois** (#1051).
+`PortfolioWorkload.capacity_monthly_hours` est la somme des `capacity_monthly_hours` des rôles
+retenus : tous les rôles actifs sans filtre, ceux du nœud d'organisation avec lui (`org_node_id`).
+Un rôle sans charge y compte, comme il figure au plan depuis la décision du 2026-10-08 sur #375 :
+le plan sert à voir la disponibilité. C'est la droite en pointillés du graphique. `monthly_totals`
+donne le total des heures des rôles retenus pour chaque mois de `months`, dans le même ordre, un
+mois sans charge compris : c'est l'étiquette du sommet de chaque barre. Chaque total nomme son mois
+(`month`, `hours`), comme les mois d'un rôle. Le plan d'un projet ne change pas : il reste sans
+capacité tracée ni taux de charge (#375, option b, confirmée sur #1051), et `Workload` garde sa
+forme. Les exemples sont `portfolio_workload` (1 360 640,5 heures par mois, les trois rôles, le
+monteur câbleur sans charge compris) et `portfolio_workload_org_node`, dont le nœud retient les
+trois mêmes rôles, et donc la même capacité et les mêmes totaux. Écartés : la somme des rôles
+faite par le front, qui ne calcule pas ce qu'il présente ; une liste de nombres nus pour les
+totaux, qui ne se lirait qu'en la rapprochant de `months`.
+
+**La matrice rend un point par risque qu'elle compte** (#1053). `RiskMatrix.points`, chacun un
+`RiskMatrixPoint`, porte les mêmes risques que ceux que comptent les cases. Dans la matrice d'un
+projet, ce sont tous les risques de la révision lue, quel que soit leur état : l'écran retient les
+bulles par son filtre d'état, comme la grille (décision 1 de #1053). Dans celle du portefeuille,
+ce sont les risques identifiés des projets en cours. Un point porte `risk_id`, `label`,
+`probability`, `severity_amount` (la gravité, `Risk.severity`), `severity_ratio`,
+`provision_amount`, `state` et `zone`, la zone de sa case. `severity_ratio` est la gravité en part
+de l'assiette du projet, arrondie à quatre décimales (README, « Une part… »). La case et la zone
+du point sont celles de la part exacte, que classent les bornes de gravité (WF-REF-0160) avant
+l'arrondi : une bulle à moins d'un demi-centième de pour cent d'une borne peut être tracée sur la
+ligne de cette borne, sa zone restant celle de sa case. Dans la matrice du portefeuille, le point
+nomme aussi son projet : `project_id`, `project_label`, et `can_open` comme
+`PortfolioRisks.heaviest[]` (WF-PTF-0030). Ces trois champs vont ensemble : présents tous les trois
+dans la matrice du portefeuille, absents tous les trois dans celle d'un projet. `cells` reste au contrat, pour la table du décompte sous le graphique (décision 2 de
+#1053). Les exemples sont `risk_matrix`, avec trois points (1,91 % ; moins d'un centième de pour
+cent, donné à son premier chiffre, `0.000003` ; 18,34 %), et le volume `portfolio_risks`, avec un
+point par risque identifié, 429, dont 50 d'un projet que le lecteur ne peut pas ouvrir. Écartés :
+un point sans sa part de gravité, que le front calculerait sur une assiette qu'il ne lit pas ; deux
+schémas, un pour le projet et un pour le portefeuille, alors que `RiskMatrix` est déjà commun aux
+deux.
+
+**Un volume écrit une ligne par élément d'une longue liste, à toute profondeur.** Sous la valeur
+d'un exemple, un objet qui tient une liste de plus de cinquante éléments est déplié
+(`wftools.mockdata.render`). La matrice de `portfolio_risks`, qui tenait sur une ligne, s'écrit
+désormais un point par ligne : un point changé se lit dans le diff. Aucun autre exemple ne change.
+
+**Un nombre de lignes par page envoyé autrement qu'en entier** (#1236, revue de US-0570/L1).
+`page_size` à `30` est refusé par `VALUE_OUT_OF_RANGE`. À `"30"` ou à `30.0`, il est refusé par
+`VALIDATION_FAILED`. À `"25"` ou à `25.0`, il est admis comme 25. Le service ne dit « hors plage »
+que pour un entier envoyé : Pydantic lui rend la valeur telle qu'envoyée, et il ne la reconvertit
+pas pour classer le refus. Le front, lui, n'envoie que l'une des quatre valeurs, en entier.
+`backend/tests/test_users_personal.py` fixe ces deux refus. `waterfall.api.problems` reconnaît une
+énumération d'entiers à la façon dont Pydantic en écrit les valeurs dans `ctx.expected` : nues
+pour des entiers (« 10 or 25 »), entre apostrophes pour des mots (« '10' or '25' »), même faits de
+chiffres. `backend/tests/test_api_problems.py` l'éprouve sur ses propres modèles, une `IntEnum` et
+une `StrEnum` de chiffres, qui ne doivent rien au contrat. Une dérive de cette écriture échoue
+donc là, et un changement du contrat échoue aux tests de ses champs. Écarté pour ce lot : lire le
+type du champ que désigne `loc` dans le modèle, comme le proposait #1236, puisque le test suffit à
+dire la dérive.
+
+## Les heures d'une date saisie, complétées par le serveur ; un jour chômé refusé (EP-15/US-0470, #1244, #1271)
+
+**Une date de début ou de fin se saisit sans ses heures** (décision de l'auteur du 2026-10-21,
+#1244 ; WF-PLA-0010, WF-PLA-0020, WF-DAT-0100). `TaskFacetUpdate.start` et `finish` exigeaient un
+`WorkInstant` entier, la date et les heures de travail écoulées ce jour-là sur le calendrier
+applicable ; or le front ne connaît pas ce calendrier. La grille reprenait donc les heures que la
+tâche portait à son ancienne date, ou `0` : un début à `4` déplacé à un jour de moins de quatre
+heures aurait porté des heures que le calendrier n'accorde pas. L'entrée de `updateTaskFacet`
+prend un schéma propre, `WorkInstantWrite`, dont `hours` est facultatif ; `WorkInstant` reste
+celui des lectures, `hours` exigé. Sans `hours`, le serveur complète sur le calendrier applicable
+de la tâche : le début au début de son jour (`0`), la fin au bout des heures que le calendrier
+accorde ce jour-là. Envoyées, les heures sont prises telles quelles. Le front affiche, il ne
+calcule pas.
+
+**Des heures envoyées au-delà de celles du jour sont refusées, jamais bornées** (revue de #1244).
+Un `WorkInstant` compte les heures de travail écoulées ce jour-là sur le calendrier applicable
+(WF-DAT-0100) : il n'y en a jamais plus que le calendrier n'en accorde, ni moins de `0`. Des
+heures hors de ces bornes — `{"date": <samedi>, "hours": "6"}` sur un calendrier sans samedi —
+sont refusées par 422 `VALIDATION_FAILED`, `fields` sur `/start/hours` ou `/finish/hours` par
+`VALUE_OUT_OF_RANGE`, `fields[].params` portant la seule borne franchie, `minimum` à `0` ou
+`maximum` aux heures du jour, jamais nul depuis #1271 — un jour chômé est refusé par sa date, ses
+heures n'étant pas jugées ; rien n'est écrit. Écarté :
+borner les heures au maximum du jour. « Prises telles quelles » ne le permet pas — le serveur
+écrirait une autre valeur que celle envoyée, sans le dire, et une fin envoyée à `10` sur un jour
+de huit heures deviendrait `8` sans que le client le sache ; le refus dit la borne, que le client
+connaît dès lors sans connaître le calendrier. Le motif est celui de toute borne incluse
+franchie, `VALUE_OUT_OF_RANGE` (« Session et erreurs ») : aucun code nouveau, et le front le dit
+déjà. La borne dépend du calendrier et du jour : le schéma ne la publie pas en `maximum`.
+Exemple engendré : `task_hours_beyond_day`, la fin de la mise en service envoyée le vendredi
+15 janvier 2027 à dix heures, refusée, `maximum` à `8` — un samedi à six heures jusqu'à #1271, où
+`maximum` valait `0`.
+
+**Un jour sans heure travaillée est refusé à la saisie, nommant le jour travaillé suivant ;
+gardé et signalé à l'import** (décision de l'auteur du 2026-10-22, #1271 ; WF-PLA-0020 tel que
+#1289 l'a réécrit). Elle remplace la règle de #1244 (commit 289c868e), qui gardait une telle date
+le début et la fin à `0`, faute d'un texte. WF-PLA-0020 dit désormais : « Une date saisie sur un
+jour sans aucune heure travaillée au calendrier applicable est refusée, et le refus nomme le jour
+travaillé suivant ; rien n'est écrit. L'import d'un fichier MS Project garde une telle date telle
+quelle, et le compte rendu la signale », et son Vérif : « Sur un calendrier du lundi au vendredi,
+la date de début d'une tâche manuelle saisie un samedi est refusée, et le refus nomme le lundi
+suivant ; la même date importée d'un fichier MS Project est gardée et signalée au compte rendu ».
+
+- *La saisie* (`updateTaskFacet`) : 422 `VALIDATION_FAILED`, `fields` sur `/start/date` ou
+  `/finish/date` par un motif nouveau, `NON_WORKING_DAY`, `fields[].params.date` la date envoyée
+  et `next_working_day` le premier jour suivant qui compte des heures au calendrier applicable de
+  la tâche — le front dit « le samedi 19 n'est pas travaillé sur le calendrier de la tâche ;
+  saisis le lundi 21 » sans connaître ce calendrier. Une date chômée n'a pas d'heures : celles
+  qu'on envoie avec elle ne sont pas jugées, et `VALUE_OUT_OF_RANGE` ne nomme plus jamais un
+  `maximum` à `0`. Le début et la fin chômés tous deux font deux refus, un par champ.
+- *L'import MS Project* : la date est gardée telle que le fichier la porte, le début et la fin à
+  `0` comme la formule de #1244 le donne, et le compte rendu la signale dans un tableau nouveau,
+  `ImportReport.signals`, toujours rendu comme les autres : un `ImportSignal` par date — la
+  tâche (`lineage_id`, `label`), la colonne (`start`, `finish`), et le même motif avec les mêmes
+  paramètres, pour que la saisie et l'import se disent d'une même phrase (WF-ARC-0110). Ni rejet
+  ni confirmation : WF-PLA-0020 garde la date. Le signalement suit la cellule, non le jour, comme
+  le refus de la saisie suit le champ : un jalon dont le début et la fin tombent le même jour
+  chômé est signalé deux fois, `start` et `finish`, comme une tâche dont les deux dates sont
+  chômées — les deux cellules de la grille portent la date, et un seul
+  signalement laisserait l'une sans motif. `ImportSignal.code` est tenu à `NON_WORKING_DAY`
+  (`const` à côté d'`ErrorCode`), seul signalement qui existe : un autre élargira la liste par
+  une modification du contrat. Les modèles engendrés du service n'en gardent que `ErrorCode`.
+
+Écartés : un code d'heure (`VALUE_OUT_OF_RANGE` sur `/start/hours`), qui ne dit pas la vraie cause
+— le jour, non ses heures (défaut n° 10 du guide) — ni le jour suivant ; reporter la date au jour
+suivant, que WF-PLA-0020 ne permet pas (« rien n'est écrit ») ; `TASK_WITHOUT_WORKING_HOURS`, qui
+juge la semaine d'un calendrier, non un jour ; signaler l'import par `date_mismatches`, qui dit un
+écart avec le recalcul de Waterfall, ou par `ignored`, qui dit ce qui n'est pas lu, quand la date
+est lue et gardée.
+
+**La création n'est pas touchée.** `TaskFacetWrite` (`createNode`) garde `WorkInstant` : la
+décision vise la saisie d'une date dans la grille ; une création qui portera des dates saisies
+suivra la même règle, par une modification du contrat.
+
+Exemple engendré (`wftools.mockgestures`) : `task_dates_sent`, le corps de `updateTaskFacet` qui
+donne `task_dates_entered` — les dates de la mise en service, manuelle, envoyées par leur seule
+date, rendues à `0` et `8` heures sur son calendrier. Le faux back complète désormais
+les heures d'une tâche manuelle sur son calendrier applicable (`wftools.mockcore`), et non plus à
+huit heures ; aucune réponse engendrée n'en change.
+
+Exemples engendrés par `wftools.mocknonworking` (#1271) : `task_date_non_working_day`, le début de
+la mise en service, manuelle, envoyé le samedi 19 décembre 2026, refusé, le lundi 21 nommé ; et
+`import_planning_non_working_day` (`getImport`), le planning de la structure principale exporté
+aujourd'hui et réimporté, la mise en service passée en mode manuel et commencée ce samedi : un
+écart sur `scheduling_mode` et `start`, la date gardée et signalée, le lundi 21 nommé, les deux
+calendriers du fichier ignorés et dits — une variante qu'`imports` ne reprend pas. Les autres
+comptes rendus d'import portent `signals` vide. Le témoin #421 n'en est pas touché : aucun de ces
+exemples ne rend de nœud.
+
+## Les gestes du Kanban (EP-15/US-0540)
+
+Partie K6 de la conception d'EP-15 (US-0540/L1, #1129), sur la décision de l'auteur du 2026-10-18
+(#1070), et les décisions du 2026-10-21 que le lot reprend (#1235, #1240, #1247, #1154, #1273).
+
+**Chaque carte liste ses gestes** (WF-RAE-0030, WF-IHM-0090). Les trois colonnes de
+`listStartableTasks` rendent des `KanbanTask` : le nœud et `available_commands`, des
+`KanbanCommandAvailability` sur `KanbanCommand` — `start`, `complete`, `reopen`,
+`enter_remaining` —, chacun disponible ou non avec les conditions qui lui manquent ; une tâche non
+démarrée est un `NotStartedTask`, qui garde `predecessors_completed`. Une carte ne liste que les
+gestes que son état et sa nature admettent : `start` sur une tâche non démarrée qui n'est pas un
+jalon, qui ne démarre jamais (WF-PLA-0050) ; `complete` sur toute carte non terminée, qui manque
+de `task_is_milestone` pour une tâche non démarrée qui n'est pas un jalon, et de
+`task_without_lines` pour une tâche qui porte une ligne hors provision ; `reopen` sur toute carte
+terminée ; `enter_remaining`, qui renvoie à la grille de reste à engager sans rien écrire, sur
+une carte non terminée qui porte une ligne hors provision. Une ligne de provision ne retient pas
+une tâche de se terminer depuis le Kanban (WF-PLA-0050). Après les conditions du geste viennent
+celles de `StructureCommand.edit_remaining` de la structure principale, `project_in_progress`
+puis `no_background_task_running` : le Kanban est une saisie du reste à engager (FBS-4.5.3),
+sous `remaining.write`, sans laquelle la liste est vide. Chaque geste dit aussi l'état qu'il
+envoie à `setTaskProgress` (`progress`) : la réouverture d'un jalon envoie `not_started`, celle
+de toute autre tâche `started`, et le front n'a pas à le déduire de `task.is_milestone`. Quatre
+conditions s'ajoutent à `CommandCondition` : `task_is_milestone`, `task_not_milestone`,
+`task_without_lines` et `completed_milestone`. Écartés : lister les quatre gestes sur chaque
+carte, indisponibles hors de leur colonne, ce qui ferait nommer une condition à un geste qu'aucun
+état de la tâche n'ouvrira jamais — la convention est celle de `edit_remaining`, jamais listée sur
+un différentiel ; laisser au front le choix de l'état d'une réouverture.
+
+**`not_started` pour un jalon terminé, et lui seul** (WF-RAE-0030). `ProgressUpdate.progress`
+prend toute valeur de `TaskProgress`. « Un jalon terminé que l'on rouvre redevient non démarré,
+seul cas où une tâche revient à cet état, et sa date de terminaison est effacée » ; `not_started`
+envoyé pour toute autre tâche est refusé par 409 `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `completed_milestone` — une tâche démarrée par erreur se corrige en
+annulant la saisie (WF-IHM-0110). La description de `ProgressUpdate`, qui disait qu'« aucun geste
+ne la ramène à “non démarrée” », est réécrite. Le 409 de `setTaskProgress` nomme la première
+condition qui manque, comme la carte : `task_is_milestone`, `task_without_lines`,
+`task_not_milestone` (un jalon envoyé à `started`), `completed_milestone`.
+
+**Le 200 de `setTaskProgress` ne rend pas les lignes de la tâche** (#1154). Elles ne sont pas
+écrites ; ce qu'elles acceptent suit pourtant l'état de leur tâche — une ligne d'une tâche démarrée
+dont le sous-projet a reçu des coûts réels ne nomme plus `estimate_line.subproject_id`, une ligne
+d'une tâche terminée n'accepte plus la réestimation. Le contrat dit qu'une grille qui les tient
+les relit (`listNodes`, `subtree_of`). Écarté : les rendre dans `nodes`, à la version qu'elles
+gardent, ce qui ferait rendre un même nœud à une même version avec deux contenus (#421).
+
+Exemples engendrés par `wftools.mockkanban` : `startable_tasks` et `startable_tasks_milestone`
+disent les gestes de chaque carte ; `task_started`, le montage des armoires sur site démarré le
+3 juin, à la suite de `predecessor_set` qui l'avait écrit, une version de plus, ses dates
+inchangées et sa date de démarrage celle du geste ; `milestone_completed`, la réception usine,
+jalon sans ligne, terminée le 3 juin à la suite de `task_attached`, sa date prévue du 30 juin
+gardée ; `task_reopened`, les études de détail rouvertes, démarrées ; `milestone_reopened`, la
+réception des études rouverte, non démarrée ; `task_reopen_not_started_refused`, les études de
+détail envoyées à l'état non démarré. Le faux back date désormais un geste du Kanban par le jour
+où il est fait (`Task.declared_on`), et non plus par les dates de la tâche (WF-PLA-0130) ; aucune
+autre réponse engendrée n'en change.
+
+**Le plafond des préférences se vérifie une fois la modification fusionnée** (#1235).
+`grids` et `timelines` étaient bornés à cent entrées par requête, mais des `PATCH` successifs
+faisaient grandir la table gardée. Le service compte les entrées après la fusion : une
+modification qui porterait l'une ou l'autre au-delà de cent est refusée par 422
+`VALIDATION_FAILED`, `fields` sur `/grids` ou `/timelines` par `VALUE_TOO_LONG`, rien n'étant
+écrit. Une modification qui n'accroît pas la table — qui en oublie ou en remplace des entrées —
+n'est jamais refusée pour sa taille : une table déjà plus grande, gardée avant cette règle, peut
+toujours décroître. Une modification qui porte aussi la langue l'a déjà dite au fournisseur
+d'identité quand elle est refusée ; le choix de la langue renvoyé répare le désaccord, comme le
+dit « Les préférences d'affichage… ». `backend/tests/test_users_personal.py` cumule cent une
+chronologies, puis cent une grilles, sur deux `PATCH`.
+
+**La part de gravité d'un risque sur une assiette nulle** (#1240). `RiskMatrixPoint.severity_ratio`
+passe dans l'enveloppe `Computable`. Sur une assiette nulle — un projet sans budget de référence
+dont le devis ne porte encore que des provisions —, elle n'est pas calculable, motif
+`no_reference_budget`, et le risque est au niveau de gravité le plus bas, compté dans la case de
+sa probabilité ; le graphique ne trace pas de bulle sans ordonnée. Le motif existant dit la cause
+— l'assiette est le budget de référence, et à défaut un total qui ne le remplace pas ici — sans
+clé nouvelle à traduire. Écartés : un motif nouveau, qui dirait la même chose ; le risque hors de
+la matrice, que les cases ne compteraient plus alors que le registre le liste. Exemple :
+`risk_matrix_no_basis`, variante contrefactuelle, le registre du témoin lu sur une assiette nulle.
+
+**Le plan de charge du projet porte le total de chaque mois** (#1247). `WorkloadPlan.monthly_totals`
+donne, comme `PortfolioWorkload.monthly_totals`, des `{month, hours}`, la somme des heures des
+rôles retenus : du premier au dernier mois qu'un rôle charge, croissants et sans trou, un mois
+sans charge à zéro, vide quand aucun rôle n'est chargé. Le plan d'un projet n'a pas de `months` à
+la racine — chaque rôle ne porte que les mois qu'il charge — : chaque total nomme son mois.
+Les quatre exemples `workload*` le portent ; le front le dessine en US-0550/L5 (#1259).
+
+**Les heures d'un instant de travail dans le catalogue de `Problem.params`** (#1273).
+`/start/hours` et `/finish/hours` de `updateTaskFacet` y sont nommés, `minimum` à `0` et
+`maximum` aux heures du jour. Le type `Hours` est un décimal signé, qui n'interdit pas le négatif :
+la borne `minimum` reste, et a son exemple, `task_hours_below_zero`, un début envoyé à `-1` heure.
+
+## L'état replié d'un graphique est une préférence d'affichage, par graphique (EP-15/US-0550/L6)
+
+Décision de l'auteur du 2026-10-22 sur #1275, point 1 : la matrice des risques de l'écran d'un
+projet démarre repliée (#1252), et son dépliage se garde dans les préférences de l'utilisateur.
+
+**Une table par graphique, comme les grilles et les chronologies.** `DisplayPreferences.charts`,
+une table par nom de graphique de `ChartPreferences` — `folded`, un booléen exigé —, bornée comme
+`grids` et `timelines` (#874, #1235) : cent graphiques, des noms de 64 caractères au plus,
+`VALUE_TOO_LONG` sur `/charts` au-delà, y compris une fois la modification fusionnée. Une
+modification ne remplace que les graphiques qu'elle nomme ; un graphique à `null` retrouve l'état
+que son écran lui donne d'abord, et un graphique absent le prend aussi. `charts` à `null` et
+`folded` nul ou absent sont refusés par `VALIDATION_FAILED` à leur pointeur, comme les autres
+réglages qui ne le sont jamais. Le nom est celui du graphique sur son écran, comme celui d'une
+grille : `risk_matrix`, la matrice de l'écran des risques d'un projet, une seule préférence pour
+tous les projets — l'écran se retrouve tel que l'utilisateur l'a laissé, quel que soit le projet
+ouvert. Le back sert le champ sans table ni migration : `waterfall.core.users.personal` fusionne
+`charts` graphique par graphique, et `waterfall.api.me` en refuse le nul. Exemples
+`preferences_risk_matrix_unfolded`, dernier des réponses de `updateMyPreferences`, et
+`me_grid_settings`, qui porte la matrice dépliée ; `tools/tests/test_mockbounds.py` tient les noms
+et les états des exemples.
+
+Écartés : un booléen à la racine des préférences (`risk_matrix_folded`), qui obligerait un champ
+nouveau du contrat pour chaque graphique qui se replie ; un état par projet, une table par
+`project_id`, que la décision ne demande pas et qui ferait redéplier la matrice à chaque projet
+ouvert ; et une table par écran plutôt que par graphique, qui confondrait deux graphiques d'un même
+écran.
+
+## La lecture du planning dit sa date de calcul et ses jours chômés (EP-15/US-0530)
+
+Partie K10 de la conception d'EP-15 (US-0530/L4), sur les décisions de l'auteur du 2026-10-24
+(#1404, #1406, #1410) : les exports d'image du Gantt et d'une chronologie nomment la date de calcul
+(WF-IHM-0130), et le Gantt teinte les jours chômés de chaque tâche ; ni l'une ni les autres
+n'étaient dans la lecture du planning.
+
+**La date de calcul est un fait de la lecture** (#1404). `NodeListMeta.scheduled_at`, un
+`Timestamp` exigé : l'instant du dernier calcul des dates de la structure lue — la dernière écriture
+qui l'a redatée, sa création comprise, ou son import —, quels que soient les filtres, la recherche,
+`kinds` et `fields`, comme `summary_depth`. Une révision marquée n'étant plus redatée (WF-DAT-0020),
+elle garde l'instant du dernier calcul qui a précédé son marquage. `RevisionComparison.meta`
+reprenant `NodeListMeta`, une comparaison le porte aussi, pour la révision comparée : elle se lit
+comme `listNodes` (#1193, ci-dessus), et sa conséquence ne demande aucun schéma de plus. Le faux back
+dit l'instant du témoin, le 3 juin 2026 à 14 h 05, de toute lecture d'une structure en cours
+(`mockwitness.SCHEDULED_AT`) — il date une structure en la lisant, et aucune écriture du témoin ne
+vient après —, et l'instant de son marquage d'une révision comparée (`mockcomparisons`, d'après
+`mockhistory.REVISIONS`) : la fusion de l'avenant 1, qui redate la référence et la marque, le 1er
+février 2026 à 9 h, et le marquage de l'offre, le 15 décembre 2025 à 16 h, pour la paire
+identique — le témoin ne datant aucune des écritures qui ont précédé ce marquage, le faux back tient
+le marquage pour leur dernier calcul. Une révision comparée non marquée, en cours, est lue comme toute structure en cours : à l'instant du témoin. Écartée : `CostStructure.scheduled_at`, qui obligerait le front à lire la liste des
+structures pour dater ce qu'il lit des nœuds, quand `NodeListMeta` dit déjà ce que la lecture dit
+de la structure lue.
+
+**Chaque tâche porte les heures de son calendrier applicable, `TaskFacet.calendar_hours`** (#1410,
+option A). Un `WeeklyHours` exigé, calculé : chaque jour, le plus petit des nombres d'heures que les
+calendriers des rôles des lignes de main-d'œuvre de la tâche lui accordent, le calendrier par
+défaut sans aucune (WF-PLA-0010) ; un jour à 0 heure est un jour chômé, le contrat ne connaissant
+pas de jours fériés (WF-REF-0110). C'est une propriété de `Node` que `fields` nomme
+(`task.calendar_hours`), rendue de toute lecture sans `fields` ; sur une révision marquée, ce sont
+les heures des calendriers qu'elle fige (`EmployedReference`).
+- *Le nom.* `calendar_hours` se range à côté de `calendar_id` et dit ce qu'il porte, les heures du
+  calendrier ; `weekly_hours`, le nom de la même forme dans `CalendarImage`, aurait fait lire un
+  calendrier du référentiel là où une tâche à deux rôles porte leur intersection, qui n'en est aucun,
+  et, dans une facette où `hours` et les totaux comptent la charge, les heures de travail de la
+  tâche. `calendar_id` ne suffit pas : une intersection n'a pas d'identifiant, et le front devrait
+  lire le référentiel et la recalculer, ce que WF-ARC-0020 refuse à un écran.
+- *Les récapitulatives et les jalons.* La même règle, sur les seules lignes qu'ils portent : une
+  récapitulative tire de ses subordonnées ses dates, sa durée et son état, non son calendrier, et sa
+  durée est le temps de travail entre ses dates « sur son calendrier applicable » (WF-PLA-0040) ; un
+  jalon a une date, refusée saisie sur un jour sans heure de ce calendrier (WF-PLA-0020). Le Gantt teinte ainsi la
+  barre d'une récapitulative sur le calendrier même où sa durée se compte. Écartés : une
+  récapitulative sans calendrier, nul ou omis, dont la barre ne se teinterait pas ; l'intersection
+  des calendriers de son sous-arbre, qu'aucune exigence ne dit, et qui contredirait celui de sa
+  durée ; et les seules `WeeklyHours` du calendrier par défaut dans `NodeListMeta`, qui montreraient
+  travaillé un jour que le rôle d'une tâche ne travaille pas.
+
+Le générateur calcule le calendrier applicable depuis les lignes (`wftools.mockcalendar.applicable`),
+et date désormais une récapitulative sur le sien, non sur le calendrier par défaut — aucune
+récapitulative du témoin ne porte de ligne de main-d'œuvre, et rien ne change de ses dates. Les
+lectures et les écritures de nœuds régénérées le rendent : sur la semaine standard pour presque
+toutes, sur la semaine de quatre jours de dix heures pour les tâches du monteur câbleur, et, dans
+`estimate_line_redated`, sur l'intersection des deux — huit heures du lundi au jeudi — quand le câblage
+sur site passe au monteur câbleur à côté du technicien de mise en service ; `skeleton_generated`,
+écrit à la main, porte le calendrier par défaut. `tools/tests/test_mockcore.py`, qui tient les
+lectures de `listNodes`, confronte le calendrier de chaque tâche lue aux calendriers et aux rôles
+écrits à la main, et la date de calcul de chaque lecture à la chronologie du témoin ;
+`tools/tests/test_mockdating.py` date une récapitulative qui porte une ligne du monteur câbleur sur
+son propre calendrier, trois jours et demi pour les trois jours de sa subordonnée.
+`test_mocklists.py`, que nomme la conception, tient les listes écrites à la main (`wftools.mocklists`),
+non les lectures des nœuds.
+
+**Le couloir d'une tâche dans `me_grid_settings`** (#1406). La disposition du « Comité de
+pilotage » range aussi la « Mise en service » (`…0565`) au couloir 2, sous les études, à côté
+desquelles l'empilement automatique la range : jusque-là, l'exemple ne plaçait que deux jalons, qu'une
+frise ne range pas, et sa disposition se dessinait comme l'automatique.
 
 ## Collage et annulation
 

@@ -237,7 +237,10 @@ describe("a field of a line that says nothing, left out by the projection", () =
 // from 2.98 to 3.29 million, 0.431 to 0.476; those of the remaining to commit from 3.80 to 4.11
 // million, 0.550 to 0.594. The structure of the witness in hours (EP-02/L27), its core first, made
 // the volume 7.09 million characters: the rows of the estimate weigh 4.63 million, 0.653; those of
-// the planning 3.30 million, 0.466; those of the remaining to commit 4.41 million, 0.623.
+// the planning 3.30 million, 0.466; those of the remaining to commit 4.41 million, 0.623. The
+// sub-project of a line, its identifier and its label (US-0480), which the remaining to commit now
+// reads to choose it from the menu of a cell and to show it in a column, took its rows to 4.83
+// million, 0.680.
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");
@@ -251,8 +254,13 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
   paste: { preview: unwritten, apply: unwritten, span: unwritten, name: unwritten },
 });
 
-holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.655);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.475);
+// The position of a node among the siblings of its kind, which the gestures of structure read to
+// place a node beside another (US-0460/L3, #1188), weighs about a hundredth of each answer: 0.655,
+// 0.475 and 0.63 before it. The calendar of the task, which the Gantt tints the days off of
+// (US-0530/L5), adds 118 400 characters to the planning rows, 1 000 tasks of it: 3.41 to 3.53
+// million characters of the 7.24 of the volume, 0.471 to 0.488; the bound was 0.485 before it.
+holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.67);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.49);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:
 // 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1); the figures at the previous
@@ -261,5 +269,5 @@ holdsWhatTheGridReads(
   "remaining to commit",
   remainingGrid({ line: unwritten }),
   REMAINING_FIELDS,
-  0.63,
+  0.69,
 );

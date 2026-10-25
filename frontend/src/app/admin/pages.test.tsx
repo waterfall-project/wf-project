@@ -16,6 +16,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 import { buttons, instants, links, rows, sortable, text } from "@/test/markup";
+import { queryOfCall } from "@/test/queries";
 
 import SystemStatusPage, { generateMetadata as statusMetadata } from "../system/page";
 import AccessRolesPage, { generateMetadata as rolesMetadata } from "./access-roles/page";
@@ -45,6 +46,8 @@ vi.mock("next/navigation", async (original) => ({
 // The session of the contract, some of its permissions withdrawn for a test: no example lacks the
 // modification of the backups alone, and one would ripple through the accounts, the roles and the
 // journal of the witness.
+// The sizes of pages the account keeps, set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
 const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
@@ -56,6 +59,10 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
             permissions: session.permissions.filter(
               (permission) => !withdrawn.permissions.includes(permission),
             ),
@@ -88,10 +95,11 @@ function queriesOf(route: string) {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 beforeEach(() => {
+  kept.grids = {};
   withdrawn.permissions = [];
   shown.path = "/admin/users";
   server.clients = [];
@@ -369,7 +377,7 @@ describe("the accounts", () => {
     server.answers = { ...server.answers, "GET /users": "users_anonymized" };
     const page = rendered(await UsersPage(searched({ is_active: "false" })));
     expect(rows(page, "Comptes utilisateurs").slice(1, 2)).toEqual([
-      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Désactivé Condition non remplie : compte non anonymisé. Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
+      "Compte anonymisé Créé dans Waterfall Bureau d'études électricité Chef de projet Condition non remplie : compte non anonymisé. Désactivé Camille Martin Camille Martin Anonymiser Condition non remplie : compte non anonymisé.",
     ]);
     expect(text(page)).not.toMatch(/Alix|Moreau|alix\.moreau/);
     // Its reactivation, on the switch of its state, and its anonymisation: both unavailable.
@@ -418,8 +426,8 @@ describe("the accounts", () => {
     await UsersPage(searched({ search: "" }));
     await UsersPage(searched({ sort_by: "email", sort_order: "asc" }));
     expect(queriesOf("GET /users")).toEqual([
-      { include_inactive: "true" },
-      { include_inactive: "true", sort_by: "email", sort_order: "asc" },
+      { include_inactive: "true", limit: "25" },
+      { include_inactive: "true", sort_by: "email", sort_order: "asc", limit: "25" },
     ]);
   });
 
@@ -818,3 +826,25 @@ describe("the state of the system", () => {
 });
 
 /** The sort the server gives the backups unasked, which the page asks when the address says nothing. */
+
+describe("the accounts, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await UsersPage(searched(search));
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /users");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+
+  it("reads the page size kept by the account when the address asks none [WF-IHM-0060-A]", async () => {
+    kept.grids = { users: { page_size: 25 } };
+    await UsersPage(searched({}));
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === "GET /users");
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
+  });
+});

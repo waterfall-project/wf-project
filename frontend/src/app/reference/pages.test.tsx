@@ -19,6 +19,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import CostSettingsPage, { generateMetadata as costsMetadata } from "./costs/page";
 import IndicatorSettingsPage from "./indicators/page";
@@ -60,6 +61,26 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => navigation.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));
@@ -97,7 +118,7 @@ const LABOUR = "01926f3a-7c00-7000-8000-000000000461";
 /** A list read whole as a list of choices is: every page, by the largest the contract takes. */
 const WHOLE = { limit: "500", offset: "0" };
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 
 /** The roles of the witness, as the server pages them. */
 const ROLE_PAGE = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
@@ -108,7 +129,7 @@ const REACTIVATE =
 
 /** The queries the pages sent to an operation, each as its parameters. */
 function queriesOf(route: string): Record<string, string>[] {
-  return callsTo(route).map((call) => Object.fromEntries(call.query));
+  return callsTo(route).map((call) => queryOfCall(call.query));
 }
 
 /** The headings of the columns a grid of a page sorts: those whose header holds a button. */
@@ -146,6 +167,7 @@ function rows(markup: string, table: string): string[] {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.rates = [];
   server.clients = [];
   server.answers = {
@@ -169,7 +191,7 @@ describe("the settings of the costs", () => {
   it("hand the grid of the hourly rates the page the server answers, its currency, and its entry to a session that may modify the cost settings", async () => {
     const page = await costsAt();
     expect(text(page)).toContain(
-      "Paramètres de coûts Montants exprimés en EUR, devise unique de l’installation.",
+      "Paramètres de coûts Aide Montants exprimés en EUR, devise unique de l’installation.",
     );
     const [handed] = grids.rates;
     expect(handed?.grid.rows).toHaveLength(150);
@@ -177,7 +199,7 @@ describe("the settings of the costs", () => {
     expect(handed?.grid.meta.total).toBe(150);
     expect(handed?.currency).toBe("EUR");
     expect(handed?.editable).toBe(true);
-    expect(handed?.query).toEqual({ sort: undefined, search: undefined });
+    expect(handed?.query).toEqual({ sort: undefined, search: undefined, size: 50 });
     // The page of the server's size: nothing asked but what the address asks.
     expect(queriesOf(RATES)).toEqual([{}]);
   });
@@ -188,15 +210,24 @@ describe("the settings of the costs", () => {
       sort_by: "rate.2026",
       sort_order: "desc",
       offset: "50",
+      limit: "25",
       // The names of the other grids of the screen are not the rates'.
       type_sort_by: "label",
+      type_limit: "100",
     });
     expect(queriesOf(RATES)).toEqual([
-      { search: "Automatisme", sort_by: "rate.2026", sort_order: "desc", offset: "50" },
+      {
+        search: "Automatisme",
+        sort_by: "rate.2026",
+        sort_order: "desc",
+        offset: "50",
+        limit: "25",
+      },
     ]);
     expect(grids.rates[0]?.query).toEqual({
       sort: { column: "rate.2026", order: "desc" },
       search: "Automatisme",
+      size: 25,
     });
   });
 
@@ -541,4 +572,39 @@ describe("the settings of the risks and of the indicators", () => {
       "Délai maximal entre deux révisions marquées d’un projet en cours : 8 semaines.",
     );
   });
+});
+
+describe("the settings of the costs, the size of the pages", () => {
+  it.each([
+    ["the rates", RATES, "limit"],
+    ["the natures", "GET /reference/cost-types", "type_limit"],
+    ["the categories", "GET /reference/cost-categories", "category_limit"],
+  ])(
+    "sends the limit of the reading of %s: 50 unasked, the page size asked [WF-IHM-0060-A]",
+    async (_name, route, name) => {
+      for (const [search, limit] of [
+        [{}, "50"],
+        [{ [name]: "25" }, "25"],
+      ] as const) {
+        server.clients = [];
+        await costsAt(search);
+        const [call] = callsTo(route);
+        expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+      }
+    },
+  );
+
+  it.each([
+    ["the rates", RATES, "hourly_rates"],
+    ["the natures", "GET /reference/cost-types", "cost_types"],
+    ["the categories", "GET /reference/cost-categories", "cost_categories"],
+  ])(
+    "reads the page size kept for %s when the address asks none [WF-IHM-0060-A]",
+    async (_name, route, key) => {
+      kept.grids = { [key]: { page_size: 25 } };
+      await costsAt({});
+      const call = callsTo(route);
+      expect(Object.fromEntries(call[0]?.query ?? []).limit).toBe("25");
+    },
+  );
 });

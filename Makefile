@@ -42,7 +42,10 @@ BACK    := backend
 FRONT   := frontend
 # An address where no API answers: the front builds without reaching one (#131).
 NOWHERE := http://127.0.0.1:9
-PNPM    := cd $(FRONT) && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1 pnpm
+PNPM_ENV := COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
+PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
+# pnpm for a heavy run, which waits for its turn (HEAVY_LOCK).
+PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -83,6 +86,12 @@ SHARD ?=
 # How many workers `make e2e` plays the paths on (playwright test --workers): fewer than Playwright
 # takes by itself on a loaded workstation, where paths fail by a timeout (#736). Empty, its own.
 WORKERS ?=
+# One heavy run at a time on the workstation: the whole tests of a side, their coverage, the
+# production build of the front, the end-to-end paths. Several agents running them side by side ran out of memory (2026-10). A run of
+# one file (TESTS) does not wait; on a runner of the chain, alone, the lock is always free. `env`
+# keeps the variables set before the command a command of their own once behind flock.
+HEAVY_LOCK ?= $(or $(XDG_RUNTIME_DIR),/tmp)/waterfall-heavy.lock
+heavy = $(if $(TESTS),,flock $(HEAVY_LOCK) env)
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
@@ -222,6 +231,10 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		$(COMPOSE_PRODUCTION) --profile install config --quiet
+	@WATERFALL_DOMAIN=demo.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
+		WATERFALL_DEMO_USER=stand-in WATERFALL_DEMO_PASSWORD_HASH=stand-in \
+		WATERFALL_SERVER_ACTIONS_KEY=stand-in PRISM_VERSION=$(PRISM_VERSION) \
+		docker compose -f deploy/compose/compose.demo.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build $(call build-cache-from,keycloak) --tag $(KEYCLOAK_IMAGE) deploy/keycloak
@@ -321,10 +334,10 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 PYTEST_WORKERS := -n auto --maxprocesses 8
 
 test-back: ## Tests of the back (TESTS=<file> runs one file)
-	@cd $(BACK) && uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
+	@cd $(BACK) && $(heavy) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
 
 coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
-	@cd $(BACK) && uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
+	@cd $(BACK) && $(heavy) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
 # The front in two halves, which the chain runs side by side (front.yml, e2e.yml); on a
@@ -392,11 +405,11 @@ catalogs: ## The catalogues of the front are twins, with a key for each value th
 	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
 test-front: install-front ## Unit tests of the front (TESTS=<file> runs one file; SHARD=lint or i/N one part of them, as the chain spreads them)
-	@$(PNPM) test $(FRONT_PART) $(TESTS)
+	@$(PNPM_HEAVY) test $(FRONT_PART) $(TESTS)
 
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
 build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
-	@$(PNPM) build
+	@$(PNPM_HEAVY) build
 
 # What the last production build of the front prerendered, read from the manifest it wrote, without
 # Docker: build-front's in the fast tier, that of the measure of the paths in the full one, which
@@ -408,9 +421,9 @@ prerendered-front: ## The production build of the front prerendered no page that
 # (frontend/.vitest/blob/), the thresholds held on the parts gathered alone.
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
 ifdef SHARD
-	@$(PNPM) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob
+	@$(PNPM_HEAVY) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob
 else
-	@$(PNPM) exec vitest run --coverage --silent
+	@$(PNPM_HEAVY) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
 endif
 
@@ -443,11 +456,11 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 # waits for all of them, would bring every path into each part; e2e-measure plays it apart.
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080); SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file
-	@$(PNPM) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(if $(WORKERS),--workers=$(WORKERS)) $(TESTS)
+	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(if $(WORKERS),--workers=$(WORKERS)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure
 e2e-measure: install-front ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
-	@$(PNPM) exec playwright test
+	@$(PNPM_HEAVY) exec playwright test
 
 # The paths of the Playwright project `service` (frontend/e2e/service/), against the real service:
 # the platform started — its realm applied with the address of the front of the harness, and the

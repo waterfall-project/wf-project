@@ -8,7 +8,8 @@
  * motive, which the same command can run again — whatever screen the user went to meanwhile.
  *
  * One tracker for every kind of task, in the root layout: a navigation within the application
- * keeps it, and nothing of it blocks the screen — no dialog, no control disabled. A full
+ * keeps it, and nothing of it blocks the screen while its panel is closed — no control disabled;
+ * open, the panel is a modal dialog, which the person closes when they will. A full
  * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`),
  * with what the user named them after; and, for a session, the tracker follows the tasks of its
  * user that still run, which the root layout reads and streams apart from the document
@@ -20,20 +21,27 @@
  * the refusal in its address: the tracker reads the task, follows it, tells the refusal by its entry,
  * and takes it away from the address (`result-refusal.ts`).
  *
- * Its panel lies under the bar of the shell, in the flow of the page, and a button of the bar
- * shows or hides it, with the number of the tasks followed. Until the user decides, it shows
- * while tasks are followed — a task handed over, or found again after a reload —; a task handed
- * over shows it again. Hidden, the tasks are still followed — their entries stay mounted and
- * ask where they stand —, and the log of their ends, outside what hides, still speaks.
+ * Its panel is a sheet along the right edge of the window, which carries the history of the
+ * messages of the session too (`message-history.ts`, #1043): a modal dialog, titled, which holds the
+ * focus while open, and which Escape, its close button or a click outside it close, the focus given
+ * back to the button of the bar. The button opens it, naming the number of the tasks followed and of the
+ * refusals not read yet, which its badges show. Nothing opens it by itself but the refusal of a
+ * result the browser came back with, whose download left from it. A task handed over, or ended, is
+ * said under the bar, in the flow of the page, on whatever screen the user is: the last of them, in
+ * a short line that stays until the next — a confirmation in place, the panel being closed —, and
+ * noted in the history. Closed, the tasks are still followed — the shell asks where they stand
+ * (`TaskPolling`) —, and the log of their ends still speaks, outside the panel, or within it while
+ * it is open, where the focus is held.
  */
 "use client";
 
-import { ListChecks } from "lucide-react";
+import { CircleAlert, ListChecks, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   createContext,
   type Dispatch,
   type ReactNode,
+  type RefObject,
   Suspense,
   use,
   useCallback,
@@ -47,16 +55,27 @@ import {
 } from "react";
 
 import type { BackgroundTask } from "@/api/problem";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import {
+  forgetMessages,
+  noteMessage,
+  shownScreen,
+  unreadRefusals,
+} from "@/components/notices/message-history";
+import { MessageList, useMessageHistory } from "@/components/notices/message-list";
+import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 import { listRunningTasks, readBackgroundTask } from "@/api/actions/tasks";
 
 import { readRefusal, withoutRefusal } from "./result-refusal";
 import { forgetTasks, restoreTasks, saveTasks } from "./storage";
-import { EndLog, TaskEntry } from "./task-entry";
+import { EndLog, TaskEntry, taskName, TaskPolling, useTaskNaming } from "./task-entry";
 import {
+  type EndLine,
   type Launch,
   NOTHING_TRACKED,
   type Tracking,
@@ -67,15 +86,24 @@ import {
 /** Hand a task over to the tracker, with what started it. */
 export type TrackTask = (task: BackgroundTask, launch?: Launch) => void;
 
-/** What the tracker holds: what it follows, and whether the user showed or hid the panel. */
+/** The last task handed over or ended, which the shell says under its bar. */
+type TaskNews =
+  | {
+      readonly kind: "started";
+      readonly task: BackgroundTask;
+      readonly subject: string | undefined;
+    }
+  | { readonly kind: "ended"; readonly line: EndLine };
+
+/** What the tracker holds: what it follows, whether the panel is open, and the last news. */
 interface Held {
   readonly tracking: Tracking;
-  /** `undefined` while the panel follows the tasks: shown while there are some. */
-  readonly shown: boolean | undefined;
+  readonly shown: boolean;
+  readonly news: TaskNews | undefined;
 }
 
 /** What the tracker holds before the browser has read anything, the server's too. */
-const NOTHING_HELD: Held = { tracking: NOTHING_TRACKED, shown: undefined };
+const NOTHING_HELD: Held = { tracking: NOTHING_TRACKED, shown: false, news: undefined };
 
 /**
  * What the tracker holds, outside React: the panel and its button read it by subscribing to it,
@@ -88,7 +116,20 @@ interface TrackerStore {
   readonly subscribe: (listener: () => void) => () => void;
   readonly read: () => Held;
   readonly dispatch: Dispatch<TrackingEvent>;
-  readonly show: (shown: boolean | undefined) => void;
+  readonly show: (shown: boolean) => void;
+  /** Say a news under the bar — none, and the line is closed. */
+  readonly tell: (news: TaskNews | undefined) => void;
+}
+
+/** The news once an event has changed what the tracker follows: an end logged is the last. */
+function newsAfter(before: Held, after: Tracking, event: TrackingEvent): TaskNews | undefined {
+  if (event.type === "forget") {
+    return undefined;
+  }
+  const ended = after.log.at(-1);
+  return ended !== undefined && ended !== before.tracking.log.at(-1)
+    ? { kind: "ended", line: ended }
+    : before.news;
 }
 
 /** A store of the tracker, holding nothing yet; a change that changes nothing tells no one. */
@@ -96,7 +137,7 @@ function trackerStore(): TrackerStore {
   let held = NOTHING_HELD;
   const listeners = new Set<() => void>();
   const hold = (next: Held) => {
-    if (next.tracking === held.tracking && next.shown === held.shown) {
+    if (next.tracking === held.tracking && next.shown === held.shown && next.news === held.news) {
       return;
     }
     held = next;
@@ -113,18 +154,26 @@ function trackerStore(): TrackerStore {
     },
     read: () => held,
     dispatch: (event) => {
-      hold({ ...held, tracking: tracking(held.tracking, event) });
+      const next = tracking(held.tracking, event);
+      hold({ ...held, tracking: next, news: newsAfter(held, next, event) });
     },
     show: (shown) => {
       hold({ ...held, shown });
     },
+    tell: (news) => {
+      hold({ ...held, news });
+    },
   };
 }
 
-/** What the panel and its button share: the store, and the identifier the button controls. */
+/**
+ * What the panel and its button share: the store, the identifier the button controls, and the
+ * button, which the focus goes back to as the panel closes.
+ */
 interface TrackerState {
   readonly store: TrackerStore;
   readonly panelId: string;
+  readonly button: RefObject<HTMLButtonElement | null>;
 }
 
 /** What the server renders of the tracker, and what hydration starts from. */
@@ -134,16 +183,23 @@ function nothingHeld(): Held {
 
 /** What the panel and its button read of the tracker, rendered again only when it changes. */
 function useTracker() {
-  const { store, panelId } = inTracker(useContext(StateContext));
-  const { tracking: state, shown } = useSyncExternalStore(store.subscribe, store.read, nothingHeld);
+  const { store, panelId, button } = inTracker(useContext(StateContext));
+  const {
+    tracking: state,
+    shown,
+    news,
+  } = useSyncExternalStore(store.subscribe, store.read, nothingHeld);
   return {
     tasks: state.tasks,
     log: state.log,
     refusedResult: state.refusedResult,
     dispatch: store.dispatch,
-    open: shown ?? (state.tasks.length > 0 || state.refusedResult !== undefined),
+    open: shown,
     setOpen: store.show,
+    news,
+    tell: store.tell,
     panelId,
+    button,
   };
 }
 
@@ -166,14 +222,74 @@ function inTracker<T>(value: T | undefined): T {
   return value;
 }
 
-/** The function that hands a task the screen started over to the tracker of the shell. */
+/**
+ * The function that hands a task the screen started over to the tracker of the shell, with the
+ * screen it was started from: said under the bar, and noted in the history of the messages.
+ */
 export function useTrackTask(): TrackTask {
-  return inTracker(useContext(TrackContext)).track;
+  const { track } = inTracker(useContext(TrackContext));
+  const t = useTranslations("tasks");
+  const naming = useTaskNaming();
+  const project = useShownProjectLabel();
+  return useCallback(
+    (task: BackgroundTask, launch: Launch = {}) => {
+      const from = shownScreen(project());
+      track(task, { ...launch, from });
+      const name = taskName(naming, { task, subject: launch.subject });
+      const sentence = t("started", { task: name });
+      noteMessage({}, { tone: "success", sentence, object: name, screen: from });
+    },
+    [track, t, naming, project],
+  );
 }
 
 /**
- * The function that forgets every task the tracker follows, and what the tab kept of them for a
- * reload: signing out leaves nothing of the session to the next user of the tab.
+ * Run `then` once the task named has ended in the way asked (`succeeded`, or `unsuccessful`: failed,
+ * or its follow-up interrupted). `task_id` is none until a task was started.
+ */
+function useWhenTaskEnded(
+  taskId: string | undefined,
+  way: "succeeded" | "unsuccessful",
+  then: () => void,
+): void {
+  const { log } = useTracker();
+  const done = useRef<string>(undefined);
+  const ended =
+    taskId !== undefined &&
+    log.some(
+      // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
+      (line) =>
+        line.task.task_id === taskId && (line.end === "succeeded") === (way === "succeeded"),
+    );
+  useEffect(() => {
+    if (ended && done.current !== taskId) {
+      done.current = taskId;
+      then();
+    }
+  }, [ended, taskId, then]);
+}
+
+/**
+ * Run `then` once, when the task named has succeeded — never when it failed or its follow-up was
+ * interrupted —, for the screen that started it and still shows: a task that ends while the user
+ * is elsewhere leads nowhere. `task_id` is none until a task was started.
+ */
+export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
+  useWhenTaskEnded(taskId, "succeeded", then);
+}
+
+/**
+ * Run `then` once, when the task named has failed or its follow-up was interrupted — never when it
+ * succeeded: what waited for its end is freed. `task_id` is none until a task was started.
+ */
+export function useWhenTaskFails(taskId: string | undefined, then: () => void): void {
+  useWhenTaskEnded(taskId, "unsuccessful", then);
+}
+
+/**
+ * The function that forgets every task the tracker follows, what the tab kept of them for a
+ * reload, and the history of the messages: signing out leaves nothing of the session to the next
+ * user of the tab.
  */
 export function useForgetTasks(): () => void {
   return inTracker(useContext(TrackContext)).forget;
@@ -263,8 +379,10 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
       return undefined;
     }
     const { id: taskId, refusal } = refused;
+    // The download left from the panel: it opens again, where the refusal is told.
     const told = () => {
       dispatch({ type: "result_refused", refusal });
+      store.show(true);
     };
     void readBackgroundTask(taskId).then((outcome) => {
       if (outcome.kind !== "done") {
@@ -275,7 +393,7 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
       const read = outcome.data.task_id;
       dispatch({ type: "found", tasks: [outcome.data] });
       dispatch({ type: "answer", source: "download", key: read, taskId: read, outcome: refusal });
-      store.show(undefined);
+      store.show(true);
     }, told);
     return afterReveal(() => {
       if (readRefusal(new URLSearchParams(window.location.search))?.id === taskId) {
@@ -334,17 +452,20 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
   const commands = useMemo<TrackerCommands>(
     () => ({
       track: (task, launch = {}) => {
+        store.tell({ kind: "started", task, subject: launch.subject });
         dispatch({ type: "track", task, launch });
-        store.show(undefined);
       },
       forget: () => {
         dispatch({ type: "forget" });
+        store.show(false);
         forgetTasks();
+        forgetMessages();
       },
     }),
     [store, dispatch],
   );
-  const value = useMemo(() => ({ store, panelId }), [store, panelId]);
+  const button = useRef<HTMLButtonElement>(null);
+  const value = useMemo(() => ({ store, panelId, button }), [store, panelId]);
   return (
     <TrackContext value={commands}>
       <StateContext value={value}>
@@ -355,115 +476,201 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
   );
 }
 
-const PANEL = "border-b bg-card px-4 py-2 text-card-foreground";
-
 /**
- * The button of the bar of the shell that shows or hides the panel of the tasks, with the
- * number of the tasks followed, which its name says too.
+ * The button of the bar of the shell that opens or closes the panel of the tasks and the messages,
+ * with the number of the tasks followed and of the refusals not read yet, which its name says too.
  */
 export function TasksButton() {
   const t = useTranslations("tasks");
-  const { tasks, open, setOpen, panelId } = useTracker();
+  const { tasks, open, setOpen, panelId, button } = useTracker();
+  const unread = unreadRefusals(useMessageHistory());
   const count = tasks.length;
   return (
     <Button
+      ref={button}
       type="button"
       variant="outline"
       size="sm"
-      aria-label={t("toggle", { count })}
+      aria-label={t("toggle", { count, unread })}
+      aria-haspopup="dialog"
       aria-expanded={open}
-      aria-controls={panelId}
+      aria-controls={open ? panelId : undefined}
       onClick={() => {
         setOpen(!open);
       }}
     >
       <ListChecks aria-hidden="true" />
-      <span className="hidden lg:inline">{t("label")}</span>
+      <span className="hidden lg:inline">{t("panel")}</span>
       {count === 0 ? null : <Badge aria-hidden="true">{count}</Badge>}
+      {unread === 0 ? null : (
+        <Badge aria-hidden="true" variant="outline" className="text-destructive">
+          <CircleAlert />
+          {unread}
+        </Badge>
+      )}
     </Button>
   );
 }
 
+/** The sentence of each end, by how it ended. */
+const END_SENTENCE = {
+  succeeded: "succeeded",
+  failed: "failed",
+  interrupted: "interruptedLine",
+} as const;
+
 /**
- * The main content of the page, made a target of the focus — outside the order of the
- * keyboard — when it is not one already. The page is not the shell's: it is found in the
- * document, where every screen has its `<main>`.
+ * The last task handed over or ended, under the bar, in the flow of the page: a short line that
+ * stays until the next, not announced — the log of the ends speaks, and a task handed over follows
+ * a command the user just gave —, or until it is closed (#1179), by its button, reached by the
+ * keyboard; the focus goes then to the button of the bar, where the task is still followed.
  */
-function mainContent(): HTMLElement | null {
-  const main = document.querySelector("main");
-  if (main !== null && !main.hasAttribute("tabindex")) {
-    main.tabIndex = -1;
+function News({
+  news,
+  onClose,
+}: {
+  readonly news: TaskNews | undefined;
+  readonly onClose: () => void;
+}) {
+  const t = useTranslations("tasks");
+  const commands = useTranslations("commands");
+  const naming = useTaskNaming();
+  if (news === undefined) {
+    return null;
   }
-  return main;
+  const sentence =
+    news.kind === "started"
+      ? t("started", { task: taskName(naming, news) })
+      : t(END_SENTENCE[news.line.end], { task: taskName(naming, news.line) });
+  return (
+    <div className="flex items-center gap-2 border-b px-4 py-1 text-sm">
+      <p className="flex-1">{sentence}</p>
+      <CommandTooltip label={t("closeNews")} help={commands("dismissNews.help")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={t("closeNews")}
+          className="size-6"
+          onClick={onClose}
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </CommandTooltip>
+    </div>
+  );
 }
 
 /**
- * The tasks followed, where the shell places them — in the flow of the page, where they hide
- * nothing —, and the log of their ends. The region stays mounted, empty while no task is
- * followed: its log is in place before it speaks, and it takes the focus when the last task is
- * dismissed.
+ * The panel of the tasks and the messages, a sheet along the right edge of the window, opened by
+ * the button of the bar; the tasks followed whether it is open or not, the log of their ends, and
+ * the last of them said under the bar. The focus taken from a task dismissed goes to the next task,
+ * else the one before, else the region of the tasks — never out of the panel, which holds it.
  */
 export function TaskPanel() {
   const t = useTranslations("tasks");
-  const { tasks, log, refusedResult, dispatch, open, panelId } = useTracker();
+  const { tasks, log, refusedResult, dispatch, open, setOpen, news, tell, panelId, button } =
+    useTracker();
   const region = useRef<HTMLElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
-  const dismissRef = useCallback((key: string, button: HTMLButtonElement | null) => {
-    if (button === null) {
+  const heading = useId();
+  const dismissRef = useCallback((key: string, element: HTMLButtonElement | null) => {
+    if (element === null) {
       buttons.current.delete(key);
     } else {
-      buttons.current.set(key, button);
+      buttons.current.set(key, element);
     }
   }, []);
-  // The focus leaves the button dismissed before it goes: to the dismissal of the next task,
-  // else of the one before, else to the main content of the page — the region, empty then,
-  // has no height to show a focus —, never to the document.
   const dismiss = (key: string) => {
     const index = tasks.findIndex((entry) => entry.key === key);
     const neighbour = tasks[index + 1] ?? tasks[index - 1];
     const target = neighbour === undefined ? undefined : buttons.current.get(neighbour.key);
-    (target ?? mainContent() ?? region.current)?.focus();
+    (target ?? region.current)?.focus();
     dispatch({ type: "dismiss", key });
   };
-  const followed = tasks.length > 0;
   return (
-    <section
-      ref={region}
-      id={panelId}
-      tabIndex={-1}
-      aria-label={t("label")}
-      className={open ? PANEL : undefined}
-    >
-      <EndLog log={log} />
-      {refusedResult === undefined ? null : (
-        <div className="space-y-1 text-sm">
-          <p className="font-medium">{t("resultRefused")}</p>
-          <OutcomeNotice
-            outcome={refusedResult}
-            dismissible
-            onClear={() => {
-              dispatch({ type: "result_refusal_cleared" });
-            }}
-          />
-        </div>
-      )}
-      {open && !followed && refusedResult === undefined ? (
-        <p className="text-sm text-muted-foreground">{t("none")}</p>
-      ) : null}
-      {followed ? (
-        <ul hidden={!open} className="flex flex-wrap gap-x-8 gap-y-2">
-          {tasks.map((entry) => (
-            <li key={entry.key} className="min-w-64 flex-1">
-              <TaskEntry
-                entry={entry}
-                dispatch={dispatch}
-                onDismiss={dismiss}
-                dismissRef={dismissRef}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
+    <>
+      {tasks.map((entry) => (
+        <TaskPolling key={entry.key} entry={entry} dispatch={dispatch} />
+      ))}
+      {open ? null : <EndLog log={log} />}
+      <News
+        news={news}
+        onClose={() => {
+          button.current?.focus();
+          tell(undefined);
+        }}
+      />
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side="right"
+          id={panelId}
+          aria-describedby={undefined}
+          className="w-full max-w-md sm:w-96"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            button.current?.focus();
+          }}
+        >
+          <SheetHeader className="flex-row items-center justify-between border-b">
+            <SheetTitle>{t("panel")}</SheetTitle>
+            <SheetClose asChild>
+              <Button type="button" variant="ghost" size="sm" aria-label={t("close")}>
+                <X aria-hidden="true" />
+              </Button>
+            </SheetClose>
+          </SheetHeader>
+          <div className="flex-1 space-y-6 overflow-y-auto p-4">
+            <EndLog log={log} />
+            <section
+              ref={region}
+              tabIndex={-1}
+              aria-labelledby={heading}
+              className="space-y-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <h3 id={heading} className="font-medium">
+                {t("label")}
+              </h3>
+              {refusedResult === undefined ? null : (
+                <div className="space-y-1 text-sm">
+                  <p className="font-medium">{t("resultRefused")}</p>
+                  <OutcomeNotice
+                    outcome={refusedResult}
+                    dismissible
+                    onClear={() => {
+                      dispatch({ type: "result_refusal_cleared" });
+                    }}
+                  />
+                </div>
+              )}
+              {tasks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("none")}</p>
+              ) : (
+                <ul className="space-y-3">
+                  {tasks.map((entry) => (
+                    <li key={entry.key}>
+                      <TaskEntry
+                        entry={entry}
+                        dispatch={dispatch}
+                        onDismiss={dismiss}
+                        dismissRef={dismissRef}
+                        onScreenShown={() => {
+                          setOpen(false);
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <MessageList
+              onFollow={() => {
+                setOpen(false);
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

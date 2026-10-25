@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of the witness read through its history: its chronology, its revisions, its risks.
+"""Tests of the witness read through its history: its chronology and its revisions.
 
-They try the simplifications of the fake back against the figures of the witness, not the Vérif
-of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+Its risks are tried apart, in ``test_mockwitnessrisks.py`` (#1299). These tests try the
+simplifications of the fake back against the figures of the witness, not the Vérif of a
+requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import json
@@ -18,12 +19,15 @@ import pytest
 
 from wftools import (
     REPOSITORY,
+    mockcomparisons,
     mockcore,
     mockdata,
+    mockdating,
     mockhistory,
     mockstructure,
     mocktext,
     mockwitness,
+    mockwitnessrisks,
     mockwrites,
 )
 from wftools.mockids import universe
@@ -34,19 +38,21 @@ from wftools.mockwitness import (
     INSTALLED,
     OFFER_OPENED,
     ORDER_RECEIVED,
-    REGISTER,
+    RATES_UPDATED,
     TODAY,
     N,
 )
+from wftools.mockwitnessrisks import REGISTER
 
 type Node = dict[str, Any]
 
 WITNESS = universe(1)
 _STAMP = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 _DAY = re.compile(r"^\d{4}-\d\d-\d\d$")
-_PLANNED = {"date", "forecast_date", "from", "to", "as_of"}
+_PLANNED = {"date", "forecast_date", "from", "to", "as_of", "next_working_day"}
 """The keys of the days of planning or of a period, which may run before the installation or past
-today: the dates of a task, a point of a curve or of a milestone tracking, the bounds of a period.
+today: the dates of a task, a point of a curve or of a milestone tracking, the bounds of a period,
+the next working day a date on a day without hours names (#1271).
 Every other day an example carries — a review, an order received, a task started or completed, a
 document, a period of costs — is of the chronology, between the installation and today."""
 
@@ -82,7 +88,10 @@ _SEQUELS = {
     "task_import_succeeded.json",
     "task_export_queued.json",
     "task_export_succeeded.json",
-    "task_merge_outside_order_item.json",
+    "task_merge_outside_work_package.json",
+    "task_merge_queued.json",
+    "task_merge_running.json",
+    "task_merge_succeeded.json",
     "tasks_running.json",
     "audit_events_import_applied.json",
 }
@@ -93,12 +102,27 @@ write, at its own instant, within minutes after today (#287, EP-02/L25); and the
 inscribes the application of an import, at the instant its task succeeds (EP-02/L42d)."""
 
 
+_BEFORE_MARKING = {
+    "rate_update_applied.json": RATES_UPDATED,
+    "revisions_designation_open.json": RATES_UPDATED,
+}
+"""The examples of a revision of the witness read before its marking, an earlier instant of the
+chronology, and the instant of the last write it had received: the rates of 2026 accepted from the
+revision 101 in progress (C-362, EP-15/US-0490), and the history read on 15 January before the
+offer is designated, where the 101 is still the one that update left (US-0490/L2). A revision
+of such an example marked before that instant says its marking as any other; each renders at least
+one revision still in progress at that instant."""
+
+
 @pytest.fixture(scope="module")
 def history() -> dict[str, Any]:
     """Read the named examples of the history back from the text the generator writes."""
     return {
         name.removesuffix(".json"): json.loads(mockdata.render(example))["value"]
-        for name, example in mockhistory.examples().items()
+        for name, example in {
+            **mockhistory.examples(),
+            **mockcomparisons.examples(),
+        }.items()
     }
 
 
@@ -155,6 +179,8 @@ def test_the_project_its_revisions_and_its_transitions_say_the_instants_of_the_c
     # The project is created before its offer is opened, passes to pricing with it, and is in
     # progress from the reception of the order (C11, #287); every example of its revisions says
     # when each was created and marked, and none is updated after today or before it is created.
+    # Each example read before a marking renders at least one revision still in progress.
+    in_progress = dict.fromkeys(_BEFORE_MARKING, 0)
     for path in sorted(mockwitness.FIXTURES.glob("*.json")):
         value = json.loads(path.read_text(encoding="utf-8"))["value"]
         for each in _audits(value):
@@ -164,11 +190,20 @@ def test_the_project_its_revisions_and_its_transitions_say_the_instants_of_the_c
             if each.get("revision_id") in mockhistory.REVISIONS and "status" in each:
                 created, marked = mockhistory.REVISIONS[each["revision_id"]]
                 assert audit["created_at"] == mockhistory.stamp(created.instant), path.name
-                if marked is None:
+                before = _BEFORE_MARKING.get(path.name)
+                if before is not None and marked is not None and before.instant < marked.instant:
+                    # An earlier instant of the chronology: the revision still in progress.
+                    written = before.instant
+                    assert created.instant < written, path.name
+                    assert (each["status"], each["marked_at"]) == ("draft", None), path.name
+                    assert audit["updated_at"] == mockhistory.stamp(written), path.name
+                    in_progress[path.name] += 1
+                elif marked is None:
                     assert (each["status"], each["marked_at"]) == ("draft", None), path.name
                 else:
                     assert each["marked_at"] == mockhistory.stamp(marked.instant), path.name
                     assert audit["updated_at"] == each["marked_at"], path.name
+    assert [name for name, count in in_progress.items() if count == 0] == []
     transitions = mockwitness.fixture("state_transitions")
     assert [(each["to_state"], each["occurred_at"]) for each in transitions] == [
         ("created", mockhistory.stamp(CREATED.instant)),
@@ -184,9 +219,9 @@ def test_the_current_revision_is_opened_before_the_occurrence_merges_into_it() -
     # reference stays 101, the occurrence does not create a revision.
     opened, marked = mockhistory.REVISIONS[mockhistory.CURRENT]
     assert marked is None
-    occurred = mockwitness.DELIVERY_DELAY.last
+    occurred = mockwitnessrisks.DELIVERY_DELAY.last
     assert opened.instant < occurred.at
-    assert occurred.state == mockwitness.OCCURRED
+    assert occurred.state == mockwitnessrisks.OCCURRED
     references = [
         revision
         for revision in mockwitness.fixture("revisions")["items"]
@@ -209,25 +244,25 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     rows = mockhistory.reference_rows()
     # Without the subtree the occurrence merged, five rows; with the two provisions it bore.
     assert len(rows) == len(mockcore.current()) - 5 + 2
-    assert [mockwitness.reference_provision(risk) for risk in REGISTER] == [
+    assert [mockwitnessrisks.reference_provision(risk) for risk in REGISTER] == [
         Decimal("250000.00"),
         Decimal("60.00"),
         Decimal("600000.00"),
     ]
     assert mockhistory.reserve(rows) == Decimal("850060.00")
-    assert mockwitness.reference_provision(mockwitness.REWORK) == (
+    assert mockwitnessrisks.reference_provision(mockwitnessrisks.REWORK) == (
         mockwitness.REFERENCE_PROVISION_751
     )
     budget = mockhistory.reference_budget(rows)
     assert budget == mockhistory.reference_budget(mockcore.current())
     # The lines the amendment 1 did not designate keep the rates of the offer (#467): the core's
     # alone are budgeted 120,534.56, the whole structure 65,430,697.64.
-    assert mockhistory.reference_budget(mockcore.core(mockwitness.reference())) == Decimal(
+    assert mockhistory.reference_budget(mockcore.core(mockwitnessrisks.reference())) == Decimal(
         "120534.56"
     )
     assert budget == Decimal("65430697.64")
     numbers = {row.number for row in rows}
-    assert mockwitness.MERGED not in numbers
+    assert mockwitnessrisks.MERGED not in numbers
     assert {557, 567} <= numbers
 
 
@@ -297,35 +332,63 @@ def test_751_and_753_are_at_the_scale_of_the_structure_and_752_at_its_verif() ->
         if line.number == N.PROVISION
     ]
     assert line.unit == mockhistory.provision(rework) == Decimal("500000.00")
-    assert line.budgeted == mockwitness.reference_provision(rework) == Decimal("250000.00")
+    assert line.budgeted == mockwitnessrisks.reference_provision(rework) == Decimal("250000.00")
+
+
+def _marked(compared: Node, difference: str) -> list[Node]:
+    """Return the nodes of a comparison of one difference, in the order of the plan."""
+    return [node for node in compared["items"] if node["difference"] == difference]
+
+
+@pytest.fixture(scope="module")
+def whole() -> Node:
+    """Return the comparison of the offer and the reference read whole, without a filter (#1193)."""
+    return cast(
+        "Node",
+        mockcomparisons.comparison(
+            mockhistory.offer_rows(),
+            mockhistory.reference_rows(),
+            mockhistory.OFFER,
+            mockhistory.REFERENCE,
+        ),
+    )
+
+
+def _label(node: Node) -> str:
+    return cast("str", node[node["kind"]]["label"])
 
 
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
-    history: dict[str, Any],
+    whole: Node,
 ) -> None:
     # C12 and C13 (#287): the comparison names the nodes of the core by their lineages and
     # labels — the factory acceptance is the core's, 656 —, and the provision of 751 the
     # reference added is the 250,000 it then had, not the 500,000 of today.
-    compared = history["comparison"]
+    compared = whole
     assert (compared["from_revision_id"], compared["to_revision_id"]) == (
         mockhistory.OFFER,
         mockhistory.REFERENCE,
     )
-    added = {entry["lineage_id"]: entry for entry in compared["added"]}
-    assert added[mockcore.lineage(556)] == {
-        "lineage_id": mockcore.lineage(556),
-        "label": "Réception usine",
-        "kind": "task",
-    }
+    added = {node["lineage_id"]: node for node in _marked(compared, "added")}
+    acceptance = added[mockcore.lineage(556)]
+    assert (_label(acceptance), acceptance["kind"], acceptance["changes"]) == (
+        "Réception usine",
+        "task",
+        [],
+    )
     reference = {row.number: row for row in mockhistory.reference_rows()}
     reference_ids = {mockcore.lineage(number) for number in reference if number < GENERATED}
     assert mockcore.lineage(555) in added
     assert reference[555].amounts.base == Decimal("250000.00")
-    assert [entry["label"] for entry in compared["removed"]] == [
+    assert [_label(node) for node in _marked(compared, "removed")] == [
         "Essais préliminaires sur site",
         "Location du banc d'essais",
     ]
-    changed = {entry["lineage_id"]: entry["changes"] for entry in compared["changed"]}
+    changed = {
+        node["lineage_id"]: node["changes"]
+        for node in _marked(compared, "modified")
+        if node["changes"]
+    }
     core = {lineage: changes for lineage, changes in changed.items() if lineage in reference_ids}
     assert core == {
         mockcore.lineage(526): ["dates", "duration"],
@@ -358,11 +421,121 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
             if entry["dimension"] == dimension
         ]
         assert sum(deltas, Decimal(0)) == difference == Decimal("1027251.25")
-    summary = str(mockhistory.examples()["comparison.json"]["summary"])
-    rerated = mocktext.count(2_768)
-    assert f"les {rerated} lignes de main-d'œuvre que l'avenant ne désigne pas" in summary
+    # Read whole, its totals are those of listNodes on the reference (#1193).
+    assert len(compared["items"]) == 5_999
+    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 2_770
+    assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
+    # Its meta is that of listNodes, but for when the dates were last computed: the marking, which
+    # the merge of the amendment redated, and after which nothing redates it (#1404, WF-DAT-0020).
+    assert compared["meta"] == {
+        **cast("dict[str, Any]", mockcore.whole(mockhistory.reference_rows())["meta"]),
+        "scheduled_at": mockcore.stamp(AMENDMENT_MERGED.instant),
+    }
+
+
+def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_one(
+    history: dict[str, Any], whole: Node
+) -> None:
+    # #1193: the example is a window, the subtree of the installation on site, as the readings of
+    # listNodes are (`nodes_amendment`): the nodes of the whole comparison under the task, those
+    # removed at their place; the totals and the meta of listNodes on the reference; the deltas of
+    # the lines it retains, those removed with them, which the deltas of the whole sum beyond.
+    window = history["comparison"]
+    reference = mockhistory.reference_rows()
+    numbers = (
+        N.INSTALLATION,
+        N.MOUNTING,
+        N.WIRING_ON_SITE,
+        N.TESTS_LINE,
+        N.COMMISSIONING,
+        N.COMMISSIONING_LINE,
+        N.REFERENCE_PROVISION_753,
+        N.SITE_TRIALS,
+        N.SITE_TRIALS_LINE,
+    )
+    below = [universe(number) for number in numbers]
+    assert [node["node_id"] for node in window["items"]] == below
+    assert window["items"] == [node for node in whole["items"] if node["node_id"] in below]
+    reading = mockcore.subtree(reference, N.INSTALLATION)
+    assert window["totals"] == reading["totals"]
+    assert window["meta"] == {
+        **cast("dict[str, Any]", reading["meta"]),
+        "scheduled_at": mockcore.stamp(AMENDMENT_MERGED.instant),
+    }
+    assert {node["difference"] for node in window["items"]} == {
+        "added",
+        "removed",
+        "modified",
+    }
+    offer = {row.number: row for row in mockhistory.offer_rows()}
+    referenced = {row.number: row for row in reference}
+    lines = [
+        number
+        for number in numbers
+        if (offer.get(number) or referenced[number]).kind == "estimate_line"
+    ]
+
+    def base(rows: dict[int, mockcore.Row], number: int) -> Decimal:
+        return rows[number].amounts.base if number in rows else Decimal(0)
+
+    expected = sum((base(referenced, n) - base(offer, n) for n in lines), Decimal(0))
+    for dimension in ("cost_type", "subproject"):
+        deltas = [
+            Decimal(entry["delta"])
+            for entry in window["amount_deltas"]
+            if entry["dimension"] == dimension
+        ]
+        assert sum(deltas, Decimal(0)) == expected == Decimal("602950.00")
+    summary = str(mockcomparisons.examples()["comparison.json"]["summary"])
+    assert "sous-arbre « Installation sur site » (subtree_of)" in summary
+    assert "9 nœuds dans l'ordre du plan" in summary
+    assert "« Essais préliminaires sur site » et « Location du banc d'essais »" in summary
     assert "« Câblage sur site » et « Mise en service sur site »" in summary
-    assert f"{mocktext.count(2_770)} nœuds modifiés, 5 ajoutés, 2 retirés" in summary
+
+
+def test_the_comparison_names_the_lines_reestimated_without_being_designated(
+    whole: Node,
+) -> None:
+    # Those of the core, under the installation on site, by their label in the window the example
+    # reads; those drawn about it, in the comparison read whole (EP-14/L45a, #1193).
+    core = {mockcore.lineage(row.number) for row in mockcore.alone()}
+    rerated = [entry for entry in whole["items"] if entry["changes"] == ["reestimated_amount"]]
+    kept = [entry["estimate_line"]["label"] for entry in rerated if entry["lineage_id"] in core]
+    assert kept == ["Câblage sur site", "Mise en service sur site"]
+    assert len(rerated) - len(kept) == 2_766
+    example = mockcomparisons.examples()["comparison.json"]
+    window = cast("list[Node]", cast("Node", example["value"])["items"])
+    assert [
+        entry["estimate_line"]["label"]
+        for entry in window
+        if entry["changes"] == ["reestimated_amount"]
+    ] == kept
+    assert all(f"« {label} »" in str(example["summary"]) for label in kept)
+    assert "réestimées au taux de 2026 de leur catégorie" in str(example["summary"])
+
+
+def test_the_comparison_is_the_tree_of_the_reference_with_the_nodes_removed_at_their_place(
+    whole: Node,
+) -> None:
+    # C-361: the comparison renders the tree of the revision compared, in the order of the plan,
+    # the nodes it no longer bears where they were, read only, numbered with the rest; a summary
+    # whose content changes is modified, with no change of its own.
+    nodes = whole["items"]
+    reference = mockhistory.reference_rows()
+    assert len(nodes) == len(reference) + 2
+    assert [node["row_number"] for node in nodes] == list(range(1, len(nodes) + 1))
+    by_id = {node["node_id"]: node for node in nodes}
+    trials, rental = _marked(whole, "removed")
+    assert trials["parent_id"] == universe(N.INSTALLATION)
+    assert rental["parent_id"] == trials["node_id"]
+    assert rental["row_number"] == trials["row_number"] + 1
+    assert (trials["editable_fields"], rental["editable_fields"]) == ([], [])
+    installation = by_id[universe(N.INSTALLATION)]
+    assert (installation["difference"], installation["changes"]) == ("modified", [])
+    for node in nodes:
+        for link in node.get("predecessors", []):
+            predecessor = by_id[link["predecessor_node_id"]]
+            assert predecessor["row_number"] == link["predecessor_row_number"]
 
 
 def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() -> None:
@@ -376,7 +549,7 @@ def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() 
     assert mockwitness.FACTORY_ACCEPTANCE not in offer
     followers = [
         task
-        for task in mockcore.tasks_in_order(mockhistory.offer())
+        for task in mockdating.tasks_in_order(mockhistory.offer())
         if any(link.predecessor == mockwitness.WIRING for link in task.links)
     ]
     assert [task.number for task in followers if task.number < GENERATED] == [N.MOUNTING]
@@ -393,217 +566,33 @@ def test_the_offer_dates_what_follows_the_factory_acceptance_after_the_wiring() 
 
 def test_a_revision_compared_with_itself_has_no_difference() -> None:
     rows = mockhistory.reference_rows()
-    same = mockhistory.comparison(rows, rows, mockhistory.REFERENCE, mockhistory.REFERENCE)
-    assert (same["added"], same["removed"], same["changed"], same["amount_deltas"]) == (
-        [],
-        [],
-        [],
-        [],
-    )
+    same = mockcomparisons.comparison(rows, rows, mockhistory.REFERENCE, mockhistory.REFERENCE)
+    nodes = cast("list[Node]", same["items"])
+    assert {node["difference"] for node in nodes} == {"unchanged"}
+    assert len(nodes) == len(rows)
+    assert same["amount_deltas"] == []
+    identical = mockwitness.fixture("comparison_identical")
+    assert {node["difference"] for node in identical["items"]} == {"unchanged"}
+    assert identical["amount_deltas"] == []
 
 
 def test_a_node_moved_under_another_parent_is_changed_by_its_parent() -> None:
     rows = mockhistory.reference_rows()
     # The design file under the control station instead of the studies.
     moved = [replace(row, parent=551) if row.number == 526 else row for row in rows]
-    compared = mockhistory.comparison(rows, moved, mockhistory.REFERENCE, mockhistory.REFERENCE)
-    assert compared["changed"] == [
-        {
-            "lineage_id": mockcore.lineage(526),
-            "label": "Dossier de conception",
-            "kind": "task",
-            "changes": ["parent"],
-        }
-    ]
-
-
-def test_the_register_totals_its_provisions_and_sets_the_reserve_beside(
-    history: dict[str, Any],
-) -> None:
-    # WF-RIS-0040: the identified risks for their provision today, those that occurred and those
-    # dismissed for the provision the reference bore; the reserve of the reference beside.
-    register = history["risks"]
-    assert register["totals"] == {
-        "identified": "500000.00",
-        "occurred": "60.00",
-        "dismissed": "600000.00",
-        "total": "1100060.00",
-        "reserve": "850060.00",
-    }
-    assert history["risk_matrix"]["totals"] == register["totals"]
-    items = {item["risk_id"]: item for item in register["items"]}
-    assert history["risk"] == items[universe(751)]
-    assert history["risk_occurred_detail"] == items[universe(752)]
-    # The provision of the identified risk is its line in the core; the others bear none.
-    core = {row.number: row for row in mockcore.core()}
-    rework = items[universe(751)]
-    assert rework["provision_node_id"] == universe(555)
-    assert Decimal(rework["provision_amount"]) == core[555].amounts.base
-    assert [items[universe(n)]["provision_node_id"] for n in (752, 753)] == [None, None]
-    # The severity of the occurred risk is its own estimate, merged under 541: 120 and 80.
-    merged = mockwitness.fixture("nodes_risk_occurred")["totals"]
-    assert items[universe(752)]["severity"] == merged["reestimated_amount"] == "200.00"
-
-
-def test_each_risk_sits_in_the_cell_its_probability_and_its_share_of_the_budget_give(
-    history: dict[str, Any],
-) -> None:
-    # The severity is read on the reference budget of the whole structure, 65,430,697.64:
-    # 1,250,000 is 1.91 % of it, level 2; 200, level 1; 12,000,000, 18.34 %, level 4 — 751 and
-    # 753 at the scale of the structure (EP-14/L45b). The matrix counts the risks of the register
-    # in their cells.
-    cells = {
-        item["risk_id"]: (
-            item["matrix_cell"]["probability_level"],
-            item["matrix_cell"]["severity_level"],
-            item["matrix_cell"]["zone"],
-        )
-        for item in history["risks"]["items"]
-    }
-    assert cells == {
-        universe(751): (3, 2, "watch"),
-        universe(752): (3, 1, "nominal"),
-        universe(753): (1, 4, "watch"),
-    }
-    counted = {
-        (cell["probability_level"], cell["severity_level"]): cell
-        for cell in history["risk_matrix"]["cells"]
-        if cell["count"]
-    }
-    assert {key: cell["count"] for key, cell in counted.items()} == {
-        (3, 2): 1,
-        (3, 1): 1,
-        (1, 4): 1,
-    }
-    assert {(p, s, cell["zone"]) for (p, s), cell in counted.items()} == set(cells.values())
-    assert mockhistory.level(Decimal("0.3"), ["0.1", "0.3", "0.6"]) == 3
-    assert mockhistory.level(Decimal("0.6"), ["0.1", "0.3", "0.6"]) == 4
-
-
-def test_a_risk_offers_its_commands_by_its_state_and_its_citation(
-    history: dict[str, Any],
-) -> None:
-    # WF-RIS-0020: a risk that occurred is neither updated, reviewed nor deleted; only an
-    # identified one occurs, or changes the category or the subproject of its provision
-    # (WF-RIS-0010, EP-14/L42p); one a marked revision cites — all three, identified before the
-    # reference was marked — is not deleted.
-    available = {
-        item["risk_id"]: {
-            entry["command"]: entry["missing_conditions"] for entry in item["available_commands"]
-        }
-        for item in history["risks"]["items"]
-    }
-    assert available[universe(751)] == {
-        "update": [],
-        "update_provision": [],
-        "review": [],
-        "declare_occurrence": [],
-        "delete": ["risk_not_cited"],
-    }
-    assert available[universe(752)] == {
-        "update": ["risk_not_occurred"],
-        "update_provision": ["risk_identified"],
-        "review": ["risk_not_occurred"],
-        "declare_occurrence": ["risk_identified"],
-        "delete": ["risk_not_occurred", "risk_not_cited"],
-    }
-    assert available[universe(753)]["declare_occurrence"] == ["risk_identified"]
-    assert available[universe(753)]["update_provision"] == ["risk_identified"]
-    assert available[universe(753)]["update"] == []
-    assert all(mockhistory.is_cited(risk) for risk in REGISTER)
-    late = mockwitness.Risk(
-        799,
-        "Risque identifié aujourd'hui",
-        "",
-        None,
-        217,
-        (mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
+    compared = mockcomparisons.comparison(rows, moved, mockhistory.REFERENCE, mockhistory.REFERENCE)
+    nodes = cast("list[Node]", compared["items"])
+    [design_file] = [node for node in nodes if node["changes"]]
+    assert (design_file["lineage_id"], design_file["difference"], design_file["changes"]) == (
+        mockcore.lineage(526),
+        "modified",
+        ["parent"],
     )
-    assert not mockhistory.is_cited(late)
-    assert mockhistory.commands(late)[4] == {
-        "command": "delete",
-        "is_available": True,
-        "missing_conditions": [],
-    }
-
-
-def test_each_risk_names_the_category_and_the_subproject_its_line_of_provision_bears(
-    history: dict[str, Any],
-) -> None:
-    # WF-RIS-0010: the line of provision bears the category the risk designates and belongs to
-    # the subproject it designates, if any. The one line of provision of the current revision, that
-    # of 751, bears PRV-001 and no subproject; 752 and 753 keep the category they designated.
-    lines = {
-        node["node_id"]: node["estimate_line"]
-        for node in mockwitness.fixture("nodes_estimate")["items"]
-        if node["kind"] == "estimate_line"
-    }
-    categories = {
-        each["cost_category_id"]: each
-        for each in mockwitness.fixture("volume/cost_categories")["items"]
-    }
-    kinds = {
-        each["cost_type_id"]: each["kind"] for each in mockwitness.fixture("cost_types")["items"]
-    }
-    items = history["risks"]["items"]
-    for item in items:
-        category = categories[item["provision_cost_category_id"]]
-        assert kinds[category["cost_type_id"]] == "provision", item["label"]
-        assert item["provision_cost_category_label"] == category["label"]
-        assert item["provision_subproject_id"] is None
-        assert item["provision_subproject_label"] is None
-    assert all(item["provision_cost_category_is_active"] is True for item in items)
-    [identified] = [item for item in items if item["provision_node_id"] is not None]
-    line = lines[identified["provision_node_id"]]
-    assert line["is_computed"] is True
-    # The subproject of a line of provision is the one its risk designates, computed: the grid and
-    # the paste do not write it (revue 1 of EP-14/L42p).
-    nodes = {node["node_id"]: node for node in mockwitness.fixture("nodes_estimate")["items"]}
-    for node in nodes.values():
-        if node["kind"] == "estimate_line" and node["estimate_line"]["is_computed"]:
-            assert "estimate_line.subproject_id" not in node["editable_fields"]
-            assert "estimate_line.subproject_id" in node["computed_fields"]
-    assert line["cost_category_id"] == identified["provision_cost_category_id"]
-    assert line["subproject_id"] == identified["provision_subproject_id"]
-    assert history["risk"] == items[0]
-    summary = json.loads((mockwitness.FIXTURES / "risk.json").read_text(encoding="utf-8"))
-    assert "« Provisions pour risques », hors sous-projet" in summary["summary"]
-
-
-def test_the_reviews_of_a_risk_and_its_audit_follow_the_chronology(
-    history: dict[str, Any],
-) -> None:
-    # The reviews of 751, the latest first: identified on 12 January at 25 % of 1,000,000 — the
-    # 250,000 the reference knew on 1 February —, raised to 1,250,000 on 2 February, to 40 % on
-    # 2 March.
-    reviews = history["risk_reviews"]
-    assert [(r["reviewed_on"], r["probability"], r["severity"]) for r in reviews] == [
-        ("2026-03-02", "0.4", "1250000.00"),
-        ("2026-02-02", "0.25", "1250000.00"),
-        ("2026-01-12", "0.25", "1000000.00"),
-    ]
-    known = mockwitness.REWORK.known_on(AMENDMENT_MERGED.on)
-    assert known is not None
-    assert known.severity * known.probability == Decimal("250000.00")
-    for item, risk in zip(history["risks"]["items"], REGISTER, strict=True):
-        assert item["audit"]["created_at"] == mockhistory.stamp(risk.reviews[0].at)
-        assert item["last_review_on"] == risk.last.at.date().isoformat()
-
-
-def test_the_coverage_sets_the_reserve_against_what_the_risks_cost_today(
-    history: dict[str, Any],
-) -> None:
-    # WF-RIS-0050: the reserve of 850,060 against the 500,000 of the provision still identified
-    # and the 200 reestimated of the lines merged by the occurrence: +349,860, read today.
-    covered = history["risk_coverage"]
-    assert covered["context"]["computed_at"] == mockhistory.stamp(TODAY)
-    assert covered["context"]["revision_id"] == mockhistory.CURRENT
-    assert (
-        covered["reserve"],
-        covered["remaining_provisions"],
-        covered["occurred_cost"],
-        covered["coverage_variance"],
-    ) == ("850060.00", "500000.00", "200.00", "349860.00")
+    assert design_file["parent_id"] == universe(551)
+    # Rendered once, at its new place: the two summaries whose content changes are modified.
+    assert [node["node_id"] for node in nodes].count(universe(526)) == 1
+    modified = {node["node_id"] for node in nodes if node["difference"] == "modified"}
+    assert modified == {universe(526), universe(N.STUDIES), universe(551)}
 
 
 def test_the_history_is_the_fixtures_the_front_reads(history: dict[str, Any]) -> None:
@@ -611,7 +600,7 @@ def test_the_history_is_the_fixtures_the_front_reads(history: dict[str, Any]) ->
         assert mockwitness.fixture(name) == value, name
 
 
-def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
+def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> None:
     # The offer, of the reference year 2025, is at the rates of 2025 of the volume of rates, as
     # #232 proposes (WF-REV-0030): 78.50 for the electrical engineering, 73.50 for the
     # commissioning; the reference at those of 2026, one rate a category, the lines the amendment 1
@@ -626,12 +615,8 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
         Decimal(6000),
     ]
     assert [reference[n].amounts.budgeted for n in (563, 566)] == [Decimal(9420), Decimal(5880)]
-    labour = next(
-        entry
-        for entry in mockwitness.fixture("comparison")["amount_deltas"]
-        if entry["key"] == mockstructure.LABOR
-    )
-    # The 3,515 of the core, and the step of 1.50 an hour on the labour drawn about it.
+    labour = next(entry for entry in whole["amount_deltas"] if entry["key"] == mockstructure.LABOR)
+    # Read whole: the 3,515 of the core, and the step of 1.50 an hour on the labour drawn about it.
     assert Decimal(labour["delta"]) == Decimal("3515.00") + Decimal("174026.25")
     drawn_hours = sum(
         (row.hours for row in reference.values() if row.number >= GENERATED), Decimal(0)
@@ -649,19 +634,21 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
 def test_a_risk_identified_after_the_reference_has_no_share_in_it() -> None:
     # Identified and dismissed today: no review before the reference was marked, no provision
     # it bore — it counts nothing among the dismissed, and the reserve does not move.
-    late = mockwitness.Risk(
+    late = mockwitnessrisks.Risk(
         798,
         "Risque identifié puis écarté aujourd'hui",
         "",
         None,
         217,
         (
-            mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00")),
-            mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00"), mockwitness.DISMISSED),
+            mockwitnessrisks.Review(TODAY, Decimal("0.1"), Decimal("100.00")),
+            mockwitnessrisks.Review(
+                TODAY, Decimal("0.1"), Decimal("100.00"), mockwitnessrisks.DISMISSED
+            ),
         ),
     )
     assert late.known_on(AMENDMENT_MERGED.on) is None
-    assert mockwitness.reference_provision(late) == 0
+    assert mockwitnessrisks.reference_provision(late) == 0
     rows = mockhistory.reference_rows()
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
@@ -676,10 +663,10 @@ def test_one_run_of_the_generator_reaches_its_fixed_point(
     # in memory, not from the files the same command writes (defect no. 7 of the rules), so that
     # a register changed is written whole by one run.
     rework = replace(
-        mockwitness.REWORK,
+        mockwitnessrisks.REWORK,
         reviews=(
-            *mockwitness.REWORK.reviews,
-            mockwitness.Review(TODAY, Decimal("0.6"), Decimal("1250000.00")),
+            *mockwitnessrisks.REWORK.reviews,
+            mockwitnessrisks.Review(TODAY, Decimal("0.6"), Decimal("1250000.00")),
         ),
     )
     monkeypatch.setattr(mockhistory, "REGISTER", (rework, *REGISTER[1:]))
@@ -695,13 +682,13 @@ def test_one_run_of_the_generator_reaches_its_fixed_point(
 def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference() -> None:
     # The same late risk, bearing a line of provision in the current revision: the reference,
     # marked before it was identified, does not bear it, nor does the comparison count it.
-    late = mockwitness.Risk(
+    late = mockwitnessrisks.Risk(
         797,
         "Risque identifié aujourd'hui",
         "",
         None,
         217,
-        (mockwitness.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
+        (mockwitnessrisks.Review(TODAY, Decimal("0.1"), Decimal("100.00")),),
         provision_line=599,
     )
     line = mockwitness.Line(
@@ -717,14 +704,16 @@ def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference(
     )
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
-        patch.setattr(mockwitness, "REGISTER", (*REGISTER, late))
-        rows = mockcore.core(mockwitness.reference(core), AMENDMENT_MERGED.on)
+        patch.setattr(mockwitnessrisks, "REGISTER", (*REGISTER, late))
+        rows = mockcore.core(mockwitnessrisks.reference(core), AMENDMENT_MERGED.on)
         offered = mockcore.core(
             mockhistory.offer(core), mockwitness.OFFER_MARKED.on, mockhistory.offer_rates()
         )
-        compared = mockhistory.comparison(offered, rows, mockhistory.OFFER, mockhistory.REFERENCE)
+        compared = mockcomparisons.comparison(
+            offered, rows, mockhistory.OFFER, mockhistory.REFERENCE
+        )
     assert 599 not in {row.number for row in rows}
-    added = cast("list[Node]", compared["added"])
+    added = _marked(compared, "added")
     assert mockcore.lineage(599) not in {entry["lineage_id"] for entry in added}
     assert mockhistory.reserve(rows) == Decimal("850060.00")
 

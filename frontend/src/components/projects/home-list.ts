@@ -13,7 +13,7 @@
  */
 import type { operations } from "@/api/generated/schema";
 import { PERIOD, type Period } from "@/components/grid/period";
-import { CONTRACT_ADDRESS, type GridQuery, pagedList } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, limited, pagedList } from "@/components/grid/query";
 import {
   CONTRIBUTOR_PARAMETER,
   PROJECT_STATES,
@@ -57,6 +57,7 @@ export function homeQuery<Sort extends NonNullable<ProjectsQuery["sort_by"]>>(as
     ...(period.to === undefined ? {} : { to: period.to }),
     ...(offset === undefined ? {} : { offset }),
     ...(query.search === undefined ? {} : { search: query.search }),
+    ...limited(query),
     ...(query.sort === undefined
       ? {}
       : { sort_by: query.sort.column, sort_order: query.sort.order }),

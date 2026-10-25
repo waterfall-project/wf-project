@@ -26,7 +26,8 @@
  * operation, what was not written told (WF-IHM-0050, `useGridPaste`). A grid that enters a
  * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`). A screen
  * may give its rows commands, in the bar on the row of the active cell and in the menu of a cell on
- * its row (`RowCommands`): the work breakdown edited in its grid (EP-14/L44c).
+ * its row (`RowCommands`): the work breakdown edited in its grid (EP-14/L44c) — on the selection of
+ * rows its handles make, which they drag, where the screen drags rows (`useRowSelection`, US-0460).
  *
  * A grid whose rows name their parents is a tree, which folds and unfolds (WF-PLA-0080,
  * `useGridFold`): a `treegrid`, each row telling its level, its place among its siblings and
@@ -48,6 +49,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useOptimistic,
   useRef,
   useState,
@@ -69,17 +71,19 @@ import type { Locale } from "@/i18n/locale";
 import {
   alignment,
   type DependencyReader,
-  type EntryKind,
+  DIFF_MARK_KEY,
   formatCell,
   type GridColumn,
   type GridConfig,
   type GridName,
   headingOf,
+  ROW_NUMBER_KEY,
 } from "./columns";
-import { CellEditor } from "./cell-editor";
-import type { EntryProblem } from "./cell-values";
+import { cellAttributes, cellKeys, cellStateOf, invalidRing } from "./cell-attributes";
+import { CellEditor, EntryProblemNotice } from "./cell-editor";
 import { useCellWrites } from "./cell-writes";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
+import { DiffMark, differenceTint } from "./diff-mark";
 import {
   FOLD_KEYS,
   useFoldReach,
@@ -90,51 +94,53 @@ import {
   useGridFold,
   useTreeRow,
 } from "./fold";
+import { useFrameWidth } from "./frame-width";
+import { barWidthOf, EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import {
   type CellDraft,
   type CellPosition,
   type CellRefusal,
   HEADER_ROW,
-  refusedAt,
   samePosition,
   useCursor,
   useGridKeyboard,
 } from "./grid-keyboard";
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
-import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
+import { GridToolbar, toggledColumns } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type KeptFilters, useKeptFilters } from "./kept-filters";
+import { useKeptPageSize } from "./kept-size";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
+import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
+  HandleCell,
+  type RowSelection,
+  SelectionNotes,
+  selectedRow,
+  useRowSelection,
+} from "./row-selection";
+import {
+  endedColumns,
   type GridPreferences,
   initialSettings,
+  keptPageSize,
   recordedPreferences,
   useSettingsWriter,
 } from "./settings";
 import {
+  busyOf,
   CellMenu,
   hasCellMenu,
   onRows,
   type RowCommands,
   UndoAnnouncer,
   useUndoShortcut,
+  writingOf,
 } from "./undo-commands";
-
-/**
- * The height of a row, in `rem` — `h-7`, a dense grid —: in pixels, as many times the size of
- * the root font, so that a font the user enlarges does not shift the rows the grid computes.
- */
-export const ROW_REM = 1.75;
-
-/**
- * The height of the header and of the totals, in `rem` — `h-8` —: the rows brought into view come
- * out from under them.
- */
-const EDGE_REM = 2;
 
 /** The rows rendered beyond those in view, at each end. */
 const OVERSCAN = 12;
@@ -190,25 +196,6 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
   /** The commands the screen gives the rows of the grid; none for a grid it writes nothing from. */
   readonly commands?: RowCommands<Row> | undefined;
-}
-
-/** How a cell of a column is pinned: its classes, and its offset from the start. */
-interface Pinning {
-  readonly className: string;
-  readonly left: number | undefined;
-}
-
-/** How a column of the table is pinned, at a layer above the cells it slides over. */
-function pinningOf<Row extends RowData>(table: GridTable<Row>, id: string, layer: string): Pinning {
-  const column = table.getColumn(id);
-  if (column?.getIsPinned() !== "start") {
-    return { className: "", left: undefined };
-  }
-  const last = table.getStartVisibleLeafColumns().at(-1)?.id === id;
-  return {
-    className: cn("sticky", layer, last ? "border-r" : null),
-    left: column.getStart("start"),
-  };
 }
 
 /**
@@ -298,65 +285,10 @@ interface CellStates<Row extends RowData, Sort extends string, Totals> {
   readonly menu: boolean;
   /** The keys of the folding a row that folds tells, as far as they reach; none, none told. */
   readonly foldKeys: string | undefined;
-}
-
-/** What a cell of the body is doing: active, entered, written, its refusal shown. */
-interface CellState {
-  readonly active: boolean;
-  readonly draft: CellDraft | undefined;
-  /** What it shows while the server has not answered its write. */
-  readonly pending: string | undefined;
-  readonly refused: boolean;
-  /** The identifier of the sentence of the refusal of its write, when the server refused it. */
-  readonly invalid: string | undefined;
-}
-
-/** The ring of a cell whose write the server refused: none for another. */
-function invalidRing(invalid: string | undefined): string | null {
-  return invalid === undefined ? null : "ring-2 ring-destructive ring-inset";
-}
-
-/** The key that opens the menu of a cell, as `aria-keyshortcuts` names it (`CellMenu`). */
-const MENU_KEY = "Shift+F10";
-
-/**
- * The attributes of a cell of the body: its place in the grid, and what it says of itself — the
- * key of its menu among them, where the grid offers one, so that a reader of the screen learns of
- * it (WF-IHM-0100, #339).
- */
-function cellAttributes(
-  position: CellPosition,
-  state: CellState,
-  enterable: boolean,
-  computed: boolean,
-  shortcuts: readonly string[],
-) {
-  return {
-    "data-row": position.row,
-    "data-column": position.column,
-    tabIndex: state.active ? 0 : -1,
-    "aria-keyshortcuts": shortcuts.length === 0 ? undefined : shortcuts.join(" "),
-    "aria-readonly": enterable ? undefined : true,
-    "aria-busy": state.pending === undefined ? undefined : true,
-    "aria-haspopup": computed ? ("dialog" as const) : undefined,
-    "aria-expanded": computed ? state.refused : undefined,
-    "aria-invalid": state.invalid === undefined ? undefined : true,
-    "aria-describedby": state.invalid,
-  };
-}
-
-/**
- * The keys a cell tells, as `aria-keyshortcuts` names them: those of the menu of the cells, where
- * the grid offers it, and in the column of the labels of a row that folds, those of the folding.
- */
-function cellKeys(
-  menu: boolean,
-  folding: { readonly folds: boolean; readonly keys: string | undefined },
-  column: string,
-  label: { readonly key: string } | undefined,
-): string[] {
-  const told = folding.folds && column === label?.key ? folding.keys : undefined;
-  return [...(menu ? [MENU_KEY] : []), ...(told === undefined ? [] : [told])];
+  /** The selection of the rows, whose handles are the cells of the row numbers. */
+  readonly selection: RowSelection<unknown>;
+  /** The name of the handle of the row of a number, and the identifier of what describes it. */
+  readonly handle: { readonly name: (number: number) => string; readonly hint: string };
 }
 
 /**
@@ -387,16 +319,15 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   const column = configColumn(config, position.column);
   const computed = computedIn(column, row);
   const pinning = pinningOf(table, position.column, "z-10");
-  const key = config.rowKey(row);
-  const state: CellState = {
-    active: samePosition(cells.cursor, position),
-    draft:
-      cells.draft?.key === key && cells.draft.column === position.column ? cells.draft : undefined,
-    pending: cells.pending(key, position.column),
-    refused: refusedAt(cells.refusal, key, position.column),
-    invalid: cells.writeRefusal(key, position.column),
-  };
-  const content = state.pending ?? cellContent(config, column, row, locale);
+  const state = cellStateOf(cells, config.rowKey(row), position);
+  const marks = position.column === DIFF_MARK_KEY;
+  const content =
+    state.pending ??
+    (marks ? (
+      <DiffMark difference={config.difference?.(row)} />
+    ) : (
+      cellContent(config, column, row, locale)
+    ));
   let shown = content;
   if (state.draft !== undefined && column !== undefined) {
     shown = cells.editor(state.draft, column);
@@ -424,7 +355,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
         computed,
         cellKeys(cells.menu, { folds, keys: cells.foldKeys }, position.column, config.columns[0]),
       )}
-      style={{ left: pinning.left }}
+      style={{ left: pinning.left, right: pinning.right }}
       className={cn(
         "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         pinning.className,
@@ -432,7 +363,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
         column === undefined || state.pending !== undefined ? "text-muted-foreground" : null,
         state.draft === undefined ? null : "py-0",
         invalidRing(state.invalid),
-        alignClass(column),
+        marks ? "text-center" : alignClass(column),
       )}
     >
       {shown}
@@ -457,6 +388,11 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
 }) {
   // In a tree, where the row stands, and whether it is unfolded.
   const tree = useTreeRow(shared.config.rowKey(row.original));
+  const { selection } = shared.cells;
+  const { className, ...selected } = selectedRow(
+    selection.selected(index),
+    selection.dropAt(index),
+  );
   return (
     <TableRow
       aria-rowindex={index + 2}
@@ -464,17 +400,34 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
       aria-posinset={tree?.position}
       aria-setsize={tree?.siblings}
       aria-expanded={tree?.expanded}
-      className="h-7"
+      {...selected}
+      className={cn("h-7", className, differenceTint(shared.config.difference?.(row.original)))}
     >
-      {row.getVisibleCells().map((cell) => (
-        <BodyCell
-          key={cell.id}
-          {...shared}
-          row={row.original}
-          folds={tree?.expanded !== undefined}
-          position={{ row: index, column: cell.column.id }}
-        />
-      ))}
+      {row
+        .getVisibleCells()
+        .map((cell) =>
+          cell.column.id === ROW_NUMBER_KEY && selection.offered ? (
+            <HandleCell
+              key={cell.id}
+              position={{ row: index, column: cell.column.id }}
+              state={cellStateOf(shared.cells, row.id, { row: index, column: cell.column.id })}
+              menu={shared.cells.menu}
+              pinning={pinningOf(shared.table, cell.column.id, "z-10")}
+              number={shared.config.rowNumber?.(row.original)}
+              selected={selection.selected(index) === true}
+              name={shared.cells.handle.name}
+              hint={shared.cells.handle.hint}
+            />
+          ) : (
+            <BodyCell
+              key={cell.id}
+              {...shared}
+              row={row.original}
+              folds={tree?.expanded !== undefined}
+              position={{ row: index, column: cell.column.id }}
+            />
+          ),
+        )}
     </TableRow>
   );
 }
@@ -504,7 +457,7 @@ function TotalsRow<Row extends RowData, Sort extends string, Totals>({
         return (
           <TableCell
             key={column.id}
-            style={{ left: pinning.left }}
+            style={{ left: pinning.left, right: pinning.right }}
             className={cn(
               "sticky bottom-0 z-20 overflow-hidden border-t border-b-0 bg-muted font-semibold text-ellipsis",
               pinning.className,
@@ -530,72 +483,9 @@ function Spacer({ height, span }: { readonly height: number; readonly span: numb
   ) : null;
 }
 
-/** The width of the columns pinned at the start, which the other columns slide under. */
-function pinnedWidth<Row extends RowData>(table: GridTable<Row>): number {
-  return table.getStartVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
-}
-
-/**
- * Why the entry of a cell was not validated, which its field names as its description: a cell
- * left blank that may not be, a text too long, no number of the language — with an example of
- * one —, an amount with more than two decimals.
- */
-function EntryProblemNotice({
-  id,
-  draft,
-  kind,
-}: {
-  readonly id: string;
-  readonly draft: CellDraft | undefined;
-  readonly kind: EntryKind | undefined;
-}) {
-  const t = useTranslations("grid.entry");
-  const locale = useLocale();
-  const problem = draft?.problem;
-  if (problem === undefined || kind === undefined) {
-    return null;
-  }
-  const amount = formatCell("money", "1234.56", locale);
-  const texts: Readonly<Record<EntryProblem, () => string>> = {
-    required: () => t("required"),
-    tooLong: () => t("tooLong", { max: kind.type === "text" ? kind.maxLength : 0 }),
-    notANumber: () =>
-      t("notANumber", {
-        example:
-          kind.type === "money"
-            ? amount
-            : formatCell("decimal", kind.type === "integer" ? "30" : "1234.5", locale),
-      }),
-    twoDecimals: () => t("twoDecimals", { example: amount }),
-  };
-  return (
-    <p id={id} role="alert" className="text-sm text-destructive">
-      {texts[problem]()}
-    </p>
-  );
-}
-
-/** The columns the user may show or hide, for the bar of the grid. */
-function toggledColumns<Row extends RowData, Sort extends string, Totals>(
-  table: GridTable<Row>,
-  config: GridConfig<Row, Sort, Totals>,
-  label: (column: GridColumn<Row, Sort, Totals>) => string,
-): ToggledColumn[] {
-  return table.getAllLeafColumns().flatMap((column) => {
-    const configured = configColumn(config, column.id);
-    return configured === undefined || !column.getCanHide()
-      ? []
-      : [
-          {
-            key: column.id,
-            label: label(configured),
-            visible: column.getIsVisible(),
-            toggle: (visible: boolean) => {
-              column.toggleVisibility(visible);
-            },
-          },
-        ];
-  });
+/** Whether the grid is busy: reading a sort or a search anew, or a command of its screen waiting. */
+function gridBusy(reading: boolean, commands: { readonly busy: boolean }): boolean {
+  return reading || commands.busy;
 }
 
 /**
@@ -658,7 +548,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // The sort the account keeps for the grid: the session's, then the last one a header asked.
   // Only a header writes it; a column shown or widened sends it back as it is.
   const keptSort = useRef(preferences?.sort);
+  // The size of its pages the account keeps for the grid: the session's, then the last one chosen.
+  const [keptSize, setKeptSize] = useState(keptPageSize(preferences));
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
+  const ended = useMemo(() => endedColumns(config.columns), [config.columns]);
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
@@ -667,14 +560,42 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const recordFilters = useCallback(
     (filters: KeptFilters) => {
       recordShown(() =>
-        recordedPreferences(preferences, currentSettings.current, keptSort.current, filters),
+        recordedPreferences(
+          preferences,
+          currentSettings.current,
+          keptSort.current,
+          filters,
+          keptSize,
+          ended,
+        ),
       );
       shown();
     },
-    [preferences, recordShown, shown],
+    [ended, keptSize, preferences, recordShown, shown],
   );
   const kept = useKeptFilters(config, preferences, recordFilters);
+  // The size of the pages the address asks, recorded as the filters are (`kept-size.ts`).
+  const recordSize = useCallback(
+    (size: number) => {
+      setKeptSize(size);
+      recordShown(() =>
+        recordedPreferences(
+          preferences,
+          currentSettings.current,
+          keptSort.current,
+          kept.current,
+          size,
+          ended,
+        ),
+      );
+      shown();
+    },
+    [ended, kept, preferences, recordShown, shown],
+  );
+  useKeptPageSize(config.address, keptSize, recordSize, config.paged === true);
   const scroller = useRef<HTMLDivElement>(null);
+  const frameWidth = useFrameWidth(scroller);
+  const room = useFrameRoom(scroller);
   const rowHeight = ROW_REM * useRootFontSize();
 
   // The address the last navigation of the grid — or of its screen — asked for: a search entered
@@ -699,7 +620,14 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
     writer.recordShown(() =>
-      recordedPreferences(preferences, currentSettings.current, keptSort.current, kept.current),
+      recordedPreferences(
+        preferences,
+        currentSettings.current,
+        keptSort.current,
+        kept.current,
+        keptSize,
+        ended,
+      ),
     );
   };
   const search = (text: string) => {
@@ -712,7 +640,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // at the address they were written at — the page read anew there, or the same rows read at
   // another, drop none of them.
   const address = `${pathname}?${useSearchParams().toString()}`;
-  const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config);
+  // Each write a cell or a paste sends is one the commands of the screen wait for (#1224).
+  const writing = writingOf(commands);
+  const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config, writing);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
   // The rows the tree leaves unfolded, which the grid renders and moves through.
@@ -731,10 +661,13 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     sort,
     onSort: changeSort,
     settings,
+    room,
     onSettings: (next) => {
       setSettings(next);
       currentSettings.current = next;
-      writer.record(recordedPreferences(preferences, next, keptSort.current, kept.current));
+      writer.record(
+        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, ended),
+      );
     },
   });
 
@@ -779,6 +712,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     scroller,
     answered: writes.rows,
     narrowed: isNarrowed(narrowing),
+    writing,
+    // The confirmation waits for any other write of the screen, as its gestures do (#1224).
+    busy: busyOf(commands),
   });
   const undo = useUndoShortcut(undoable);
   const foldReach = useFoldReach();
@@ -795,18 +731,46 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   });
   const invalid = useId();
   const refusalId = useId();
-  const screenCommands = onRows(commands, (index) => model[index]?.original);
+  const hint = useId();
+  const selection = useRowSelection({
+    rows: shownRows,
+    keyOf: config.rowKey,
+    commands,
+    cursor,
+    focusAt: keyboard.focusAt,
+    scroller,
+  });
+  const screenCommands = onRows(
+    commands,
+    (index) => model[index]?.original,
+    selection.acted,
+    (written) => {
+      writes.applied({ ...written, totals: undefined });
+    },
+  );
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
     draft: keyboard.draft,
     refusal: keyboard.refusal,
     pending: writes.pending,
-    writeRefusal: (row, column) =>
-      writes.refused(row, column) ? refusalDescription(writes.outcome, refusalId) : undefined,
+    writeRefusal: (row, column) => {
+      if (writes.refused(row, column)) {
+        return refusalDescription(writes.outcome, refusalId);
+      }
+      // A command refused at a row marks its label and has the refusal describe it.
+      const refused = commands?.refused;
+      return refused !== undefined &&
+        column === config.columns[0]?.key &&
+        row === config.rowKey(refused.row)
+        ? refused.described
+        : undefined;
+    },
     closeRefusal: keyboard.closeRefusal,
     dismissRefusal: keyboard.dismissRefusal,
     menu: hasCellMenu(undoable, folding.menu, screenCommands.menu),
     foldKeys: FOLD_KEYS[foldReach],
+    selection,
+    handle: { name: (number) => t("selection.handle", { number }), hint },
     editor: (draft, column) =>
       column.entry === undefined ? null : (
         <CellEditor
@@ -824,8 +788,13 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const bodyRows = Math.max(model.length, 1);
 
   const grid = (
-    <div className="flex min-h-0 flex-col gap-2" onKeyDown={undo.onKeyDown}>
+    <div
+      className="flex min-h-0 flex-col gap-2"
+      style={{ minHeight: withBar(bodyRows) }}
+      onKeyDown={undo.onKeyDown}
+    >
       <GridToolbar
+        width={barWidthOf(frameWidth, table.getTotalSize())}
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
@@ -837,6 +806,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         )}
       />
       <UndoAnnouncer offered={undoable} told={undo.told} />
+      <SelectionNotes hint={hint} count={selection.count} />
       <OutcomeNotice
         outcome={writer.outcome}
         onClear={writer.clear}
@@ -856,6 +826,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         onDismissed={keyboard.refocus}
         dismissible
       />
+      {commands?.around}
       <PasteAppliedNotice
         applied={paste.applied}
         onClear={paste.clear}
@@ -868,6 +839,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       {paste.pasting === undefined ? null : (
         <PasteDialog
           pasting={paste.pasting}
+          waiting={paste.waiting}
           onApply={paste.apply}
           onAbandon={paste.abandon}
           onClosed={paste.refocus}
@@ -883,16 +855,22 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         aria-label={t(`names.${config.name}`)}
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
-        aria-busy={pending}
+        aria-multiselectable={selection.multiselectable}
+        aria-busy={gridBusy(pending, screenCommands)}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,
-        // the pinned columns to its start: a cell the focus brings into view comes out from under
-        // them. A refusal whose row scrolls out of view closes.
+        // the pinned columns to its start and to its end: a cell the focus brings into view comes out
+        // from under them. A refusal whose row scrolls out of view closes.
         container={{
           ref: scroller,
-          className: "w-fit max-w-full max-h-svh min-h-40 rounded-md border",
-          style: { scrollPaddingBlock: edge, scrollPaddingInlineStart: pinnedWidth(table) },
+          className: "w-fit max-w-full max-h-svh rounded-md border",
+          style: {
+            minHeight: floorOf(model.length),
+            scrollPaddingBlock: edge,
+            scrollPaddingInlineStart: pinnedWidth(table),
+            scrollPaddingInlineEnd: endPinnedWidth(table),
+          },
           onScroll: keyboard.followScroll,
         }}
         className="table-fixed text-xs tabular-nums"
@@ -934,8 +912,17 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         >
           <TableBody
             {...keyboard.body}
+            {...selection.body}
+            onClick={(event) => {
+              selection.body.onClick(event);
+              keyboard.body.onClick(event);
+            }}
             onKeyDown={(event) => {
-              if (folding.onKeyDown(event)) {
+              if (
+                folding.onKeyDown(event) ||
+                screenCommands.keys(cursor.active.row, event) ||
+                selection.onKeyDown(event)
+              ) {
                 event.preventDefault();
               } else {
                 keyboard.body.onKeyDown(event);

@@ -25,7 +25,14 @@ import {
   readValues,
 } from "@/components/grid/filters";
 import { PERIOD, type Period, readPeriod } from "@/components/grid/period";
-import { asked, type GridQuery, type GridSort, SORT_BY, SORT_ORDER } from "@/components/grid/query";
+import {
+  asked,
+  type GridQuery,
+  type GridSort,
+  LIMIT,
+  SORT_BY,
+  SORT_ORDER,
+} from "@/components/grid/query";
 import {
   FROM,
   readRefusal,
@@ -94,9 +101,11 @@ export const NEWEST_FIRST: GridSort<BackupSort> = { column: "taken_at", order: "
 /** The list of the backups: its sort, its filters and its page — no search, the contract has none. */
 export const BACKUPS_LIST: PagedList = {
   page: OFFSET_PARAMETER,
+  size: LIMIT,
   reads: [
     SORT_BY,
     SORT_ORDER,
+    LIMIT,
     PERIOD.from,
     PERIOD.to,
     ORIGINS,

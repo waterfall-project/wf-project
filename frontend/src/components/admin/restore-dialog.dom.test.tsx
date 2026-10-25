@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { RESTORATION_POLL } from "@/components/system/maintenance";
 import { expectAccessible } from "@/test/axe";
 import { backupList, backups, bodies, dated, KEPT, LAST_NIGHT, row } from "@/test/backups";
@@ -24,6 +25,7 @@ import {
   type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
+import { tasksRegion } from "@/test/task-panel";
 
 // The server of Next, as far as the restoration needs it: the fake back behind both clients — the
 // probe asked without any token —, and the page read anew once a date is refused.
@@ -92,6 +94,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -146,9 +149,7 @@ describe("the restoration of the platform", () => {
     ]);
     // The screen of the maintenance follows it, never the tracker: it restarts from the
     // confirmation alone.
-    expect(
-      within(screen.getByRole("region", { name: "Tâches de fond" })).queryAllByRole("listitem"),
-    ).toEqual([]);
+    expect(within(tasksRegion()).queryAllByRole("listitem")).toEqual([]);
   });
 
   it("stays open while the restoration is asked, closed neither by Escape nor by « Annuler », and tells the refusal that answers it", async () => {
@@ -215,6 +216,13 @@ describe("the restoration of the platform", () => {
       `sauvegarde du ${dated(LAST_NIGHT)}, vérifiée`,
     );
     expect(within(dialog).getAllByRole("alert")).toHaveLength(1);
+    // Said at the date, out of a notice, and kept in the history of the messages (#1043).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Cette opération demande une confirmation explicite.",
+      }),
+    ]);
     expect(bodies(client, RESTORE)).toHaveLength(1);
     expect(router.refresh).toHaveBeenCalledOnce();
     expect(within(dialog).getByRole("button", { name: "Annuler" })).toBeEnabled();
@@ -271,9 +279,7 @@ describe("the restoration of the platform", () => {
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(bodies(client, RESTORE)).toHaveLength(1);
-    expect(
-      within(screen.getByRole("region", { name: "Tâches de fond" })).queryByText(/^Restauration/),
-    ).toBeNull();
+    expect(within(tasksRegion()).queryByText(/^Restauration/)).toBeNull();
   });
 
   it.each([

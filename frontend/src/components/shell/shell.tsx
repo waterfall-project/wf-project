@@ -13,8 +13,8 @@
  * API out of reach —, the navigation still offers the status screen (WF-ADM-0130).
  *
  * The shell follows the background tasks the screens start, and, for an account, those of its user
- * the API says still run, in a panel under its bar, whatever screen the user goes to meanwhile
- * (WF-IHM-0080).
+ * the API says still run, whatever screen the user goes to meanwhile (WF-IHM-0080), in a panel its
+ * bar opens, which carries the history of the messages of the session too (#1043).
  */
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -22,6 +22,7 @@ import type { ReactNode } from "react";
 import type { BackgroundTask } from "@/api/problem";
 import { TaskTracker } from "@/components/tasks/task-tracker";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { TIME_ZONE } from "@/i18n/format";
 import type { LanguagePreference, Locale } from "@/i18n/locale";
@@ -69,32 +70,35 @@ export function Shell({
 }: ShellProps) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone={TIME_ZONE}>
-      <TaskTracker signedIn={account !== undefined} running={running}>
-        <ShownProjectProvider>
-          <SidebarProvider defaultOpen={sidebarOpen}>
-            <ShellFrame
-              navigation={
-                permissions === undefined ? null : (
-                  <Navigation permissions={permissions} remembered={remembered} theme={theme} />
-                )
-              }
-              bar={
-                <TopBar
-                  navigable={permissions !== undefined}
-                  account={account}
-                  language={preference}
-                  theme={theme}
-                  permissions={
-                    permissions === undefined || permissions === "unreadable" ? [] : permissions
-                  }
-                />
-              }
-            >
-              {children}
-            </ShellFrame>
-          </SidebarProvider>
-        </ShownProjectProvider>
-      </TaskTracker>
+      {/* One provider for every tooltip of the application: from one to the next, no delay. */}
+      <TooltipProvider>
+        <TaskTracker signedIn={account !== undefined} running={running}>
+          <ShownProjectProvider>
+            <SidebarProvider defaultOpen={sidebarOpen}>
+              <ShellFrame
+                navigation={
+                  permissions === undefined ? null : (
+                    <Navigation permissions={permissions} remembered={remembered} theme={theme} />
+                  )
+                }
+                bar={
+                  <TopBar
+                    navigable={permissions !== undefined}
+                    account={account}
+                    language={preference}
+                    theme={theme}
+                    permissions={
+                      permissions === undefined || permissions === "unreadable" ? [] : permissions
+                    }
+                  />
+                }
+              >
+                {children}
+              </ShellFrame>
+            </SidebarProvider>
+          </ShownProjectProvider>
+        </TaskTracker>
+      </TooltipProvider>
     </NextIntlClientProvider>
   );
 }

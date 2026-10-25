@@ -6,12 +6,13 @@ import {
   contextAddress,
   contextCookie,
   contextQuery,
+  isUuid,
   LAST_CONTEXT_COOKIE,
   pageSearch,
   readContext,
   rememberedAddress,
-  withoutFilter,
 } from "./context";
+import { STRUCTURE_PARAMETER } from "@/components/context/structure";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -101,6 +102,28 @@ describe("the reading context", () => {
     expect(rememberedAddress(`/projects/${PROJECT}`)).toBe(`/projects/${PROJECT}`);
   });
 
+  it("keeps the structure a planning or an estimate reads, and no other screen's", () => {
+    const structure = "01926f3a-7c00-7000-8000-000000000a01";
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    expect(rememberedAddress(`${planning}?structure=${structure}`)).toBe(
+      `${planning}?structure=${structure}`,
+    );
+    expect(rememberedAddress(`${REMAINING}?structure=${structure}`)).toBe(REMAINING);
+    const context = readContext(planning, new URLSearchParams({ structure }));
+    expect(context && contextAddress(planning, context)).toBe(`${planning}?structure=${structure}`);
+  });
+
+  it("names the structure parameter as the grids do", () => {
+    expect(STRUCTURE_PARAMETER).toBe("structure");
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    const structure = "01926f3a-7c00-7000-8000-000000000a01";
+    expect(
+      readContext(planning, new URLSearchParams({ [STRUCTURE_PARAMETER]: structure })),
+    ).toMatchObject({
+      structure,
+    });
+  });
+
   it.each([
     "https://elsewhere.example/projects/1",
     "//elsewhere.example/projects/1",
@@ -113,21 +136,6 @@ describe("the reading context", () => {
     expect(rememberedAddress(value)).toBeUndefined();
   });
 
-  it("lifts one filter, and keeps the revision and the other filter", () => {
-    const search = new URLSearchParams({ subproject_id: SUBPROJECT, as_of: "2026-05-31" });
-    const inRevision = readContext(REMAINING, search);
-    expect(inRevision && withoutFilter(REMAINING, inRevision, "as_of")).toBe(
-      `${REMAINING}?subproject_id=${SUBPROJECT}`,
-    );
-    search.set("revision_id", REVISION);
-    const inProject = readContext(LIFECYCLE, search);
-    expect(inProject && withoutFilter(LIFECYCLE, inProject, "subproject_id")).toBe(
-      `${LIFECYCLE}?revision_id=${REVISION}&as_of=2026-05-31`,
-    );
-    // The context read is left as it was.
-    expect(inProject?.parameters.get("subproject_id")).toBe(SUBPROJECT);
-  });
-
   it("reads the search parameters of a page as those of the browser, a repeated one once", () => {
     const search = pageSearch({ as_of: "2026-05-31", subproject_id: [SUBPROJECT, "unassigned"] });
     expect(search.get("as_of")).toBe("2026-05-31");
@@ -135,5 +143,15 @@ describe("the reading context", () => {
     expect(search.get("revision_id")).toBeNull();
     expect(search.get("toString")).toBeNull();
     expect(pageSearch({ as_of: [] }).get("as_of")).toBeNull();
+  });
+});
+
+describe("the identifiers an address may hold", () => {
+  it("takes an identifier as the contract writes it, whatever its case, and nothing else", () => {
+    expect(isUuid(PROJECT)).toBe(true);
+    expect(isUuid(PROJECT.toUpperCase())).toBe(true);
+    for (const refused of ["", "../x", PROJECT.slice(0, -1), `${PROJECT}0`, ` ${PROJECT}`]) {
+      expect(isUuid(refused)).toBe(false);
+    }
   });
 });

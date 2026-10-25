@@ -29,6 +29,8 @@ playwright-report/
 /docs/schemas/
 # Variables d'un poste pour la plateforme de développement (WATERFALL_DEV_ORIGINS)
 deploy/compose/.env
+# The contract the public demonstration serves, copied beside its compose file
+deploy/compose/waterfall.mock.json
 # Ce que la construction locale de l'extension Keycloak laisse
 deploy/keycloak/extension/target/
 # La racine de l'autorité du frontal de Keycloak, copiée de la plateforme de service (make service-up)

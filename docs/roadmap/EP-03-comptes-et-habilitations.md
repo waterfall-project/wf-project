@@ -1671,6 +1671,7 @@ traîne dans une procédure, et que la relancer soit sans danger.
 - `WF-EXP-0020-A` — « Le lien produit à l’installation est accepté plus d’une heure après sa production. »
 - écart : `WF-EXP-0020-A` — « Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8, le délai six semaines, et le calendrier par défaut compte huit heures du lundi au vendredi et aucune le week-end. » : les bornes, les seuils et le délai
   arrivent en EP-05, qui les ajoute à l'amorçage.
+- écart : `WF-EXP-0020-A` — « Le nom de l’entreprise saisi à l’installation figure sur un devis exporté ; modifié, il figure sur le suivant. » : ajouté par la reprise de la spécification du 2026-10-22 (C-371), après la livraison de l'EPIC ; l'amorçage qui le demande et le réglage qui le modifie — #1304 —, le devis exporté — EP-07.
 - propre à l'US : l'amorçage applique les migrations, crée le catalogue des permissions, les
   trois rôles prédéfinis, le compte administrateur local dans le fournisseur d'identité et
   dans Waterfall, et la langue par défaut de l'installation ; les libellés des rôles sont dans

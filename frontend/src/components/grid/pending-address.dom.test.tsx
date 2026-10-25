@@ -38,7 +38,7 @@ const STRUCTURE = {
 
 /** The grid of the estimate as the page renders it once the server answered an address. */
 function estimate(search: string | undefined) {
-  const query: GridQuery<NodeSortColumn> = { sort: undefined, search };
+  const query: GridQuery<NodeSortColumn> = { sort: undefined, search, size: undefined };
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid

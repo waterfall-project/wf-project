@@ -38,7 +38,7 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(address.query),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const LINE =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line";
 const TASK =
@@ -106,7 +106,7 @@ function grid(
         tasksEditable={tasksEditable}
         query={query}
         filters={filters}
-        preferences={undefined}
+        preferences={{ hidden_columns: [] }}
       />
     </NextIntlClientProvider>
   );

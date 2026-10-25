@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The door of the public demonstration (compose.demo.yaml): the front behind a shared password, and
+# nothing else. Certificates from Let's Encrypt for WATERFALL_DOMAIN. Keycloak has no part here.
+{
+	email {$WATERFALL_ACME_EMAIL}
+	# Nothing changes the configuration once started.
+	admin off
+	# HTTP/3 would ask for a port in UDP the demonstration does not open.
+	servers {
+		protocols h1 h2
+	}
+}
+
+http://{$WATERFALL_DOMAIN} {
+	redir https://{$WATERFALL_DOMAIN}{uri} 308
+}
+
+{$WATERFALL_DOMAIN} {
+	encode zstd gzip
+
+	# Every attempt is logged with its address and its status, for fail2ban (README.md, « Ouvrir la
+	# démonstration au public »).
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		# A demonstration is not to be indexed, answer or not.
+		X-Robots-Tag "noindex, nofollow"
+		defer
+	}
+
+	# Said before the password is asked, so that a robot reads it.
+	handle /robots.txt {
+		header Content-Type text/plain
+		respond <<TEXT
+			User-agent: *
+			Disallow: /
+			TEXT 200
+	}
+
+	handle {
+		# The hash comes from `caddy hash-password` (bcrypt). A request without it is answered 401
+		# and goes no further than Caddy.
+		basic_auth {
+			{$WATERFALL_DEMO_USER} {$WATERFALL_DEMO_PASSWORD_HASH}
+		}
+
+		request_body {
+			max_size 1MB
+		}
+
+		reverse_proxy front:3000 {
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 30s
+			}
+		}
+	}
+}

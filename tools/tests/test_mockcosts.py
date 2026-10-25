@@ -12,7 +12,8 @@ from typing import Any, cast
 
 from wftools import mockcore, mockcosts, mockids, mockstructure, mockwitness
 from wftools.mockids import PREFIX, universe
-from wftools.mockwitness import APRIL, APRIL_AGAIN, COSTS, GENERATED, MARCH, MAY, UNDATED
+from wftools.mockwitness import GENERATED
+from wftools.mockwitnesscosts import APRIL, APRIL_AGAIN, COSTS, MARCH, MAY, UNDATED
 
 type Node = dict[str, Any]
 

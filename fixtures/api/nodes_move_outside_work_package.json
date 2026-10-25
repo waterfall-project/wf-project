@@ -1,0 +1,26 @@
+{
+  "summary": "Une variante déclarée : le poste « Poste 1.1 » porté par « Câblage des armoires », sous la récapitulative « Poste de commande », qui porte son lot — dans le témoin, aucune tâche ne porte ce poste. Le déplacement de « Câblage des armoires » sous « Installation sur site », refusé : il sortirait la tâche du poste du sous-arbre de celle de son lot, et le refus nomme les deux tâches par leur nœud et leur libellé ; rien ne bouge (WF-PLA-0170, WF-IHM-0080).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/node_ids/0",
+        "code": "ORDER_ITEM_OUTSIDE_WORK_PACKAGE",
+        "params": {
+          "work_package_task": {
+            "node_id": "01926f3a-7c00-7000-8000-000000000551",
+            "label": "Poste de commande"
+          },
+          "order_item_tasks": [
+            {
+              "node_id": "01926f3a-7c00-7000-8000-000000000552",
+              "label": "Câblage des armoires"
+            }
+          ]
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001152"
+  }
+}

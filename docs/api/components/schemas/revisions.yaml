@@ -133,7 +133,9 @@ RevisionCommand:
     un marquage, un import, le traitement d'une survenance de risque ou une fusion. Sur une
     révision marquée, elle ne manque que de `revision_draft`, comme `merge_structure`. Elle ne
     se dit d'aucun différentiel ni d'aucun devis propre d'un risque : c'est une commande de la
-    révision, que l'opération applique à sa structure principale.
+    révision, que l'opération applique à sa structure principale. Tant que le projet n'a pas de
+    révision en cours, c'est le projet qui la porte (`ProjectCommand.generate_skeleton`), la
+    révision s'ouvrant d'abord (EP-15/US-0490/L4).
 
 RevisionCommandAvailability:
   type: object
@@ -262,7 +264,7 @@ StructureKind:
 
 CostStructure:
   type: object
-  required: [structure_id, revision_id, kind, label, is_merged, lock_version]
+  required: [structure_id, revision_id, kind, label, is_merged, available_commands, lock_version]
   properties:
     structure_id: { $ref: ../common.yaml#/Uuid }
     revision_id: { $ref: ../common.yaml#/Uuid }
@@ -274,6 +276,15 @@ CostStructure:
     is_merged:
       type: boolean
       description: Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050).
+    available_commands:
+      type: array
+      description: >-
+        Commandes de saisie de la structure que l'appelant a la permission d'exercer, chacune
+        disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090) : ce que la grille
+        qui la lit offre — la saisie des cellules, les gestes de structure, le collage —, sans
+        rien déduire de l'état du projet (`StructureCommand`). Une grille dont la commande est
+        absente ou indisponible se présente en lecture seule.
+      items: { $ref: '#/StructureCommandAvailability' }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
@@ -283,6 +294,51 @@ CostStructure:
         (`PasteApply.lock_version`), et que toute écriture de grille rend
         (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour
         (WF-IHM-0110).
+
+StructureCommand:
+  type: string
+  enum:
+    - edit_planning
+    - edit_estimate
+    - edit_remaining
+  description: >-
+    Commandes de saisie d'une structure, une par grille qui l'écrit : le planning, le devis, le
+    reste à engager (WF-PLA-0080, WF-DEV-0050, WF-RAE-0040). Chacune est gardée par la permission
+    de la commande de même nom de la révision (`RevisionCommand`, `planning.write`,
+    `estimate.write`, `remaining.write`), présente ou absente comme elle (WF-ADM-0100). Le serveur
+    accepte les mêmes écritures depuis les trois grilles — une tâche ou une ligne créée sur la
+    structure principale d'un projet En cours est la même écriture depuis le planning et depuis
+    le reste à engager — : c'est la commande de la structure qui dit quelle grille la saisit,
+    selon la phase du projet, que le front ne déduit pas (WF-IHM-0090).
+
+    Sur la structure principale, en chiffrage le devis, en réalisation le reste à engager :
+    `edit_estimate` est indisponible dès que le projet a atteint En cours, ou un état terminal,
+    `project_before_in_progress` manquante — la grille de devis reste lisible, en lecture seule
+    (WF-DEV-0050) — ; `edit_remaining` est indisponible hors de l'état En cours, avant lui comme
+    dans un état terminal, `project_in_progress` manquante (WF-RAE-0040). `edit_planning` n'a pas de
+    condition de phase : le planning se travaille en chiffrage avec le devis, en réalisation avec le
+    reste à engager. Sur un différentiel et sur le devis propre d'un risque, `edit_planning` et
+    `edit_estimate` n'ont pas de condition de phase — un avenant et un risque se chiffrent quel que
+    soit l'état du projet (WF-DEV-0050, WF-REV-0100, WF-RIS-0030) — et `edit_remaining` n'est jamais
+    listée : seule la structure principale a un reste à engager (WF-RAE-0040).
+
+    La condition de phase vient d'abord, propre à la commande ; puis les conditions d'état de la
+    révision, telles que la commande de même nom de la révision les nomme — `revision_draft` sur
+    une révision marquée, `no_background_task_running` pendant un traitement de fond qui écrit
+    dans la révision en cours ou la fige, `project_not_terminal` sur un projet clos —, dans le
+    même ordre. Les commandes de la révision gardent ce qui ne lit pas une structure : le
+    squelette, le marquage, les exports, les risques (C-358, #1067).
+
+StructureCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/StructureCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
 
 StructureCreate:
   type: object
@@ -388,20 +444,32 @@ Node:
     `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
     d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et
     les inscriptions aux suivis (WF-DAT-0030).
-  properties:
+  properties: &node_properties
     node_id: { $ref: ../common.yaml#/Uuid }
     lineage_id: { $ref: ../common.yaml#/Uuid }
     kind: { $ref: '#/NodeKind' }
     parent_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-    position: { type: integer, minimum: 0 }
+    position:
+      type: integer
+      minimum: 1
+      readOnly: true
+      description: >-
+        Rang du nœud parmi les frères de son parent — les lignes d'une tâche, puis ses
+        sous-tâches, dans l'ordre du plan —, à partir de 1. Calculé, il ne s'écrit pas : une
+        création ou un déplacement désigne sa place par le nœud après lequel se placer
+        (`NodeCreate.after_node_id`, `NodeMove.after_node_id` ; #1183). Sur la lecture d'un
+        différentiel et sur une comparaison, les nœuds retirés rendus y comptent, à la place
+        qu'ils avaient (`NodeDifference`).
     row_number:
       type: integer
       minimum: 1
       description: >-
         Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure
         — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la
-        lecture rend, ses filtres, sa recherche et son tri.
+        lecture rend, ses filtres, sa recherche et son tri. Sur la lecture d'un différentiel et
+        sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne
+        (`NodeDifference`).
     level: { type: integer, minimum: 1 }
     task:
       anyOf: [{ $ref: '#/TaskFacet' }, { type: 'null' }]
@@ -430,7 +498,9 @@ Node:
         hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la
         main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni
         son sous-projet, que son risque désigne et ne change que tant qu'il est identifié
-        (`RiskCommand.update_provision`, WF-RIS-0010) ;
+        (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou
+        terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle
+        ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ;
         une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à
         saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ
         calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si
@@ -439,13 +509,124 @@ Node:
         révision, pas de cette liste.
       items: { $ref: '#/EditableField' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+    difference:
+      anyOf: [{ $ref: '#/NodeDifference' }, { type: 'null' }]
+      description: >-
+        L'écart du nœud, que le serveur rend et que le front ne calcule pas : sur la lecture d'un
+        différentiel, avec la structure principale de sa révision ; dans une comparaison de deux
+        révisions (`RevisionComparison`), avec la révision de base (WF-REV-0080, WF-REV-0100,
+        C-361). Toujours rendu sur ces deux lectures, que `fields` le nomme ou non ; nul — ou
+        omis — sur la structure principale et sur le devis propre d'un risque, qui ne se lisent
+        par rapport à rien.
+    changes:
+      type: array
+      description: >-
+        Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` :
+        vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son
+        seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée.
+      items: { $ref: '#/NodeChange' }
+
+NodeDifference:
+  type: string
+  enum: [added, removed, modified, unchanged]
+  description: >-
+    L'écart d'un nœud, rapproché par sa lignée (WF-DAT-0030) : `added`, absent de la structure de
+    base — la principale pour un différentiel, la révision de base pour une comparaison — ;
+    `removed`, absent de la structure lue, rendu à la place qu'il avait, entre les nœuds qui
+    l'entouraient, en lecture seule (`editable_fields` vide) ; `modified`, présent des deux côtés,
+    dont une valeur change (`changes`), ou une tâche sous laquelle un nœud est ajouté, retiré ou
+    modifié, ou d'où un nœud est déplacé, de sorte que la marque d'une récapitulative dit que son
+    contenu change ; `unchanged`,
+    tout le reste (WF-REV-0080, C-361). Un nœud retiré occupe sa ligne : `row_number` et `position`
+    comptent l'arbre rendu, nœuds retirés compris, et un nœud déplacé est rendu une fois, à sa
+    place nouvelle, `parent` parmi ses `changes`. Les tâches modifiées par leurs propres valeurs
+    se comptent sur un `changes` non vide ; une tâche modifiée par son seul contenu a un
+    `changes` vide.
+
+NodeChange:
+  type: string
+  enum: [dates, duration, progress, budgeted_amount, reestimated_amount, parent]
+  description: >-
+    Ce qui change d'un nœud présent des deux côtés (WF-REV-0080) : pour une tâche, ses dates, sa
+    durée, son état d'avancement et son parent — « Une tâche déplacée sous une autre
+    récapitulative est présentée modifiée » — ; pour une ligne de devis, ses montants budgété et
+    réestimé, qui disent ses grandeurs, et son parent, la tâche qui la porte. Le montant d'une
+    tâche est celui de ses lignes, qui le disent.
+
+KanbanTask:
+  description: >-
+    Une tâche du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et les gestes que sa
+    carte offre, que le front ne déduit ni de son état ni de ses lignes (WF-IHM-0090).
+  allOf:
+    - $ref: '#/Node'
+    - type: object
+      required: [available_commands]
+      properties:
+        available_commands:
+          type: array
+          readOnly: true
+          description: >-
+            Les gestes de la carte que l'appelant a la permission d'exercer — celle de la
+            saisie du reste à engager, `remaining.write`, dont le Kanban relève (FBS-4.5.3) ;
+            sans elle, la liste est vide —, dans l'ordre de `KanbanCommand`, chacun disponible
+            ou non avec les conditions qui lui manquent.
+          items: { $ref: '#/KanbanCommandAvailability' }
+
+KanbanCommand:
+  type: string
+  enum: [start, complete, reopen, enter_remaining]
+  description: >-
+    Les gestes d'une carte du Kanban (WF-RAE-0030). Une carte ne liste que ceux que son état
+    et sa nature admettent ; ceux qu'une condition retient y sont indisponibles, la condition
+    nommée. Une ligne de provision ne compte pas parmi les lignes d'une tâche : elle ne la
+    retient ni de se terminer depuis le Kanban, ni ne la renvoie à la saisie du reste à engager
+    (WF-PLA-0050, WF-RIS-0010).
+
+    `start` passe à démarrée une tâche non démarrée qui n'est pas un jalon : un jalon ne
+    démarre jamais, et la carte d'un jalon ne la liste pas (WF-PLA-0050). Les prédécesseurs
+    n'en sont pas une condition. `complete` termine une tâche non démarrée ou démarrée, à la
+    date saisie (`ProgressUpdate.occurred_on`, WF-PLA-0130) : listée sur toute carte qui n'est
+    pas terminée, elle manque de `task_is_milestone` pour une tâche non démarrée qui n'est pas
+    un jalon — le passage direct de non démarrée à terminée n'est ouvert qu'à un jalon —, et de
+    `task_without_lines` pour une tâche qui porte une ligne hors provision, que la saisie d'un
+    reste à engager nul sur toutes ses lignes termine (WF-RAE-0040), dans cet ordre.
+    `reopen` rouvre une tâche terminée : un jalon redevient non démarré, sa date de
+    terminaison effacée, toute autre tâche redevient démarrée ; listée sur toute carte
+    terminée, et sur elle seule. `enter_remaining` renvoie à la grille de reste à engager, sur
+    la tâche, et n'écrit rien : listée sur la carte d'une tâche non terminée qui porte une
+    ligne hors provision, et sur elle seule — c'est le geste qui la termine, `complete` y
+    manquant de `task_without_lines`, ou qui la réestime avant même qu'elle démarre.
+
+    Après les conditions propres au geste viennent celles de la saisie du reste à engager de
+    la structure principale (`StructureCommand.edit_remaining`), dans le même ordre :
+    `project_in_progress` hors de l'état En cours, `no_background_task_running` pendant un
+    traitement de fond qui écrit dans la révision en cours ou la fige.
+
+KanbanCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions, progress]
+  properties:
+    command: { $ref: '#/KanbanCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque le geste est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+    progress:
+      anyOf: [{ $ref: '#/TaskProgress' }, { type: 'null' }]
+      description: >-
+        L'état que le geste envoie à `setTaskProgress` (`ProgressUpdate.progress`) :
+        `started` pour `start`, `completed` pour `complete`, `not_started` pour la
+        réouverture d'un jalon et `started` pour celle de toute autre tâche ; nul pour
+        `enter_remaining`, qui n'écrit rien. Le front envoie cet état, sans le déduire de la
+        nature de la tâche.
 
 NotStartedTask:
   description: >-
-    Une tâche non démarrée du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et si
-    tous ses prédécesseurs sont terminés.
+    Une tâche non démarrée du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud et ses
+    gestes (`KanbanTask`), et si tous ses prédécesseurs sont terminés.
   allOf:
-    - $ref: '#/Node'
+    - $ref: '#/KanbanTask'
     - type: object
       required: [predecessors_completed]
       properties:
@@ -473,14 +654,24 @@ ComputedField:
 EditableField:
   type: string
   description: >-
-    Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou
-    la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il
-    accepte (`editable_fields`, WF-IHM-0040). Le rattachement à un poste ou à un lot du
-    lotissement (`task.order_item_id`, `task.work_package_id`) est accepté de toute tâche de la
-    structure principale, récapitulative, feuille ou jalon, et d'aucune autre : « Le
-    rattachement n'existe que dans la structure principale », « les structures différentielles
-    et les devis propres des risques n'en portent pas » (WF-PLA-0170) — leurs tâches ne le
-    nomment pas, et le portent toujours nul.
+    Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, la
+    commande d'avancement pour `task.progress`, ou `setNodeTracking` pour `task.tracking` —, que
+    le nœud nomme parmi ceux qu'il accepte (`editable_fields`, WF-IHM-0040). Le rattachement à
+    un lot ou à un poste du lotissement (`task.work_package_id`, `task.order_item_id`) est
+    accepté de toute tâche de la structure principale, récapitulative, feuille ou jalon, et
+    d'aucune autre : « Le rattachement n'existe que dans la structure principale », « les
+    structures différentielles et les devis propres des risques n'en portent pas »
+    (WF-PLA-0170) — leurs tâches ne le nomment pas, et le portent toujours nul. L'inscription
+    aux chronologies et au suivi temps/temps (`task.tracking`, WF-PLA-0060) est nommée de même
+    par toute tâche de la structure principale, et d'aucune autre : c'est par elle que la
+    grille de planning offre le sous-menu des chronologies, sans le déduire de la structure lue
+    (#1065) ; l'appelant l'écrit sous la commande de saisie du planning de la structure
+    (`StructureCommand.edit_planning`), comme les autres champs de la tâche. Les prédécesseurs
+    (`task.predecessors`, écrits par `setPredecessors`, WF-PLA-0030) sont nommés par toute tâche,
+    récapitulative, feuille ou jalon, de toute structure — une liaison n'est refusée qu'à sa
+    saisie, par ce qu'elle relie (`LINK_FORBIDDEN`, `LINK_CYCLE`) — et d'aucun nœud retiré d'un
+    différentiel, en lecture seule : c'est par lui que la grille de planning offre la cellule des
+    prédécesseurs, sous `edit_planning` comme les autres champs de la tâche (#1257).
   enum:
     - task.label
     - task.description
@@ -489,8 +680,10 @@ EditableField:
     - task.start
     - task.finish
     - task.progress
+    - task.predecessors
     - task.order_item_id
     - task.work_package_id
+    - task.tracking
     - estimate_line.label
     - estimate_line.cost_category_id
     - estimate_line.resource_role_id
@@ -508,7 +701,7 @@ NodeColumn:
     colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de
     la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille
     les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le
-    poste ou le lot du lotissement auquel la tâche est rattachée (WF-PLA-0170) ;
+    lot ou le poste du lotissement auquel la tâche est rattachée (WF-PLA-0170) ;
     `label`, puis de
     `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à
     l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la
@@ -658,11 +851,21 @@ EntryAvailability:
 
 NodeListMeta:
   type: object
-  required: [summary_depth]
+  required: [summary_depth, scheduled_at]
   description: >-
     Ce que la lecture dit de la structure lue elle-même, et non des nœuds qu'elle rend : les
     filtres, la recherche, `kinds` et `fields` n'y changent rien.
   properties:
+    scheduled_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: >-
+        L'instant du dernier calcul des dates de la structure lue : celui de la dernière
+        écriture qui l'a redatée — une durée, une liaison, un calendrier, l'arbre, sa date de
+        début de planning, sa création comprise (WF-PLA-0020) —, ou de son import, quels que
+        soient les filtres, la recherche, `kinds` et `fields`, comme `summary_depth`. Une
+        révision marquée n'est plus redatée (WF-DAT-0020) : elle garde l'instant du dernier
+        calcul qui a précédé son marquage. C'est la date de calcul que nomment les images
+        exportées du Gantt et d'une chronologie (WF-IHM-0130, WF-PLA-0140).
     summary_depth:
       type: integer
       minimum: 0
@@ -895,6 +1098,7 @@ TaskFacet:
     - finish_overdue
     - is_summary
     - is_milestone
+    - calendar_hours
     - base_amount
     - budgeted_amount
     - reestimated_amount
@@ -905,10 +1109,10 @@ TaskFacet:
     dépassée — ne sont pas saisissables (WF-IHM-0030). La durée est portée dans l'unité
     de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de
     travail écoulées ce jour-là (WF-DAT-0100). Une tâche, récapitulative ou feuille, peut
-    porter le rattachement à un poste ou à un lot du lotissement (`order_item_id`,
-    `work_package_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le
+    porter le rattachement à un lot ou à un poste du lotissement (`work_package_id`,
+    `order_item_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le
     fichier lui donnait (`external_id`, WF-INTF-0040).
-  properties:
+  properties: &task_facet_properties
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
@@ -940,6 +1144,19 @@ TaskFacet:
       description: >-
         Calendrier applicable, résolu à la lecture : intersection des calendriers
         des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010).
+    calendar_hours:
+      allOf: [{ $ref: reference.yaml#/WeeklyHours }]
+      description: >-
+        Calculé, jamais saisi : les heures de chaque jour de la semaine du calendrier applicable
+        à la tâche, celui sur lequel ses dates et sa durée se comptent (WF-PLA-0010) — chaque
+        jour, le plus petit des nombres d'heures que les calendriers des rôles de ses lignes de
+        main-d'œuvre lui accordent ; le calendrier par défaut si elle n'en porte aucune. Une
+        récapitulative et un jalon suivent la même règle, sur les seules lignes qu'ils portent :
+        une récapitulative n'hérite pas des calendriers de ses subordonnées, dont chacune a le
+        sien, et ses dates comme sa durée se comptent sur le sien (WF-PLA-0040). Un jour à 0
+        heure est un jour chômé de la tâche, que le Gantt distingue ; le contrat ne connaît pas
+        de jours fériés (WF-REF-0110). Sur une révision marquée, les heures des calendriers
+        qu'elle fige (`EmployedReference`).
     total_float:
       anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
       description: >-
@@ -987,24 +1204,25 @@ TaskFacet:
     order_item_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le poste du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) :
-        posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de
-        `work_package_id`. Un poste n'est porté que par une tâche à la fois ; c'est par elle
-        que le devis présente le total par poste, celui de son sous-arbre (WF-DEV-0060), et que
-        les grilles filtrent par poste. Une récapitulative qui perd sa dernière subordonnée
-        garde son rattachement. Nul sans rattachement.
+        Le poste du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que
+        `work_package_id`, exclusif de lui : une tâche porte un lot ou un poste, jamais les
+        deux ; un poste n'est porté que par une tâche à la fois. « Lorsque le lot d'un poste est
+        rattaché, la tâche de ce poste se trouve dans le sous-arbre de la tâche de ce lot »
+        (WF-PLA-0170). Les grilles filtrent par poste sur ce rattachement (WF-DEV-0050,
+        WF-RAE-0040).
     work_package_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le lot du lotissement que porte cette tâche (WF-PLA-0170), aux mêmes règles que
-        `order_item_id`, exclusif de lui : une tâche porte un poste ou un lot, jamais les deux ;
-        un lot n'est porté que par une tâche à la fois. Quand le poste du lot est rattaché, la
-        tâche du lot est dans le sous-arbre de la tâche de ce poste. Les grilles filtrent par
-        lot sur ce rattachement (WF-DEV-0050, WF-RAE-0040).
+        Le lot du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0170) :
+        posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de
+        `order_item_id`. Un lot n'est porté que par une tâche à la fois ; c'est par elle que le
+        devis présente le total par lot, celui de son sous-arbre (WF-DEV-0060), et que les
+        grilles filtrent par lot. Une récapitulative qui perd sa dernière subordonnée garde son
+        rattachement. Nul sans rattachement.
     work_breakdown_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le libellé du poste ou du lot porté, résolu à la lecture, que la colonne
+        Le libellé du lot ou du poste porté, résolu à la lecture, que la colonne
         `work_breakdown` présente sans que la grille lise le lotissement (WF-ARC-0020) ; nul
         sans rattachement.
     external_id:
@@ -1045,7 +1263,7 @@ EstimateLineFacet:
     WF-REF-0150). Une ligne qui emploie un objet du
     référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis
     et de reste à engager la signalent (WF-REF-0010).
-  properties:
+  properties: &estimate_line_facet_properties
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     cost_category_label:
@@ -1089,7 +1307,9 @@ EstimateLineFacet:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
         Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de
-        référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une
+        référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf
+        une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs
+        de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une
         ligne de provision porte la provision qu'elle avait dans la révision de référence :
         ce montant compte à la réserve pour risques, jamais au budget de référence, qui est
         la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et
@@ -1216,12 +1436,24 @@ Timeline:
 NodeCreate:
   type: object
   required: [kind, parent_id]
+  description: >-
+    Le nœud créé prend place sous `parent_id`, après le frère que nomme `after_node_id`. Les
+    lignes d'une tâche précèdent toujours ses sous-tâches (`Node.position`) : nul, une ligne se
+    place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne se place
+    après la dernière ligne, une tâche après la dernière sous-tâche. Un `after_node_id` d'un
+    autre genre que le nœud créé se replie sur la frontière entre lignes et sous-tâches : une
+    ligne envoyée après une sous-tâche se place après la dernière ligne, une tâche envoyée après
+    une ligne en tête des sous-tâches (#1187). Un `after_node_id` qui n'est pas un frère sous le
+    parent visé — un nœud d'un autre parent, ou qui n'est pas de la structure — est refusé par
+    422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif `NODE_NOT_SIBLING`,
+    rien n'étant écrit : la grille désigne la place par le nœud qu'elle lit, jamais par un rang
+    qu'une lecture filtrée ne lui permet pas de compter (#1183).
   properties:
     kind: { $ref: '#/NodeKind' }
     parent_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-    position:
-      anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+    after_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     task: { $ref: '#/TaskFacetWrite' }
     estimate_line: { $ref: '#/EstimateLineWrite' }
 
@@ -1232,9 +1464,9 @@ TaskFacetWrite:
     Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
     refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
     saisissables en mode manuel, sont une date et des heures de travail écoulées
-    (WF-DAT-0100). Le rattachement à un poste ou à un lot est accepté de toute tâche de la
+    (WF-DAT-0100). Le rattachement à un lot ou à un poste est accepté de toute tâche de la
     structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée
-    (`NodeCreate.parent_id`) disant si la tâche d'un lot reste sous celle de son poste.
+    (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son lot.
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -1257,35 +1489,39 @@ TaskFacetUpdate:
   description: >-
     Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est
     exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent
-    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) ; une valeur
+    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`), à ceci près que
+    le début et la fin se saisissent sans leurs heures, que le serveur complète sur le
+    calendrier de la tâche (`WorkInstantWrite`, #1244), et qu'une date sur un jour sans heure
+    travaillée à ce calendrier est refusée, nommant le jour travaillé suivant (`NON_WORKING_DAY`,
+    WF-PLA-0020 ; #1271) ; une valeur
     que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030), et un champ
     que le nœud n'accepte pas, ni saisi ni calculé pour lui — la durée d'un jalon, qui n'en a pas
     à saisir (WF-PLA-0050) —, par `FIELD_NOT_ACCEPTED` (`editable_fields` ; EP-14/L42s).
 
-    Le rattachement au lotissement (WF-PLA-0170) : `order_item_id` ou `work_package_id`
-    rattache la tâche, récapitulative, feuille ou jalon, à ce poste ou à ce lot, `null` retire
-    le rattachement. L'échange se fait en une écriture : `{order_item_id: null, work_package_id:
-    X}` sur une tâche qui porte un poste retire le poste et rattache le lot. Le refus est un
+    Le rattachement au lotissement (WF-PLA-0170) : `work_package_id` ou `order_item_id`
+    rattache la tâche, récapitulative, feuille ou jalon, à ce lot ou à ce poste, `null` retire
+    le rattachement. L'échange se fait en une écriture : `{work_package_id: null, order_item_id:
+    X}` sur une tâche qui porte un lot retire le lot et rattache le poste. Le refus est un
     422 `VALIDATION_FAILED`, `fields` sur le champ envoyé, une entrée par motif qui s'applique —
     `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` et `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` rendus ensemble
     quand l'un et l'autre s'appliquent :
     `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` quand la tâche n'est pas de la structure principale —
     d'un différentiel ou du devis propre d'un risque, qui n'en portent pas ; `null` y est
     accepté, qui ne change rien — ; `UNKNOWN_WORK_BREAKDOWN_ITEM` quand le lotissement du
-    projet n'a pas ce poste ou ce lot ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, sans paramètre, quand
+    projet n'a pas ce lot ou ce poste ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, sans paramètre, quand
     les deux sont envoyés non nuls — chacun refusé à son champ —, ou que l'un est envoyé non nul
     quand l'autre est porté et n'est pas mis à `null` dans le même corps — « jamais aux deux »,
-    « le rattachement d'une même tâche à un poste et à un lot » est refusé ;
-    `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre tâche porte déjà ce poste ou ce lot —
-    « un poste ou un lot n'y est porté que par une tâche à la fois », « le rattachement d'une
-    tâche à un lot déjà porté par une autre est refusé » —, `fields[].params.conflicting_object_id`
+    le rattachement « d'une même tâche à un lot et à un poste » est refusé ;
+    `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre tâche porte déjà ce lot ou ce poste —
+    « un lot ou un poste n'y est porté que par une tâche à la fois », « le rattachement d'une
+    tâche à un poste déjà porté par une autre est refusé » —, `fields[].params.conflicting_object_id`
     nommant le nœud de cette tâche et `conflicting_object_label` son libellé, la grille de
-    planning, filtrée, pouvant ne pas la lire ; `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` quand le
-    rattachement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste — un lot
-    rattaché à une tâche hors du sous-arbre de la tâche de son poste, ou un poste rattaché à une
-    tâche dont le sous-arbre ne contient pas la tâche de l'un de ses lots —,
-    `fields[].params.order_item_task` nommant la tâche du poste et `work_package_tasks` celles des
-    lots en cause, chacune par son nœud et son libellé, comme l'échec d'une fusion (Vérif de
+    planning, filtrée, pouvant ne pas la lire ; `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` quand le
+    rattachement sortirait la tâche d'un poste du sous-arbre de la tâche de son lot — un poste
+    rattaché à une tâche hors du sous-arbre de la tâche de son lot, ou un lot rattaché à une
+    tâche dont le sous-arbre ne contient pas la tâche de l'un de ses postes —,
+    `fields[].params.work_package_task` nommant la tâche du lot et `order_item_tasks` celles des
+    postes en cause, chacune par son nœud et son libellé, comme l'échec d'une fusion (Vérif de
     WF-PLA-0170 ; WF-IHM-0080 ; EP-14/L42s).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
@@ -1294,15 +1530,15 @@ TaskFacetUpdate:
     scheduling_mode: { $ref: '#/SchedulingMode' }
     duration: { $ref: '#/Duration' }
     start:
-      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+      anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     finish:
-      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
-    order_item_id:
-      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Le poste du lotissement à porter, ou `null` pour retirer le rattachement.
+      anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     work_package_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Le lot du lotissement à porter, ou `null` pour retirer le rattachement.
+    order_item_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Le poste du lotissement à porter, ou `null` pour retirer le rattachement.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 EstimateLineWrite:
@@ -1361,19 +1597,49 @@ EstimateLineUpdate:
         provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par
         422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque
         (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
+        Une ligne dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu
+        des coûts réels, une part de ces coûts lui revenant : la passer à un autre sous-projet ou
+        hors sous-projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur `/subproject_id`,
+        motif `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le sous-projet quitté
+        (`subproject_id`, `label`), et la ligne ne nomme pas ce champ dans `editable_fields`. Une
+        ligne d'une tâche non démarrée change de sous-projet (WF-PRJ-0050 ; C-359, #1066). Un
+        collage et un import refusent de même la cellule ou la ligne qui la déplacerait
+        (`PasteRejection`, `ImportRejection` ; #1152).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 NodeMove:
   type: object
   required: [node_ids, parent_id, lock_version]
   description: >-
-    Déplacement de nœuds sous un parent. Un déplacement qui sortirait la tâche d'un lot du
-    sous-arbre de la tâche de son poste rattaché — la tâche du lot, ou une tâche qui la
+    Déplacement de nœuds sous un parent. Un déplacement qui sortirait la tâche d'un poste du
+    sous-arbre de la tâche de son lot rattaché — la tâche du poste, ou une tâche qui la
     contient — est refusé (WF-PLA-0170) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le
-    nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
-    `fields[].params.order_item_task` et `work_package_tasks` nommant la tâche du poste et celles
-    des lots, chacune par son nœud et son libellé (`node_id`, `label`) : la grille, filtrée, peut
-    ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s).
+    nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+    `fields[].params.work_package_task` et `order_item_tasks` nommant la tâche du lot et celles
+    des postes, chacune par son nœud et son libellé (`node_id`, `label`) : la grille, filtrée,
+    peut ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s). Une sélection se juge sur la
+    structure que le déplacement laisserait, tous ses nœuds déplacés : un refus qui nomme un
+    nœud nomme le premier en cause dans l'ordre du plan de la structure lue, et `LINK_CYCLE` la
+    boucle que ferme le déplacement de celui-ci (#1169) : l'ordre du refus est celui du plan,
+    l'ordre de `node_ids` ne règle que le placement. Les nœuds déplacés prennent place sous
+    `parent_id`, dans l'ordre de `node_ids`, après le frère que nomme `after_node_id`, selon la
+    règle de `NodeCreate` : les lignes d'une tâche précèdent toujours ses sous-tâches ; nul, une
+    ligne se place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne
+    après la dernière ligne, une tâche après la dernière sous-tâche, hors nœuds déplacés — un
+    nœud déplacé ne compte pas parmi les frères qu'il suivrait — ; un `after_node_id` d'un autre
+    genre se replie sur la frontière entre lignes et sous-tâches, une ligne après une sous-tâche
+    se plaçant après la dernière ligne, une tâche après une ligne en tête des sous-tâches. Une
+    sélection qui mêle lignes et tâches applique cette règle à chaque nœud, dans l'ordre de
+    `node_ids` : le premier nœud de chaque genre prend la place que la règle lui donne après
+    `after_node_id`, et chacun des suivants se place après le précédent de son genre — les
+    lignes déplacées restent ensemble parmi les lignes, les tâches parmi les sous-tâches (#1187 ;
+    `nodes_move_mixed`). Un `after_node_id` qui n'est pas un frère sous le parent visé — un nœud
+    d'un autre parent, l'un des nœuds déplacés, ou un nœud qui n'est pas de la structure — est
+    refusé par 422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif
+    `NODE_NOT_SIBLING`, rien ne bougeant (#1183). Une ligne de provision parmi `node_ids` est
+    refusée par 422 `VALIDATION_FAILED`, `fields[].pointer` sur elle, motif
+    `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant son risque : sa tâche se
+    désigne par le formulaire du risque (WF-RIS-0010 ; #1227).
   properties:
     node_ids:
       type: array
@@ -1381,24 +1647,27 @@ NodeMove:
       items: { $ref: ../common.yaml#/Uuid }
     parent_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-    position:
-      anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+    after_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ProgressUpdate:
   type: object
   required: [progress, lock_version]
   description: >-
-    Démarre ou termine une tâche. La date est celle du geste par défaut, et la
-    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030). Une tâche terminée
-    se rouvre en la repassant à « démarrée » ; aucun geste ne la ramène à « non
-    démarrée », que le Kanban n'offre pas (WF-RAE-0030). Le passage direct de non
-    démarrée à terminée n'est ouvert qu'à un jalon, et l'opération est refusée sur une
-    récapitulative, dont l'état est dérivé (WF-PLA-0040, WF-PLA-0050).
+    Démarre, termine ou rouvre une tâche, le geste d'une carte du Kanban
+    (`KanbanCommandAvailability.progress`). La date est celle du geste par défaut, et la
+    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130). Une tâche
+    terminée se rouvre : un jalon en le ramenant à « non démarrée », sa date de terminaison
+    effacée — seul cas où une tâche revient à cet état —, toute autre tâche en la repassant à
+    « démarrée » (WF-RAE-0030). `not_started` envoyé pour une tâche qui n'est pas un jalon
+    terminé est refusé par 409, `missing_condition` à `completed_milestone` : une tâche
+    démarrée par erreur se corrige en annulant la saisie (WF-IHM-0110). Le passage direct de
+    non démarrée à terminée n'est ouvert qu'à un jalon, un jalon ne démarre jamais, et
+    l'opération est refusée sur une récapitulative, dont l'état est dérivé (WF-PLA-0040,
+    WF-PLA-0050).
   properties:
-    progress:
-      allOf: [{ $ref: '#/TaskProgress' }]
-      enum: [started, completed]
+    progress: { $ref: '#/TaskProgress' }
     occurred_on: { $ref: ../common.yaml#/PlanningDate }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -1480,14 +1749,21 @@ PastePreview:
     ligne de devis collée sur son libellé : la catégorie, le rôle, la quantité, la charge,
     le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la
     description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la
-    grille à la même distance sous le nœud visé, dans l'ordre du plan. Aucune cellule n'est
-    décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas est refusée, la
-    ligne et la colonne nommées (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien —
-    un champ calculé pour ce nœud par `COMPUTED_VALUE`, un champ que sa nature refuse ou une
-    colonne qu'aucune écriture ne porte, comme les montants, par `FIELD_NOT_ACCEPTED`
-    (EP-14/L42s). Un bloc plus large que
-    les colonnes de la facette à partir de la colonne visée est refusé par 422
-    (`PASTE_TOO_WIDE`, `params.max_columns`).
+    grille à la même distance sous le nœud visé, dans l'ordre du plan. Sur un différentiel, les
+    nœuds qu'il retire, que sa lecture rend à leur place en lecture seule (`NodeDifference`), ne
+    comptent pas : le collage les saute, sans refus, et la ligne du bloc qui serait tombée sur l'un
+    d'eux écrit le nœud suivant qui n'est pas retiré, les lignes suivantes du bloc les nœuds
+    d'après — un bloc de deux lignes collé sur la ligne qui précède une ligne retirée écrit cette
+    ligne, puis le nœud qui suit la ligne retirée (décision de l'auteur du 2026-10-22, #1278).
+    `PastePlan.accepted` et `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds
+    sautés. Aucune cellule n'est décalée : une cellule qui tombe sur une colonne que sa ligne
+    n'accepte pas est refusée, la ligne et la colonne nommées (`PastePlan.rejected`), sauf si
+    elle est vide, qui n'écrit rien — un champ calculé pour ce nœud par `COMPUTED_VALUE`, un
+    champ que sa nature refuse ou une colonne qu'aucune écriture ne porte, comme les montants,
+    par `FIELD_NOT_ACCEPTED` (EP-14/L42s) ; le sous-projet d'une ligne qui ne peut pas le
+    quitter, par `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`). Un bloc plus large que les
+    colonnes de la facette à partir de la colonne visée est refusé par 422 (`PASTE_TOO_WIDE`,
+    `params.max_columns`).
   properties:
     target_node_id: { $ref: ../common.yaml#/Uuid }
     target_column:
@@ -1513,7 +1789,10 @@ PastePlan:
     accepted:
       type: integer
       minimum: 0
-      description: Le nombre de lignes du bloc que la confirmation écrira.
+      description: >-
+        Le nombre de lignes du bloc que la confirmation écrira. Sur un différentiel, un nœud
+        retiré que le collage saute n'y est pas compté, et n'est pas refusé non plus : chaque
+        ligne du bloc écrit le nœud suivant qui n'est pas retiré (`PastePreview`, #1278).
     rejected:
       type: array
       description: >-
@@ -1531,13 +1810,24 @@ PasteRejection:
     propre d'un risque est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` : le rattachement
     n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche
     de la structure principale, elle suit les règles du rattachement (`TaskFacetUpdate`), et
-    `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` porte dans `params` la tâche du poste et celles des lots
-    (`order_item_task`, `work_package_tasks`), comme le refus d'une cellule (EP-14/L42s).
+    `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` porte dans `params` la tâche du lot et celles des postes
+    (`work_package_task`, `order_item_tasks`), comme le refus d'une cellule (EP-14/L42s). Une
+    cellule de la colonne `subproject` collée sur une ligne dont la tâche est démarrée ou terminée,
+    et dont le sous-projet a reçu des coûts réels — une ligne qui ne nomme pas
+    `estimate_line.subproject_id` dans `editable_fields` —, est refusée par
+    `SUBPROJECT_HAS_ACTUAL_COSTS` si elle nomme un autre sous-projet, `params.subproject`
+    nommant le sous-projet que la ligne ne peut pas quitter (`subproject_id`, `label`), comme
+    `updateEstimateLine` ; une cellule qui nomme le sous-projet de la ligne ne la déplace pas, et
+    n'est pas refusée, ni une cellule vide, qui n'écrit rien (`PastePreview`) (WF-PRJ-0050 ;
+    C-359, #1152).
   properties:
     row:
       type: integer
       minimum: 0
-      description: La ligne du bloc refusée, comptée de zéro.
+      description: >-
+        La ligne du bloc refusée, comptée de zéro. C'est une ligne du bloc, jamais un nœud : sur
+        un différentiel, les nœuds retirés que le collage saute ne la décalent pas, et aucun
+        refus ne les nomme (`PastePreview`, #1278).
     column:
       allOf: [{ $ref: '#/NodeColumn' }]
       description: >-
@@ -1598,28 +1888,49 @@ PasteApply:
 
 RevisionComparison:
   type: object
-  required: [from_revision_id, to_revision_id, added, removed, changed, amount_deltas]
+  required: [from_revision_id, to_revision_id, items, totals, meta, amount_deltas]
   description: >-
     Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée
-    (WF-REV-0080, WF-DAT-0030).
+    (WF-REV-0080, WF-DAT-0030) : l'arbre de la structure principale de la révision comparée, avec
+    les marques d'un différentiel, et les écarts de montants. Elle a la forme de la réponse de
+    `listNodes` — `items`, `totals`, `meta` —, et se lit comme elle, entière ou par la fenêtre
+    que ses filtres retiennent (#1193).
   properties:
     from_revision_id: { $ref: ../common.yaml#/Uuid }
     to_revision_id: { $ref: ../common.yaml#/Uuid }
-    added:
+    items:
       type: array
-      items: { $ref: '#/ComparedNode' }
-    removed:
-      type: array
-      items: { $ref: '#/ComparedNode' }
-    changed:
-      type: array
-      items: { $ref: '#/ComparedNode' }
+      description: >-
+        Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours
+        profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend :
+        chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs
+        que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de
+        base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080,
+        C-361).
+      items: { $ref: '#/ComparedNodeRead' }
+    totals:
+      allOf: [{ $ref: '#/NodeTotals' }]
+      description: >-
+        Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes
+        retenues, sans les nœuds retirés, qui ne sont plus de sa structure.
+    meta:
+      allOf: [{ $ref: '#/NodeListMeta' }]
+      description: Ce que la lecture dit de la structure principale de la révision comparée.
     amount_deltas:
       type: array
       description: >-
-        Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun
-        nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne
-        joint rien (WF-ARC-0020).
+        Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par
+        son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien
+        (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de même sur les
+        lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux
+        de toute la structure ; d'un sous-arbre, les siens. L'écart se compte par ligne retenue,
+        selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y
+        apporte son écart entier, son montant dans la révision comparée moins celui de la révision
+        de base, où qu'elle fût dans celle-ci. Une ligne déplacée hors d'un sous-arbre n'en compte
+        donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul
+        montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait.
+        Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque
+        ligne comptée une fois.
       items:
         type: object
         required: [dimension, key, label, delta]
@@ -1642,15 +1953,42 @@ RevisionComparison:
               tâche est dite ajoutée, et celui du devis en cours moins le devis comparé
               (`EstimateIndicators.delta_to_reference`).
 
-ComparedNode:
+ComparedNodeRead:
   type: object
-  required: [lineage_id, label, kind]
+  required: [node_id, row_number, level, lock_version, difference, changes]
+  description: >-
+    Un nœud de la comparaison (`RevisionComparison.items`), tel que `compareRevisions` le rend :
+    les propriétés de `Node`, reprises de lui, dont seules sont exigées celles qu'une lecture rend
+    toujours — `node_id`, `row_number`, `level` et `lock_version`, et la marque du nœud,
+    `difference` et `changes` —, les autres n'étant rendues que si `fields` les nomme, ou toutes
+    s'il est omis (#166, #1201, #1208). Ses facettes sont partielles de même. `Node`, que rend
+    `listNodes`, ne change pas.
   properties:
-    lineage_id: { $ref: ../common.yaml#/Uuid }
-    label: { type: string }
-    kind: { $ref: '#/NodeKind' }
-    changes:
-      type: array
-      items:
-        type: string
-        enum: [dates, duration, progress, budgeted_amount, reestimated_amount, parent]
+    <<: *node_properties
+    task:
+      anyOf: [{ $ref: '#/ComparedTaskFacet' }, { type: 'null' }]
+    estimate_line:
+      anyOf: [{ $ref: '#/ComparedEstimateLineFacet' }, { type: 'null' }]
+    difference:
+      allOf: [{ $ref: '#/NodeDifference' }]
+      description: >-
+        L'écart du nœud à la révision de base (`from_revision_id`), que le serveur rend et que le
+        front ne calcule pas (WF-REV-0080, C-361) : toujours rendu, que `fields` le nomme ou non,
+        jamais nul.
+
+ComparedTaskFacet:
+  type: object
+  description: >-
+    La facette temps d'un nœud de la comparaison (`ComparedNodeRead.task`) : les propriétés de
+    `TaskFacet`, reprises de lui, aucune exigée — une lecture avec `fields` ne rend que celles
+    qu'il nomme (`task.label`), une lecture sans `fields` les rend toutes (#166, #1208).
+  properties: *task_facet_properties
+
+ComparedEstimateLineFacet:
+  type: object
+  description: >-
+    La facette devis d'un nœud de la comparaison (`ComparedNodeRead.estimate_line`) : les
+    propriétés d'`EstimateLineFacet`, reprises de lui, aucune exigée — une lecture avec `fields`
+    ne rend que celles qu'il nomme (`estimate_line.label`), une lecture sans `fields` les rend
+    toutes (#166, #1208).
+  properties: *estimate_line_facet_properties

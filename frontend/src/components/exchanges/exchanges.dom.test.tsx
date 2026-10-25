@@ -11,11 +11,12 @@ import type { components } from "@/api/generated/schema";
 import type { Project } from "@/components/context/reading";
 import type { Revision } from "@/components/context/read-only";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
-import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
+import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
+import { tasksRegion } from "@/test/task-panel";
 
 import { ExportForm } from "./export-form";
 import { ImportCommands } from "./import-commands";
@@ -38,6 +39,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 type Import = components["schemas"]["Import"];
+type Report = components["schemas"]["ImportReport"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -67,6 +69,7 @@ function shell(part: ReactNode, locale: "fr" | "en" = "fr") {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
       <TaskTracker>
+        <TasksButton />
         <TaskPanel />
         <main>{part}</main>
       </TaskTracker>
@@ -101,7 +104,7 @@ function report(entry: Import) {
 
 /** The region of the tasks of the shell. */
 function tasks() {
-  return screen.getByRole("region", { name: "Tâches de fond" });
+  return tasksRegion();
 }
 
 /** Wait until a form no longer waits for the answer of its action. */
@@ -128,7 +131,12 @@ describe("the first step of an import", () => {
   it("offers the import of each kind as the server offers it, an unavailable one with what it lacks", async () => {
     serve({});
     const { container } = open(importCommands("project_completed"));
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+    const main = screen.getByRole("main");
+    expect(
+      within(main)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual([
       "Importer un planning MS Project",
       "Importer un devis",
       "Importer un reste à engager",
@@ -146,7 +154,7 @@ describe("the first step of an import", () => {
     serve({});
     const { container } = open(importCommands("project_pricing_estimator"));
     const estimate = screen.getByRole("button", { name: "Importer un devis" });
-    expect(screen.getAllByRole("button")).toEqual([estimate]);
+    expect(within(screen.getByRole("main")).getAllByRole("button")).toEqual([estimate]);
     expect(estimate).toHaveAttribute("aria-disabled", "true");
     expect(estimate).toHaveAccessibleDescription(
       "Condition non remplie\u00A0: avoir la permission de créer une révision.",
@@ -180,7 +188,7 @@ describe("the first step of an import", () => {
     open(importCommands());
     await userEvent.click(screen.getByRole("button", { name: "Importer un devis" }));
     const form = screen.getByRole("form", { name: "Importer un devis" });
-    const file = new File(["devis"], "devis-poste-de-commande.xlsx");
+    const file = new File(["devis"], "devis-avenant-2-reprise-des-essais.xlsx");
     await userEvent.upload(within(form).getByLabelText("Fichier à importer"), file);
     await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
     await waitFor(() => {
@@ -193,7 +201,7 @@ describe("the first step of an import", () => {
     });
     expect(screen.queryByRole("form")).toBeNull();
     expect(
-      within(tasks()).getByText("Analyse d’un import « devis-poste-de-commande.xlsx »"),
+      within(tasks()).getByText("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
     ).toBeVisible();
   });
 
@@ -216,7 +224,7 @@ describe("the first step of an import", () => {
     const form = screen.getByRole("form", { name: "Importer un devis" });
     await userEvent.upload(
       within(form).getByLabelText("Fichier à importer"),
-      new File(["devis"], "devis-poste-de-commande.xlsx"),
+      new File(["devis"], "devis-avenant-2-reprise-des-essais.xlsx"),
     );
     await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
     await waitFor(() => {
@@ -229,7 +237,7 @@ describe("the first step of an import", () => {
     });
     expect(router.push).not.toHaveBeenCalled();
     expect(
-      within(tasks()).getByText("Analyse d’un import « devis-poste-de-commande.xlsx »"),
+      within(tasks()).getByText("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
     ).toBeVisible();
   });
 
@@ -302,7 +310,7 @@ describe("the report of an import", () => {
     });
     const { container } = open(report(example("import_analysed") as Import));
     const section = screen.getByRole("region", {
-      name: "Compte rendu de l’import « devis-poste-de-commande.xlsx »",
+      name: "Compte rendu de l’import « devis-avenant-2-reprise-des-essais.xlsx »",
     });
     const rejected = within(section).getByRole("table", { name: "Lignes rejetées" });
     expect(
@@ -314,7 +322,7 @@ describe("the report of an import", () => {
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
     expect(within(confirmation).getByRole("paragraph")).toHaveTextContent(
-      "Appliquer au projet l’import « devis-poste-de-commande.xlsx », en une seule opération ?",
+      "Appliquer au projet l’import « devis-avenant-2-reprise-des-essais.xlsx », en une seule opération ?",
     );
     expect(
       within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
@@ -331,10 +339,86 @@ describe("the report of an import", () => {
     expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
       [`/projects/${PROJECT}/imports/${IMPORT}/apply`, { confirmed: true }],
     ]);
-    expect(
-      within(tasks()).getByText("Application d’un import « devis-poste-de-commande.xlsx »"),
-    ).toBeVisible();
     expect(screen.getByRole("button", { name: "Appliquer l’import" })).toHaveFocus();
+    expect(
+      within(tasks()).getByText(
+        "Application d’un import « devis-avenant-2-reprise-des-essais.xlsx »",
+      ),
+    ).toBeVisible();
+  });
+
+  it("leads to the screen it was given only once the task that applies the import has succeeded, not when the application is accepted", async () => {
+    serve({
+      [APPLY]: { example: "task_import_queued", status: 202 },
+      [TASK]: "task_import_succeeded",
+    });
+    const entry = example("import_analysed") as Import;
+    const offers = importOffers(example("project") as Project);
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    open(
+      <ImportReport
+        projectId={PROJECT}
+        entry={entry}
+        offer={offers[entry.kind]}
+        start={START}
+        then={planning}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
+    expect(router.push).not.toHaveBeenCalled();
+    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    await userEvent.click(
+      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
+    // Accepted, and still applying: the planning is not filled yet.
+    expect(router.push).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(planning);
+    });
+    expect(router.push).toHaveBeenCalledOnce();
+  });
+
+  it("leads nowhere when the user left the report before the task that applies the import succeeded", async () => {
+    serve({
+      [APPLY]: { example: "task_import_queued", status: 202 },
+      [TASK]: "task_import_succeeded",
+    });
+    const entry = example("import_analysed") as Import;
+    const offers = importOffers(example("project") as Project);
+    const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+    const view = open(
+      <ImportReport
+        projectId={PROJECT}
+        entry={entry}
+        offer={offers[entry.kind]}
+        start={START}
+        then={planning}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
+    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    await userEvent.click(
+      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
+    // The user goes elsewhere: the report is gone, the tracker stays and follows the task.
+    view.rerender(shell(<p>Ailleurs</p>));
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await waitFor(() => {
+      expect(within(tasks()).getByText(/Application d’un import/)).toBeVisible();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    // The task did succeed, the report not being there to lead anywhere.
+    await waitFor(() => {
+      expect(screen.getByRole("log")).toHaveTextContent("Tâche terminée : Application d’un import");
+    });
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("applies nothing when the confirmation is cancelled, and tells a refusal of the application", async () => {
@@ -437,7 +521,7 @@ describe("the report of an import", () => {
       throw new Error("the example of the imports holds one applied");
     }
     open(report(applied));
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(within(screen.getByRole("main")).queryByRole("button")).toBeNull();
     expect(screen.getByText("Cet import n’a pas de compte rendu.")).toBeVisible();
   });
 
@@ -471,6 +555,17 @@ describe("the report of an import", () => {
     const differences = screen.getByRole("table", { name: "Differences with the existing data" });
     // `passthrough.Fournisseur`, a column of the file no catalogue translates (#365).
     expect(differences).toHaveTextContent("FA-2026-0412Amount and Fournisseur");
+  });
+
+  it("names the parent a node changes, which no column of the structure holds", () => {
+    // The differences of the merge of amendment 2, which moves « Mise en service » under « Essais
+    // sur site » (#1194): `ImportDifference`, the one schema of the differences of an import.
+    const { differences: moved } = example("structure_merge_report") as Pick<Report, "differences">;
+    const entry = example("import_planning_mismatch") as Import & { report: Report };
+    serve({});
+    open(report({ ...entry, report: { ...entry.report, differences: moved } }));
+    const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
+    expect(differences).toHaveTextContent("ModifiéTâcheMise en serviceDurée et Rattachement");
   });
 });
 

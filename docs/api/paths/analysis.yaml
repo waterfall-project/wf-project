@@ -8,8 +8,8 @@
     tags: [estimate]
     summary: Indicateurs de devis
     description: >-
-      Total, ventilations par nature de coût, par sous-projet et par poste du lotissement — le
-      total du sous-arbre de la tâche rattachée au poste (WF-PLA-0170) —, provisions, écart avec
+      Total, ventilations par nature de coût, par sous-projet et par lot du lotissement — le
+      total du sous-arbre de la tâche rattachée au lot (WF-PLA-0170) —, provisions, écart avec
       la révision de référence et avec la révision marquée précédente (WF-DEV-0060). Disponibles
       dès le chiffrage (WF-IND-0010). Un taux horaire manquant pour l'année de référence ne rend
       pas un budget faux : les montants concernés ne se calculent pas, et disent quelles
@@ -178,8 +178,11 @@
       sont tous terminés (`predecessors_completed`) : le Kanban signale par lui les jalons à
       terminer, et ne déduit rien des liaisons ; les tâches démarrées, dont le reste à
       engager est à réestimer ; les tâches terminées, avec leur date de terminaison
-      (`task.completed_on`), que le Kanban rouvre en les repassant à l'état démarré
-      (`setTaskProgress`).
+      (`task.completed_on`), que le Kanban rouvre — un jalon en le ramenant à l'état non
+      démarré, toute autre tâche à l'état démarré (`setTaskProgress`). Chaque tâche est un
+      `KanbanTask` : elle liste les gestes de sa carte, disponibles ou non avec les conditions
+      qui leur manquent, et l'état que chacun envoie (`available_commands`, WF-IHM-0090) ; le
+      Kanban n'offre que ceux-là, et ne déduit rien de la nature de la tâche ni de ses lignes.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -196,10 +199,10 @@
                   items: { $ref: ../components/schemas/revisions.yaml#/NotStartedTask }
                 started:
                   type: array
-                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+                  items: { $ref: ../components/schemas/revisions.yaml#/KanbanTask }
                 completed:
                   type: array
-                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+                  items: { $ref: ../components/schemas/revisions.yaml#/KanbanTask }
             examples:
               witness: { $ref: ../../../fixtures/api/startable_tasks.json }
               milestone: { $ref: ../../../fixtures/api/startable_tasks_milestone.json }

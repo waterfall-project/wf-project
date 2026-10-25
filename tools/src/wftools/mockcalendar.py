@@ -96,6 +96,20 @@ class Calendar:
         """Return the hours worked on a day."""
         return self.week[day.weekday()]
 
+    def next_working_day(self, day: date) -> date:
+        """Return the first day after a day that grants hours of work.
+
+        Look at most one week ahead and raise ValueError if the calendar grants no hour of work.
+
+        What a date entered on a day without hours of work names, refused (WF-PLA-0020, #1271).
+        """
+        for offset in range(1, len(self.week) + 1):
+            after = day + timedelta(days=offset)
+            if self.hours_on(after) > 0:
+                return after
+        message = f"the calendar {self.calendar_id} grants no hour of work in a week"
+        raise ValueError(message)
+
     def elapsed(self, at: Instant) -> Decimal:
         """Return the hours of work from ORIGIN to an instant; hours past the day's are not."""
         weeks, weekday = divmod((at.day - ORIGIN).days, 7)

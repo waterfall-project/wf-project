@@ -5,6 +5,7 @@
 import threading
 import time
 from datetime import date
+from enum import IntEnum, StrEnum
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -39,6 +40,25 @@ class Entry(BaseModel):
     label: str = Field(max_length=5, min_length=1)
     amount: int = Field(ge=0)
     on: date
+
+
+class Count(IntEnum):
+    """An enumeration of integers, as the generator writes one: ``GridPreferences.page_size``."""
+
+    ten = 10
+    twenty_five = 25
+
+
+class Digits(StrEnum):
+    """An enumeration of words that are digits: strings, whatever they read as."""
+
+    ten = "10"
+    twenty_five = "25"
+
+
+class Counted(BaseModel):
+    count: Count | None = None
+    digits: Digits | None = None
 
 
 class Span(BaseModel):
@@ -90,6 +110,10 @@ def build_app(services: Services) -> FastAPI:
     @app.post("/spans")
     def span(span: Span) -> Span:
         return span
+
+    @app.post("/counted")
+    def counted(counted: Counted) -> None:
+        del counted
 
     @app.post("/preferences")
     def prefer(preferences: DisplayPreferences) -> None:
@@ -350,6 +374,56 @@ def test_a_nul_in_an_item_of_a_list_is_pointed_at_the_item(app: FastAPI) -> None
     assert [(f.pointer, f.code.value) for f in problem.fields] == [
         ("/grids/tasks/hidden_columns/1", "VALIDATION_FAILED")
     ]
+
+
+def test_an_integer_out_of_an_enumeration_of_integers_alone_is_a_value_out_of_range(
+    app: FastAPI,
+) -> None:
+    # The number of lines per page is one of four integers: another integer is out of the range
+    # the contract admits (#1045). The theme is one of three words: an integer sent there is a
+    # value of another kind, refused as any other value, not a value out of range.
+    sent = {"theme": 3, "grids": {"users": {"page_size": 30}}}
+    problem = problem_of(TestClient(app).post("/preferences", json=sent))
+    assert problem.fields is not None
+    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+        ("/theme", "VALIDATION_FAILED", None),
+        ("/grids/users/page_size", "VALUE_OUT_OF_RANGE", None),
+    ]
+
+
+# What a model of its own sends to an enumeration, and the code its field gets: Pydantic says the
+# values an enumeration of integers admits bare (« 10 or 25 »), those of words quoted
+# (« '10' or '25' »), whatever they read as. A drift of that wording fails here, on models that
+# owe nothing to the contract; a change of the contract fails the tests of its fields.
+ENUMERATED: list[tuple[dict[str, Any], str]] = [
+    ({"count": 30}, "VALUE_OUT_OF_RANGE"),
+    ({"count": -1}, "VALUE_OUT_OF_RANGE"),
+    ({"count": "30"}, "VALIDATION_FAILED"),
+    ({"count": 30.0}, "VALIDATION_FAILED"),
+    ({"count": "ten"}, "VALIDATION_FAILED"),
+    ({"count": False}, "VALIDATION_FAILED"),
+    ({"digits": 30}, "VALIDATION_FAILED"),
+    ({"digits": 25}, "VALIDATION_FAILED"),
+    ({"digits": "30"}, "VALIDATION_FAILED"),
+]
+
+
+@pytest.mark.parametrize(("sent", "code"), ENUMERATED)
+def test_only_an_integer_sent_to_an_enumeration_of_integers_is_out_of_its_range(
+    app: FastAPI, sent: dict[str, Any], code: str
+) -> None:
+    problem = problem_of(TestClient(app).post("/counted", json=sent))
+    assert problem.fields is not None
+    [(name, _)] = sent.items()
+    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+        (f"/{name}", code, None)
+    ]
+
+
+def test_a_value_an_enumeration_admits_is_read_whatever_it_is_sent_as(app: FastAPI) -> None:
+    # 25, "25" and 25.0 are 25; "25" is one of the words, 25 is not one.
+    for sent in ({"count": 25}, {"count": "25"}, {"count": 25.0}, {"digits": "25"}):
+        assert TestClient(app).post("/counted", json=sent).status_code == 200, sent
 
 
 def test_an_identifier_in_the_path_that_cannot_name_an_object_is_a_not_found(

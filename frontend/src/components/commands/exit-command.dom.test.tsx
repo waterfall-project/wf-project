@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
 import type { Project } from "@/components/context/reading";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -124,6 +125,7 @@ describe("the exits of the lifecycle of a project", () => {
   });
 
   it("confirms an exit before it is applied, naming the state it leads to and that the project becomes read only", async () => {
+    forgetMessages();
     const client = serve({ [EXIT]: "project_completed" });
     const { container } = open();
     const complete = exit("Terminer le projet");
@@ -162,6 +164,14 @@ describe("the exits of the lifecycle of a project", () => {
     });
     expect(complete).toHaveFocus();
     expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
+    // Kept in the history of the messages, about the project it exited (#1043).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: "Le projet est passé à l’état «\u00A0Terminé\u00A0».",
+        object: (example("project") as Project).label,
+      }),
+    ]);
   });
 
   it("keeps saying the new state once the page is read again, the project completed and its exits unavailable", async () => {
@@ -227,7 +237,10 @@ describe("the exits of the lifecycle of a project", () => {
     expect(complete).toHaveFocus();
     expect(complete).toHaveAttribute("aria-disabled", "true");
     expect(complete).toHaveAttribute("aria-expanded", "false");
-    expect(complete).toHaveAccessibleDescription("Condition non remplie\u00A0: projet en cours.");
+    // The command has the focus: its tooltip, open, adds its help to the condition said beside it.
+    expect(complete).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: projet en cours. Termine le projet, après confirmation.",
+    );
   });
 
   it("keeps the confirmation while the API is asked, and says its refusal once it answers", async () => {

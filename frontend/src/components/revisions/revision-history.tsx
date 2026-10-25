@@ -6,14 +6,16 @@
  * revision —, its status, whether it is the reference, when it was marked, and its description
  * (WF-REV-0090). Its name shows it on the screen of the revisions — its commands, its structures,
  * its proposal of rates —, the one shown marked as current; a link opens it, its planning and its
- * estimate as they were (WF-REV-0070). Nothing is offered to create or modify: those forms belong
- * to the epic of their domain.
+ * estimate as they were (WF-REV-0070). Under it, the designation of the reference among the marked
+ * revisions (`ReferenceDesignation`).
  */
 import { ArrowUpRight, GitBranch, Star } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { DesignateCommand } from "@/components/commands/revision-commands";
+import { findOffer } from "@/components/commands/offer";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +114,57 @@ function HistoryRow({
         </Link>
       </TableCell>
     </TableRow>
+  );
+}
+
+/** A revision of the history with the commands it lists. */
+export type DesignatedRevision = HistoryRevision &
+  Pick<components["schemas"]["Revision"], "available_commands">;
+
+/**
+ * The designation of the reference (WF-REV-0040): on each marked revision that lists
+ * `designate_reference`, the command, available or naming what it lacks — the refusal of a
+ * correction no longer permitted, of a revision without task or line of estimate (WF-CYC-0030).
+ * Nothing when no marked revision lists it, the caller not being allowed it.
+ */
+export function ReferenceDesignation({
+  revisions,
+  projectId,
+}: {
+  readonly revisions: readonly DesignatedRevision[];
+  readonly projectId: string;
+}) {
+  const t = useTranslations("revisionScreen.designation");
+  const name = useRevisionName();
+  const designable = revisions.flatMap((revision) => {
+    const offer = findOffer(revision.available_commands, "designate_reference");
+    return revision.status === "marked" && offer !== undefined ? [{ revision, offer }] : [];
+  });
+  if (designable.length === 0) {
+    return null;
+  }
+  return (
+    <ListSection title={t("title")} icon={Star} empty={undefined}>
+      <ul className="space-y-2">
+        {designable.map(({ revision, offer }) => {
+          const named = name(revision);
+          return (
+            <li
+              key={revision.revision_id}
+              aria-label={named}
+              className="flex flex-wrap items-start gap-3 text-sm"
+            >
+              <span className="py-1">{named}</span>
+              <DesignateCommand
+                offer={offer}
+                revision={{ projectId, revisionId: revision.revision_id, name: named }}
+                names={{ [revision.revision_id]: named }}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </ListSection>
   );
 }
 

@@ -13,11 +13,10 @@
  *   retained with their ancestors (WF-PLA-0080).
  * - The roles are a flat table: each column sorts (WF-IHM-0060), searched by the server — on their
  *   label and their code —, filtered by code, node, category, calendar and state, and paged by it.
- * - The calendars are a flat table: each column sorts, the hours of each day too, filtered by state
- *   and paged by the server.
+ * - The calendars are a flat table: each column sorts, the hours of each day too, searched, filtered
+ *   by state and paged by the server; the hours of a day are no filter (WF-IHM-0130-A).
  *
- * The columns of figures — the monthly hours and the headcount of a role, the hours of each day of
- * a calendar — are bounded, the least and the most retained, under `<column>_min` and
+ * The columns of figures — the monthly hours and the headcount of a role — are bounded, the least and the most retained, under `<column>_min` and
  * `<column>_max` after the prefix of the grid, as the contract names them for every list (#545,
  * `RangeFilter`).
  *
@@ -85,11 +84,6 @@ export const ORG_STATE = "org_is_active";
  */
 export const ROLE_MONTHLY_HOURS = "role_monthly_hours";
 export const ROLE_HEADCOUNT = "role_headcount";
-
-/** The column of the hours of a day of the calendars, as the address names it after its prefix. */
-export function calendarDay(day: Day): string {
-  return `calendar_${day}`;
-}
 
 /**
  * The longest code of a node — and of a role, written alike (EP-14/L42r) — the contract filters on
@@ -178,6 +172,7 @@ export function resourceRoleGrid(
     name: "resourceRoles",
     address: RESOURCE_ROLE_ADDRESS,
     searched: true,
+    paged: true,
     rowKey: (role) => role.resource_role_id,
     columns: [
       {
@@ -267,6 +262,7 @@ export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSor
     name: "calendars",
     address: CALENDAR_ADDRESS,
     searched: true,
+    paged: true,
     rowKey: (calendar) => calendar.calendar_id,
     columns: [
       {

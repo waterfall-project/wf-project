@@ -17,8 +17,9 @@ import { type KeyboardEvent, useLayoutEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
-import { firstChoice } from "./cell-values";
-import type { Choice, EntryKind } from "./columns";
+import { type EntryProblem, firstChoice } from "./cell-values";
+import { type Choice, type EntryKind, formatCell } from "./columns";
+import type { CellDraft } from "./grid-keyboard";
 
 /** How long a pause forgets what was typed in a list, in milliseconds. */
 const SEARCH_PAUSE = 1_000;
@@ -57,12 +58,20 @@ export interface CellEditorProps {
   readonly onAbandon: (refocus: boolean) => void;
 }
 
-/** The keyboard a value is typed on: digits for a whole number, a number otherwise, any text. */
+/**
+ * The keyboard a value is typed on: digits for a whole number, a number for a decimal or an amount,
+ * any text otherwise — a duration and its unit, a date and its separators.
+ */
 function inputModeOf(kind: EntryKind): "numeric" | "decimal" | undefined {
-  if (kind.type === "text") {
-    return undefined;
+  switch (kind.type) {
+    case "integer":
+      return "numeric";
+    case "decimal":
+    case "money":
+      return "decimal";
+    default:
+      return undefined;
   }
-  return kind.type === "integer" ? "numeric" : "decimal";
 }
 
 /** Render the entry of a cell. */
@@ -185,5 +194,49 @@ export function CellEditor({
           : "h-6 rounded-sm px-1 text-right text-xs"
       }
     />
+  );
+}
+
+/**
+ * Why the entry of a cell was not validated, which its field names as its description: a cell
+ * left blank that may not be, a text too long, no number of the language — with an example of
+ * one —, an amount with more than two decimals.
+ */
+export function EntryProblemNotice({
+  id,
+  draft,
+  kind,
+}: {
+  readonly id: string;
+  readonly draft: CellDraft | undefined;
+  readonly kind: EntryKind | undefined;
+}) {
+  const t = useTranslations("grid.entry");
+  const locale = useLocale();
+  const problem = draft?.problem;
+  if (problem === undefined || kind === undefined) {
+    return null;
+  }
+  const amount = formatCell("money", "1234.56", locale);
+  const texts: Readonly<Record<EntryProblem, () => string>> = {
+    required: () => t("required"),
+    tooLong: () => t("tooLong", { max: kind.type === "text" ? (kind.maxLength ?? 0) : 0 }),
+    notADuration: () => t("notADuration"),
+    notADate: () => t("notADate", { example: formatCell("date", "2026-12-31", locale) }),
+    notPredecessors: () => t("notPredecessors"),
+    unknownRow: () => t("unknownRow"),
+    notANumber: () =>
+      t("notANumber", {
+        example:
+          kind.type === "money"
+            ? amount
+            : formatCell("decimal", kind.type === "integer" ? "30" : "1234.5", locale),
+      }),
+    twoDecimals: () => t("twoDecimals", { example: amount }),
+  };
+  return (
+    <p id={id} role="alert" className="text-sm text-destructive">
+      {texts[problem]()}
+    </p>
   );
 }

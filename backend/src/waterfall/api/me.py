@@ -38,8 +38,15 @@ DIRECTORY = "directory"
 FOLLOWED = "default"
 # The fields of the preferences, and of the settings of a grid, that the contract never lets null.
 GRIDS = "grids"
-NEVER_NULL = (LANGUAGE, "theme", "highlight_tasks_added_after_reference", GRIDS)
-NEVER_NULL_IN_A_GRID = ("hidden_columns", "column_widths", "filters")
+NEVER_NULL = (
+    LANGUAGE,
+    "theme",
+    "highlight_tasks_added_after_reference",
+    GRIDS,
+    "timelines",
+    "charts",
+)
+NEVER_NULL_IN_A_GRID = ("hidden_columns", "column_widths", "filters", "page_size")
 
 
 def user_self(
@@ -78,7 +85,9 @@ def null_fields(sent: DisplayPreferences | GridPreferences, names: Sequence[str]
 def preference_change(body: DisplayPreferences) -> dict[str, Any]:
     """Read a change of the preferences: what it carries, each field sent null refused (422).
 
-    A grid sent null is no fault: it finds its settings by default again.
+    A grid sent null is no fault: it finds its settings by default again; nor is a timeline sent
+    null, which finds its layout by default, nor a chart, which finds the state its screen gives
+    it first.
     """
     faults = [
         FieldError(json_pointer(name), VALIDATION_FAILED) for name in null_fields(body, NEVER_NULL)
@@ -113,6 +122,11 @@ def patch_my_preferences(
     change without a language — a grid, a theme — does not call it; nor does that of an account
     of a directory, whose attributes are the directory's, which the realm federates read only, and
     which the provider mails nothing (WF-ADM-0140).
+
+    A change refused for the size of the preferences once merged (#1235) is refused only once the
+    account is locked, after the provider was told: nothing is written in Waterfall, but the
+    language it carried may already be the provider's. It is the one the caller chose, and the
+    language shown chosen again repairs any disagreement, as above.
     """
     sent = preference_change(body)
     language = sent.get(LANGUAGE)

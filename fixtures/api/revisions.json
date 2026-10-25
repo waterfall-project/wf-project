@@ -110,7 +110,7 @@
             "display_name": "Camille Martin"
           }
         },
-        "lock_version": 1
+        "lock_version": 2
       },
       {
         "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -161,10 +161,8 @@
           },
           {
             "command": "merge_structure",
-            "is_available": false,
-            "missing_conditions": [
-              "unmerged_amendment_exists"
-            ]
+            "is_available": true,
+            "missing_conditions": []
           },
           {
             "command": "mark",
@@ -175,7 +173,8 @@
             "command": "designate_reference",
             "is_available": false,
             "missing_conditions": [
-              "revision_marked"
+              "revision_marked",
+              "reference_correctable"
             ]
           },
           {

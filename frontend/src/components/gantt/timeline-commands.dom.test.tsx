@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -127,6 +128,7 @@ async function deleteShown(label = "Comité de pilotage"): Promise<void> {
 
 beforeEach(() => {
   router.replace.mockClear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -155,6 +157,14 @@ describe("the commands of the timelines of a project", () => {
     expect(refresh).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(create).toHaveFocus();
+    // Noted once in the history of the messages, about the timeline created.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: `Chronologie ${quoted("Réunion de chantier")} créée.`,
+        object: "Réunion de chantier",
+      }),
+    ]);
     // A creation adds no link: the page read anew lists the timeline where the server keeps it.
     expect(offered()).toEqual(["Comité de pilotage", "Revue client"]);
   });
@@ -186,6 +196,13 @@ describe("the commands of the timelines of a project", () => {
     ]);
     expect(offered()).toEqual(["Revue client"]);
     expect(router.replace).toHaveBeenCalledWith(addressOf(CUSTOMER));
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: `Chronologie ${quoted("Comité de pilotage")} supprimée.`,
+        object: "Comité de pilotage",
+      }),
+    ]);
     expect(screen.queryByRole("dialog")).toBeNull();
     // The tasks of the timeline deleted give way while the page leads to the next one.
     expect(screen.queryByRole("table")).toBeNull();
@@ -287,6 +304,8 @@ describe("the commands of the timelines of a project", () => {
       await userEvent.click(command);
       expect(screen.queryByRole("dialog")).toBeNull();
     }
+    // Nothing was sent: the history notes nothing of the conditions said.
+    expect(readMessages().messages).toEqual([]);
   });
 
   it("offers nothing to a session the project lists no command to", () => {

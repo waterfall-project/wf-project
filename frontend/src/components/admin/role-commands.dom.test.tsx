@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { NO_AUDIT } from "@/test/accounts";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -44,7 +45,7 @@ function table(shown: readonly Schemas["AccessRole"][] = roles): ReactNode {
   return (
     <AccessRoleList
       roles={shown}
-      query={{ sort: undefined, search: undefined }}
+      query={{ sort: undefined, search: undefined, size: undefined }}
       preferences={undefined}
       filters={{
         predefined: undefined,
@@ -91,6 +92,7 @@ function labelCell(label: string): HTMLElement {
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -140,6 +142,33 @@ describe("the creation of a role in line", () => {
     expect(label).toHaveFocus();
     expect(client.calls).toEqual([]);
     expect(refresh).not.toHaveBeenCalled();
+    expect(readMessages().messages).toEqual([]);
+  });
+
+  it("notes once, with the label sent, a label the server refuses at its field", async () => {
+    serve({
+      [CREATED]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/label", code: "VALUE_TOO_LONG" }],
+        },
+      },
+    });
+    render(inFrench(table()));
+    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    await userEvent.type(label, "CG{Enter}");
+    await waitFor(() => {
+      expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
+    });
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Les données saisies ne sont pas valides.",
+        detail: CATALOGUES.fr.errors.VALUE_TOO_LONG,
+        object: "CG",
+      }),
+    ]);
   });
 });
 

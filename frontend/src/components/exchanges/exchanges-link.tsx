@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import type { Project } from "@/components/context/reading";
 import { LEAF_ICONS } from "@/components/shell/function-display";
 import { buttonVariants } from "@/components/ui/button";
@@ -45,9 +46,11 @@ export function ExchangesLink({ project, kind, context }: ExchangesLinkProps) {
     return null;
   }
   return (
-    <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
-      <ExchangesIcon aria-hidden="true" />
-      {t(EXCHANGES.label)}
-    </Link>
+    <CommandTooltip label={t(EXCHANGES.label)} help={t("commands.exchanges.help")}>
+      <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+        <ExchangesIcon aria-hidden="true" />
+        {t(EXCHANGES.label)}
+      </Link>
+    </CommandTooltip>
   );
 }

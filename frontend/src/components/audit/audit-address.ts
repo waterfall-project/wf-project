@@ -19,11 +19,12 @@ import { isInstant } from "@/components/grid/period";
 import {
   CONTRACT_ADDRESS,
   type GridQuery,
+  limited,
   OFFSET,
   pagedList,
   SEARCH,
 } from "@/components/grid/query";
-import type { SearchParameters } from "@/navigation/context";
+import { isUuid, type SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
 
 /** An action the journal records, as the contract names it. */
@@ -147,13 +148,10 @@ const CORRELATION_ID = new RegExp(`^${CORRELATION_FORM}$`);
  */
 export const CORRELATION_PATTERN = `\\s*${CORRELATION_FORM}\\s*`;
 
-/** An identifier as the contract writes it (`Uuid`): the API refuses any other. */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** An identifier the address names under a parameter, if the API may take it. */
 function uuidOf(search: SearchParameters, name: string): string | undefined {
   const value = search.get(name);
-  return value !== null && UUID.test(value) ? value : undefined;
+  return value !== null && isUuid(value) ? value : undefined;
 }
 
 /** An instant the address names under a parameter, if the API may take it. */
@@ -215,6 +213,7 @@ export function auditQuery(
   return {
     ...(offset === undefined ? {} : { offset }),
     ...(grid.search === undefined ? {} : { search: grid.search }),
+    ...limited(grid),
     ...(filters.from === undefined ? {} : { from: filters.from }),
     ...(filters.to === undefined ? {} : { to: filters.to }),
     ...(filters.user === undefined ? {} : { user_id: filters.user }),

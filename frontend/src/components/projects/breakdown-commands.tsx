@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The work breakdown edited in its grid (FBS-4.2.1, EP-14/L44c): an order item added, a work package
- * added to an order item, a deliverable to a work package, an element renamed or deleted, from the
+ * The work breakdown edited in its grid (FBS-4.2.1, EP-14/L44c): a work package added, an order item
+ * added to a work package, a deliverable to an order item, an element renamed or deleted, from the
  * menu of a cell — on its row — and from the bar of the grid — on the row of the active cell. Each
  * gesture sends the work breakdown whole (`setWorkBreakdown`), made on its reading whole and with its
  * counter — a reading filtered has none, and the page then reads it whole besides (`whole`, decision
@@ -12,7 +12,7 @@
  * progress or freezes it (EP-14/L42s) —, presented `aria-disabled`, described by the conditions it
  * lacks.
  *
- * The deletion of an element is confirmed first; that of an order item or of a work package says that
+ * The deletion of an element is confirmed first; that of a work package or of an order item says that
  * the tasks of the revision in progress that bear it remain and lose their attachment, the marked
  * revisions keeping it (WF-PLA-0170) — the reading does not say whether a task bears it, so every one
  * says so. The work breakdown answered, read whole, takes the place of the rows of a reading whole
@@ -50,10 +50,12 @@ import { setWorkBreakdown } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { UnmetConditions, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import type { RowCommands } from "@/components/grid/undo-commands";
+import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { WritingNote } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuLabel } from "@/components/ui/context-menu";
@@ -83,11 +85,11 @@ type FieldProblem = components["schemas"]["FieldProblem"];
 /** The longest label of an element the contract takes. */
 const LABEL_LENGTH = 300;
 
-/** The kind of an element added under a parent; an order item under none. */
+/** The kind of an element added under a parent; a work package under none. */
 const CHILD: Readonly<Record<BreakdownKind | "root", BreakdownKind>> = {
-  root: "order_item",
-  order_item: "work_package",
-  work_package: "deliverable",
+  root: "work_package",
+  work_package: "order_item",
+  order_item: "deliverable",
   deliverable: "deliverable",
 };
 
@@ -134,7 +136,7 @@ interface Refusal {
 interface Commands {
   readonly editing: BreakdownEditing;
   readonly answered: WorkBreakdown | undefined;
-  readonly said: { readonly text: string; readonly count: number } | undefined;
+  readonly said: Said | undefined;
   /** A refusal answered once the dialog is gone, or of a deletion, told above the grid. */
   readonly refusal: Refusal | undefined;
   readonly opened: Opened | undefined;
@@ -142,7 +144,7 @@ interface Commands {
   readonly writing: boolean;
   readonly answer: (reading: WorkBreakdown) => void;
   readonly write: (writing: boolean) => void;
-  readonly say: (text: string) => void;
+  readonly say: Say;
   readonly refuse: (refusal: Refusal | undefined) => void;
   readonly open: (gesture: Gesture, trigger: HTMLElement | undefined) => void;
   /** Close the dialog; given an opening, only if it is still the one open. */
@@ -193,7 +195,7 @@ export function BreakdownCommands({
   readonly children: ReactNode;
 }) {
   const [answered, setAnswered] = useState<WorkBreakdown>();
-  const [said, setSaid] = useState<Commands["said"]>();
+  const [said, say] = useSaid();
   const [refusal, refuse] = useState<Refusal>();
   const [opened, setOpened] = useState<Opened>();
   // How many times a dialog was opened: what tells an opening from the next.
@@ -213,9 +215,7 @@ export function BreakdownCommands({
         answer: (reading) => {
           setAnswered((before) => (before === undefined ? reading : newer(before, reading)));
         },
-        say: (text) => {
-          setSaid((before) => ({ text, count: (before?.count ?? 0) + 1 }));
-        },
+        say,
         open: (gesture, trigger) => {
           // A gesture is made on the reading whole, the newer one answered after it.
           const from = editing.whole === undefined ? undefined : newer(editing.whole, answered);
@@ -240,7 +240,7 @@ export function BreakdownCommands({
           );
         },
       },
-    [editing, answered, said, refusal, opened, writing],
+    [editing, answered, said, say, refusal, opened, writing],
   );
   return <BreakdownContext value={commands}>{children}</BreakdownContext>;
 }
@@ -250,42 +250,48 @@ interface RowCommand {
   readonly key: string;
   readonly name: string;
   readonly text: string;
+  /** What the command does, translated (`commands.<command>.help`). */
+  readonly help: string;
   readonly icon: ReactNode;
   readonly gesture: Gesture;
 }
 
 /**
- * The commands on a row — none outside one —: an order item added; under an order item or a work
- * package, an element added to it; the row renamed, deleted.
+ * The commands on a row — none outside one —: a work package added; under a work package or an
+ * order item, an element added to it; the row renamed, deleted.
  */
 function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowCommand[] {
   const t = useTranslations("projectLists.workBreakdown");
+  const helps = useTranslations("commands");
   return (row) => {
-    const item: RowCommand = {
-      key: "item",
-      name: t("createItem"),
-      text: t("createItem"),
+    const workPackage: RowCommand = {
+      key: "workPackage",
+      name: t("createWorkPackage"),
+      text: t("createWorkPackage"),
+      help: helps("breakdownWorkPackage.help"),
       icon: <Plus aria-hidden="true" />,
       gesture: { kind: "add", parent: undefined },
     };
     if (row === undefined) {
-      return [item];
+      return [workPackage];
     }
     const element = t("element", { kind: row.kind, label: row.label });
     const add: RowCommand = {
       key: "add",
       name: t("addUnder", { kind: row.kind, label: row.label }),
       text: t("add", { kind: row.kind }),
+      help: helps("breakdownAdd.help"),
       icon: <ListPlus aria-hidden="true" />,
       gesture: { kind: "add", parent: row },
     };
     return [
-      item,
+      workPackage,
       ...(row.kind === "deliverable" ? [] : [add]),
       {
         key: "rename",
         name: t("renameNamed", { element }),
         text: t("rename"),
+        help: helps("breakdownRename.help"),
         icon: <PencilLine aria-hidden="true" />,
         gesture: { kind: "rename", row },
       },
@@ -293,6 +299,7 @@ function useRowCommands(): (row: BreakdownRow | undefined) => readonly RowComman
         key: "delete",
         name: t("deleteNamed", { element }),
         text: t("delete"),
+        help: helps("breakdownDelete.help"),
         icon: <Trash2 aria-hidden="true" />,
         gesture: { kind: "delete", row },
       },
@@ -326,25 +333,31 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
     bar: (row) => (
       <div className="flex flex-wrap items-center gap-1">
         {on(row).map((command) => (
-          <Button
+          <CommandTooltip
             key={command.key}
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={command.name}
-            aria-disabled={waiting ? true : undefined}
-            aria-busy={writing}
-            aria-describedby={why}
-            className={`h-7 text-xs ${UNAVAILABLE}`}
-            onClick={(event: MouseEvent<HTMLElement>) => {
-              if (!waiting) {
-                commands.open(command.gesture, event.currentTarget);
-              }
-            }}
+            label={command.name}
+            help={command.help}
+            unavailable={writing || offer.is_available ? undefined : unmet(offer)}
+            describedBy={why}
           >
-            {command.icon}
-            {command.text}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={command.name}
+              aria-disabled={waiting ? true : undefined}
+              aria-busy={writing}
+              className={`h-7 text-xs ${UNAVAILABLE}`}
+              onClick={(event: MouseEvent<HTMLElement>) => {
+                if (!waiting) {
+                  commands.open(command.gesture, event.currentTarget);
+                }
+              }}
+            >
+              {command.icon}
+              {command.text}
+            </Button>
+          </CommandTooltip>
         ))}
         {writing ? null : <UnmetConditions id={why} offer={offer} />}
         <WritingNote id={`${id}-writing`} writing={writing} />
@@ -470,6 +483,7 @@ function useSend(commands: Commands, opened: Opened) {
   const t = useTranslations("projectLists.workBreakdown");
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<Refusal>();
+  const noteRefusal = useNoteRefusal();
   const open = useRef(true);
   useEffect(() => {
     open.current = true;
@@ -497,6 +511,8 @@ function useSend(commands: Commands, opened: Opened) {
         } else if (open.current && gesture.kind !== "delete") {
           const { field, refusal: rest } = split(answer, sent, at);
           if (field !== undefined) {
+            // Said at its fields: noted whole, the notice of the rest noting nothing more.
+            noteRefusal(answer, { subject: told.label, parts: [rest?.outcome] });
             onField(field);
           }
           setRefusal(rest);

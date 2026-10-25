@@ -33,7 +33,7 @@ import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } f
 import { createUser } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { useAccountNaming } from "@/components/account/account-name";
@@ -149,6 +149,7 @@ export function UserCreation({
   // click is held all the same (#688).
   const own = useHeldCommand();
   const held = list?.held ?? own;
+  const noteRefusal = useNoteRefusal();
   const naming = useAccountNaming();
   const linkCommand = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -216,6 +217,10 @@ export function UserCreation({
         list?.report({ outcome: answer, generation, names: {} });
       } else {
         const told = placed(answer);
+        if (told.refused.size > 0) {
+          // Said at its fields: noted whole, the notice of the rest noting nothing more.
+          noteRefusal(answer, { parts: [told.told] });
+        }
         refuse(told.refused);
         setOutcome(told.told);
       }

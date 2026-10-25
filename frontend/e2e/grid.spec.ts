@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, type Request, test } from "@playwright/test";
+import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
 import {
   rowAt,
@@ -26,6 +26,11 @@ import { openHydrated, openMenu, WORKING } from "./hydration";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
+// The remaining to commit, which the session may enter on the project in progress, where the
+// estimate is read only (WF-DEV-0050, WF-RAE-0040).
+const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
+// The planning, whose Gantt is pinned at the end of its grid (US-0530).
+const PLANNING = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
 
 /** The rows of the answer, and the header and totals around them. */
 const ROW_COUNT = "6002";
@@ -33,6 +38,11 @@ const ROW_COUNT = "6002";
 /** The grid of the estimate. */
 function grid(page: Page) {
   return page.getByRole("treegrid", { name: "Grille de devis" });
+}
+
+/** The grid of the remaining to commit. */
+function remainingGrid(page: Page) {
+  return page.getByRole("treegrid", { name: "Grille de reste à engager" });
 }
 
 /** The cell of the totals under the header of a column. */
@@ -53,6 +63,49 @@ function edges(page: Page) {
     last: grid(page).getByRole("row", { name: /^6000 .*Fin du lot 9\.3/ }),
   };
 }
+
+test("the indicators of the estimate break the total down by lot, « Lot 1 » named as the work breakdown names it [WF-DEV-0060-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, GRID);
+  const indicators = page.getByRole("main");
+  const byLot = indicators.getByRole("region", { name: "Par lot" });
+  await expect(byLot).toBeVisible();
+  // The card holds a list with the lot of the witness, whose posts it contains, with the
+  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56, its
+  // share of the estimate after it (`test_mockdata.py` holds the lot of the volume).
+  const lot = byLot.getByRole("listitem");
+  await expect(lot).toHaveCount(1);
+  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s\(0,76\s%\)$/);
+  await expect(indicators.getByText("Par poste")).toHaveCount(0);
+});
+
+test("filters the estimate by the lot « Lot 1 » chosen among the work breakdown, said in the banner to restrict the grid alone [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
+  // The choices are the work breakdown of the witness read whole, the lot then its post, each named
+  // by its kind. The fake back serves the first example of `listNodes` whatever the filter asks —
+  // the contract has no reading filtered by a lot or a post —: what the page sends is proven by
+  // `estimate/page.test.tsx`. The indicators stay those of the whole project, broken down by lot.
+  await openHydrated(page, GRID);
+  const filter = page.getByRole("combobox", { name: "Lot ou poste" });
+  await expect(filter.getByRole("option")).toHaveText([
+    "Tous les lots et postes",
+    "Lot : Lot 1",
+    "Poste : Poste 1.1",
+  ]);
+  await filter.selectOption({ label: "Lot\u00a0: Lot 1" });
+  await expect(page).toHaveURL(`${GRID}?work_package_id=01926f3a-7c00-7000-8000-000000000711`, {
+    timeout: WORKING,
+  });
+  const chips = page
+    .getByRole("region", { name: "Contexte de lecture" })
+    .getByRole("list", { name: "Filtres actifs" })
+    .getByRole("listitem");
+  await expect(chips).toHaveText(["Lot : Lot 1, sur la grille seulement"]);
+  await expect(filter).toHaveValue("01926f3a-7c00-7000-8000-000000000711");
+});
 
 test("opens the estimate of a thousand tasks and five thousand lines, and scrolls down to its last row [WF-IHM-0060-A]", async ({
   page,
@@ -185,6 +238,70 @@ test.describe("on a narrow window", () => {
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
     }
   });
+
+  test("pins the Gantt of the planning at the end, its handle widening it over the columns before it, each of which the active cell scrolls out from under it", async ({
+    page,
+  }) => {
+    await openHydrated(page, PLANNING);
+    const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+    const box = scroller(planning);
+    const gantt = planning.getByRole("columnheader", { name: "Gantt" });
+    const label = planning.getByRole("columnheader", { name: "Libellé" });
+    const handle = planning.getByRole("separator", { name: "Largeur de la colonne Gantt" });
+    // The right edge of the rows of the frame, and that of a cell.
+    const edge = () =>
+      box.evaluate(
+        (frame) => frame.getBoundingClientRect().left + frame.clientLeft + frame.clientWidth,
+      );
+    const rightOf = async (cell: Locator) => {
+      const bounds = await cell.boundingBox();
+      return (bounds?.x ?? 0) + (bounds?.width ?? 0);
+    };
+    await expect(gantt).toBeInViewport();
+    expect(await rightOf(gantt)).toBeCloseTo(await edge(), 0);
+
+    // Dragged to the left as far as it goes, the Gantt takes its widest, against the right edge of
+    // the frame: the row numbers and the label stay uncovered, and the widest column between them.
+    const grip = await handle.boundingBox();
+    const y = (grip?.y ?? 0) + (grip?.height ?? 0) / 2;
+    await page.mouse.move((grip?.x ?? 0) + 2, y);
+    await page.mouse.down();
+    await page.mouse.move(0, y, { steps: 5 });
+    await page.mouse.up();
+    const widest = await handle.getAttribute("aria-valuemax");
+    await expect(handle).toHaveAttribute("aria-valuenow", widest ?? "");
+    expect(await rightOf(gantt)).toBeCloseTo(await edge(), 0);
+    const left = (await gantt.boundingBox())?.x ?? 0;
+    expect(left - (await rightOf(label))).toBeCloseTo(160, -1);
+
+    // From the label of the first row, the arrows reach each column the Gantt covers: the grid
+    // scrolls it out from under the Gantt, and nothing covers the active cell, the Gantt last.
+    await planning
+      .getByRole("row", { name: /^1 .*Études/ })
+      .getByRole("gridcell")
+      .nth(1)
+      .click();
+    const active = page.locator(":focus");
+    const covered = () =>
+      active.evaluate((cell) => {
+        const bounds = cell.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2,
+        );
+        return hit === null || !cell.contains(hit);
+      });
+    const reached: string[] = [];
+    for (let step = 0; step < 20 && !reached.includes("gantt"); step += 1) {
+      await page.keyboard.press("ArrowRight");
+      await expect(active).toHaveAttribute("data-row", "0");
+      const column = (await active.getAttribute("data-column")) ?? "";
+      expect(await covered(), `the active cell of ${column}`).toBe(false);
+      reached.push(column);
+    }
+    expect(reached).toContain("description");
+    expect(reached.at(-1)).toBe("gantt");
+  });
 });
 
 /**
@@ -255,25 +372,30 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
     request.headers()["next-action"] !== undefined &&
     (request.postData() ?? "").includes("revue") &&
     !(request.postData() ?? "").includes("lock_version");
-  await page.route(`**${GRID}*`, async (route) => {
+  await page.route(`**${REMAINING}*`, async (route) => {
     if (isRetotal(route.request())) {
       await new Promise((resolve) => setTimeout(resolve, HELD));
     }
     await route.continue().catch(() => undefined);
   });
-  await openHydrated(page, `${GRID}?search=revue`);
-  // The label of row 28, the first line drawn after the core, entered: the fake back answers its
-  // line. Past the rows in view as the grid opens: scrolled to first.
-  const label = (await scrollToPosition(grid(page), 28)).getByRole("gridcell").nth(1);
-  await label.click();
-  await page.keyboard.type("Heures de câblage");
+  await openHydrated(page, `${REMAINING}?search=revue`);
+  // The effort of row 10, a line of labour, re-estimated: the main structure of the project in
+  // progress lists the remaining to commit available, where it lists the estimate unavailable,
+  // and the fake back answers the write whatever is sent.
+  const remaining = remainingGrid(page);
+  const effort = await remaining
+    .getByRole("columnheader", { name: "Charge (h)", exact: true })
+    .evaluate((th) => (th instanceof HTMLTableCellElement ? th.cellIndex : -1));
+  const hours = rowAt(remaining, 10).getByRole("gridcell").nth(effort);
+  await hours.click();
+  await page.keyboard.type("9");
   const retotal = page.waitForRequest(isRetotal);
   await page.keyboard.press("Enter");
-  await expect(label).toHaveText("Heures de câblage");
   await retotal;
-  const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
+  await expect(hours.getByRole("textbox")).toHaveCount(0);
+  const header = remaining.getByRole("columnheader", { name: "Calculé Montant budgété" });
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?search=revue&sort_by=base_amount&sort_order=asc`, {
+  await expect(page).toHaveURL(`${REMAINING}?search=revue&sort_by=budgeted_amount&sort_order=asc`, {
     timeout: WORKING,
   });
   await expect(header).toHaveAttribute("aria-sort", "ascending");

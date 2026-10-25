@@ -10,29 +10,57 @@
  */
 "use client";
 
-import { type ComponentProps, type ReactNode, useId } from "react";
+import { type ComponentProps, type ReactNode } from "react";
 
 import { useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
 
-/** Render a command in a cell of a dense grid. */
+/** What a command of a cell says of itself, in its tooltip (`CommandTooltip`). */
+export interface CellCommandSays {
+  /** The accessible name of the command, which names the object it is about: the tooltip opens on it. */
+  readonly label: string;
+  /** What the command does, translated (`commands.<command>.help`). */
+  readonly help: string;
+  /**
+   * The condition the command lacks: said in its tooltip, and the command marked `aria-disabled`
+   * and described by it. None for a command available.
+   */
+  readonly unavailable?: string | undefined;
+  /** Whether the command waits without a condition to say — a write of its row under way. */
+  readonly waiting?: boolean | undefined;
+}
+
+/**
+ * Render a command in a cell of a dense grid, with its tooltip. The tooltip sets `aria-disabled`
+ * and the description of the condition (`unavailable`): the button sets neither.
+ */
 export function CellCommand({
   className,
+  label,
+  help,
+  unavailable,
+  waiting,
   ...props
-}: Omit<ComponentProps<typeof Button>, "type" | "variant" | "size" | "tabIndex">) {
+}: Omit<ComponentProps<typeof Button>, "type" | "variant" | "size" | "tabIndex" | "aria-label"> &
+  CellCommandSays) {
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      tabIndex={-1}
-      {...{ [CELL_COMMAND]: "" }}
-      className={cn("h-5 px-1.5 text-xs", className)}
-      {...props}
-    />
+    <CommandTooltip label={label} help={help} unavailable={unavailable}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        tabIndex={-1}
+        {...{ [CELL_COMMAND]: "" }}
+        aria-label={label}
+        {...(waiting === true && unavailable === undefined ? { "aria-disabled": true } : {})}
+        className={cn("h-5 px-1.5 text-xs", className)}
+        {...props}
+      />
+    </CommandTooltip>
   );
 }
 
@@ -43,12 +71,15 @@ export function CellCommand({
  */
 export function UnavailableCellCommand({
   name,
+  help,
   offer,
   onPress,
   children,
 }: {
   /** The accessible name of the command, which names the object it is about. */
   readonly name: string;
+  /** What the command does, translated. */
+  readonly help: string;
   readonly offer: CommandOffer;
   /** What the press says, given the sentence that names the conditions the command lacks. */
   readonly onPress: (unmet: string) => void;
@@ -56,24 +87,17 @@ export function UnavailableCellCommand({
   readonly children: ReactNode;
 }) {
   const unmet = useUnmet()(offer);
-  const described = `${useId()}-unmet`;
   return (
-    <>
-      <CellCommand
-        aria-label={name}
-        aria-disabled
-        aria-describedby={described}
-        title={unmet}
-        className={UNAVAILABLE}
-        onClick={() => {
-          onPress(unmet);
-        }}
-      >
-        {children}
-      </CellCommand>
-      <span id={described} className="sr-only">
-        {unmet}
-      </span>
-    </>
+    <CellCommand
+      label={name}
+      help={help}
+      unavailable={unmet}
+      className={UNAVAILABLE}
+      onClick={() => {
+        onPress(unmet);
+      }}
+    >
+      {children}
+    </CellCommand>
   );
 }

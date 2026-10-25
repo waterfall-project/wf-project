@@ -232,6 +232,65 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the sub-project a line of a started task does not leave, which received actual costs, from the refusal of its field (#1066)", () => {
+    const refused = example("estimate_line_subproject_has_actual_costs") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Sous-projet qui a reçu des coûts réels, que la " +
+        "ligne ne quitte pas : « Poste de commande ».",
+    );
+    expect(say(refused, "en")).toBe(
+      "The data entered is not valid. Subproject that has received actual costs, which the line " +
+        "does not leave: “Poste de commande”.",
+    );
+    // The refusal of the field, said at the field, by its own code and the same sub-project.
+    expect(refused.fields?.[0]?.params).toBeDefined();
+    const params = refused.fields?.[0]?.params ?? {};
+    expect(say({ code: "SUBPROJECT_HAS_ACTUAL_COSTS", params }, "fr")).toBe(
+      "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le " +
+        "sous-projet a reçu des coûts réels. Sous-projet qui a reçu des coûts réels, que la ligne " +
+        "ne quitte pas : « Poste de commande ».",
+    );
+    // A sub-project without its label names nothing.
+    expect(say({ code: "VALIDATION_FAILED", params: { subproject: { label: 7 } } }, "en")).toBe(
+      "The data entered is not valid.",
+    );
+  });
+
+  it("says the day without a working hour in the language of the reader, from the refusal of a start or of a finish [WF-PLA-0020-A]", () => {
+    const refused = example("task_date_non_working_day") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Le samedi 19 décembre n’est pas travaillé sur le " +
+        "calendrier de la tâche ; saisis le lundi 21 décembre.",
+    );
+    // The refusal of a finish (`/finish/date`) carries the same parameters, and reads the same.
+    const finish = {
+      code: "NON_WORKING_DAY",
+      params: { date: "2027-01-16", next_working_day: "2027-01-18" },
+    } as const;
+    expect(say({ code: "VALIDATION_FAILED", fields: [finish] }, "fr")).toContain(
+      "Le samedi 16 janvier n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 18 janvier.",
+    );
+  });
+
+  it("keeps the short sentence alone when the day without a working hour is not fully given [WF-PLA-0020-A]", () => {
+    const short = "Date on a day without a working hour.";
+    expect(say({ code: "NON_WORKING_DAY" }, "en")).toBe(short);
+    expect(say({ code: "NON_WORKING_DAY", params: {} }, "en")).toBe(short);
+    expect(
+      say(
+        { code: "NON_WORKING_DAY", params: { date: "2027-01-16", next_working_day: "soon" } },
+        "en",
+      ),
+    ).toBe(short);
+    expect(say({ code: "NON_WORKING_DAY", params: { date: "2027-01-16" } }, "en")).toBe(short);
+    expect(
+      say(
+        { code: "NON_WORKING_DAY", params: { date: 20270116, next_working_day: "2027-01-18" } },
+        "en",
+      ),
+    ).toBe(short);
+  });
+
   it("names the roles a category keeps in labour by their labels and codes, to attach first to another category of labour [WF-REF-0040-A]", () => {
     // Le rattachement […] d'une catégorie […] à laquelle un rôle de ressource est rattaché, à une
     // nature hors main-d'œuvre est refusé : the roles named, which the screen of the costs may not
@@ -430,6 +489,22 @@ describe("the sentence of a refusal", () => {
     };
     expect(say(problem, "fr")).toBe(
       "Un composant du service est indisponible. Composant indisponible\u00A0: Base de données.",
+    );
+  });
+
+  it("names the loop a link would close, its tasks in the order of the links, in the reader's language [WF-PLA-0030-A]", () => {
+    const refused = example("predecessors_cycle_refused") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Cette liaison créerait une boucle. Boucle de liaisons, dans l’ordre : «\u00A0Réception usine\u00A0», " +
+        "«\u00A0Montage des armoires sur site\u00A0» et «\u00A0Mise en service\u00A0».",
+    );
+    expect(say(refused, "en")).toBe(
+      "This link would create a loop. Loop of links, in order: “Réception usine”, " +
+        "“Montage des armoires sur site” and “Mise en service”.",
+    );
+    // A loop without its labels names nothing.
+    expect(say({ code: "LINK_CYCLE", params: { cycle: [{ node_id: "n" }] } }, "en")).toBe(
+      "This link would create a loop.",
     );
   });
 

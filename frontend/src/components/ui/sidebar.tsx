@@ -38,7 +38,7 @@ import {
 import { Button } from "./button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./sheet";
 import { sidebarCookie } from "./sidebar-state";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 import { cn } from "./utils";
 
 /** A window narrower than this — the `md` of Tailwind — shows the bar as a sheet. */
@@ -180,15 +180,13 @@ export function SidebarProvider({
   );
   return (
     <SidebarContext value={value}>
-      <TooltipProvider delayDuration={0}>
-        <div
-          data-slot="sidebar-wrapper"
-          className={cn("group/sidebar-wrapper flex min-h-svh w-full", className)}
-          {...props}
-        >
-          {children}
-        </div>
-      </TooltipProvider>
+      <div
+        data-slot="sidebar-wrapper"
+        className={cn("group/sidebar-wrapper flex min-h-svh w-full", className)}
+        {...props}
+      >
+        {children}
+      </div>
     </SidebarContext>
   );
 }
@@ -452,7 +450,12 @@ export function SidebarMenuButton({
     />
   );
   return (
-    <Tooltip open={open && state === "collapsed" && !isMobile} onOpenChange={setOpen}>
+    // At once: a rail is read at a glance.
+    <Tooltip
+      delayDuration={0}
+      open={open && state === "collapsed" && !isMobile}
+      onOpenChange={setOpen}
+    >
       <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent side="right" align="center">
         {tooltip}

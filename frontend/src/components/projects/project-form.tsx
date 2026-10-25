@@ -47,10 +47,14 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createProject, updateProject } from "@/api/actions/projects";
 import type { Outcome } from "@/api/problem";
 import { Command, useUnmet } from "@/components/commands/command";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
+import { noteMessage } from "@/components/notices/message-history";
+import { useSaid } from "@/components/notices/said";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
+import { inPercent } from "@/components/reference/in-percent";
 import { Reactivations } from "@/components/reference/reactivation";
 import {
   type Draft,
@@ -60,7 +64,7 @@ import {
   WritingNote,
 } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
-import { editablePercent, percentRatio, ratioPercent } from "@/i18n/format";
+import { editablePercent, percentRatio } from "@/i18n/format";
 
 import { SettingsFacts } from "./project-facts";
 
@@ -70,9 +74,6 @@ const CODE_LENGTH = 50;
 
 /** The rates of a project, entered as percentages, which the server bounds as ratios (EP-14/L42i). */
 const RATES: ReadonlySet<string> = new Set(["/inflation_rate", "/win_probability"]);
-
-/** The bounds a refusal by field may name. */
-const BOUNDS: ReadonlySet<string> = new Set(["minimum", "maximum"]);
 
 /** An optional text as the contract writes it: none when left empty. */
 function orNull(value: string | undefined): string | null {
@@ -95,6 +96,7 @@ function useIdentityFields(): FormField[] {
  */
 export function CreateProject({ ready }: { readonly ready: boolean }) {
   const t = useTranslations("projectForm");
+  const form = useTranslations("reference.form");
   const errors = useTranslations("errors");
   const router = useRouter();
   const identity = useIdentityFields();
@@ -145,11 +147,19 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
           target={undefined}
           answering={(answer) => answer}
           onDone={(project) => {
+            // Noted with the screen of the project created, where a link of the history leads.
+            const href = `/projects/${project.project_id}`;
+            noteMessage(project, {
+              tone: "success",
+              sentence: form("created", { name: project.label, kind: "project" }),
+              object: project.label,
+              screen: { href, project: project.label },
+            });
             if (!shown.current) {
               return;
             }
             setOpen(false);
-            router.push(`/projects/${project.project_id}`);
+            router.push(href);
           }}
           onClose={() => {
             setOpen(false);
@@ -159,30 +169,6 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
       ) : null}
     </Reactivations>
   );
-}
-
-/**
- * A refusal of the rates as the form says it: each bound the server names in a ratio (`1`), said in
- * the percentage the field enters (`100`); any other answer as it is.
- */
-function inPercent(answer: Outcome<Project>): Outcome<Project> {
-  if (!("problem" in answer) || answer.problem.fields === undefined) {
-    return answer;
-  }
-  const fields = answer.problem.fields.map((field) =>
-    RATES.has(field.pointer) && field.params !== undefined
-      ? {
-          ...field,
-          params: Object.fromEntries(
-            Object.entries(field.params).map(([key, value]) => [
-              key,
-              BOUNDS.has(key) && typeof value === "string" ? (ratioPercent(value) ?? value) : value,
-            ]),
-          ),
-        }
-      : field,
-  );
-  return { ...answer, problem: { ...answer.problem, fields } };
 }
 
 /**
@@ -263,6 +249,7 @@ function UpdateForm({
     <ReferenceForm<Project>
       kind="project"
       title={t("modifyTitle", { name: project.label })}
+      subject={project.label}
       hint={t("modifyHint")}
       creating={false}
       fields={fields}
@@ -272,7 +259,7 @@ function UpdateForm({
       answering={(answer) =>
         answer.kind === "done" && answer.data.project_id !== project.project_id
           ? ANOTHER_OBJECT
-          : inPercent(answer)
+          : inPercent(answer, RATES)
       }
       onDone={onDone}
       onWriting={onWriting}
@@ -288,12 +275,6 @@ interface Editing {
   readonly opening: number;
 }
 
-/** What the last modification did, and the how-many-th it was. */
-interface Said {
-  readonly text: string;
-  readonly count: number;
-}
-
 /**
  * The identity and the facts of a project on its settings, the command that modifies them as the
  * project lists it, and its form; the answer of the server shown while it is newer than the project
@@ -304,6 +285,7 @@ interface Said {
 export function ProjectIdentity({ project }: { readonly project: Project }) {
   const t = useTranslations("projectForm");
   const command = useTranslations("enums.ProjectCommand");
+  const helps = useTranslations("commands");
   const [answered, setAnswered] = useState<Project>();
   // The version the form opened on, which it writes from, and its opening: none while it is closed.
   const [editing, setEditing] = useState<Editing>();
@@ -311,7 +293,8 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
   const openings = useRef(0);
   // Whether a write is under way: the command waits for its answer, which brings the version.
   const [writing, setWriting] = useState(false);
-  const [said, setSaid] = useState<Said>();
+  // What the last modification did, noted in the history of the messages as it is said.
+  const [said, say] = useSaid();
   const trigger = useRef<HTMLButtonElement>(null);
   const why = useId();
   // An answer is for this project alone — the page keys the section by it, and an answer for
@@ -327,28 +310,38 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
           {said === undefined ? null : <span key={said.count}>{said.text}</span>}
         </p>
         {offer?.is_available === true ? (
-          <Button
-            ref={trigger}
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-disabled={writing ? true : undefined}
-            aria-busy={writing}
-            aria-describedby={writing ? why : undefined}
-            className={UNAVAILABLE}
-            onClick={() => {
-              if (writing) {
-                return;
-              }
-              openings.current += 1;
-              setEditing({ project: shown, opening: openings.current });
-            }}
+          <CommandTooltip
+            label={command("update")}
+            help={helps("project.update.help")}
+            describedBy={writing ? why : undefined}
           >
-            {icon}
-            {command("update")}
-          </Button>
+            <Button
+              ref={trigger}
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-disabled={writing ? true : undefined}
+              aria-busy={writing}
+              className={UNAVAILABLE}
+              onClick={() => {
+                if (writing) {
+                  return;
+                }
+                openings.current += 1;
+                setEditing({ project: shown, opening: openings.current });
+              }}
+            >
+              {icon}
+              {command("update")}
+            </Button>
+          </CommandTooltip>
         ) : (
-          <Command offer={offer} label={command("update")} icon={icon} />
+          <Command
+            offer={offer}
+            label={command("update")}
+            help={helps("project.update.help")}
+            icon={icon}
+          />
         )}
         <WritingNote id={why} writing={writing} />
       </div>
@@ -361,7 +354,7 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
-            setSaid((before) => ({ text: t("saved"), count: (before?.count ?? 0) + 1 }));
+            say(t("saved"), { object: answer.label });
             // Closed if it is still the opening the answer was sent from, never a later one: a guard
             // of the waiting command (`onWriting`), which serves in no normal use — no other opening
             // can come before the answer.

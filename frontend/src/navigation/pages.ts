@@ -22,6 +22,11 @@ export interface PagedList {
   /** The parameter of the address that names its page. */
   readonly page: string;
   /**
+   * The parameter of the address that names the size of its pages, for a flat table that offers the
+   * choice (WF-IHM-0060); none for a list whose pages have a size of their own.
+   */
+  readonly size?: string;
+  /**
    * The parameters of the address the list reads — its sort, its search, its filters —, its page
    * among them or not; a parameter of another list of the screen, or of none — a detail opened —,
    * is not one of them.

@@ -343,115 +343,7 @@ describe("a block pasted from a spreadsheet", () => {
     expect(bodies(client, APPLY)).toEqual([]);
   });
 
-  it("keeps what a paste answered when a cell written before it answers after it, earlier in the structure: its rows, the tasks above them, the totals (#421)", async () => {
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    // The paste answers the structure at its version 4, the cell written before it at 3 (#421).
-    const client = fakeClient(
-      { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
-      { hold: (route) => (route === LINE ? held : undefined) },
-    );
-    server.client = client;
-    renderGrid();
-    // The label of the row 4 is entered and validated: its write leaves, the server yet to
-    // answer; the block is then pasted on the same row and confirmed, and answers first.
-    cell(FIRST, "label").focus();
-    await userEvent.keyboard("X{Enter}");
-    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
-    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
-    await userEvent.click(
-      await within(dialog).findByRole("button", { name: "Appliquer le collage" }),
-    );
-    await vi.waitFor(() => {
-      expect(screen.queryByRole("dialog")).toBeNull();
-    });
-    // The paste answered first: its rows shown, the cell under way showing what was validated.
-    expect(labels()).toEqual(["X", "Heures d'essais", "Matériel de câblage"]);
-    // The write answers after it, earlier in the structure: it takes back none of the paste's.
-    await act(async () => {
-      release();
-      await held;
-    });
-    await vi.waitFor(() => {
-      expect(labels()).toEqual([
-        "Heures de câblage et repérage",
-        "Heures d'essais",
-        "Matériel de câblage",
-      ]);
-    });
-    expect(amounts([0, 1, 2])).toEqual([
-      "7\u202f469\u202f299,12",
-      "2\u202f607\u202f299,00",
-      "63\u202f757,17",
-    ]);
-    expect(totalAmount()).toBe("66\u202f144\u202f071,71");
-    expect(bodies(client, LINE)).toEqual([{ label: "X", lock_version: 1 }]);
-    expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  /**
-   * Write the label of rows, each refused in turn, the server answering none until a block pasted
-   * on the row 4 is applied; then let them answer.
-   */
-  async function refusedAroundPaste(
-    rows: readonly number[],
-    refusals: NonNullable<FakeAnswers[typeof LINE]>,
-  ): Promise<FakeClient> {
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const client = fakeClient(
-      { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: refusals },
-      { hold: (route) => (route === LINE ? held : undefined) },
-    );
-    server.client = client;
-    renderGrid();
-    for (const row of rows) {
-      cell(row, "label").focus();
-      await userEvent.keyboard("X{Enter}");
-    }
-    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
-    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
-    await userEvent.click(
-      await within(dialog).findByRole("button", { name: "Appliquer le collage" }),
-    );
-    await vi.waitFor(() => {
-      expect(screen.queryByRole("dialog")).toBeNull();
-    });
-    await act(async () => {
-      release();
-      await held;
-    });
-    // Each write answered: no cell shows what was validated any more.
-    await vi.waitFor(() => {
-      expect(screen.getByRole("treegrid").querySelector('[aria-busy="true"]')).toBeNull();
-    });
-    return client;
-  }
-
-  const STALE = { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const;
-  const MARKED = { problem: { code: "REVISION_MARKED", status: 409 } } as const;
-
-  it("keeps quiet the refusal of a cell written before a paste of its row (#202)", async () => {
-    await refusedAroundPaste([FIRST], [STALE]);
-    expect(labels()[0]).toBe("Heures de câblage et repérage");
-    expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("tells the refusal of a row the paste did not write, whatever the quiet refusal answered after it (#202)", async () => {
-    // The row 8, out of the block, is refused first; the row 4, which the paste wrote, last.
-    const client = await refusedAroundPaste([FIRST + 4, FIRST], [MARKED, STALE]);
-    const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent(/marquée/);
-    expect(alert).not.toHaveTextContent(/modifié cette donnée/);
-    expect(labels()[0]).toBe("Heures de câblage et repérage");
-    expect(bodies(client, LINE)).toHaveLength(2);
-  });
-
-  it("carries the highest version of the structure told, and keeps what the later paste answered, whatever the order the answers come back in (#421)", async () => {
+  it("applies a paste once the cell written before it answered, with the version that write reached, and keeps what the later paste answered (#421, #1224)", async () => {
     let releaseLine: () => void = () => undefined;
     const heldLine = new Promise<void>((resolve) => {
       releaseLine = resolve;
@@ -474,14 +366,24 @@ describe("a block pasted from a spreadsheet", () => {
     await userEvent.keyboard("X{Enter}");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const first = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
-    await userEvent.click(
-      await within(first).findByRole("button", { name: "Appliquer le collage" }),
+    // Confirmed while the cell is under way, the paste would carry the version 1 that write's answer
+    // moves on to 3, and be refused (412): it waits, inactive and saying why.
+    const applying = await within(first).findByRole("button", { name: "Appliquer le collage" });
+    expect(applying).toHaveAttribute("aria-disabled", "true");
+    expect(applying).toHaveAccessibleDescription(
+      "Enregistrement en cours dans la grille : le collage s’applique une fois l’écriture terminée.",
     );
-    // The write answers first, version 3; the paste answers after it, version 4.
+    await userEvent.click(applying);
+    expect(bodies(client, APPLY)).toEqual([]);
+    // The write answers, version 3; the paste, confirmed then, answers after it, version 4.
     await act(async () => {
       releaseLine();
       await heldLine;
     });
+    await vi.waitFor(() => {
+      expect(applying).not.toHaveAttribute("aria-disabled");
+    });
+    await userEvent.click(applying);
     await act(async () => {
       releaseApply();
       await heldApply;
@@ -511,7 +413,7 @@ describe("a block pasted from a spreadsheet", () => {
     });
     expect(
       bodies(client, APPLY).map((body) => (body as { lock_version: number }).lock_version),
-    ).toEqual([1, 4]);
+    ).toEqual([3, 4]);
   });
 
   it("whose span reaches a column of the contract the grid does not present is refused, naming it, and nothing is asked [WF-IHM-0050-A]", async () => {

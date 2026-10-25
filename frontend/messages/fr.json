@@ -86,6 +86,10 @@
     "provision": "Ligne de provision"
   },
   "grid": {
+    "pageSize": {
+      "label": "Lignes par page",
+      "named": "Lignes par page de « {list} »"
+    },
     "names": {
       "estimate": "Grille de devis",
       "planning": "Grille de planning",
@@ -105,11 +109,14 @@
       "auditLog": "Journal d’audit",
       "portfolioProjects": "Projets du portefeuille",
       "remaining": "Grille de reste à engager",
+      "comparison": "Nœuds comparés",
       "projects": "Liste des projets",
       "backups": "Sauvegardes"
     },
     "columns": {
       "rowNumber": "N°",
+      "diffMark": "Écart",
+      "changes": "Ce qui change",
       "label": "Libellé",
       "category": "Catégorie",
       "role": "Rôle",
@@ -171,6 +178,7 @@
       "origin": "Origine",
       "accessRoles": "Rôles d’habilitation",
       "attachment": "Rattachement",
+      "timelines": "Chronologies",
       "roleKind": "Nature",
       "holders": "Comptes porteurs",
       "modify": "Modifier",
@@ -222,7 +230,11 @@
       "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
       "required": "Cette cellule ne peut pas rester vide.",
       "tooLong": "{max} caractères au plus.",
-      "twoDecimals": "Un montant a deux décimales au plus : saisissez-le comme {example}."
+      "twoDecimals": "Un montant a deux décimales au plus : saisissez-le comme {example}.",
+      "notADuration": "Ce n’est pas une durée : saisissez un nombre suivi de son unité, comme « 2 j », « 1 sem », « 1 m » ou « 30 min ».",
+      "notADate": "Ce n’est pas une date : saisissez-la comme {example}.",
+      "notPredecessors": "Ce ne sont pas des prédécesseurs : saisissez des numéros de ligne, chacun avec son type de liaison et son décalage s’il y en a, séparés par des points-virgules, comme « 3FD+2 j ; 5DD ».",
+      "unknownRow": "Aucune ligne de la grille n’a l’un de ces numéros."
     },
     "resize": "Largeur de la colonne {column}",
     "empty": "Aucune ligne ne répond à la demande.",
@@ -231,19 +243,68 @@
       "labelIn": "Rechercher dans « {grid} »",
       "placeholder": "Rechercher un libellé"
     },
+    "breakdownFilter": {
+      "label": "Lot ou poste",
+      "every": "Tous les lots et postes",
+      "choice": "{kind, select, work_package {Lot} other {Poste}} : {label}"
+    },
     "undo": {
       "undo": "Annuler",
       "redo": "Rétablir",
       "menu": "Menu de la cellule",
-      "shortcut": {
-        "undo": "Ctrl+Z",
-        "redo": "Ctrl+Maj+Z"
-      },
       "unavailable": "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
       "told": {
         "undo": "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.",
         "redo": "Rétablir est indisponible : le serveur ne conserve pas encore l’historique des saisies."
       }
+    },
+    "selection": {
+      "handle": "{number} — poignée de la ligne",
+      "hint": "Espace sélectionne la ligne, Maj et une flèche étendent la sélection, Échap la lève. Alt+Maj et une flèche la déplacent — Alt+Maj+↑ et Alt+Maj+↓ d’un rang, Alt+Maj+→ et Alt+Maj+← en l’indentant et en la désindentant —, comme le glisser de la poignée à la souris.",
+      "count": "{count, plural, one {# ligne sélectionnée} other {# lignes sélectionnées}}"
+    },
+    "structure": {
+      "insertFirst": "Insérer une tâche",
+      "insertBelow": "Insérer au-dessous",
+      "insertChild": "Insérer une sous-tâche",
+      "insertLine": "Insérer une ligne",
+      "indent": "Indenter",
+      "outdent": "Désindenter",
+      "up": "Monter",
+      "down": "Descendre",
+      "moved": {
+        "indented": "{others, plural, =0 {« {label} » indentée.} one {« {label} » et la ligne suivante indentées.} other {« {label} » et les # lignes suivantes indentées.}}",
+        "outdented": "{others, plural, =0 {« {label} » désindentée.} one {« {label} » et la ligne suivante désindentées.} other {« {label} » et les # lignes suivantes désindentées.}}",
+        "up": "{others, plural, =0 {« {label} » montée d’un rang.} one {« {label} » et la ligne suivante montées d’un rang.} other {« {label} » et les # lignes suivantes montées d’un rang.}}",
+        "down": "{others, plural, =0 {« {label} » descendue d’un rang.} one {« {label} » et la ligne suivante descendues d’un rang.} other {« {label} » et les # lignes suivantes descendues d’un rang.}}",
+        "dropped": "{others, plural, =0 {« {label} » déplacée.} one {« {label} » et la ligne suivante déplacées.} other {« {label} » et les # lignes suivantes déplacées.}}"
+      },
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer « {label} » ?",
+      "deleteHint": "« {label} » est une récapitulative : ses tâches subordonnées, leurs lignes et leurs liaisons sont supprimées avec elle.",
+      "deleteConfirm": "Supprimer",
+      "deleting": "Suppression…",
+      "deleted": "« {label} » supprimée.",
+      "created": "« {label} » créée.",
+      "refusedAt": "Refusé à la ligne {number}, « {label} » :",
+      "refusedCreating": "Création de « {label} » refusée :",
+      "onRow": "Ligne {number}, « {label} »",
+      "timelines": "Chronologies",
+      "milestoneTracking": "Suivi temps/temps",
+      "createTimeline": "Créer une chronologie…",
+      "timelineTitle": "Créer une chronologie",
+      "timelineHint": "Nommez la chronologie. La tâche, et celles de la sélection, y sont inscrites.",
+      "subproject": "Sous-projet",
+      "noSubproject": "Aucun sous-projet",
+      "tracked": "{others, plural, =0 {Chronologies de « {label} » mises à jour.} one {Chronologies de « {label} » et d’une autre tâche mises à jour.} other {Chronologies de « {label} » et de # autres tâches mises à jour.}}",
+      "subprojectSet": "{others, plural, =0 {Sous-projet de « {label} » mis à jour.} one {Sous-projet de « {label} » et d’une autre ligne mis à jour.} other {Sous-projet de « {label} » et de # autres lignes mis à jour.}}",
+      "underHint": "{under}. {hint}",
+      "labelField": "Libellé",
+      "categoryField": "Catégorie",
+      "quantityField": "Quantité",
+      "taskHint": "Nommez la tâche. Elle est créée feuille, en mode automatique, d'un jour, sans prédécesseur.",
+      "lineHint": "Nommez la ligne, choisissez sa catégorie et sa quantité. Les autres champs se saisissent dans la grille.",
+      "busy": "Attend la fin de l’écriture en cours."
     },
     "columnsMenu": {
       "open": "Colonnes",
@@ -254,7 +315,6 @@
       "open": "Arbre",
       "title": "Plier et déplier l’arbre",
       "expandAll": "Tout déplier",
-      "expandAllKeys": "Alt+*",
       "collapseAll": "Tout plier",
       "level": "Jusqu’au niveau {level}",
       "collapse": "Plier",
@@ -272,11 +332,13 @@
       "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
       "rejectedListed": "{count, plural, one {# ligne est refusée, listée ci-dessous.} other {# lignes sont refusées, listées ci-dessous.}}",
+      "rejectedCount": "{count, plural, one {# ligne a été refusée.} other {# lignes ont été refusées.}}",
       "rejectedRow": "Ligne {row} du bloc — {reason}",
       "appliedFrom": "Collage appliqué à partir de la ligne {row}, colonne « {column} » : {count, plural, =0 {aucune ligne n’a été écrite} one {# ligne a été écrite} other {# lignes ont été écrites}}.",
       "refusedRows": "Lignes refusées par le collage",
       "apply": "Appliquer le collage",
       "abandon": "Abandonner",
+      "waiting": "Enregistrement en cours dans la grille : le collage s’applique une fois l’écriture terminée.",
       "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
       "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit.",
       "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut.",
@@ -316,13 +378,26 @@
     "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
     "duration": "{value} {unit}",
     "critical": "Chemin critique",
-    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
+    "predecessor": "{row}{code}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
+    "linkCode": "{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}",
+    "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille."
   },
   "gantt": {
-    "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}"
+    "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}",
+    "zoom": "Zoom du Gantt",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "legend": "Légende du Gantt",
+    "dayOff": "Jour chômé : aucune heure de travail au calendrier de la tâche",
+    "fit": "Ajuster au projet",
+    "quarter": "T{quarter} {year}",
+    "quarterShort": "T{quarter}",
+    "title": "Diagramme de Gantt",
+    "file": "gantt",
+    "hoursNote": "Échelle en heures travaillées, numérotées dans la journée"
   },
   "taskTree": {
     "summary": "Les tâches récapitulatives, sous le projet, jusqu’au niveau choisi — en lecture.",
@@ -344,7 +419,25 @@
     "deleteNamed": "Supprimer la chronologie « {label} »",
     "deleteTitle": "Supprimer la chronologie « {label} » ?",
     "deleteHint": "La chronologie et ses inscriptions seront supprimées ; les tâches et les jalons gardent leurs dates.",
-    "deleted": "Chronologie « {label} » supprimée."
+    "deleted": "Chronologie « {label} » supprimée.",
+    "chart": {
+      "name": "Frise de la chronologie « {name} »",
+      "hint": "Les flèches gauche et droite passent d’une tâche à l’autre ; Alt et les flèches haut et bas la changent de couloir. Une tâche se glisse aussi à la souris.",
+      "task": "{task}, du {start} au {finish}, couloir {lane}",
+      "milestone": "{task}, jalon le {date}",
+      "moved": "« {task} » est dans le couloir {lane}.",
+      "overlap": "« {task} » chevaucherait « {other} » dans le couloir {lane} : elle reste dans le couloir {from}.",
+      "top": "« {task} » est déjà dans le premier couloir.",
+      "bottom": "« {task} » est seule dans le dernier couloir.",
+      "restack": "Disposition automatique",
+      "restacked": "Les tâches de la chronologie sont rangées automatiquement.",
+      "zoom": "Zoom de la chronologie",
+      "table": "Lecture en table",
+      "lane": "Couloir",
+      "milestoneLane": "Jalon",
+      "undrawn": "Sans dates",
+      "file": "chronologie"
+    }
   },
   "remainingGrid": {
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
@@ -372,13 +465,27 @@
     },
     "matrix": {
       "title": "Matrice des risques",
+      "description": "Nuage de bulles des risques : la probabilité en abscisse et la gravité, en part du budget de référence, en ordonnée ; chaque risque est une bulle à ses valeurs exactes, aussi grande que sa gravité en montant, sur les seize zones de la matrice.",
+      "axisSeverity": "Gravité (% du budget)",
+      "counts": "Décompte des risques par case de la matrice, tous états confondus",
+      "none": "Aucun risque à tracer pour ce filtre.",
+      "unplotted": "{count, plural, one {# risque n’est pas tracé : sa gravité ne peut pas être rapportée au budget — {reason}} other {# risques ne sont pas tracés : leur gravité ne peut pas être rapportée au budget — {reason}}}",
+      "file": "matrice-des-risques",
       "probability": "Probabilité",
       "severity": "Gravité, en part du budget de référence",
       "between": "{lower} à moins de {upper}",
-      "from": "{lower} et plus"
+      "from": "{lower} et plus",
+      "tooltip": {
+        "project": "Projet",
+        "probability": "Probabilité",
+        "severity": "Gravité",
+        "provision": "Provision",
+        "state": "État",
+        "zone": "Zone",
+        "closed": "Projet non ouvrable"
+      }
     },
     "detail": {
-      "hint": "Choisissez un risque dans le registre pour lire sa description, ses actions de mitigation et l’historique de ses réexamens.",
       "close": "Fermer le détail du risque",
       "description": "Description",
       "mitigation": "Actions de mitigation",
@@ -563,6 +670,7 @@
       "unnamed": "Sans nom"
     },
     "risks": {
+      "provisions": "Provisions des risques",
       "identifiedTotal": "Provisions des risques identifiés",
       "occurred": "Provisions survenues sur la période",
       "dismissed": "Provisions écartées sur la période",
@@ -581,7 +689,17 @@
       "none": "Aucune charge sur le périmètre et l’horizon choisis.",
       "role": "Rôle",
       "capacity": "Capacité mensuelle",
-      "hours": "{hours} h"
+      "hours": "{hours} h",
+      "chartTitle": "Charge empilée par rôle et par mois",
+      "description": "Barres empilées de la charge du périmètre par mois, divisées par rôle de ressource, en heures, le total de chaque mois au sommet, avec la capacité du périmètre en pointillés ; la capacité, la charge et la zone de chaque rôle sont dans le tableau en dessous.",
+      "exportTitle": "Plan de charge agrégé",
+      "file": "plan-de-charge-agrege",
+      "capacityLine": "Capacité : {hours} h par mois",
+      "capacityNote": "Capacité du périmètre : {hours} h par mois.",
+      "values": "Charge totale de chaque mois",
+      "month": "Mois",
+      "total": "Total (h)",
+      "totalSeries": "Total"
     },
     "pilotHealth": {
       "none": "Aucun signal : le pilotage des projets du périmètre est tenu.",
@@ -632,7 +750,7 @@
     "deltaToReference": "Écart avec la référence",
     "byCostType": "Par nature de coût",
     "bySubproject": "Par sous-projet",
-    "byOrderItem": "Par poste",
+    "byWorkPackage": "Par lot",
     "shareOf": " ({share})",
     "notComputable": "Non calculable — {reason}",
     "unavailable": "Les indicateurs du devis sont indisponibles.",
@@ -669,7 +787,20 @@
     "milestoneDue": "Ses prédécesseurs sont terminés : jalon à terminer.",
     "finish": "Fin le {date}",
     "finishOverdue": "Fin dépassée",
-    "completedOn": "Terminée le {date}"
+    "completedOn": "Terminée le {date}",
+    "keys": "Flèches : choisir une carte. Entrée : ouvrir le menu de ses gestes. Maj + flèche droite ou gauche : la déplacer vers la colonne voisine. Une carte se glisse aussi vers une autre colonne, ou se déplace par son menu.",
+    "gestures": "Gestes de la tâche {label}",
+    "moved": "{label} : colonne « {column} ».",
+    "unplaced": "{label} : la réponse ne dit pas dans quelle colonne se trouve la tâche ; les tâches sont relues.",
+    "updating": "Mise à jour…",
+    "outdated": "Non à jour",
+    "retry": "Réessayer",
+    "eventDate": "Date de l’événement",
+    "dateRequired": "Saisissez la date de l’événement.",
+    "cancel": "Annuler",
+    "noGesture": "Aucun geste ne mène cette tâche vers la colonne « {column} ».",
+    "gestureUnavailable": "« {command} » est indisponible. {conditions}",
+    "asking": "Une date est déjà demandée sur une autre tâche : validez-la ou abandonnez-la avant de demander ce geste."
   },
   "contextBanner": {
     "label": "Contexte de lecture",
@@ -682,7 +813,11 @@
     "subproject": "Sous-projet : {subproject}",
     "subprojectName": "{code} — {label}",
     "asOf": "Date de calcul : {date}",
+    "breakdown": "{kind, select, work_package {Lot} other {Poste}} : {label}",
     "computedOn": "Révision du calcul",
+    "structure": "Structure",
+    "chooseStructure": "Changer de structure, « {structure} » lue",
+    "mergedStructure": "{label} (fusionnée)",
     "unnamedRevision": "sans nom",
     "removeFilter": "Lever le filtre « {filter} »",
     "restricts": {
@@ -708,11 +843,13 @@
   },
   "chart": {
     "values": "Valeurs du graphique",
+    "toggle": "Graphique",
     "exportPng": "Exporter en PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Révision : {revision} · Calculé le {date}",
     "exportSubtitleWith": "Révision : {revision} · {detail} · Calculé le {date}",
     "fileName": "{file}-{code}.png",
+    "exportPortfolioHorizon": "{scope} · Horizon : de {from} à {to}",
     "exportPortfolioSubtitleWith": "{scope} · {node}",
     "portfolioFileName": "{file}-portefeuille-{asOf}.png"
   },
@@ -833,7 +970,9 @@
   "workload": {
     "title": "Plan de charge du projet",
     "chartTitle": "Charge par rôle et par mois",
-    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures ; la capacité mensuelle de chaque rôle est dans le tableau des valeurs, en regard de sa charge.",
+    "description": "Barres empilées de la charge de chaque rôle de ressource par mois, en heures ; la capacité mensuelle de chaque rôle est dans le tableau des valeurs, en regard de sa charge.",
+    "hoursUnit": "{hours} h",
+    "totalSeries": "Total",
     "basis": "Base",
     "markedRevision": "Révision marquée",
     "unnamedRevision": "Révision marquée sans nom",
@@ -861,7 +1000,413 @@
   },
   "commands": {
     "label": "Commandes",
-    "unmet": "{count, plural, one {Condition non remplie} other {Conditions non remplies}} : {conditions}."
+    "unmet": "{count, plural, one {Condition non remplie} other {Conditions non remplies}} : {conditions}.",
+    "or": " ou ",
+    "keys": {
+      "Control": "Ctrl",
+      "Meta": "Méta",
+      "Alt": "Alt",
+      "Shift": "Maj",
+      "Insert": "Inser",
+      "Delete": "Suppr",
+      "ArrowLeft": "←",
+      "ArrowRight": "→",
+      "ArrowUp": "↑",
+      "ArrowDown": "↓",
+      "Plus": "+",
+      "ContextMenu": "Menu",
+      "Escape": "Échap",
+      "Enter": "Entrée"
+    },
+    "macKeys": {
+      "Control": "⌃",
+      "Meta": "⌘",
+      "Alt": "⌥",
+      "Shift": "⇧"
+    },
+    "undo": {
+      "help": "Annule la dernière saisie de la révision."
+    },
+    "redo": {
+      "help": "Rétablit la dernière saisie annulée."
+    },
+    "columns": {
+      "help": "Choisit les colonnes que la grille montre."
+    },
+    "outline": {
+      "help": "Plie ou déplie l’arbre entier, ou le plie jusqu’à un niveau."
+    },
+    "expandAll": {
+      "help": "Déplie toutes les lignes de l’arbre."
+    },
+    "collapseAll": {
+      "help": "Plie l’arbre sur ses lignes de premier niveau."
+    },
+    "collapseRow": {
+      "help": "Plie la ligne : les lignes qu’elle porte sont masquées."
+    },
+    "expandRow": {
+      "help": "Déplie la ligne : les lignes qu’elle porte sont montrées."
+    },
+    "insertFirst": {
+      "help": "Crée la première tâche de la structure."
+    },
+    "insertBelow": {
+      "help": "Crée une tâche au-dessous de la ligne, au même niveau."
+    },
+    "insertChild": {
+      "help": "Crée une sous-tâche sous la tâche de la ligne."
+    },
+    "insertLine": {
+      "help": "Crée une ligne de devis sur la tâche, ou au-dessous de la ligne."
+    },
+    "indent": {
+      "help": "Fait de la ligne une subordonnée de celle qui la précède."
+    },
+    "outdent": {
+      "help": "Remonte la ligne d’un niveau dans l’arbre."
+    },
+    "up": {
+      "help": "Monte la ligne d’un rang parmi ses voisines."
+    },
+    "down": {
+      "help": "Descend la ligne d’un rang parmi ses voisines."
+    },
+    "delete": {
+      "help": "Supprime la ligne ; une récapitulative emporte ses subordonnées, après confirmation."
+    },
+    "zoomIn": {
+      "help": "Resserre l’échelle du temps pour lire les dates de plus près.",
+      "unavailable": "Le zoom est à son plus fort."
+    },
+    "zoomOut": {
+      "help": "Élargit l’échelle du temps pour voir une période plus longue.",
+      "unavailable": "Le zoom est à son plus faible."
+    },
+    "fit": {
+      "help": "Ajuste l’échelle pour montrer le projet entier.",
+      "unavailable": "L’échelle montre déjà le projet entier."
+    },
+    "exportGantt": {
+      "help": "Enregistre le Gantt en image PNG, sur toute son étendue au niveau de zoom choisi, avec le projet, la révision et la date de calcul.",
+      "unavailableWidth": "L’image serait trop large pour le navigateur : dézoomez.",
+      "unavailableHeight": "L’image serait trop haute pour le navigateur : pliez des récapitulatives.",
+      "unavailableArea": "L’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives."
+    },
+    "restack": {
+      "help": "Range les tâches dans les couloirs d’elles-mêmes, en oubliant ceux choisis à la main.",
+      "unavailable": "Aucune tâche n’a été placée à la main : elles sont rangées d’elles-mêmes."
+    },
+    "dismissNews": {
+      "help": "Retire cette ligne ; la tâche reste suivie dans le panneau des tâches et messages."
+    },
+    "startedOnly": {
+      "help": "Montre ou masque les tâches qui n’ont pas démarré."
+    },
+    "timelines": {
+      "help": "Ouvre les chronologies du projet, en frise."
+    },
+    "exchanges": {
+      "help": "Ouvre les imports et exports de la révision."
+    },
+    "taskTree": {
+      "help": "Ouvre l’arbre des tâches de la révision."
+    },
+    "workload": {
+      "help": "Ouvre le plan de charge de la révision, par rôle."
+    },
+    "kanban": {
+      "help": "Ouvre le kanban des tâches à faire, en cours et terminées."
+    },
+    "modify": {
+      "help": "Ouvre le formulaire de modification de la ligne."
+    },
+    "deactivate": {
+      "help": "Désactive l’objet : il n’est plus proposé aux nouvelles saisies, mais ses données restent."
+    },
+    "reactivate": {
+      "help": "Réactive l’objet : il est de nouveau proposé aux saisies."
+    },
+    "designateCalendar": {
+      "help": "Fait de ce calendrier celui qu’emploient par défaut les nouvelles ressources."
+    },
+    "retainBackup": {
+      "help": "Marque la sauvegarde à conserver : la rétention ne la supprime pas."
+    },
+    "releaseBackup": {
+      "help": "Lève la marque de conservation : la rétention peut de nouveau supprimer la sauvegarde."
+    },
+    "restoreBackup": {
+      "help": "Ouvre la restauration de la plateforme depuis cette sauvegarde, après confirmation."
+    },
+    "deleteRole": {
+      "help": "Supprime le rôle d’habilitation, après confirmation."
+    },
+    "deleteSubproject": {
+      "help": "Supprime le sous-projet, après confirmation."
+    },
+    "password_link": {
+      "help": "Donne le lien par lequel le titulaire du compte fixe son mot de passe."
+    },
+    "anonymize": {
+      "help": "Anonymise le compte désactivé, après confirmation : l’opération est définitive."
+    },
+    "activeUser": {
+      "help": "Active ou désactive le compte : un compte désactivé ne peut plus se connecter."
+    },
+    "downloadBackup": {
+      "help": "Télécharge la sauvegarde, une fois vérifiée."
+    },
+    "project": {
+      "update": {
+        "help": "Ouvre le formulaire des paramètres du projet."
+      },
+      "manage_contributors": {
+        "help": "Gère les contributeurs du projet."
+      },
+      "create_revision": {
+        "help": "Crée la révision en cours d’élaboration, copie de la dernière révision marquée."
+      },
+      "generate_skeleton": {
+        "help": "Engendre le squelette du planning de la révision."
+      },
+      "complete": {
+        "help": "Termine le projet, après confirmation."
+      },
+      "lose": {
+        "help": "Déclare le projet perdu, après confirmation."
+      },
+      "abandon": {
+        "help": "Abandonne le projet, après confirmation."
+      },
+      "declare_risk_occurrence": {
+        "help": "Déclare qu’un risque est survenu et en consigne le compte rendu, après confirmation."
+      },
+      "import_actual_costs": {
+        "help": "Importe les coûts réels depuis un fichier."
+      },
+      "import_planning": {
+        "help": "Importe un planning depuis un fichier MS Project."
+      },
+      "import_estimate": {
+        "help": "Importe un devis depuis un fichier."
+      },
+      "import_remaining": {
+        "help": "Importe un reste à engager depuis un fichier."
+      }
+    },
+    "revision": {
+      "generate_skeleton": {
+        "help": "Engendre le squelette du planning de la révision."
+      },
+      "declare_risk": {
+        "help": "Déclare un nouveau risque au projet."
+      },
+      "create_structure": {
+        "help": "Prépare un avenant : une structure différentielle sur la révision."
+      },
+      "merge_structure": {
+        "help": "Contractualise l’avenant : ses différences rejoignent la structure principale."
+      },
+      "mark": {
+        "help": "Marque la révision : elle devient une version figée, nommée."
+      },
+      "designate_reference": {
+        "help": "Désigne la révision marquée comme budget de référence, après confirmation."
+      },
+      "abandon": {
+        "help": "Abandonne la révision en cours d’élaboration, après confirmation."
+      }
+    },
+    "deleteRisk": {
+      "help": "Supprime le risque avec son devis propre et sa ligne de provision, après confirmation."
+    },
+    "modifyRisk": {
+      "help": "Ouvre le formulaire de modification du risque."
+    },
+    "reviewRisk": {
+      "help": "Ouvre le réexamen du risque."
+    },
+    "updateRates": {
+      "help": "Remplace les taux de la révision en cours par les taux proposés, pour les catégories retenues, après confirmation."
+    },
+    "excludeCostLine": {
+      "help": "Exclut la ligne de coût du périmètre suivi."
+    },
+    "reinstateCostLine": {
+      "help": "Rétablit la ligne de coût dans le périmètre suivi."
+    },
+    "applyReport": {
+      "help": "Applique l’import à la révision, après confirmation."
+    },
+    "abandonReport": {
+      "help": "Abandonne l’import : rien n’est appliqué."
+    },
+    "create": {
+      "help": "Ouvre le formulaire de création."
+    },
+    "deleteTimeline": {
+      "help": "Supprime la chronologie affichée ; ses jalons disparaissent avec elle."
+    },
+    "cardGestures": {
+      "help": "Ouvre le menu des gestes de cette tâche."
+    },
+    "retryReading": {
+      "help": "Relit les tâches de cette carte."
+    },
+    "contributorWithdraw": {
+      "help": "Retire ce contributeur de la liste à enregistrer."
+    },
+    "contributorInscribe": {
+      "help": "Ajoute ce compte à la liste à enregistrer, comme contributeur."
+    },
+    "breakdownWorkPackage": {
+      "help": "Ajoute un lot au lotissement du projet."
+    },
+    "breakdownAdd": {
+      "help": "Ajoute un poste à ce lot, ou un livrable à ce poste."
+    },
+    "breakdownRename": {
+      "help": "Change le libellé de cet élément du lotissement."
+    },
+    "breakdownDelete": {
+      "help": "Supprime cet élément du lotissement, avec ce qu’il contient."
+    },
+    "help": {
+      "help": "Ouvre, à côté de l’écran, l’aide qui le décrit : ce qu’il montre, ses commandes, ses colonnes, ses gestes au clavier et les notions de la méthode."
+    }
+  },
+  "columns": {
+    "nodes": {
+      "label": {
+        "help": "Libellé de la tâche ou de la ligne, à la place qu’elle occupe dans l’arbre."
+      }
+    },
+    "estimate": {
+      "category": {
+        "help": "Catégorie de coût de la ligne : elle donne le taux et la nature de la dépense."
+      },
+      "role": {
+        "help": "Rôle de ressource qui effectue la ligne, quand elle est une charge."
+      },
+      "quantity": {
+        "help": "Nombre d’unités de la ligne."
+      },
+      "hours": {
+        "help": "Charge de la ligne, en heures."
+      },
+      "unitDisbursement": {
+        "help": "Débours d’une unité, hors charge de travail."
+      },
+      "subproject": {
+        "help": "Sous-projet auquel la ligne est rattachée."
+      },
+      "paymentDelay": {
+        "help": "Nombre de jours entre la consommation de la ligne et son paiement."
+      },
+      "inactiveObject": {
+        "help": "Marque une ligne qui emploie un objet désactivé du référentiel."
+      },
+      "referenceAmount": {
+        "help": "Montant de la ligne à l’année de référence de la révision, avant toute correction de l’inflation."
+      },
+      "inflatedAmount": {
+        "help": "Montant corrigé de l’inflation de l’année de référence ({year}) à l’année de consommation de la ligne, au taux d’inflation du projet ({rate} par an)."
+      },
+      "inflatedAmountStatic": {
+        "help": "Montant corrigé de l’inflation de l’année de référence de la révision à l’année de consommation de la ligne, au taux d’inflation du projet."
+      }
+    },
+    "planning": {
+      "description": {
+        "help": "Description libre de la tâche."
+      },
+      "schedulingMode": {
+        "help": "Mode de planification : la tâche suit ses liens, ou ses dates sont posées à la main."
+      },
+      "duration": {
+        "help": "Durée de la tâche, dans l’unité choisie."
+      },
+      "startDate": {
+        "help": "Date de début de la tâche, calculée par le serveur d’après ses liens et le calendrier."
+      },
+      "finishDate": {
+        "help": "Date de fin de la tâche, calculée par le serveur d’après sa durée et le calendrier."
+      },
+      "progress": {
+        "help": "Avancement de la tâche : à faire, en cours ou terminée."
+      },
+      "physicalProgress": {
+        "help": "Part du travail réalisée, en pourcentage de la tâche."
+      },
+      "totalFloat": {
+        "help": "Marge totale : retard que la tâche peut prendre sans repousser la fin du projet."
+      },
+      "predecessors": {
+        "help": "Tâches dont celle-ci dépend, désignées par leur numéro de ligne."
+      },
+      "attachment": {
+        "help": "Lot ou poste de la structure de découpage auquel la tâche est rattachée."
+      },
+      "timelines": {
+        "help": "Chronologies auxquelles la tâche est inscrite."
+      },
+      "gantt": {
+        "help": "Barre de la tâche sur l’échelle du temps."
+      }
+    },
+    "remaining": {
+      "progress": {
+        "help": "Avancement de la tâche : à faire, en cours ou terminée."
+      },
+      "finishDate": {
+        "help": "Date de fin prévue de la tâche."
+      },
+      "finishOverdue": {
+        "help": "Marque une tâche dont la fin prévue est dépassée sans qu’elle soit terminée."
+      },
+      "budgetedAmount": {
+        "help": "Montant budgété de la ligne, tel que le budget de référence l’a figé."
+      },
+      "previousQuantity": {
+        "help": "Quantité de la ligne au reste à engager précédent."
+      },
+      "previousHours": {
+        "help": "Charge de la ligne, en heures, au reste à engager précédent."
+      },
+      "previousUnitDisbursement": {
+        "help": "Débours unitaire de la ligne au reste à engager précédent."
+      },
+      "previousReestimatedAmount": {
+        "help": "Montant réestimé de la ligne au reste à engager précédent."
+      },
+      "quantity": {
+        "help": "Quantité restant à engager sur la ligne."
+      },
+      "hours": {
+        "help": "Charge restant à engager sur la ligne, en heures."
+      },
+      "unitDisbursement": {
+        "help": "Débours unitaire de la ligne, réestimé."
+      },
+      "subproject": {
+        "help": "Sous-projet auquel la ligne est rattachée."
+      },
+      "reestimatedAmount": {
+        "help": "Montant réestimé de la ligne ou de la tâche : le devis actualisé à l’achèvement."
+      }
+    }
+  },
+  "help": {
+    "button": "Aide",
+    "title": "Aide",
+    "close": "Fermer l’aide",
+    "back": "Revenir à la page précédente de l’aide",
+    "screen": "Revenir à l’aide de l’écran",
+    "loading": "Lecture de l’aide…",
+    "failed": "L’aide n’a pas pu être lue. Réessayez dans un instant.",
+    "pending": "L’aide de cette page est à venir.",
+    "sections": "Les parties de l’écran"
   },
   "outcome": {
     "unreachable": "Le service est injoignable ; réessayez dans un instant.",
@@ -889,12 +1434,16 @@
     "interrupted": "Suivi interrompu",
     "interruptedLine": "Suivi interrompu : {task}.",
     "dismiss": "Retirer du suivi : {task}",
-    "toggle": "{count, plural, =0 {Tâches de fond} one {Tâches de fond : # suivie} other {Tâches de fond : # suivies}}",
+    "toggle": "Tâches et messages{count, plural, =0 {} one { : # tâche suivie} other { : # tâches suivies}}{unread, plural, =0 {} one {, # refus non lu} other {, # refus non lus}}",
     "none": "Aucune tâche de fond suivie.",
     "download": "Télécharger le résultat",
     "downloadLabel": "Télécharger le résultat : {task}",
     "resultUnavailable": "Le résultat de cette tâche n’est plus disponible.",
-    "resultRefused": "Le résultat d’une tâche n’a pas pu être téléchargé."
+    "resultRefused": "Le résultat d’une tâche n’a pas pu être téléchargé.",
+    "panel": "Tâches et messages",
+    "close": "Fermer les tâches et messages",
+    "started": "Tâche lancée : {task}.",
+    "closeNews": "Fermer la ligne de la tâche"
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -902,6 +1451,63 @@
     "description": "Description (facultative)",
     "submit": "Marquer",
     "cancel": "Annuler"
+  },
+  "mergeReport": {
+    "label": "Contractualiser l’avenant",
+    "statement": "La fusion applique le compte rendu ci-dessous à la structure principale et marque la révision en cours sous le nom de version que vous donnez ; la révision produite devient la référence, et le budget de référence se déplace. Abandonner ici ne change rien.",
+    "submit": "Confirmer la fusion",
+    "title": "Compte rendu de la fusion",
+    "reading": "Lecture du compte rendu…",
+    "counts": "Écarts par objet",
+    "targets": {
+      "task": "Tâches",
+      "estimate_line": "Lignes de devis",
+      "link": "Liaisons"
+    },
+    "added": "{count, plural, one {# ajoutée} other {# ajoutées}}",
+    "updated": "{count, plural, one {# modifiée} other {# modifiées}}",
+    "removed": "{count, plural, one {# retirée} other {# retirées}}",
+    "completed": "{count, plural, one {# tâche démarrée sera terminée} other {# tâches démarrées seront terminées}}",
+    "completedTask": "« {label} » : le différentiel la retire ; elle est conservée, son reste à engager porté à zéro.",
+    "refusals": "{count, plural, one {# motif refuse la fusion} other {# motifs refusent la fusion}}",
+    "versionName": "Nom de version",
+    "versionNameHint": "Obligatoire : la révision produite le porte.",
+    "reread": "Relire le compte rendu",
+    "queued": "La fusion est confiée au traitement de fond sous le nom de version « {version} » ; elle est suivie dans « Tâches de fond ».",
+    "reference": "La fusion est terminée : « {version} » est la nouvelle révision de référence.",
+    "seeRevisions": "Voir les révisions"
+  },
+  "revisionCommands": {
+    "create": "Ouvrir une révision en cours",
+    "amendment": {
+      "label": "Préparer un avenant",
+      "statement": "Un différentiel de la structure principale est créé sous le libellé donné, et s’ouvre dans la grille de planning, où vous ajoutez et modifiez tâches et lignes. Rien n’est fusionné.",
+      "name": "Libellé de l’avenant",
+      "submit": "Créer l’avenant",
+      "done": "L’avenant « {label} » est créé."
+    },
+    "cancel": "Annuler",
+    "abandon": {
+      "label": "Abandonner la révision en cours",
+      "statement": "Le projet revient à sa dernière révision marquée, et les lignes de la révision en cours sont supprimées. L’abandon est irréversible : il ne s’inscrit pas à l’historique que « Annuler » défait.",
+      "submit": "Confirmer l’abandon",
+      "done": "La révision en cours est abandonnée : le projet est revenu à sa dernière révision marquée."
+    },
+    "designate": {
+      "label": "Désigner comme référence",
+      "statement": "Désigner « {name} » comme référence fixe le budget de référence et la valeur planifiée du projet. Si le projet porte son code projet, il passe à l’état « {state} ».",
+      "submit": "Confirmer la désignation",
+      "done": "« {name} » est la révision de référence : le projet est à l’état « {state} »."
+    },
+    "rateUpdate": {
+      "label": "Appliquer la mise à jour des taux",
+      "statement": "Les taux de la révision en cours sont remplacés par les taux proposés, pour les catégories retenues ; les montants de ses lignes et de ses totaux sont rechiffrés. Une révision marquée garde les taux qu’elle a calculés.",
+      "categories": "Catégories mises à jour",
+      "change": "{category} : {previous} → {proposed}",
+      "noneRetained": "Retenez au moins une catégorie.",
+      "submit": "Confirmer la mise à jour",
+      "done": "{count, plural, one {Les taux d’# catégorie sont mis à jour.} other {Les taux de # catégories sont mis à jour.}}"
+    }
   },
   "projectList": {
     "count": "{count, plural, one {# projet} other {# projets}}",
@@ -916,6 +1522,21 @@
     },
     "periodRefused": "La liste n’est pas lue : le serveur refuse la période demandée."
   },
+  "projectStart": {
+    "title": "Démarrer le projet",
+    "lead": "La structure principale de la révision en cours n’a aucune tâche. Démarrez le planning de l’une de ces façons.",
+    "skeleton": "Planning automatique depuis le lotissement",
+    "skeletonHint": "Saisissez le lotissement, puis engendrez le planning.",
+    "import": "Importer un fichier MS Project",
+    "importHint": "Déposez un fichier .xml : son compte rendu précède l’application.",
+    "later": "Plus tard",
+    "reopen": "Démarrer le projet"
+  },
+  "generatePlanning": {
+    "title": "Engendrer le planning",
+    "lead": "Le lotissement saisi, engendrez le planning : une récapitulative par lot et par poste, une tâche par livrable et leurs jalons de fin.",
+    "label": "Engendrer le planning"
+  },
   "projectFacts": {
     "label": "Le projet",
     "settings": "Paramètres du projet",
@@ -928,6 +1549,37 @@
     "inflationRate": "Taux d’inflation annuel",
     "winProbability": "Probabilité de gain",
     "revisions": "Révisions"
+  },
+  "riskForm": {
+    "identify": "Identifier un risque",
+    "identifyHint": "Le risque ouvre son devis propre, où se chiffrent ses tâches et ses lignes ; sa provision, calculée, se range sur une tâche de la structure principale.",
+    "identified": "Risque « {name} » identifié.",
+    "modify": "Modifier",
+    "modifyTitle": "Modifier « {name} »",
+    "modifyHint": "La gravité et la provision se calculent à partir du devis propre et de la probabilité : elles ne se saisissent pas.",
+    "probability": "Probabilité (%)",
+    "task": "Tâche de la provision",
+    "firstTask": "Première tâche de premier niveau",
+    "saved": "Risque « {name} » modifié.",
+    "review": "Réexaminer",
+    "reviewTitle": "Réexaminer « {name} »",
+    "reviewHint": "Le réexamen est daté du jour : le confirmer sans rien changer en produit un, qui s’ajoute à l’historique. La gravité et la provision se recalculent.",
+    "retainedState": "État retenu",
+    "categoryOnReturn": "Demandée au retour à l’état identifié : la catégorie que le risque désignait n’est plus active.",
+    "reviewed": "Risque « {name} » réexaminé."
+  },
+  "riskDelete": {
+    "label": "Supprimer le risque",
+    "statement": "Le risque est supprimé avec son devis propre et sa ligne de provision. Un risque cité par une révision marquée ne se supprime pas : il s’écarte par un réexamen.",
+    "submit": "Supprimer le risque",
+    "done": "Risque « {name} » supprimé."
+  },
+  "riskOccurrence": {
+    "label": "Déclarer survenu",
+    "statement": "Le devis propre du risque est fusionné dans la structure principale de la révision en cours, avec un montant budgété nul, et sa ligne de provision est retirée du reste à engager. La déclaration est définitive : un risque survenu ne se modifie plus.",
+    "submit": "Déclarer le risque survenu",
+    "queued": "La survenance de « {name} » est confiée au traitement de fond ; elle est suivie dans « Tâches de fond ».",
+    "succeeded": "La survenance de « {name} » est terminée : son devis propre est fusionné dans la structure principale."
   },
   "projectForm": {
     "create": "Créer un projet",
@@ -990,27 +1642,27 @@
     },
     "workBreakdown": {
       "title": "Lotissement",
-      "none": "Ce projet n’a aucun poste.",
+      "none": "Ce projet n’a aucun lot.",
       "kindFilter": "Filtrer par nature",
       "everyKind": "Toutes les natures",
-      "partial": "Les postes et les lots ne montrent que ce que la recherche et le filtre retiennent.",
-      "partialSearch": "Les postes et les lots ne montrent que ce que la recherche retient.",
-      "partialKinds": "Les postes et les lots ne montrent que ce que le filtre par nature retient.",
+      "partial": "Les lots et les postes ne montrent que ce que la recherche et le filtre retiennent.",
+      "partialSearch": "Les lots et les postes ne montrent que ce que la recherche retient.",
+      "partialKinds": "Les lots et les postes ne montrent que ce que le filtre par nature retient.",
       "retained": "{kind, select, order_item {{count, plural, one {# poste} other {# postes}}} work_package {{count, plural, one {# lot} other {# lots}}} other {{count, plural, one {# livrable} other {# livrables}}}}",
       "noneRetained": "Aucun élément retenu",
       "element": "{kind, select, order_item {le poste} work_package {le lot} other {le livrable}} « {label} »",
-      "createItem": "Nouveau poste",
-      "add": "{kind, select, order_item {Ajouter un lot} other {Ajouter un livrable}}",
-      "addUnder": "{kind, select, order_item {Ajouter un lot au poste} other {Ajouter un livrable au lot}} « {label} »",
+      "createWorkPackage": "Nouveau lot",
+      "add": "{kind, select, work_package {Ajouter un poste} other {Ajouter un livrable}}",
+      "addUnder": "{kind, select, work_package {Ajouter un poste au lot} other {Ajouter un livrable au poste}} « {label} »",
       "rename": "Renommer",
       "renameNamed": "Renommer {element}",
       "delete": "Supprimer",
       "deleteNamed": "Supprimer {element}",
-      "addTitle": "{kind, select, order_item {Nouveau lot du poste « {label} »} work_package {Nouveau livrable du lot « {label} »} other {Nouveau poste}}",
+      "addTitle": "{kind, select, work_package {Nouveau poste du lot « {label} »} root {Nouveau lot} other {Nouveau livrable du poste « {label} »}}",
       "labelField": "Libellé",
-      "formHint": "Le lotissement s’enregistre entier, depuis sa dernière lecture entière ; chaque poste, lot et livrable porte un libellé.",
+      "formHint": "Le lotissement s’enregistre entier, depuis sa dernière lecture entière ; chaque lot, poste et livrable porte un libellé.",
       "deleteTitle": "Supprimer {element} ?",
-      "deleteHint": "{kind, select, order_item {Le poste, ses lots et leurs livrables seront supprimés. Les tâches de la révision en cours qui portent le poste ou l’un de ses lots restent et perdent leur rattachement ; les révisions marquées le gardent.} work_package {Le lot et ses livrables seront supprimés. Les tâches de la révision en cours qui portent le lot restent et perdent leur rattachement ; les révisions marquées le gardent.} other {Le livrable sera supprimé.}}",
+      "deleteHint": "{kind, select, work_package {Le lot, ses postes et leurs livrables seront supprimés. Les tâches de la révision en cours qui portent le lot ou l’un de ses postes restent et perdent leur rattachement ; les révisions marquées le gardent.} order_item {Le poste et ses livrables seront supprimés. Les tâches de la révision en cours qui portent le poste restent et perdent leur rattachement ; les révisions marquées le gardent.} other {Le livrable sera supprimé.}}",
       "added": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » ajouté.",
       "renamed": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} renommé « {label} ».",
       "deleted": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » supprimé.",
@@ -1041,21 +1693,15 @@
       "open": "Ouvrir",
       "openRevision": "Ouvrir la révision « {name} »"
     },
+    "designation": {
+      "title": "Désignation de la référence"
+    },
     "comparison": {
       "title": "Comparaison de deux révisions",
       "needsTwo": "La comparaison demande deux révisions marquées.",
       "from": "De la révision",
       "to": "À la révision",
       "compare": "Comparer",
-      "added": "Ajouts",
-      "removed": "Retraits",
-      "changed": "Modifications",
-      "noneAdded": "Rien n’a été ajouté.",
-      "noneRemoved": "Rien n’a été retiré.",
-      "noneChanged": "Rien n’a été modifié.",
-      "label": "Libellé",
-      "kind": "Nature",
-      "changes": "Ce qui change",
       "deltas": "Écarts de montants",
       "noDeltas": "Aucun écart de montant.",
       "dimension": "Axe",
@@ -1224,6 +1870,7 @@
       "hint": "Le libellé et les heures travaillées de chacun des sept jours, du lundi au dimanche, sont requis ; rien d’autre n’est demandé."
     },
     "rates": {
+      "title": "Taux horaires",
       "caption": "{count, plural, one {# catégorie} other {# catégories}}, taux horaires en {currency}",
       "addYear": {
         "label": "Ajouter une année à la grille",
@@ -1326,6 +1973,12 @@
       "probability": "Bornes de probabilité (%)",
       "severity": "Bornes de gravité (% du budget de référence)",
       "saved": "Matrice de risques enregistrée."
+    },
+    "durationUnitsForm": {
+      "modify": "Modifier les unités de durée",
+      "hint": "Les heures par jour, les heures par semaine et les jours par mois, chacune strictement positive.",
+      "saved": "Unités de durée enregistrées.",
+      "effect": "Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées."
     },
     "indicatorForm": {
       "modify": "Modifier les seuils et le délai",
@@ -1724,23 +2377,29 @@
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
     "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
+    "NODE_NOT_SIBLING": "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : la grille est relue.",
+    "MILESTONE_REQUIRED": "Seul un jalon s’inscrit au suivi temps/temps.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "PROVISION_CATEGORY_REQUIRED": "La provision d’un risque porte une catégorie de type provision pour risques.",
+    "PROVISION_LINE_MOVED_BY_RISK": "Une ligne de provision se déplace depuis le formulaire de son risque, qui désigne sa tâche.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
     "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
     "BOUNDS_NOT_ORDERED": "Les bornes doivent être strictement croissantes.",
     "THRESHOLD_NOT_BELOW_WATCH": "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "Le seuil doit être compris entre 0 et 1, l’un et l’autre exclus.",
+    "DURATION_UNIT_NOT_POSITIVE": "La constante doit être strictement positive.",
+    "NON_WORKING_DAY": "Date sur un jour sans heure travaillée.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Cet élément ne fait pas partie du lotissement lu : inconnu, d’une autre nature ou supprimé.",
-    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
-    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
-    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
-    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un poste ou un lot.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un lot ou un poste, jamais les deux.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce lot ou ce poste est déjà porté par une autre tâche.",
+    "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un lot ou un poste.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
+    "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
@@ -1773,8 +2432,11 @@
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
     "expected_version": "Version attendue : {version}.",
-    "order_item_task": "Tâche du poste : {task}.",
-    "work_package_tasks": "{count, plural, one {Tâche du lot en cause} other {Tâches des lots en cause}} : {tasks}.",
+    "work_package_task": "Tâche du lot : {task}.",
+    "order_item_tasks": "{count, plural, one {Tâche du poste en cause} other {Tâches des postes en cause}} : {tasks}.",
+    "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
+    "non_working_day": "Le {date} n’est pas travaillé sur le calendrier de la tâche ; saisis le {next}.",
+    "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
     "taskName": "« {label} »"
   },
   "permissions": {
@@ -2082,6 +2744,7 @@
       "manage_contributors": "Gérer les contributeurs",
       "manage_timelines": "Gérer les chronologies",
       "create_revision": "Créer une révision",
+      "generate_skeleton": "Engendrer le squelette de planning",
       "complete": "Terminer le projet",
       "lose": "Déclarer le projet perdu",
       "abandon": "Abandonner le projet",
@@ -2108,8 +2771,13 @@
       "revision_draft": "révision en cours d’élaboration",
       "revision_marked": "révision marquée",
       "reference_correctable": "référence encore corrigeable",
+      "revision_has_tasks_and_lines": "révision portant au moins une tâche et une ligne de devis",
       "unmerged_amendment_exists": "un avenant non fusionné",
       "task_not_completed": "tâche non terminée",
+      "task_is_milestone": "la tâche est un jalon",
+      "task_not_milestone": "la tâche n'est pas un jalon",
+      "task_without_lines": "tâche sans ligne hors provision",
+      "completed_milestone": "jalon terminé",
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
       "may_create_revision": "avoir la permission de créer une révision",
@@ -2164,8 +2832,8 @@
       "contributor": "Contributeur"
     },
     "WorkBreakdownKind": {
-      "order_item": "Poste",
       "work_package": "Lot",
+      "order_item": "Poste",
       "deliverable": "Livrable"
     },
     "RevisionStatus": {
@@ -2179,8 +2847,8 @@
       "edit_remaining": "Réestimer le reste à engager",
       "edit_risks": "Modifier les risques",
       "declare_risk": "Déclarer un risque",
-      "create_structure": "Créer une structure",
-      "merge_structure": "Fusionner une structure",
+      "create_structure": "Préparer un avenant",
+      "merge_structure": "Contractualiser l’avenant",
       "mark": "Marquer la révision",
       "designate_reference": "Désigner comme référence",
       "abandon": "Abandonner la révision",
@@ -2201,15 +2869,19 @@
       "task": "Tâche",
       "estimate_line": "Ligne de devis"
     },
-    "ComparedNode": {
-      "changes": {
-        "dates": "Dates",
-        "duration": "Durée",
-        "progress": "Avancement",
-        "budgeted_amount": "Montant budgété",
-        "reestimated_amount": "Montant réestimé",
-        "parent": "Rattachement"
-      }
+    "NodeChange": {
+      "dates": "Dates",
+      "duration": "Durée",
+      "progress": "Avancement",
+      "budgeted_amount": "Montant budgété",
+      "reestimated_amount": "Montant réestimé",
+      "parent": "Rattachement"
+    },
+    "NodeDifference": {
+      "added": "Ajouté",
+      "removed": "Retiré",
+      "modified": "Modifié",
+      "unchanged": "Inchangé"
     },
     "RevisionComparison": {
       "amount_deltas": {
@@ -2223,6 +2895,17 @@
       "main": "Structure principale",
       "amendment": "Avenant",
       "risk": "Devis de risque"
+    },
+    "KanbanCommand": {
+      "start": "Démarrer",
+      "complete": "Terminer",
+      "reopen": "Rouvrir",
+      "enter_remaining": "Saisir le reste à engager"
+    },
+    "StructureCommand": {
+      "edit_planning": "Modifier le planning",
+      "edit_estimate": "Modifier le devis",
+      "edit_remaining": "Réestimer le reste à engager"
     },
     "StructureCreate": {
       "kind": {
@@ -2299,8 +2982,10 @@
         "start": "Début de la tâche",
         "finish": "Fin de la tâche",
         "progress": "Avancement de la tâche",
+        "predecessors": "Prédécesseurs de la tâche",
         "order_item_id": "Poste de la tâche",
-        "work_package_id": "Lot de la tâche"
+        "work_package_id": "Lot de la tâche",
+        "tracking": "Chronologies de la tâche"
       },
       "estimate_line": {
         "label": "Libellé de la ligne",
@@ -2325,7 +3010,7 @@
       "total_float": "Marge totale",
       "is_critical": "Chemin critique",
       "predecessors": "Prédécesseurs",
-      "work_breakdown": "Poste ou lot",
+      "work_breakdown": "Lot ou poste",
       "cost_category": "Catégorie de coût",
       "resource_role": "Rôle de ressource",
       "quantity": "Quantité",
@@ -2383,12 +3068,6 @@
       "own_estimate": "La gravité d’un risque est le total de son devis propre.",
       "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité."
     },
-    "ProgressUpdate": {
-      "progress": {
-        "started": "Démarrée",
-        "completed": "Terminée"
-      }
-    },
     "WorkloadPlan": {
       "basis": {
         "reference_budget": "Budget de la révision de référence",
@@ -2410,7 +3089,7 @@
       "no_capacity": "Aucune capacité pour ce rôle sur la période.",
       "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période.",
       "hourly_rate_missing": "Taux horaire manquant pour l’année de référence.",
-      "order_item_without_task": "Aucune tâche ne porte ce poste."
+      "work_package_without_task": "Aucune tâche ne porte ce lot."
     },
     "CurveSeries": {
       "series": {
@@ -2510,6 +3189,9 @@
         "actual_cost_line": "Ligne de coût réel"
       }
     },
+    "ImportDifferenceField": {
+      "parent": "Rattachement"
+    },
     "ImportIgnoredKind": {
       "resources": "Ressources",
       "calendars": "Calendriers",
@@ -2600,6 +3282,17 @@
       "periodTo": "Au",
       "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
     },
+    "drop": {
+      "title": "Zone de dépôt du fichier MS Project",
+      "hint": "Glissez un fichier .xml ici, ou choisissez-le. {max} Mio au plus.",
+      "choose": "Choisir un fichier",
+      "file": "Fichier MS Project (.xml)",
+      "notXml": "Ce n’est pas un fichier .xml : un planning MS Project s’exporte en XML.",
+      "tooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet.",
+      "sending": "Envoi de « {file} »…",
+      "sent": "« {file} » est envoyé : son compte rendu s’affiche sur la page.",
+      "busy": "Un envoi est en cours : le fichier déposé n’est pas pris en compte."
+    },
     "report": {
       "title": "Compte rendu de l’import « {file} »",
       "kind": "Nature",
@@ -2653,5 +3346,14 @@
     "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous pour la connaître.",
     "doneTitle": "Restauration terminée",
     "done": "La plateforme a été restaurée. Reconnectez-vous pour continuer."
+  },
+  "messages": {
+    "label": "Messages",
+    "none": "Aucun message dans cette session.",
+    "success": "Réussite :",
+    "refusal": "Refus :",
+    "object": "Objet : {object}.",
+    "screenInProject": "{screen} — {project}",
+    "unknownScreen": "Écran d’origine"
   }
 }

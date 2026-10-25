@@ -45,19 +45,18 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   const hours = cellOf(labour, at.hours);
   const amount = cellOf(labour, at.reference);
 
-  // The effort is entered: its figure alone. The amount is computed: marked Σ, named so, on
-  // another background — the mark reads without the colour.
+  // The effort is a figure alone — the estimate of a project in progress is read only
+  // (WF-DEV-0050). The amount is computed: marked Σ, named so, on another background — the mark
+  // reads without the colour.
   await expect(hours).toHaveText(/^\d+(,\d+)?$/);
   await expect(hours.getByRole("img")).toHaveCount(0);
   await expect(amount).toHaveAccessibleName(/^Calculé [\d\s]+,\d\d$/);
   await expect(amount.getByRole("img", { name: "Calculé" })).toBeVisible();
   expect(await background(amount)).not.toBe(await background(hours));
 
-  // A digit typed on the effort opens its entry, with it; abandoned, the effort is as it was.
+  // A digit typed on the effort opens no field: the grid is read only here.
   await hours.focus();
   await page.keyboard.press("7");
-  await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("7");
-  await page.keyboard.press("Escape");
   await expect(hours.getByRole("textbox")).toHaveCount(0);
 
   // The same digit on the amount opens no field: the try is refused beside it, naming what the

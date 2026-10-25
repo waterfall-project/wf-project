@@ -10,7 +10,7 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import type { ChartExport } from "@/components/chart/chart";
-import { formatPlanningDate } from "@/i18n/format";
+import { formatMonth, formatPlanningDate } from "@/i18n/format";
 
 import type { PortfolioScope } from "./address";
 
@@ -47,18 +47,31 @@ export function useScopeSentence(): (scope: PortfolioScope) => string {
  * What the exported image of a chart of the portfolio says of itself: its title — which names the
  * portfolio —, then the perimeter the server retained and its date of calculation, and the node
  * of organisation when there is one; and the name of its file, `file` followed by the date of
- * calculation.
+ * calculation. A chart drawn over months adds its horizon, its first month and its last
+ * (`months`, as the server lists them).
  */
 export function usePortfolioExport(
   scope: PortfolioScope,
   title: string,
   file: string,
+  months: readonly string[] = [],
 ): () => ChartExport {
   const t = useTranslations("chart");
   const node = useTranslations("portfolio.scope");
   const sentence = useScopeSentence();
+  const locale = useLocale();
   return () => {
-    const perimeter = sentence(scope);
+    const first = months.at(0);
+    const last = months.at(-1);
+    const retained = sentence(scope);
+    const perimeter =
+      first === undefined || last === undefined
+        ? retained
+        : t("exportPortfolioHorizon", {
+            scope: retained,
+            from: formatMonth(first, locale),
+            to: formatMonth(last, locale),
+          });
     return {
       title,
       subtitle:

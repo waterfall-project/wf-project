@@ -17,17 +17,22 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
-import { readProjectContext } from "@/components/context/reading";
+import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { readRisk, RISK_STATES, type RiskState, STATES } from "@/components/risks/address";
+import { FiguresGrid } from "@/components/figures-card";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
+import { readProvisionOptions } from "@/components/risks/provision-options";
+import { IdentifyRisk } from "@/components/risks/risk-commands";
 import { RiskDetail } from "@/components/risks/risk-detail";
 import {
   RISK_GRID,
@@ -36,12 +41,14 @@ import {
   type RiskRows,
   type RiskSortColumn,
 } from "@/components/risks/risk-grid";
-import { RiskMatrixView } from "@/components/risks/risk-matrix";
+import { ProjectRiskMatrix } from "@/components/risks/risk-bubble-chart";
+import type { RiskMatrix } from "@/components/risks/risk-matrix";
 import { RisksGrid } from "@/components/risks/risks-grid";
 import { RiskStateFilter } from "@/components/risks/state-filter";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
+import { functionHref, functionOf } from "@/navigation/functions";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
@@ -132,8 +139,8 @@ async function readDetail({ revision }: GridAddress, risk: string | undefined) {
   return { risk: read, reviews };
 }
 
-/** The title of the screen, and how many risks the grid holds. */
-function RisksHeader({ count }: { readonly count: number }) {
+/** The title of the screen, how many risks the grid holds, and its commands. */
+function RisksHeader({ count, actions }: { readonly count: number; readonly actions: ReactNode }) {
   const t = useTranslations();
   return (
     <PageHeader
@@ -141,14 +148,44 @@ function RisksHeader({ count }: { readonly count: number }) {
       icon={FUNCTION_ICONS.risks}
       density={FUNCTION_DENSITY.risks}
       subtitle={t("risks.summary", { risks: count })}
+      actions={actions}
     />
   );
 }
 
-/** The aside of the grid: the detail of a risk opened, or how to open one. */
-function DetailHint() {
-  const t = useTranslations("risks.detail");
-  return <p className="text-sm text-muted-foreground">{t("hint")}</p>;
+/**
+ * The matrix of the revision as a bubble chart over the whole width of the screen, its exported
+ * image naming the project, the revision and the date of the calculation of the coverage, which
+ * the matrix is read with.
+ */
+function RiskMatrixSection({
+  reading,
+  matrix,
+  states,
+  computedAt,
+  folded,
+}: {
+  readonly reading: ProjectReading;
+  readonly matrix: RiskMatrix;
+  readonly states: readonly RiskState[];
+  readonly computedAt: string;
+  readonly folded: boolean;
+}) {
+  const t = useTranslations("contextBanner");
+  const { project, revision } = reading;
+  return (
+    <ProjectRiskMatrix
+      matrix={matrix}
+      states={states}
+      provenance={{
+        project: project.label,
+        code: project.code ?? project.project_id,
+        revision: revision?.version_name ?? t("currentRevision"),
+      }}
+      computedAt={computedAt}
+      folded={folded}
+    />
+  );
 }
 
 /**
@@ -165,45 +202,94 @@ export default async function RisksPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "risks");
   const states = readValues(at.address, STATES, RISK_STATES);
-  const settings = requestSession().then(
-    (session) => session?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
+  const session = requestSession();
+  const settings = session.then(
+    (kept) => kept?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
   );
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
-  const [reading, risks, coverage, matrix, detail, preferences, query] = await Promise.all([
-    // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
-    readProjectContext(at.pathname, at.context, []),
-    readRisks(at, states, asked),
-    readCoverage(at),
-    readMatrix(at),
-    readDetail(at, readRisk(at.address)),
-    settings,
-    asked,
-  ]);
-  if (reading === "not_found") {
+  // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
+  const reading = readProjectContext(at.pathname, at.context, []);
+  // « Identifier un risque » as the revision lists `declare_risk`, and the modification and the review
+  // of the risk shown, as it lists `update` and `review`: the choices of the provision are read as
+  // soon as the revision and the risk are, beside the other reads, when any of these commands is available.
+  const declare = reading.then((read) =>
+    read === "not_found" || read.revision === undefined
+      ? undefined
+      : findOffer(read.revision.available_commands, "declare_risk"),
+  );
+  const shown = readDetail(at, readRisk(at.address));
+  const options = Promise.all([declare, shown]).then(([offer, read]) =>
+    offer?.is_available === true ||
+    (["update", "review"] as const).some(
+      (command) => findOffer(read?.risk.available_commands ?? [], command)?.is_available === true,
+    )
+      ? readProvisionOptions(at.revision.projectId, at.revision.revisionId)
+      : undefined,
+  );
+  const [read, risks, coverage, matrix, detail, preferences, query, offer, choices, kept] =
+    await Promise.all([
+      reading,
+      readRisks(at, states, asked),
+      readCoverage(at),
+      readMatrix(at),
+      shown,
+      settings,
+      asked,
+      declare,
+      options,
+      session,
+    ]);
+  if (read === "not_found") {
     notFound();
   }
+  // The own estimate of a risk opens in the estimate of the revision, for a session that reads it.
+  const estimate = kept?.permissions.includes("estimate.read")
+    ? functionHref(functionOf("estimate"), at.context)
+    : undefined;
   return (
     <>
-      <ContextBanner reading={reading} />
+      <ContextBanner reading={read} />
       {/* The filter, the grid and the links compose the changes they make to the address. */}
       <PendingAddress>
-        <Screen density={FUNCTION_DENSITY.risks} fill>
-          <RisksHeader count={risks.items.length} />
+        <Screen density={FUNCTION_DENSITY.risks} fillWide>
+          <RisksHeader
+            count={risks.items.length}
+            actions={
+              <IdentifyRisk
+                projectId={at.revision.projectId}
+                offer={offer}
+                options={choices}
+                estimate={estimate}
+              />
+            }
+          />
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-            <div className="flex flex-wrap gap-x-12 gap-y-3">
+            <FiguresGrid className="min-w-0 grow basis-[40rem]">
               <ProvisionSummary totals={risks.totals} />
-              <RiskCoverageSummary coverage={coverage} />
-            </div>
+              <RiskCoverageSummary coverage={coverage} context={coverage.context} />
+            </FiguresGrid>
             <RiskStateFilter states={states} />
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <RiskMatrixSection
+            reading={read}
+            matrix={matrix}
+            states={states}
+            computedAt={coverage.context.computed_at}
+            folded={kept?.display_preferences?.charts?.risk_matrix?.folded ?? true}
+          />
+          {/* The detail of a risk, beside the grid, keeps the height to read it in: the window too
+              low for the chart, the grid and the detail scrolls the page. */}
+          <div
+            className={`flex flex-col gap-4 lg:flex-1 lg:flex-row ${detail === undefined ? "lg:min-h-0" : "lg:min-h-96"}`}
+          >
+            <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
               <RisksGrid risks={risks} query={query} preferences={preferences} />
             </div>
-            <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
-              <RiskMatrixView matrix={matrix} />
-              {detail === undefined ? <DetailHint /> : <RiskDetail {...detail} />}
-            </aside>
+            {detail === undefined ? null : (
+              <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
+                <RiskDetail {...detail} projectId={at.revision.projectId} options={choices} />
+              </aside>
+            )}
           </div>
         </Screen>
       </PendingAddress>

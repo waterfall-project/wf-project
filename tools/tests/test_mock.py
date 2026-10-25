@@ -3,8 +3,13 @@
 """Tests of the variant of the contract the fake back serves."""
 
 import json
+import re
+import shutil
+import subprocess
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
+
+import pytest
 
 from wftools import mock
 
@@ -54,3 +59,296 @@ def test_the_file_is_rewritten_in_place(tmp_path: Path) -> None:
     bundle.write_text(json.dumps(CONTRACT), encoding="utf-8")
     assert mock.main([str(bundle)]) == 0
     assert "/api/v1/projects" in json.loads(bundle.read_text(encoding="utf-8"))["paths"]
+
+
+STRUCTURES = "/projects/{project_id}/revisions/{revision_id}/structures"
+AMENDMENT = "01926f3a-7c00-7000-8000-000000000203"
+
+
+def amendments_contract() -> dict[str, object]:
+    """Return a contract that lists a main structure and an amendment, and reads their nodes."""
+    listed = [
+        {"structure_id": "main", "kind": "main"},
+        {"structure_id": AMENDMENT, "kind": "amendment"},
+    ]
+    examples = {"witness": {"$ref": "#/x/witness"}, "amendment": {"$ref": "#/x/amendment"}}
+    listing = {"witness": {"$ref": "#/components/examples/structures"}}
+    return {
+        "servers": [{"url": "/api/v1"}],
+        "components": {"examples": {"structures": {"value": listed}}},
+        "paths": {
+            STRUCTURES: {
+                "get": {
+                    "responses": {
+                        "200": {"content": {"application/json": {"examples": listing}}},
+                    }
+                }
+            },
+            f"{STRUCTURES}/{{structure_id}}/nodes": {
+                "get": {
+                    "parameters": [
+                        {"$ref": "#/components/parameters/ProjectId"},
+                        {"$ref": "#/components/parameters/StructureId"},
+                    ],
+                    "responses": {
+                        "200": {"content": {"application/json": {"examples": examples}}},
+                    },
+                },
+                "post": {"parameters": [{"$ref": "#/components/parameters/StructureId"}]},
+            },
+        },
+    }
+
+
+def examples_of(path: dict[str, Any], method: str = "get") -> dict[str, Any]:
+    """Return the examples of the answer 200 of an operation of a path, its reading by default."""
+    content = path[method]["responses"]["200"]["content"]
+    return cast("dict[str, Any]", content["application/json"]["examples"])
+
+
+def test_the_nodes_of_an_amendment_are_served_at_its_address_leading_with_its_example() -> None:
+    paths = paths_of(mock.derive(amendments_contract()))
+    served = paths[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"]
+    assert list(examples_of(served)) == ["amendment", "witness"]
+    assert served["get"]["parameters"] == [{"$ref": "#/components/parameters/ProjectId"}]
+    assert served["post"]["parameters"] == []
+    assert set(paths) == {
+        f"/api/v1{STRUCTURES}",
+        f"/api/v1{STRUCTURES}/{{structure_id}}/nodes",
+        f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes",
+    }
+
+
+def test_the_templated_nodes_keep_their_first_example() -> None:
+    paths = paths_of(mock.derive(amendments_contract()))
+    templated = paths[f"/api/v1{STRUCTURES}/{{structure_id}}/nodes"]
+    assert list(examples_of(templated)) == ["witness", "amendment"]
+
+
+NODES = f"{STRUCTURES}/{{structure_id}}/nodes"
+
+
+def with_paste(contract: dict[str, object]) -> dict[str, object]:
+    """Return a contract whose paste on a structure answers the witness, then the amendment."""
+    examples = {"applied": {"$ref": "#/x/applied"}, "amendment": {"$ref": "#/x/pasted"}}
+    paths_of(contract)[f"{NODES}/paste"] = {
+        "post": {
+            "parameters": [{"$ref": "#/components/parameters/StructureId"}],
+            "responses": {"200": {"content": {"application/json": {"examples": examples}}}},
+        }
+    }
+    return contract
+
+
+def test_the_writes_of_an_amendment_are_served_at_its_address_leading_with_its_example() -> None:
+    # #1277: the paste on the amendment answers the amendment's nodes, not the witness's.
+    paths = paths_of(mock.derive(with_paste(amendments_contract())))
+    served = paths[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes/paste"]
+    assert list(examples_of(served, "post")) == ["amendment", "applied"]
+    assert served["post"]["parameters"] == []
+    templated = paths[f"/api/v1{NODES}/paste"]
+    assert list(examples_of(templated, "post")) == ["applied", "amendment"]
+
+
+def test_a_write_path_the_contract_does_not_have_is_not_routed() -> None:
+    paths = paths_of(mock.derive(amendments_contract()))
+    assert not any(path.endswith(("/paste", "/estimate-line")) for path in paths)
+
+
+def test_without_a_nodes_path_the_paths_are_only_prefixed() -> None:
+    contract = amendments_contract()
+    del paths_of(contract)[NODES]
+    assert set(paths_of(mock.derive(contract))) == {f"/api/v1{STRUCTURES}"}
+
+
+def test_nodes_served_without_a_listing_of_structures_fail_loudly() -> None:
+    contract = amendments_contract()
+    del paths_of(contract)[STRUCTURES]
+    with pytest.raises(ValueError, match="is not: no amendment to route"):
+        mock.derive(contract)
+
+
+COMPARISON = "/projects/{project_id}/revisions/comparison"
+
+
+def comparison_contract(*, with_volume: bool = True) -> dict[str, object]:
+    """Return a contract that reads the comparison of two revisions, by query, with examples."""
+    examples = {"witness": {"$ref": "#/x/witness"}}
+    if with_volume:
+        examples["volume"] = {"$ref": "#/x/volume"}
+    return {
+        "servers": [{"url": "/api/v1"}],
+        "paths": {
+            COMPARISON: {
+                "get": {
+                    "parameters": [
+                        {"$ref": "#/components/parameters/ProjectId"},
+                        {"name": "from_revision_id", "in": "query"},
+                    ],
+                    "responses": {
+                        "200": {"content": {"application/json": {"examples": examples}}},
+                    },
+                }
+            }
+        },
+    }
+
+
+def test_the_volume_comparison_is_served_at_the_project_of_the_volume_first() -> None:
+    paths = paths_of(mock.derive(comparison_contract()))
+    served = paths[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
+    assert list(examples_of(served)) == ["volume", "witness"]
+    assert served["get"]["parameters"] == [{"name": "from_revision_id", "in": "query"}]
+    assert list(examples_of(paths[f"/api/v1{COMPARISON}"])) == ["witness", "volume"]
+
+
+def test_a_comparison_without_a_volume_example_fails_loudly() -> None:
+    with pytest.raises(ValueError, match="has no example 'volume'"):
+        mock.derive(comparison_contract(with_volume=False))
+
+
+PROJECT = "/projects/{project_id}"
+
+
+def created_contract(*, with_created: bool = True) -> dict[str, object]:
+    """Return a contract that reads a project and its revisions, the witness first."""
+    project = {"witness": {"$ref": "#/x/witness"}}
+    if with_created:
+        project["created"] = {"$ref": "#/x/created"}
+    revisions = {"witness": {"$ref": "#/x/revisions"}, "empty": {"$ref": "#/x/empty"}}
+
+    def read(examples: dict[str, dict[str, str]]) -> dict[str, object]:
+        return {
+            "parameters": [{"$ref": "#/components/parameters/ProjectId"}],
+            "responses": {"200": {"content": {"application/json": {"examples": examples}}}},
+        }
+
+    return {
+        "servers": [{"url": "/api/v1"}],
+        "paths": {
+            PROJECT: {"get": read(project), "patch": {"parameters": []}},
+            f"{PROJECT}/revisions": {"get": read(revisions)},
+        },
+    }
+
+
+def test_the_project_created_is_read_at_its_address_without_a_revision() -> None:
+    # EP-15/US-0490/L4: the page of the project the creation answers reads it, and its revisions
+    # — none —, at its own address, where the template keeps the witness first.
+    paths = paths_of(mock.derive(created_contract()))
+    at = f"/api/v1{PROJECT.replace('{project_id}', mock.CREATED_PROJECT)}"
+    assert mock.CREATED_PROJECT == "01926f3a-7c00-7000-8000-000000000003"
+    assert list(examples_of(paths[at])) == ["created", "witness"]
+    assert paths[at]["get"]["parameters"] == []
+    assert "patch" in paths[at]
+    assert list(examples_of(paths[f"{at}/revisions"])) == ["empty", "witness"]
+    assert list(examples_of(paths[f"/api/v1{PROJECT}"])) == ["witness", "created"]
+    assert not any(path.endswith(("/next-state", "/work-breakdown")) for path in paths)
+
+
+def test_a_reading_of_the_project_without_its_created_example_fails_loudly() -> None:
+    with pytest.raises(ValueError, match="has no example 'created'"):
+        mock.derive(created_contract(with_created=False))
+
+
+def test_without_an_amendment_example_the_nodes_keep_their_examples() -> None:
+    contract = amendments_contract()
+    examples_of(paths_of(contract)[NODES]).pop("amendment")
+    served = paths_of(mock.derive(contract))[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"]
+    assert list(examples_of(served)) == ["witness"]
+
+
+def test_a_path_with_parameters_and_no_get_is_routed_without_failing() -> None:
+    contract = amendments_contract()
+    nodes = cast("dict[str, Any]", paths_of(contract)[NODES])
+    del nodes["get"]
+    nodes["parameters"] = [
+        {"$ref": "#/components/parameters/ProjectId"},
+        {"$ref": "#/components/parameters/StructureId"},
+    ]
+    nodes["summary"] = "nodes"
+    served = paths_of(mock.derive(contract))[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"]
+    assert served["parameters"] == [{"$ref": "#/components/parameters/ProjectId"}]
+    assert served["summary"] == "nodes"
+    assert "get" not in served
+
+
+def listing_examples(contract: dict[str, object]) -> dict[str, Any]:
+    """Return the examples of the listing of the structures of a contract."""
+    return examples_of(paths_of(contract)[STRUCTURES])
+
+
+def test_a_first_example_without_amendment_fails_loudly() -> None:
+    contract = amendments_contract()
+    components = cast("dict[str, Any]", contract["components"])
+    components["examples"]["main_only"] = {"value": [{"structure_id": "main", "kind": "main"}]}
+    listing = listing_examples(contract)
+    listing.clear()
+    listing["main_only"] = {"$ref": "#/components/examples/main_only"}
+    with pytest.raises(ValueError, match="lists no structure of kind"):
+        mock.derive(contract)
+
+
+def test_an_amendment_only_in_a_later_example_is_not_routed() -> None:
+    contract = amendments_contract()
+    components = cast("dict[str, Any]", contract["components"])
+    components["examples"]["main_only"] = {"value": [{"structure_id": "main", "kind": "main"}]}
+    listing = {"main_only": {"$ref": "#/components/examples/main_only"}} | listing_examples(
+        contract
+    )
+    listing_examples(contract).clear()
+    listing_examples(contract).update(listing)
+    with pytest.raises(ValueError, match="lists no structure of kind"):
+        mock.derive(contract)
+
+
+def test_an_unresolved_reference_fails_loudly() -> None:
+    contract = amendments_contract()
+    listing_examples(contract)["witness"] = {"$ref": "#/components/examples/missing"}
+    with pytest.raises(ValueError, match="points at no example"):
+        mock.derive(contract)
+
+
+def test_the_bundle_of_the_repository_serves_the_amendment_203_the_volume_and_the_created(
+    tmp_path: Path,
+) -> None:
+    root = Path(__file__).resolve().parents[2]
+    makefile = (root / "Makefile").read_text(encoding="utf-8")
+    version = re.search(r"^REDOCLY_VERSION := (\S+)$", makefile, re.MULTILINE)
+    assert version is not None
+    bundle = tmp_path / "contract.json"
+    subprocess.run(
+        [
+            str(shutil.which("npx")),
+            "--yes",
+            f"@redocly/cli@{version[1]}",
+            "bundle",
+            str(root / "docs/api/openapi.yaml"),
+            "--ext",
+            "json",
+            "-o",
+            str(bundle),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    served = paths_of(mock.derive(json.loads(bundle.read_text(encoding="utf-8"))))
+    assert any(path.endswith("0203/nodes") for path in served)
+    at = f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"
+    for path, method in (
+        (at, "get"),
+        (f"{at}/{{node_id}}/estimate-line", "patch"),
+        (f"{at}/paste-preview", "post"),
+        (f"{at}/paste", "post"),
+    ):
+        assert next(iter(examples_of(served[path], method))) == "amendment", path
+    volume = served[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
+    assert next(iter(examples_of(volume))) == "volume"
+    assert next(iter(examples_of(served[f"/api/v1{COMPARISON}"]))) == "witness"
+    created = f"/api/v1{PROJECT.replace('{project_id}', mock.CREATED_PROJECT)}"
+    for path, example in mock.CREATED_PATHS.items():
+        literal = f"/api/v1{path.replace('{project_id}', mock.CREATED_PROJECT)}"
+        assert next(iter(examples_of(served[literal]))) == example, path
+    opening = cast("dict[str, Any]", served[f"{created}/revisions"]["post"])
+    assert "201" in opening["responses"]
+    assert next(iter(examples_of(served[f"/api/v1{PROJECT}"]))) == "witness"

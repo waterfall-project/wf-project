@@ -157,7 +157,7 @@ export function CostTypeList({
           }
           pages={
             <ListPages
-              list={{ page: offset, reads: COST_TYPE_READS }}
+              list={{ page: offset, size: COST_TYPE_ADDRESS.limit, reads: COST_TYPE_READS }}
               title={title}
               page={page}
               shown={rows.length}
@@ -256,7 +256,7 @@ export function CostCategoryList({
           }
           pages={
             <ListPages
-              list={{ page: offset, reads: COST_CATEGORY_READS }}
+              list={{ page: offset, size: COST_CATEGORY_ADDRESS.limit, reads: COST_CATEGORY_READS }}
               title={title}
               page={page}
               shown={rows.length}

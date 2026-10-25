@@ -3,11 +3,16 @@
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
- * `updateEstimateLine`, `setLineRemaining`), a block pasted from a spreadsheet (`previewPaste`,
- * `applyPaste`), the totals of a filtered reading read anew (`listNodes`), the skeleton of the planning
- * generated on an empty main structure (`generatePlanningSkeleton`) —:
- * the grid asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the
- * one decoder makes of its answer (`src/api/problem.ts`).
+ * `updateEstimateLine`, `setLineRemaining`), the state of a task a card of the Kanban sends
+ * (`setTaskProgress`), the predecessors of a task (`setPredecessors`), a
+ * task or a line created and a node deleted
+ * (`createNode`, `deleteNode`), nodes moved under a task (`moveNodes`), the timelines a task is
+ * inscribed to (`setNodeTracking`), a block pasted from a
+ * spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew
+ * (`listNodes`), the skeleton of the planning generated on an empty main structure
+ * (`generatePlanningSkeleton`) —: the grid asks the server of Next,
+ * which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer
+ * (`src/api/problem.ts`).
  */
 "use server";
 
@@ -122,6 +127,67 @@ export async function setLineRemaining(
   );
 }
 
+/**
+ * Start, complete or reopen the task of a node, the gesture of a card of the Kanban, with the state
+ * the card says the gesture sends (`KanbanCommandAvailability.progress`), the date of the event and
+ * the version of the node read (WF-RAE-0030): the API answers the node as it now is, with its
+ * ancestors and the totals of the structure — or refuses the gesture, naming the first condition
+ * that lacks (`STATE_FORBIDS_OPERATION`).
+ */
+export async function setTaskProgress(
+  structure: StructurePath,
+  nodeId: string,
+  progress: components["schemas"]["ProgressUpdate"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().PUT(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress",
+      { ...nodePath(structure, nodeId), body: progress },
+    ),
+  );
+}
+
+/**
+ * Replace the predecessors of the task of a node by those sent, each with the type of its link and its
+ * lag in its unit, with the version of the node read (WF-PLA-0030, WF-PLA-0160): the API answers the
+ * node as it now is, its ancestors, the tasks the links redate and the totals of the structure — or
+ * refuses the links, a loop (`LINK_CYCLE`, its tasks named), a summary linked to one of its
+ * subordinates (`LINK_FORBIDDEN`) or a project past its horizon among its reasons; nothing is written
+ * then.
+ */
+export async function setPredecessors(
+  structure: StructurePath,
+  nodeId: string,
+  predecessors: components["schemas"]["PredecessorsReplace"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().PUT(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors",
+      { ...nodePath(structure, nodeId), body: predecessors },
+    ),
+  );
+}
+
+/**
+ * Replace the inscriptions of the task of a node — the timelines it is inscribed to, and the
+ * time/time tracking of a milestone — by those sent, with the version of the node read (WF-PLA-0060):
+ * the API answers the node as it now is, with its ancestors and the totals of the structure — or
+ * refuses it, a tracking of a task that is no milestone among its reasons (`MILESTONE_REQUIRED`);
+ * nothing is written then.
+ */
+export async function setNodeTracking(
+  structure: StructurePath,
+  nodeId: string,
+  tracking: operations["setNodeTracking"]["requestBody"]["content"]["application/json"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().PUT(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking",
+      { ...nodePath(structure, nodeId), body: tracking },
+    ),
+  );
+}
+
 /** The path of the nodes of a structure, where a block is pasted. */
 function nodesPath(structure: StructurePath) {
   return { params: { path: structure } };
@@ -160,6 +226,67 @@ export async function applyPaste(
     serverClient().POST(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste",
       { ...nodesPath(structure), body: confirmation },
+    ),
+  );
+}
+
+/**
+ * Create a task or a line of the estimate in the structure of a grid, under the parent and after
+ * the node the gesture names (WF-PLA-0130, WF-DEV-0050; #1183): the API answers the node created
+ * with its ancestors, the totals of the structure and the version it moved on to — or refuses it,
+ * a line under a task completed or a task that takes the project past its horizon among its
+ * reasons. The same write from the three grids: which of them may exercise it is the command of
+ * the structure read.
+ */
+export async function createNode(
+  structure: StructurePath,
+  node: components["schemas"]["NodeCreate"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().POST(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",
+      { ...nodesPath(structure), body: node },
+    ),
+  );
+}
+
+/**
+ * Delete a node of the structure of a grid (WF-PLA-0070): a task with its lines and its links, a
+ * summary with its subordinates too, sent with the counter of the node the grid read
+ * (WF-IHM-0110, #1210). The API answers the ancestors recalculated, the totals and the version the
+ * structure moved on to — or refuses it, a task already started or bearing an actual cost, or a
+ * node written since it was read, among its reasons.
+ */
+export async function deleteNode(
+  structure: StructurePath,
+  nodeId: string,
+  lockVersion: number,
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().DELETE(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}",
+      { params: { ...nodePath(structure, nodeId).params, query: { lock_version: lockVersion } } },
+    ),
+  );
+}
+
+/**
+ * Move nodes of the structure of a grid under a parent, after the node the gesture names
+ * (WF-PLA-0080, WF-PLA-0040; #1183): an indentation is a move under the task above, in the last
+ * place, and an outdentation a move after the parent, under the parent of it. The API answers the
+ * nodes as they now are, their old and new ancestors recalculated, the tasks redated, the totals and
+ * the version the structure moved on to — or refuses it, a link a summary would hold to one of its
+ * subordinates (`LINK_FORBIDDEN`), a loop (`LINK_CYCLE`) or a node to follow that is no sibling
+ * (`NODE_NOT_SIBLING`) among its reasons; nothing is written then.
+ */
+export async function moveNodes(
+  structure: StructurePath,
+  move: components["schemas"]["NodeMove"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().POST(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move",
+      { ...nodesPath(structure), body: move },
     ),
   );
 }

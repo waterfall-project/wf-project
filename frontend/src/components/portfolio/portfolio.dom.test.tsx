@@ -15,7 +15,7 @@ import {
   planningInstant,
 } from "@/components/chart/chart";
 import { ListPages } from "@/components/grid/list-pages";
-import { ROW_REM } from "@/components/grid/dense-grid";
+import { ROW_REM } from "@/components/grid/grid-floor";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -84,6 +84,7 @@ const PALETTE: ChartPalette = {
   axis: "rgb(5, 5, 5)",
   grid: "rgb(6, 6, 6)",
   background: "rgb(7, 7, 7)",
+  zones: { nominal: "nominal", watch: "watch", alert: "alert" },
   font: "sans-serif",
 };
 
@@ -102,7 +103,7 @@ function projectsGrid(list: ProjectList = LIST) {
     <ProjectsGrid
       projects={list.items}
       page={list.meta}
-      query={{ sort: undefined, search: undefined }}
+      query={{ sort: undefined, search: undefined, size: undefined }}
       preferences={undefined}
     />,
   );

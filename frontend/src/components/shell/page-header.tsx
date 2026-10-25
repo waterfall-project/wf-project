@@ -3,13 +3,16 @@
 /**
  * The template of a screen (charter, guide « Charte graphique »): its `<main>`, dense for the
  * grids and the lists — the most information under the eyes — or airy for the indicators; and
- * its header, the title with the icon of the function, a line under it, and its commands at the
- * right, each with its icon.
+ * its header, the title with the icon of the function and the button of the help of the screen
+ * beside it (`HelpPanel`, US-0580), a line under it, and its commands at the right, each with its
+ * icon.
  */
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/components/ui/utils";
+
+import { HelpPanel } from "./help-panel";
 
 /** How much a screen holds: dense for a grid or a list, airy for indicators. */
 export type Density = "dense" | "airy";
@@ -59,7 +62,10 @@ export function Screen({
   );
 }
 
-/** What the header of a screen shows: its title, its icon, a line under it, its commands. */
+/**
+ * What the header of a screen shows: its title, its icon, a line under it, its commands; and the
+ * button of its help, wherever the table of the functions knows the screen.
+ */
 export interface PageHeaderProps {
   readonly title: string;
   readonly icon?: LucideIcon | undefined;
@@ -67,6 +73,11 @@ export interface PageHeaderProps {
   /** The commands of the screen, at the right of its title. */
   readonly actions?: ReactNode;
   readonly density?: Density;
+  /**
+   * Whether the header offers the help of the screen at the address; not on a screen that stands
+   * in for another — not found, a session refused —, whose address names a screen it does not show.
+   */
+  readonly helped?: boolean;
 }
 
 /** Render the header of a screen. */
@@ -76,16 +87,33 @@ export function PageHeader({
   subtitle,
   actions,
   density = "dense",
+  helped = true,
 }: PageHeaderProps) {
   return (
     <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h1 className={cn("flex items-center gap-2 font-semibold", TITLE[density])}>
-          {Icon === undefined ? null : (
-            <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-          )}
-          {title}
-        </h1>
+        {/* The help after the last word of the title, in the flow of its text, an icon alone no
+            taller than one of its lines (`1lh`): among the commands it would narrow the whole
+            title, and as an item of a row that wraps it would take a line of its own under a
+            title on two lines (the remaining to commit on 1280 × 720) — either would make the
+            header taller and push the totals of a grid out of a low window. It goes to a line of
+            its own only where the last line of the title is full. */}
+        <div className={cn("font-semibold", TITLE[density])}>
+          <h1 className="inline">
+            {Icon === undefined ? null : (
+              <Icon
+                aria-hidden="true"
+                className="mr-2 inline-block size-5 align-middle text-muted-foreground"
+              />
+            )}
+            {title}
+          </h1>
+          {helped ? (
+            <span className="ml-2 inline-flex h-[1lh] items-center align-top empty:hidden">
+              <HelpPanel />
+            </span>
+          ) : null}
+        </div>
         {subtitle === undefined ? null : (
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         )}

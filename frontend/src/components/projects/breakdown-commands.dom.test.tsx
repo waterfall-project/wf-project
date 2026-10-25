@@ -9,6 +9,7 @@ import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -60,10 +61,10 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const SET = "PUT /projects/{project_id}/work-breakdown";
 const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 const WHOLE = example("work_breakdown") as WorkBreakdown;
-const ITEM = "Fourniture et montage des armoires";
-const PACKAGE = "Armoires";
+const PACKAGE = "Lot 1";
+const ITEM = "Poste 1.1";
 const DELIVERABLE = "Procès-verbal de réception usine des armoires";
-const ADDED = "Mise en service sur site";
+const ADDED = "Poste 1.2";
 
 /** An element of the witness, by the end of its identifier. */
 const id = (number: number) => `01926f3a-7c00-7000-8000-000000000${String(number)}`;
@@ -75,13 +76,13 @@ const quoted = (label: string) => `«\u00a0${label}\u00a0»`;
 const read = (label: string) => `« ${label} »`;
 
 /** The work breakdown of the witness as `setWorkBreakdown` writes it, an element changed or not. */
-function witness(packages: unknown[] = [writtenPackage()]) {
-  return { order_items: [{ order_item_id: id(711), label: ITEM, work_packages: packages }] };
+function witness(items: unknown[] = [writtenItem()]) {
+  return { work_packages: [{ work_package_id: id(711), label: PACKAGE, order_items: items }] };
 }
 
-/** The work package of the witness as `setWorkBreakdown` writes it. */
-function writtenPackage(label = PACKAGE, deliverables: unknown[] = [writtenDeliverable()]) {
-  return { work_package_id: id(712), label, deliverables };
+/** The order item of the witness as `setWorkBreakdown` writes it. */
+function writtenItem(label = ITEM, deliverables: unknown[] = [writtenDeliverable()]) {
+  return { order_item_id: id(712), label, deliverables };
 }
 
 /** The deliverable of the witness as `setWorkBreakdown` writes it. */
@@ -172,6 +173,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -181,12 +183,14 @@ afterEach(() => {
 });
 
 describe("the work breakdown edited in its grid", () => {
-  it("adds a work package without a deliverable from the menu of a cell, sends the work breakdown whole with it and no identifier, and shows the reading answered [WF-PRJ-0020-A]", async () => {
-    // Un lot peut être créé sans livrable.
+  it("adds an order item without a deliverable from the menu of a cell, sends the work breakdown whole with it and no identifier, and shows the reading answered [WF-PRJ-0020-A]", async () => {
+    // Un poste peut être créé sans livrable.
     const client = serve();
     render(list());
-    await fromMenu(ITEM, `Ajouter un lot au poste ${quoted(ITEM)}`);
-    expect(screen.getByRole("dialog")).toHaveAccessibleName(`Nouveau lot du poste ${quoted(ITEM)}`);
+    await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(
+      `Nouveau poste du lot ${quoted(PACKAGE)}`,
+    );
     await expectAccessible(screen.getByRole("dialog"));
     await enter(ADDED);
     await vi.waitFor(() => {
@@ -195,94 +199,103 @@ describe("the work breakdown edited in its grid", () => {
     // The marks of the reading are not written; the element added has no identifier.
     expect(written(client)).toEqual([
       {
-        ...witness([writtenPackage(), { label: ADDED, deliverables: [] }]),
+        ...witness([writtenItem(), { label: ADDED, deliverables: [] }]),
         lock_version: 1,
       },
     ]);
     expect(screen.queryByRole("dialog")).toBeNull();
-    // The reading answered, as the server gives it: the work package with its identifier and the
+    // The reading answered, as the server gives it: the order item with its identifier and the
     // deliverable it holds there.
     expect(shown()).toEqual([
-      ITEM,
       PACKAGE,
+      ITEM,
       DELIVERABLE,
       ADDED,
       "Procès-verbal de mise en service",
-      "1 poste, 2 lots et 2 livrables",
+      "1 lot, 2 postes et 2 livrables",
     ]);
-    expect(screen.getByRole("status")).toHaveTextContent(`Lot ${read(ADDED)} ajouté.`);
-    expect(within(grid()).getByText(ITEM).closest("td")).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent(`Poste ${read(ADDED)} ajouté.`);
+    expect(within(grid()).getByText(PACKAGE).closest("td")).toHaveFocus();
   });
 
-  it("adds an order item and renames an element from the bar of the grid, on the row of the active cell", async () => {
+  it("names the dialog of a deliverable added under an order item by the order item, as the menu of its cell does", async () => {
+    serve();
+    render(list());
+    await fromMenu(ITEM, `Ajouter un livrable au poste ${quoted(ITEM)}`);
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(
+      `Nouveau livrable du poste ${quoted(ITEM)}`,
+    );
+  });
+
+  it("adds a work package and renames an element from the bar of the grid, on the row of the active cell", async () => {
     const client = serve({ [SET]: ["work_breakdown_saved", "work_breakdown_saved"] });
     render(list());
-    const create = screen.getByRole("button", { name: "Nouveau poste" });
+    const create = screen.getByRole("button", { name: "Nouveau lot" });
     await userEvent.click(create);
-    expect(screen.getByRole("dialog")).toHaveAccessibleName("Nouveau poste");
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("Nouveau lot");
     await enter("Études");
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(1);
     });
     expect(create).toHaveFocus();
-    await activate(PACKAGE);
+    await activate(ITEM);
     await userEvent.click(
-      screen.getByRole("button", { name: `Renommer le lot ${quoted(PACKAGE)}` }),
+      screen.getByRole("button", { name: `Renommer le poste ${quoted(ITEM)}` }),
     );
-    expect(screen.getByRole("textbox", { name: "Libellé" })).toHaveValue(PACKAGE);
+    expect(screen.getByRole("textbox", { name: "Libellé" })).toHaveValue(ITEM);
     await enter("Armoires de commande");
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(2);
     });
     expect(written(client)).toEqual([
       {
-        order_items: [...witness().order_items, { label: "Études", work_packages: [] }],
+        work_packages: [...witness().work_packages, { label: "Études", order_items: [] }],
         lock_version: 1,
       },
       // The second gesture starts from the reading the first one answered, and its counter.
       {
-        order_items: [
+        work_packages: [
           {
             ...witness([
-              writtenPackage("Armoires de commande"),
+              writtenItem("Armoires de commande"),
               {
-                work_package_id: id(716),
+                order_item_id: id(716),
                 label: ADDED,
                 deliverables: [
                   { deliverable_id: id(717), label: "Procès-verbal de mise en service" },
                 ],
               },
-            ]).order_items[0],
+            ]).work_packages[0],
           },
         ],
         lock_version: 2,
       },
     ]);
     expect(screen.getByRole("status")).toHaveTextContent(
-      `Lot renommé ${read("Armoires de commande")}.`,
+      `Poste renommé ${read("Armoires de commande")}.`,
     );
   });
 
   it.each([
     [
-      ITEM,
-      `le poste ${quoted(ITEM)}`,
-      "Le poste, ses lots et leurs livrables seront supprimés. Les tâches de la révision en cours qui portent le poste ou l’un de ses lots restent et perdent leur rattachement\u00a0; les révisions marquées le gardent.",
-      { order_items: [] },
-      `Poste ${read(ITEM)} supprimé.`,
-    ],
-    [
       PACKAGE,
       `le lot ${quoted(PACKAGE)}`,
-      "Le lot et ses livrables seront supprimés. Les tâches de la révision en cours qui portent le lot restent et perdent leur rattachement\u00a0; les révisions marquées le gardent.",
-      witness([]),
+      "Le lot, ses postes et leurs livrables seront supprimés. Les tâches de la révision en cours qui portent le lot ou l’un de ses postes restent et perdent leur rattachement\u00a0; les révisions marquées le gardent.",
+      { work_packages: [] },
       `Lot ${read(PACKAGE)} supprimé.`,
+    ],
+    [
+      ITEM,
+      `le poste ${quoted(ITEM)}`,
+      "Le poste et ses livrables seront supprimés. Les tâches de la révision en cours qui portent le poste restent et perdent leur rattachement\u00a0; les révisions marquées le gardent.",
+      witness([]),
+      `Poste ${read(ITEM)} supprimé.`,
     ],
     [
       DELIVERABLE,
       `le livrable ${quoted(DELIVERABLE)}`,
       "Le livrable sera supprimé.",
-      witness([writtenPackage(PACKAGE, [])]),
+      witness([writtenItem(ITEM, [])]),
       `Livrable ${read(DELIVERABLE)} supprimé.`,
     ],
   ])(
@@ -306,7 +319,7 @@ describe("the work breakdown edited in its grid", () => {
   it("refuses an empty label before asking, at its field", async () => {
     const client = serve();
     render(list());
-    await userEvent.click(screen.getByRole("button", { name: "Nouveau poste" }));
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));
     await enter(" ");
     const field = screen.getByRole("textbox", { name: "Libellé" });
     expect(field).toHaveAttribute("aria-invalid", "true");
@@ -326,7 +339,7 @@ describe("the work breakdown edited in its grid", () => {
     async (refusal, sentence) => {
       serve({ [SET]: { problem: example(refusal) as Problem & { status: 422 } } });
       render(list());
-      await fromMenu(ITEM, `Ajouter un lot au poste ${quoted(ITEM)}`);
+      await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
       const dialog = await enter(ADDED);
       const field = within(dialog).getByRole("textbox", { name: "Libellé" });
       await vi.waitFor(() => {
@@ -339,9 +352,43 @@ describe("the work breakdown edited in its grid", () => {
     },
   );
 
+  it("notes once a refusal said at the field of the dialog, its rest told under it", async () => {
+    serve({
+      [SET]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [
+            { pointer: "/work_packages/0/order_items/1/label", code: "VALUE_REQUIRED" },
+            { pointer: "/lock_version", code: "VALUE_REQUIRED" },
+          ],
+        },
+      },
+    });
+    render(list());
+    await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
+    const dialog = await enter(ADDED);
+    const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+    await vi.waitFor(() => {
+      expect(field).toHaveAttribute("aria-invalid", "true");
+    });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Les données saisies ne sont pas valides.",
+    );
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "refusal",
+        sentence: "Les données saisies ne sont pas valides.",
+        // The two fields refused for the same reason: the reason said once (#1181).
+        detail: "Une valeur est requise.",
+        object: ADDED,
+      }),
+    ]);
+  });
+
   it("names the element a refusal points at when it is not the one the dialog writes", async () => {
-    // The work package added first; then « Armoires » renamed, the server refusing the work package
-    // added after it, sent with the identifier « Armoires » bears.
+    // The order item added first; then « Poste 1.1 » renamed, the server refusing the order item
+    // added after it, sent with the identifier « Poste 1.1 » bears.
     serve({
       [SET]: [
         "work_breakdown_saved",
@@ -349,17 +396,17 @@ describe("the work breakdown edited in its grid", () => {
       ],
     });
     render(list());
-    await fromMenu(ITEM, `Ajouter un lot au poste ${quoted(ITEM)}`);
+    await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
     await enter(ADDED);
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
-    await fromMenu(PACKAGE, `Renommer le lot ${quoted(PACKAGE)}`);
+    await fromMenu(ITEM, `Renommer le poste ${quoted(ITEM)}`);
     const dialog = await enter("Armoires de commande");
     const alerts = await within(dialog).findAllByRole("alert");
     expect(alerts.map((alert) => alert.textContent)).toEqual([
       expect.stringContaining("Les données saisies ne sont pas valides."),
-      `Lot ${quoted(ADDED)}\u00a0: Cet élément figure déjà plus haut dans le lotissement saisi\u00a0: chacun ne s’écrit qu’une fois.`,
+      `Poste ${quoted(ADDED)}\u00a0: Cet élément figure déjà plus haut dans le lotissement saisi\u00a0: chacun ne s’écrit qu’une fois.`,
     ]);
     expect(within(dialog).getByRole("textbox", { name: "Libellé" })).not.toHaveAttribute(
       "aria-invalid",
@@ -371,7 +418,7 @@ describe("the work breakdown edited in its grid", () => {
       [SET]: { problem: example("work_breakdown_background_task") as Problem & { status: 409 } },
     });
     render(list());
-    await userEvent.click(screen.getByRole("button", { name: "Nouveau poste" }));
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));
     const dialog = await enter("Études");
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "L’état actuel ne permet pas cette opération. Condition non remplie : aucun traitement de fond en cours sur l’objet.",
@@ -386,7 +433,7 @@ describe("the work breakdown edited in its grid", () => {
       },
     });
     render(list());
-    await userEvent.click(screen.getByRole("button", { name: "Nouveau poste" }));
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));
     const dialog = await enter("Études");
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Quelqu’un a modifié cette donnée entre-temps",
@@ -398,31 +445,29 @@ describe("the work breakdown edited in its grid", () => {
 
   it("writes from the work breakdown read whole while the grid shows a reading filtered, which keeps its rows and counts what it retains", async () => {
     const client = serve();
-    render(
-      list(AVAILABLE, example("work_breakdown_work_packages") as WorkBreakdown, ["work_package"]),
-    );
-    // The order item is there for the context of its work package: the totals count the work
-    // package alone (#574).
-    expect(shown()).toEqual([ITEM, PACKAGE, "1 lot"]);
-    await activate(PACKAGE);
+    render(list(AVAILABLE, example("work_breakdown_order_items") as WorkBreakdown, ["order_item"]));
+    // The work package is there for the context of its order item: the totals count the order
+    // item alone (#574).
+    expect(shown()).toEqual([PACKAGE, ITEM, "1 poste"]);
+    await activate(ITEM);
     await userEvent.click(
-      screen.getByRole("button", { name: `Renommer le lot ${quoted(PACKAGE)}` }),
+      screen.getByRole("button", { name: `Renommer le poste ${quoted(ITEM)}` }),
     );
     await enter("Armoires de commande");
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(1);
     });
     expect(written(client)).toEqual([
-      { ...witness([writtenPackage("Armoires de commande")]), lock_version: 1 },
+      { ...witness([writtenItem("Armoires de commande")]), lock_version: 1 },
     ]);
-    expect(shown()).toEqual([ITEM, PACKAGE, "1 lot"]);
+    expect(shown()).toEqual([PACKAGE, ITEM, "1 poste"]);
   });
 
   it("keeps its commands waiting while a write of the dialog closed is under way, then opens on the counter the answer brings (#661, #734)", async () => {
     const { timing, release } = held();
     const client = serve({}, timing);
     render(list());
-    const create = screen.getByRole("button", { name: "Nouveau poste" });
+    const create = screen.getByRole("button", { name: "Nouveau lot" });
     await userEvent.click(create);
     const dialog = await enter("Études");
     await userEvent.click(within(dialog).getByRole("button", { name: "Annuler" }));
@@ -434,11 +479,13 @@ describe("the work breakdown edited in its grid", () => {
     expect(create).toHaveFocus();
     expect(create).toHaveAttribute("aria-disabled", "true");
     expect(create).toHaveAttribute("aria-busy", "true");
-    expect(create).toHaveAccessibleDescription("Enregistrement en cours…");
+    expect(create).toHaveAccessibleDescription(
+      `${CATALOGUES.fr.reference.form.writing} ${CATALOGUES.fr.commands.breakdownWorkPackage.help}`,
+    );
     await userEvent.click(create);
     expect(screen.queryByRole("dialog")).toBeNull();
     release();
-    expect(await screen.findByText(`Poste ${read("Études")} ajouté.`)).toBeInTheDocument();
+    expect(await screen.findByText(`Lot ${read("Études")} ajouté.`)).toBeInTheDocument();
     expect(create).not.toHaveAttribute("aria-disabled");
     await userEvent.click(create);
     await enter("Essais");
@@ -449,12 +496,12 @@ describe("the work breakdown edited in its grid", () => {
   });
 
   it.each([
-    ["answered", {}, "status", `Lot ${quoted(ADDED)} ajouté.`],
+    ["answered", {}, "status", `Poste ${quoted(ADDED)} ajouté.`],
     [
       "refused",
       { [SET]: { problem: example("work_breakdown_label_required") as Problem & { status: 422 } } },
       "alert",
-      `Lot ${quoted(ADDED)}\u00a0: Une valeur est requise.`,
+      `Poste ${quoted(ADDED)}\u00a0: Une valeur est requise.`,
     ],
     ["rejected, the API out of reach", {}, "alert", "Le service est injoignable"],
   ] satisfies [string, FakeAnswers, "status" | "alert", string][])(
@@ -464,10 +511,10 @@ describe("the work breakdown edited in its grid", () => {
       failing.until = outcome.startsWith("rejected") ? until : undefined;
       const client = serve(answers, timing);
       render(list());
-      await fromMenu(ITEM, `Ajouter un lot au poste ${quoted(ITEM)}`);
+      await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
       const dialog = await enter(ADDED);
       await userEvent.click(within(dialog).getByRole("button", { name: "Annuler" }));
-      const create = screen.getByRole("button", { name: "Nouveau poste" });
+      const create = screen.getByRole("button", { name: "Nouveau lot" });
       expect(create).toHaveAttribute("aria-disabled", "true");
       release();
       await vi.waitFor(() => {
@@ -481,7 +528,7 @@ describe("the work breakdown edited in its grid", () => {
         expect(create).not.toHaveAttribute("aria-disabled");
       });
       await userEvent.click(create);
-      expect(screen.getByRole("dialog", { name: "Nouveau poste" })).toBeVisible();
+      expect(screen.getByRole("dialog", { name: "Nouveau lot" })).toBeVisible();
     },
   );
 
@@ -496,7 +543,7 @@ describe("the work breakdown edited in its grid", () => {
     async (condition, said) => {
       serve();
       render(list({ is_available: false, missing_conditions: [condition] }));
-      const create = screen.getByRole("button", { name: "Nouveau poste" });
+      const create = screen.getByRole("button", { name: "Nouveau lot" });
       expect(create).toHaveAttribute("aria-disabled", "true");
       expect(create).toHaveAccessibleDescription(`Condition non remplie\u00a0: ${said}.`);
       await userEvent.click(create);

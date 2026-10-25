@@ -4,9 +4,10 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { RouterContext } from "next/dist/shared/lib/router-context.shared-runtime";
 import type { NextRouter } from "next/router";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NodeList } from "@/components/grid/nodes";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
   ACCOUNT_NOT_ADMITTED_DIGEST,
@@ -82,7 +83,36 @@ function refusedFor(lines: ReturnType<typeof borneLines>) {
   );
 }
 
+beforeEach(() => {
+  forgetMessages();
+});
+
 describe("the notice of an outcome", () => {
+  it("tells what it is said to inside the alert, before the sentence, and notes the same sentence with or without it", () => {
+    const refused = {
+      kind: "refused",
+      problem: { code: "LINK_FORBIDDEN", status: 422, correlation_id: "c-1" },
+      conflictingObjectId: null,
+    } as const;
+    const notice = (lead?: string) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={refused} onClear={vi.fn()} lead={lead} />
+      </NextIntlClientProvider>
+    );
+    const { unmount } = render(notice("Refusé à la ligne 4, « Câblage » :"));
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      /^Refusé à la ligne 4, « Câblage » :.*Cette liaison n’est pas permise\./u,
+    );
+    const [led] = readMessages().messages;
+    unmount();
+    forgetMessages();
+    render(notice());
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Refusé à la ligne");
+    expect(readMessages().messages[0]?.sentence).toBe(led?.sentence);
+    expect(led?.sentence).toBe("Cette liaison n’est pas permise.");
+  });
+
   it("shows the reference of the unexpected error, as the screen of failure does, and of no other refusal", () => {
     const thrown = Object.assign(new Error("Server Components render"), { digest: "3141592653" });
     const { rerender } = render(

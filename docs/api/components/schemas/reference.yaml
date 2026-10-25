@@ -880,7 +880,8 @@ DurationUnitsWrite:
   required: [hours_per_day, hours_per_week, days_per_month, lock_version]
   description: >-
     Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160) : le
-    motif refuse un signe, et une constante nulle est refusée par 422, `fields` la nommant.
+    motif refuse un signe, et une constante nulle est refusée par 422, `fields` la nommant par
+    `DURATION_UNIT_NOT_POSITIVE`.
   properties:
     hours_per_day:
       allOf: [{ $ref: ../common.yaml#/Decimal }]

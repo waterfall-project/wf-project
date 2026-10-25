@@ -30,6 +30,8 @@ import {
   useState,
 } from "react";
 
+import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -43,6 +45,8 @@ import { cn } from "@/components/ui/utils";
 
 import { type CellFolding, FoldMenuItems } from "./fold";
 import { type CellPosition, positionOf } from "./grid-keyboard";
+import type { RowsApplied } from "./row-choices";
+import type { RowDrag } from "./row-selection";
 
 /** The two commands. */
 export type UndoCommand = "undo" | "redo";
@@ -136,23 +140,29 @@ export function UndoAnnouncer({
 /** Render the commands in the bar of a grid: their buttons, and why they wait. */
 export function UndoCommands() {
   const t = useTranslations("grid.undo");
+  const said = useTranslations("commands");
   const reason = useId();
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex shrink-0 items-center gap-1">
       {COMMANDS.map((command) => (
-        <Button
+        <CommandTooltip
           key={command}
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={t(command)}
-          aria-disabled
-          aria-describedby={reason}
-          aria-keyshortcuts={KEYS[command]}
-          className={cn("size-7", UNAVAILABLE)}
+          label={t(command)}
+          help={said(`${command}.help`)}
+          keys={KEYS[command]}
+          unavailable={t("unavailable")}
+          describedBy={reason}
         >
-          {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t(command)}
+            className={cn("size-7", UNAVAILABLE)}
+          >
+            {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
+          </Button>
+        </CommandTooltip>
       ))}
       <p id={reason} className="max-w-56 text-xs text-muted-foreground">
         {t("unavailable")}
@@ -214,30 +224,118 @@ interface MenuOpened {
 
 /**
  * The commands a screen gives the rows of a grid — those of the work breakdown —: in its bar, on the
- * row of the active cell, none on the header or in an empty grid; in the menu of a cell, on its row.
+ * row of the active cell, none on the header or in an empty grid; in the menu of a cell, on its row;
+ * each also given the rows it acts on, the selection the row stands in or the row alone.
  */
-export interface RowCommands<Row> {
+export type RowCommands<Row> = RowCommandsOf<Row> & RowDragging<Row>;
+
+/** The commands of a screen on the rows of a grid, but for dragging them (`RowDragging`). */
+interface RowCommandsOf<Row> {
   readonly bar: (row: Row | undefined) => ReactNode;
-  readonly menu: (row: Row | undefined, opened: Omit<MenuOpened, "at">) => ReactNode;
+  readonly menu: (
+    row: Row | undefined,
+    opened: Omit<MenuOpened, "at"> & {
+      readonly rows: readonly Row[];
+      /** Show the rows a write answered in place of the rows read, as a cell written does. */
+      readonly applied: (written: RowsApplied<Row>) => void;
+    },
+  ) => ReactNode;
+  /**
+   * The keys of the commands, on the row of the active cell: whether the key pressed is one of them,
+   * in which case the grid takes it. None, and the screen has no key.
+   */
+  readonly keys?:
+    | ((row: Row | undefined, event: KeyboardEvent<HTMLElement>, rows: readonly Row[]) => boolean)
+    | undefined;
+  /** What the commands put around the grid: the dialogs they open, what they answered. */
+  readonly around?: ReactNode;
+  /**
+   * The row a command was refused at, and the identifier of the sentence that says why: the grid marks
+   * its label and has it describe the refusal.
+   */
+  readonly refused?: { readonly row: Row; readonly described: string } | undefined;
+  /**
+   * The row the last command moved, the how-many-th, and whether the reading anew it asked is over:
+   * the active cell follows that row through the reading, and the focus with it.
+   */
+  readonly moved?: RowMoved<Row> | undefined;
+  /**
+   * Count a write of the grid itself — a cell entered, a block pasted — among those the commands wait
+   * for: the grid is busy, and offers no gesture, until it answered (#1224). None, and the commands
+   * wait for their own writes alone.
+   */
+  readonly writing?: ((write: Promise<unknown>) => void) | undefined;
+}
+
+/**
+ * What the screen does of rows dragged by their handles, the commands acting on the selection the
+ * handles make — none, and the grid selects nothing —, and whether a command waits for its write or
+ * for the reading anew that follows, which makes the grid busy. A screen that drags says whether it
+ * is busy: the grid drops nothing until it is not, a move from the neighbours before the reading
+ * going with a version already moved on.
+ */
+export type RowDragging<Row> =
+  | { readonly drag: RowDrag<Row>; readonly busy: boolean }
+  | { readonly drag?: undefined; readonly busy?: boolean | undefined };
+
+/** The row a command moved, as `RowCommands.moved` tells it. */
+export interface RowMoved<Row> {
+  readonly row: Row;
+  readonly count: number;
+  readonly settled: boolean;
 }
 
 /**
  * The commands of a screen on the rows of a grid, each found by its index among those shown — in the
- * bar, that of the active cell; in the menu, that of the cell it opened on —; nothing when the screen
- * gives none.
+ * bar, that of the active cell; in the menu, that of the cell it opened on —, with the rows it acts
+ * on from there (`acted`), and how the rows a write answered take the place of those read
+ * (`applied`); nothing when the screen gives none.
  */
 export function onRows<Row>(
   commands: RowCommands<Row> | undefined,
   rowAt: (index: number) => Row | undefined,
-): { readonly bar: (index: number) => ReactNode; readonly menu: MenuCommands | undefined } {
+  acted: (index: number) => readonly Row[],
+  applied: (written: RowsApplied<Row>) => void,
+): {
+  readonly bar: (index: number) => ReactNode;
+  readonly menu: MenuCommands | undefined;
+  readonly keys: (index: number, event: KeyboardEvent<HTMLElement>) => boolean;
+  /** Whether a command waits, which makes the grid busy. */
+  readonly busy: boolean;
+} {
   if (commands === undefined) {
-    return { bar: () => null, menu: undefined };
+    return { bar: () => null, menu: undefined, keys: () => false, busy: false };
   }
   return {
+    busy: commands.busy === true,
     bar: (index) => commands.bar(rowAt(index)),
     menu: ({ at, ...opened }) =>
-      commands.menu(at === undefined ? undefined : rowAt(at.row), opened),
+      commands.menu(at === undefined ? undefined : rowAt(at.row), {
+        ...opened,
+        rows: at === undefined ? [] : acted(at.row),
+        applied,
+      }),
+    keys: (index, event) => commands.keys?.(rowAt(index), event, acted(index)) ?? false,
   };
+}
+
+/**
+ * How a grid tells the commands of its screen of its own writes — a cell entered, a block pasted —,
+ * which they wait for (`RowCommands.writing`); none when the screen gives no command, or they wait
+ * for nothing of the grid's.
+ */
+export function writingOf<Row>(
+  commands: RowCommands<Row> | undefined,
+): ((write: Promise<unknown>) => void) | undefined {
+  return commands?.writing;
+}
+
+/**
+ * Whether the commands of a grid's screen wait for a write — theirs or the grid's — or for the reading
+ * anew that follows: the confirmation of a paste waits with them (#1224).
+ */
+export function busyOf<Row>(commands: RowCommands<Row> | undefined): boolean {
+  return commands?.busy === true;
 }
 
 /**
@@ -382,6 +480,7 @@ function UndoMenuItems({
   readonly separated: boolean;
 }) {
   const t = useTranslations("grid.undo");
+  const said = useTranslations("commands");
   return (
     <>
       {separated ? <ContextMenuSeparator /> : null}
@@ -390,23 +489,21 @@ function UndoMenuItems({
       </ContextMenuLabel>
       <ContextMenuSeparator />
       {COMMANDS.map((command) => (
-        <ContextMenuItem
+        <MenuCommand
           key={command}
-          aria-disabled
-          aria-describedby={reason}
-          aria-keyshortcuts={KEYS[command]}
+          item={ContextMenuItem}
+          label={t(command)}
+          help={said(`${command}.help`)}
+          keys={KEYS[command]}
+          unavailable={t("unavailable")}
+          describedBy={reason}
+          icon={command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
           className={UNAVAILABLE}
           // Pressed, it does nothing, and the menu stays open on the reason.
           onSelect={(event) => {
             event.preventDefault();
           }}
-        >
-          {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
-          {t(command)}
-          <kbd className="ml-auto pl-4 font-sans text-xs text-muted-foreground">
-            {t(`shortcut.${command}`)}
-          </kbd>
-        </ContextMenuItem>
+        />
       ))}
     </>
   );

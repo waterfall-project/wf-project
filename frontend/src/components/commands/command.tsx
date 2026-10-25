@@ -20,6 +20,7 @@ import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
+import { CommandTooltip } from "./command-tooltip";
 import { useHeldCommand } from "./held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
@@ -29,6 +30,8 @@ export interface CommandProps {
   /** What the screen offers of the command; `undefined` when the user may not exercise it. */
   readonly offer: CommandOffer | undefined;
   readonly label: string;
+  /** What the command does, translated (`commands.<command>.help`): its tooltip says it. */
+  readonly help: string;
   /**
    * The icon before its name, hidden from a screen reader (`commandIcon`): an element, which a
    * server component hands over as it hands over any child — a component would not cross.
@@ -46,6 +49,8 @@ export interface CommandProps {
    * name —, in place of an action: pressed available, it opens or closes it.
    */
   readonly disclosure?: Disclosure | undefined;
+  /** What the command is about, by its name, which the history of the messages notes. */
+  readonly subject?: string | undefined;
 }
 
 /** A command that opens what it asks before it runs. */
@@ -100,8 +105,18 @@ export function useUnmet(): (offer: CommandOffer) => string {
 }
 
 /** Render a command as the screen offers it, and tell of the outcome of running it. */
-export function Command({ offer, label, icon, action, names, disclosure }: CommandProps) {
+export function Command({
+  offer,
+  label,
+  help,
+  icon,
+  action,
+  names,
+  disclosure,
+  subject,
+}: CommandProps) {
   const id = useId();
+  const unmetText = useUnmet();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const held = useHeldCommand();
@@ -126,22 +141,29 @@ export function Command({ offer, label, icon, action, names, disclosure }: Comma
   };
   return (
     <div className="space-y-1">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-disabled={offer.is_available ? undefined : true}
-        aria-describedby={unmet}
-        aria-busy={pending}
-        aria-expanded={disclosure?.expanded}
-        aria-controls={disclosure?.expanded === true ? disclosure.controls : undefined}
-        ref={disclosure?.ref}
-        className={UNAVAILABLE}
-        onClick={run}
+      <CommandTooltip
+        label={label}
+        help={help}
+        unavailable={unmet === undefined ? undefined : unmetText(offer)}
+        describedBy={unmet}
       >
-        {icon}
-        {label}
-      </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-busy={pending}
+          // Unavailable with no condition to name: marked all the same, the tooltip saying none.
+          {...(!offer.is_available && unmet === undefined ? { "aria-disabled": true } : {})}
+          aria-expanded={disclosure?.expanded}
+          aria-controls={disclosure?.expanded === true ? disclosure.controls : undefined}
+          ref={disclosure?.ref}
+          className={UNAVAILABLE}
+          onClick={run}
+        >
+          {icon}
+          {label}
+        </Button>
+      </CommandTooltip>
       <UnmetConditions id={unmet} offer={offer} />
       <OutcomeNotice
         outcome={outcome}
@@ -149,6 +171,7 @@ export function Command({ offer, label, icon, action, names, disclosure }: Comma
         onClear={() => {
           setOutcome(undefined);
         }}
+        subject={subject}
       />
     </div>
   );

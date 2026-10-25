@@ -8,6 +8,9 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
 
 - ``nodes_thousand.json``, ``listNodes``: the structure of a thousand tasks and their lines
   (``wftools.mockstructure``);
+- ``comparison_volume.json``, ``compareRevisions``: the offer and the reference compared over that
+  whole structure, read with ``fields`` as the screen of the comparison reads it
+  (``wftools.mockhistory``, #1201);
 - ``estimate_indicators_volume.json``, ``getEstimateIndicators``: the indicators of that estimate,
   the reading of the witness itself since it sums its whole structure (``wftools.mocktoday``,
   EP-14/L45a), so that the fake back tells the same story on both;
@@ -43,7 +46,13 @@ readings of the readable core of the witness, described once in ``wftools.mockwi
 dated in ``wftools.mockcore``, so that every example names each node by one identifier, one
 lineage and one figure (EP-02/L21, #287); and the answers of the writes of the grids, made on
 that core or on the structure of a thousand tasks, written beside them by ``wftools.mockwrites``
-(EP-02/L22).
+(EP-02/L22), and those of the gestures of the structure and of the entries of a task, by
+``wftools.mockgestures`` (EP-15/US-0460) — those of the estimate made on the amendment 2 by
+``wftools.mockamendmentwrites`` (#1214) —, and the refusals of a paste and of an import, by
+``wftools.mockexchanges`` (EP-15/US-0460), and those of a date on a day without hours of work,
+refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and the answers of
+the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the revisions of the
+witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -68,14 +77,23 @@ from typing import TYPE_CHECKING, Any, cast
 
 from wftools import (
     REPOSITORY,
+    mockamendment,
+    mockamendmentwrites,
     mockaudit,
+    mockcomparisons,
     mockcore,
     mockcosts,
+    mockcycle,
+    mockexchanges,
+    mockgestures,
     mockhistory,
     mockids,
+    mockkanban,
     mocklists,
+    mocknonworking,
     mockportfoliotime,
     mockreference,
+    mockriskwrites,
     mocksort,
     mocktext,
     mocktoday,
@@ -113,7 +131,6 @@ from wftools.mockstructure import (
 )
 from wftools.mocktext import PAGE
 from wftools.mockwitness import (
-    ASSEMBLY,
     COMMISSIONING,
     CONTROL_STATION,
     CORE,
@@ -122,6 +139,8 @@ from wftools.mockwitness import (
     DEFAULT_BREAKDOWN,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
+    FIRST_ITEM,
+    FIRST_LOT,
     FIXTURES,
     INSTALLATION,
     INSTALLED,
@@ -328,7 +347,16 @@ def named() -> dict[str, JsonObject]:
     return {
         **readings(),
         **mockwrites.writes(),
+        **mockkanban.examples(),
+        **mockgestures.examples(),
+        **mockamendmentwrites.examples(),
+        **mockexchanges.examples(),
+        **mocknonworking.examples(),
+        **mockamendment.examples(),
         **mockhistory.examples(),
+        **mockcycle.examples(),
+        **mockcomparisons.examples(),
+        **mockriskwrites.examples(),
         **mocktoday.examples(),
         **mockcosts.examples(),
         **mockportfoliotime.examples(),
@@ -386,8 +414,8 @@ def readings() -> dict[str, JsonObject]:
     total = cast("JsonObject", estimate["totals"])
     [provision] = [row.amounts.base for row in rows if row.number == _PROVISION]
     # The Kanban of the whole structure, today and after the wiring declared completed (#528).
-    today = mockcore.startable(rows)
-    gesture = mockcore.startable(mockcore.current(described(wiring_completed())))
+    today = mockkanban.kanban(rows)
+    gesture = mockkanban.kanban(mockcore.current(described(wiring_completed())))
     core = {universe(row.number) for row in rows if row.number < mockwitness.GENERATED}
     return {
         "nodes.json": _example(
@@ -423,8 +451,8 @@ def readings() -> dict[str, JsonObject]:
             mockcore.subtree(rows, STUDIES.number, _TASKS),
         ),
         "nodes_estimate.json": _example(
-            f"Le devis du lot « Poste de commande », récapitulative rattachée au poste "
-            f"« {ASSEMBLY.label} » du lotissement (WF-PLA-0130), lu avec ses lignes (subtree_of) "
+            f"Le devis de la récapitulative « Poste de commande », rattachée au lot "
+            f"« {FIRST_LOT.label} » du lotissement (WF-PLA-0130), lu avec ses lignes (subtree_of) "
             f"le {day} : "
             f"sous le câblage des armoires, démarré le 4 mai et qui s'achève le 30 juin, une "
             f"ligne de main-d'œuvre de 12,5 h à {_amount(ELECTRICAL_RATE)} — "
@@ -467,9 +495,9 @@ def readings() -> dict[str, JsonObject]:
             mockcore.subtree(mockcore.alone(nested()), INSTALLATION.number, _TASKS),
         ),
         "nodes_summaries.json": _example(
-            f"L'arborescence de tâches de la variante à quatre niveaux du planning du témoin, son "
-            f"cœur lu seul — totaux du cœur —, demandée au niveau 2 (kinds=task, summaries_only, "
-            f"max_level=2) le {day} : les "
+            f"Variante contrefactuelle du planning du témoin, à quatre niveaux comme "
+            f"nodes_nested : son arborescence de tâches, son cœur lu seul — totaux du cœur —, "
+            f"demandée au niveau 2 (kinds=task, summaries_only, max_level=2) le {day} : les "
             f"récapitulatives des deux premiers niveaux — les études, l'installation sur site et "
             f"le lot « Poste de commande » rangé sous elle —, que le front dessine sous le nœud "
             f"du projet ; ni le sous-arbre fusionné par la survenance, récapitulative du "
@@ -531,16 +559,18 @@ def readings() -> dict[str, JsonObject]:
             [{"timeline_id": timeline, "label": label} for timeline, label in TIMELINES],
         ),
         "work_breakdown.json": _example(
-            f"Le lotissement du projet témoin le {day} (WF-PRJ-0020) : un poste, « Fourniture et "
-            f"montage des armoires », que porte la récapitulative « Poste de commande » ; son lot "
-            f"« Armoires », qu'aucune tâche ne porte (WF-PLA-0130) ; et le livrable de ce lot.",
-            mocklists.breakdown_reading(WORK_BREAKDOWN, 1),
+            f"Le lotissement du projet témoin le {day} (WF-PRJ-0020) : un lot, "
+            f"« {FIRST_LOT.label} », que porte la récapitulative « {CONTROL_STATION.label} » ; "
+            f"son poste « {FIRST_ITEM.label} », qu'aucune tâche ne porte (WF-PLA-0130) ; et le "
+            f"livrable de ce poste. Chaque lot et chaque poste disent la tâche qui les porte, "
+            f"par son nœud et son libellé, ou aucune (attached_task, WF-PLA-0170, #802).",
+            mocklists.breakdown_reading(WORK_BREAKDOWN, 1, CORE),
         ),
         "work_breakdown_default.json": _example(
             f"Le lotissement du projet créé le {day}, « {CREATED_PROJECT[1]} », dont la "
-            f"commande n'est pas saisie : le lotissement par défaut, un poste comprenant un lot "
+            f"commande n'est pas saisie : le lotissement par défaut, un lot comprenant un poste "
             f"sans livrable, qui portent le libellé du projet (WF-PRJ-0020), que rien n'a encore "
-            f"écrit.",
+            f"écrit, et qu'aucune tâche ne porte : sa révision n'en a pas.",
             mocklists.breakdown_reading(DEFAULT_BREAKDOWN, 0),
         ),
         "timelines_empty.json": _example(
@@ -559,13 +589,20 @@ def readings() -> dict[str, JsonObject]:
             f"tâches par état, chaque colonne dans l'ordre du plan : {mocktext.kanban(today, core)}"
             f". La réception usine attend la fin du câblage, et rien ne se termine seul ; les "
             f"pupitres opérateurs sont en mode manuel et en dépassement de fin ; les terminées "
-            f"portent leur date, et le Kanban les rouvre. Jamais une récapitulative, dont l'état "
-            f"dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040).",
+            f"portent leur date, et le Kanban les rouvre. Chaque carte liste ses gestes et l'état "
+            f"que chacun envoie (available_commands) : la réception usine, jalon sans ligne, se "
+            f"termine sans démarrer ; le montage des armoires sur site démarre, et ne se termine "
+            f"que par la saisie de son reste à engager, comme le câblage des armoires, démarré ; "
+            f"les pupitres opérateurs, démarrés sans ligne, se terminent ; une tâche terminée se "
+            f"rouvre démarrée, la réception des études, jalon, non démarrée. Jamais une "
+            f"récapitulative, dont l'état dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040, "
+            f"WF-PLA-0050, WF-IHM-0090).",
             today,
         ),
         "startable_tasks_milestone.json": _example(
-            f"Le Kanban de toute la structure du témoin le {day}, le câblage des armoires déclaré "
-            f"terminé ce jour-là : {mocktext.kanban(gesture, core)}. La réception usine, jalon "
+            f"Variante contrefactuelle du témoin, le câblage des armoires supposé déclaré terminé "
+            f"le {day}, ce qu'aucune écriture du témoin ne fait : le Kanban de toute la structure "
+            f"ce jour-là, {mocktext.kanban(gesture, core)}. La réception usine, jalon "
             f"dont le seul prédécesseur est terminé, est posée à la main au 30 juin, non démarrée "
             f"tant que personne ne la termine ; les pupitres opérateurs restent démarrés, en "
             f"dépassement de fin ; le câblage est parmi les terminées, à la date du geste "
@@ -624,6 +661,7 @@ def volumes() -> dict[str, JsonObject]:
     rows = cast("list[JsonObject]", projects["items"])
     return {
         "nodes_thousand.json": _example(_structure_summary(nodes), nodes),
+        "comparison_volume.json": mockcomparisons.comparison_volume(),
         "summary_dependencies.json": _example(
             "Ce dont dépend la date de fin de la première récapitulative de la structure aux "
             "volumes du §4.6.2 : ses subordonnées directes, nommées par leur numéro et leur "
@@ -698,7 +736,9 @@ def volumes() -> dict[str, JsonObject]:
         "portfolio_risks.json": _example(
             f"Les risques des projets en cours du portefeuille du §4.6.2 au "
             f"{_day(TODAY.date())} : le total des provisions identifiées, les dix risques "
-            f"les plus lourds avec leur projet, la matrice remplie, la couverture des risques "
+            f"les plus lourds avec leur projet, la matrice remplie — chaque risque identifié "
+            f"compté dans sa case et placé en point à ses valeurs exactes, avec son projet —, "
+            f"la couverture des risques "
             f"agrégée — la somme des réserves de référence des projets face aux provisions "
             f"restantes et au coût des risques survenus —, et les provisions survenues et "
             f"écartées sur l'année (WF-PTF-0090, WF-RIS-0050). Un risque dit si le lecteur "
@@ -775,6 +815,9 @@ def _ordinal(value: int) -> str:
 
 # The envelope of an example and its value are laid out; below them, one line per item.
 _EXPANDED_DEPTH = 2
+# Below them, an object that holds a list longer than this is laid out too, the list one line per
+# item: a point of the matrix of the portfolio changed is one line of the diff (#1053).
+_LONG_LIST = 50
 
 
 def render(example: JsonObject) -> str:
@@ -788,12 +831,16 @@ def _render(value: JsonValue, depth: int) -> str:
     if isinstance(value, list) and value:
         items = ",\n".join(inner + _compact(item) for item in value)
         return f"[\n{items}\n{indent}]"
-    if isinstance(value, dict) and depth < _EXPANDED_DEPTH:
+    if isinstance(value, dict) and (depth < _EXPANDED_DEPTH or _holds_long_list(value)):
         fields = ",\n".join(
             f"{inner}{_compact(key)}: {_render(item, depth + 1)}" for key, item in value.items()
         )
         return f"{{\n{fields}\n{indent}}}"
     return _compact(value)
+
+
+def _holds_long_list(value: JsonObject) -> bool:
+    return any(isinstance(item, list) and len(item) > _LONG_LIST for item in value.values())
 
 
 def _compact(value: JsonValue) -> str:

@@ -45,7 +45,7 @@ interface CostList {
   readonly meta: ListPage & { readonly passthrough_columns: string[] };
 }
 
-const NO_QUERY: GridQuery<CostSortColumn> = { sort: undefined, search: undefined };
+const NO_QUERY: GridQuery<CostSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The spaces of the French formats: between thousands.
 const NARROW = " ";
 const COMMAND = "01926f3a-7c00-7000-8000-000000000801";
@@ -227,7 +227,9 @@ describe("the grid of the actual costs", () => {
     await sortBy("Fournisseur", "sort_by=passthrough.Fournisseur&sort_order=asc");
     // Sorted ascending by a column kept, the address asks it descending.
     const ascending = { column: "passthrough.Élément d'OTP", order: "asc" } as const;
-    rerender(costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined }));
+    rerender(
+      costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined, size: undefined }),
+    );
     await sortBy("Élément d'OTP", "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=desc");
   });
 
@@ -523,7 +525,7 @@ describe("the pages of a list the server pages", () => {
     );
   });
 
-  it("shows no way through a list the page holds whole", () => {
+  it("shows no way through a list the page holds whole, and none at all for a list the smallest page holds", () => {
     const list = listOf("actual_costs");
     const { container } = render(
       inLanguage(
@@ -535,7 +537,21 @@ describe("the pages of a list the server pages", () => {
         />,
       ),
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole("navigation", { name: "Pages des coûts réels" })).toBeNull();
+    // The size chosen can be taken back, though the list holds a single page.
+    expect(screen.getByRole("combobox", { name: "Lignes par page" })).toHaveValue("50");
+    const short = render(
+      inLanguage(
+        <ListPages
+          list={COSTS_LIST}
+          texts="actualCosts.pages.costs"
+          page={{ limit: 50, offset: 0, total: 8 }}
+          shown={8}
+        />,
+      ),
+    );
+    expect(short.container).toBeEmptyDOMElement();
+    expect(container).not.toBeEmptyDOMElement();
   });
 
   it("says a page asked beyond the end, and leads back to the last page", () => {

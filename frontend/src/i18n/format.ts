@@ -370,6 +370,33 @@ export function isPlanningDate(value: string): value is PlanningDate {
 }
 
 /**
+ * A date of planning entered in a language, as the `PlanningDate` of the contract: in the order the
+ * short form of the language writes the day, the month and the year — both languages of the
+ * interface write « 31/12/2026 » —, a slash, a point or a hyphen between them, a year of four
+ * digits; or its ISO form, `2026-12-31`. A day that does not exist — 30 February — is none:
+ * `undefined`, as for anything else.
+ */
+export function parsePlanningDate(text: string, locale: Locale): PlanningDate | undefined {
+  const typed = text.trim();
+  if (DATE.test(typed)) {
+    return isPlanningDate(typed) ? typed : undefined;
+  }
+  const numbers = /^(\d{1,4})[/.-](\d{1,4})[/.-](\d{1,4})$/.exec(typed)?.slice(1) ?? [];
+  // The order of the parts, read from the short form of a day whose day, month and year differ.
+  const order = dateFormat(locale, { dateStyle: "short", timeZone: TIME_ZONE })
+    .formatToParts(new Date("2026-12-31T00:00:00Z"))
+    .map((part) => part.type)
+    .filter((type) => type === "day" || type === "month" || type === "year");
+  const at = (type: "day" | "month" | "year") => numbers[order.indexOf(type)] ?? "";
+  const year = at("year");
+  if (numbers.length !== 3 || year.length !== 4) {
+    return undefined;
+  }
+  const iso = `${year}-${at("month").padStart(2, "0")}-${at("day").padStart(2, "0")}`;
+  return isPlanningDate(iso) ? iso : undefined;
+}
+
+/**
  * Format a `PlanningDate` as it is: the date of the API, whatever the time zone of the
  * workstation. It is read and written at midnight in UTC, so no zone ever moves it a day.
  */
@@ -383,6 +410,23 @@ export function formatPlanningDate(
   }
   const midnight = new Date(`${value}T00:00:00Z`);
   return dateFormat(locale, { dateStyle, timeZone: TIME_ZONE }).format(midnight);
+}
+
+/**
+ * Format a `PlanningDate` as the day it is, by its weekday, its day and its month — « samedi 19
+ * décembre » —, in the language given: a sentence that names a day of the week to enter again
+ * leaves the year to the date the reader typed.
+ */
+export function formatPlanningDay(value: PlanningDate, locale: Locale): string {
+  if (!isPlanningDate(value)) {
+    throw new RangeError(`Not a date of the contract: ${JSON.stringify(value)}`);
+  }
+  return dateFormat(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: TIME_ZONE,
+  }).format(new Date(`${value}T00:00:00Z`));
 }
 
 // A month of the contract: `2026-04`, as `WorkloadPlan` and `CashOutMonth` give it.

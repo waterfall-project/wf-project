@@ -17,6 +17,8 @@ import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import { LocalTime } from "@/components/local-time";
+import { DiffMark } from "@/components/grid/diff-mark";
+import type { RowDifference } from "@/components/grid/columns";
 import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -64,6 +66,14 @@ function isNodeColumn(field: DifferenceField): field is NodeColumn {
   return (NODE_COLUMNS as readonly string[]).includes(field);
 }
 
+/** The mark of a grid each change of a report bears; a task kept bears none. */
+const MARKED: Readonly<Record<Difference["change"], RowDifference | undefined>> = {
+  added: "added",
+  removed: "removed",
+  updated: "modified",
+  kept: undefined,
+};
+
 const HEADING = "text-sm font-semibold";
 const MUTED = "text-sm text-muted-foreground";
 
@@ -95,12 +105,20 @@ function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
  * The differences with the existing data, each by its change, its object, its label and the fields
  * it changes, named by the catalogue of their columns (WF-ARC-0110), in the order received.
  */
-function Differences({ differences }: { readonly differences: Report["differences"] }) {
+export function Differences({
+  differences,
+  marks = false,
+}: {
+  readonly differences: Report["differences"];
+  /** Whether each change bears the mark of the diff of a grid, `+`, `-`, `M` (US-0510). */
+  readonly marks?: boolean;
+}) {
   const t = useTranslations();
   const format = useFormatter();
   // A field is named by the catalogue of the columns of its object: a line of actual cost by its
   // own, a task, a line of the estimate or a link by the columns of the structure — `subproject`
-  // is a column of both. A field the object does not have is left unnamed, never guessed.
+  // is a column of both; the parent of a node, which no column holds, by its own key (#1194). A
+  // field the object does not have is left unnamed, never guessed.
   const fieldName = (target: Difference["target"], field: DifferenceField) => {
     if (target === "actual_cost_line") {
       if (field.startsWith(PASSTHROUGH)) {
@@ -110,6 +128,9 @@ function Differences({ differences }: { readonly differences: Report["difference
     }
     if (field === "subproject") {
       return t("enums.NodeColumn.subproject");
+    }
+    if (field === "parent") {
+      return t("enums.ImportDifferenceField.parent");
     }
     return isNodeColumn(field) ? t(`enums.NodeColumn.${field}`) : undefined;
   };
@@ -133,7 +154,16 @@ function Differences({ differences }: { readonly differences: Report["difference
           {differences.map((difference, index) => (
             <TableRow key={`${difference.lineage_id ?? "new"}-${String(index)}`}>
               <TableCell className={CELL}>
-                {t(`enums.ImportDifference.change.${difference.change}`)}
+                {marks ? (
+                  <span className="inline-flex gap-1.5">
+                    <DiffMark difference={MARKED[difference.change]} />
+                    <span aria-hidden="true">
+                      {t(`enums.ImportDifference.change.${difference.change}`)}
+                    </span>
+                  </span>
+                ) : (
+                  t(`enums.ImportDifference.change.${difference.change}`)
+                )}
               </TableCell>
               <TableCell className={CELL}>
                 {t(`enums.ImportDifference.target.${difference.target}`)}
@@ -183,10 +213,12 @@ export interface ImportReportProps {
   readonly entry: Import;
   readonly offer: CommandOffer | undefined;
   readonly start: string;
+  /** Where the screen leads once the import is applied — the planning it fills, if it is one. */
+  readonly then?: string | undefined;
 }
 
 /** Render the report of an import, and offer to apply or abandon it. */
-export function ImportReport({ projectId, entry, offer, start }: ImportReportProps) {
+export function ImportReport({ projectId, entry, offer, start, then }: ImportReportProps) {
   const t = useTranslations();
   const title = t("exchanges.report.title", { file: entry.filename });
   return (
@@ -231,6 +263,7 @@ export function ImportReport({ projectId, entry, offer, start }: ImportReportPro
         offer={offer}
         steps={IMPORT_STEPS[entry.status]}
         start={start}
+        then={then}
       />
     </section>
   );

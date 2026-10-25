@@ -1,0 +1,26 @@
+{
+  "summary": "Le rattachement du groupe « Études » au poste « Poste 1.1 » du lot « Lot 1 », refusé : ce lot est porté par la récapitulative « Poste de commande », et la tâche d'un poste se trouve dans le sous-arbre de la tâche de son lot — les « Études » n'y sont pas. Le refus nomme la tâche du lot et celle du poste qui en sortirait, par leur nœud et leur libellé (WF-PLA-0170, WF-IHM-0080).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/order_item_id",
+        "code": "ORDER_ITEM_OUTSIDE_WORK_PACKAGE",
+        "params": {
+          "work_package_task": {
+            "node_id": "01926f3a-7c00-7000-8000-000000000551",
+            "label": "Poste de commande"
+          },
+          "order_item_tasks": [
+            {
+              "node_id": "01926f3a-7c00-7000-8000-000000000521",
+              "label": "Études"
+            }
+          ]
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000963"
+  }
+}

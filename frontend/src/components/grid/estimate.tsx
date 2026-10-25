@@ -20,13 +20,14 @@
  * scale of signals, which the server alone gives —, without deducing anything from the lists
  * (WF-REF-0010, #349); the payment delay and the sub-project are shown with it (WF-DEV-0050).
  *
- * A line is entered whole from the keyboard (WF-IHM-0040): its label, its category, its role and
- * its sub-project, chosen from their lists, its quantity, its effort, its unit disbursement and
+ * A line is entered whole from the keyboard (WF-IHM-0040): its label, its category and its role,
+ * chosen from their lists, its quantity, its effort, its unit disbursement and
  * its payment delay, each written alone by `updateEstimateLine`, where the node names the field
  * among those it accepts (`editable_fields`, #219) and not among those it computes — a line of
  * labour takes no unit disbursement nor payment delay, another no role nor effort, a provision
  * none of them (WF-DEV-0020), which the grid never deduces from the nature of the category —; the
- * label of a task by `updateTaskFacet` (`estimateGrid`).
+ * label of a task by `updateTaskFacet` (`estimateGrid`). Its sub-project is chosen in the menu of
+ * its cell, not entered in its column: hidden until shown, the column only reads it (US-0480).
  */
 import { ToggleLeft } from "lucide-react";
 
@@ -104,6 +105,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "cost_category",
       label: "category",
+      help: "estimate.category",
       format: "text",
       width: 160,
       contract: "cost_category",
@@ -112,6 +114,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "resource_role",
       label: "role",
+      help: "estimate.role",
       format: "text",
       width: 160,
       contract: "resource_role",
@@ -120,6 +123,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "quantity",
       label: "quantity",
+      help: "estimate.quantity",
       format: "decimal",
       width: 72,
       computed: computedWhereNamed("estimate_line.quantity"),
@@ -129,6 +133,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "hours",
       label: "hours",
+      help: "estimate.hours",
       format: "decimal",
       width: 96,
       computed: computedWhereNamed("estimate_line.hours"),
@@ -139,6 +144,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "unit_disbursement",
       label: "unitDisbursement",
+      help: "estimate.unitDisbursement",
       format: "money",
       width: 128,
       computed: computedWhereNamed("estimate_line.unit_disbursement"),
@@ -146,13 +152,16 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       value: (node) => node.estimate_line?.unit_disbursement,
     },
     // The sub-project is named by the label the server resolves (#349), computed where the node
-    // says so — a provision's, the one its risk designates (EP-14/L42p); the payment delay is a
-    // whole number of days, which the cumulative cost curve shifts the line by (WF-IND-0100).
+    // says so — a provision's, the one its risk designates (EP-14/L42p); hidden until the account
+    // shows it, and read only: it is chosen in the menu of the cell (US-0480). The payment delay is
+    // a whole number of days, which the cumulative cost curve shifts the line by (WF-IND-0100).
     {
       key: "subproject",
       label: "subproject",
+      help: "estimate.subproject",
       format: "text",
       width: 160,
+      hidden: true,
       computed: computedWhereNamed("estimate_line.subproject_id"),
       contract: "subproject",
       value: (node) => node.estimate_line?.subproject_label ?? null,
@@ -160,6 +169,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "payment_delay_days",
       label: "paymentDelay",
+      help: "estimate.paymentDelay",
       format: "decimal",
       width: 88,
       contract: "payment_delay_days",
@@ -171,6 +181,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "inactive_object",
       label: "inactiveObject",
+      help: "estimate.inactiveObject",
       format: "text",
       align: "center",
       width: 44,
@@ -183,6 +194,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "base_amount",
       label: "referenceAmount",
+      help: "estimate.referenceAmount",
       format: "money",
       width: 128,
       computed: computedAmount("base_amount"),
@@ -193,6 +205,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
     {
       key: "inflated_amount",
       label: "inflatedAmount",
+      help: "estimate.inflatedAmountStatic",
       format: "money",
       width: 128,
       computed: computedAmount("inflated_amount"),
@@ -249,7 +262,6 @@ export type LineChange = Partial<
     | "hours"
     | "unit_disbursement"
     | "payment_delay_days"
-    | "subproject_id"
   >
 >;
 
@@ -270,8 +282,9 @@ export interface EstimateWrites {
 
 /**
  * The reference data the grid offers the categories and the roles of the lines from, and the
- * sub-projects of the project, each by its code and its label; a list the API refused is none —
- * its column is not entered, and still named by the server.
+ * sub-projects of the project, each by its code and its label — those of the submenu of the cells,
+ * never of a column (US-0480); a list the API refused is none — its column is not entered, nor the
+ * submenu offered, and still named by the server.
  */
 export interface EstimateReference {
   readonly categories: readonly Choice[] | undefined;
@@ -326,7 +339,7 @@ function listEntered(
 function enteredColumns(
   reference: EstimateReference,
 ): Readonly<Record<string, Entered & { readonly known?: (node: EstimateNode) => boolean }>> {
-  const { categories, roles, subprojects } = reference;
+  const { categories, roles } = reference;
   return {
     // The contract takes a label of 1 to 300 characters: a task's, or a line's.
     label: {
@@ -371,17 +384,6 @@ function enteredColumns(
       field: () => "estimate_line.unit_disbursement",
       change: (value) => ({ unit_disbursement: value }),
     },
-    ...(subprojects === undefined
-      ? {}
-      : {
-          subproject: listEntered(
-            subprojects,
-            "estimate_line.subproject_id",
-            true,
-            (node) => node.estimate_line?.subproject_id ?? null,
-            (value) => ({ subproject_id: value }),
-          ),
-        }),
     // A whole number of days, which the entry validates as such: the contract takes an integer.
     payment_delay_days: {
       kind: { type: "integer", nullable: true },
@@ -434,22 +436,49 @@ function entered(
 }
 
 /**
+ * What the amount corrected of inflation is corrected by, as its header names it (WF-IHM-0140): the
+ * year of reference of the revision and the rate of inflation of the project, formatted.
+ */
+export interface EstimateInflation {
+  readonly year: string;
+  readonly rate: string;
+}
+
+/**
+ * The column of the amount corrected of inflation, defined by the year and the rate that correct it:
+ * its definition is a sentence with its values, which only the screen that reads the revision and the
+ * project knows; without them the column keeps a definition that names neither; the other columns
+ * are as they are.
+ */
+function inflated(
+  column: GridColumn<EstimateNode, NodeSortColumn, NodeTotals>,
+  inflation: EstimateInflation | undefined,
+): GridColumn<EstimateNode, NodeSortColumn, NodeTotals> {
+  return inflation === undefined || column.key !== "inflated_amount"
+    ? column
+    : { ...column, help: "estimate.inflatedAmount", helpValues: { ...inflation } };
+}
+
+/**
  * The grid of the estimate: its cells entered and a block pasted through `writes`; none, and the
  * grid is read only, taking neither entry nor paste. A line takes its label, category, role,
- * quantity, effort, unit disbursement, sub-project and payment delay, where its node accepts the
- * field and the server does not compute it — a category, a role or a sub-project from the lists
+ * quantity, effort, unit disbursement and payment delay, where its node accepts the
+ * field and the server does not compute it — a category or a role from the lists
  * of the reference data, which must know the one the line bears, a deactivated one included —; a
  * task, its label, where its node accepts it and the planning is entered.
  */
 export function estimateGrid(
   reference: EstimateReference,
   writes?: EstimateWrites,
+  inflation?: EstimateInflation,
 ): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
   const specs = enteredColumns(reference);
   return {
     ...ESTIMATE_GRID,
     paste: writes?.paste,
     retotal: writes?.totals,
-    columns: ESTIMATE_GRID.columns.map((column) => entered(column, specs[column.key], writes)),
+    columns: ESTIMATE_GRID.columns.map((column) =>
+      entered(inflated(column, inflation), specs[column.key], writes),
+    ),
   };
 }

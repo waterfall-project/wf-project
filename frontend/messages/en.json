@@ -86,6 +86,10 @@
     "provision": "Provision line"
   },
   "grid": {
+    "pageSize": {
+      "label": "Rows per page",
+      "named": "Rows per page of “{list}”"
+    },
     "names": {
       "estimate": "Estimate grid",
       "planning": "Planning grid",
@@ -105,11 +109,14 @@
       "auditLog": "Audit log",
       "portfolioProjects": "Portfolio projects",
       "remaining": "Remaining to commit grid",
+      "comparison": "Compared nodes",
       "projects": "List of projects",
       "backups": "Backups"
     },
     "columns": {
       "rowNumber": "No.",
+      "diffMark": "Change",
+      "changes": "What changes",
       "label": "Label",
       "category": "Category",
       "role": "Role",
@@ -171,6 +178,7 @@
       "origin": "Origin",
       "accessRoles": "Access roles",
       "attachment": "Attached to",
+      "timelines": "Timelines",
       "roleKind": "Kind",
       "holders": "Holding accounts",
       "modify": "Modify",
@@ -222,7 +230,11 @@
       "notANumber": "This is not a number: enter it as {example}.",
       "required": "This cell cannot be left empty.",
       "tooLong": "{max} characters at most.",
-      "twoDecimals": "An amount has two decimals at most: enter it as {example}."
+      "twoDecimals": "An amount has two decimals at most: enter it as {example}.",
+      "notADuration": "This is not a duration: enter a number followed by its unit, as “2 d”, “1 wk”, “1 mo” or “30 min”.",
+      "notADate": "This is not a date: enter it as {example}.",
+      "notPredecessors": "These are not predecessors: enter row numbers, each with its link type and its lag if any, separated by semicolons, as “3FS+2 d ; 5SS”.",
+      "unknownRow": "No row of the grid has one of these numbers."
     },
     "resize": "Width of the column {column}",
     "empty": "No row matches the request.",
@@ -231,19 +243,68 @@
       "labelIn": "Search in “{grid}”",
       "placeholder": "Search a label"
     },
+    "breakdownFilter": {
+      "label": "Work package or order item",
+      "every": "All work packages and order items",
+      "choice": "{kind, select, work_package {Work package} other {Order item}}: {label}"
+    },
     "undo": {
       "undo": "Undo",
       "redo": "Redo",
       "menu": "Cell menu",
-      "shortcut": {
-        "undo": "Ctrl+Z",
-        "redo": "Ctrl+Shift+Z"
-      },
       "unavailable": "Unavailable until the server keeps the history of the entries.",
       "told": {
         "undo": "Undo is unavailable: the server does not keep the history of the entries yet.",
         "redo": "Redo is unavailable: the server does not keep the history of the entries yet."
       }
+    },
+    "selection": {
+      "handle": "{number} — row handle",
+      "hint": "Space selects the row, Shift and an arrow extend the selection, Escape lifts it. Alt+Shift and an arrow move it — Alt+Shift+Up and Alt+Shift+Down by a rank, Alt+Shift+Right and Alt+Shift+Left indenting and outdenting it —, as dragging the handle with the mouse does.",
+      "count": "{count, plural, one {# row selected} other {# rows selected}}"
+    },
+    "structure": {
+      "insertFirst": "Insert a task",
+      "insertBelow": "Insert below",
+      "insertChild": "Insert a sub-task",
+      "insertLine": "Insert a line",
+      "indent": "Indent",
+      "outdent": "Outdent",
+      "up": "Move up",
+      "down": "Move down",
+      "moved": {
+        "indented": "{others, plural, =0 {“{label}” indented.} one {“{label}” and the next row indented.} other {“{label}” and the # next rows indented.}}",
+        "outdented": "{others, plural, =0 {“{label}” outdented.} one {“{label}” and the next row outdented.} other {“{label}” and the # next rows outdented.}}",
+        "up": "{others, plural, =0 {“{label}” moved up a rank.} one {“{label}” and the next row moved up a rank.} other {“{label}” and the # next rows moved up a rank.}}",
+        "down": "{others, plural, =0 {“{label}” moved down a rank.} one {“{label}” and the next row moved down a rank.} other {“{label}” and the # next rows moved down a rank.}}",
+        "dropped": "{others, plural, =0 {“{label}” moved.} one {“{label}” and the next row moved.} other {“{label}” and the # next rows moved.}}"
+      },
+      "delete": "Delete",
+      "deleteTitle": "Delete “{label}”?",
+      "deleteHint": "“{label}” is a summary: its subordinate tasks, their lines and their links are deleted with it.",
+      "deleteConfirm": "Delete",
+      "deleting": "Deleting…",
+      "deleted": "“{label}” deleted.",
+      "created": "“{label}” created.",
+      "refusedAt": "Refused at row {number}, “{label}”:",
+      "refusedCreating": "Creation of “{label}” refused:",
+      "onRow": "Row {number}, “{label}”",
+      "timelines": "Timelines",
+      "milestoneTracking": "Time/time tracking",
+      "createTimeline": "Create a timeline…",
+      "timelineTitle": "Create a timeline",
+      "timelineHint": "Name the timeline. The task, and those of the selection, are inscribed to it.",
+      "subproject": "Subproject",
+      "noSubproject": "No subproject",
+      "tracked": "{others, plural, =0 {Timelines of “{label}” updated.} one {Timelines of “{label}” and of one other task updated.} other {Timelines of “{label}” and of # other tasks updated.}}",
+      "subprojectSet": "{others, plural, =0 {Subproject of “{label}” updated.} one {Subproject of “{label}” and of one other line updated.} other {Subproject of “{label}” and of # other lines updated.}}",
+      "underHint": "{under}. {hint}",
+      "labelField": "Label",
+      "categoryField": "Category",
+      "quantityField": "Quantity",
+      "taskHint": "Name the task. It is created as a leaf, automatic, of one day, without predecessor.",
+      "lineHint": "Name the line, choose its category and its quantity. The other fields are entered in the grid.",
+      "busy": "Waits for the write under way to end."
     },
     "columnsMenu": {
       "open": "Columns",
@@ -254,7 +315,6 @@
       "open": "Tree",
       "title": "Fold and unfold the tree",
       "expandAll": "Expand all",
-      "expandAllKeys": "Alt+*",
       "collapseAll": "Collapse all",
       "level": "Down to level {level}",
       "collapse": "Collapse",
@@ -272,11 +332,13 @@
       "partial": "Confirmed, the paste writes the valid rows, and not the refused ones; abandoned, it changes no row.",
       "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
       "rejectedListed": "{count, plural, one {# row is refused, listed below.} other {# rows are refused, listed below.}}",
+      "rejectedCount": "{count, plural, one {# row was refused.} other {# rows were refused.}}",
       "rejectedRow": "Row {row} of the block — {reason}",
       "appliedFrom": "Paste applied from row {row}, column “{column}”: {count, plural, =0 {no row was written} one {# row was written} other {# rows were written}}.",
       "refusedRows": "Rows the paste refused",
       "apply": "Apply the paste",
       "abandon": "Abandon",
+      "waiting": "Saving in the grid: the paste applies once that write is done.",
       "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
       "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block.",
       "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block.",
@@ -316,13 +378,26 @@
     "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
     "duration": "{value} {unit}",
     "critical": "Critical path",
-    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
+    "predecessor": "{row}{code}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";",
+    "linkCode": "{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}",
+    "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
     "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid."
   },
   "gantt": {
-    "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}"
+    "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}",
+    "zoom": "Gantt zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "legend": "Gantt legend",
+    "dayOff": "Day off: no working hours in the task’s calendar",
+    "fit": "Fit to project",
+    "quarter": "Q{quarter} {year}",
+    "quarterShort": "Q{quarter}",
+    "title": "Gantt chart",
+    "file": "gantt",
+    "hoursNote": "Scale in worked hours, numbered within the day"
   },
   "taskTree": {
     "summary": "The summary tasks, under the project, down to the level chosen — read only.",
@@ -344,7 +419,25 @@
     "deleteNamed": "Delete the timeline “{label}”",
     "deleteTitle": "Delete the timeline “{label}”?",
     "deleteHint": "The timeline and its inscriptions will be deleted; the tasks and milestones keep their dates.",
-    "deleted": "Timeline “{label}” deleted."
+    "deleted": "Timeline “{label}” deleted.",
+    "chart": {
+      "name": "Frieze of the timeline “{name}”",
+      "hint": "The left and right arrows go from one task to the next; Alt and the up and down arrows move it to another lane. A task may be dragged with the mouse too.",
+      "task": "{task}, from {start} to {finish}, lane {lane}",
+      "milestone": "{task}, milestone on {date}",
+      "moved": "“{task}” is in lane {lane}.",
+      "overlap": "“{task}” would overlap “{other}” in lane {lane}: it stays in lane {from}.",
+      "top": "“{task}” is already in the first lane.",
+      "bottom": "“{task}” is alone in the last lane.",
+      "restack": "Automatic layout",
+      "restacked": "The tasks of the timeline are laid out automatically.",
+      "zoom": "Timeline zoom",
+      "table": "Read as a table",
+      "lane": "Lane",
+      "milestoneLane": "Milestone",
+      "undrawn": "No dates",
+      "file": "timeline"
+    }
   },
   "remainingGrid": {
     "finishOverdue": "Started task past its finish",
@@ -372,13 +465,27 @@
     },
     "matrix": {
       "title": "Risk matrix",
+      "description": "Bubble chart of the risks: the probability across and the severity, as a share of the reference budget, up; each risk is a bubble at its exact values, as large as its severity in amount, over the sixteen zones of the matrix.",
+      "axisSeverity": "Severity (% of the budget)",
+      "counts": "Count of the risks by cell of the matrix, all states together",
+      "none": "No risk to draw for this filter.",
+      "unplotted": "{count, plural, one {# risk is not drawn: its severity cannot be set as a share of the budget — {reason}} other {# risks are not drawn: their severity cannot be set as a share of the budget — {reason}}}",
+      "file": "risk-matrix",
       "probability": "Probability",
       "severity": "Severity, as a share of the reference budget",
       "between": "{lower} to under {upper}",
-      "from": "{lower} and over"
+      "from": "{lower} and over",
+      "tooltip": {
+        "project": "Project",
+        "probability": "Probability",
+        "severity": "Severity",
+        "provision": "Provision",
+        "state": "State",
+        "zone": "Zone",
+        "closed": "Project cannot be opened"
+      }
     },
     "detail": {
-      "hint": "Choose a risk in the register to read its description, its mitigation actions and the history of its reviews.",
       "close": "Close the detail of the risk",
       "description": "Description",
       "mitigation": "Mitigation actions",
@@ -563,6 +670,7 @@
       "unnamed": "Unnamed"
     },
     "risks": {
+      "provisions": "Risk provisions",
       "identifiedTotal": "Provisions of the identified risks",
       "occurred": "Provisions occurred over the period",
       "dismissed": "Provisions dismissed over the period",
@@ -581,7 +689,17 @@
       "none": "No load on the perimeter and horizon chosen.",
       "role": "Role",
       "capacity": "Monthly capacity",
-      "hours": "{hours} h"
+      "hours": "{hours} h",
+      "chartTitle": "Stacked load by role and by month",
+      "description": "Stacked bars of the load of the perimeter by month, divided by resource role, in hours, the total of each month at the top, with the capacity of the perimeter dashed; the capacity, the load and the zone of each role are in the table below.",
+      "exportTitle": "Aggregated workload",
+      "file": "aggregated-workload",
+      "capacityLine": "Capacity: {hours} h per month",
+      "capacityNote": "Capacity of the perimeter: {hours} h per month.",
+      "values": "Total load of each month",
+      "month": "Month",
+      "total": "Total (h)",
+      "totalSeries": "Total"
     },
     "pilotHealth": {
       "none": "No signal: the control of the projects of the perimeter is kept up.",
@@ -632,7 +750,7 @@
     "deltaToReference": "Deviation from the reference",
     "byCostType": "By nature of cost",
     "bySubproject": "By subproject",
-    "byOrderItem": "By order item",
+    "byWorkPackage": "By work package",
     "shareOf": " ({share})",
     "notComputable": "Not computable — {reason}",
     "unavailable": "The estimate indicators are unavailable.",
@@ -669,7 +787,20 @@
     "milestoneDue": "Its predecessors are completed: milestone to complete.",
     "finish": "Finish on {date}",
     "finishOverdue": "Finish overdue",
-    "completedOn": "Completed on {date}"
+    "completedOn": "Completed on {date}",
+    "keys": "Arrows: choose a card. Enter: open the menu of its gestures. Shift + right or left arrow: carry it to the neighbouring column. A card can also be dragged to another column, or moved by its menu.",
+    "gestures": "Gestures of the task {label}",
+    "moved": "{label}: column “{column}”.",
+    "unplaced": "{label}: the answer does not say which column the task is in; the tasks are read again.",
+    "updating": "Updating…",
+    "outdated": "Not up to date",
+    "retry": "Retry",
+    "eventDate": "Date of the event",
+    "dateRequired": "Enter the date of the event.",
+    "cancel": "Cancel",
+    "noGesture": "No gesture leads this task to the column “{column}”.",
+    "gestureUnavailable": "“{command}” is unavailable. {conditions}",
+    "asking": "A date is already asked on another task: enter it or give it up before asking this gesture."
   },
   "contextBanner": {
     "label": "Reading context",
@@ -682,7 +813,11 @@
     "subproject": "Subproject: {subproject}",
     "subprojectName": "{code} — {label}",
     "asOf": "Calculation date: {date}",
+    "breakdown": "{kind, select, work_package {Work package} other {Order item}}: {label}",
     "computedOn": "Revision of the calculation",
+    "structure": "Structure",
+    "chooseStructure": "Change the structure, “{structure}” read",
+    "mergedStructure": "{label} (merged)",
     "unnamedRevision": "unnamed",
     "removeFilter": "Remove the filter “{filter}”",
     "restricts": {
@@ -708,11 +843,13 @@
   },
   "chart": {
     "values": "Values of the chart",
+    "toggle": "Chart",
     "exportPng": "Export as PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Revision: {revision} · Computed on {date}",
     "exportSubtitleWith": "Revision: {revision} · {detail} · Computed on {date}",
     "fileName": "{file}-{code}.png",
+    "exportPortfolioHorizon": "{scope} · Horizon: {from} to {to}",
     "exportPortfolioSubtitleWith": "{scope} · {node}",
     "portfolioFileName": "{file}-portfolio-{asOf}.png"
   },
@@ -833,7 +970,9 @@
   "workload": {
     "title": "Project workload",
     "chartTitle": "Load by role and by month",
-    "description": "Bars of the load of each resource role by month, in hours; the monthly capacity of each role is in the table of the values, against its load.",
+    "description": "Stacked bars of the load of each resource role by month, in hours; the monthly capacity of each role is in the table of the values, against its load.",
+    "hoursUnit": "{hours} h",
+    "totalSeries": "Total",
     "basis": "Basis",
     "markedRevision": "Marked revision",
     "unnamedRevision": "Unnamed marked revision",
@@ -861,7 +1000,413 @@
   },
   "commands": {
     "label": "Commands",
-    "unmet": "{count, plural, one {Unmet condition} other {Unmet conditions}}: {conditions}."
+    "unmet": "{count, plural, one {Unmet condition} other {Unmet conditions}}: {conditions}.",
+    "or": " or ",
+    "keys": {
+      "Control": "Ctrl",
+      "Meta": "Meta",
+      "Alt": "Alt",
+      "Shift": "Shift",
+      "Insert": "Insert",
+      "Delete": "Delete",
+      "ArrowLeft": "←",
+      "ArrowRight": "→",
+      "ArrowUp": "↑",
+      "ArrowDown": "↓",
+      "Plus": "+",
+      "ContextMenu": "Menu",
+      "Escape": "Esc",
+      "Enter": "Enter"
+    },
+    "macKeys": {
+      "Control": "⌃",
+      "Meta": "⌘",
+      "Alt": "⌥",
+      "Shift": "⇧"
+    },
+    "undo": {
+      "help": "Undoes the last entry of the revision."
+    },
+    "redo": {
+      "help": "Redoes the last entry undone."
+    },
+    "columns": {
+      "help": "Chooses the columns the grid shows."
+    },
+    "outline": {
+      "help": "Folds or unfolds the whole tree, or folds it down to a level."
+    },
+    "expandAll": {
+      "help": "Unfolds every row of the tree."
+    },
+    "collapseAll": {
+      "help": "Folds the tree onto its rows of the first level."
+    },
+    "collapseRow": {
+      "help": "Folds the row: the rows under it are hidden."
+    },
+    "expandRow": {
+      "help": "Unfolds the row: the rows under it are shown."
+    },
+    "insertFirst": {
+      "help": "Creates the first task of the structure."
+    },
+    "insertBelow": {
+      "help": "Creates a task below the row, at the same level."
+    },
+    "insertChild": {
+      "help": "Creates a sub-task under the task of the row."
+    },
+    "insertLine": {
+      "help": "Creates an estimate line on the task, or below the line."
+    },
+    "indent": {
+      "help": "Makes the row a subordinate of the one before it."
+    },
+    "outdent": {
+      "help": "Moves the row one level up the tree."
+    },
+    "up": {
+      "help": "Moves the row one place up among its siblings."
+    },
+    "down": {
+      "help": "Moves the row one place down among its siblings."
+    },
+    "delete": {
+      "help": "Deletes the row; a summary takes its subordinates with it, once confirmed."
+    },
+    "zoomIn": {
+      "help": "Narrows the time scale to read the dates more closely.",
+      "unavailable": "The zoom is at its closest."
+    },
+    "zoomOut": {
+      "help": "Widens the time scale to see a longer period.",
+      "unavailable": "The zoom is at its widest."
+    },
+    "fit": {
+      "help": "Fits the scale to show the whole project.",
+      "unavailable": "The scale already shows the whole project."
+    },
+    "exportGantt": {
+      "help": "Saves the Gantt as a PNG image, over its whole extent at the zoom level chosen, with the project, the revision and the date of calculation.",
+      "unavailableWidth": "The image would be too wide for the browser: zoom out.",
+      "unavailableHeight": "The image would be too tall for the browser: fold some summaries.",
+      "unavailableArea": "The image would be too large for the browser: zoom out, or fold some summaries."
+    },
+    "restack": {
+      "help": "Stacks the tasks in their lanes by themselves, forgetting those chosen by hand.",
+      "unavailable": "No task was placed by hand: they are stacked by themselves."
+    },
+    "dismissNews": {
+      "help": "Removes this line; the task stays followed in the panel of the tasks and messages."
+    },
+    "startedOnly": {
+      "help": "Shows or hides the tasks not started."
+    },
+    "timelines": {
+      "help": "Opens the timelines of the project, as a frieze."
+    },
+    "exchanges": {
+      "help": "Opens the imports and exports of the revision."
+    },
+    "taskTree": {
+      "help": "Opens the task tree of the revision."
+    },
+    "workload": {
+      "help": "Opens the workload of the revision, by role."
+    },
+    "kanban": {
+      "help": "Opens the kanban of the tasks to do, in progress and done."
+    },
+    "modify": {
+      "help": "Opens the form that modifies the row."
+    },
+    "deactivate": {
+      "help": "Deactivates the object: it is no longer offered to new entries, but its data stay."
+    },
+    "reactivate": {
+      "help": "Reactivates the object: it is offered to entries again."
+    },
+    "designateCalendar": {
+      "help": "Makes this calendar the one new resources use by default."
+    },
+    "retainBackup": {
+      "help": "Marks the backup to keep: retention does not delete it."
+    },
+    "releaseBackup": {
+      "help": "Lifts the mark to keep: retention may delete the backup again."
+    },
+    "restoreBackup": {
+      "help": "Opens the restoration of the platform from this backup, after confirmation."
+    },
+    "deleteRole": {
+      "help": "Deletes the access role, after confirmation."
+    },
+    "deleteSubproject": {
+      "help": "Deletes the sub-project, after confirmation."
+    },
+    "password_link": {
+      "help": "Gives the link by which the account holder sets a password."
+    },
+    "anonymize": {
+      "help": "Anonymises the deactivated account, after confirmation: the operation is final."
+    },
+    "activeUser": {
+      "help": "Activates or deactivates the account: a deactivated account can no longer sign in."
+    },
+    "downloadBackup": {
+      "help": "Downloads the backup, once verified."
+    },
+    "project": {
+      "update": {
+        "help": "Opens the form of the settings of the project."
+      },
+      "manage_contributors": {
+        "help": "Manages the contributors of the project."
+      },
+      "create_revision": {
+        "help": "Creates the revision being drawn up, a copy of the last marked revision."
+      },
+      "generate_skeleton": {
+        "help": "Generates the skeleton of the planning of the revision."
+      },
+      "complete": {
+        "help": "Completes the project, after confirmation."
+      },
+      "lose": {
+        "help": "Declares the project lost, after confirmation."
+      },
+      "abandon": {
+        "help": "Abandons the project, after confirmation."
+      },
+      "declare_risk_occurrence": {
+        "help": "Declares that a risk occurred and records its account, after confirmation."
+      },
+      "import_actual_costs": {
+        "help": "Imports the actual costs from a file."
+      },
+      "import_planning": {
+        "help": "Imports a planning from an MS Project file."
+      },
+      "import_estimate": {
+        "help": "Imports an estimate from a file."
+      },
+      "import_remaining": {
+        "help": "Imports a remaining to commit from a file."
+      }
+    },
+    "revision": {
+      "generate_skeleton": {
+        "help": "Generates the skeleton of the planning of the revision."
+      },
+      "declare_risk": {
+        "help": "Declares a new risk on the project."
+      },
+      "create_structure": {
+        "help": "Prepares an amendment: a differential structure on the revision."
+      },
+      "merge_structure": {
+        "help": "Makes the amendment contractual: its differences join the main structure."
+      },
+      "mark": {
+        "help": "Marks the revision: it becomes a frozen, named version."
+      },
+      "designate_reference": {
+        "help": "Designates the marked revision as the reference budget, after confirmation."
+      },
+      "abandon": {
+        "help": "Abandons the revision being drawn up, after confirmation."
+      }
+    },
+    "deleteRisk": {
+      "help": "Deletes the risk with its own estimate and its provision line, after confirmation."
+    },
+    "modifyRisk": {
+      "help": "Opens the form that modifies the risk."
+    },
+    "reviewRisk": {
+      "help": "Opens the review of the risk."
+    },
+    "updateRates": {
+      "help": "Replaces the rates of the revision in progress by the rates proposed, for the categories retained, after confirmation."
+    },
+    "excludeCostLine": {
+      "help": "Excludes the cost line from the tracked scope."
+    },
+    "reinstateCostLine": {
+      "help": "Reinstates the cost line in the tracked scope."
+    },
+    "applyReport": {
+      "help": "Applies the import to the revision, after confirmation."
+    },
+    "abandonReport": {
+      "help": "Abandons the import: nothing is applied."
+    },
+    "create": {
+      "help": "Opens the creation form."
+    },
+    "deleteTimeline": {
+      "help": "Deletes the timeline shown; its milestones go with it."
+    },
+    "cardGestures": {
+      "help": "Opens the menu of the gestures of this task."
+    },
+    "retryReading": {
+      "help": "Reads the tasks of this card again."
+    },
+    "contributorWithdraw": {
+      "help": "Removes this contributor from the list to save."
+    },
+    "contributorInscribe": {
+      "help": "Adds this account to the list to save, as a contributor."
+    },
+    "breakdownWorkPackage": {
+      "help": "Adds a work package to the work breakdown of the project."
+    },
+    "breakdownAdd": {
+      "help": "Adds an order item to this work package, or a deliverable to this order item."
+    },
+    "breakdownRename": {
+      "help": "Changes the label of this element of the work breakdown."
+    },
+    "breakdownDelete": {
+      "help": "Deletes this element of the work breakdown, with what it holds."
+    },
+    "help": {
+      "help": "Opens, beside the screen, the help that describes it: what it shows, its commands, its columns, its keyboard gestures and the notions of the method."
+    }
+  },
+  "columns": {
+    "nodes": {
+      "label": {
+        "help": "Label of the task or of the line, at the place it holds in the tree."
+      }
+    },
+    "estimate": {
+      "category": {
+        "help": "Cost category of the line: it gives the rate and the nature of the expense."
+      },
+      "role": {
+        "help": "Resource role that performs the line, when it is effort."
+      },
+      "quantity": {
+        "help": "Number of units of the line."
+      },
+      "hours": {
+        "help": "Effort of the line, in hours."
+      },
+      "unitDisbursement": {
+        "help": "Disbursement of one unit, apart from the effort."
+      },
+      "subproject": {
+        "help": "Sub-project the line belongs to."
+      },
+      "paymentDelay": {
+        "help": "Number of days between the consumption of the line and its payment."
+      },
+      "inactiveObject": {
+        "help": "Marks a line that uses a deactivated object of the reference data."
+      },
+      "referenceAmount": {
+        "help": "Amount of the line at the reference year of the revision, before any correction for inflation."
+      },
+      "inflatedAmount": {
+        "help": "Amount corrected for inflation from the reference year ({year}) to the year the line is consumed, at the inflation rate of the project ({rate} a year)."
+      },
+      "inflatedAmountStatic": {
+        "help": "Amount corrected for inflation from the reference year of the revision to the year the line is consumed, at the inflation rate of the project."
+      }
+    },
+    "planning": {
+      "description": {
+        "help": "Free description of the task."
+      },
+      "schedulingMode": {
+        "help": "Scheduling mode: the task follows its links, or its dates are set by hand."
+      },
+      "duration": {
+        "help": "Duration of the task, in the chosen unit."
+      },
+      "startDate": {
+        "help": "Start date of the task, computed by the server from its links and the calendar."
+      },
+      "finishDate": {
+        "help": "Finish date of the task, computed by the server from its duration and the calendar."
+      },
+      "progress": {
+        "help": "Progress of the task: to do, in progress or done."
+      },
+      "physicalProgress": {
+        "help": "Share of the work done, as a percentage of the task."
+      },
+      "totalFloat": {
+        "help": "Total float: the delay the task can take without pushing the end of the project."
+      },
+      "predecessors": {
+        "help": "Tasks this one depends on, named by their row number."
+      },
+      "attachment": {
+        "help": "Lot or post of the work breakdown structure the task belongs to."
+      },
+      "timelines": {
+        "help": "Timelines the task is inscribed on."
+      },
+      "gantt": {
+        "help": "Bar of the task on the time scale."
+      }
+    },
+    "remaining": {
+      "progress": {
+        "help": "Progress of the task: to do, in progress or done."
+      },
+      "finishDate": {
+        "help": "Planned finish date of the task."
+      },
+      "finishOverdue": {
+        "help": "Marks a task whose planned finish has passed without it being done."
+      },
+      "budgetedAmount": {
+        "help": "Budgeted amount of the line, as the reference budget froze it."
+      },
+      "previousQuantity": {
+        "help": "Quantity of the line at the previous remaining to commit."
+      },
+      "previousHours": {
+        "help": "Effort of the line, in hours, at the previous remaining to commit."
+      },
+      "previousUnitDisbursement": {
+        "help": "Unit disbursement of the line at the previous remaining to commit."
+      },
+      "previousReestimatedAmount": {
+        "help": "Re-estimated amount of the line at the previous remaining to commit."
+      },
+      "quantity": {
+        "help": "Quantity left to commit on the line."
+      },
+      "hours": {
+        "help": "Effort left to commit on the line, in hours."
+      },
+      "unitDisbursement": {
+        "help": "Unit disbursement of the line, re-estimated."
+      },
+      "subproject": {
+        "help": "Sub-project the line belongs to."
+      },
+      "reestimatedAmount": {
+        "help": "Re-estimated amount of the line or task: the updated estimate at completion."
+      }
+    }
+  },
+  "help": {
+    "button": "Help",
+    "title": "Help",
+    "close": "Close the help",
+    "back": "Back to the previous page of the help",
+    "screen": "Back to the help of the screen",
+    "loading": "Reading the help…",
+    "failed": "The help could not be read. Try again in a moment.",
+    "pending": "The help of this page is to come.",
+    "sections": "The parts of the screen"
   },
   "outcome": {
     "unreachable": "The service cannot be reached; try again in a moment.",
@@ -889,12 +1434,16 @@
     "interrupted": "Follow-up interrupted",
     "interruptedLine": "Follow-up interrupted: {task}.",
     "dismiss": "Stop following: {task}",
-    "toggle": "{count, plural, =0 {Background tasks} one {Background tasks: # followed} other {Background tasks: # followed}}",
+    "toggle": "Tasks and messages{count, plural, =0 {} one {: # task followed} other {: # tasks followed}}{unread, plural, =0 {} one {, # refusal unread} other {, # refusals unread}}",
     "none": "No background task followed.",
     "download": "Download the result",
     "downloadLabel": "Download the result: {task}",
     "resultUnavailable": "The result of this task is no longer available.",
-    "resultRefused": "The result of a task could not be downloaded."
+    "resultRefused": "The result of a task could not be downloaded.",
+    "panel": "Tasks and messages",
+    "close": "Close the tasks and messages",
+    "started": "Task started: {task}.",
+    "closeNews": "Close the line of the task"
   },
   "markRevision": {
     "versionName": "Version name",
@@ -902,6 +1451,63 @@
     "description": "Description (optional)",
     "submit": "Mark",
     "cancel": "Cancel"
+  },
+  "mergeReport": {
+    "label": "Contractualise the amendment",
+    "statement": "The merge applies the report below to the main structure and marks the current revision under the version name you give; the revision produced becomes the reference, and the reference budget moves. Abandoning here changes nothing.",
+    "submit": "Confirm the merge",
+    "title": "Report of the merge",
+    "reading": "Reading the report…",
+    "counts": "Differences by object",
+    "targets": {
+      "task": "Tasks",
+      "estimate_line": "Estimate lines",
+      "link": "Links"
+    },
+    "added": "{count} added",
+    "updated": "{count} modified",
+    "removed": "{count} removed",
+    "completed": "{count, plural, one {# started task will be completed} other {# started tasks will be completed}}",
+    "completedTask": "“{label}”: the differential removes it; it is kept, its remaining to commit brought to zero.",
+    "refusals": "{count, plural, one {# reason refuses the merge} other {# reasons refuse the merge}}",
+    "versionName": "Version name",
+    "versionNameHint": "Required: the revision produced bears it.",
+    "reread": "Read the report again",
+    "queued": "The merge is handed to the background worker under the version name “{version}”; it is followed in “Background tasks”.",
+    "reference": "The merge is done: “{version}” is the new reference revision.",
+    "seeRevisions": "See the revisions"
+  },
+  "revisionCommands": {
+    "create": "Open a current revision",
+    "amendment": {
+      "label": "Prepare an amendment",
+      "statement": "A differential of the main structure is created under the label given, and opens in the planning grid, where you add and modify tasks and lines. Nothing is merged.",
+      "name": "Label of the amendment",
+      "submit": "Create the amendment",
+      "done": "The amendment “{label}” is created."
+    },
+    "cancel": "Cancel",
+    "abandon": {
+      "label": "Abandon the current revision",
+      "statement": "The project returns to its last marked revision, and the lines of the current revision are deleted. The abandon is irreversible: it is not in the history that “Undo” reverts.",
+      "submit": "Confirm the abandon",
+      "done": "The current revision is abandoned: the project is back to its last marked revision."
+    },
+    "designate": {
+      "label": "Designate as reference",
+      "statement": "Designating “{name}” as the reference fixes the reference budget and the planned value of the project. If the project bears its project code, it goes to the state “{state}”.",
+      "submit": "Confirm the designation",
+      "done": "“{name}” is the reference revision: the project is in the state “{state}”."
+    },
+    "rateUpdate": {
+      "label": "Apply the rate update",
+      "statement": "The rates of the current revision are replaced by the proposed rates, for the categories retained; the amounts of its lines and of its totals are calculated anew. A marked revision keeps the rates it calculated.",
+      "categories": "Categories updated",
+      "change": "{category}: {previous} → {proposed}",
+      "noneRetained": "Retain at least one category.",
+      "submit": "Confirm the update",
+      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}"
+    }
   },
   "projectList": {
     "count": "{count, plural, one {# project} other {# projects}}",
@@ -916,6 +1522,21 @@
     },
     "periodRefused": "The list is not read: the server refuses the period asked."
   },
+  "projectStart": {
+    "title": "Start the project",
+    "lead": "The main structure of the current revision has no task. Start the planning one of these ways.",
+    "skeleton": "Automatic planning from the work breakdown",
+    "skeletonHint": "Enter the work breakdown, then generate the planning.",
+    "import": "Import an MS Project file",
+    "importHint": "Drop an .xml file: its report comes before it is applied.",
+    "later": "Later",
+    "reopen": "Start the project"
+  },
+  "generatePlanning": {
+    "title": "Generate the planning",
+    "lead": "Once the work breakdown is entered, generate the planning: a summary task for each work package and order item, a task for each deliverable and their end milestones.",
+    "label": "Generate the planning"
+  },
   "projectFacts": {
     "label": "The project",
     "settings": "Project settings",
@@ -928,6 +1549,37 @@
     "inflationRate": "Annual inflation rate",
     "winProbability": "Probability of winning",
     "revisions": "Revisions"
+  },
+  "riskForm": {
+    "identify": "Identify a risk",
+    "identifyHint": "The risk opens its own estimate, where its tasks and lines are costed; its provision, computed, is carried by a task of the main structure.",
+    "identified": "Risk “{name}” identified.",
+    "modify": "Modify",
+    "modifyTitle": "Modify “{name}”",
+    "modifyHint": "The severity and the provision are computed from the own estimate and the probability: they are not entered.",
+    "probability": "Probability (%)",
+    "task": "Task of the provision",
+    "firstTask": "First task of the first level",
+    "saved": "Risk “{name}” modified.",
+    "review": "Review",
+    "reviewTitle": "Review “{name}”",
+    "reviewHint": "The review is dated today: confirming it with no change still produces one, added to the history. The severity and the provision are computed again.",
+    "retainedState": "State retained",
+    "categoryOnReturn": "Asked on the return to the identified state: the category the risk designated is no longer active.",
+    "reviewed": "Risk “{name}” reviewed."
+  },
+  "riskDelete": {
+    "label": "Delete the risk",
+    "statement": "The risk is deleted with its own estimate and its line of provision. A risk cited by a marked revision cannot be deleted: it is dismissed by a review.",
+    "submit": "Delete the risk",
+    "done": "Risk “{name}” deleted."
+  },
+  "riskOccurrence": {
+    "label": "Declare occurred",
+    "statement": "The own estimate of the risk is merged into the main structure of the current revision, with a nil budgeted amount, and its line of provision is withdrawn from the remaining to commit. The declaration is final: a risk occurred is no longer modified.",
+    "submit": "Declare the risk occurred",
+    "queued": "The occurrence of “{name}” is handed to the background processing; it is followed in “Background tasks”.",
+    "succeeded": "The occurrence of “{name}” is done: its own estimate is merged into the main structure."
   },
   "projectForm": {
     "create": "Create a project",
@@ -990,27 +1642,27 @@
     },
     "workBreakdown": {
       "title": "Work breakdown",
-      "none": "This project has no order item.",
+      "none": "This project has no work package.",
       "kindFilter": "Filter by kind",
       "everyKind": "Every kind",
-      "partial": "The order items and work packages show only what the search and the filter retain.",
-      "partialSearch": "The order items and work packages show only what the search retains.",
-      "partialKinds": "The order items and work packages show only what the filter by kind retains.",
+      "partial": "The work packages and order items show only what the search and the filter retain.",
+      "partialSearch": "The work packages and order items show only what the search retains.",
+      "partialKinds": "The work packages and order items show only what the filter by kind retains.",
       "retained": "{kind, select, order_item {{count, plural, one {# order item} other {# order items}}} work_package {{count, plural, one {# work package} other {# work packages}}} other {{count, plural, one {# deliverable} other {# deliverables}}}}",
       "noneRetained": "No element retained",
       "element": "{kind, select, order_item {the order item} work_package {the work package} other {the deliverable}} “{label}”",
-      "createItem": "New order item",
-      "add": "{kind, select, order_item {Add a work package} other {Add a deliverable}}",
-      "addUnder": "{kind, select, order_item {Add a work package to the order item} other {Add a deliverable to the work package}} “{label}”",
+      "createWorkPackage": "New work package",
+      "add": "{kind, select, work_package {Add an order item} other {Add a deliverable}}",
+      "addUnder": "{kind, select, work_package {Add an order item to the work package} other {Add a deliverable to the order item}} “{label}”",
       "rename": "Rename",
       "renameNamed": "Rename {element}",
       "delete": "Delete",
       "deleteNamed": "Delete {element}",
-      "addTitle": "{kind, select, order_item {New work package of the order item “{label}”} work_package {New deliverable of the work package “{label}”} other {New order item}}",
+      "addTitle": "{kind, select, work_package {New order item of the work package “{label}”} root {New work package} other {New deliverable of the order item “{label}”}}",
       "labelField": "Label",
-      "formHint": "The work breakdown is saved whole, from its last reading whole; each order item, work package and deliverable bears a label.",
+      "formHint": "The work breakdown is saved whole, from its last reading whole; each work package, order item and deliverable bears a label.",
       "deleteTitle": "Delete {element}?",
-      "deleteHint": "{kind, select, order_item {The order item, its work packages and their deliverables will be deleted. The tasks of the revision in progress that bear the order item or one of its work packages remain and lose their attachment; the marked revisions keep it.} work_package {The work package and its deliverables will be deleted. The tasks of the revision in progress that bear the work package remain and lose their attachment; the marked revisions keep it.} other {The deliverable will be deleted.}}",
+      "deleteHint": "{kind, select, work_package {The work package, its order items and their deliverables will be deleted. The tasks of the revision in progress that bear the work package or one of its order items remain and lose their attachment; the marked revisions keep it.} order_item {The order item and its deliverables will be deleted. The tasks of the revision in progress that bear the order item remain and lose their attachment; the marked revisions keep it.} other {The deliverable will be deleted.}}",
       "added": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}” added.",
       "renamed": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} renamed “{label}”.",
       "deleted": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}” deleted.",
@@ -1041,21 +1693,15 @@
       "open": "Open",
       "openRevision": "Open the revision “{name}”"
     },
+    "designation": {
+      "title": "Designation of the reference"
+    },
     "comparison": {
       "title": "Comparison of two revisions",
       "needsTwo": "A comparison takes two marked revisions.",
       "from": "From the revision",
       "to": "To the revision",
       "compare": "Compare",
-      "added": "Added",
-      "removed": "Removed",
-      "changed": "Changed",
-      "noneAdded": "Nothing was added.",
-      "noneRemoved": "Nothing was removed.",
-      "noneChanged": "Nothing was changed.",
-      "label": "Label",
-      "kind": "Kind",
-      "changes": "What changes",
       "deltas": "Amount deviations",
       "noDeltas": "No amount deviation.",
       "dimension": "Axis",
@@ -1224,6 +1870,7 @@
       "hint": "The label and the hours worked on each of the seven days, from Monday to Sunday, are required; nothing else is asked."
     },
     "rates": {
+      "title": "Hourly rates",
       "caption": "{count, plural, one {# category} other {# categories}}, hourly rates in {currency}",
       "addYear": {
         "label": "Add a year to the grid",
@@ -1326,6 +1973,12 @@
       "probability": "Bounds of probability (%)",
       "severity": "Bounds of severity (% of the reference budget)",
       "saved": "Risk matrix saved."
+    },
+    "durationUnitsForm": {
+      "modify": "Modify the units of duration",
+      "hint": "The hours per day, the hours per week and the days per month, each strictly positive.",
+      "saved": "Units of duration saved.",
+      "effect": "The change applies to every project: the schedules of the revisions in progress are recalculated; a marked revision keeps the hours it calculated."
     },
     "indicatorForm": {
       "modify": "Modify the thresholds and the delay",
@@ -1724,23 +2377,29 @@
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
+    "NODE_NOT_SIBLING": "The node to place it after is not among the siblings of the new place: the grid is read again.",
+    "MILESTONE_REQUIRED": "Only a milestone can be tracked on the time/time diagram.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "PROVISION_CATEGORY_REQUIRED": "The provision of a risk takes a category of the kind provision for risks.",
+    "PROVISION_LINE_MOVED_BY_RISK": "A line of provision is moved from the form of its risk, which designates its task.",
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
     "PATH_INVALID": "Invalid path: it must be relative, without “..”.",
     "BOUNDS_NOT_ORDERED": "The bounds must be strictly increasing.",
     "THRESHOLD_NOT_BELOW_WATCH": "The alert threshold must be below the watch threshold.",
     "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE": "The threshold must lie between 0 and 1, both excluded.",
+    "DURATION_UNIT_NOT_POSITIVE": "The constant must be strictly positive.",
+    "NON_WORKING_DAY": "Date on a day without a working hour.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This item is not part of the work breakdown read: unknown, of another kind, or deleted.",
-    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
-    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
-    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
-    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears an order item or a work package.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears a work package or an order item, never both.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This work package or order item is already borne by another task.",
+    "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "The task of an order item must stay within the subtree of the task of its work package.",
+    "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears a work package or an order item.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
+    "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
@@ -1773,8 +2432,11 @@
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
     "expected_version": "Expected version: {version}.",
-    "order_item_task": "Task of the order item: {task}.",
-    "work_package_tasks": "{count, plural, one {Task of the work package at issue} other {Tasks of the work packages at issue}}: {tasks}.",
+    "work_package_task": "Task of the work package: {task}.",
+    "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
+    "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
+    "non_working_day": "{date} is not worked on the calendar of the task; enter {next}.",
+    "cycle": "Loop of links, in order: {tasks}.",
     "taskName": "“{label}”"
   },
   "permissions": {
@@ -2082,6 +2744,7 @@
       "manage_contributors": "Manage contributors",
       "manage_timelines": "Manage timelines",
       "create_revision": "Create a revision",
+      "generate_skeleton": "Generate the schedule skeleton",
       "complete": "Complete the project",
       "lose": "Declare the project lost",
       "abandon": "Abandon the project",
@@ -2108,8 +2771,13 @@
       "revision_draft": "draft revision",
       "revision_marked": "marked revision",
       "reference_correctable": "reference still correctable",
+      "revision_has_tasks_and_lines": "revision bearing at least one task and one estimate line",
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",
+      "task_is_milestone": "the task is a milestone",
+      "task_not_milestone": "the task is not a milestone",
+      "task_without_lines": "task without any line but provisions",
+      "completed_milestone": "completed milestone",
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
       "may_create_revision": "holding the permission to create a revision",
@@ -2164,8 +2832,8 @@
       "contributor": "Contributor"
     },
     "WorkBreakdownKind": {
-      "order_item": "Order item",
       "work_package": "Work package",
+      "order_item": "Order item",
       "deliverable": "Deliverable"
     },
     "RevisionStatus": {
@@ -2179,8 +2847,8 @@
       "edit_remaining": "Update the estimate to complete",
       "edit_risks": "Edit the risks",
       "declare_risk": "Declare a risk",
-      "create_structure": "Create a structure",
-      "merge_structure": "Merge a structure",
+      "create_structure": "Prepare an amendment",
+      "merge_structure": "Contractualise the amendment",
       "mark": "Mark the revision",
       "designate_reference": "Designate as reference",
       "abandon": "Abandon the revision",
@@ -2201,15 +2869,19 @@
       "task": "Task",
       "estimate_line": "Estimate line"
     },
-    "ComparedNode": {
-      "changes": {
-        "dates": "Dates",
-        "duration": "Duration",
-        "progress": "Progress",
-        "budgeted_amount": "Budgeted amount",
-        "reestimated_amount": "Re-estimated amount",
-        "parent": "Parent"
-      }
+    "NodeChange": {
+      "dates": "Dates",
+      "duration": "Duration",
+      "progress": "Progress",
+      "budgeted_amount": "Budgeted amount",
+      "reestimated_amount": "Re-estimated amount",
+      "parent": "Parent"
+    },
+    "NodeDifference": {
+      "added": "Added",
+      "removed": "Removed",
+      "modified": "Modified",
+      "unchanged": "Unchanged"
     },
     "RevisionComparison": {
       "amount_deltas": {
@@ -2223,6 +2895,17 @@
       "main": "Main structure",
       "amendment": "Amendment",
       "risk": "Risk estimate"
+    },
+    "KanbanCommand": {
+      "start": "Start",
+      "complete": "Complete",
+      "reopen": "Reopen",
+      "enter_remaining": "Enter the remaining to commit"
+    },
+    "StructureCommand": {
+      "edit_planning": "Edit the schedule",
+      "edit_estimate": "Edit the estimate",
+      "edit_remaining": "Update the estimate to complete"
     },
     "StructureCreate": {
       "kind": {
@@ -2299,8 +2982,10 @@
         "start": "Task start",
         "finish": "Task finish",
         "progress": "Task progress",
+        "predecessors": "Task predecessors",
         "order_item_id": "Task order item",
-        "work_package_id": "Task work package"
+        "work_package_id": "Task work package",
+        "tracking": "Task timelines"
       },
       "estimate_line": {
         "label": "Line label",
@@ -2325,7 +3010,7 @@
       "total_float": "Total float",
       "is_critical": "Critical path",
       "predecessors": "Predecessors",
-      "work_breakdown": "Order item or work package",
+      "work_breakdown": "Work package or order item",
       "cost_category": "Cost category",
       "resource_role": "Resource role",
       "quantity": "Quantity",
@@ -2383,12 +3068,6 @@
       "own_estimate": "The severity of a risk is the total of its own estimate.",
       "severity_and_probability": "The provision of a risk is its severity weighted by its probability."
     },
-    "ProgressUpdate": {
-      "progress": {
-        "started": "Started",
-        "completed": "Completed"
-      }
-    },
     "WorkloadPlan": {
       "basis": {
         "reference_budget": "Budget of the reference revision",
@@ -2410,7 +3089,7 @@
       "no_capacity": "No capacity for this role over the period.",
       "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
       "hourly_rate_missing": "Hourly rate missing for the reference year.",
-      "order_item_without_task": "No task bears this order item."
+      "work_package_without_task": "No task bears this work package."
     },
     "CurveSeries": {
       "series": {
@@ -2510,6 +3189,9 @@
         "actual_cost_line": "Actual cost line"
       }
     },
+    "ImportDifferenceField": {
+      "parent": "Parent"
+    },
     "ImportIgnoredKind": {
       "resources": "Resources",
       "calendars": "Calendars",
@@ -2600,6 +3282,17 @@
       "periodTo": "To",
       "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
     },
+    "drop": {
+      "title": "Drop zone for the MS Project file",
+      "hint": "Drag an .xml file here, or choose it. {max} MiB at most.",
+      "choose": "Choose a file",
+      "file": "MS Project file (.xml)",
+      "notXml": "This is not an .xml file: an MS Project schedule is exported as XML.",
+      "tooLarge": "The file is larger than {max} MiB, the largest size an import takes.",
+      "sending": "Sending “{file}”…",
+      "sent": "“{file}” is sent: its report is shown on the page.",
+      "busy": "A file is being sent: the file dropped is not taken."
+    },
     "report": {
       "title": "Report of the import “{file}”",
       "kind": "Kind",
@@ -2653,5 +3346,14 @@
     "signedOut": "Your session ended before the outcome of the restoration was known. Sign in again to learn it.",
     "doneTitle": "Restoration done",
     "done": "The platform has been restored. Sign in again to go on."
+  },
+  "messages": {
+    "label": "Messages",
+    "none": "No message in this session.",
+    "success": "Success:",
+    "refusal": "Refusal:",
+    "object": "Object: {object}.",
+    "screenInProject": "{screen} — {project}",
+    "unknownScreen": "Screen of origin"
   }
 }

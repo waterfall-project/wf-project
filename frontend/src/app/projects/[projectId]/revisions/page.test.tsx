@@ -30,6 +30,12 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+  usePathname: () => "/projects/p/revisions",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));
@@ -49,6 +55,9 @@ const DIMENSIONS: Record<RevisionComparison["amount_deltas"][number]["dimension"
   cost_type: "Nature de coût",
   subproject: "Sous-projet",
 };
+
+// What changes of a node, as the French catalogue names it.
+const CHANGES = CATALOGUES.fr.enums.NodeChange;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -90,12 +99,6 @@ function callTo(route: string): FakeCall | undefined {
 function table(markup: string, name: string): string {
   const found = new RegExp(`<table[^>]*aria-label="${name}"[^>]*>(.*?)</table>`).exec(markup);
   return text(found?.[1] ?? "");
-}
-
-/** How many rows the table a page names so lists, its header left out. */
-function rows(markup: string, name: string): number {
-  const found = new RegExp(`<table[^>]*aria-label="${name}"[^>]*>(.*?)</table>`).exec(markup);
-  return (found?.[1] ?? "").split("<tr").length - 2;
 }
 
 /** The opening tag of the button a page names so, or `undefined` when it has none. */
@@ -229,34 +232,51 @@ describe("the comparison of two revisions", () => {
     );
   });
 
-  it("presents what compareRevisions gives, nothing paired, summed nor ordered by the front [WF-ARC-0020-A]", async () => {
+  it("presents what compareRevisions gives, nothing paired, summed nor ordered by the front [WF-ARC-0020-A] [WF-REV-0080-A]", async () => {
     // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
     const page = html(
       await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
     );
     const call = callTo("GET /projects/{project_id}/revisions/comparison");
     expect(call?.path).toBe(`${REVISIONS}/comparison`);
-    expect(call?.query.toString()).toBe(`from_revision_id=${OFFER}&to_revision_id=${REFERENCE}`);
-    expect(table(page, "Ajouts")).toBe(
-      "Libellé Nature Provision — risque de reprise du câblage Ligne de devis " +
-        "Provision — retard de livraison des armoires Ligne de devis " +
-        "Réception usine Tâche Assistance aux essais de câblage Ligne de devis " +
-        "Provision — indisponibilité de l'automaticien Ligne de devis",
+    // The tree read whole, reduced to what the grid shows (#1201): the two revisions, then `fields`.
+    expect([...(call?.query.keys() ?? [])]).toEqual([
+      "from_revision_id",
+      "to_revision_id",
+      "fields",
+    ]);
+    expect(call?.query.get("from_revision_id")).toBe(OFFER);
+    expect(call?.query.get("to_revision_id")).toBe(REFERENCE);
+    expect(call?.query.get("fields")).toBe("kind,task.label,estimate_line.label");
+    // The window `comparison` reads, the sub-tree of « Installation sur site » (`subtree_of`), as
+    // its description counts it: 9 nodes in the order of the API, each with the mark the server
+    // gives it — 2 added, 2 removed, 5 modified — and what changes of it, as the catalogue names
+    // it; the totals are those of the answer, which the front does not add up.
+    const mark = { added: "+ Ajouté", removed: "- Retiré", modified: "M Modifié", unchanged: "" };
+    const nodes = COMPARISON.items.map(
+      (node) =>
+        `${mark[node.difference]} ${node.row_number.toString()} ` +
+        `${node.task?.label ?? node.estimate_line?.label ?? ""} ` +
+        node.changes.map((change) => CHANGES[change]).join(" "),
     );
-    expect(table(page, "Retraits")).toBe(
-      "Libellé Nature Essais préliminaires sur site Tâche Location du banc d'essais Ligne de devis",
+    const { task_count: tasks, estimate_line_count: lines } = COMPARISON.totals;
+    expect(table(page, "Nœuds comparés")).toBe(
+      text(
+        `Écart N° Libellé Ce qui change ${nodes.join(" ")} Total — ${tasks.toString()} tâches, ` +
+          `${lines.toString()} lignes`,
+      ),
     );
-    // The four nodes of the core first, in the order of the API; then every line of labour drawn
-    // around it, re-estimated at the rates of 2026 (EP-14/L45a): one row per node the API gives,
-    // none left out by the front.
-    const changed = table(page, "Modifications");
-    const core =
-      "Libellé Nature Ce qui change Dossier de conception Tâche Dates Durée " +
-      "Raccordement des borniers Ligne de devis Montant budgété Montant réestimé " +
-      "Câblage sur site Ligne de devis Montant réestimé " +
-      "Mise en service sur site Ligne de devis Montant réestimé ";
-    expect(changed.slice(0, core.length)).toBe(core);
-    expect(rows(page, "Modifications")).toBe(COMPARISON.changed.length);
+    expect(COMPARISON.items.map((node) => node.difference)).toEqual([
+      "modified",
+      "modified",
+      "modified",
+      "added",
+      "modified",
+      "modified",
+      "added",
+      "removed",
+      "removed",
+    ]);
     // The deviations as the API gives them, in its order, each named by the label it resolves
     // (#204), or as the catalogue names one without a label: no total the front would add up, no
     // identifier shown.
@@ -268,7 +288,8 @@ describe("the comparison of two revisions", () => {
         } ${formatMoney(delta.delta, "fr")}`,
     );
     expect(table(page, "Écarts de montants")).toBe(text(`Axe Poste Écart ${deltas.join(" ")}`));
-    expect(deltas).toHaveLength(6);
+    // Three natures of cost and two sub-projects, as the description of `comparison` lists them.
+    expect(deltas).toHaveLength(5);
     for (const { key } of COMPARISON.amount_deltas) {
       expect(page).not.toContain(key);
     }
@@ -279,20 +300,53 @@ describe("the comparison of two revisions", () => {
     expect(selected).toEqual([OFFER, REFERENCE]);
   });
 
-  it("says each part empty for an identical pair — the same revision twice, compared, not refused", async () => {
+  it("marks no node of an identical pair — the same revision twice, compared, not refused", async () => {
     // Le contrat le dit : une paire identique rend une comparaison vide, jamais un refus.
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/comparison": "comparison_identical",
     };
     const page = html(await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: OFFER })));
-    expect(callTo("GET /projects/{project_id}/revisions/comparison")?.query.toString()).toBe(
-      `from_revision_id=${OFFER}&to_revision_id=${OFFER}`,
+    const call = callTo("GET /projects/{project_id}/revisions/comparison");
+    expect(call?.query.get("from_revision_id")).toBe(OFFER);
+    expect(call?.query.get("to_revision_id")).toBe(OFFER);
+    // Every node of the tree is shown, none marked nor tinted, and no deviation is told.
+    const identical = example("comparison_identical") as RevisionComparison;
+    const grid = table(page, "Nœuds comparés");
+    for (const node of identical.items) {
+      expect(grid).toContain(node.task?.label ?? node.estimate_line?.label ?? "");
+    }
+    expect(grid).not.toMatch(/Ajouté|Retiré|Modifié/);
+    expect(page).not.toContain("bg-diff-");
+    expect(text(page)).toContain("Écarts de montants Aucun écart de montant.");
+  });
+
+  it("presents a comparison read with fields, each node reduced to what the screen shows (#1208)", async () => {
+    // The volume of the witness, whole, each node reduced by `fields` to its kind and its label:
+    // no `lineage_id`, which the rows are not keyed by, nothing but what the grid shows.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/comparison": "volume/comparison_volume",
+    };
+    const volume = example("volume/comparison_volume") as RevisionComparison;
+    expect(volume.items.some((node) => "lineage_id" in node)).toBe(false);
+    const page = html(
+      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
     );
-    expect(text(page)).toContain(
-      "Ajouts Rien n’a été ajouté. Retraits Rien n’a été retiré. " +
-        "Modifications Rien n’a été modifié. Écarts de montants Aucun écart de montant.",
-    );
+    // The grid knows all of the nodes, the header and the totals besides, and renders a window of
+    // them, the rows in view, as every grid does.
+    expect(page).toContain(`aria-rowcount="${(volume.items.length + 2).toString()}"`);
+    const rendered = [...page.matchAll(/<tr[^>]*aria-rowindex="(\d+)"/g)].length;
+    expect(rendered).toBeGreaterThan(20);
+    expect(rendered).toBeLessThan(100);
+    // The first nodes by their labels, in the order of the API.
+    const grid = table(page, "Nœuds comparés");
+    const at3 = volume.items
+      .slice(0, 3)
+      .map((node) => grid.indexOf(node.task?.label ?? node.estimate_line?.label ?? "?"));
+    expect(at3[0]).toBeGreaterThan(-1);
+    expect(at3[1]).toBeGreaterThan(at3[0] ?? 0);
+    expect(at3[2]).toBeGreaterThan(at3[1] ?? 0);
   });
 
   it("asks nothing of the API until the address names both revisions", async () => {
@@ -366,20 +420,70 @@ describe("the parts of the revision the screen reads in", () => {
     expect(text(page)).not.toContain("Taux de l’année");
   });
 
+  it("offers the application of the rates under the proposal, and the designation of the reference under the history [WF-REV-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    };
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("available");
+    expect(text(page)).toContain("Désignation de la référence");
+    expect(offered(page, "Désigner comme référence")).toBe("unavailable");
+  });
+
+  it("offers no application of the rates when none is proposed [WF-REV-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update_none",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    };
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
+  });
+
+  it("offers no application of the rates to a reader who cannot edit the estimate, though the update is proposed", async () => {
+    // The contract lists no command of its own for the update (#1351): the revision's `edit_estimate`
+    // stands for it, and a revision that does not list it leaves the proposal to be read.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    };
+    const read = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(text(read)).toContain("Taux du référentiel");
+    expect(offered(read, "Appliquer la mise à jour des taux")).toBe("absent");
+
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_estimator",
+    };
+    const estimated = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(offered(estimated, "Appliquer la mise à jour des taux")).toBe("available");
+  });
+
   it("reads nothing of a revision when the address carries none", async () => {
     const page = html(await RevisionsPage(at()));
     expect(calls().map((call) => call.route)).not.toContain(
       "GET /projects/{project_id}/revisions/{revision_id}/structures",
     );
     expect(text(page)).not.toContain("Structures de coûts");
-    expect(page).not.toContain('aria-label="Commandes"');
+    // The commands of the project remain — the opening of a revision —, those of a revision do not.
+    expect(offered(page, "Marquer la révision")).toBe("absent");
+    expect(offered(page, "Ouvrir une révision en cours")).toBe("unavailable");
   });
 });
 
 describe("the commands of the revision the screen reads in", () => {
   it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    for (const name of ["Créer une structure", "Marquer la révision"]) {
+    // The draft carries amendment 2, not merged: another one opens all the same, several
+    // coexisting (WF-REV-0100, #1211).
+    for (const name of [
+      "Préparer un avenant",
+      "Marquer la révision",
+      "Abandonner la révision en cours",
+    ]) {
       expect(offered(page, name)).toBe("available");
     }
   });
@@ -395,10 +499,9 @@ describe("the commands of the revision the screen reads in", () => {
     expect(text(page)).toContain("Marquée");
     expect(text(page)).toContain("Lecture seule");
     for (const name of [
-      "Créer une structure",
-      "Fusionner une structure",
+      "Préparer un avenant",
       "Marquer la révision",
-      "Abandonner la révision",
+      "Abandonner la révision en cours",
     ]) {
       expect(offered(page, name)).toBe("unavailable");
     }
@@ -412,8 +515,10 @@ describe("the commands of the revision the screen reads in", () => {
     };
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
     expect(offered(page, "Marquer la révision")).toBe("absent");
-    // The estimate, the one command left them, is offered by its grid: the screen lists none.
-    expect(page).not.toContain('aria-label="Commandes"');
+    // The estimate, the one command left them, is offered by its grid: the screen lists no command
+    // of the revision, and the opening of a revision, which the project lists, alone.
+    expect(offered(page, "Préparer un avenant")).toBe("absent");
+    expect(offered(page, "Abandonner la révision en cours")).toBe("absent");
   });
 
   it("presents the marking unavailable while a background task runs on the revision, naming the condition", async () => {

@@ -16,6 +16,7 @@ from wftools import (
     REPOSITORY,
     mockcore,
     mockdata,
+    mockdating,
     mockids,
     mockstructure,
     mocktext,
@@ -171,8 +172,8 @@ def test_a_write_of_the_core_answers_the_node_written_its_summaries_and_the_whol
     } == (read[universe(WIRING)])
     [summary] = renamed["ancestors"]
     assert summary == read[universe(CONTROL_STATION)]
-    assert summary["task"]["order_item_id"] == mockwitness.ASSEMBLY.identifier
-    assert summary["task"]["work_breakdown_label"] == mockwitness.ASSEMBLY.label
+    assert summary["task"]["work_package_id"] == mockwitness.FIRST_LOT.identifier
+    assert summary["task"]["work_breakdown_label"] == mockwitness.FIRST_LOT.label
     assert (renamed["rescheduled"], renamed["reinflated"]) == ([], [])
     assert renamed["totals"] == whole["totals"]
     assert renamed["totals"]["task_count"] == 1_000
@@ -280,7 +281,7 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     # The wiring on site given to the cable fitter, on the week of four days: the mounting works
     # the days both its roles work, four of eight hours (WF-PLA-0010), and finishes in 2027.
     roots = mockwrites.amended(CORE, line=mockwrites.on_line(ON_SITE, role=CABLE_FITTER))
-    calendar = mockcore.schedule(roots)[MOUNTING].calendar
+    calendar = mockdating.schedule(roots)[MOUNTING].calendar
     assert calendar.week == tuple(Decimal(hours) for hours in (8, 8, 8, 8, 0, 0, 0))
     redated = write("estimate_line_redated")
     read = numbered(whole["items"])
@@ -506,6 +507,74 @@ def test_a_re_estimate_that_completes_its_task_undated_is_refused_naming_the_tas
     assert "fixtures/api/remaining_completion_date_required.json" in refused
 
 
+def test_a_line_of_a_task_not_started_changes_its_subproject_and_nothing_else(
+    whole: dict[str, Any],
+) -> None:
+    # The commissioning on site, its task not started, leaves the control station for the tests
+    # and the commissioning (WF-PRJ-0050): its subproject alone changes, its budget the offer's
+    # (#467); its two summaries render unchanged, and the totals with them.
+    changed = write("estimate_line_subproject_changed")
+    read = by_id(whole["items"])
+    [line] = changed["nodes"]
+    was = read[universe(COMMISSIONING_LINE)]
+    assert (line["node_id"], line["lock_version"]) == (universe(COMMISSIONING_LINE), 2)
+    assert line["estimate_line"]["subproject_id"] == mockwitness.SUBPROJECT_TESTS
+    assert line["estimate_line"]["subproject_label"] == "Essais et mise en service"
+    assert {
+        **line,
+        "lock_version": 1,
+        "estimate_line": {
+            **line["estimate_line"],
+            "subproject_id": was["estimate_line"]["subproject_id"],
+            "subproject_label": was["estimate_line"]["subproject_label"],
+        },
+    } == was
+    assert read[universe(COMMISSIONING)]["task"]["progress"] == "not_started"
+    assert "estimate_line.subproject_id" in line["editable_fields"]
+    assert sorted(numbered(changed["ancestors"])) == [INSTALLATION, COMMISSIONING]
+    for node in changed["ancestors"]:
+        assert node == read[node["node_id"]]
+    assert (changed["rescheduled"], changed["reinflated"]) == ([], [])
+    assert changed["totals"] == whole["totals"]
+
+
+def test_a_line_of_a_started_task_is_refused_leaving_its_charged_subproject(
+    whole: dict[str, Any],
+) -> None:
+    # The labour of the wiring, started, may not leave the control station, which received the
+    # invoice of the screens (WF-PRJ-0050, #1066): refused on the field sent, the subproject named
+    # by its identifier and its label; the line read does not offer the field.
+    refused = mockwrites.estimate_line_subproject_has_actual_costs()
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    [problem] = cast("list[Node]", refused["fields"])
+    assert (problem["pointer"], problem["code"]) == (
+        "/subproject_id",
+        "SUBPROJECT_HAS_ACTUAL_COSTS",
+    )
+    read = by_id(whole["items"])
+    line = read[universe(LABOUR)]
+    assert problem["params"] == {
+        "subproject": {
+            "subproject_id": line["estimate_line"]["subproject_id"],
+            "label": line["estimate_line"]["subproject_label"],
+        }
+    }
+    assert read[universe(WIRING)]["task"]["progress"] == "started"
+    assert "estimate_line.subproject_id" not in line["editable_fields"]
+    [charged] = [
+        entry
+        for entry in mockwitness.fixture("subprojects")
+        if entry["subproject_id"] == line["estimate_line"]["subproject_id"]
+    ]
+    assert charged["has_actual_costs"] is True
+    # The contract cites the example under the 422 of updateEstimateLine.
+    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    operation = paths[paths.index("operationId: updateEstimateLine") :]
+    operation = operation[: operation.index("operationId:", len("operationId:"))]
+    refusals = operation[operation.index("'422':") :]
+    assert "fixtures/api/estimate_line_subproject_has_actual_costs.json" in refusals
+
+
 def test_every_write_is_an_example_the_contract_cites() -> None:
     contract = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(
         encoding="utf-8"
@@ -528,7 +597,7 @@ def test_a_loop_of_links_cannot_be_dated_and_the_tasks_left_are_named() -> None:
         ValueError,
         match=r"among the tasks left undated: Montage des armoires sur site, Mise en service$",
     ):
-        mockcore.schedule(looped)
+        mockdating.schedule(looped)
 
 
 def test_a_reestimation_follows_the_figures_entered_and_leaves_the_budget(

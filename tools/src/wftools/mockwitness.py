@@ -53,6 +53,12 @@ def by_identifier(name: str, key: str) -> list[Any]:
 TODAY = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 """The instant every first example describes (decision of the user of 2026-10-05)."""
 
+SCHEDULED_AT = TODAY
+"""When the dates of a structure the witness reads in progress were last computed, which every
+reading of its nodes says (`NodeListMeta.scheduled_at`, #1404): the fake back dates a structure
+as it reads it, today, and no write of the witness comes after. A marked revision says the instant
+of its marking instead (``mockhistory.REVISIONS``), after which nothing redates it."""
+
 
 @dataclass(frozen=True, slots=True)
 class Event:
@@ -86,6 +92,14 @@ RISKS_IDENTIFIED = Event(
     "Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101",
     time(10, 0),
 )
+RATES_UPDATED = Event(
+    date(2026, 1, 12),
+    "Mise à jour des taux de 2026 acceptée depuis la révision 101 en cours",
+    time(10, 15),
+)
+"""The revision 101, created by an entry of a risk, took the rates of the offer projected to 2026;
+the update, still proposed from the revision in progress, was accepted a quarter of an hour after
+(WF-REV-0060, C-362; ``rate_update_applied``)."""
 ORDER_RECEIVED = Event(
     date(2026, 1, 15),
     "Commande reçue ; l'offre 100 désignée référence, passage En cours",
@@ -138,6 +152,7 @@ CHRONOLOGY = tuple(
             OFFER_OPENED,
             OFFER_MARKED,
             RISKS_IDENTIFIED,
+            RATES_UPDATED,
             ORDER_RECEIVED,
             AMENDMENT_MERGED,
             RISK_751_REVIEWED,
@@ -193,12 +208,15 @@ STANDARD_WEEK = universe(481)
 FOUR_DAY_WEEK = universe(482)
 
 
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+"""The days of `WeeklyHours`, Monday first, as a calendar counts its week (``Calendar.week``)."""
+
+
 def calendars() -> dict[str, Calendar]:
     """Return the active calendars of the installation, by identifier (``calendars``)."""
-    days = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
     return {
         entry["calendar_id"]: Calendar(
-            entry["calendar_id"], tuple(Decimal(entry["weekly_hours"][day]) for day in days)
+            entry["calendar_id"], tuple(Decimal(entry["weekly_hours"][day]) for day in WEEKDAYS)
         )
         for entry in fixture("calendars")["items"]
     }
@@ -290,28 +308,41 @@ class Line:
 class Task:
     """A task of the core: its node is its number, 5nn, its lineage 6nn.
 
-    Its duration in days of work of eight hours, as its links' lags are in their units, both
-    converted into hours by ``mockcalendar.to_hours`` (WF-PLA-0160); its lines and its
-    subordinates. The progress of a task in automatic mode is read from its dates at TODAY; a
-    task in manual mode carries the dates its user entered, and the progress its user declared.
-    A summary may bear an order item of the work breakdown (WF-PLA-0130).
+    Its duration, ``days``, is a count of ``unit``, not of days: days of work of eight hours
+    unless a write gives it another unit of work, kept as entered — two weeks are ``days=2,
+    unit="w"`` —, as its links' lags are in their units, both converted into hours by
+    ``mockcalendar.to_hours`` (WF-PLA-0160); its lines and its subordinates. The progress of a
+    task in automatic mode is read from its dates at TODAY; a task in manual mode carries the
+    dates its user entered, and the progress its user declared — a gesture of the Kanban, on the
+    day ``declared_on`` says, or on its dates' day without it. A task may bear a lot or a post
+    of the work breakdown, never both (WF-PLA-0130, WF-PLA-0170). A write may give it a
+    description, and its inscriptions — the timelines, and ``MILESTONE_TRACKING`` for the
+    time/time tracking —, which are otherwise those ``INSCRIBED`` and ``TRACKED`` say.
     """
 
     number: int
     label: str
     days: int = 0
+    unit: str = "d"
     is_milestone: bool = False
     links: tuple[Link, ...] = ()
     lines: tuple[Line, ...] = ()
     children: tuple[Task, ...] = ()
     manual: tuple[date, date] | None = None
     progress: str | None = None
-    order_item: OrderItem | None = None
+    declared_on: date | None = None
+    bears: WorkPackage | OrderItem | None = None
+    description: str | None = None
+    inscriptions: tuple[str, ...] | None = None
+
+
+MILESTONE_TRACKING = "milestone_tracking"
+"""The inscription of a milestone to the time/time tracking, among those of a task (WF-PLA-0060)."""
 
 
 @dataclass(frozen=True, slots=True)
-class WorkPackage:
-    """A work package of an order item of the work breakdown, and its deliverables."""
+class OrderItem:
+    """A post of a lot of the work breakdown (`OrderItem`), and its deliverables."""
 
     identifier: str
     label: str
@@ -319,19 +350,21 @@ class WorkPackage:
 
 
 @dataclass(frozen=True, slots=True)
-class OrderItem:
-    """An order item of the work breakdown of the witness, which a summary bears."""
+class WorkPackage:
+    """A lot of the work breakdown (`WorkPackage`), its first level, and its posts (C-350)."""
 
     identifier: str
     label: str
-    work_packages: tuple[WorkPackage, ...] = ()
+    order_items: tuple[OrderItem, ...] = ()
 
 
 class N:
     """The numbers of the nodes of the core, said once — the node 5nn, its lineage 6nn.
 
     Every module names the core by this table, never by its digits, so that it is renumbered in
-    one place alone (#376, revue d'EP-02/L24).
+    one place alone (#376, revue d'EP-02/L24). From 591, the nodes the amendment 2 adds, which the
+    main structure does not bear (``mockamendment``, #791); the differential renders the node of
+    number 5nn as 12nn, its identifier of its own (``mockamendment.own_id``, #421).
     """
 
     STUDIES = 521
@@ -362,20 +395,23 @@ class N:
     REFERENCE_PROVISION_753 = 567
     SITE_TRIALS = 568
     SITE_TRIALS_LINE = 569
+    SITE_TESTS = 591
+    TESTS_RESUMED = 592
+    TESTS_RESUMED_LINE = 593
 
 
-CABINETS = WorkPackage(
+FIRST_ITEM = OrderItem(
     universe(712),
-    "Armoires",
+    "Poste 1.1",
     ((universe(713), "Procès-verbal de réception usine des armoires"),),
 )
-"""The one work package of the witness, which no task bears (WF-PLA-0130), and its deliverable."""
+"""The one post of the witness, which no task bears today (WF-PLA-0130), and its deliverable."""
 
-ASSEMBLY = OrderItem(universe(711), "Fourniture et montage des armoires", (CABINETS,))
-"""The one order item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130),
+FIRST_LOT = WorkPackage(universe(711), "Lot 1", (FIRST_ITEM,))
+"""The one lot of the witness, which the summary « Poste de commande » bears (WF-PLA-0130),
 and whose total the estimate presents (`estimate_indicators_breakdown`, WF-DEV-0060)."""
 
-WORK_BREAKDOWN = (ASSEMBLY,)
+WORK_BREAKDOWN = (FIRST_LOT,)
 """The work breakdown of the witness, as its order was entered (WF-PRJ-0020)."""
 
 CREATED_PROJECT = (universe(3), "Rénovation du poste de livraison")
@@ -383,26 +419,26 @@ CREATED_PROJECT = (universe(3), "Rénovation du poste de livraison")
 the one by default, and the revision opened after it has no task (EP-14/L42k)."""
 
 DEFAULT_BREAKDOWN = (
-    OrderItem(
+    WorkPackage(
         universe(714),
         CREATED_PROJECT[1],
-        (WorkPackage(universe(715), CREATED_PROJECT[1]),),
+        (OrderItem(universe(715), CREATED_PROJECT[1]),),
     ),
 )
 """The work breakdown of a project whose order was not entered: « en son absence, le lotissement
-vaut un poste et un lot qui portent le libellé du projet, sans livrable » (WF-PRJ-0020) — that of
+vaut un lot et un poste qui portent le libellé du projet, sans livrable » (WF-PRJ-0020) — that of
 the project created today."""
 
-ON_SITE = WorkPackage(
+SECOND_ITEM = OrderItem(
     universe(716),
-    "Mise en service sur site",
+    "Poste 1.2",
     ((universe(717), "Procès-verbal de mise en service"),),
 )
-"""A work package entered today under the one order item of the witness, after « Armoires », with
-its deliverable (`work_breakdown_saved`, `setWorkBreakdown`, EP-14/L42k): no task bears it."""
+"""A post entered today in the one lot of the witness, after « Poste 1.1 », with its deliverable
+(`work_breakdown_saved`, `setWorkBreakdown`, EP-14/L42k): no task bears it."""
 
-SAVED_BREAKDOWN = (OrderItem(ASSEMBLY.identifier, ASSEMBLY.label, (CABINETS, ON_SITE)),)
-"""The work breakdown of the witness once that work package is entered (WF-PRJ-0020)."""
+SAVED_BREAKDOWN = (WorkPackage(FIRST_LOT.identifier, FIRST_LOT.label, (FIRST_ITEM, SECOND_ITEM)),)
+"""The work breakdown of the witness once that post is entered (WF-PRJ-0020)."""
 
 STEERING = universe(1000)
 CUSTOMER = universe(1001)
@@ -477,7 +513,7 @@ detailed studies finish, with float (WF-PLA-0030, WF-PLA-0080, WF-PLA-0100)."""
 CONTROL_STATION = Task(
     N.CONTROL_STATION,
     "Poste de commande",
-    order_item=ASSEMBLY,
+    bears=FIRST_LOT,
     children=(
         Task(
             N.WIRING,
@@ -550,11 +586,12 @@ CONTROL_STATION = Task(
         Task(N.FACTORY_ACCEPTANCE, "Réception usine", is_milestone=True, links=(Link(N.WIRING),)),
     ),
 )
-"""The lot of the control station: the wiring of the cabinets a week after the reception of the
-studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of
-500,000 of the risk 751, at the scale of the structure, budgeted at the 250,000 the reference knew;
-the subtree merged into the current revision by the occurrence of the risk 752, its lines of 120
-and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at the end of the wiring."""
+"""The summary of the control station, which bears the lot 1: the wiring of the cabinets a week
+after the reception of the studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56
+and the provision of 500,000 of the risk 751, at the scale of the structure, budgeted at the
+250,000 the reference knew; the subtree merged into the current revision by the occurrence of the
+risk 752, its lines of 120 and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at
+the end of the wiring."""
 
 OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
 """The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025
@@ -624,150 +661,6 @@ STUDIES_RECEIVED, STUDIES_LINE = N.STUDIES_RECEIVED, N.STUDIES_LINE
 WIRING, LABOUR, FACTORY_ACCEPTANCE = N.WIRING, N.LABOUR, N.FACTORY_ACCEPTANCE
 """Short names, from N, of the nodes of the core several readings name."""
 
-# --- The risks ---------------------------------------------------------------------------------
-
-IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
-
-
-@dataclass(frozen=True, slots=True)
-class Review:
-    """A review of a risk: the instant it was made, the probability, severity and state retained.
-
-    The first review of a risk is its identification; the declaration of its occurrence is a
-    review too, the last (WF-RIS-0010, WF-RIS-0020).
-    """
-
-    at: datetime
-    probability: Decimal
-    severity: Decimal
-    state: str = IDENTIFIED
-
-
-@dataclass(frozen=True, slots=True)
-class Risk:
-    """A risk of the witness: what its user entered, its reviews, where its provision lies.
-
-    Its severity is the total of its own estimate, as its reviews retain it, and its provision
-    that severity at its probability: neither is entered (WF-RIS-0010). ``provision_line`` is
-    the line of provision it bears in the structure of the current revision, while identified;
-    ``reference_provision_line`` the one the reference revision bore, which the reserve for risks
-    counts (WF-RIS-0050) — none for a risk identified after the reference was marked;
-    ``own_structure`` its own cost structure in the current revision, of an identifier of its
-    own, apart from the one the reference bore (``structures``, ``structures_amendments``;
-    WF-DAT-0030, #461);
-    ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060);
-    ``provision_category`` and ``provision_subproject`` the category of provision for risks and
-    the subproject it designated for its provision, which its line of provision bears while it is
-    identified — the one category of provision of the universe, and no subproject (WF-RIS-0010).
-    """
-
-    number: int
-    label: str
-    description: str
-    mitigation_notes: str | None
-    own_structure: int
-    reviews: tuple[Review, ...]
-    reference_provision_line: int | None = None
-    provision_line: int | None = None
-    merged: int | None = None
-    provision_category: str = PROVISIONS
-    provision_subproject: str | None = None
-
-    @property
-    def last(self) -> Review:
-        """Return the last review of the risk, which says its probability, severity and state."""
-        return self.reviews[-1]
-
-    def known_on(self, day: date) -> Review | None:
-        """Return the last review of the risk made on a day or before, if any (WF-RIS-0010)."""
-        known = [review for review in self.reviews if review.at.date() <= day]
-        return known[-1] if known else None
-
-
-def _at(event: Event, hour: int, minute: int = 0) -> datetime:
-    return datetime.combine(event.on, time(hour, minute), UTC)
-
-
-REWORK = Risk(
-    751,
-    "Risque de reprise du câblage",
-    "Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre "
-    "sur site.",
-    "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
-    204,
-    (
-        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00") * RISK_SCALE),
-        Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00") * RISK_SCALE),
-        Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00") * RISK_SCALE),
-    ),
-    reference_provision_line=N.PROVISION,
-    provision_line=N.PROVISION,
-)
-DELIVERY_DELAY = Risk(
-    752,
-    "Retard de livraison des armoires",
-    "Le fournisseur des armoires annonce un retard de livraison possible.",
-    "Relance hebdomadaire du fournisseur ; transport exceptionnel réservé.",
-    205,
-    (
-        Review(_at(RISKS_IDENTIFIED, 10, 30), Decimal("0.3"), Decimal("200.00")),
-        Review(RISK_752_OCCURRED.instant, Decimal("0.3"), Decimal("200.00"), OCCURRED),
-    ),
-    reference_provision_line=N.REFERENCE_PROVISION_752,
-    merged=N.MERGED,
-)
-AUTOMATION_ENGINEER = Risk(
-    753,
-    "Indisponibilité de l'automaticien",
-    "L'automaticien du client pourrait ne pas être disponible pour la mise en service.",
-    None,
-    206,
-    (
-        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
-        Review(
-            _at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE, DISMISSED
-        ),
-    ),
-    reference_provision_line=N.REFERENCE_PROVISION_753,
-)
-REGISTER = (REWORK, DELIVERY_DELAY, AUTOMATION_ENGINEER)
-"""The register of the witness, in the order of declaration: the rework of the wiring, still
-identified, its provision the line 555 of the core; the delay of the cabinets, occurred on
-20 February, its own estimate merged into the current revision (WF-RIS-0060) — the subtree 541
-of the core —; the unavailability of the automation engineer, dismissed on 2 February. All three
-identified on 12 January, before the reference 101 was marked, which bore their provisions: the
-lines 555, 557 and 567 of its structure (``mockhistory``). The rework and the unavailability are
-at the scale of the structure (``RISK_SCALE``), the delay at the figures of its Vérif."""
-
-# --- The reference, as marked -----------------------------------------------------------------
-
-MERGED, COMMISSIONING_TASK = N.MERGED, N.COMMISSIONING
-"""The subtree the occurrence of 752 merged into the current revision, and the commissioning."""
-
-REFERENCE_PROVISIONS = {
-    752: (
-        WIRING,
-        Line(
-            N.REFERENCE_PROVISION_752,
-            "Provision — retard de livraison des armoires",
-            PROVISIONS,
-            is_provision=True,
-        ),
-    ),
-    753: (
-        COMMISSIONING_TASK,
-        Line(
-            N.REFERENCE_PROVISION_753,
-            "Provision — indisponibilité de l'automaticien",
-            PROVISIONS,
-            is_provision=True,
-        ),
-    ),
-}
-"""The lines of provision the reference bore and the current revision no longer does, by risk,
-with the task that bore each: that of 752, retired by its occurrence (WF-RIS-0060), that of 753,
-by its dismissal (WF-RIS-0010)."""
-
 
 def rewritten(roots: Iterable[Task], change: Callable[[Task], Task]) -> tuple[Task, ...]:
     """Return the description with each task changed, its subordinates first."""
@@ -776,185 +669,3 @@ def rewritten(roots: Iterable[Task], change: Callable[[Task], Task]) -> tuple[Ta
         return change(replace(each, children=tuple(walk(child) for child in each.children)))
 
     return tuple(walk(root) for root in roots)
-
-
-def reference_provision(risk: Risk) -> Decimal:
-    """Return the provision of a risk when the reference was marked, on 1 February 2026.
-
-    Its severity at its probability, as its last review before then retained them (WF-RIS-0010,
-    WF-RIS-0050); nothing for a risk identified after it, which has no share in the reserve.
-    """
-    known = risk.known_on(AMENDMENT_MERGED.on)
-    if known is None:
-        return Decimal("0.00")
-    return (known.severity * known.probability).quantize(Decimal("0.01"))
-
-
-def reference(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
-    """Return the reference 101 as marked on 1 February 2026, from the core of today.
-
-    From the structure given, the core by default: the tasks the core does not name are as today,
-    nothing of them started.
-
-    Nothing was started — the studies start on 2 March —, the subtree the occurrence of 752
-    merged on 20 February is not there yet, and each identified risk bears its line of provision
-    at the provision it then had: 751 at 1,000,000 at 25 %, 752 and 753 on the lines the current
-    revision no longer bears. Marked while the project was in progress, it is the previous
-    review of the current revision, whose lines show its quantities (WF-RAE-0040).
-    """
-    provisions = {
-        risk.reference_provision_line: reference_provision(risk)
-        for risk in REGISTER
-        if risk.reference_provision_line is not None
-    }
-
-    def change(task: Task) -> Task:
-        # A line of provision of a risk not identified on 1 February was not in the reference.
-        lines = tuple(
-            replace(line, unit=provisions[line.number], budgeted=None)
-            if line.is_provision
-            else line
-            for line in task.lines
-            if not line.is_provision or line.number in provisions
-        )
-        added = tuple(
-            replace(line, unit=provisions[line.number])
-            for bearer, line in REFERENCE_PROVISIONS.values()
-            if bearer == task.number
-        )
-        children = tuple(child for child in task.children if child.number != MERGED)
-        return replace(task, lines=lines + added, children=children, progress=None)
-
-    return rewritten(CORE if roots is None else roots, change)
-
-
-# --- The actual costs --------------------------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class CostImport:
-    """An import of actual costs, as its journal says it (WF-CRE-0050).
-
-    Its event, the instant it was applied; the import of the exchanges that applied it, by its
-    number, opened and analysed a few minutes before; the period it extracted, each bound
-    possibly missing; and the lines of other projects it read, rejected and signalled to its
-    report (WF-CRE-0020), which the journal counts among the lines ignored.
-    """
-
-    number: int
-    event: Event
-    exchange: int
-    period: tuple[date | None, date | None]
-    rejected: int = 0
-
-
-MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY = (
-    CostImport(0xC11, COST_IMPORTS[0], 0xA06, (date(2026, 3, 1), date(2026, 3, 31))),
-    CostImport(0xC12, COST_IMPORTS[1], 0xA07, (date(2026, 4, 1), date(2026, 4, 30)), 1),
-    CostImport(0xC13, COST_IMPORTS[2], 0xA08, (None, None), 37),
-    CostImport(0xC14, COST_IMPORTS[3], 0xA09, (None, date(2026, 4, 30)), 12_345),
-    CostImport(0xC15, COST_IMPORTS[4], 0xA14, (date(2026, 5, 1), None)),
-)
-JOURNAL = (MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY)
-"""The imports of actual costs of the witness, in their order: the extraction of March, that of
-April, a file without a period of which no line was the project's, a re-extraction up to 30 April,
-which brings back the five lines already imported, and the extraction of May, from 1 May."""
-
-
-@dataclass(frozen=True, slots=True)
-class CostLine:
-    """A line of actual cost of the witness: what the file of the ERP says of it (WF-CRE-0010).
-
-    Its number, 0xc0n; its document, dated, its signed amount; the code of subproject its element
-    of the work breakdown structure carries, if it has a subproject part, imputed to the
-    subproject of that code if the project has one, to the project alone otherwise — as is a line
-    without a subproject part (WF-CRE-0020); the columns kept of the file;
-    the imports that brought it, the first creating it, the others updating it (WF-CRE-0010); and
-    its exclusion from the tracked scope, when and why, kept by the imports after it
-    (WF-CRE-0030).
-    """
-
-    number: int
-    document: str
-    on: date
-    amount: Decimal
-    code: str | None
-    supplier: str
-    text: str
-    imports: tuple[CostImport, ...]
-    excluded: tuple[datetime, str] | None = None
-
-
-COSTS = (
-    CostLine(
-        0xC01,
-        "FA-2026-0412",
-        date(2026, 4, 21),
-        Decimal("1800.00"),
-        "SP-CAB",
-        "Câbles du Rhône",
-        "Câbles de commande du pupitre",
-        (APRIL, APRIL_AGAIN),
-    ),
-    CostLine(
-        0xC02,
-        "AV-2026-0388",
-        date(2026, 4, 8),
-        Decimal("-200.00"),
-        "SP-CAB",
-        "Câbles du Rhône",
-        "Avoir sur livraison incomplète",
-        (APRIL, APRIL_AGAIN),
-    ),
-    CostLine(
-        0xC03,
-        "FA-2026-0301",
-        date(2026, 3, 27),
-        Decimal("1400.00"),
-        "SP-AUT",
-        "Automatismes Durand",
-        "Automate de sécurité",
-        (MARCH, APRIL_AGAIN),
-    ),
-    CostLine(
-        0xC04,
-        "FA-2026-0295",
-        date(2026, 3, 20),
-        Decimal("650.00"),
-        "SP-REC",
-        "Traiteur Lumière",
-        "Réception du client sur site",
-        (MARCH, APRIL_AGAIN),
-        (datetime(2026, 4, 6, 9, 15, tzinfo=UTC), "Réception du client, non budgétée"),
-    ),
-    CostLine(
-        0xC06,
-        "FA-2026-0409",
-        date(2026, 4, 10),
-        Decimal("100000.00"),
-        None,
-        "Ingélec Études",
-        "Études de détail du poste de commande",
-        (APRIL, APRIL_AGAIN),
-    ),
-    CostLine(
-        0xC05,
-        "FA-2026-0521",
-        date(2026, 5, 18),
-        Decimal("2400.00"),
-        "SP-CMD",
-        "Automatismes Durand",
-        "Écrans du poste de commande",
-        (MAY,),
-    ),
-)
-"""The lines of actual cost of the witness today: the purchases of cables, a credit note on them and
-the safety controller, under codes of subproject the project does not have, imputed to it alone;
-the reception of the customer, excluded from the tracked scope three days after its import; the
-invoice of the detailed studies, 100,000 of subcontracting dated the day they finished, without a
-subproject part, as their line 527 has none — its payment delay of thirty days shifts the
-disbursement, not the date of the document (decision of the author, review of EP-02/L25) —; and
-the screens of the control station, imputed to its subproject."""
-
-PASSTHROUGH = ("Fournisseur", "Texte de commande", "Élément d'OTP")
-"""The columns of the file the imports keep, in the order they declare them (WF-CRE-0010)."""

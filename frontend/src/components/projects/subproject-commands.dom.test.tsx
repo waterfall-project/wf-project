@@ -10,6 +10,7 @@ import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
 import { PendingAddress } from "@/components/grid/pending-address";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
@@ -133,6 +134,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
+  forgetMessages();
 });
 
 afterEach(() => {
@@ -195,6 +197,14 @@ describe("the creation and the modification of a sub-project", () => {
       "Essais, mise en service et réception",
     );
     expect(announced()).toContain("« SP-ESS » enregistré.");
+    // Noted once in the history of the messages, about the sub-project it names.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: "«\u00a0SP-ESS\u00a0» enregistré.",
+        object: "SP-ESS",
+      }),
+    ]);
   });
 
   it("closes on an answer only the form it was sent from: a late one shows, and leaves the form opened since open, its entry kept (#672)", async () => {
@@ -398,6 +408,14 @@ describe("the deletion of a sub-project", () => {
     ]);
     expect(within(grid()).queryByText("SP-REC")).toBeNull();
     expect(announced()).toContain("« SP-REC » supprimé.");
+    // Noted once in the history of the messages, about the sub-project it names.
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        sentence: "«\u00a0SP-REC\u00a0» supprimé.",
+        object: "SP-REC",
+      }),
+    ]);
   });
 
   it("closes on an answer only the confirmation it was sent from: a late deletion takes its row away, and leaves the form opened since open (#672)", async () => {
@@ -582,6 +600,8 @@ describe("the commands a project lists", () => {
       `Modifier «\u00a0SP-ESS\u00a0»\u00a0: indisponible. Condition non remplie\u00a0: projet non clos.`,
     );
     expect(client.calls).toEqual([]);
+    // Nothing was sent: the history notes nothing.
+    expect(readMessages().messages).toEqual([]);
   });
 
   it("offers nothing when the project lists no command `update`", () => {

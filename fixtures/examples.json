@@ -147,6 +147,11 @@
       "sentence": "Une mise à jour refusée à la création d'une révision est acceptée ensuite depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie."
     },
     {
+      "key": "WF-PRJ-0050-A#0959bb1f339c",
+      "requirement": "WF-PRJ-0050-A",
+      "sentence": "La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de trente et un caractères est refusée."
+    },
+    {
       "key": "WF-PRJ-0090-A#0600dd236bf1",
       "requirement": "WF-PRJ-0090-A",
       "sentence": "Une offre à 40 % de probabilité et 100 000 € de devis pèse 40 000 € dans le pipeline pondéré et 40 % de sa charge dans le plan de charge agrégé pondéré."
@@ -185,6 +190,11 @@
       "key": "WF-PLA-0160-A#2762561c2ef2",
       "requirement": "WF-PLA-0160-A",
       "sentence": "« 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des langues de l'interface."
+    },
+    {
+      "key": "WF-PLA-0160-A#b2158fac6000",
+      "requirement": "WF-PLA-0160-A",
+      "sentence": "En anglais, « 1 j » et « 1 d » valent chacun un jour ; « 3 », saisi sans suffixe, vaut trois jours."
     },
     {
       "key": "WF-PLA-0160-A#accda3317067",
@@ -320,6 +330,11 @@
       "key": "WF-RIS-0060-A#474d7bce167a",
       "requirement": "WF-RIS-0060-A",
       "sentence": "Après déclaration de survenance d'un risque dont le devis propre porte deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n'acquiert aucune valeur."
+    },
+    {
+      "key": "WF-CRE-0020-A#05375b7a17e8",
+      "requirement": "WF-CRE-0020-A",
+      "sentence": "Sur le projet de code A.ABC.26001, une ligne d'élément A.ABC.26001/10001 est imputée au sous-projet 10001, et une ligne d'élément A.ABC.26002/10001 est rejetée comme d'un autre projet."
     },
     {
       "key": "WF-IND-0030-A#c3aebc79b97d",

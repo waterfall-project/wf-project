@@ -14,6 +14,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import AuditLogPage, { generateMetadata } from "./page";
 
@@ -35,6 +36,26 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/admin/audit-log",
   useSearchParams: () => new URLSearchParams(),
 }));
+// The session of the contract, the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));
@@ -74,7 +95,7 @@ function queriesOf(route: string) {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 /** The grid of the page, by its name. */
@@ -110,6 +131,7 @@ function gridLinks(markup: string): string[] {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -136,7 +158,7 @@ describe("the journal of audit", () => {
       "La plateforme Sauvegarde Sauvegarde Sauvegarde Hors projet 01926f3a-7c00-7000-8000-000800000033",
     );
     expect(shown.at(-1)).toBe("36 inscriptions");
-    expect(text(page)).toContain("Journal d’audit 36 inscriptions");
+    expect(text(page)).toContain("Journal d’audit Aide 36 inscriptions");
     // Each date, an instant the browser writes in its local time; the history, an icon named.
     expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
     expect(page).toContain('aria-label="Histoire de l’objet"');
@@ -486,5 +508,27 @@ describe("an anonymised author in the journal", () => {
     expect(page).toContain(`<option value="${ALIX}" selected="">Compte anonymisé</option>`);
     expect(rows(page)[1]).toMatch(/^Compte anonymisé Application d’un import/);
     expect(page).not.toMatch(/Alix|Moreau/);
+  });
+});
+
+describe("the audit log, the size of the pages", () => {
+  it.each([
+    ["no preference", {}, "50"],
+    ["a page size of 25", { limit: "25" }, "25"],
+  ])("sends %s as the limit of its reading [WF-IHM-0060-A]", async (_name, search, limit) => {
+    await journal(search);
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === EVENTS);
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
+  });
+
+  it("reads the page size kept by the account when the address asks none [WF-IHM-0060-A]", async () => {
+    kept.grids = { audit_log: { page_size: 25 } };
+    await journal({});
+    const call = server.clients
+      .flatMap((client) => client.calls)
+      .find((each) => each.route === EVENTS);
+    expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
   });
 });

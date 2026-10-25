@@ -54,6 +54,7 @@ function available(action: () => Promise<Outcome<unknown>>, names?: Record<strin
     <Command
       offer={{ is_available: true, missing_conditions: [] }}
       label="Terminer le projet"
+      help="Ce que la commande fait."
       icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
       action={action}
       names={names}
@@ -100,11 +101,9 @@ describe("a command of a screen", () => {
     ).toEqual([
       // The declaration of a risk, which a main structure without task forbids (EP-14/L42s).
       "Déclarer un risque",
-      "Créer une structure",
-      "Fusionner une structure",
+      "Préparer un avenant",
       "Marquer la révision",
-      "Désigner comme référence",
-      "Abandonner la révision",
+      "Abandonner la révision en cours",
     ]);
   });
 
@@ -133,6 +132,7 @@ describe("a command of a screen", () => {
           missing_conditions: ["project_in_progress", "reference_revision_designated"],
         }}
         label="Déclarer la survenance d’un risque"
+        help="Ce que la commande fait."
         icon={commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
       />,
     );
@@ -149,6 +149,7 @@ describe("a command of a screen", () => {
       <Command
         offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
         label="Terminer le projet"
+        help="Ce que la commande fait."
         icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
         action={action}
       />,
@@ -161,9 +162,32 @@ describe("a command of a screen", () => {
     expect(complete).toHaveFocus();
   });
 
+  it("says what it does in its tooltip, and the conditions it lacks beside its name", async () => {
+    french(
+      <Command
+        offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
+        label="Terminer le projet"
+        help="Termine le projet, après confirmation."
+        icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
+      />,
+    );
+    const complete = screen.getByRole("button", { name: "Terminer le projet" });
+    expect(complete).toHaveAttribute("aria-disabled", "true");
+    await userEvent.hover(complete);
+    await screen.findByRole("tooltip");
+    expect(document.querySelector("[data-slot=tooltip-content]")).toHaveTextContent(
+      "Termine le projet, après confirmation.",
+    );
+    expect(complete).not.toHaveAttribute("title");
+    // The condition is said beside the command; the tooltip, open, adds its help to the description.
+    expect(complete).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: projet en cours. Termine le projet, après confirmation.",
+    );
+  });
+
   it("does nothing when pressed before its operation is wired", async () => {
     french(revisionCommands("revision"));
-    await userEvent.click(screen.getByRole("button", { name: "Créer une structure" }));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer un risque" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("form")).toBeNull();
   });
@@ -178,6 +202,7 @@ describe("a command of a revision", () => {
         <Command
           offer={findOffer(reader.available_commands, "mark")}
           label="Marquer la révision"
+          help="Ce que la commande fait."
           icon={commandIcon(REVISION_COMMAND_ICONS.mark)}
         />
       </>,
@@ -201,17 +226,15 @@ describe("a command of a revision", () => {
 
   it("is offered for modification on a draft, and not on a marked revision [WF-IHM-0020-A]", () => {
     const draft = french(revisionCommands("revision"));
-    expect(screen.getByRole("button", { name: "Créer une structure" })).not.toHaveAttribute(
-      "aria-disabled",
-    );
+    // The draft carries amendment 2, not merged: another one opens all the same, several
+    // coexisting (WF-REV-0100, #1211).
+    for (const name of ["Préparer un avenant", "Abandonner la révision en cours"]) {
+      expect(screen.getByRole("button", { name })).not.toHaveAttribute("aria-disabled");
+    }
     draft.unmount();
 
     french(revisionCommands("revision_marked"));
-    for (const name of [
-      "Créer une structure",
-      "Fusionner une structure",
-      "Abandonner la révision",
-    ]) {
+    for (const name of ["Préparer un avenant", "Abandonner la révision en cours"]) {
       const edit = screen.getByRole("button", { name });
       expect(edit).toHaveAttribute("aria-disabled", "true");
       expect(edit).toHaveAccessibleDescription(
@@ -227,7 +250,7 @@ describe("a command of a revision", () => {
     expect(mark).toHaveAccessibleDescription(
       "Condition non remplie\u00A0: aucun traitement de fond en cours sur l’objet.",
     );
-    expect(screen.getByRole("button", { name: "Créer une structure" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Préparer un avenant" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
@@ -268,6 +291,7 @@ describe("the outcome of a command", () => {
       <Command
         offer={{ is_available: true, missing_conditions: [] }}
         label="Modifier le planning"
+        help="Ce que la commande fait."
         icon={commandIcon(REVISION_COMMAND_ICONS.edit_planning)}
         action={write}
       />,

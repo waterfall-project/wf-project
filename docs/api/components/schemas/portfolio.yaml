@@ -90,7 +90,7 @@ PortfolioValue:
 
 PortfolioWorkload:
   type: object
-  required: [scope, under_load_threshold, months, roles]
+  required: [scope, under_load_threshold, capacity_monthly_hours, months, monthly_totals, roles]
   description: >-
     Charges sommées par rôle et par mois : sur le reste à engager pour les projets
     en cours, sur le devis pondéré pour les projets en chiffrage inclus
@@ -102,12 +102,32 @@ PortfolioWorkload:
       description: >-
         Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou,
         sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060).
+    capacity_monthly_hours:
+      allOf: [{ $ref: ../common.yaml#/Hours }]
+      description: >-
+        La capacité du périmètre, en heures par mois : la somme des capacités des rôles
+        retenus (`roles[].capacity_monthly_hours`) — tous les rôles actifs sans filtre, ceux
+        du nœud d'organisation avec lui (`org_node_id`) —, qu'un rôle sans charge compte
+        aussi (#375). Le graphique du plan agrégé la trace en regard des barres, sans que le
+        front somme les rôles (WF-PTF-0060, WF-ARC-0020, #1051).
     months:
       type: array
       description: >-
         Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte
-        un mois par mois de cette liste, dans le même ordre.
+        un mois par mois de cette liste, dans le même ordre, et `monthly_totals` aussi.
       items: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+    monthly_totals:
+      type: array
+      description: >-
+        Le total des heures de chaque mois de `months`, dans le même ordre, un mois sans
+        charge compris : la somme des heures des rôles retenus ce mois-là, que le sommet de
+        la barre du mois porte (WF-PTF-0060, #1051).
+      items:
+        type: object
+        required: [month, hours]
+        properties:
+          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+          hours: { $ref: ../common.yaml#/Hours }
     roles:
       type: array
       items:

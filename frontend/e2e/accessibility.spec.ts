@@ -4,7 +4,8 @@
  * The minimal accessibility of every screen of the application (US-0200, WF-IHM-0100): those of
  * the table of the functions, drawn from `functions.json` as the links of `screens.spec.ts` are,
  * and those no table names (`routes.ts`), which `src/app/screens.test.ts` holds to the pages of
- * the application. Each screen is opened by its address in a window of 1366 points, then narrowed
+ * the application, and the grids of the planning and of the estimate on a differential, whose marks
+ * tint their rows (US-0500). Each screen is opened by its address in a window of 1366 points, then narrowed
  * to 911 — what a zoom of 150 % leaves of 1366 points, the page reflowed as the browser reflows it
  * when its user zooms; a device scale factor would change the pixels, not the layout. At each
  * width:
@@ -18,6 +19,10 @@
  *   wearing its indicator of the focus, comes back to the first without being caught on the way
  *   (`walkByTab`), and reaches at 911 points every element it reached at 1366 (`lost`).
  *
+ * The matrix of the risks, unfolded behind its command, is audited too, in both modes, and the
+ * estimate of the amendment with the tooltip of Undo open, its keys and its condition shown
+ * (US-0580), and the planning with the panel of its help open by F1.
+ *
  * What these tests leave unproven is written in the note of US-0200 (EP-14): what a gesture opens
  * — a dialog, a menu, the editor of a cell — is not walked, nor what a closed `details` holds.
  *
@@ -29,7 +34,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { type AxeBreach, axeAudit } from "./axe";
 import { untilHydrated, WORKING } from "./hydration";
-import { type AppScreen, OTHER_SCREENS, tableScreens } from "./routes";
+import { type AppScreen, DIFFERENTIAL_SCREENS, OTHER_SCREENS, tableScreens } from "./routes";
 import { lost, type Walk, walkByTab } from "./tab-walk";
 
 test.describe.configure({ mode: "parallel" });
@@ -112,7 +117,7 @@ function faults(walk: Walk) {
   };
 }
 
-for (const screen of [...tableScreens(), ...OTHER_SCREENS]) {
+for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREENS]) {
   for (const mode of ["light", "dark"] as const) {
     test.describe(`a workstation in ${mode} mode`, () => {
       test.use({ colorScheme: mode });
@@ -148,6 +153,113 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS]) {
         }
       });
     });
+  }
+
+  // The estimate opened on the amendment of the current revision, whose grid is written and offers
+  // Undo: the estimate of the table of the screens, that of the current revision, is read only.
+  if (screen.code === "estimate-differential") {
+    for (const mode of ["light", "dark"] as const) {
+      test.describe(`a workstation in ${mode} mode, a tooltip open`, () => {
+        test.use({ colorScheme: mode });
+
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the tooltip of Undo open on its focus, its keys and its condition shown: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA [WF-IHM-0100-A]`, async ({
+          page,
+        }) => {
+          await open(page, screen);
+          await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+          // The tooltip of Undo opens on its focus, with its keys in `<kbd>` and the condition it
+          // lacks, and describes it by both (US-0580): the contrast of each is measured.
+          const undo = page.getByRole("button", { name: "Annuler", exact: true });
+          await undo.focus();
+          const tooltip = page.locator("[data-slot=tooltip-content]");
+          await expect(tooltip).toContainText("Annule la dernière saisie de la révision.");
+          await expect(tooltip).toContainText(
+            "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
+          );
+          await expect(tooltip.locator("kbd")).toHaveText(["Ctrl+Z"]);
+          await expect(undo).toHaveAccessibleDescription(
+            "Indisponibles tant que le serveur ne conserve pas l’historique des saisies. Annule la dernière saisie de la révision.",
+          );
+          const { breaches } = await axeAudit(page);
+          expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);
+          // Escape closes it, the focus left on the command.
+          await page.keyboard.press("Escape");
+          await expect(page.getByRole("tooltip")).toHaveCount(0);
+          await expect(undo).toBeFocused();
+        });
+      });
+    }
+  }
+
+  if (screen.route === "/projects/[projectId]/revisions/[revisionId]/risks") {
+    for (const mode of ["light", "dark"] as const) {
+      test.describe(`a workstation in ${mode} mode, the matrix unfolded`, () => {
+        test.use({ colorScheme: mode });
+
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the matrix of the risks unfolded: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA, at 1366 and at 911 points [WF-IHM-0100-A]`, async ({
+          page,
+        }) => {
+          await open(page, screen);
+          await expect(page.locator("html")).not.toHaveAttribute("data-theme");
+          await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+          // The matrix starts folded behind its command, which says so.
+          const toggle = page.getByRole("button", { name: "Graphique", exact: true });
+          await expect(toggle).toHaveAttribute("aria-expanded", "false");
+          await toggle.click();
+          await expect(toggle).toHaveAttribute("aria-expanded", "true");
+          await expect(
+            page.getByRole("img", { name: /^Nuage de bulles des risques/ }).locator("svg"),
+          ).toBeVisible();
+          for (const size of WINDOWS) {
+            await resize(page, size);
+            const { breaches, unmeasured } = await axeAudit(page);
+            const reasons = Object.entries(unmeasured).map(
+              ([reason, count]) => `${reason}: ${String(count)}`,
+            );
+            test.info().annotations.push({
+              type: "contrast left unmeasured by axe",
+              description: `${String(size.width)} points: ${reasons.length === 0 ? "none" : reasons.join(", ")}`,
+            });
+            expect
+              .soft(breaches, `${String(size.width)} points: axe's rules for WCAG A and AA`)
+              .toEqual([]);
+          }
+        });
+      });
+    }
+  }
+
+  // The panel of the help, opened by F1 on the planning (US-0580): its page and its links
+  // are audited, and Escape gives the focus back to where it was.
+  if (screen.code === "FBS-4.3") {
+    for (const mode of ["light", "dark"] as const) {
+      test.describe(`a workstation in ${mode} mode, the help open`, () => {
+        test.use({ colorScheme: mode });
+
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the panel of the help open by F1: named by its title, the focus held in it, no contrast below AA nor any other breach of axe's rules for WCAG A and AA, Escape giving the focus back [WF-IHM-0140-A]`, async ({
+          page,
+        }) => {
+          await open(page, screen);
+          await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+          const help = page.getByRole("button", { name: "Aide", exact: true });
+          await help.focus();
+          await page.keyboard.press("F1");
+          const panel = page.getByRole("dialog", { name: "Planification" });
+          await expect(panel.getByRole("heading", { name: "Ses commandes" })).toBeVisible({
+            timeout: WORKING,
+          });
+          await expect(panel).toContainText("La grille est un seul arrêt de tabulation");
+          expect(await panel.evaluate((element) => element.contains(document.activeElement))).toBe(
+            true,
+          );
+          const { breaches } = await axeAudit(page);
+          expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);
+          await page.keyboard.press("Escape");
+          await expect(page.getByRole("dialog")).toHaveCount(0);
+          await expect(help).toBeFocused();
+        });
+      });
+    }
   }
 
   test(`${screen.code} ${screen.route}: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({

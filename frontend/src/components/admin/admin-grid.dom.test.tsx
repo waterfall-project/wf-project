@@ -51,7 +51,7 @@ vi.mock("next/navigation", async (original) => ({
 
 type Schemas = components["schemas"];
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 const users = example("users") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const second = example("users_page") as { items: User[]; meta: Schemas["PaginationMeta"] };
 const anonymized = example("users_anonymized") as {
@@ -220,7 +220,7 @@ describe("the grid of the accounts", () => {
       const ascending = `/admin/users?sort_by=${column}&sort_order=asc`;
       expect(lastAddress()).toBe(ascending);
       page.search = ascending.split("?")[1] ?? "";
-      rerender(userList({ sort: { column, order: "asc" }, search: undefined }));
+      rerender(userList({ sort: { column, order: "asc" }, search: undefined, size: undefined }));
       await userEvent.click(header());
       expect(lastAddress()).toBe(`/admin/users?sort_by=${column}&sort_order=desc`);
     },
@@ -376,7 +376,9 @@ describe("the grid of the access roles", () => {
       const ascending = `/admin/access-roles?sort_by=${column}&sort_order=asc`;
       expect(lastAddress()).toBe(ascending);
       page.search = ascending.split("?")[1] ?? "";
-      rerender(roleList(false, { sort: { column, order: "asc" }, search: undefined }));
+      rerender(
+        roleList(false, { sort: { column, order: "asc" }, search: undefined, size: undefined }),
+      );
       await userEvent.click(header());
       expect(lastAddress()).toBe(`/admin/access-roles?sort_by=${column}&sort_order=desc`);
     },

@@ -21,14 +21,8 @@ import {
 
 import type { CostCategory } from "./cost-kinds";
 import { categoryChoice, type Choice, labourOf } from "./kinds";
-import { type Calendar, DAYS, type OrgNode, type ResourceRole } from "./resource-grids";
-import {
-  CalendarList,
-  type DayBounds,
-  type NodeOffered,
-  OrgNodeList,
-  ResourceRoleList,
-} from "./resource-lists";
+import { type Calendar, type OrgNode, type ResourceRole } from "./resource-grids";
+import { CalendarList, type NodeOffered, OrgNodeList, ResourceRoleList } from "./resource-lists";
 
 // The server of Next, as far as the lists need it: the fake back, the page rendered again once an
 // object is written, the address they read and the navigations they ask.
@@ -55,7 +49,7 @@ const CALENDARS = "POST /reference/calendars";
 const CALENDAR = "PATCH /reference/calendars/{calendar_id}";
 const DEFAULT = "PUT /reference/calendars/{calendar_id}/default";
 
-const NO_QUERY = { sort: undefined, search: undefined };
+const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 const NO_BOUNDS = { min: undefined, max: undefined };
 const tree = example("org_nodes_with_inactive") as OrgNode[];
 const roles = example("resource_roles") as { items: ResourceRole[]; meta: ListPage };
@@ -188,7 +182,6 @@ function calendarList(
       readsInactive
       editable={editable}
       state={undefined}
-      hours={Object.fromEntries(DAYS.map((day) => [day, NO_BOUNDS])) as DayBounds}
     />,
   );
 }

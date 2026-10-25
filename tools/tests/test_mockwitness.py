@@ -10,7 +10,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockids, mockwitness
+from wftools import mockdating, mockids, mockwitness
 from wftools.mockcalendar import (
     ORIGIN,
     START_TO_START,
@@ -50,7 +50,7 @@ def test_today_is_the_instant_every_first_example_describes() -> None:
 
 def test_the_families_of_identifiers_lie_on_disjoint_ranges() -> None:
     generated = sorted(family.generated for family in mockids.IDENTIFIERS if family.generated)
-    assert generated == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert generated == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     tails = {f"{n:012d}" for n in range(1_000)} | {f"{n:012x}" for n in range(0x1000)}
     for tail in sorted(tails):
         held = [family.what for family in mockids.IDENTIFIERS if family.holds(PREFIX + tail)]
@@ -233,7 +233,7 @@ def test_a_calendar_without_any_hour_cannot_date_a_task() -> None:
 
 def _dates() -> dict[int, tuple[Instant, Instant]]:
     """Date the tasks of the core from their links alone, by number of task."""
-    return {number: (each.start, each.finish) for number, each in mockcore.schedule().items()}
+    return {number: (each.start, each.finish) for number, each in mockdating.schedule().items()}
 
 
 def _on(month: int, day: int, worked: int = 0) -> Instant:
@@ -279,9 +279,16 @@ def test_the_figures_of_the_core_are_those_of_the_other_examples() -> None:
     assert (lines[553].hours or 0) * Decimal(rate["amount"]) == Decimal("1000.00")
 
 
-_STRUCTURE = ("nœuds de la structure", "nœuds engendrés")
+_STRUCTURE = (
+    "nœuds de la structure",
+    "nœuds engendrés",
+    "nœuds de l'avenant 2, celui du nœud 5nn de la principale en 12nn",
+    "nœuds engendrés de l'avenant 2",
+)
 _KEYS = {
     "node_id": _STRUCTURE,
+    "node_ids": _STRUCTURE,
+    "after_node_id": _STRUCTURE,
     "predecessor_node_id": _STRUCTURE,
     "provision_node_id": _STRUCTURE,
     "parent_id": (*_STRUCTURE, "nœuds d'organisation"),
@@ -310,21 +317,26 @@ _KEYS = {
     "subproject_id": ("sous-projets",),
     "provision_cost_category_id": ("catégories de coût",),
     "provision_subproject_id": ("sous-projets",),
-    "order_item_id": ("postes, lots et livrables du lotissement",),
+    "order_item_id": ("lots, postes et livrables du lotissement",),
     "task_node_id": _STRUCTURE,
-    "work_package_id": ("postes, lots et livrables du lotissement",),
-    "deliverable_id": ("postes, lots et livrables du lotissement",),
+    "work_package_id": ("lots, postes et livrables du lotissement",),
+    "deliverable_id": ("lots, postes et livrables du lotissement",),
     "scope": ("sous-projets",),
     "key": (
         "natures de coût",
         "sous-projets",
-        "postes, lots et livrables du lotissement",
+        "lots, postes et livrables du lotissement",
         "nœuds d'organisation",
     ),
     "backup_id": ("sauvegardes",),
     "task_id": ("tâches de fond",),
     "paste_id": ("collages",),
-    "correlation_id": ("corrélations", "corrélations, suite", "corrélations engendrées"),
+    "correlation_id": (
+        "corrélations",
+        "corrélations, suite",
+        "corrélations, seconde suite",
+        "corrélations engendrées",
+    ),
     "conflicting_object_id": (
         "nœuds d'organisation",
         "rôles de ressources",

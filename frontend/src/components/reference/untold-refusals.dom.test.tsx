@@ -58,7 +58,7 @@ function screenWithBar() {
         <CostCategoryList
           rows={first}
           page={{ ...categories.meta, offset: 0 }}
-          query={{ sort: undefined, search: undefined }}
+          query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
           state={undefined}
           readsInactive

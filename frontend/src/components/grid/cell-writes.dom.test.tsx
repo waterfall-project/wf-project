@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
-import type { Outcome } from "@/api/problem";
+import type { Outcome, Problem } from "@/api/problem";
 import type { components } from "@/api/generated/schema";
 import {
   type HourlyRate,
@@ -11,6 +13,8 @@ import {
   type RateRow,
   withYears,
 } from "@/components/reference/rate-cells";
+import { forgetMessages, readMessages } from "@/components/notices/message-history";
+import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
 import { type CellReading, type CellRules, type CellWrites, useCellWrites } from "./cell-writes";
@@ -50,6 +54,15 @@ const LABOUR = nodes.items.findIndex(
 );
 const NODES: CellRules<EstimateNode, NodeTotals> = { rowKey: nodeKey, fresher: nodeFresher };
 const TASK = nodes.items.findIndex((node) => node.task?.label === "Câblage des armoires");
+
+/** In French. */
+function French({ children }: { readonly children: ReactNode }) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+      {children}
+    </NextIntlClientProvider>
+  );
+}
 
 /** Every promise under way settled. */
 function settled(): Promise<void> {
@@ -91,11 +104,16 @@ function held<Row, Totals>() {
   return { entry, answer, refuse, from };
 }
 
-/** The cells written of a grid, on a first reading of its address. */
-function writes<Row, Totals>(rules: CellRules<Row, Totals>, first: CellReading<Row, Totals>) {
+/** The cells written of a grid, on a first reading of its address, each write told `writing`. */
+function writes<Row, Totals>(
+  rules: CellRules<Row, Totals>,
+  first: CellReading<Row, Totals>,
+  writing?: (write: Promise<unknown>) => void,
+) {
+  // In French, as the grid tells the refusals it keeps quiet to the history of the messages.
   return renderHook(
-    (reading: CellReading<Row, Totals>) => useCellWrites<Row, Totals>(reading, rules),
-    { initialProps: first },
+    (reading: CellReading<Row, Totals>) => useCellWrites<Row, Totals>(reading, rules, writing),
+    { initialProps: first, wrapper: French },
   );
 }
 
@@ -105,13 +123,14 @@ async function enter<Row, Totals>(
   at: number,
   column: string,
   entry: CellEntry<Row, Totals>,
+  value = "1",
 ) {
   const row = writer.rows[at];
   if (row === undefined) {
     throw new Error(`no row ${at.toString()}`);
   }
   await act(async () => {
-    writer.write({ row, column, entry, value: "1", shown: "1" });
+    writer.write({ row, column, entry, value, shown: value });
     await settled();
   });
 }
@@ -437,5 +456,269 @@ describe("the nodes written while the page is read anew", () => {
       totals: { ...nodes.totals, hours: "15" },
     });
     expect(result.current.totals).toBeUndefined();
+  });
+});
+
+describe("the outcome of a cell written, in any grid", () => {
+  const first = { address: ADDRESS, rows: nodes.items, totals: nodes.totals };
+  const refusedDate = example("task_date_computed_refused") as Problem;
+  const keyOf = (at: number) => nodeKey(nodes.items[at] as EstimateNode);
+
+  it("tells a refusal by field by the reason of its field, and marks the cell (#817.1)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, TASK, "finish", entry);
+    await refuse(0, { kind: "refused", problem: refusedDate, conflictingObjectId: null });
+    expect(result.current.outcome).toMatchObject({
+      problem: { code: "COMPUTED_VALUE", fields: [{ pointer: "/finish" }] },
+    });
+    expect(result.current.refused(keyOf(TASK), "finish")).toBe(true);
+  });
+
+  it.each([
+    {
+      failure: "a version gone stale",
+      outcome: {
+        kind: "stale",
+        problem: { code: "STALE_LOCK_VERSION", status: 412 },
+        conflictingObjectId: null,
+      },
+    },
+    {
+      failure: "a state that forbids the write",
+      outcome: {
+        kind: "conflict",
+        problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+        conflictingObjectId: null,
+      },
+    },
+    { failure: "the API out of reach", outcome: { kind: "unreachable" } },
+  ] as const)(
+    "tells $failure without marking the cell, which says nothing of the value (#819.2)",
+    async ({ outcome }) => {
+      const { result } = writes(NODES, first);
+      const { entry, refuse } = held<EstimateNode, NodeTotals>();
+      await enter(result.current, LABOUR, "hours", entry);
+      await refuse(0, outcome);
+      expect(result.current.outcome).toEqual(outcome);
+      expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(false);
+    },
+  );
+
+  it("writes nothing of a value the row answered already holds, which would carry its version alone (#819.8)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, answer, from } = held<EstimateNode, NodeTotals>();
+    const hours: CellEntry<EstimateNode, NodeTotals> = {
+      ...entry,
+      value: (row) => row.estimate_line?.hours,
+    };
+    // The same value validated twice before the first answered: the second, written from the row
+    // answered, finds it there.
+    await enter(result.current, LABOUR, "hours", hours, "14");
+    await enter(result.current, LABOUR, "hours", hours, "14");
+    await answer(0, (row) => nodeAnswered(row, { hours: "14" }, undefined, 1));
+    expect(from(1)).toBeUndefined();
+    expect(result.current.pending(keyOf(LABOUR), "hours")).toBeUndefined();
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("14");
+  });
+
+  it("tells the screen each write, under way until it answered (#1224)", async () => {
+    const told: Promise<unknown>[] = [];
+    const { result } = writes(NODES, first, (write) => {
+      told.push(write);
+    });
+    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, LABOUR, "hours", entry);
+    let over = false;
+    void told[0]?.then(() => {
+      over = true;
+    });
+    await act(async () => {
+      await settled();
+    });
+    expect(told).toHaveLength(1);
+    expect(over).toBe(false);
+    await answer(0, (row) => nodeAnswered(row, { hours: "1" }, undefined, 1));
+    expect(over).toBe(true);
+  });
+
+  it("lifts the refusal of a cell typed anew as the row holds it, writing nothing (#819.8)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse, from } = held<EstimateNode, NodeTotals>();
+    const hours: CellEntry<EstimateNode, NodeTotals> = {
+      ...entry,
+      value: (row) => row.estimate_line?.hours,
+    };
+    await enter(result.current, LABOUR, "hours", hours, "13");
+    await refuse(0, { kind: "refused", problem: refusedDate, conflictingObjectId: null });
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(true);
+    // « 12,50 » typed for the 12.5 the row holds: the entry validates the decimal the row writes.
+    await enter(result.current, LABOUR, "hours", hours, "12.5");
+    expect(from(1)).toBeUndefined();
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(false);
+    expect(result.current.outcome).toBeUndefined();
+  });
+});
+
+describe("the rows written together while a cell of theirs is under way", () => {
+  // Rows written together — a choice of the menu of a cell, a paste — taking the place of the line
+  // of labour while a cell of it, written before them, has not answered yet: the gestures and the
+  // confirmation of a paste wait for a cell under way (#1224), but a cell may leave while a gesture
+  // is under way, and answer after it.
+  const first = { address: ADDRESS, rows: nodes.items, totals: nodes.totals };
+  const keyOf = (at: number) => nodeKey(nodes.items[at] as EstimateNode);
+
+  /** The cabling, the summary of the line of labour, as an answer recalculated it. */
+  function summed(amount: string): EstimateNode {
+    const task = nodes.items[TASK];
+    if (task?.task === null || task?.task === undefined) {
+      throw new Error("the estimate holds the cabling");
+    }
+    return { ...task, task: { ...task.task, base_amount: amount } };
+  }
+
+  /**
+   * The line of labour written together with others, at a later place among the writes: its
+   * summary and the totals recalculated with it.
+   */
+  function together(): RowsWritten<EstimateNode, NodeTotals> {
+    const labour = nodes.items[LABOUR] as EstimateNode;
+    return {
+      ...nodeAnswered(
+        { ...labour, lock_version: labour.lock_version + 1 },
+        { hours: "40" },
+        { ...nodes.totals, hours: "38.5" },
+        4,
+      ),
+      changed: [summed("4000.00")],
+    };
+  }
+
+  it("keeps what the rows written together answered when the cell written before them answers after them, earlier: their rows, the summary above them, the totals (#421)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    act(() => {
+      result.current.applied(together());
+    });
+    // The cell answers after them, earlier in the structure, with its own summary and totals: it
+    // takes back none of theirs.
+    await answer(0, (from) => ({
+      ...nodeAnswered(from, { hours: "14" }, { ...nodes.totals, hours: "12.5" }, 3),
+      changed: [summed("3000.00")],
+    }));
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+    expect(result.current.rows[TASK]?.task?.base_amount).toBe("4000.00");
+    expect(result.current.totals?.hours).toBe("38.5");
+    expect(result.current.pending(keyOf(LABOUR), "hours")).toBeUndefined();
+  });
+
+  it("keeps quiet the refusal of a cell written before rows written together took its row (#202)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    act(() => {
+      result.current.applied(together());
+    });
+    await refuse(0, {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    });
+    expect(result.current.outcome).toBeUndefined();
+    expect(result.current.refused(keyOf(LABOUR), "hours")).toBe(false);
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+  });
+
+  it("tells the refusal of a row they did not write, whatever the quiet refusal answered after it (#202)", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const marked: Outcome<never> = {
+      kind: "conflict",
+      problem: { code: "REVISION_MARKED", status: 409 },
+      conflictingObjectId: null,
+    };
+    await enter(result.current, TASK, "label", entry);
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    act(() => {
+      result.current.applied(together());
+    });
+    await refuse(0, marked);
+    await refuse(1, {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    });
+    expect(result.current.outcome).toEqual(marked);
+  });
+
+  it("keeps the refusal of a cell written before them on a row they did not write", async () => {
+    const { result } = writes(NODES, first);
+    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const stale: Outcome<never> = {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    };
+    await enter(result.current, TASK, "label", entry);
+    act(() => {
+      result.current.applied(together());
+    });
+    await refuse(0, stale);
+    expect(result.current.outcome).toEqual(stale);
+    expect(result.current.rows[LABOUR]?.estimate_line?.hours).toBe("40");
+  });
+});
+
+describe("the totals read anew behind a refusal told", () => {
+  it("notes the refusal of the totals, answered in the tick another row was done, behind the refusal of a write of the same tick (#1181)", async () => {
+    forgetMessages();
+    const errors = vi.spyOn(console, "error");
+    const stale: Outcome<never> = {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    };
+    const lost: Outcome<never> = {
+      kind: "signed_out",
+      problem: { code: "SESSION_REQUIRED", status: 401 },
+      conflictingObjectId: null,
+    };
+    const retotal = () => Promise.resolve(lost);
+    const { result } = writes<EstimateNode, NodeTotals>(
+      { ...NODES, retotal },
+      { address: ADDRESS, rows: nodes.items, totals: nodes.totals },
+    );
+    const answers: ((outcome: Outcome<RowsWritten<EstimateNode, NodeTotals>>) => void)[] = [];
+    const entry: CellEntry<EstimateNode, NodeTotals> = {
+      kind: { type: "decimal", nullable: false },
+      in: () => true,
+      value: () => undefined,
+      write: () => new Promise((resolve) => answers.push(resolve)),
+    };
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    await enter(result.current, TASK, "label", entry, "x");
+    const task = nodes.items[TASK] as EstimateNode;
+    // Both answer in one tick: the first refused, the second done, the totals refused at once.
+    await act(async () => {
+      answers[0]?.(stale);
+      answers[1]?.({
+        kind: "done",
+        data: {
+          rows: [{ ...task, lock_version: task.lock_version + 1 }],
+          changed: [],
+          parts: [],
+          totals: undefined,
+          order: 1,
+        },
+      });
+      await settled();
+    });
+    // The refusal of the write is told by the screen of the grid, not noted by the writes: the
+    // refusal of the totals, kept quiet behind it, is the one noted here.
+    expect(readMessages().messages.map((message) => message.sentence)).toEqual([
+      "Vous devez vous connecter.",
+    ]);
+    expect(errors).not.toHaveBeenCalled();
   });
 });

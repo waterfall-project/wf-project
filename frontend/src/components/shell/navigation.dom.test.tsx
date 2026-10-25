@@ -7,8 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { CATALOGUES } from "@/i18n/catalogues";
+import { CATALOGUES, type Catalogue } from "@/i18n/catalogues";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
+import { FUNCTION_GROUPS, type NavigationFunction } from "@/navigation/functions";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
@@ -41,11 +42,18 @@ function visit(pathname: string, search = "") {
 }
 
 /** Render the navigation, in French, for a session and the cookie of the request. */
-function navigation(session = "me", remembered?: string) {
+function navigation(
+  session: string | components["schemas"]["PermissionCode"][] = "me",
+  remembered?: string,
+) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <SidebarProvider>
-        <Navigation permissions={permissions(session)} remembered={remembered} theme="default" />
+        <Navigation
+          permissions={typeof session === "string" ? permissions(session) : session}
+          remembered={remembered}
+          theme="default"
+        />
       </SidebarProvider>
     </NextIntlClientProvider>
   );
@@ -61,6 +69,18 @@ async function openBlocks(): Promise<string[]> {
     await userEvent.click(block);
   }
   return closed.map((block) => block.textContent);
+}
+
+/** The French name of a function of the table, read in the catalogue from its label. */
+function nameOf(fn: NavigationFunction): string {
+  const prefix = "functions.";
+  if (!fn.label.startsWith(prefix)) {
+    throw new Error(
+      `the label of the function ${fn.code} is not in the functions of the catalogue`,
+    );
+  }
+  const key = fn.label.slice(prefix.length) as keyof Catalogue["functions"];
+  return CATALOGUES.fr.functions[key];
 }
 
 /** The address a link of the navigation leads to, found by its name. */
@@ -167,7 +187,7 @@ describe("the navigation", () => {
       .map((h) => h.textContent);
     expect(headings).toEqual(["Plateforme", "Projet", "Révision en cours"]);
     const links = within(nav).getAllByRole("link");
-    expect(links).toHaveLength(16 + 1 + 3 + 6);
+    expect(links).toHaveLength(16 + 1 + 3 + 6 + 5);
     for (const link of [...links, ...within(nav).getAllByRole("button")]) {
       expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       expect(link.textContent).not.toBe("");
@@ -196,15 +216,120 @@ describe("the navigation", () => {
     await expectAccessible(container);
   });
 
-  it("marks current the function whose leaf the page shows, which the bar does not offer", async () => {
+  it("shows each leaf with a screen of its own in a list within the item of its function, indented, in the context of the page", async () => {
+    visit(`${IN_PROJECT}/remaining`, CONTEXT);
+    const { container } = render(navigation());
+    await openBlocks();
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    const lists = [
+      ["Planification", ["Chronologies", "Imports et exports", "Arborescence de tâches"]],
+      ["Chiffrage et devis", ["Plan de charge"]],
+      ["Estimation du reste à engager", ["Kanban — démarrage des tâches"]],
+    ] as const;
+    for (const [parent, leaves] of lists) {
+      const item = within(nav).getByRole("link", { name: parent }).closest("li");
+      const list = within(item as HTMLElement).getByRole("list");
+      expect(
+        within(list)
+          .getAllByRole("link")
+          .map((link) => link.textContent),
+      ).toEqual(leaves);
+    }
+    // The tab order: a function, then its leaves, then the next function — written out, not
+    // read from the table that draws the bar, which a permutation would follow.
+    const order = [
+      "Planification",
+      "Chronologies",
+      "Imports et exports",
+      "Arborescence de tâches",
+      "Chiffrage et devis",
+      "Plan de charge",
+      "Estimation du reste à engager",
+      "Kanban — démarrage des tâches",
+    ];
+    const names = within(nav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    // The revision is the last group of the bar: its first functions and their leaves open it.
+    const revision = names.indexOf("Planification");
+    expect(names.slice(revision, revision + order.length)).toEqual(order);
+    expect(href("Plan de charge")).toBe(`${IN_PROJECT}/workload${CONTEXT}`);
+    expect(href("Chronologies")).toBe(`${IN_PROJECT}/timelines${CONTEXT}`);
+    expect(href("Imports et exports")).toBe(`${IN_PROJECT}/exchanges${CONTEXT}`);
+    expect(href("Arborescence de tâches")).toBe(`${IN_PROJECT}/task-tree${CONTEXT}`);
+    expect(href("Kanban — démarrage des tâches")).toBe(`${IN_PROJECT}/kanban${CONTEXT}`);
+    expect(
+      screen
+        .getByRole("link", { name: "Kanban — démarrage des tâches" })
+        .closest("[data-rail-hidden]"),
+    ).toBeTruthy();
+    await expectAccessible(container);
+  });
+
+  it("reaches every leaf of the table from the navigation, by its name and in the context", async () => {
+    visit(`${IN_PROJECT}/risks`, CONTEXT);
+    render(navigation());
+    await openBlocks();
+    const leaves = FUNCTION_GROUPS.flatMap((group) => group.functions).flatMap(
+      (fn) => fn.leaves ?? [],
+    );
+    expect(leaves.length).toBeGreaterThan(0);
+    for (const leaf of leaves) {
+      const route = leaf.route.replace("[projectId]", PROJECT).replace("[revisionId]", REVISION);
+      expect(href(nameOf(leaf)), leaf.code).toBe(`${route}${CONTEXT}`);
+    }
+  });
+
+  it("marks current the leaf the page shows, and its function as the path that leads to it", async () => {
     visit(`${IN_PROJECT}/workload`, CONTEXT);
     render(navigation());
     await openBlocks();
-    expect(screen.queryByRole("link", { name: "Plan de charge" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Plan de charge" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     const estimate = screen.getByRole("link", { name: "Chiffrage et devis" });
     expect(estimate).toHaveAttribute("aria-current", "true");
     expect(estimate).toHaveAttribute("href", `${IN_PROJECT}/estimate${CONTEXT}`);
     expect(screen.getByRole("link", { name: "Planification" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Kanban — démarrage des tâches" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("marks the function itself, and none of its leaves, when the page is its own", async () => {
+    visit(`${IN_PROJECT}/estimate`, CONTEXT);
+    render(navigation());
+    await openBlocks();
+    expect(screen.getByRole("link", { name: "Chiffrage et devis" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Plan de charge" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("guards a leaf as its function: without its permission it is gone with it, and without a revision it waits for one", () => {
+    visit(`/projects/${PROJECT}`);
+    render(navigation());
+    // A project without a revision offers the functions of the project itself, no leaf of a revision.
+    expect(screen.queryByRole("link", { name: "Plan de charge" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Kanban — démarrage des tâches" })).toBeNull();
+  });
+
+  it("guards a leaf as its function: with the permission of its function, and with it alone", async () => {
+    visit(`${IN_PROJECT}/remaining`, CONTEXT);
+    const { unmount } = render(navigation(permissions("me").filter((c) => c !== "estimate.read")));
+    await openBlocks();
+    expect(screen.queryByRole("link", { name: "Chiffrage et devis" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Plan de charge" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Chronologies" })).toBeInTheDocument();
+    unmount();
+    render(navigation(["estimate.read"]));
+    await openBlocks();
+    expect(screen.getByRole("link", { name: "Plan de charge" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Chronologies" })).toBeNull();
   });
 
   it("leads back from a function outside any project to the same project context [WF-IHM-0010-A]", () => {

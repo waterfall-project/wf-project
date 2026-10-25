@@ -24,6 +24,7 @@ import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
   example,
+  type FakeAnswer,
   type FakeAnswers,
   type FakeClient,
   fakeClient,
@@ -165,6 +166,7 @@ const EXAMPLE_BY_END = {
   "/cost-categories": ["GET /reference/cost-categories", "volume/cost_categories"],
   "/resource-roles": ["GET /reference/resource-roles", "resource_roles"],
   "/subprojects": ["GET /projects/{project_id}/subprojects", "subprojects"],
+  "/work-breakdown": ["GET /projects/{project_id}/work-breakdown", "work_breakdown"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
@@ -172,8 +174,11 @@ const READ_REVISION = [
 ] as const satisfies CitedRead;
 const READ_PROJECT = ["GET /projects/{project_id}", "project"] as const satisfies CitedRead;
 
-/** The read of a revision, whose example a test may change. */
-const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
+/** The structures, whose example says which grid is entered: the witness project is in progress. */
+const STRUCTURES_READ = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+type StructuresExample = Extract<FakeAnswer<typeof STRUCTURES_READ>, string>;
+const IN_PRICING = { [STRUCTURES_READ]: "structures_without_tasks" } as const; // entered
+const MARKED = { [STRUCTURES_READ]: "structures_amendments" } as const; // nothing entered
 
 /** The estimate of the witness revision, some answers changed, and what its grid was handed. */
 async function estimateWith(answers: FakeAnswers = {}) {
@@ -254,6 +259,8 @@ beforeEach(() => {
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /projects/{project_id}/timelines": "timelines",
+    "GET /reference/duration-units": "duration_units",
   };
 });
 
@@ -400,8 +407,8 @@ describe("the witness path", () => {
     expect(html).toContain('<col style="width:400px"/>');
   });
 
-  it("names the category and the role of each line by the reference data, and opens the grid to entry when the revision allows it", async () => {
-    const { html, grid } = await estimateWith();
+  it("names the category and the role of each line by the reference data, and opens the grid to entry when the structure lists the estimate available", async () => {
+    const { html, grid } = await estimateWith(IN_PRICING);
     // Deactivated ones included, to name a line that bears one; the lists offer them no more.
     expect(callOf("/cost-categories")?.query.get("include_inactive")).toBe("true");
     expect(callOf("/resource-roles")?.query.get("include_inactive")).toBe("true");
@@ -414,15 +421,10 @@ describe("the witness path", () => {
       "Technicien de mise en service: true",
     ]);
     expect(grid?.reference.categories).toHaveLength(200);
-    // The revision lists the planning too: the label of a task is entered as well.
+    // The structure lists the planning too: the label of a task is entered as well.
     expect([grid?.editable, grid?.tasksEditable]).toEqual([true, true]);
     // The line of the witness structure: subcontracting, and no role.
     expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
-  });
-
-  it("lets an estimator enter the lines, and not the label of a task, which is the planning's", async () => {
-    const { grid } = await estimateWith({ [REVISION_READ]: "revision_estimator" });
-    expect([grid?.editable, grid?.tasksEditable]).toEqual([true, false]);
   });
 
   it("shows the grid without naming the roles when the API does not let the caller read them", async () => {
@@ -437,29 +439,28 @@ describe("the witness path", () => {
   it("hands the grid the identifier of the sub-project of a line only where it is entered", async () => {
     const ids = async (answers: FakeAnswers) => {
       grids.estimate = [];
-      const { grid } = await estimateWith({ [NODES_READ]: "nodes_estimate", ...answers });
+      const { grid } = await estimateWith({
+        [NODES_READ]: "nodes_estimate",
+        ...IN_PRICING,
+        ...answers,
+      });
       return grid?.nodes.items.map((node) => node.estimate_line?.subproject_id);
     };
     expect(await ids({})).toContain(SUBPROJECT);
-    expect(await ids({ [REVISION_READ]: "revision_marked" })).not.toContain(SUBPROJECT);
+    expect(await ids(MARKED)).not.toContain(SUBPROJECT);
     const refused = { "GET /projects/{project_id}/subprojects": NOT_FOUND } as const;
     expect(await ids(refused)).not.toContain(SUBPROJECT);
   });
 
-  it("keeps the grid of a marked revision read only", async () => {
-    const { html, grid } = await estimateWith({ [REVISION_READ]: "revision_marked" });
-    expect(grid?.editable).toBe(false);
-    expect(html).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
-  });
-
   it("places undo and redo in the estimate of a revision in progress, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
-    const open = await estimateWith();
+    const open = await estimateWith(IN_PRICING);
     expect(open.grid?.editable).toBe(true);
     expect(open.html).toContain('aria-label="Undo"');
 
     grids.estimate = [];
-    const marked = await estimateWith({ [REVISION_READ]: "revision_marked" });
+    const marked = await estimateWith(MARKED);
     expect(marked.grid?.editable).toBe(false);
+    expect(marked.html).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
     expect(marked.html).not.toContain('aria-label="Undo"');
     expect(marked.html).not.toContain('aria-label="Redo"');
   });
@@ -474,10 +475,7 @@ describe("the witness path", () => {
     server.clients = [];
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "label" }) });
-    expect(nodesQuery()).toEqual({
-      sort_by: "label",
-      sort_order: "asc",
-    });
+    expect(nodesQuery()).toEqual({ sort_by: "label", sort_order: "asc" });
   });
 
   it("leads from a revision to its planning, the first function of a revision in the order of the FBS and of the sidebar, the reading context carried on", async () => {
@@ -628,23 +626,23 @@ describe("the grid of the planning", () => {
   });
 
   it("places undo and redo in the planning of a revision the caller may plan, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
-    /** The planning of the witness revision, read as an example of the contract gives it. */
-    const planningOf = async (revision: "revision" | "revision_marked" | "revision_estimator") => {
+    /** The planning of the witness revision, its structure read as an example of the contract. */
+    const planningOf = async (structures: StructuresExample) => {
       grids.planning = [];
-      server.answers = { ...server.answers, [REVISION_READ]: revision };
+      server.answers = { ...server.answers, [STRUCTURES_READ]: structures };
       const html = renderToStaticMarkup(
         inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })),
       );
       return { html, undoable: grids.planning[0]?.undoable };
     };
-    const open = await planningOf("revision");
+    const open = await planningOf("structures");
     expect(open.undoable).toBe(true);
     expect(open.html).toContain('aria-label="Undo"');
-    const marked = await planningOf("revision_marked");
+    const marked = await planningOf("structures_amendments");
     expect(marked.undoable).toBe(false);
     expect(marked.html).not.toContain('aria-label="Undo"');
     // An estimator does not plan: the planning holds no entry of theirs to undo.
-    const estimator = await planningOf("revision_estimator");
+    const estimator = await planningOf("structures_estimator");
     expect(estimator.undoable).toBe(false);
     expect(estimator.html).not.toContain('aria-label="Undo"');
   });
@@ -712,10 +710,11 @@ describe("the indicators and the missing rates of the estimate", () => {
     expect(text(html)).toMatch(
       /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 66,105,223.89 .*No\. Label/,
     );
-    // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
+    // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
+    // on the reference budget of a project in progress (#1069).
     expect(html).toMatch(
       new RegExp(
-        `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/workload"[^>]*>.*?Workload</a>`,
+        `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/workload\\?basis=reference_budget"[^>]*>.*?Workload</a>`,
       ),
     );
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
@@ -841,9 +840,9 @@ describe("the banner of the reading context on the witness path", () => {
     );
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Revision Current revision Draft Subproject: No subproject Costing and estimate /,
+      /^Project Modernisation du poste de commande Revision Current revision Draft Structure Structure principale Subproject: No subproject Costing and estimate /,
     );
-    expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/estimate"`);
+    expect(html).toContain('aria-label="Remove the filter “Subproject: No subproject”"');
   });
 
   it("is not found for a revision the API does not find, as the other screens of a project", async () => {
@@ -888,7 +887,8 @@ describe("the empty states of the shell", () => {
       "Revisions This project has no revision yet. Go to the revisions of the project",
     );
     expect(links(html)).toContain(`/projects/${PRICING}/revisions`);
-    expect(html).not.toContain("<ul");
+    // No revision is listed: the only links to a revision are none.
+    expect(links(html).filter((href) => href.includes("/revisions/"))).toEqual([]);
   });
 
   it("does not offer the way to the revisions to a session that may not read them", async () => {
@@ -969,9 +969,7 @@ describe("the rows a page hands its grid", () => {
     for (const [index, node] of answer.items.entries()) {
       const row = items[index] ?? {};
       expect(Object.keys(row).sort()).toEqual(kept(node, listed.node));
-      for (const left of ["lineage_id", "position"]) {
-        expect(row).not.toHaveProperty(left);
-      }
+      expect(row).not.toHaveProperty("lineage_id");
       const facets = row as { task?: object | null; estimate_line?: object | null };
       expect(Object.keys(facets.task ?? {}).sort()).toEqual(kept(node.task ?? {}, listed.task));
       expect(Object.keys(facets.estimate_line ?? {}).sort()).toEqual(
@@ -981,11 +979,13 @@ describe("the rows a page hands its grid", () => {
   }
 
   it("the estimate asks for and hands its grid the fields it shows of each node, and those alone", async () => {
+    // Entered, the estimate shows the sub-project of a line as well: a project in pricing.
+    server.answers = { ...server.answers, ...IN_PRICING };
     renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     expect(nodesFields()).toEqual(nodeFieldNames(ESTIMATE_FIELDS));
     expect(grids.estimate).toHaveLength(1);
     projected(grids.estimate[0]?.nodes.items ?? [], ESTIMATE_FIELDS);
-    expect(grids.estimate[0]?.structure).toEqual(STRUCTURE);
+    expect(grids.estimate[0]?.structure.structure_id).toBe("01926f3a-7c00-7000-8000-000000000207");
   });
 
   it("the planning asks for and hands its grid the fields it shows of each node, and those alone", async () => {

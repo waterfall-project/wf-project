@@ -151,7 +151,11 @@ describe("the leaves of the table", () => {
     expect(Object.keys(LEAF_ICONS)).toEqual(leaves.map(({ leaf }) => leaf.code));
   });
 
-  it("are not offered by the navigation, which offers their function", () => {
+  it("are kept under their function when readable", () => {
+    const planning = readableGroups(["planning.read"])
+      .flatMap((group) => group.functions)
+      .find((fn) => fn.code === "FBS-4.3");
+    expect(planning?.leaves).toHaveLength(3);
     const codes = readableGroups(["estimate.read"]).flatMap((group) =>
       group.functions.map((fn) => fn.code),
     );
@@ -310,6 +314,26 @@ describe("the address of a function", () => {
     const [pathname = "", query = ""] = lifecycleHref.split("?");
     const there = readContext(pathname, new URLSearchParams(query));
     expect(functionHref(planning, there)).toBe(`${IN_PROJECT}/planning?${FILTERS}`);
+  });
+
+  it("carries the structure read between the planning and the estimate, and to no other (#1220)", () => {
+    const structure = "01926f3a-7c00-7000-8000-000000000203";
+    const estimate = find("FBS-4.4");
+    const there = readContext(`${IN_PROJECT}/estimate`, new URLSearchParams({ structure }));
+    expect(functionHref(planning, there)).toBe(`${IN_PROJECT}/planning?structure=${structure}`);
+    const back = readContext(`${IN_PROJECT}/planning`, new URLSearchParams({ structure }));
+    expect(functionHref(estimate, back)).toBe(`${IN_PROJECT}/estimate?structure=${structure}`);
+    // Any other function reads the main structure.
+    expect(functionHref(find("FBS-4.5"), back)).toBe(`${IN_PROJECT}/remaining`);
+    expect(functionHref(lifecycle, back)).toBe(
+      `/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`,
+    );
+    // A screen that reads no structure of its own carries none, and a value that is no identifier
+    // is not carried.
+    const elsewhere = readContext(`${IN_PROJECT}/risks`, new URLSearchParams({ structure }));
+    expect(functionHref(planning, elsewhere)).toBe(`${IN_PROJECT}/planning`);
+    const mistaken = readContext(`${IN_PROJECT}/planning`, new URLSearchParams({ structure: "x" }));
+    expect(functionHref(estimate, mistaken)).toBe(`${IN_PROJECT}/estimate`);
   });
 
   it("offers the functions of the project itself in a project without a revision", () => {

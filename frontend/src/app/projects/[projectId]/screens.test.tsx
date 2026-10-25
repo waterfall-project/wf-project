@@ -7,7 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import type { Project } from "@/components/context/reading";
+import { GeneratePlanning } from "@/components/projects/generate-planning";
 import { TransitionList } from "@/components/projects/project-tables";
+import { OPENED_REVISION } from "@/components/projects/start-offers";
 import {
   ContributorList,
   SubprojectList,
@@ -15,6 +17,7 @@ import {
 } from "@/components/projects/settings-lists";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { queryOfCall } from "@/test/queries";
 
 import LifecyclePage, { generateMetadata as lifecycleMetadata } from "./lifecycle/page";
 import ProjectPage from "./page";
@@ -87,7 +90,7 @@ function queriesOf(route: string): Record<string, string>[] {
   return server.clients
     .flatMap((client) => client.calls)
     .filter((call) => call.route === route)
-    .map((call) => Object.fromEntries(call.query));
+    .map((call) => queryOfCall(call.query));
 }
 
 /** The table a page names, its inner markup. */
@@ -147,6 +150,7 @@ beforeEach(() => {
     "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
+    "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/contributors": "contributors",
     "GET /projects/{project_id}/contributors/suggestions": "contributor_suggestions",
@@ -192,8 +196,74 @@ describe("the screen of a project", () => {
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await ProjectPage(at()));
-    expect(buttons(page)).toEqual([]);
+    // The help of the screen at the address alone, which the test sets to the settings.
+    expect(buttons(page)).toEqual(["Help"]);
     expect(page).not.toContain("<form");
+  });
+});
+
+describe("the generation of the planning on the screen of the work breakdown", () => {
+  const REVISION = "GET /projects/{project_id}/revisions/{revision_id}";
+
+  it("offers « Engendrer le planning » as the revision in progress lists the skeleton: available on a structure without task, and the planning it leads to", async () => {
+    server.answers = { ...server.answers, [REVISION]: "revision_without_tasks" };
+    const found = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at()),
+      GeneratePlanning,
+    );
+    expect(found?.props.offer).toMatchObject({ command: "generate_skeleton", is_available: true });
+    expect(found?.props.projectId).toBe(PROJECT);
+    expect(found?.props.planningHref).toBe(
+      `/projects/${PROJECT}/revisions/${found?.props.revisionId ?? ""}/planning`,
+    );
+  });
+
+  it("offers it unavailable, naming its condition, only to the user who comes from the encart, once the structure bears a task [WF-PRJ-0030-A]", async () => {
+    const other = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at()),
+      GeneratePlanning,
+    );
+    expect(other).toBeUndefined();
+    const started = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at({ start: "skeleton" })),
+      GeneratePlanning,
+    );
+    expect(started?.props.offer).toMatchObject({
+      is_available: false,
+      missing_conditions: ["main_structure_without_tasks"],
+    });
+  });
+
+  it("does not hide the offer in silence when the revision in progress is refused: the screen fails, as it does for its context", async () => {
+    server.answers = {
+      ...server.answers,
+      [REVISION]: { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } },
+    };
+    await expect(SettingsPage(at({ start: "skeleton" }))).rejects.toMatchObject({
+      name: "UnexpectedAnswer",
+    });
+  });
+
+  it("offers it as the project lists it when there is no revision in progress, the planning to lead to waiting for the revision the generation opens [WF-PRJ-0030-A]", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_created" };
+    const found = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at()),
+      GeneratePlanning,
+    );
+    expect(found?.props.offer).toMatchObject({ command: "generate_skeleton", is_available: true });
+    expect(found?.props.revisionId).toBeUndefined();
+    expect(found?.props.planningHref).toBe(
+      `/projects/${PROJECT}/revisions/${OPENED_REVISION}/planning`,
+    );
+  });
+
+  it("offers nothing to a session whose revision does not list the skeleton", async () => {
+    server.answers = { ...server.answers, [REVISION]: "revision_reader" };
+    const found = handed<ComponentProps<typeof GeneratePlanning>>(
+      await SettingsPage(at({ start: "skeleton" })),
+      GeneratePlanning,
+    );
+    expect(found).toBeUndefined();
   });
 });
 
@@ -242,7 +312,7 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("shows the work breakdown of the project, read by the server, in a region of its own: a tree of each order item, its work packages under it and their deliverables under them, which sorts nothing and folds", async () => {
+  it("shows the work breakdown of the project, read by the server, in a region of its own: a tree of each work package, its order items under it and their deliverables under them, which sorts nothing and folds", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/work-breakdown"]).toBe(
       `/projects/${PROJECT}/work-breakdown`,
@@ -253,10 +323,10 @@ describe("the settings of a project", () => {
     );
     expect(rows(region ?? "", "Work breakdown")).toEqual([
       "Label Kind",
-      "Fourniture et montage des armoires Order item",
-      "Armoires Work package",
+      "Lot 1 Work package",
+      "Poste 1.1 Order item",
       "Procès-verbal de réception usine des armoires Deliverable",
-      "1 order item, 1 work package and 1 deliverable",
+      "1 work package, 1 order item and 1 deliverable",
     ]);
     expect(region).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Work breakdown"/);
     expect(region).toContain('aria-level="3"');
@@ -264,43 +334,40 @@ describe("the settings of a project", () => {
     // Searched by the server on its labels, filtered on its kinds; read whole, nothing says it
     // partial.
     expect(region).toContain('type="search"');
-    expect(text(region ?? "")).toContain("Every kind Order item Work package Deliverable");
+    expect(text(region ?? "")).toContain("Every kind Work package Order item Deliverable");
     expect(text(region ?? "")).not.toContain("show only what the search and the filter retain");
   });
 
-  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, says the order items and work packages kept partial, and counts the elements retained alone (#574)", async () => {
+  it("asks the server for the search and the kinds of the work breakdown the address names, under the names of the contract, says the work packages and order items kept partial, and counts the elements retained alone (#574)", async () => {
     // Read filtered, then whole besides, for the commands of the grid to write from.
     server.answers = {
       ...server.answers,
-      "GET /projects/{project_id}/work-breakdown": [
-        "work_breakdown_work_packages",
-        "work_breakdown",
-      ],
+      "GET /projects/{project_id}/work-breakdown": ["work_breakdown_order_items", "work_breakdown"],
     };
     const page = html(
       await SettingsPage(
         at({
           breakdown_search: "Armoires",
-          breakdown_kinds: "deliverable,unknown,work_package",
+          breakdown_kinds: "deliverable,unknown,order_item",
           // The names of the contract alone belong to no grid of this screen.
-          kinds: "order_item",
+          kinds: "work_package",
         }),
       ),
     );
     expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toEqual([
-      { search: "Armoires", kinds: "work_package,deliverable" },
+      { search: "Armoires", kinds: "order_item,deliverable" },
       {},
     ]);
-    // The order item kept for its work package holds it alone: the list says so; and it is there
-    // for the context alone: the totals count the work package the filter retains, and no order
-    // item — le front affiche le total des seuls retenus.
+    // The work package kept for its order item holds it alone: the list says so; and it is there
+    // for the context alone: the totals count the order item the filter retains, and no work
+    // package — le front affiche le total des seuls retenus.
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
-      "Fourniture et montage des armoires Order item",
-      "Armoires Work package",
-      "1 work package",
+      "Lot 1 Work package",
+      "Poste 1.1 Order item",
+      "1 order item",
     ]);
     expect(text(page)).toContain(
-      "The order items and work packages show only what the search and the filter retain.",
+      "The work packages and order items show only what the search and the filter retain.",
     );
   });
 
@@ -312,34 +379,38 @@ describe("the settings of a project", () => {
           <WorkBreakdownList
             breakdown={searched}
             project={PROJECT}
-            shown={{ query: { sort: undefined, search: "Montage" }, preferences: undefined }}
+            shown={{
+              query: { sort: undefined, search: "Montage", size: undefined },
+              preferences: undefined,
+            }}
           />,
         ),
       ),
-    ).toContain("The order items and work packages show only what the search retains.");
-    const packages = example("work_breakdown_work_packages") as WorkBreakdown;
+    ).toContain("The work packages and order items show only what the search retains.");
+    const items = example("work_breakdown_order_items") as WorkBreakdown;
     expect(
-      text(
-        html(<WorkBreakdownList breakdown={packages} project={PROJECT} kinds={["work_package"]} />),
-      ),
-    ).toContain("The order items and work packages show only what the filter by kind retains.");
+      text(html(<WorkBreakdownList breakdown={items} project={PROJECT} kinds={["order_item"]} />)),
+    ).toContain("The work packages and order items show only what the filter by kind retains.");
   });
 
-  it("keeps the grid of a work breakdown a search narrows to nothing, never saying the project has no order item", () => {
+  it("keeps the grid of a work breakdown a search narrows to nothing, never saying the project has no work package", () => {
     // Read filtered, the server gives the reading no counter: it is partial.
     const filtered = example("work_breakdown_search") as WorkBreakdown;
     const none = html(
       <WorkBreakdownList
-        breakdown={{ ...filtered, order_items: [] }}
+        breakdown={{ ...filtered, work_packages: [] }}
         project={PROJECT}
-        shown={{ query: { sort: undefined, search: "zzz" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "zzz", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(none, "Work breakdown")).toContain("No row matches the request.");
-    expect(text(none)).not.toContain("This project has no order item.");
+    expect(text(none)).not.toContain("This project has no work package.");
   });
 
-  it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable, both bearing the label of the project", async () => {
+  it("shows the work breakdown by default of a project whose order was not entered: one work package, one order item, no deliverable, both bearing the label of the project [WF-PRJ-0020-A]", async () => {
     // The project created today, its first revision opened, its order not entered.
     const project = example("project_revision_opened") as Project;
     server.answers = {
@@ -349,28 +420,30 @@ describe("the settings of a project", () => {
     };
     const page = html(await SettingsPage(at({}, project.project_id)));
     expect(rows(page, "Work breakdown").slice(1)).toEqual([
-      `${project.label} Order item`,
       `${project.label} Work package`,
-      "1 order item and 1 work package",
+      `${project.label} Order item`,
+      "1 work package and 1 order item",
     ]);
   });
 
-  it("shows an order item without a work package alone, and says a work breakdown without an order item empty", () => {
+  it("shows a work package without an order item alone, and says a work breakdown without a work package empty", () => {
     const fallback = example("work_breakdown_default") as WorkBreakdown;
     const project = example("project_created") as Project;
-    const [item] = fallback.order_items;
-    const bare = { ...fallback, order_items: item ? [{ ...item, work_packages: [] }] : [] };
+    const [pack] = fallback.work_packages;
+    const bare = { ...fallback, work_packages: pack ? [{ ...pack, order_items: [] }] : [] };
     expect(
       rows(
         html(<WorkBreakdownList breakdown={bare} project={project.project_id} />),
         "Work breakdown",
       ),
-    ).toEqual(["Label Kind", `${project.label} Order item`, "1 order item"]);
+    ).toEqual(["Label Kind", `${project.label} Work package`, "1 work package"]);
     expect(
       text(
-        html(<WorkBreakdownList breakdown={{ ...fallback, order_items: [] }} project={PROJECT} />),
+        html(
+          <WorkBreakdownList breakdown={{ ...fallback, work_packages: [] }} project={PROJECT} />,
+        ),
       ),
-    ).toBe("Work breakdown This project has no order item.");
+    ).toBe("Work breakdown This project has no work package.");
   });
 
   it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched, sorted and filtered by the server on each column", async () => {
@@ -477,7 +550,10 @@ describe("the settings of a project", () => {
     const searched = html(
       <SubprojectList
         subprojects={[]}
-        shown={{ query: { sort: undefined, search: "XX" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "XX", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(searched, "Subprojects")).toContain("No row matches the request.");
@@ -490,7 +566,10 @@ describe("the settings of a project", () => {
     const named = html(
       <ContributorList
         contributors={[]}
-        shown={{ query: { sort: undefined, search: "Zoé" }, preferences: undefined }}
+        shown={{
+          query: { sort: undefined, search: "Zoé", size: undefined },
+          preferences: undefined,
+        }}
       />,
     );
     expect(rows(named, "Contributors")).toContain("No row matches the request.");
@@ -514,8 +593,8 @@ describe("the settings of a project", () => {
     );
     // A sub-project charged with actual costs no longer deletes: its deletion says why. Both are,
     // the tests and commissioning by the invoices of the drawn tasks of its lots (EP-14/L45a).
-    expect(page).toMatch(/aria-label="Delete “SP-CMD”" aria-disabled="true"/);
-    expect(page).toMatch(/aria-label="Delete “SP-ESS”" aria-disabled="true"/);
+    expect(page).toMatch(/aria-label="Delete “SP-CMD”"[^>]*aria-disabled="true"/);
+    expect(page).toMatch(/aria-label="Delete “SP-ESS”"[^>]*aria-disabled="true"/);
     expect(text(page)).toContain(
       "Proposed from the roles of the estimate, to be confirmed: Sacha Lefèvre.",
     );
@@ -556,7 +635,9 @@ describe("the settings of a project", () => {
     expect(named(false).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
     for (const code of ["SP-CMD", "SP-ESS"]) {
       for (const command of ["Modify", "Delete"]) {
-        expect(page).toContain(`aria-label="${command} “${code}”" aria-disabled="true"`);
+        expect(page).toMatch(
+          new RegExp(`aria-label="${command} “${code}”"[^>]*aria-disabled="true"`),
+        );
       }
     }
     expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
@@ -638,7 +719,7 @@ describe("the lifecycle of a project", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_pricing" };
     const page = html(await LifecyclePage(at()));
     const complete =
-      /<button[^>]*aria-disabled="true"[^>]*aria-describedby="([^"]+)"[^>]*>(?:(?!<\/button>).)*Complete the project<\/button>/.exec(
+      /<button[^>]*aria-describedby="([^"]+)"[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Complete the project<\/button>/.exec(
         page,
       );
     expect(complete).not.toBeNull();
@@ -650,6 +731,7 @@ describe("the lifecycle of a project", () => {
     const page = html(await LifecyclePage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
     expect(buttons(page)).toEqual([
+      "Help",
       "Complete the project",
       "Declare the project lost",
       "Abandon the project",
@@ -662,7 +744,7 @@ describe("the lifecycle of a project", () => {
     expect(paths()["GET /projects/{project_id}/state-transitions"]).toBe(
       `/projects/${PROJECT}/state-transitions`,
     );
-    expect(text(page)).toMatch(/^.*Project lifecycle State In progress/);
+    expect(text(page)).toMatch(/^.*Project lifecycle Help State In progress/);
     expect(text(page)).toContain(
       "History of states Date Transition By Reason " +
         "Creation Created Camille Martin Created Pricing Camille Martin Pricing In progress Camille Martin",
@@ -717,6 +799,7 @@ describe("the lifecycle of a project", () => {
       };
       const page = html(await LifecyclePage(at()));
       expect(buttons(page)).toEqual([
+        "Help",
         "Complete the project",
         "Declare the project lost",
         "Abandon the project",

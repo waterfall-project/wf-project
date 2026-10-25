@@ -94,13 +94,13 @@ describe("the grids of the settings of a project", () => {
     await expectAccessible(container);
   });
 
-  it("fold the work breakdown, a work package over its deliverables, the order of the tree kept", async () => {
+  it("fold the work breakdown, a work package over its order items and their deliverables, the order of the tree kept", async () => {
     render(settings());
     const tree = screen.getByRole("treegrid", { name: "Lotissement" });
     expect(within(tree).getAllByRole("row")).toHaveLength(5);
-    const item = within(tree).getByRole("row", { name: /Fourniture et montage des armoires/ });
+    const item = within(tree).getByRole("row", { name: /Lot 1/ });
     await userEvent.click(within(item).getByRole("button", { name: "Plier" }));
-    // The header, the order item, the totals.
+    // The header, the work package, the totals.
     expect(within(tree).getAllByRole("row")).toHaveLength(3);
     await userEvent.click(within(item).getByRole("button", { name: "Déplier" }));
     expect(within(tree).getAllByRole("row")).toHaveLength(5);
@@ -135,7 +135,7 @@ describe("the grids of the settings of a project", () => {
       const sorted = `subproject_sort_by=${column}&subproject_sort_order`;
       expect(lastAddress()).toBe(`${PATH}?contributor_kinds=contributor&${sorted}=asc`);
       page.search = `contributor_kinds=contributor&${sorted}=asc`;
-      const query = { sort: { column, order: "asc" }, search: undefined } as const;
+      const query = { sort: { column, order: "asc" }, search: undefined, size: undefined } as const;
       rerender(
         settings(
           <SubprojectList subprojects={subprojects} shown={{ query, preferences: undefined }} />,
@@ -164,7 +164,7 @@ describe("the grids of the settings of a project", () => {
       const sorted = `contributor_sort_by=${column}&contributor_sort_order`;
       expect(lastAddress()).toBe(`${PATH}?subproject_search=SP&${sorted}=asc`);
       page.search = `subproject_search=SP&${sorted}=asc`;
-      const query = { sort: { column, order: "asc" }, search: undefined } as const;
+      const query = { sort: { column, order: "asc" }, search: undefined, size: undefined } as const;
       rerender(
         settings(
           <ContributorList contributors={contributors} shown={{ query, preferences: undefined }} />,
@@ -261,7 +261,7 @@ describe("the grids of the settings of a project", () => {
       within(screen.getByRole("treegrid", { name: "Lotissement" })).getAllByRole("row");
     const { unmount } = render(tree(PROJECT));
     const item = within(screen.getByRole("treegrid", { name: "Lotissement" })).getByRole("row", {
-      name: /Fourniture et montage des armoires/,
+      name: /Lot 1/,
     });
     await userEvent.click(within(item).getByRole("button", { name: "Plier" }));
     expect(rows()).toHaveLength(3);

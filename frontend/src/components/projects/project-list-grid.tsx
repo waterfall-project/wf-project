@@ -59,6 +59,7 @@ export const PROJECT_LIST_GRID: GridConfig<ListedProjectRow, ListedProjectSort, 
     key: "projects",
     name: "projects",
     searched: true,
+    paged: true,
     rowKey: (project) => project.project_id,
     columns: [
       {
