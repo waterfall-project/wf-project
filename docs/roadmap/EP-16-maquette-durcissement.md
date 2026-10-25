@@ -601,14 +601,25 @@ et ses exemples.
   provisoire de #1145 disparaît du guide avec lui. #1230, une lenteur du produit, reste à EP-17.
   Écarté : une US nouvelle, alors que le README nomme `[US-nnnnb]` la part détachée d'une US à un
   seul lot.
+- **US-0590c, la montée de Next en 16.4** (#1466 ; décision de l'auteur du 2026-10-25) : les trois
+  avis de sécurité du 2026-10-25 ne sont corrigés qu'à partir de 16.4.1, une version mineure qui
+  remanie la navigation côté client (vercel/next.js#96252, #97397, #95439) ; au premier passage de
+  file avec elle (PR Dependabot #1465), `context.spec.ts:24` et `shell.spec.ts:140`, jamais tombés
+  jusque-là, tombent ensemble. v0.1.0 part avec 16.3.8 — Waterfall n'est exposé qu'au déni de
+  service par Server Actions, écrit aux notes de version —, et le lot monte Next et `happy-dom`,
+  diagnostique les deux parcours à leur cause — un comportement du routeur à adopter, ou un test
+  qui présumait l'ancien —, jamais par une attente plus longue, et relit `node_modules/next/dist/docs/`
+  à la version montée. Il suit US-0590, sur le front construit, ou le précède sur décision de
+  l'auteur. Écarté : fusionner #1465 en l'état, deux parcours rouges.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
 ### L'ordre de construction
 
 1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent ;
-   **US-0590b** quand trois paliers complets ont été joués sur le front construit, son contenu
-   arrêté sur ce qui tombe encore.
+   **US-0590c** aussitôt après, la montée de Next en 16.4 sur le front construit ; **US-0590b**
+   quand trois paliers complets ont été joués sur le front construit, son contenu arrêté sur ce
+   qui tombe encore.
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
    EP-16), quand l'auteur peut la relire.
@@ -658,7 +669,10 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 - propre à l'US (US-0590b) : les échecs qui restent après trois paliers complets sur le front
   construit — #1263, #1145, #776, #1264, pour ce qui tombe encore — sont corrigés à leur cause, et
   ceux qui ne tombent plus sont fermés « corrigé par US-0590 » ; la règle provisoire de #1145
-  disparaît du guide.
+  disparaît du guide ;
+- propre à l'US (US-0590c) : `next` ≥ 16.4.1 et `happy-dom` ≥ 21.0.4, aucune alerte Dependabot
+  ouverte sur ces paquets ; `context.spec.ts:24` et `shell.spec.ts:140` verts sur trois paliers
+  complets, sans `fixme` ni attente allongée, leur cause écrite dans la pull request.
 
 **Notes de réalisation.**
 - Le harnais construit déjà le front pour la mesure de la seconde (US-0110/L2, port 3101) : l'US
@@ -671,6 +685,11 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 - Décision de l'auteur du 2026-10-25 : la stabilité restante des e2e est du durcissement ; elle
   revient d'EP-17 dans un second lot, US-0590b (#1460), part détachée de cette US, dont le contenu
   s'arrête après trois paliers complets. #1342 et #1309 sont corrigés par le premier lot.
+- Décision de l'auteur du 2026-10-25 : la montée de Next de 16.3.8 à 16.4.x (avis GHSA-673q-mjm6-r5xr,
+  GHSA-2464-fhr4-w9xw, GHSA-p3m5-59mp-jv5r, corrigés en 16.4.1 seulement) est un troisième lot,
+  US-0590c (#1466), parce qu'elle fait tomber deux parcours de navigation : v0.1.0 reste en 16.3.8,
+  seul le déni de service par Server Actions concernant Waterfall (aucun `use cache`, aucun
+  `next/image`).
 
 **Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 
