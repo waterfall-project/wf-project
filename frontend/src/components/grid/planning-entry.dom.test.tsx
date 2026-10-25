@@ -20,6 +20,7 @@ import {
 
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { breakdownItems, type WorkBreakdownReading } from "./planning-attachment";
+import { PLANNING_GRID } from "./planning";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
 
@@ -53,6 +54,16 @@ const planning = example("nodes_planning") as NodeList;
 const nested = example("nodes_nested") as NodeList;
 const breakdown = breakdownItems(example("work_breakdown") as WorkBreakdownReading);
 
+// The columns the grid shows by itself but the Gantt, which no test here enters: drawn at each of
+// the renders an entry makes, it doubled the time of the slowest test, past a second under the
+// coverage (#1474).
+const PREFERENCES = {
+  hidden_columns: [
+    ...PLANNING_GRID.columns.filter((column) => column.hidden === true).map((column) => column.key),
+    "gantt",
+  ],
+};
+
 /** The index of a row of a list, by the label of its task. */
 function rowOf(list: NodeList, label: string): number {
   return list.items.findIndex((node) => node.task?.label === label);
@@ -81,7 +92,7 @@ function grid(
         structureVersion={1}
         filters={{ kinds: ["task"] }}
         query={NO_QUERY}
-        preferences={undefined}
+        preferences={PREFERENCES}
         undoable={editable}
         editable={editable}
         breakdown={editable ? breakdown : undefined}

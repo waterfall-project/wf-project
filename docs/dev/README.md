@@ -2635,9 +2635,16 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   chacune, sur l'un (`SHARD=lint`, le projet `lint` de `frontend/vitest.config.ts`), les autres
   tests en deux moitiés sur les deux autres (`SHARD=1/2`, `SHARD=2/2`). Vitest répartit des
   fichiers entiers par l'empreinte de leur chemin, et les trois gardes tombaient dans le même
-  morceau. Vitest y prend un worker par processeur, quatre au plus (#1474) : le poste, douze
-  processeurs, ne gagnait rien au-delà de quatre, et chaque test y tournait plus lentement, un test
-  de la grille, moins d'une seconde seul, au-delà de ses cinq secondes sous la couverture. Au palier
+  morceau. Vitest y prend un worker par processeur moins un, comme il le fait de lui-même hors
+  du mode veille, quatre au plus (`workers`, `frontend/vitest.config.ts`, #1474) : le processeur
+  laissé est celui du processus principal, qui rassemble les résultats et la couverture des
+  workers ; un runner, quatre processeurs, en joue donc trois. Le poste, douze processeurs, ne
+  gagnait rien au-delà de quatre, et chaque test y tournait plus lentement, un test de la grille,
+  moins d'une seconde seul, au-delà de ses cinq secondes sous la couverture. Sur quatre cœurs du
+  poste, la couverture de la moitié `2/2` prenait 121 s sur quatre workers et 131 s sur trois,
+  mais 29 de ses tests dépassaient la seconde sur quatre, 11 sur trois. `structure-busy.dom.test.tsx`
+  et `planning-entry.dom.test.tsx` cachent les colonnes qu'ils n'éprouvent pas, le Gantt d'abord :
+  la grille entière, rendue deux ou trois fois à chaque geste, doublait leur durée. Au palier
   complet, un dernier runner rassemble la couverture des trois morceaux et
   la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu
   de chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute.
