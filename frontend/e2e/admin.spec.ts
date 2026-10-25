@@ -38,6 +38,10 @@ async function open(page: Page, block: string, name: string) {
 test("reaches every screen of the reference data and of the administration with no project opened (US-0250)", async ({
   page,
 }) => {
+  // Set aside until US-0590 (#1313) plays the paths against the built front: under four workers,
+  // the development server serves the nine screens in series and the path overruns its thirty
+  // seconds, routes compiled or not (#1262). Decision of the author, 2026-10-25.
+  test.fixme(true, "unstable on the development server until US-0590 #1313 (#1262)");
   // Each screen, reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, ...SCREENS.map(([, , route]) => route));
   await page.goto("/");

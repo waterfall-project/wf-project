@@ -69,10 +69,20 @@ export function parseHelp(markdown: string): ParsedHelp | undefined {
   };
 }
 
-/** The text of a file of the help, or `undefined` when it is not written. */
+/**
+ * The text of a file of the help, or `undefined` when it is not written. The file is read inside
+ * the directory of the help, or the reading fails: the action refuses a target that names no page
+ * before any file is named from it (`actions/help.ts`), and the bound holds here too, where the
+ * path is written, for any caller (#1462).
+ */
 async function readText(file: string): Promise<string | undefined> {
+  const directory = helpDirectory();
+  const resolved = path.resolve(directory, file);
+  if (!resolved.startsWith(directory + path.sep)) {
+    throw new Error(`The file ${file} is outside the directory of the help.`);
+  }
   try {
-    return await readFile(path.join(helpDirectory(), file), "utf8");
+    return await readFile(resolved, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return undefined;

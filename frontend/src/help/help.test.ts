@@ -284,6 +284,14 @@ describe("the reading of the help", () => {
     expect(await readHelp(null as unknown as HelpTarget)).toBeUndefined();
     expect((await readHelp({ kind: "notion", name: "indices" }))?.page.kind).toBe("written");
   });
+
+  it("refuses, where the path is written, a file outside the directory of the help [WF-IHM-0140-A]", async () => {
+    // The action refuses such a target first; the reading holds the same bound for any caller
+    // (#1462). The file named here exists: the README of the repository, three levels up.
+    await expect(readHelpPage({ kind: "screen", code: "../../../README" })).rejects.toThrow(
+      "outside the directory of the help",
+    );
+  });
 });
 
 describe("the links and the screens of the help", () => {
