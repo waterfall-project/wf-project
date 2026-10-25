@@ -121,6 +121,17 @@ describe("the writes refused once their screen is gone (#863)", () => {
     expect(refusedLeft().length).toBe(0);
   });
 
+  it("leave out a write whose asker tells it still — unless released as its screen is left", async () => {
+    const kept = underWay();
+    const left = underWay();
+    holdNavigation(kept.write, () => true)();
+    holdNavigation(left.write, () => true)(true);
+    kept.answer(false);
+    left.answer(false);
+    await settled();
+    expect(refusedLeft().length).toBe(1);
+  });
+
   it("count a write once, however many times its screen releases it", async () => {
     const write = underWay();
     const release = holdNavigation(write.write);

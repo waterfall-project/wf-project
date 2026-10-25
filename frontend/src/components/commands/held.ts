@@ -25,7 +25,8 @@ import { rejected } from "./rejection";
 
 /**
  * Hold the navigations of the page while the writes of the screen answer — each a promise of
- * whether it was applied, or of its outcome —, until the screen goes, or until what tells their
+ * whether it was applied, or of its outcome —, until the screen goes — or is left by « Précédent »
+ * or « Suivant » for another path, told then by the bar whatever `told` says —, or until what tells their
  * refusal changes (`scope`): a list that tells a refusal on the reading it was asked from alone
  * releases its writes once it is read otherwise. A write refused once released is told by the bar
  * of the shell, and noted with the screen it was made on, unless `told` — given with the write, read
@@ -35,15 +36,30 @@ import { rejected } from "./rejection";
 export function useHeldWrites(
   scope?: string,
 ): (write: Promise<WriteAnswer>, told?: () => boolean) => void {
-  const releases = useRef(new Set<() => void>());
+  const releases = useRef(new Set<(left?: boolean) => void>());
   const project = useShownProjectLabel();
   useEffect(() => {
     const held = releases.current;
-    return () => {
+    const releaseAll = (left: boolean) => {
       for (const release of held) {
-        release();
+        release(left);
       }
       held.clear();
+    };
+    // « Précédent » or « Suivant » leaves the screen as the address changes, but the router shows the
+    // entry traversed to only once the actions under way have answered: the traversal, a transition,
+    // joins the lane of the action that awaits the write (Next 16.4). A refusal told here then would
+    // go with the screen, unsaid.
+    const shown = window.location.pathname;
+    const traversed = () => {
+      if (window.location.pathname !== shown) {
+        releaseAll(true);
+      }
+    };
+    window.addEventListener("popstate", traversed);
+    return () => {
+      window.removeEventListener("popstate", traversed);
+      releaseAll(false);
     };
   }, [scope]);
   return useCallback(

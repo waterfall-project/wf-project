@@ -338,7 +338,13 @@ cellule validée quand le pointeur descend sur le lien, dont la session perdue r
 retient ce clic. Seul le dernier clic retenu est refait ; un écran quitté libère ses écritures, qui
 ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation programmatique
 (`router.push`), « Précédent » et « Suivant » du navigateur, un lien qui ouvre ailleurs —
-autre onglet, touche de modification, téléchargement, autre site. Une écriture encore en route quand
+autre onglet, touche de modification, téléchargement, autre site. « Précédent » et « Suivant » changent
+l'adresse aussitôt, mais depuis Next 16.4 le routeur ne montre l'entrée retrouvée qu'une fois répondue
+l'action en cours : la traversée, une transition, rejoint la voie de l'action qui attend l'écriture
+(`startTransition(async …)`), quand Next 16.3 la montrait aussitôt. L'écran quitté reste donc affiché
+jusqu'à la réponse, et ses écritures sont libérées dès la traversée vers un autre chemin (`popstate`,
+`useHeldWrites`) : leur refus va à la barre, même quand ce qui l'a demandée dit le dire encore (`told`),
+puisqu'il s'en va avec l'écran. Une écriture encore en route quand
 son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
 survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `refusedLeft` de
 `held-writes.ts`, #863), et l'inscrit dans l'historique des messages avec son refus et l'écran

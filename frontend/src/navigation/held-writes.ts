@@ -16,7 +16,9 @@
  * person, who saw it, decides.
  *
  * A write is released when what would tell its refusal is no longer shown (`release`): its screen
- * gone — left by « Précédent », by the router, or by a link while the write had not left yet —, or
+ * gone — left by « Précédent », by the router, or by a link while the write had not left yet —, its
+ * screen left by « Précédent » or « Suivant » for another path, before it goes: the router shows the
+ * entry traversed to only once the actions under way have answered (Next 16.4, `useHeldWrites`), or
  * the list it was asked from read otherwise, which tells a refusal on the reading it was asked from
  * alone. It holds no click then. One still under way, and refused after, is told by the bar of the
  * shell (`LeftRefusals`), which outlives every screen (#863): nothing is lost unsaid — save when
@@ -101,13 +103,14 @@ export function dismissLeftRefusals(): void {
  * outcome. Gives back its release, for the screen that made it to call when what tells its refusal
  * is no longer shown; refused after it, the write is kept among those the bar of the shell tells,
  * with the screen it was made on — unless `told` says, as the refusal arrives, that what asked the
- * write tells it itself.
+ * write tells it itself. Released as its screen is `left`, the write is told by the bar whatever
+ * `told` says: the screen still shown as the refusal arrives is about to go, with what tells it.
  */
 export function holdNavigation(
   write: Promise<WriteAnswer>,
   told?: () => boolean,
   screen?: MessageScreen,
-): () => void {
+): (left?: boolean) => void {
   let release: () => void = () => undefined;
   const released = new Promise<boolean>((resolve) => {
     release = () => {
@@ -125,14 +128,14 @@ export function holdNavigation(
     held.applied = applied;
     underWay.delete(held);
   });
-  return () => {
+  return (left = false) => {
     if (underWay.has(held)) {
       // Under way as it is released: refused after, it is told by the bar of the shell, unless what
-      // asked it tells it still.
+      // asked it tells it still — on a screen not left.
       void write
         .catch((): WriteAnswer => false)
         .then((answer) => {
-          if (!wasApplied(answer) && told?.() !== true) {
+          if (!wasApplied(answer) && (left || told?.() !== true)) {
             const refusal =
               typeof answer === "boolean" || answer.kind === "done" ? undefined : answer;
             leftRefused = [...leftRefused, { refusal, screen }];

@@ -481,8 +481,14 @@ describe("the shell", () => {
   });
 });
 
-/** A screen that makes a write, answered when the test says: whether it was applied, or its outcome. */
-function writing(): { Screen: () => ReactElement; answer: (answer: WriteAnswer) => void } {
+/**
+ * A screen that makes a write, answered when the test says: whether it was applied, or its outcome;
+ * `told`, given with the write, says whether what asked it tells its refusal still.
+ */
+function writing(told?: () => boolean): {
+  Screen: () => ReactElement;
+  answer: (answer: WriteAnswer) => void;
+} {
   let answer: (answer: WriteAnswer) => void = () => undefined;
   const write = new Promise<WriteAnswer>((resolve) => {
     answer = resolve;
@@ -494,7 +500,7 @@ function writing(): { Screen: () => ReactElement; answer: (answer: WriteAnswer) 
     useEffect(() => {
       if (!made.current) {
         made.current = true;
-        hold(write);
+        hold(write, told);
       }
     }, [hold]);
     return <main />;
@@ -592,6 +598,44 @@ describe("the writes refused once their screen is gone (#863)", () => {
     ]);
     view.rerender(inShell({}, <main />));
     expect(readMessages().messages).toHaveLength(1);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("are signalled when « Précédent » left their screen for another path, though the screen is shown until the write answers, whatever it says it tells [WF-IHM-0080-A]", async () => {
+    // Son aboutissement comme son échec sont signalés même si l'utilisateur a changé d'écran
+    // entre-temps : the router of Next 16.4 shows the entry traversed to only once the action under
+    // way has answered, and the screen that would tell the refusal goes with it.
+    window.history.replaceState(null, "", "/account");
+    const { Screen, answer } = writing(() => true);
+    shell({}, <Screen />);
+    window.history.replaceState(null, "", "/");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().getByRole("alert")).toHaveTextContent(
+      "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.",
+    );
+  });
+
+  it("say nothing of a write that « Précédent » keeps on its screen, read with other parameters, which tells it", async () => {
+    window.history.replaceState(null, "", "/account?tab=1");
+    const { Screen, answer } = writing(() => true);
+    shell({}, <Screen />);
+    window.history.replaceState(null, "", "/account");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    await act(async () => {
+      answer(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().queryByRole("alert")).toBeNull();
     window.history.replaceState(null, "", "/");
   });
 
