@@ -86,3 +86,9 @@ Commite en français — ce qui change, puis pourquoi —, pousse la branche, et
 selon `docs/dev/agents.md`, en ajoutant pour chaque critère fermé le test qui le porte. Tu
 n'ouvres pas la pull request et tu ne fusionnes rien : c'est l'agent de livraison, ou une
 personne, qui le fait après la revue.
+
+Avant de rendre la main, ne laisse rien derrière toi (`docs/dev/agents.md`, #1444) : une
+branche de travail que tu as tirée à côté de celle du lot se supprime une fois son contenu sur
+la branche du lot (`git branch -d`, qui refuse une branche non fusionnée), et aucune commande
+que tu as lancée en arrière-plan — serveur de Next, Prism, Chromium — ne tourne encore. La
+branche du lot et ton worktree restent : l'agent de livraison les retire après la fusion.

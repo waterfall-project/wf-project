@@ -642,7 +642,7 @@ et ses exemples.
 
 ## US-0590 — Les parcours de bout en bout joués contre le front construit
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1313

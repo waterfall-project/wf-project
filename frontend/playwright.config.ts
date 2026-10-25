@@ -6,11 +6,15 @@
  * title (WF-QUA-0010). From EP-03, the same paths run against the real service by pointing
  * `WATERFALL_API_ADDRESS` at it.
  *
- * The paths run against the development server; the measure of the second of §4.6.2
- * (`opening.spec.ts`, US-0110/L2) runs against the front built for production, the one users
- * open, on a port of its own: the development server compiles each route the first time it is
- * asked for, and renders with the checks of React's development build — a measure there would
- * say how fast the developer's front is.
+ * Every path plays against the front built for production, the one users open (US-0590): one
+ * `next start` serves the paths, the measure of the second of §4.6.2 (`opening.spec.ts`,
+ * US-0110/L2) and the paths against the service. The development server rendered the pages of
+ * four workers in series, past the five seconds of an assertion (#1262). The front is built first
+ * as `make build-front` builds it, with no API to reach (#131), unless `E2E_BUILT=1` says it is
+ * built already — the chain builds it once for all its parts (`ci.yml`). `E2E_DEV_SERVER=1`, on a
+ * workstation only, plays the paths against `next dev` instead, which spares a build at each run
+ * again: never the measure, which says how fast the users' front is, and never in the chain (`CI`),
+ * where it fails the run, saying so.
  *
  * The harness always starts its own servers, on ports of its own — never those of `make dev`,
  * 3000 and 4010 —, and its fake back serves a variant of the contract written where `make dev`
@@ -19,29 +23,29 @@
  * environment moves the ports, for two checkouts on one workstation. With `WATERFALL_API_ADDRESS`
  * set, the paths run against the API it names, and no fake back is started.
  *
- * Before the paths, every route is asked once of the development server, which compiles a route
- * the first time it is asked for (`e2e/warm-up.ts`, #1145); and the front opens a connection of its
- * own for each request to the API, Prism here whatever the API, which closes an idle one.
+ * The front opens a connection of its own for each request to the API, Prism here whatever the
+ * API, which closes an idle one (#1145).
  *
  * The measure never fails the run on the second itself: it writes what it measured, and warns
  * when an opening overran it (`opening.spec.ts`).
  *
  * `E2E_PART` plays half of the harness, as the chain does on separate runners (#492): `paths`,
  * every path but the measure, which Playwright can then spread over runners (`--shard`) — the
- * measure, depending on all of them, would otherwise drag every one into each part —, with no
- * production build; `measure`, the measure alone, with no development server, a runner to
- * itself. Unset, the whole harness: the paths, then the measure.
+ * measure, depending on all of them, would otherwise drag every one into each part —; `measure`,
+ * the measure alone, a runner to itself. Unset, the whole harness: the paths, then the measure.
  *
  * `service` plays the paths of `e2e/service/` alone (US-0340), which the others leave out:
  * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
- * (`make e2e-service`), with the real authentication — no fixed token —, and the development
- * server listening on every interface, so that Keycloak reaches its back channel from its
- * container (#681). They play in five projects: the installation first, whose administrator the
- * bootstrap made, and whose link serves once (US-0420); the paths, on several workers; those that
- * change a setting of the realm, which every account reads, one at a time once the others are done;
- * the restoration of the platform, which closes every session, after them, alone (US-0440); and last
- * the guard of the run, which reads the log of the proxy of the contract from the start of the run.
+ * (`make e2e-service`), with the real authentication — no fixed token —, and the front listening
+ * on every interface, so that Keycloak reaches its back channel from its container (#681). They
+ * play in five projects: the installation first, whose administrator the bootstrap made, and whose
+ * link serves once (US-0420); the paths, on several workers; those that change a setting of the
+ * realm, which every account reads, one at a time once the others are done; the restoration of the
+ * platform, which closes every session, after them, alone (US-0440); and last the guard of the run,
+ * which reads the log of the proxy of the contract from the start of the run.
  */
+import { randomBytes } from "node:crypto";
+
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 
 import { lastLogged } from "./e2e/service/proxy-log";
@@ -62,27 +66,56 @@ function port(variable: string, own: number): number {
   return chosen;
 }
 
+/** A switch of the harness: `1` sets it, unset or empty leaves it; anything else refused. */
+function switchedOn(variable: string): boolean {
+  const named = process.env[variable];
+  if (named === undefined || named === "") {
+    return false;
+  }
+  if (named !== "1") {
+    throw new Error(`${variable} must be 1, or unset: ${named}`);
+  }
+  return true;
+}
+
 const API_PORT = port("E2E_API_PORT", 4110);
+// The port Keycloak knows the back channel of the front at, against the service (`make e2e-service`).
 const FRONT_PORT = port("E2E_FRONT_PORT", 3100);
-const PRODUCTION_PORT = port("E2E_PRODUCTION_PORT", 3101);
 // An API named by the environment is played against as it is: no fake back is started for it.
 const NAMED_API = process.env.WATERFALL_API_ADDRESS;
 const API = NAMED_API ?? `http://127.0.0.1:${String(API_PORT)}`;
 const FRONT = `http://127.0.0.1:${String(FRONT_PORT)}`;
-const PRODUCTION = `http://127.0.0.1:${String(PRODUCTION_PORT)}`;
-// The fake back grants the session, and the front sends it a fixed token (`WATERFALL_AUTH=mock`,
-// `src/api/server.ts`); the front built for production refuses that mode unless the harness
-// says it is the harness (`WATERFALL_E2E`). Against an API the environment names, the real
-// authentication stands.
+// An address where no API answers, which `make build-front` builds the front with (#131).
+const NOWHERE = "http://127.0.0.1:9";
+const onWorkstation = process.env.CI === undefined;
+// Whether the front is built already, and whether the paths play against the development server.
+const BUILT = switchedOn("E2E_BUILT");
+const DEVELOPMENT_ASKED = switchedOn("E2E_DEV_SERVER");
+if (DEVELOPMENT_ASKED && !onWorkstation) {
+  throw new Error(
+    "E2E_DEV_SERVER=1 plays the paths against next dev, on a workstation only: the chain (CI) plays them against the built front",
+  );
+}
+// The front built for production refuses the fixed token of the fake back unless the harness says
+// it is the harness (`WATERFALL_E2E`), which it says against the service too: the front then writes
+// no warning of `closed` connections (#1265). Against an API the environment names, the real
+// authentication stands; the front built for production does not start without the key of its
+// server actions, which the run gives it unless the environment does.
 const AUTHENTICATION =
-  NAMED_API === undefined ? { WATERFALL_AUTH: "mock", WATERFALL_E2E: "1" } : {};
+  NAMED_API === undefined
+    ? { WATERFALL_AUTH: "mock" }
+    : {
+        NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:
+          process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY ?? randomBytes(32).toString("base64"),
+      };
 // What the front of the harness is told: where the API is, and to open a connection of its own for
 // each request — the API is Prism, the fake back or the proxy of the contract, which closes a
-// connection idle for five seconds, and the development server under load would send a request on a
-// connection Prism has just closed (`Connections`, `src/api/client.ts`, #1145).
+// connection idle for five seconds, which the front would otherwise send a request on
+// (`Connections`, `src/api/client.ts`, #1145).
 const FRONT_ENV = {
   WATERFALL_API_ADDRESS: API,
   WATERFALL_API_CONNECTIONS: "closed",
+  WATERFALL_E2E: "1",
   ...AUTHENTICATION,
 };
 const PARTS = ["paths", "measure", "service"] as const;
@@ -104,7 +137,10 @@ function part(): Part | undefined {
 const PART = part();
 const PLAYS_SERVICE = PART === "service";
 const PLAYS_PATHS = PART === undefined || PART === "paths";
-const PLAYS_MEASURE = PART === undefined || PART === "measure";
+// The measure never plays against the development server: the whole harness asked of it leaves the
+// measure out, and the measure asked alone plays against the built front.
+const DEVELOPMENT = DEVELOPMENT_ASKED && PART !== "measure";
+const PLAYS_MEASURE = (PART === undefined && !DEVELOPMENT) || PART === "measure";
 if (PLAYS_SERVICE && NAMED_API === undefined) {
   throw new Error("E2E_PART=service plays against the service WATERFALL_API_ADDRESS names");
 }
@@ -126,7 +162,6 @@ const PLATFORM_WIDE = /@platform-wide/;
 if (PLAYS_SERVICE) {
   process.env.E2E_SERVICE_STARTED ??= lastLogged();
 }
-const onWorkstation = process.env.CI === undefined;
 
 /** The fake back, started on the port of the harness — unless the environment names an API. */
 function fakeBack(): WebServer[] {
@@ -219,67 +254,42 @@ function measureProjects(): Project[] {
   }
   return [
     {
-      name: "production",
+      name: "measure",
       testMatch: MEASURES,
       // After all the other paths, so that the measure has the machine to itself; played
       // alone, it has a runner to itself.
       dependencies: PLAYS_PATHS ? ["chromium"] : [],
       // No trace: recording one would weigh on what is measured.
-      use: { ...devices["Desktop Chrome"], locale: "fr-FR", baseURL: PRODUCTION, trace: "off" },
+      use: { ...devices["Desktop Chrome"], locale: "fr-FR", trace: "off" },
     },
   ];
 }
 
-/** The development server the paths play against — unless the measure is played alone. */
-function developmentServer(): WebServer[] {
-  if (!PLAYS_PATHS && !PLAYS_SERVICE) {
-    return [];
-  }
+/**
+ * The front every part plays against: built for production and started, or the development
+ * server when `E2E_DEV_SERVER=1` asks for it.
+ */
+function front(): WebServer {
   // Against the service, on every interface: Keycloak posts to the back channel of the front from
   // its container, through the address of the workstation (`host.docker.internal`).
-  const hostname = PLAYS_SERVICE ? "0.0.0.0" : "127.0.0.1";
-  return [
-    {
-      command: `pnpm dev --hostname ${hostname} --port ${String(FRONT_PORT)}`,
-      url: FRONT,
-      env: FRONT_ENV,
-      reuseExistingServer: false,
-      timeout: 120_000,
-      // Signal the whole process group: make and pnpm start the servers as children.
-      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
-    },
-  ];
-}
-
-/** The front built for production, which the measure plays against — unless it is not played. */
-function productionServer(): WebServer[] {
-  if (!PLAYS_MEASURE) {
-    return [];
-  }
-  return [
-    {
-      // Built after the fake back is up — the servers start one after the other —, which the
-      // build may need (#131). The build writes `.next`, the development server `.next/dev`:
-      // the two live side by side.
-      command: `pnpm build && pnpm start --hostname 127.0.0.1 --port ${String(PRODUCTION_PORT)}`,
-      url: PRODUCTION,
-      env: FRONT_ENV,
-      reuseExistingServer: false,
-      timeout: 300_000,
-      // Signal the whole process group: make and pnpm start the servers as children.
-      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
-    },
-  ];
+  const listening = `--hostname ${PLAYS_SERVICE ? "0.0.0.0" : "127.0.0.1"} --port ${String(FRONT_PORT)}`;
+  // Built as `make build-front` builds it: with no API to reach, which the address of the API given
+  // to the server is not while it builds (#131). The build writes `.next`, the development server
+  // `.next/dev`: the two live side by side.
+  const build = BUILT ? "" : `WATERFALL_API_ADDRESS=${NOWHERE} pnpm build && `;
+  return {
+    command: DEVELOPMENT ? `pnpm dev ${listening}` : `${build}pnpm start ${listening}`,
+    url: FRONT,
+    env: FRONT_ENV,
+    reuseExistingServer: false,
+    timeout: DEVELOPMENT || BUILT ? 120_000 : 300_000,
+    // Signal the whole process group: make and pnpm start the servers as children.
+    gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+  };
 }
 
 export default defineConfig({
   testDir: "e2e",
-  // Every screen asked once of the development server before the paths, which then find each route
-  // compiled (#1145). The paths against the service are left out: they reach a few screens of the
-  // administration, one sign-in through the realm before each, and the screens asked without a
-  // session would send through the proxy of the contract, whose log their guard holds, the reads of
-  // a project the service does not have.
-  ...(PLAYS_PATHS ? { globalSetup: "./e2e/warm-up.ts" } : {}),
   forbidOnly: !onWorkstation,
   retries: 0,
   reporter: [["list"]],
@@ -287,5 +297,5 @@ export default defineConfig({
   // A French browser by default, the language of the reference catalogue: a path that needs
   // another language sets its own (`test.use({ locale })`).
   projects: [...pathProjects(), ...serviceProjects(), ...measureProjects()],
-  webServer: [...fakeBack(), ...developmentServer(), ...productionServer()],
+  webServer: [...fakeBack(), front()],
 });

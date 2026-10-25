@@ -90,6 +90,16 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
 - **Le tableau de suivi de l'issue de l'EPIC** est tenu à jour par l'agent qui change un état
   — `epic-framer` le crée, `epic-deliverer` le tient — dans le corps de l'issue, jamais en
   commentaire.
+- **Un lot ne laisse rien derrière lui** (#1444). Après la fusion de sa pull request, l'agent
+  de livraison supprime la branche locale du lot et toute branche de travail qu'il a tirée
+  (`git branch -d`, qui refuse une branche non fusionnée), retire les worktrees du lot — le
+  sien et ceux de ses développeurs — (`git worktree remove`, puis `git worktree prune`), et
+  vérifie qu'aucun processus lancé pour le lot ne tourne encore : serveur de Next, Prism,
+  Chromium. Un agent de développement fait de même, avant de rendre la main, pour les branches
+  de travail qu'il a tirées à côté de celle du lot et les commandes qu'il a lancées en
+  arrière-plan. Une centaine de branches fusionnées et quinze worktrees de lots fusionnés
+  brouillaient `git branch` et `git worktree list`. Le nettoyage d'un dépôt déjà encombré se
+  fait à la main, une fois.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Un agent de revue, lui, ne lance que des commandes qui n'écrivent

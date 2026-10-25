@@ -2372,8 +2372,9 @@ garde avant d'entrer. Le cas transitif — un module sans directive qui importe
 `@/api/server`, et qu'un composant client importe — échappe à ESLint : `client.ts` et
 `server.ts` importent `server-only`, le filet de `next build`, que `make build-front` lance au
 palier rapide, sans API joignable : une page qui lirait l'API à la construction, pré-rendue
-au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, la mesure du
-§4.6.2 le construit (`make e2e-measure`, et `make e2e` sur un poste). Après l'une ou l'autre
+au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, les parcours de
+bout en bout le lancent avant de jouer contre le front construit (`make e2e`, `make e2e-measure`,
+et le travail `front-build` de `ci.yml` dans la chaîne). Après l'une ou l'autre
 construction, `make prerendered-front` affirme qu'elle n'a prérendu aucune page (« Chaîne »).
 `make typecheck-front`, `make test-front` ;
 `make lint-docker` (hadolint).
@@ -2489,11 +2490,11 @@ Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envo
 en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
 (`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
 navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si
-`WATERFALL_E2E=1` : le harnais Playwright construit et démarre le front de production pour la
-mesure, et pose les deux variables à ses serveurs (`playwright.config.ts`) ; `make dev` pose
+`WATERFALL_E2E=1` : le harnais Playwright joue ses parcours contre le front de production, et
+pose les deux variables à son front (`playwright.config.ts`) ; `make dev` pose
 `WATERFALL_AUTH=mock` au front (`compose.dev.yaml`), `make build-front` n'en a pas besoin. Contre
-une API que l'environnement nomme (`WATERFALL_API_ADDRESS`), le harnais ne pose ni l'une ni
-l'autre.
+une API que l'environnement nomme (`WATERFALL_API_ADDRESS`), le harnais ne pose que
+`WATERFALL_E2E=1`, qui n'y admet aucun jeton fixe (#1265).
 
 - `make mock` : le faux back seul, sur `http://localhost:4010`.
 - `make dev` : le front (`http://localhost:3000`) contre le faux back, par
@@ -2623,8 +2624,9 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification. Le
   front en a deux, qui tournent côte à côte (#492) : `front.yml`, tout sauf les parcours de
   bout en bout (`make check-front-code`), et `e2e.yml`, les parcours et la mesure du §4.6.2,
-  au palier complet seulement (`make e2e`, `make e2e-measure`, puis `make prerendered-front`
-  sur la construction de la mesure) ; sur un poste, `make check-front` enchaîne les deux
+  au palier complet seulement (`make e2e`, `make e2e-measure` et `make prerendered-front`, sur
+  le build que le travail `front-build` de `ci.yml` a fait, « sur un seul build du front ») ; sur
+  un poste, `make check-front` enchaîne les deux
   moitiés, `check-front-code` puis `check-front-e2e`.
   `front.yml` répartit son travail sur plusieurs runners. L'un tient le client, le lint, les
   types, les catalogues et, au palier rapide, la construction de production
@@ -2645,7 +2647,8 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   ses tests, sur tout le code du back, dont ses tests servent l'API, et sur le contrat, auquel
   ils confrontent ses réponses (#671) ; en échec, le travail imprime les journaux de Keycloak
   (`make service-logs`). `service.yml` joue les parcours contre le vrai service, au palier
-  complet seulement (`make check-service`, soit `make e2e-service`) : la famille `service` se
+  complet seulement (`make check-service`, soit `make e2e-service`, sur le build du front que
+  partagent les parcours d'`e2e.yml`) : la famille `service` se
   réveille sur le front, le back, le contrat et les fichiers de la plateforme. Il tourne sur le
   runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
   que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
@@ -2774,7 +2777,23 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   de parcours sur deux workers, celui de quatre 130 s, quand chaque morceau paie environ deux
   minutes d'image, d'installation et de serveurs. Ce que le fichier ajoute se lit sur la chaîne de
   la pull request d'US-0200, et le choix se revoit quand les parcours s'allongent : les durées
-  par fichier se lisent dans le journal de chaque morceau.
+  par fichier se lisent dans le journal de chaque morceau ;
+- **sur un seul build du front par exécution** (US-0590) : le travail `front-build` de `ci.yml`,
+  qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
+  `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les trois
+  morceaux, la mesure et les parcours du service l'attendent, le téléchargent là où le build l'a
+  écrit et jouent avec `E2E_BUILT=1`, sans rien reconstruire. Il vit dans `ci.yml` et non dans
+  l'un des deux workflows : `e2e.yml` et `service.yml` sont deux workflows appelés, et un `needs`
+  ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
+  déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
+  deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
+  Node 24 : les morceaux le démarrent dans l'image de Playwright, en Node 24 elle aussi (son
+  `NODE_VERSION`), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
+  (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le runner. Le build ne dépend
+  pas de ce chemin : seul `required-server-files.json`, que lit la sortie autonome de l'image et
+  non `next start`, le nomme, et un build déplacé ailleurs, son dossier d'origine retiré, sert ses
+  pages (vérifié le 2026-10-25 sur le poste, en déplaçant le build ; la preuve dans la chaîne
+  viendra d'une exécution de `chain` sur la branche du lot).
 
 Le back suit le même modèle (#492, levier 5) :
 
@@ -3159,50 +3178,60 @@ fenêtre.
 `make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
 les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
-serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front de développement,
-3101 pour le front construit —, jamais ceux de `make dev`, et son faux back sert une variante
-du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port déjà pris fait
-échouer le lancement en le disant. `E2E_API_PORT`, `E2E_FRONT_PORT` et
-`E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
-port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
+serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front —, jamais ceux de
+`make dev`, et son faux back sert une variante du contrat écrite sous `frontend/.e2e/`, que
+`make dev` ne lit pas : un port déjà pris fait échouer le lancement en le disant. `E2E_API_PORT`
+et `E2E_FRONT_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un port
+qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
 (`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
-Avant le premier parcours, le harnais demande une fois chaque route au serveur de développement
-(`globalSetup`, `frontend/e2e/warm-up.ts`, #1145) : celui-ci compile une route à sa première
-demande, et sous la charge de quatre workers la compilation dépassait les cinq secondes de
-l'assertion qui attend l'écran qu'un clic atteint. Les écrans sont ceux de `frontend/e2e/routes.ts`,
-que `src/app/screens.test.ts` tient à chaque page de `src/app`, avec les pages qui ne font que
-rediriger : une page ajoutée est préchauffée avec elles. Les route handlers le sont aussi, chacun à
-une adresse qui ne change rien — `/auth/sign-out` sans suivre sa redirection, `/auth/backchannel-logout`
-par un `GET` qu'il refuse, un téléchargement à une adresse qui ne nomme rien —, ou déclarés exempts
-avec leur raison — `/login`, qui commence hors du faux back une connexion, un état gardé dans
-Redis — ;
-`src/app/route-handlers.test.ts` tient ces deux listes à chaque `route.ts` de `src/app`. Quatre à la
-fois, la redirection non suivie ; ce qu'une route répond reste aux parcours. Une connexion que le
-serveur coupe (`ECONNRESET`, `EPIPE`, `socket hang up`), ce que fait le serveur de développement
-sous charge, n'est pas une erreur de l'écran : la route est redemandée une fois, et la sortie
-l'écrit (#1301) ; un serveur qui redémarre refuse la connexion (`ECONNREFUSED`), ce qui n'est pas
-une coupure. Une erreur du serveur — un statut de 500 ou plus, jamais redemandé, ou aucune réponse,
-une seconde coupure comprise, dont l'erreur garde le message de la première — s'écrit dans la
-sortie au moment où elle survient. Elle fait échouer le lancement une fois toutes les routes
-demandées, en nommant chaque adresse en cause : un écran qui ne compile pas se voit là, pas dans
-chaque parcours. Le préchauffage écrit sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois
-passages du 2026-10-21, pour les 38 écrans d'alors. Il ne précède ni la mesure jouée seule
-(`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques écrans de
-l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans session
-enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un projet
-que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui compile
-lui-même ce qu'il atteint.
+**Les parcours se jouent contre le front construit pour la production** (US-0590), celui
+qu'ouvrent les utilisateurs : un seul serveur `next start`, sur `E2E_FRONT_PORT`, sert les
+parcours, la mesure de la seconde et les parcours du service. Le serveur de développement rendait
+en série les pages des quatre workers, au-delà des cinq secondes d'une assertion (#1262), et
+montait à plus de 9 Go après avoir compilé chaque route (#1309). `make e2e`, `make e2e-measure` et
+`make e2e-service` construisent d'abord le front comme `make build-front`, sans API joignable
+(#131) — un même build sert donc le faux back et le vrai service —, puis lancent Playwright, qui le
+démarre ; en local, le cache de Next (`frontend/.next/cache`) abrège les builds suivants.
+`E2E_BUILT=1` dit le front déjà construit : ni la cible ni le harnais ne le reconstruisent, ce que
+fait la chaîne, qui le construit une fois par exécution pour toutes ses parts — les morceaux des
+parcours, la mesure et les parcours du service (`front-build`, « Chaîne »). Sans elle, le
+harnais lancé hors du Makefile (`pnpm exec playwright test`) construit lui-même le front avant de
+le démarrer.
+
+`E2E_DEV_SERVER=1` rejoue en local les parcours contre le serveur de développement (`next dev`),
+sans reconstruire le front à chaque rejeu : `make e2e E2E_DEV_SERVER=1 TESTS=e2e/<fichier>`, ou
+`make e2e-service E2E_DEV_SERVER=1`. La mesure ne la suit jamais : elle se joue toujours contre le
+front construit, si bien que `make e2e E2E_DEV_SERVER=1` la laisse de côté, et que
+`make e2e-measure` construit le front quand même. Posée dans la chaîne (`CI` défini), elle fait
+échouer le lancement, avec un message qui le dit. Rien ne préchauffe les routes pour elle : un
+rejeu local se joue sur peu de fichiers, et le serveur de développement compile une route à sa
+première demande, que la première assertion qui l'attend peut dépasser. `compile`
+(`frontend/e2e/compile.ts`) reste pour un parcours qui compile d'abord ce qu'il atteint.
+
+Le préchauffage des routes (`e2e/warm-up.ts`, #1145), qui demandait chaque route au serveur de
+développement avant le premier parcours, est retiré avec ses tests : le front construit ne compile
+rien à la demande. Une panne de l'API, du royaume ou de Redis se lit donc au premier parcours qui
+l'atteint, et non plus avant lui (#1265).
+
+**Un échec toléré, jusqu'à US-0590b** (#1460) : au palier complet local, l'échec d'un parcours que
+nomme #1263 — l'accessibilité d'`/admin/access-roles` (`accessibility.spec.ts`), un écran qui
+attend le rendu serveur du Kanban — n'empêche pas une fusion s'il passe rejoué seul
+(`make e2e WORKERS=2 TESTS=e2e/<fichier>`) ; le compte rendu du lot le dit. Tout autre échec est un
+échec. La règle disparaît avec US-0590b, qui corrige ces échecs à leur cause.
 
 Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
 (`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
 back ou mandataire du contrat, qui ferme une connexion inactive depuis cinq secondes, et le serveur de
 développement chargé envoyait une requête sur une connexion que Prism venait de fermer
-(`UND_ERR_SOCKET: other side closed`, puis `Unreachable` dans `readOrFail`, #1145).
+(`UND_ERR_SOCKET: other side closed`, puis `Unreachable` dans `readOrFail`, #1145). Le harnais pose
+aussi `WATERFALL_E2E=1` au front, contre le faux back comme contre le service : le front construit
+n'admet qu'à cette condition le jeton fixe du faux back, et ne signale pas les connexions `closed`
+(#1265).
 
 `make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
 (`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la
@@ -3270,9 +3299,11 @@ sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage de `insta
 du contrat de toute la course.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
-le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
-royaume —, et à l'écoute de toutes les interfaces du poste, d'où Keycloak joint son canal de
-retour (#681) ; le navigateur accepte le certificat du frontal de Keycloak
+le front construit, comme les autres, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
+royaume —, à l'écoute de toutes les interfaces du poste, d'où Keycloak joint son canal de
+retour (#681), et avec la clé des actions serveur sans laquelle le front construit ne démarre pas
+hors du faux back (`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, tirée pour la course si l'environnement
+n'en donne pas) ; le navigateur accepte le certificat du frontal de Keycloak
 (`ignoreHTTPSErrors`), que le serveur de Next tient de `NODE_EXTRA_CA_CERTS`. Ces requêtes vers
 l'API, le serveur de Next les fait, hors de la vue du navigateur, et un écran peut survivre à
 l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheContract()`
@@ -3342,10 +3373,10 @@ détail interne de React, lu par le test seul. Le plus tardif des deux
 instants se compare à la seconde. Un script remis à chaque document guette chaque image et note
 les instants sur l'horloge du système (`performance.timeOrigin`), qu'un document remplacé ne
 perd pas : ni les allers-retours de Playwright ni son attente n'y comptent. Elle se joue contre
-le front construit pour la production (`next build`, puis `next start` sur le port 3101), que
-`playwright.config.ts` démarre après le faux back, à côté du serveur de développement —
-celui-ci compile une route à sa première demande et rend avec les contrôles de React en
-développement : il dirait la vitesse du poste du développeur. Avant chaque série de cinq
+le front construit pour la production, celui des parcours, et jamais contre le serveur de
+développement, même sous `E2E_DEV_SERVER=1` : celui-ci compile une route à sa première demande et
+rend avec les contrôles de React en développement — il dirait la vitesse du poste du
+développeur. Avant chaque série de cinq
 ouvertures — cinq par l'adresse, cinq depuis la barre latérale, pour chaque grille —, une
 ouverture n'est pas mesurée : le premier chargement des modules du serveur ne compte pas, et
 le cache du navigateur est chaud, comme pour un utilisateur qui a déjà ouvert l'application.
@@ -3373,17 +3404,16 @@ rien : quinze secondes pour qu'une grille devienne utilisable et qu'une page se 
 puis ce que la grille montre ; trois minutes pour chaque test. Passé l'une d'elles, le parcours ne fonctionne plus — une grille jamais
 utilisable, une page qui ne se pose jamais — et il échoue, quelle que soit la seconde. Le
 parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
-ne lit pas (`lineage_id`). Son projet Playwright, `production`, dépend du projet `chromium` :
+ne lit pas (`lineage_id`). Son projet Playwright, `measure`, dépend du projet `chromium` :
 il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
 d'eux échoue —, et sans trace. Dans la chaîne, au palier complet, elle tourne seule sur un
 runner à elle, à côté des morceaux des parcours (« Chaîne ») : `make e2e-measure`, qui ne
 démarre que le faux back et le front construit — le harnais n'en réutilise aucun —, et que
 l'échec d'un parcours n'empêche plus. Sur un poste, `make e2e` la joue après les parcours, et
 `make e2e-measure` seule. `E2E_PART` dit au harnais ce qu'il joue : `paths`, les parcours sans
-la mesure ni la construction du front, que `make e2e SHARD=i/N` pose ; `measure`, la mesure
-seule, sans le serveur de développement, que pose `make e2e-measure` ; `service`, les parcours
-contre le service seuls, que pose `make e2e-service` et qui exige `WATERFALL_API_ADDRESS` ;
-absente, le tout, sans les parcours contre le service. Sans
+la mesure, que `make e2e SHARD=i/N` pose ; `measure`, la mesure seule, que pose
+`make e2e-measure` ; `service`, les parcours contre le service seuls, que pose `make e2e-service`
+et qui exige `WATERFALL_API_ADDRESS` ; absente, le tout, sans les parcours contre le service. Sans
 elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
 entraînerait tous dans chaque morceau.
 
@@ -3448,8 +3478,9 @@ nommer y est nommé, et ce qu'ils doivent laisser passer passe. Les outils du se
 développement de Next (`nextjs-portal`), que le front construit n'a pas, sont écartés d'axe et du
 parcours. Le fichier se joue test par test (`mode: "parallel"`) : Playwright répartit ses tests un à
 un entre les workers et les morceaux de la chaîne, et non le fichier en bloc ; chacun prend
-`test.slow()`, car il ouvre un écran à froid, que le serveur de développement compile à sa première
-visite, puis le contrôle deux fois. Un écart relevé se corrige dans l'écran, jamais en écartant une
+`test.slow()`, car il ouvre un écran puis le contrôle deux fois, ce qui dépasse le délai par défaut
+sur un poste chargé ; la compilation à froid d'un écran n'ajoute à ce temps que sous
+`E2E_DEV_SERVER=1`, le front construit n'en ayant pas. Un écart relevé se corrige dans l'écran, jamais en écartant une
 règle.
 
 Le harnais ne contrôle que les écrans tels qu'ils s'ouvrent : ce qu'un geste ouvre — un dialogue,
