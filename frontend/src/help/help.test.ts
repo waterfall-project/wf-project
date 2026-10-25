@@ -26,7 +26,6 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { readHelp } from "@/api/actions/help";
-import { RISK_GRID } from "@/components/risks/risk-grid";
 
 import {
   fileOf,
@@ -243,15 +242,22 @@ describe("the reading of the help", () => {
     ["FBS-4.5.2"],
     ["FBS-4.6"],
     ["FBS-4.6.1"],
-  ])("defines the columns of %s, none empty [WF-IHM-0140-A]", async (code) => {
-    const page = await readHelpPage({ kind: "screen", code });
-    expect(page.kind).toBe("written");
-    const columns = page.kind === "written" ? page.columns : [];
-    expect(columns.length).toBeGreaterThan(0);
-    if (code === "FBS-4.3.3" || code === "FBS-4.4.3") {
-      expect(columns).toHaveLength(1);
-    }
-  });
+  ])(
+    "names the columns of %s, each with a label and a definition key [WF-IHM-0140-A]",
+    async (code) => {
+      const page = await readHelpPage({ kind: "screen", code });
+      expect(page.kind).toBe("written");
+      const columns = page.kind === "written" ? page.columns : [];
+      expect(columns.length).toBeGreaterThan(0);
+      for (const column of columns) {
+        expect(column.label.trim()).not.toBe("");
+        expect(column.help.trim()).not.toBe("");
+      }
+      if (code === "FBS-4.3.3" || code === "FBS-4.4.3") {
+        expect(columns).toHaveLength(1);
+      }
+    },
+  );
 
   it.each([["FBS-4.6"], ["FBS-4.6.1"]])(
     "defines the columns of %s as the risk grid orders them [WF-IHM-0140-A]",
@@ -260,9 +266,15 @@ describe("the reading of the help", () => {
       const helps = page.kind === "written" ? page.columns.map((column) => column.help) : [];
       expect(helps).toHaveLength(7);
       expect(helps.every((help) => help.startsWith("risks."))).toBe(true);
-      expect(helps).toEqual(
-        RISK_GRID.columns.flatMap((column) => (column.help === undefined ? [] : [column.help])),
-      );
+      expect(helps).toEqual([
+        "risks.label",
+        "risks.probability",
+        "risks.severity",
+        "risks.provisionAmount",
+        "risks.state",
+        "risks.lastReview",
+        "risks.matrixCell",
+      ]);
     },
   );
 

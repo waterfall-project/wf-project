@@ -258,6 +258,7 @@ describe("the panel of the help", () => {
     renderHeader();
     await user.click(helpButton());
     const dialog = await panel("Planification");
+    await within(dialog).findAllByRole("heading", { level: 3 });
     await user.type(
       within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" }),
       "acquise",
@@ -277,6 +278,7 @@ describe("the panel of the help", () => {
       renderHeader(locale);
       await user.click(screen.getByRole("button", { name: button }));
       const dialog = await panel("Planification");
+      await within(dialog).findAllByRole("heading", { level: 3 });
       const box = within(dialog).getByRole("searchbox", { name: label });
       await user.type(box, "zzzz");
       expect(within(dialog).getByRole("status")).toHaveTextContent(none);
@@ -308,6 +310,7 @@ describe("the panel of the help", () => {
     renderHeader("en");
     await user.click(screen.getByRole("button", { name: "Help" }));
     const dialog = await panel("Planification");
+    await within(dialog).findAllByRole("heading", { level: 3 });
     await user.type(within(dialog).getByRole("searchbox", { name: "Search the help" }), "acquise");
     expect(within(dialog).getByRole("status")).toHaveTextContent("1 page found");
     expect(within(dialog).getByRole("status").closest("[lang]")).toBeNull();
