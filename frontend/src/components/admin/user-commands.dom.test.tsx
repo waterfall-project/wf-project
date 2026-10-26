@@ -783,10 +783,19 @@ describe("the creation of a local account", () => {
     const email = within(form).getByLabelText("Adresse électronique");
     // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
     const focusing = atFocus(email);
+    // Whether the dialog was still busy in the commit that said the refusal: the request over,
+    // never while it holds a press (#1484).
+    const creation = screen.getByRole("dialog");
+    const busyWhenRefused = atCommit(
+      creation,
+      () => email.getAttribute("aria-invalid") === "true",
+      () => creation.getAttribute("aria-busy"),
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await waitFor(() => {
       expect(email).toHaveFocus();
     });
+    expect(busyWhenRefused.stop()).toEqual(["false"]);
     expect(focusing.stop()).toEqual([CATALOGUES.fr.errors.ALREADY_EXISTS]);
     expect(email).toHaveAccessibleDescription(CATALOGUES.fr.errors.ALREADY_EXISTS);
     expect(within(form).queryByRole("alert")).toBeNull();

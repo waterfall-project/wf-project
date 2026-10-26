@@ -43,7 +43,8 @@ function description(element: Element): string {
 /**
  * What describes `field` each time it takes the focus, `stop` giving them (#1484). A field refused
  * takes the focus once the commit that says its refusal is made: taken before, a reader of the screen
- * announces it without its refusal.
+ * announces it without its refusal. It only sees the focuses that arrive after it is called: a field
+ * already focused when it is called is not read.
  */
 export function atFocus(field: Element): { readonly stop: () => readonly string[] } {
   const seen: string[] = [];
