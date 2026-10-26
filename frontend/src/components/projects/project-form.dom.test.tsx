@@ -201,6 +201,23 @@ describe("the creation of a project", () => {
     });
   });
 
+  it("sends a client typed as spaces only as none [WF-PRJ-0080-A]", async () => {
+    const client = serve();
+    const form = await openCreation();
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Client" }), "   ");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalled();
+    });
+    expect(client.calls[0]?.body).toEqual({
+      label: "Rénovation",
+      code: null,
+      client: null,
+      description: null,
+    });
+  });
+
   it("notes the project created once, with the screen of the project created", async () => {
     forgetMessages();
     serve();
