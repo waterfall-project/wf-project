@@ -3212,7 +3212,13 @@ route (#1309). Un seul front construit, un processus, les rendait en série lui 
 occupé les trois quarts du temps sous six workers, il laissait l'écran des risques en chargement
 cinq secondes après le clic, trois fois sur soixante (#1477) ; un front par worker, aucune sur
 soixante. Playwright démarre les fronts l'un après l'autre, et le premier construit le front quand
-il ne l'est pas. `make e2e`, `make e2e-measure` et
+il ne l'est pas. Il en démarre autant que de workers même pour un seul fichier
+(`make e2e TESTS=…`) ou un morceau : chacun répond en une seconde environ sur le poste, si bien
+qu'un rejeu sous quatre workers attend trois ou quatre secondes de plus son premier parcours. Le
+harnais ne sait pas, en lisant sa configuration, combien de workers le rejeu occupera : un plafond
+au nombre de fichiers donnerait un seul front aux quatre workers d'un fichier joué test par test
+(`mode: "parallel"`, `accessibility.spec.ts`), l'engorgement de #1477 ; `WORKERS=1` en démarre un
+seul. `make e2e`, `make e2e-measure` et
 `make e2e-service` construisent d'abord le front comme `make build-front`, sans API joignable
 (#131) — un même build sert donc le faux back et le vrai service —, puis lancent Playwright, qui le
 démarre ; en local, le cache de Next (`frontend/.next/cache`) abrège les builds suivants.

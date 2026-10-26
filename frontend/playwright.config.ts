@@ -166,7 +166,9 @@ if (PLAYS_SERVICE && NAMED_API === undefined) {
 // plays against the front of its place among the workers (`TEST_PARALLEL_INDEX`, which Playwright
 // gives the process of each worker, where it reads this file again). One front alone for the
 // service, whose realm knows the address of one, for the measure, played on one worker, and for the
-// development server, of which two would share `.next/dev`.
+// development server, of which two would share `.next/dev`. As many as the workers even for one file
+// or a part: how many workers a run takes is not known as this file is read, and a file played test
+// by test (`mode: "parallel"`) takes them all; each answers in about a second.
 const FRONTS = PLAYS_PATHS && !PLAYS_SERVICE && !DEVELOPMENT ? WORKERS : 1;
 const frontAt = (index: number) => `http://127.0.0.1:${String(FRONT_PORT + index)}`;
 const FRONT = frontAt(Number(process.env.TEST_PARALLEL_INDEX ?? "0") % FRONTS);

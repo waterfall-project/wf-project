@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { availableParallelism } from "node:os";
 import { join } from "node:path";
 
 import type { PlaywrightTestConfig } from "@playwright/test";
@@ -12,6 +12,9 @@ const COMPOSE = readFileSync(
   join(import.meta.dirname, "../../../deploy/compose/compose.dev.yaml"),
   "utf-8",
 );
+
+/** The root of the repository, where the Makefile is. */
+const REPOSITORY = join(import.meta.dirname, "../../..");
 
 /** The ports `make dev` publishes on the workstation: `- "3000:3000"`. */
 const DEVELOPMENT_PORTS = [...COMPOSE.matchAll(/- "(\d+):\d+"/g)].map((match) => match[1]);
@@ -310,14 +313,29 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
     expect((await harness()).use?.baseURL).toBe(front);
   });
 
-  it("plays on half the processors when the environment names no number of workers", async () => {
-    vi.stubEnv("E2E_WORKERS", undefined);
-    vi.stubEnv("E2E_BUILT", "1");
-    const half = Math.max(1, Math.floor(availableParallelism() / 2));
-    const config = await harness();
-    expect(config.workers).toBe(half);
-    expect(frontsOf(config)).toHaveLength(half);
-  });
+  it.each([
+    [12, 6],
+    [4, 2],
+    [3, 1],
+    [1, 1],
+  ])(
+    "plays on %i processors with %i workers, half of them, when the environment names no number of workers",
+    async (processors, expected) => {
+      vi.doMock("node:os", async (original) => ({
+        ...(await original<typeof import("node:os")>()),
+        availableParallelism: () => processors,
+      }));
+      vi.stubEnv("E2E_WORKERS", undefined);
+      vi.stubEnv("E2E_BUILT", "1");
+      try {
+        const config = await harness();
+        expect(config.workers).toBe(expected);
+        expect(frontsOf(config)).toHaveLength(expected);
+      } finally {
+        vi.doUnmock("node:os");
+      }
+    },
+  );
 
   it.each([
     ["the measure alone", { E2E_PART: "measure" }],
@@ -344,9 +362,30 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
     await expect(harness()).rejects.toThrow("E2E_WORKERS must be a whole number of workers");
   });
 
-  it("is told the workers by make e2e, which no longer passes them to Playwright itself", () => {
-    const makefile = readFileSync(join(import.meta.dirname, "../../../Makefile"), "utf-8");
-    expect(makefile).toContain("e2e: export E2E_WORKERS = $(WORKERS)");
-    expect(makefile).not.toContain("--workers=");
-  });
+  it.each([
+    ["3", "3"],
+    ["", ""],
+  ])(
+    "is told the workers by make e2e WORKERS=%j, which passes none to Playwright itself",
+    (named, told) => {
+      // The recipe of make e2e run, its installation and its Playwright replaced: what Playwright
+      // would be started under, and with which arguments.
+      const run = execFileSync(
+        "make",
+        [
+          "-s",
+          "e2e",
+          `WORKERS=${named}`,
+          "E2E_BUILT=1",
+          "TESTS=e2e/accessibility.spec.ts",
+          "PNPM=true",
+          "PNPM_HEAVY=printenv E2E_WORKERS; echo",
+        ],
+        { cwd: REPOSITORY, encoding: "utf-8" },
+      );
+      const [workersTold, playwright] = run.trimEnd().split("\n");
+      expect(workersTold).toBe(told);
+      expect(playwright).toBe("exec playwright test e2e/accessibility.spec.ts");
+    },
+  );
 });
