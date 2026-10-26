@@ -261,7 +261,7 @@ export interface Examples {
     200: "resource_role_updated";
   };
   "PATCH /reference/settings": {
-    200: "reference_settings_matrix_updated" | "reference_settings_thresholds_updated";
+    200: "reference_settings_company_updated" | "reference_settings_matrix_updated" | "reference_settings_thresholds_updated";
   };
   "PATCH /users/{user_id}": {
     200: "user_renamed" | "user_renamed_deactivated";

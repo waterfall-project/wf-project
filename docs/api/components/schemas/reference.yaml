@@ -743,20 +743,30 @@ ReferenceSettings:
   type: object
   required:
     - currency_code
+    - company_name
     - default_language
     - risk_matrix
     - index_thresholds
     - max_weeks_between_reviews
     - lock_version
   description: >-
-    Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140),
-    langue par défaut (WF-INTF-0160), matrice de risques (WF-REF-0160), seuils
-    d'alerte (WF-REF-0170) et délai maximal entre deux revues (WF-REF-0180).
+    Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140), nom de
+    l'entreprise utilisatrice (WF-EXP-0020), langue par défaut (WF-INTF-0160), matrice de
+    risques (WF-REF-0160), seuils d'alerte (WF-REF-0170) et délai maximal entre deux revues
+    (WF-REF-0180).
   properties:
     currency_code:
       type: string
       pattern: '^[A-Z]{3}$'
       description: Devise unique, choisie à l'installation et non modifiable (WF-REF-0140).
+    company_name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: '\S'
+      description: >-
+        Le nom de l'entreprise utilisatrice, saisi à l'installation et modifiable ensuite, que
+        portent les fichiers exportés (WF-EXP-0020) : de 1 à 200 caractères, jamais blanc.
     default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
@@ -768,14 +778,28 @@ ReferenceSettingsWrite:
   required: [lock_version]
   description: >-
     Ce qu'une écriture des paramètres communs porte : le compteur lu, et ce qu'elle écrit —
-    la matrice de risques (`risk_settings.write`), les seuils des indices et le délai entre
-    deux revues (`indicator_settings.write`), chaque champ sous la permission de sa fonction
+    le nom de l'entreprise (`cost_settings.write`), la matrice de risques
+    (`risk_settings.write`), les seuils des indices et le délai entre deux revues
+    (`indicator_settings.write`), chaque champ sous la permission de sa fonction
     (WF-ADM-0100) ; un champ absent reste tel qu'il est (WF-IHM-0110). Un écran n'envoie que
-    ce qu'il écrit : la matrice seule, ou les seuils et le délai seuls. Ni la langue par défaut
-    de l'installation (`default_language`, WF-INTF-0160), qui ne relève d'aucune des deux
-    fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise (WF-REF-0140) ne
-    s'écrivent ici : l'une et l'autre se lisent seulement (`ReferenceSettings`).
+    ce qu'il écrit : le nom seul, la matrice seule, ou les seuils et le délai seuls. Ni la
+    langue par défaut de l'installation (`default_language`, WF-INTF-0160), qui ne relève
+    d'aucune des fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise
+    (WF-REF-0140) ne s'écrivent ici : l'une et l'autre se lisent seulement
+    (`ReferenceSettings`).
   properties:
+    company_name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: '\S'
+      description: >-
+        Le nom de l'entreprise utilisatrice (WF-EXP-0020), sous `cost_settings.write`, à côté de
+        la devise. Il ne peut être ni vide ni blanc ; absent, il reste tel qu'il est. Un nom vide
+        est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par
+        `VALUE_REQUIRED`, et un nom de plus de 200 caractères par `VALUE_TOO_LONG` ; un nom fait
+        seulement de blancs, comme tout libellé, par le code de champ `VALIDATION_FAILED` au même
+        pointeur.
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews:

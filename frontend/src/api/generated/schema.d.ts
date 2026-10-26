@@ -729,8 +729,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Devise, langue par défaut, matrice de risques, seuils et délai de revue
-         * @description Les réglages que tout projet hérite de l'installation (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180).
+         * Devise, nom de l'entreprise, langue, matrice de risques, seuils et délai de revue
+         * @description Les réglages que tout projet hérite de l'installation (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180), et le nom de l'entreprise utilisatrice, que portent les fichiers exportés (WF-EXP-0020).
          */
         get: operations["getReferenceSettings"];
         put?: never;
@@ -740,7 +740,7 @@ export interface paths {
         head?: never;
         /**
          * Régler les paramètres communs
-         * @description La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140). Chaque champ relève de la permission de sa fonction (WF-ADM-0100) : la matrice de risques (`risk_matrix`) de `risk_settings.write` (WF-REF-0160), les seuils des indices et le délai entre deux revues (`index_thresholds`, `max_weeks_between_reviews`) d'`indicator_settings.write` (WF-REF-0170, WF-REF-0180). Une requête ne porte que ce qu'elle écrit, avec le compteur lu, commun à tous les paramètres : un champ absent reste tel qu'il est. Un champ dont la session ne porte pas la permission est refusé par 403, même si la requête en porte un autre qu'elle pourrait écrire ; rien n'est écrit. Les six bornes de la matrice sont ordonnées, strictement croissantes sur chaque axe (WF-REF-0160), et le seuil d'alerte de chaque indice reste strictement inférieur à son seuil de vigilance (WF-REF-0170) : une borne ou un seuil qui ne le sont pas sont refusés par champ (422). La langue par défaut de l'installation (`default_language`, WF-INTF-0160) ne relève d'aucune des deux fonctions et ne s'écrit pas ici : aucun écran du référentiel ne l'écrit, et elle s'écrira là où EP-03 le décidera.
+         * @description La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140). Chaque champ relève de la permission de sa fonction (WF-ADM-0100) : le nom de l'entreprise (`company_name`), saisi à l'installation et modifiable ensuite (WF-EXP-0020), de `cost_settings.write`, la fonction des paramètres de coûts, dont l'écran le montre à côté de la devise ; la matrice de risques (`risk_matrix`) de `risk_settings.write` (WF-REF-0160) ; les seuils des indices et le délai entre deux revues (`index_thresholds`, `max_weeks_between_reviews`) d'`indicator_settings.write` (WF-REF-0170, WF-REF-0180). Une requête ne porte que ce qu'elle écrit, avec le compteur lu, commun à tous les paramètres : un champ absent reste tel qu'il est. Un champ dont la session ne porte pas la permission est refusé par 403, même si la requête en porte un autre qu'elle pourrait écrire ; rien n'est écrit. Le nom de l'entreprise est obligatoire : un nom vide, ou plus long que 200 caractères, est refusé par champ (422). Les six bornes de la matrice sont ordonnées, strictement croissantes sur chaque axe (WF-REF-0160), et le seuil d'alerte de chaque indice reste strictement inférieur à son seuil de vigilance (WF-REF-0170) : une borne ou un seuil qui ne le sont pas sont refusés par champ (422). La langue par défaut de l'installation (`default_language`, WF-INTF-0160) ne relève d'aucune de ces fonctions et ne s'écrit pas ici : aucun écran du référentiel ne l'écrit, et elle s'écrira là où EP-03 le décidera.
          */
         patch: operations["updateReferenceSettings"];
         trace?: never;
@@ -3280,18 +3280,22 @@ export interface components {
             schedule_watch: components["schemas"]["IndexThreshold"];
             schedule_alert: components["schemas"]["IndexThreshold"];
         };
-        /** @description Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140), langue par défaut (WF-INTF-0160), matrice de risques (WF-REF-0160), seuils d'alerte (WF-REF-0170) et délai maximal entre deux revues (WF-REF-0180). */
+        /** @description Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140), nom de l'entreprise utilisatrice (WF-EXP-0020), langue par défaut (WF-INTF-0160), matrice de risques (WF-REF-0160), seuils d'alerte (WF-REF-0170) et délai maximal entre deux revues (WF-REF-0180). */
         ReferenceSettings: {
             /** @description Devise unique, choisie à l'installation et non modifiable (WF-REF-0140). */
             currency_code: string;
+            /** @description Le nom de l'entreprise utilisatrice, saisi à l'installation et modifiable ensuite, que portent les fichiers exportés (WF-EXP-0020) : de 1 à 200 caractères, jamais blanc. */
+            company_name: string;
             default_language: components["schemas"]["Language"];
             risk_matrix: components["schemas"]["RiskMatrixSettings"];
             index_thresholds: components["schemas"]["IndexThresholds"];
             max_weeks_between_reviews: number;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Ce qu'une écriture des paramètres communs porte : le compteur lu, et ce qu'elle écrit — la matrice de risques (`risk_settings.write`), les seuils des indices et le délai entre deux revues (`indicator_settings.write`), chaque champ sous la permission de sa fonction (WF-ADM-0100) ; un champ absent reste tel qu'il est (WF-IHM-0110). Un écran n'envoie que ce qu'il écrit : la matrice seule, ou les seuils et le délai seuls. Ni la langue par défaut de l'installation (`default_language`, WF-INTF-0160), qui ne relève d'aucune des deux fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise (WF-REF-0140) ne s'écrivent ici : l'une et l'autre se lisent seulement (`ReferenceSettings`). */
+        /** @description Ce qu'une écriture des paramètres communs porte : le compteur lu, et ce qu'elle écrit — le nom de l'entreprise (`cost_settings.write`), la matrice de risques (`risk_settings.write`), les seuils des indices et le délai entre deux revues (`indicator_settings.write`), chaque champ sous la permission de sa fonction (WF-ADM-0100) ; un champ absent reste tel qu'il est (WF-IHM-0110). Un écran n'envoie que ce qu'il écrit : le nom seul, la matrice seule, ou les seuils et le délai seuls. Ni la langue par défaut de l'installation (`default_language`, WF-INTF-0160), qui ne relève d'aucune des fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise (WF-REF-0140) ne s'écrivent ici : l'une et l'autre se lisent seulement (`ReferenceSettings`). */
         ReferenceSettingsWrite: {
+            /** @description Le nom de l'entreprise utilisatrice (WF-EXP-0020), sous `cost_settings.write`, à côté de la devise. Il ne peut être ni vide ni blanc ; absent, il reste tel qu'il est. Un nom vide est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par `VALUE_REQUIRED`, et un nom de plus de 200 caractères par `VALUE_TOO_LONG` ; un nom fait seulement de blancs, comme tout libellé, par le code de champ `VALIDATION_FAILED` au même pointeur. */
+            company_name?: string;
             risk_matrix?: components["schemas"]["RiskMatrixSettings"];
             index_thresholds?: components["schemas"]["IndexThresholds"];
             /** @description De 1 à 104 semaines (WF-REF-0180) : un délai hors de ces bornes est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/max_weeks_between_reviews` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `1` ou `maximum` à `104`, la seule borne franchie. */
@@ -7038,7 +7042,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paramètres (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180, WF-INTF-0160). */
+            /** @description Paramètres (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180, WF-INTF-0160, WF-EXP-0020). */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7076,7 +7080,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description Un champ dont la session ne porte pas la permission de la fonction : `PERMISSION_MISSING`, `params.missing_permission` la nommant — `risk_settings.write` pour la matrice, `indicator_settings.write` pour les seuils et le délai (WF-ADM-0100, WF-ADM-0110) ; rien n'est écrit. */
+            /** @description Un champ dont la session ne porte pas la permission de la fonction : `PERMISSION_MISSING`, `params.missing_permission` la nommant — `cost_settings.write` pour le nom de l'entreprise, `risk_settings.write` pour la matrice, `indicator_settings.write` pour les seuils et le délai (WF-ADM-0100, WF-ADM-0110) ; rien n'est écrit. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7094,7 +7098,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : une borne de la matrice qui n'est pas strictement supérieure à la précédente, `/risk_matrix/probability_bounds/<rang>` ou `/risk_matrix/severity_bounds/<rang>` par `BOUNDS_NOT_ORDERED`, le rang celui de la borne qui rompt l'ordre (WF-REF-0160) ; un seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice, `/index_thresholds/cost_alert` ou `/index_thresholds/schedule_alert` par `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170) ; un seuil qui n'est pas un décimal (motif de `Decimal`), `/index_thresholds/<seuil>` par `NUMBER_INVALID` ; un décimal hors de ]0, 1[, que le motif d'`IndexThreshold` refuse, `/index_thresholds/<seuil>` par `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre (WF-REF-0170) ; un délai entre deux revues hors de `1` à `104` semaines, `/max_weeks_between_reviews` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie (WF-REF-0180). La forme d'un seuil se juge avant sa plage, et l'ordre des seuils seulement entre seuils dans ]0, 1[. Rien n'est écrit. */
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : un nom de l'entreprise vide, `/company_name` par `VALUE_REQUIRED`, ou plus long que 200 caractères, par `VALUE_TOO_LONG` (WF-EXP-0020) ; une borne de la matrice qui n'est pas strictement supérieure à la précédente, `/risk_matrix/probability_bounds/<rang>` ou `/risk_matrix/severity_bounds/<rang>` par `BOUNDS_NOT_ORDERED`, le rang celui de la borne qui rompt l'ordre (WF-REF-0160) ; un seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice, `/index_thresholds/cost_alert` ou `/index_thresholds/schedule_alert` par `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170) ; un seuil qui n'est pas un décimal (motif de `Decimal`), `/index_thresholds/<seuil>` par `NUMBER_INVALID` ; un décimal hors de ]0, 1[, que le motif d'`IndexThreshold` refuse, `/index_thresholds/<seuil>` par `THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE`, sans paramètre (WF-REF-0170) ; un délai entre deux revues hors de `1` à `104` semaines, `/max_weeks_between_reviews` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie (WF-REF-0180). La forme d'un seuil se juge avant sa plage, et l'ordre des seuils seulement entre seuils dans ]0, 1[. Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;

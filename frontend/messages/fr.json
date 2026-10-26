@@ -2006,6 +2006,12 @@
       "saved": "Unités de durée enregistrées.",
       "effect": "Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées."
     },
+    "companyForm": {
+      "modify": "Modifier le nom de l’entreprise",
+      "hint": "Le nom de l’entreprise figure sur les fichiers exportés ; il est obligatoire, de 200 caractères au plus.",
+      "name": "Nom de l’entreprise",
+      "saved": "Nom de l’entreprise enregistré."
+    },
     "indicatorForm": {
       "modify": "Modifier les seuils et le délai",
       "hint": "Chaque seuil est une valeur de l’indice comprise entre 0 et 1, exclus, le seuil d’alerte sous le seuil de vigilance ; le délai se compte en semaines entières.",
