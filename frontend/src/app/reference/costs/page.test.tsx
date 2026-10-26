@@ -183,12 +183,13 @@ describe("the name of the company beside the currency", () => {
   it("is placed right after the currency, ahead of the notice of the mockup", async () => {
     const page = await costsAt();
     const currency = page.indexOf("Montants exprimés en");
-    const name = page.indexOf("Delmas Automatismes");
+    const name = page.search(/<dd[^>]*>[^<]*Delmas Automatismes/);
     const command = page.indexOf("Modifier le nom de l’entreprise");
     const notice = page.indexOf('role="note"');
     expect(currency).toBeGreaterThan(-1);
     expect(name).toBeGreaterThan(currency);
     expect(command).toBeGreaterThan(currency);
+    expect(notice).toBeGreaterThan(name);
     expect(notice).toBeGreaterThan(command);
   });
 
@@ -199,8 +200,10 @@ describe("the name of the company beside the currency", () => {
       [TYPES]: "cost_types_reader",
     };
     const page = await costsAt();
-    expect(page).toContain("Delmas Automatismes");
     expect(page).not.toContain("Modifier le nom de l’entreprise");
+    const currency = page.indexOf("Montants exprimés en");
+    expect(currency).toBeGreaterThan(-1);
+    expect(page.search(/<dd[^>]*>[^<]*Delmas Automatismes/)).toBeGreaterThan(currency);
   });
 });
 

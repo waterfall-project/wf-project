@@ -419,9 +419,9 @@ describe("the form of the name of the company", () => {
   });
 
   it("keeps its command inactive while a write of the dialog closed is under way, then frees it with the name written", async () => {
-    const settles: (() => void)[] = [];
+    let release!: () => void;
     const until = new Promise<void>((settle) => {
-      settles.push(settle);
+      release = settle;
     });
     const client = serve({ [UPDATE]: "reference_settings_company_updated" }, { hold: () => until });
     const form = await openCompany();
@@ -441,9 +441,7 @@ describe("the form of the name of the company", () => {
     expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
-    for (const settle of settles) {
-      settle();
-    }
+    release();
     await vi.waitFor(() => {
       expect(said()).toHaveTextContent("Nom de l’entreprise enregistré.");
     });
