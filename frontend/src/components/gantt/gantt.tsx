@@ -331,7 +331,9 @@ export function GanttRows({
   // scrolls aside, which a passive listener — React's — could not prevent. A gesture mostly
   // downward passes, though it drifts aside on a touchpad: the grid scrolls down.
   const wheel = useRef<(event: WheelEvent) => void>(() => undefined);
-  useEffect(() => {
+  // Set, and listened to, at the commit, not after it: a wheel given before the effects of a render
+  // zooms with that render.
+  useLayoutEffect(() => {
     wheel.current = (event) => {
       if (!(event.target instanceof Element) || event.target.closest("[data-gantt]") === null) {
         return;
@@ -348,7 +350,7 @@ export function GanttRows({
       }
     };
   });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = held.current;
     if (scope === undefined || element === null) {
       return undefined;
