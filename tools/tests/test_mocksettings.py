@@ -138,6 +138,16 @@ def test_the_name_is_required_read_optional_written_and_bounded_alike() -> None:
         assert "pattern: '\\S'\n" in found["rest"]
 
 
+def test_the_pattern_of_the_name_refuses_blanks_and_the_bound_is_two_hundred() -> None:
+    # The schema judges the name: its own pattern refuses a name of blanks only, accepts one with a
+    # letter, and its maxLength is the bound the 422 describes.
+    pattern = _pattern(SCHEMAS / "reference.yaml", "ReferenceSettingsWrite")
+    assert pattern.search(COMPANY) is not None
+    assert all(pattern.search(blank) is None for blank in ("", " ", " \t\n "))
+    text = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
+    assert f"maxLength: {LONGEST_NAME}\n" in _block(text, "ReferenceSettingsWrite")
+
+
 def test_every_reading_of_the_settings_bears_the_name_of_the_company() -> None:
     # Every example of the schema of the settings, all but the name written, bears the name of the
     # witness: the matrix and the thresholds written leave it as it was.

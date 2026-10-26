@@ -7651,10 +7651,11 @@ du 2026-10-22 : il se range dans les paramètres communs, à côté de la devise
   `cost_settings.write` ; rien n'est écrit. Il prend le compteur commun des paramètres, si bien
   qu'une écriture du nom rend périmée une lecture que l'écran des risques ou des indicateurs
   tenait, et inversement (412, WF-IHM-0110).
-- **Les refus.** Le nom est obligatoire : un nom vide est refusé par 422 `VALIDATION_FAILED`,
-  `fields` désignant `/company_name` par `VALUE_REQUIRED` ; un nom de plus de 200 caractères, par
-  `VALUE_TOO_LONG` ; un nom fait seulement de blancs, comme tout libellé, par `VALIDATION_FAILED`
-  au même pointeur.
+- **Les refus.** Le nom ne peut être ni vide ni blanc ; absent, il reste tel qu'il est. Un nom
+  vide est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par
+  `VALUE_REQUIRED` ; un nom de plus de 200 caractères, par `VALUE_TOO_LONG` ; un nom fait
+  seulement de blancs, comme tout libellé, par le code de champ `VALIDATION_FAILED` au même
+  pointeur.
 - **Les exemples**, écrits à la main : le témoin s'appelle « Delmas Automatismes » dans
   `reference_settings` et dans les deux écritures qui le laissent tel qu'il est
   (`reference_settings_matrix_updated`, `reference_settings_thresholds_updated`) ;

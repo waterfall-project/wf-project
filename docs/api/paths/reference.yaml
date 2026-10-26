@@ -115,9 +115,10 @@
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : un nom de l'entreprise
           vide, `/company_name` par `VALUE_REQUIRED`, ou plus long que 200 caractères, par
-          `VALUE_TOO_LONG` (WF-EXP-0020) ; une borne de la matrice qui n'est pas strictement supérieure à la précédente,
-          `/risk_matrix/probability_bounds/<rang>` ou `/risk_matrix/severity_bounds/<rang>` par
-          `BOUNDS_NOT_ORDERED`, le rang celui de la borne qui rompt l'ordre (WF-REF-0160) ; un
+          `VALUE_TOO_LONG` (WF-EXP-0020) ; une borne de la matrice qui n'est pas strictement
+          supérieure à la précédente, `/risk_matrix/probability_bounds/<rang>` ou
+          `/risk_matrix/severity_bounds/<rang>` par `BOUNDS_NOT_ORDERED`, le rang celui de la
+          borne qui rompt l'ordre (WF-REF-0160) ; un
           seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice,
           `/index_thresholds/cost_alert` ou `/index_thresholds/schedule_alert` par
           `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170) ; un seuil qui n'est pas un décimal (motif

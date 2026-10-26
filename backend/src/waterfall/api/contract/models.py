@@ -1479,7 +1479,7 @@ class ReferenceSettingsWrite(ContractModel):
     company_name: Annotated[
         str | None,
         Field(
-            description="Le nom de l'entreprise utilisatrice (WF-EXP-0020), sous `cost_settings.write`, à côté de la devise. Il est obligatoire : absent, il reste tel qu'il est, mais un nom vide est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par `VALUE_REQUIRED`, et un nom de plus de 200 caractères par `VALUE_TOO_LONG` ; un nom fait seulement de blancs, comme tout libellé, par `VALIDATION_FAILED` au même pointeur.",
+            description="Le nom de l'entreprise utilisatrice (WF-EXP-0020), sous `cost_settings.write`, à côté de la devise. Il ne peut être ni vide ni blanc ; absent, il reste tel qu'il est. Un nom vide est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par `VALUE_REQUIRED`, et un nom de plus de 200 caractères par `VALUE_TOO_LONG` ; un nom fait seulement de blancs, comme tout libellé, par le code de champ `VALIDATION_FAILED` au même pointeur.",
             max_length=200,
             min_length=1,
             pattern="\\S",
