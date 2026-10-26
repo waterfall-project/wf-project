@@ -14,7 +14,8 @@
  * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the task of a
  * lot and those of its posts a write would move out of its subtree (`work_package_task`,
  * `order_item_tasks`, WF-PLA-0170) by their labels, the lines and the projects beyond a few
- * counted, the notice listing them, the sub-project a line of a started task does not leave
+ * counted, the notice listing them, the characters a code of a sub-project cannot bear and the
+ * reserved name it bears (`forbidden_characters`, `reserved_name`, WF-PRJ-0050), the sub-project a line of a started task does not leave
  * (`subproject`, WF-PRJ-0050) by its label; a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
@@ -317,6 +318,20 @@ const DETAILS: readonly Reader[] = [
     const named = told === undefined ? undefined : label(told.list, state);
     return told === undefined || named === undefined ? undefined : [told.detail, { state: named }];
   },
+  // Why a code cannot name the tab of a sub-project: the characters it bears that a tab cannot, or
+  // the name it bears that is reserved, as the server gives them (`SUBPROJECT_CODE_INVALID`,
+  // WF-PRJ-0050).
+  ({ forbidden_characters }) => {
+    const characters = itemsOf(
+      forbidden_characters,
+      (item): item is string => typeof item === "string",
+    );
+    return characters.length === 0
+      ? undefined
+      : ["forbidden_characters", { characters: characters.join(" ") }];
+  },
+  ({ reserved_name }) =>
+    typeof reserved_name === "string" ? ["reserved_name", { name: reserved_name }] : undefined,
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
   ({ minimum }, _label, locale) => bound("minimum", minimum, locale),

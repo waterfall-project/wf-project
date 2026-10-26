@@ -11,13 +11,14 @@
  * then — described by the refusal it would meet, the prerequisites named by the notice of the home
  * above the list. It takes what
  * `ProjectCreate` takes — the label, required (WF-PRJ-0080), the code, which may wait for the order
- * (WF-PRJ-0010), and the description —, and leads to the project the server created, its creator
+ * (WF-PRJ-0010), the name of the client, optional (WF-PRJ-0080), and the description —, and leads to the project the server created, its creator
  * its project manager (WF-PRJ-0060) — as long as the home is still shown: a creation answered once
  * the user has gone elsewhere does not take the place of the navigation they chose.
  *
  * The modification follows the command the project lists (`update`, `available_commands`): absent,
  * available, or unavailable with the conditions it lacks — a terminal project (WF-CYC-0100). It
- * takes what `ProjectUpdate` takes: the label, the code, the description, the date the order was
+ * takes what `ProjectUpdate` takes: the label, the code, the client — entered and erased as long as
+ * the project is not terminal, which the command lists; no other screen shows it (EP-16/US-0610) —, the description, the date the order was
  * received — which no transition requires (WF-PRJ-0080) —, the inflation rate and the probability of
  * winning, both entered as percentages and sent as the ratios of the contract. The probability
  * follows a command of its own (`update_win_probability`, EP-14/L42i), frozen from the state in
@@ -68,9 +69,10 @@ import { editablePercent, percentRatio } from "@/i18n/format";
 
 import { SettingsFacts } from "./project-facts";
 
-/** The longest label and code of a project the contract takes. */
+/** The longest label, code and client of a project the contract takes. */
 const LABEL_LENGTH = 300;
 const CODE_LENGTH = 50;
+const CLIENT_LENGTH = 300;
 
 /** The rates of a project, entered as percentages, which the server bounds as ratios (EP-14/L42i). */
 const RATES: ReadonlySet<string> = new Set(["/inflation_rate", "/win_probability"]);
@@ -86,6 +88,7 @@ function useIdentityFields(): FormField[] {
   return [
     required("label", t("label"), LABEL_LENGTH),
     { name: "code", label: t("code"), control: "text", maxLength: CODE_LENGTH },
+    { name: "client", label: t("client"), control: "text", maxLength: CLIENT_LENGTH },
     { name: "description", label: t("description"), control: "text" },
   ];
 }
@@ -141,8 +144,13 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
           creating
           fields={identity}
           initial={{}}
-          ask={({ label = "", code, description }) =>
-            createProject({ label, code: orNull(code), description: orNull(description) })
+          ask={({ label = "", code, client, description }) =>
+            createProject({
+              label,
+              code: orNull(code),
+              client: orNull(client),
+              description: orNull(description),
+            })
           }
           target={undefined}
           answering={(answer) => answer}
@@ -194,6 +202,7 @@ function draftOf(project: Project, locale: ReturnType<typeof useLocale>): Draft 
   return {
     label: project.label,
     code: project.code ?? "",
+    client: project.client ?? "",
     description: project.description ?? "",
     order_received_on: project.order_received_on ?? "",
     inflation_rate: editablePercent(project.inflation_rate, locale),
@@ -230,6 +239,7 @@ function UpdateForm({
   const ask = ({
     label = "",
     code,
+    client,
     description,
     order_received_on: received,
     inflation_rate: inflation = "0",
@@ -238,6 +248,7 @@ function UpdateForm({
     updateProject(project.project_id, {
       label,
       code: orNull(code),
+      client: orNull(client),
       description: orNull(description),
       order_received_on: orNull(received),
       inflation_rate: percentRatio(inflation),

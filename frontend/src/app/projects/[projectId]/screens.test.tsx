@@ -307,7 +307,7 @@ describe("the settings of a project", () => {
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Project settings<\/h1>/,
     );
     expect(text(page)).toContain(
-      "Label Modernisation du poste de commande Code PRJ-001 Order received on 15 Jan 2026 " +
+      "Label Modernisation du poste de commande Code PRJ-001 Client Papeteries de la Vienne Order received on 15 Jan 2026 " +
         "Description Not set Annual inflation rate 3% Probability of winning 100%",
     );
   });
