@@ -206,6 +206,11 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
   déterminé, dans des tests du back et `latest_report`), et, par la décision de l'auteur du
   2026-10-25, #1473 et #1479 (le Gantt sur le front construit), #1474 (des tests unitaires hors
   délai sous la couverture) et #1477 (`context.spec.ts:24` sous charge) ;
+- le durcissement restant des tests, relevé par les revues d'US-0590b (décision de l'auteur du
+  2026-10-26) — US-0590d : #1483 (le gestionnaire de molette du Gantt, L1), #1485 (le commentaire
+  du test de `latest_report`, L1), #1486 (le `make --dry-run` de `test_frontimage.py`, L1), #1487
+  (`MFLAGS` de `harness.test.ts`, L1) et #1484 (les mises à jour après un `await` dans une
+  transition, 26 fichiers, L2) ;
 - #1429 — front : l'adresse de retour de la connexion ne refuse ni tabulation ni saut de ligne
   (sécurité) — US-0690.
 
@@ -621,6 +626,26 @@ et ses exemples.
   qui présumait l'ancien —, jamais par une attente plus longue, et relit `node_modules/next/dist/docs/`
   à la version montée. Il suit US-0590, sur le front construit, ou le précède sur décision de
   l'auteur. Écarté : fusionner #1465 en l'état, deux parcours rouges.
+- **US-0590d, le durcissement restant des tests** (#1489 ; décision de l'auteur du 2026-10-26 : la
+  stabilité des tests relève d'EP-16, jamais d'EP-17, et leur durée s'optimise au mieux). Deux lots,
+  après US-0590c et US-0670/L1, avant les lots de contrat.
+  - L1 (#1490) : `useLayoutEffect` pour le gestionnaire de molette du Gantt et un test du geste pris
+    juste après le rendu (#1483, même classe que #1473) ; SHARD, MAKEFLAGS et MAKELEVEL retirés du
+    `make --dry-run` de `test_frontimage.py`, avec un test sous `SHARD=2/2` (#1486) ; la ligne
+    `MFLAGS` de `harness.test.ts` retirée (#1487) ; le commentaire du test de `latest_report` réécrit
+    (#1485) ; et la durée par étape de la chaîne relevée.
+  - L2 (#1491) : l'audit des 26 fichiers à `startTransition(async` (#1484), puis leurs correctifs.
+    Une mise à jour d'état faite après un `await` n'appartient pas à la transition : la forme de
+    correction est la transition imbriquée de `restore-dialog.tsx` (e7688292), pas une abstraction
+    écrite d'avance ; le défaut s'écrit dans `docs/dev/typescript.md`. La taille de L2 dépend de
+    l'audit : au-delà de 1 500 lignes ou de 800 de production, le livreur la coupe en L2 (dialogues)
+    et L3 (le reste).
+  - La durée : en chaîne, le chemin critique mesuré (run 40261263854) est `front-build` (62 s) puis
+    la plus longue des parts, `service / paths` (316 s) ou `e2e / paths` (288 / 271 / 222 s). L1
+    relève la durée par étape de ces travaux et n'agit que si une étape dépasse 10 % du chemin
+    critique, sans qu'un test perde une assertion ; aucun gain n'est promis.
+  - Décisions écartées : une abstraction partagée pour la transition (avant l'audit) ;
+    `useEffect` ou une écriture pendant le rendu pour la molette ; fermer #1485 et #1487 sans suite.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
@@ -630,7 +655,8 @@ et ses exemples.
    **US-0590b** aussitôt après, la stabilité et la durée des tests, que la file attendait — le
    Gantt la rejetait trois fois de suite —, sans attendre trois paliers complets ; **US-0590c**
    ensuite, la montée de Next en 16.4 sur le front construit (décision de l'auteur du 2026-10-25,
-   qui inverse l'ordre de US-0590b et US-0590c).
+   qui inverse l'ordre de US-0590b et US-0590c) ; **US-0590d** après US-0590c et US-0670/L1, avant
+   les lots de contrat (le durcissement restant des tests, décision de l'auteur du 2026-10-26).
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
    EP-16), quand l'auteur peut la relire.
@@ -683,7 +709,19 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   disparaît du guide ;
 - propre à l'US (US-0590c) : `next` ≥ 16.4.1 et `happy-dom` ≥ 21.0.4, aucune alerte Dependabot
   ouverte sur ces paquets ; `context.spec.ts:24` et `shell.spec.ts:140` verts sur trois paliers
-  complets, sans `fixme` ni attente allongée, leur cause écrite dans la pull request.
+  complets, sans `fixme` ni attente allongée, leur cause écrite dans la pull request ;
+- propre à l'US (US-0590d) : la molette Ctrl du Gantt, donnée juste après un rendu, zoome avec les
+  valeurs de ce rendu (test du geste pris juste après le rendu, qui échoue sans `useLayoutEffect`) ;
+  le `make --dry-run` de `test_frontimage.py` donne les mêmes commandes avec `SHARD=2/2` dans
+  l'environnement ; `harness.test.ts` ne retire plus `MFLAGS` ; le commentaire du test de
+  `latest_report` dit que seul le cas croissant tombe sûrement ;
+- propre à l'US (US-0590d) : les 26 fichiers de `frontend/src` à `startTransition(async` sont audités,
+  chacun « corrigé » ou « sans objet » avec sa raison ; une mise à jour d'après un `await` y est
+  posée dans la transition, un test relève l'état au commit qui la montre, et
+  `docs/dev/typescript.md` dit le défaut ;
+- propre à l'US (US-0590d) : la durée par étape de `service / paths` et des parts de `e2e / paths`
+  est relevée dans la pull request ; une étape qui dépasse 10 % du chemin critique est abrégée sans
+  qu'un test perde une assertion, sinon la pull request le dit.
 
 **Notes de réalisation.**
 - Le harnais construit déjà le front pour la mesure de la seconde (US-0110/L2, port 3101) : l'US
@@ -714,7 +752,10 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   les tests unitaires de #1474 parce que Vitest prenait douze workers sur un poste dont le débit
   plafonne à quatre (300 s au lieu de 325, le test le plus lent 1,9 s au lieu de 5,4). Le rendu
   serveur du Kanban (#1263), 0,1 s sur le front construit, et les parcours de #1145 et de #776 ne
-  tombent plus. US-0590 reste `en cours` : US-0590c reste à fusionner.
+  tombent plus. US-0590 reste `en cours` : US-0590c et US-0590d restent à fusionner.
+- Décision de l'auteur du 2026-10-26 : US-0590d (#1489) reprend les constats restants des revues
+  d'US-0590b (#1483 à #1487), en deux lots, et mesure la durée de la chaîne ; elle se livre après
+  US-0590c et US-0670/L1, avant les lots de contrat.
 
 **Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 
