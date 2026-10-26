@@ -236,8 +236,10 @@ def dry_run(target: str, tier: str, *variables: str) -> list[str]:
     """Return the commands make would run for a target in a tier, without running them.
 
     The environment of the caller does not leak in: a test that wants E2E_BUILT, E2E_DEV_SERVER or
-    SHARD passes it as a variable of make. MAKEFLAGS and MAKELEVEL are those of a make that runs
-    pytest, and carry its variables and its depth.
+    SHARD passes it as a variable of make. MAKEFLAGS is that of a make that runs pytest and carries
+    its variables; MAKELEVEL is its depth. Only MAKEFLAGS is proven to change the dry run (the test
+    below); MAKELEVEL changes nothing of the output under --no-print-directory, so dropping it is
+    a hardening that no test can prove.
     """
     environment = {
         name: value
@@ -324,7 +326,12 @@ def test_the_dry_run_ignores_the_variables_of_a_make_that_runs_the_tests(
 ) -> None:
     # Run under a make that exports SHARD (as the parts of the chain do) and its flags, a dry run
     # would otherwise change its commands: the failure of front / tests (2/2), run 40255427902.
+    # SHARD is proven on e2e (it splits the Playwright run) and MAKEFLAGS on e2e too (E2E_BUILT=1
+    # there drops the build of the front). MAKELEVEL is set for the same make but cannot change the
+    # output under --no-print-directory: nothing here depends on it.
     alone = dry_run(target, "full")
+    if target == "e2e":
+        assert any(builds_the_front(command) for command in alone)
     monkeypatch.setenv("SHARD", "2/2")
     monkeypatch.setenv("MAKEFLAGS", " -- E2E_BUILT=1")
     monkeypatch.setenv("MAKELEVEL", "1")
