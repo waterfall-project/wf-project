@@ -369,19 +369,27 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
     "is told the workers by make e2e WORKERS=%j, which passes none to Playwright itself",
     (named, told) => {
       // The recipe of make e2e run, its installation and its Playwright replaced: what Playwright
-      // would be started under, and with which arguments.
+      // would be started under, and with which arguments. Run apart from the make that runs the
+      // tests: in the chain, `make coverage-front SHARD=2/2` hands its part to make e2e through
+      // the environment and MAKEFLAGS, which then plays `--shard=2/2` of the paths (US-0590b).
+      const environment = { ...process.env };
+      delete environment.MAKEFLAGS;
+      delete environment.MFLAGS;
+      delete environment.MAKELEVEL;
       const run = execFileSync(
         "make",
         [
           "-s",
           "e2e",
           `WORKERS=${named}`,
+          "SHARD=",
+          "E2E_DEV_SERVER=",
           "E2E_BUILT=1",
           "TESTS=e2e/accessibility.spec.ts",
           "PNPM=true",
           "PNPM_HEAVY=printenv E2E_WORKERS; echo",
         ],
-        { cwd: REPOSITORY, encoding: "utf-8" },
+        { cwd: REPOSITORY, encoding: "utf-8", env: environment },
       );
       const [workersTold, playwright] = run.trimEnd().split("\n");
       expect(workersTold).toBe(told);

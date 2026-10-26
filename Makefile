@@ -418,10 +418,12 @@ prerendered-front: ## The production build of the front prerendered no page that
 	@$(WFTOOLS).frontimage --manifest $(FRONT)/.next/prerender-manifest.json
 
 # With SHARD, one part of the tests measured alone, its report written for coverage-front-merge
-# (frontend/.vitest/blob/), the thresholds held on the parts gathered alone.
+# (frontend/.vitest/blob/), the thresholds held on the parts gathered alone. Beside the blob, which
+# says nothing of a test that fails, the dot reporter names it and its error in the log of the part:
+# a part of the chain that failed silent cost a run to diagnose (US-0590b).
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
 ifdef SHARD
-	@$(PNPM_HEAVY) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob
+	@$(PNPM_HEAVY) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
 else
 	@$(PNPM_HEAVY) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
