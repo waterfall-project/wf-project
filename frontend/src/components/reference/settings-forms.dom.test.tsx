@@ -11,6 +11,7 @@ import type { components } from "@/api/generated/schema";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit, atFocus } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -207,18 +208,21 @@ describe("the form of the risk matrix", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it("says at its field the bound the server refuses, the form open to correct it", async () => {
+  it("says at its field the bound the server refuses, the form open to correct it, the field described by its refusal as it takes the focus [WF-REF-0160-A]", async () => {
     serve({
       [UPDATE]: {
         problem: example("reference_settings_bounds_refused") as Problem & { status: 422 },
       },
     });
     const form = await openRisks();
-    await save(form);
+    // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
     const second = field(form, SEVERITY, "Deuxième borne");
+    const focusing = atFocus(second);
+    await save(form);
     await vi.waitFor(() => {
       expect(second).toHaveFocus();
     });
+    expect(focusing.stop()).toEqual(["Les bornes doivent être strictement croissantes."]);
     expect(second).toHaveAccessibleDescription("Les bornes doivent être strictement croissantes.");
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
@@ -257,17 +261,26 @@ describe("the form of the risk matrix", () => {
     ]);
   });
 
-  it("tells under the form the permission the session lacks, which the server names", async () => {
+  it("tells under the form the permission the session lacks, which the server names, in the commit that ends the request", async () => {
     serve({
       [UPDATE]: {
         problem: example("reference_settings_permission_missing") as Problem & { status: 403 },
       },
     });
     const form = await openRisks();
+    // Whether the dialog still held its sending in the commit that told the refusal: the request
+    // over, never while it holds a press (#1484).
+    const sending = form.querySelector("button[type=submit]");
+    const busyWhenTold = atCommit(
+      form,
+      () => within(form).queryByRole("alert") !== null,
+      () => sending?.getAttribute("aria-busy") ?? null,
+    );
     await save(form);
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "Vous n’avez pas la permission nécessaire. Permission requise : Modifier les paramètres de risques.",
     );
+    expect(busyWhenTold.stop()).toEqual(["false"]);
   });
 
   it("names each of its fields, its zones gathered by level of probability", async () => {
@@ -396,12 +409,13 @@ describe("the form of the name of the company", () => {
     const name = within(form).getByRole("textbox", { name: /Nom de l’entreprise/ });
     await retype(name, "Autre nom");
     await save(form);
+    // The focus comes after the commit that says the refusal at the field (#1484).
     await vi.waitFor(() => {
-      expect(name).toHaveAttribute("aria-invalid", "true");
+      expect(name).toHaveFocus();
     });
+    expect(name).toHaveAttribute("aria-invalid", "true");
     expect(client.calls).toHaveLength(1);
     expect(name).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_REQUIRED);
-    expect(name).toHaveFocus();
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
     expect(screen.getByText("Delmas Automatismes")).toBeInTheDocument();

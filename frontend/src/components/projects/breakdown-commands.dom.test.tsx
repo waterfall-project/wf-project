@@ -12,6 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit, atFocus } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -342,17 +343,18 @@ describe("the work breakdown edited in its grid", () => {
       await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
       const dialog = await enter(ADDED);
       const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+      // The focus comes after the commit that says the refusal at the field (#1484).
       await vi.waitFor(() => {
-        expect(field).toHaveAttribute("aria-invalid", "true");
+        expect(field).toHaveFocus();
       });
+      expect(field).toHaveAttribute("aria-invalid", "true");
       expect(field).toHaveAccessibleDescription(sentence);
-      expect(field).toHaveFocus();
       expect(within(dialog).queryByRole("alert")).toBeNull();
       expect(refresh).not.toHaveBeenCalled();
     },
   );
 
-  it("notes once a refusal said at the field of the dialog, its rest told under it", async () => {
+  it("notes once a refusal said at the field of the dialog, its rest told under it, the field described by its refusal as it takes the focus", async () => {
     serve({
       [SET]: {
         problem: {
@@ -367,11 +369,17 @@ describe("the work breakdown edited in its grid", () => {
     });
     render(list());
     await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
-    const dialog = await enter(ADDED);
+    const dialog = screen.getByRole("dialog");
     const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+    await userEvent.type(field, ADDED);
+    // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
+    const focusing = atFocus(field);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
-      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveFocus();
     });
+    expect(focusing.stop()).toEqual(["Une valeur est requise."]);
+    expect(field).toHaveAttribute("aria-invalid", "true");
     expect(within(dialog).getByRole("alert")).toHaveTextContent(
       "Les données saisies ne sont pas valides.",
     );
@@ -419,8 +427,18 @@ describe("the work breakdown edited in its grid", () => {
     });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));
+    // Whether the dialog was still busy in the commit that told the refusal: the request over,
+    // never while it holds a press (#1484).
+    const opened = screen.getByRole("dialog");
+    const busyWhenTold = atCommit(
+      opened,
+      () => within(opened).queryByRole("alert") !== null,
+      () => opened.querySelector('button[type="submit"]')?.getAttribute("aria-busy") ?? null,
+    );
     const dialog = await enter("Études");
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    expect(busyWhenTold.stop()).toEqual(["false"]);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
       "L’état actuel ne permet pas cette opération. Condition non remplie : aucun traitement de fond en cours sur l’objet.",
     );
     expect(screen.getByRole("dialog")).toBe(dialog);

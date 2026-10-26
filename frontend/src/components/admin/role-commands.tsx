@@ -21,6 +21,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -196,8 +197,16 @@ export function CreateRole() {
   const [refused, setRefused] = useState<string>();
   const noteRefusal = useNoteRefusal();
   const [pending, startTransition] = useTransition();
+  // Asked anew at each refusal: the field takes the focus after the commit that says its refusal,
+  // described by it as it is heard (#1484).
+  const [focused, setFocused] = useState<object>();
   const input = useRef<HTMLInputElement>(null);
   const field = useId();
+  useEffect(() => {
+    if (focused !== undefined) {
+      input.current?.focus();
+    }
+  }, [focused]);
   return (
     <form
       aria-label={t("creation")}
@@ -212,7 +221,7 @@ export function CreateRole() {
         if ("problem" in parsed) {
           const code = parsed.problem === "required" ? "VALUE_REQUIRED" : "VALUE_TOO_LONG";
           setRefused(problemMessage({ code }, { locale, messages }));
-          input.current?.focus();
+          setFocused({});
           return;
         }
         // The reading the role is created from: its refusal is told on it alone.
@@ -235,7 +244,7 @@ export function CreateRole() {
           // Said at its field, out of a notice: noted in the history of the messages.
           noteRefusal(outcome, { subject: asked });
           setRefused(problemMessage(own, { locale, messages }));
-          input.current?.focus();
+          setFocused({});
         });
       }}
     >

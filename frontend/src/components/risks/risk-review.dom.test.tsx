@@ -233,11 +233,12 @@ describe("« Réexaminer » a risk", () => {
     await userEvent.clear(probability);
     await userEvent.type(probability, "120");
     await send(form);
+    // The focus comes after the commit that says the refusal at the field (#1484).
     await vi.waitFor(() => {
-      expect(probability).toHaveAccessibleDescription(/100/);
+      expect(probability).toHaveFocus();
     });
+    expect(probability).toHaveAccessibleDescription(/100/);
     expect(probability).not.toHaveAccessibleDescription(/\b1\b/);
-    expect(probability).toHaveFocus();
   });
 
   it("asks another category of a risk dismissed whose own is deactivated, only for its return, among the active ones", async () => {

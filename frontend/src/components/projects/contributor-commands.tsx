@@ -382,19 +382,25 @@ function ContributorEditor({
         }
         return row === undefined;
       });
-      setProblems(placed);
-      // What is said at a row is not said again under the form; the rest of the refusal is.
-      if (placed.size === 0 || !("problem" in answer)) {
-        setOutcome(answer);
-      } else {
-        const told =
-          rest.length > 0 ? { ...answer, problem: { ...answer.problem, fields: rest } } : undefined;
-        // Said at its rows: noted whole, the notice of the rest noting nothing more.
-        noteRefusal(answer, { parts: [told] });
-        if (told !== undefined) {
-          setOutcome(told);
+      // In the transition too, which an update after an await is not by itself: the refusal is told
+      // in the commit that ends the request, never while the dialog holds a press (#1484).
+      startTransition(() => {
+        setProblems(placed);
+        // What is said at a row is not said again under the form; the rest of the refusal is.
+        if (placed.size === 0 || !("problem" in answer)) {
+          setOutcome(answer);
+        } else {
+          const told =
+            rest.length > 0
+              ? { ...answer, problem: { ...answer.problem, fields: rest } }
+              : undefined;
+          // Said at its rows: noted whole, the notice of the rest noting nothing more.
+          noteRefusal(answer, { parts: [told] });
+          if (told !== undefined) {
+            setOutcome(told);
+          }
         }
-      }
+      });
     }
   };
 
