@@ -2435,6 +2435,7 @@
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
     "SUBPROJECT_CODE_INVALID": "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager.",
+    "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance : chacun ne désigne qu’une colonne.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
@@ -2847,7 +2848,8 @@
       "is_local_account": "compte créé dans Waterfall",
       "is_active_account": "compte actif",
       "is_deactivated_account": "compte désactivé",
-      "is_not_anonymized": "compte non anonymisé"
+      "is_not_anonymized": "compte non anonymisé",
+      "actual_cost_mapping_complete": "correspondance de l’extraction des coûts réels complète"
     },
     "ProjectExit": {
       "to_state": {
@@ -3235,7 +3237,15 @@
       "progress": "Avancement",
       "costs": "Coûts",
       "custom_fields": "Champs personnalisés",
-      "date_constraints": "Contraintes de date, tâches importées en mode manuel"
+      "date_constraints": "Contraintes de date, tâches importées en mode manuel",
+      "columns": "Colonnes de l’extraction ni lues ni conservées"
+    },
+    "ActualCostSourceColumn": {
+      "wbs_element": "Élément d’OTP",
+      "document_number": "N° de pièce",
+      "document_item": "Poste de la pièce",
+      "document_date": "Date de pièce",
+      "amount": "Montant"
     },
     "ActualCostColumn": {
       "document_date": "Date de pièce",

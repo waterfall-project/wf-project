@@ -2435,6 +2435,7 @@
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
     "SUBPROJECT_CODE_INVALID": "This code cannot name the tab of the subproject in the estimate-to-complete file.",
+    "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping: each one names a single column.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
@@ -2847,7 +2848,8 @@
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
       "is_deactivated_account": "deactivated account",
-      "is_not_anonymized": "account not anonymised"
+      "is_not_anonymized": "account not anonymised",
+      "actual_cost_mapping_complete": "actual-cost extraction mapping complete"
     },
     "ProjectExit": {
       "to_state": {
@@ -3235,7 +3237,15 @@
       "progress": "Progress",
       "costs": "Costs",
       "custom_fields": "Custom fields",
-      "date_constraints": "Date constraints, tasks imported in manual mode"
+      "date_constraints": "Date constraints, tasks imported in manual mode",
+      "columns": "Extraction columns neither read nor kept"
+    },
+    "ActualCostSourceColumn": {
+      "wbs_element": "WBS element",
+      "document_number": "Document no.",
+      "document_item": "Document item",
+      "document_date": "Document date",
+      "amount": "Amount"
     },
     "ActualCostColumn": {
       "document_date": "Document date",

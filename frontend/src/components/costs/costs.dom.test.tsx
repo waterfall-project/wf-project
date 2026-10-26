@@ -123,7 +123,6 @@ describe("the grid of the actual costs", () => {
       "Motif de l’exclusion",
       "Fournisseur",
       "Texte de commande",
-      "Élément d'OTP",
     ]);
     const cells = cellsOf("FA-2026-0412");
     expect(cells.slice(0, 5).map((each) => each.textContent)).toEqual([
@@ -134,10 +133,9 @@ describe("the grid of the actual costs", () => {
       "Suivie",
     ]);
     // Each column kept from the file, under the name the file gives it, as imported.
-    expect(cells.slice(6, 9).map((each) => each.textContent)).toEqual([
+    expect(cells.slice(6, 8).map((each) => each.textContent)).toEqual([
       "Câbles du Rhône",
       "Câbles de commande du pupitre",
-      "WF.PRJ-001/SP-CAB",
     ]);
   });
 
@@ -162,7 +160,7 @@ describe("the grid of the actual costs", () => {
         .getAllByRole("columnheader")
         .map((header) => header.textContent)
         .slice(6),
-    ).toEqual(["Fournisseur", "Texte de commande", "Élément d'OTP"]);
+    ).toEqual(["Fournisseur", "Texte de commande"]);
   });
 
   it("accepts a line of negative amount, which lessens the actual cost [WF-CRE-0010-A]", () => {
@@ -226,11 +224,11 @@ describe("the grid of the actual costs", () => {
     await sortBy("Motif de l’exclusion", "sort_by=excluded_reason&sort_order=asc");
     await sortBy("Fournisseur", "sort_by=passthrough.Fournisseur&sort_order=asc");
     // Sorted ascending by a column kept, the address asks it descending.
-    const ascending = { column: "passthrough.Élément d'OTP", order: "asc" } as const;
+    const ascending = { column: "passthrough.Texte de commande", order: "asc" } as const;
     rerender(
       costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined, size: undefined }),
     );
-    await sortBy("Élément d'OTP", "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=desc");
+    await sortBy("Texte de commande", "sort_by=passthrough.Texte+de+commande&sort_order=desc");
   });
 
   it("is named and headed in English too", () => {
