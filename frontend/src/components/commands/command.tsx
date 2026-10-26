@@ -14,7 +14,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactElement, type Ref, useId, useState, useTransition } from "react";
+import { type ReactElement, type Ref, useId, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
@@ -117,7 +117,9 @@ export function Command({
 }: CommandProps) {
   const id = useId();
   const unmetText = useUnmet();
-  const [pending, startTransition] = useTransition();
+  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
+  // whose end would wait for every other async action of the page (#1484).
+  const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const held = useHeldCommand();
   if (offer === undefined) {
@@ -125,7 +127,7 @@ export function Command({
   }
   const unmet = unmetId(offer, id);
   const run = () => {
-    if (!offer.is_available || pending) {
+    if (!offer.is_available || busy) {
       return;
     }
     if (disclosure !== undefined) {
@@ -135,8 +137,10 @@ export function Command({
     if (action === undefined) {
       return;
     }
-    startTransition(async () => {
-      setOutcome(await held(action()));
+    setBusy(true);
+    void held(action()).then((outcome) => {
+      setOutcome(outcome);
+      setBusy(false);
     });
   };
   return (
@@ -151,7 +155,7 @@ export function Command({
           type="button"
           variant="outline"
           size="sm"
-          aria-busy={pending}
+          aria-busy={busy}
           // Unavailable with no condition to name: marked all the same, the tooltip saying none.
           {...(!offer.is_available && unmet === undefined ? { "aria-disabled": true } : {})}
           aria-expanded={disclosure?.expanded}

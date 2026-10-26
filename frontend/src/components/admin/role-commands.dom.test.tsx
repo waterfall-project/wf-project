@@ -12,7 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { NO_AUDIT } from "@/test/accounts";
-import { atFocus } from "@/test/committed";
+import { atCommit, atFocus } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { AccessRoleList, PermissionMatrix } from "./account-lists";
@@ -106,10 +106,19 @@ describe("the creation of a role in line", () => {
     const client = serve({ [CREATED]: { example: "access_role_created", status: 201 } });
     render(inFrench(table()));
     const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    // Whether the creation was still busy in the commit that told the role created: the request
+    // over, never while it holds a press (#1484).
+    const create = within(label.closest("form") ?? document.body).getByRole("button");
+    const busyWhenTold = atCommit(
+      document.body,
+      () => told().textContent !== "",
+      () => create.getAttribute("aria-busy"),
+    );
     await userEvent.type(label, "CG{Enter}");
     await waitFor(() => {
       expect(told().textContent).toBe("« Contrôle de gestion » créé.");
     });
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(label).toHaveValue("");
     expect(client.calls.map(({ route, body }) => [route, body])).toEqual([
       [CREATED, { label: "CG", permissions: [] }],

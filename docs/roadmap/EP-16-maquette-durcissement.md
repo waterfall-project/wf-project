@@ -687,7 +687,7 @@ et ses exemples.
 
 ## US-0590 — Les parcours de bout en bout joués contre le front construit
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1313
@@ -768,11 +768,15 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   chaque classement. Transition imbriquée, dans les dialogues modaux : `restore-dialog.tsx`,
   `reference-form.tsx`, `user-dialogs.tsx`, `breakdown-commands.tsx`, `contributor-commands.tsx`.
   Focus dans un effet, après le commit du refus : `reference-form.tsx`, `role-commands.tsx`,
-  `user-dialogs.tsx`, `breakdown-commands.tsx`. Les commandes en ligne, qui peuvent tourner en même
-  temps qu'une autre, sont à L3 (#1496), qui finit l'US. Sans objet : `backup-schedule.tsx`,
-  `held.ts`, `timeline-commands.tsx`, `subproject-commands.tsx`, `kanban.tsx`, `account-menu.tsx`,
-  `task-entry.tsx` et la tâche remise au suivi (un magasin externe). Le défaut est le n° 25 de
-  `docs/dev/typescript.md`.
+  `user-dialogs.tsx`, `breakdown-commands.tsx`. Sans objet : `backup-schedule.tsx`, `held.ts`, `timeline-commands.tsx`,
+  `subproject-commands.tsx`, `kanban.tsx`, `account-menu.tsx`, `task-entry.tsx` et la tâche remise
+  au suivi (un magasin externe). Le défaut est le n° 25 de `docs/dev/typescript.md`.
+- US-0590d/L3 (#1496) : état « occupé » local, dans les commandes en ligne qui peuvent tourner en
+  même temps qu'une autre : `reference/commands.tsx`, `backup-commands.tsx` (lancement, marquage
+  et dépôt), `command.tsx`, `confirmed-command.tsx`, `exit-command.tsx`, `mark-command.tsx`,
+  `export-form.tsx`, `file-drop.tsx`, `import-commands.tsx`, `report-commands.tsx`,
+  `author-filter.tsx`, `identity-sync.tsx`, la création en ligne de `role-commands.tsx`,
+  `avatar-form.tsx`, `preferences-form.tsx`. US-0590c, US-0590d/L1 et L2 fusionnés, l'US est finie.
 
 **Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 

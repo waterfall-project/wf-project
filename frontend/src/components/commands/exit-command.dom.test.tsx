@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { refresh } from "next/cache";
 import { NextIntlClientProvider } from "next-intl";
@@ -11,6 +11,7 @@ import type { Project } from "@/components/context/reading";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -256,17 +257,19 @@ describe("the exits of the lifecycle of a project", () => {
     await userEvent.click(cancel);
     expect(screen.getByRole("form", { name: "Terminer le projet" })).toBeInTheDocument();
 
-    await act(async () => {
-      answer();
-      await held;
-    });
+    // Cancel is offered again in the commit that tells the refusal, never a commit after it, while
+    // the confirmation would hold it still (#1484).
+    const heldWhenTold = atCommit(
+      document.body,
+      () => screen.queryByRole("alert") !== null,
+      () => screen.getByRole("button", { name: "Annuler" }).getAttribute("aria-disabled"),
+    );
+    // Let go outside `act`, which would render both commits at once: as the browser gets the answer.
+    answer();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Modernisation du poste de commande",
     );
-    // Cancel is offered again once the transition has settled, a commit after the refusal is shown.
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveAttribute("aria-disabled");
-    });
+    expect(heldWhenTold.stop()).toEqual([null]);
   });
 
   it("says the permission the API finds missing, and reads nothing again", async () => {

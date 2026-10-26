@@ -18,7 +18,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
 import { exitProject } from "@/api/actions/projects";
 import type { Outcome } from "@/api/problem";
@@ -31,6 +31,7 @@ import { EXIT_STATES, type ExitCommandName } from "./exits";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+import { rejected } from "./rejection";
 
 /** An exit the project lists, and what it offers of it. */
 export interface ExitOffer {
@@ -73,7 +74,9 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
   const field = useId();
   const statement = `${field}-statement`;
   const [reason, setReason] = useState("");
-  const [pending, startTransition] = useTransition();
+  // Busy from the confirmation to the answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page (#1484).
+  const [busy, setBusy] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     input.current?.focus();
@@ -82,7 +85,7 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) {
+    if (busy) {
       return;
     }
     const exit = {
@@ -90,21 +93,24 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
       confirmed: true as const,
       ...(reason.trim() === "" ? {} : { reason }),
     };
-    startTransition(async () => {
-      const result = await exitProject(projectId, exit);
-      if (result.kind === "done") {
-        onDone(result.data);
-      } else {
-        onRefused(result);
-      }
-    });
+    setBusy(true);
+    void exitProject(projectId, exit)
+      .catch(rejected)
+      .then((result) => {
+        setBusy(false);
+        if (result.kind === "done") {
+          onDone(result.data);
+        } else {
+          onRefused(result);
+        }
+      });
   };
 
   return (
     <form
       id={id}
       aria-label={t(`enums.ProjectCommand.${command}`)}
-      aria-busy={pending}
+      aria-busy={busy}
       onSubmit={submit}
       className="max-w-xl space-y-2 rounded-md border p-3 text-sm"
     >
@@ -135,10 +141,10 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={pending ? true : undefined}
+          aria-disabled={busy ? true : undefined}
           className={UNAVAILABLE}
           onClick={() => {
-            if (!pending) {
+            if (!busy) {
               onClose();
             }
           }}
