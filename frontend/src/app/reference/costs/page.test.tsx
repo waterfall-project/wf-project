@@ -180,6 +180,18 @@ describe("the name of the company beside the currency", () => {
     expect(page).toContain("Modifier le nom de l’entreprise");
   });
 
+  it("is placed right after the currency, ahead of the notice of the mockup", async () => {
+    const page = await costsAt();
+    const currency = page.indexOf("Montants exprimés en");
+    const name = page.indexOf("Delmas Automatismes");
+    const command = page.indexOf("Modifier le nom de l’entreprise");
+    const notice = page.indexOf('role="note"');
+    expect(currency).toBeGreaterThan(-1);
+    expect(name).toBeGreaterThan(currency);
+    expect(command).toBeGreaterThan(currency);
+    expect(notice).toBeGreaterThan(command);
+  });
+
   it("is read without any command to modify it by a session that does not hold cost_settings.write", async () => {
     server.answers = {
       ...server.answers,

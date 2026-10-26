@@ -291,12 +291,12 @@ function CostsHeader({
           inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
         }
       />
-      {writes ? <MockupNotice /> : null}
       {writes ? (
         <CompanySettings settings={settings} />
       ) : (
         <CompanyName name={settings.company_name} />
       )}
+      {writes ? <MockupNotice /> : null}
     </>
   );
 }

@@ -282,7 +282,11 @@ export async function designateDefaultCalendar(
 export type RiskMatrixWrite = Pick<
   Required<Schemas["ReferenceSettingsWrite"]>,
   "risk_matrix" | "lock_version"
-> & { readonly index_thresholds?: never; readonly max_weeks_between_reviews?: never };
+> & {
+  readonly index_thresholds?: never;
+  readonly max_weeks_between_reviews?: never;
+  readonly company_name?: never;
+};
 
 /**
  * What the screen of the indicator settings writes: the thresholds and the delay between two reviews
@@ -291,7 +295,7 @@ export type RiskMatrixWrite = Pick<
 export type IndicatorWrite = Pick<
   Required<Schemas["ReferenceSettingsWrite"]>,
   "index_thresholds" | "max_weeks_between_reviews" | "lock_version"
-> & { readonly risk_matrix?: never };
+> & { readonly risk_matrix?: never; readonly company_name?: never };
 
 /**
  * What the screen of the cost settings writes: the name of the company alone, from the version read

@@ -526,8 +526,9 @@ export function CompanySettings({ settings }: { readonly settings: ReferenceSett
 export function CompanyName({ name }: { readonly name: string }) {
   const t = useTranslations("reference.companyForm");
   return (
-    <p className="text-sm">
-      <span className="text-muted-foreground">{t("name")}</span> <strong>{name}</strong>
-    </p>
+    <dl className="text-sm">
+      <dt className="inline text-muted-foreground">{t("name")}</dt>{" "}
+      <dd className="inline font-semibold">{name}</dd>
+    </dl>
   );
 }
