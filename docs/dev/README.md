@@ -338,7 +338,19 @@ cellule validée quand le pointeur descend sur le lien, dont la session perdue r
 retient ce clic. Seul le dernier clic retenu est refait ; un écran quitté libère ses écritures, qui
 ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation programmatique
 (`router.push`), « Précédent » et « Suivant » du navigateur, un lien qui ouvre ailleurs —
-autre onglet, touche de modification, téléchargement, autre site. Une écriture encore en route quand
+autre onglet, touche de modification, téléchargement, autre site. « Précédent » et « Suivant » changent
+l'adresse aussitôt, mais depuis Next 16.4 le routeur ne montre l'entrée retrouvée qu'une fois répondue
+l'action en cours (vercel/next.js#99612, entrée de la 16.4.0) : `runAction`
+(`next/dist/client/components/app-router-instance.js`) applique désormais l'état de la traversée dans
+la transition qu'ouvre `traverse`, où la 16.3 l'appliquait une microtâche plus tard, hors d'elle ; et
+React donne à une transition demandée pendant une action asynchrone la voie de cette action
+(`requestTransitionLane`, `currentEntangledLane` de `react-dom`), qui ne se valide qu'à sa réponse — ici
+l'écriture attendue dans `startTransition(async …)`. L'écran quitté reste donc affiché jusqu'à la
+réponse, et une écriture refusée pendant qu'il est quitté vers un autre chemin — faite avant la
+traversée ou après — va à la barre, même quand ce qui l'a demandée dit le dire encore (`told`),
+puisqu'il s'en va avec l'écran (`away` de `holdNavigation`, `useHeldWrites`) ; ramené à son chemin
+avant le refus, l'écran le dit lui-même. Cela tient tant que le routeur garde cet ordre, peut-être un
+défaut amont. Une écriture encore en route quand
 son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
 survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `refusedLeft` de
 `held-writes.ts`, #863), et l'inscrit dans l'historique des messages avec son refus et l'écran
