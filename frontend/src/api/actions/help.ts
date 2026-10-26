@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server action of the online help (US-0580): the panel asks the server of Next for a page of
- * the help — that of the screen shown, when it opens; another, when a link leads to it — and for
- * the index of the titles of the pages written. The files are read where they live, on the
+ * the help — that of the screen shown, when it opens; another, when a link or a search leads to it —
+ * and for the index of the titles the search reads. The files are read where they live, on the
  * server (`src/help/read.ts`); the API has no part in it.
  *
  * A server action is reachable by any request: the target is checked against the codes of the table

@@ -1055,7 +1055,7 @@ l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 
 
 ## US-0670 — Les aides des autres écrans et la recherche de l'aide
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre ; `getComputedValueDependencies`, déjà lue par les infobulles
 - **issue** : #1447

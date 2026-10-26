@@ -2,7 +2,7 @@
 
 ## Ce que dit le glossaire
 
-> **Budget de référence** — Désigne la somme des montants budgétés des lignes de la révision de référence, hors lignes de provision, inflation comprise, à l’année de consommation des lignes. Seul un avenant le déplace (WF-RIS-0050).
+> **Budget de référence** — Désigne la somme des montants budgétés des lignes de la révision de référence, hors lignes de provision, inflation comprise, à l’année de consommation des lignes. Seul un avenant le déplace.
 
 > **Montant budgété** — Désigne le montant d’une ligne de devis tel que la révision de référence l’a fixé, inflation comprise, à l’année de consommation de la ligne. Il ne change qu’avec une nouvelle référence, et il est nul pour une ligne ajoutée après elle.
 
