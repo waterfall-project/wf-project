@@ -2006,6 +2006,12 @@
       "saved": "Units of duration saved.",
       "effect": "The change applies to every project: the schedules of the revisions in progress are recalculated; a marked revision keeps the hours it calculated."
     },
+    "companyForm": {
+      "modify": "Modify the company name",
+      "hint": "The company name appears on the exported files; it is required, of 200 characters at most.",
+      "name": "Company name",
+      "saved": "Company name saved."
+    },
     "indicatorForm": {
       "modify": "Modify the thresholds and the delay",
       "hint": "Each threshold is a value of the index between 0 and 1, both excluded, the alert threshold below the watch threshold; the delay counts whole weeks.",

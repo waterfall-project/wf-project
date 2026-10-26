@@ -7625,6 +7625,50 @@ pilotage » range aussi la « Mise en service » (`…0565`) au couloir 2, sous 
 desquelles l'empilement automatique la range : jusque-là, l'exemple ne plaçait que deux jalons, qu'une
 frise ne range pas, et sa disposition se dessinait comme l'automatique.
 
+## Le contrat figé (EP-16)
+
+EP-16 fige le contrat : `info.version` passe à `1.0.0` par son dernier lot de contrat (US-0640/L5).
+Chaque modification qu'il y apporte a son entrée ici, avec ses exemples ; ensuite, toute
+modification du contrat par un EPIC de domaine passe par une issue « contrat » que l'auteur tranche,
+et s'inscrit à son tour dans cette section (décision de l'auteur du 2026-10-22, conception
+d'EP-16).
+
+### Le nom de l'entreprise dans les paramètres communs (US-0600, #1314)
+
+WF-EXP-0020 fait saisir à l'installation le nom de l'entreprise utilisatrice, modifiable ensuite,
+que portent les fichiers exportés ; le contrat ne le lisait ni ne l'écrivait. Décision de l'auteur
+du 2026-10-22 : il se range dans les paramètres communs, à côté de la devise.
+
+- **La lecture.** `ReferenceSettings.company_name`, exigé : un texte de 1 à 200 caractères, qui
+  n'est pas fait seulement de blancs (`pattern: '\S'`, « Aucun libellé fait seulement de
+  blancs »). Deux cents caractères, comme le libellé d'une nature ou d'une catégorie.
+- **L'écriture.** `ReferenceSettingsWrite.company_name`, facultatif comme les autres champs de
+  `updateReferenceSettings` : absent, le nom reste tel qu'il est. Il relève de
+  `cost_settings.write`, la fonction des paramètres de coûts, dont l'écran le montre à côté de la
+  devise, sur le modèle de la permission par champ qu'a déjà l'opération — la matrice sous
+  `risk_settings.write`, les seuils et le délai sous `indicator_settings.write`. Une session qui
+  ne la porte pas est refusée par 403, `PERMISSION_MISSING`, `params.missing_permission` à
+  `cost_settings.write` ; rien n'est écrit. Il prend le compteur commun des paramètres, si bien
+  qu'une écriture du nom rend périmée une lecture que l'écran des risques ou des indicateurs
+  tenait, et inversement (412, WF-IHM-0110).
+- **Les refus.** Le nom ne peut être ni vide ni blanc ; absent, il reste tel qu'il est. Un nom
+  vide est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par
+  `VALUE_REQUIRED` ; un nom de plus de 200 caractères, par `VALUE_TOO_LONG` ; un nom fait
+  seulement de blancs, comme tout libellé, par le code de champ `VALIDATION_FAILED` au même
+  pointeur.
+- **Les exemples**, écrits à la main : le témoin s'appelle « Delmas Automatismes » dans
+  `reference_settings` et dans les deux écritures qui le laissent tel qu'il est
+  (`reference_settings_matrix_updated`, `reference_settings_thresholds_updated`) ;
+  `reference_settings_company_updated`, dernier des 200, le corrige en « Delmas Automatismes
+  Industriels », version 2 ; `reference_settings_company_refused`, un nom vide, vient parmi les 422
+  après le refus des bornes, que le faux back sert d'abord. Aucun nouvel exemple de 403 :
+  `reference_settings_permission_missing` montre déjà la forme du refus, que la description de
+  l'opération étend à `cost_settings.write`. `tools/tests/test_mocksettings.py` tient le nom de
+  chaque lecture, la seule différence de l'écriture du nom, son refus et sa permission.
+
+Écarté : un réglage dans `Installation`, que `getInstallation` rend sans session, quand le nom ne
+sert qu'aux fichiers exportés.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

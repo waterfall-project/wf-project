@@ -93,8 +93,8 @@ Le contrat cite **187 des 212 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120, WF-EXP-0020, WF-RIS-0010 |
-| GET | `/reference/settings` | Devise, langue par défaut, matrice de risques, seuils et délai de revue | WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
-| PATCH | `/reference/settings` | Régler les paramètres communs | WF-ADM-0100, WF-INTF-0160, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
+| GET | `/reference/settings` | Devise, nom de l'entreprise, langue, matrice de risques, seuils et délai de revue | WF-EXP-0020, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
+| PATCH | `/reference/settings` | Régler les paramètres communs | WF-ADM-0100, WF-EXP-0020, WF-INTF-0160, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | GET | `/reference/org-nodes` | Arbre d'organisation | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080 |
 | POST | `/reference/org-nodes` | Créer un nœud d'organisation | WF-REF-0070, WF-REF-0080 |
 | PATCH | `/reference/org-nodes/{org_node_id}` | Modifier un nœud d'organisation | WF-REF-0070, WF-REF-0080, WF-REF-0130 |
