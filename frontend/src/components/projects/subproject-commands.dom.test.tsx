@@ -182,6 +182,10 @@ describe("the creation and the modification of a sub-project", () => {
     const form = screen.getByRole("dialog", { name: "Modifier « SP-ESS »" });
     const label = within(form).getByRole("textbox", { name: "Libellé" });
     expect(label).toHaveValue("Essais et mise en service");
+    expect(within(form).getByRole("textbox", { name: "Code ERP" })).toHaveAttribute(
+      "maxlength",
+      "31",
+    );
     await userEvent.clear(label);
     await userEvent.type(label, "Essais, mise en service et réception");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
@@ -391,23 +395,8 @@ describe("the creation and the modification of a sub-project", () => {
   });
 
   it("says the reserved name a code bears when the server refuses it [WF-PRJ-0050-A]", async () => {
-    const invalid = example("subproject_code_invalid") as Problem & {
-      status: 422;
-      fields: { pointer: string; code: string; params?: unknown }[];
-    };
     serve({
-      [CREATE]: {
-        problem: {
-          ...invalid,
-          fields: [
-            {
-              pointer: "/code",
-              code: "SUBPROJECT_CODE_INVALID",
-              params: { reserved_name: "Synthèse" },
-            },
-          ],
-        } as Problem & { status: 422 },
-      },
+      [CREATE]: { problem: example("subproject_code_reserved") as Problem & { status: 422 } },
     });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
