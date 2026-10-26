@@ -221,7 +221,7 @@ async function install(page: Page): Promise<void> {
     // inherited, and a read after a write had the browser restyle the page again.
     const measured = <T>(drawn: readonly Element[], measure: () => T): T => {
       const boxes = drawn.map((element) => grown(element.getBoundingClientRect()));
-      const changed: [ElementCSSInlineStyle, string, string][] = [
+      const changed: [CSSStyleDeclaration, string, string][] = [
         ...document.querySelectorAll<HTMLElement | SVGElement>("*"),
       ]
         .filter((element) => getComputedStyle(element).pointerEvents !== "auto")
@@ -230,17 +230,17 @@ async function install(page: Page): Promise<void> {
           return boxes.some((around) => overlaps(box, around));
         })
         .map(({ style }) => [
-          { style },
+          style,
           style.getPropertyValue("pointer-events"),
           style.getPropertyPriority("pointer-events"),
         ]);
-      for (const [{ style }] of changed) {
+      for (const [style] of changed) {
         style.setProperty("pointer-events", "auto", "important");
       }
       try {
         return measure();
       } finally {
-        for (const [{ style }, value, priority] of changed) {
+        for (const [style, value, priority] of changed) {
           if (value === "") {
             style.removeProperty("pointer-events");
           } else {
