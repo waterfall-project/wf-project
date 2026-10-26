@@ -79,9 +79,11 @@ def iso(at: datetime) -> str:
 
 
 def recorded(installation: Installation, purpose: str, taken_at: datetime | None = None) -> UUID:
-    """Write a deposit completed, as its owner, by the first account; give its identifier."""
+    """Write a deposit completed, as its owner, by the oldest account; give its identifier."""
     with installation.database.transaction() as session:
-        held_by = session.scalars(select(UserAccount.id)).first()
+        held_by = session.scalars(
+            select(UserAccount.id).order_by(UserAccount.created_at, UserAccount.id)
+        ).first()
     upload_id = uuid4()
     owner = create_database_engine(installation.owner["waterfall"])
     with owner.begin() as connection:

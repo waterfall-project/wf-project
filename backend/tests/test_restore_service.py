@@ -111,7 +111,9 @@ def kept_as(steps: list[str], name: str, done: Any) -> Any:
 def taken(installation: Installation) -> dict[str, str]:
     """Give the identifier and the date of the latest backup, as the list says them."""
     with installation.database.transaction() as session:
-        backup = session.scalars(select(Backup).order_by(Backup.taken_at.desc()).limit(1)).one()
+        backup = session.scalars(
+            select(Backup).order_by(Backup.taken_at.desc(), Backup.id.desc()).limit(1)
+        ).one()
     return {"backup_id": str(backup.id), "taken_at": iso(backup)}
 
 
