@@ -166,6 +166,7 @@
               created: { $ref: ../../../fixtures/api/project_created.json }
               completed: { $ref: ../../../fixtures/api/project_completed.json }
               revision_opened: { $ref: ../../../fixtures/api/project_revision_opened.json }
+              actual_cost_mapping_incomplete: { $ref: ../../../fixtures/api/project_actual_cost_mapping_incomplete.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

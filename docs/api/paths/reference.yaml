@@ -1791,3 +1791,100 @@
               amount_out_of_range: { $ref: ../../../fixtures/api/hourly_rate_amount_refused.json }
               not_labour: { $ref: ../../../fixtures/api/hourly_rate_non_labour_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/reference/actual-cost-mapping:
+  get:
+    operationId: getActualCostMapping
+    tags: [reference]
+    summary: Correspondance de l'extraction des coûts réels
+    description: >-
+      La correspondance entre l'extraction de l'ERP et le format « Coûts réels » (WF-REF-0190) :
+      pour chacune des cinq colonnes lues, les intitulés qui la désignent dans l'extraction, et
+      les colonnes de l'extraction conservées à titre d'information (WF-CRE-0010). Un objet
+      unique de l'installation, lu par qui porte la permission de lire les paramètres de coûts
+      (`cost_settings.read`, FBS-3.1, WF-ADM-0100). Vide à l'installation : tant que l'une des
+      quatre colonnes exigées n'a aucun intitulé, la correspondance est incomplète
+      (`is_complete`, `missing_columns`), et l'import des coûts réels est refusé en le nommant
+      (`ProjectCommand.import_actual_costs`, `openImport`).
+    responses:
+      '200':
+        description: La correspondance, ses colonnes lues dans leur ordre fixe.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ActualCostMapping }
+            examples:
+              witness: { $ref: ../../../fixtures/api/actual_cost_mapping.json }
+              empty: { $ref: ../../../fixtures/api/actual_cost_mapping_empty.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+  put:
+    operationId: setActualCostMapping
+    tags: [reference]
+    summary: Régler la correspondance de l'extraction des coûts réels
+    description: >-
+      Remplace la correspondance entière — les intitulés des cinq colonnes lues et les colonnes
+      conservées — avec le compteur lu, sous la permission des paramètres de coûts
+      (`cost_settings.write`, FBS-3.1, WF-ADM-0100). Une correspondance incomplète
+      s'enregistre : elle se règle en plusieurs fois, et c'est l'import qui la refuse. Les
+      intitulés se comparent sans égard à la casse, aux accents ni aux espaces en bout
+      (WF-REF-0190) : un intitulé qui, ainsi comparé, en double un autre — d'une même colonne
+      lue, de deux colonnes lues, ou d'une colonne lue et d'une colonne conservée — est refusé
+      par champ, et rien n'est écrit. La modification vaut pour les imports suivants et ne
+      change aucune ligne déjà importée (WF-REF-0190) ; un import de coûts réels déjà analysé
+      s'applique tel qu'il a été analysé (`applyImport`, WF-INTF-0080).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/ActualCostMappingWrite }
+    responses:
+      '200':
+        description: Correspondance enregistrée, entière, à sa version suivante.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ActualCostMapping }
+            examples:
+              updated: { $ref: ../../../fixtures/api/actual_cost_mapping_updated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403':
+        description: >-
+          Une session qui ne porte pas la permission de modifier les paramètres de coûts :
+          `PERMISSION_MISSING`, `params.missing_permission` à `cost_settings.write` (WF-ADM-0100,
+          WF-ADM-0110) ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '412':
+        description: >-
+          La correspondance a été modifiée depuis sa lecture : `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` sa version courante ; rien n'est écrit, l'écran propose
+          de relire (WF-IHM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/actual_cost_mapping_stale.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut. Un intitulé qui en double
+          un autre, comparé sans égard à la casse, aux accents ni aux espaces en bout
+          (WF-REF-0190) : `DUPLICATE_COLUMN_LABEL` au pointeur de l'intitulé en double —
+          `/columns/<rang>/labels/<rang>` ou `/kept_columns/<rang>` —, `fields[].params.duplicate_of`
+          le pointeur de l'intitulé qu'il double : de deux intitulés qui se doublent, celui qui
+          vient le second dans le corps — les colonnes lues dans leur ordre, chacune ses intitulés
+          dans le leur, puis les colonnes conservées —, et de plusieurs, chacun après le premier,
+          que tous nomment. Un intitulé vide, par `VALUE_REQUIRED` ; plus
+          long que 200 caractères, par `VALUE_TOO_LONG` ; fait seulement de blancs, comme tout
+          libellé, par `VALIDATION_FAILED`, au pointeur de l'intitulé. Plus de 20 intitulés pour
+          une colonne lue, ou plus de 50 colonnes conservées, par `VALUE_TOO_LONG` au pointeur de
+          la liste. Des colonnes lues qui ne sont pas les cinq, chacune une fois, dans l'ordre
+          d'`ActualCostSourceColumn`, par `VALIDATION_FAILED` au pointeur `/columns`. Rien n'est
+          écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              duplicate: { $ref: ../../../fixtures/api/actual_cost_mapping_duplicate.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

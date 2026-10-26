@@ -72,7 +72,7 @@ export interface Examples {
     200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_completed" | "project_created" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_revision_opened" | "project_without_current_revision";
+    200: "project" | "project_actual_cost_mapping_incomplete" | "project_completed" | "project_created" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_revision_opened" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
@@ -96,7 +96,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_rejected" | "import_remaining_analysed" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_rejected" | "import_remaining_analysed" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked";
@@ -175,6 +175,9 @@ export interface Examples {
   };
   "GET /projects/{project_id}/workload": {
     200: "workload" | "workload_marked_remaining" | "workload_org_node" | "workload_reference_budget";
+  };
+  "GET /reference/actual-cost-mapping": {
+    200: "actual_cost_mapping" | "actual_cost_mapping_empty";
   };
   "GET /reference/calendars": {
     200: "calendars" | "calendars_reader" | "calendars_with_inactive";
@@ -403,6 +406,9 @@ export interface Examples {
   };
   "PUT /projects/{project_id}/work-breakdown": {
     200: "work_breakdown_saved";
+  };
+  "PUT /reference/actual-cost-mapping": {
+    200: "actual_cost_mapping_updated";
   };
   "PUT /reference/calendars/{calendar_id}/activation": {
     200: "calendar_deactivated";

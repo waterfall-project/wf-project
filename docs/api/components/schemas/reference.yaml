@@ -918,6 +918,125 @@ DurationUnitsWrite:
       pattern: '^\d+(\.\d+)?$'
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+ActualCostSourceColumn:
+  type: string
+  enum: [wbs_element, document_number, document_item, document_date, amount]
+  description: >-
+    Une colonne que l'import des coûts réels lit dans l'extraction de l'ERP (WF-REF-0190,
+    annexe B), dans l'ordre fixe de la correspondance : l'élément d'OTP, qui porte le code projet
+    suivi facultativement d'une barre oblique et du code sous-projet (WF-CRE-0020), le numéro de
+    la pièce, le numéro de son poste dans la pièce, la date de la pièce et le montant. Le poste
+    est facultatif, les quatre autres sont exigées (WF-REF-0190).
+
+ActualCostColumnLabel:
+  type: string
+  minLength: 1
+  maxLength: 200
+  pattern: '\S'
+  description: >-
+    Un intitulé de colonne de l'extraction de l'ERP, tel que l'utilisateur le déclare : de 1 à
+    200 caractères, jamais blanc. Il se compare à l'en-tête du fichier, et aux autres intitulés
+    de la correspondance, sans égard à la casse, aux accents ni aux espaces en bout
+    (WF-REF-0190) : « Elément d'OTP » désigne la colonne « Élément d'OTP ».
+
+ActualCostMappingColumn:
+  type: object
+  required: [column, required, labels]
+  description: >-
+    Une colonne lue de la correspondance, et les intitulés qui la désignent dans l'extraction
+    (WF-REF-0190).
+  properties:
+    column: { $ref: '#/ActualCostSourceColumn' }
+    required:
+      type: boolean
+      description: >-
+        Rendu par le serveur : vrai pour les quatre colonnes exigées, faux pour le poste
+        (`document_item`), facultatif (WF-REF-0190). Il ne s'écrit pas.
+    labels:
+      type: array
+      maxItems: 20
+      description: >-
+        Les intitulés qui désignent la colonne dans l'extraction, au plus 20, dans l'ordre où ils
+        ont été déclarés ; l'import lit la colonne du fichier dont l'en-tête en vaut un. Vide pour
+        une colonne sans intitulé.
+      items: { $ref: '#/ActualCostColumnLabel' }
+
+ActualCostMapping:
+  type: object
+  required: [columns, kept_columns, is_complete, missing_columns, lock_version, audit]
+  description: >-
+    La correspondance de l'extraction des coûts réels (WF-REF-0190), objet unique de
+    l'installation, lu et remplacé entier avec son compteur : pour chaque colonne lue, ses
+    intitulés, et les colonnes de l'extraction conservées à titre d'information (WF-CRE-0010).
+    Vide à l'installation. Une colonne de l'extraction ni lue ni déclarée conservée est ignorée,
+    et le compte rendu de l'import la nomme (`ImportIgnoredKind`, `columns`). Sa modification vaut
+    pour les imports suivants et ne change aucune ligne déjà importée (WF-REF-0190).
+  properties:
+    columns:
+      type: array
+      minItems: 5
+      maxItems: 5
+      description: >-
+        Les cinq colonnes lues, chacune une fois, dans l'ordre fixe d'`ActualCostSourceColumn`.
+      items: { $ref: '#/ActualCostMappingColumn' }
+    kept_columns:
+      type: array
+      maxItems: 50
+      description: >-
+        Les intitulés des colonnes de l'extraction conservées à titre d'information, au plus 50,
+        déclarées une à une, dans l'ordre où elles l'ont été (WF-REF-0190, WF-CRE-0010) : une
+        ligne importée les restitue à la consultation sous l'intitulé que porte le fichier
+        (`ActualCostLine.passthrough`). Une colonne lue ne l'est pas aussi : son intitulé
+        doublerait le sien.
+      items: { $ref: '#/ActualCostColumnLabel' }
+    is_complete:
+      type: boolean
+      description: >-
+        Calculé : vrai quand chacune des quatre colonnes exigées a au moins un intitulé. Faux, la
+        commande `import_actual_costs` d'un projet est indisponible et nomme
+        `actual_cost_mapping_complete` (WF-REF-0190).
+    missing_columns:
+      type: array
+      description: >-
+        Calculé : les colonnes exigées qui n'ont aucun intitulé, dans l'ordre de la
+        correspondance ; vide quand `is_complete` est vrai. Les quatre exigées pour une
+        correspondance vide, jamais le poste, facultatif.
+      items: { $ref: '#/ActualCostSourceColumn' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+    audit: { $ref: ../common.yaml#/Audit }
+
+ActualCostMappingColumnWrite:
+  type: object
+  required: [column, labels]
+  description: Une colonne lue et ses intitulés, tels qu'une écriture les déclare.
+  properties:
+    column: { $ref: '#/ActualCostSourceColumn' }
+    labels:
+      type: array
+      maxItems: 20
+      items: { $ref: '#/ActualCostColumnLabel' }
+
+ActualCostMappingWrite:
+  type: object
+  required: [columns, kept_columns, lock_version]
+  description: >-
+    La correspondance entière et le compteur lu (WF-REF-0190, WF-IHM-0110) : les cinq colonnes
+    lues, chacune une fois, dans l'ordre d'`ActualCostSourceColumn`, avec leurs intitulés, et les
+    colonnes conservées. Ce qu'elle ne porte plus est retiré. Ni le caractère exigé d'une colonne
+    ni ce que le serveur calcule ne s'écrivent. Un intitulé qui en double un autre est refusé par
+    422, `DUPLICATE_COLUMN_LABEL` (`setActualCostMapping`).
+  properties:
+    columns:
+      type: array
+      minItems: 5
+      maxItems: 5
+      items: { $ref: '#/ActualCostMappingColumnWrite' }
+    kept_columns:
+      type: array
+      maxItems: 50
+      items: { $ref: '#/ActualCostColumnLabel' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
 AlertZone:
   type: string
   enum: [nominal, watch, alert]

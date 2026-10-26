@@ -6,8 +6,8 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**160 opérations sur 125 chemins, dans 13 familles.**
-Le contrat cite **187 des 212 exigences** de la spécification.
+**162 opérations sur 126 chemins, dans 13 familles.**
+Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -88,7 +88,7 @@ Le contrat cite **187 des 212 exigences** de la spécification.
 
 ## Référentiel commun
 
-`paths/reference.yaml` — 29 opérations
+`paths/reference.yaml` — 31 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -121,6 +121,8 @@ Le contrat cite **187 des 212 exigences** de la spécification.
 | GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0060, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0030, WF-REF-0050, WF-REF-0130 |
+| GET | `/reference/actual-cost-mapping` | Correspondance de l'extraction des coûts réels | WF-ADM-0100, WF-CRE-0010, WF-REF-0190 |
+| PUT | `/reference/actual-cost-mapping` | Régler la correspondance de l'extraction des coûts réels | WF-ADM-0100, WF-INTF-0080, WF-REF-0190 |
 
 ## Projets, cycle de vie, lotissement, contributeurs
 
@@ -239,10 +241,10 @@ Le contrat cite **187 des 212 exigences** de la spécification.
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Déposer un morceau | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Terminer le dépôt par morceaux | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050 |
-| GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-PLA-0020, WF-PLA-0130 |
+| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
+| GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-PLA-0020, WF-PLA-0130, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandonner un import | WF-DAT-0120, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports/{import_id}/apply` | Appliquer un import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140 |
+| POST | `/projects/{project_id}/imports/{import_id}/apply` | Appliquer un import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
 | POST | `/projects/{project_id}/exports` | Demander un export | WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0130, WF-INTF-0180, WF-PLA-0120 |
 
 ## Portefeuille
@@ -262,7 +264,7 @@ Le contrat cite **187 des 212 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-25 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+24 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -274,4 +276,3 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |
-| REF | WF-REF-0190 | Pas encore au contrat : la correspondance de l'extraction des coûts réels, exigence ajoutée le 2026-10-22 (C-374), y entre par #1304. |

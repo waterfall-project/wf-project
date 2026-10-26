@@ -238,7 +238,13 @@
       WF-INTF-0080). Les imports de planning, de devis et de reste à engager s'appliquent à la
       révision en cours, créée au besoin (WF-INTF-0090). Selon le flux : planning MS Project
       (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels
-      (WF-INTF-0140). Un planning MS Project met à jour une tâche existante sans toucher à son
+      (WF-INTF-0140). Une extraction de coûts réels se lit selon la correspondance de
+      l'installation (`getActualCostMapping`, WF-REF-0190) : l'import est refusé tant que l'une
+      des quatre colonnes exigées n'y a aucun intitulé, ce que la commande `import_actual_costs`
+      du projet dit d'avance ; un fichier auquel manque une colonne exigée est refusé en la
+      nommant ; une colonne ni lue ni déclarée conservée est ignorée, et le compte rendu la nomme
+      (`ImportIgnoredKind`, `columns`). Le compte rendu analysé est ce qui s'applique, même si la
+      correspondance change entre-temps (`applyImport`). Un planning MS Project met à jour une tâche existante sans toucher à son
       rattachement au lotissement ; sur la structure principale, seule à porter des
       rattachements, un fichier qui placerait la tâche d'un poste hors du sous-arbre de la tâche de
       son lot est rejeté entier au compte rendu, qui nomme les deux tâches, comme un planning
@@ -282,17 +288,30 @@
           `params.missing_condition` à `project_before_in_progress`, la condition que la
           structure principale nomme à la saisie de son devis (`StructureCommand.edit_estimate`),
           et rien n'est analysé (WF-INTF-0100 ; C-358). Une structure différentielle et le devis
-          propre d'un risque l'acceptent quel que soit l'état du projet.
+          propre d'un risque l'acceptent quel que soit l'état du projet. Ou un import de coûts
+          réels tant que la correspondance de l'installation est incomplète :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `actual_cost_mapping_complete`,
+          la condition que la commande `import_actual_costs` du projet nomme d'avance, et
+          `params.columns` les colonnes exigées sans intitulé (`ActualCostSourceColumn`, dans
+          l'ordre de la correspondance) ; rien n'est analysé (WF-REF-0190). Elle se juge après
+          l'état du projet, dans l'ordre où la commande nomme ses conditions.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               estimate_main_in_progress: { $ref: ../../../fixtures/api/import_estimate_main_in_progress.json }
+              actual_cost_mapping_incomplete: { $ref: ../../../fixtures/api/import_actual_cost_mapping_incomplete.json }
       '422':
         description: >-
           Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) :
           `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de
-          l'import (un `ExchangeKind`) et `params.expected_version` sa version. Ou un dépôt
+          l'import (un `ExchangeKind`) et `params.expected_version` sa version. Une extraction de
+          coûts réels n'a pas de version : elle se reconnaît aux intitulés que déclare la
+          correspondance (WF-INTF-0070, WF-REF-0190) ; à laquelle manque une colonne exigée, elle
+          est refusée par `FILE_FORMAT_UNREADABLE`, `params.expected_format` à `actual_costs`,
+          sans `expected_version`, et `params.missing_columns` chaque colonne exigée que le
+          fichier ne porte sous aucun de ses intitulés, avec les intitulés déclarés, dans l'ordre
+          de la correspondance. Ou un dépôt
           qui n'a pas été fait pour un import — une sauvegarde déposée pour une restauration
           (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/upload_id` par
           `UPLOAD_PURPOSE_MISMATCH`.
@@ -301,6 +320,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
+              actual_costs_column_missing: { $ref: ../../../fixtures/api/import_actual_costs_column_missing.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -316,7 +336,9 @@
       reste à engager, les lignes rejetées parce qu'elles quitteraient un sous-projet qui a reçu
       des coûts réels, le sous-projet nommé (WF-INTF-0100, WF-INTF-0120) ; d'un planning MS
       Project, les dates de tâches manuelles gardées sur un jour sans heure travaillée, signalées
-      (`ImportReport.signals`, WF-PLA-0020 ; #1271). Le compte rendu est
+      (`ImportReport.signals`, WF-PLA-0020 ; #1271) ; d'une extraction de coûts réels, les
+      colonnes du fichier ni lues ni déclarées conservées, ignorées et nommées par leur intitulé
+      (`ImportIgnoredKind`, `columns`, WF-REF-0190). Le compte rendu est
       conservé sous forme de codes et rendu dans la langue du lecteur (WF-ARC-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -333,6 +355,7 @@
               planning_mismatch: { $ref: ../../../fixtures/api/import_planning_mismatch.json }
               remaining_analysed: { $ref: ../../../fixtures/api/import_remaining_analysed.json }
               actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
+              actual_costs_column_ignored: { $ref: ../../../fixtures/api/import_actual_costs_column_ignored.json }
               planning_rejected: { $ref: ../../../fixtures/api/import_planning_rejected.json }
               remaining_subproject_held: { $ref: ../../../fixtures/api/import_remaining_subproject_held.json }
               planning_non_working_day: { $ref: ../../../fixtures/api/import_planning_non_working_day.json }
@@ -367,7 +390,10 @@
       revérifiés au moment de l'exécution (WF-ARC-0100) : un devis analysé sur la structure
       principale n'est plus appliqué une fois le projet En cours (WF-INTF-0100). Un import de
       coûts réels insère ou met à jour sur le numéro de pièce, sans toucher aux exclusions
-      (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030).
+      (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030). Il s'applique tel qu'il a été analysé, même si
+      la correspondance de l'extraction a changé depuis l'analyse : le compte rendu confirmé est
+      ce qui s'applique (WF-INTF-0080), et une modification de la correspondance vaut pour les
+      imports suivants, sans changer aucune ligne déjà importée (WF-REF-0190).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId

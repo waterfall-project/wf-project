@@ -270,6 +270,12 @@ CommandCondition:
     dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
     première qui manque, dans cet ordre — `reference_correctable` par son code propre,
     `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490).
+    `actual_cost_mapping_complete` manque à l'import des coûts réels
+    (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la
+    correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont
+    la correspondance est vide (WF-REF-0190) ; la commande la nomme après les conditions de
+    l'état du projet et des traitements de fond, et `openImport` dans son 409, avec
+    `params.columns`, les colonnes exigées sans intitulé (EP-16/US-0620).
   enum:
     - is_contributor
     - is_project_manager
@@ -324,6 +330,7 @@ CommandCondition:
     - is_active_account
     - is_deactivated_account
     - is_not_anonymized
+    - actual_cost_mapping_complete
 
 ProjectCommand:
   type: string
@@ -368,7 +375,10 @@ ProjectCommand:
     (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`,
     `reference_revision_designated`, `no_background_task_running`), celles du risque sur le
     risque (`RiskCommand.declare_occurrence`) ; importer les
-    coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un
+    coûts réels — `import_actual_costs` nomme `actual_cost_mapping_complete` tant que la
+    correspondance de l'extraction de l'installation est incomplète, après les conditions de
+    l'état du projet (WF-REF-0190) —, exclure une ligne du périmètre suivi (WF-CRE-0030) ;
+    importer un
     planning MS Project, un devis, un reste à engager — une commande par nature, chacune
     gardée par sa permission —, que l'import applique à la révision en cours et crée au
     besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de

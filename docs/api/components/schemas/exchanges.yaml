@@ -211,8 +211,10 @@ ImportReport:
         Ce que l'import a lu sans l'importer, par nature, nommé quand il se nomme
         (WF-INTF-0040) : les ressources et les calendriers du fichier, gérés par Waterfall
         seul, l'avancement, les coûts, les champs personnalisés, et les contraintes de date
-        des tâches importées en mode manuel aux dates du fichier. Vide pour un import Excel,
-        qui ne lit que ses colonnes.
+        des tâches importées en mode manuel aux dates du fichier. D'une extraction de coûts
+        réels, les colonnes du fichier ni lues ni déclarées conservées par la correspondance,
+        chacune par son intitulé (`columns`, WF-REF-0190). Vide pour un devis ou un reste à
+        engager, qui ne lisent que leurs colonnes.
       items: { $ref: '#/ImportIgnored' }
     completed_tasks:
       type: array
@@ -255,12 +257,14 @@ ImportReport:
 
 ImportIgnoredKind:
   type: string
-  enum: [resources, calendars, progress, costs, custom_fields, date_constraints]
+  enum: [resources, calendars, progress, costs, custom_fields, date_constraints, columns]
   description: >-
     Ce qu'un import MS Project ne lit jamais (WF-INTF-0040) : les ressources et les
     calendriers, gérés par Waterfall seul ; l'avancement, les coûts et les champs
     personnalisés ; et les contraintes de date des tâches, importées en mode manuel aux dates
-    du fichier, chaque tâche signalée.
+    du fichier, chaque tâche signalée. D'une extraction de coûts réels, les colonnes du fichier
+    ni lues ni déclarées conservées par la correspondance (`columns`), que l'import ignore et
+    que le compte rendu nomme par leur intitulé tel que le fichier le porte (WF-REF-0190).
 
 ImportIgnored:
   type: object
@@ -276,7 +280,8 @@ ImportIgnored:
       type: array
       description: >-
         Leurs noms, dans l'ordre du fichier, quand ils en ont — le nom d'une ressource ou d'un
-        calendrier, le libellé d'une tâche à contrainte de date ; vide pour ce qui ne se nomme
+        calendrier, le libellé d'une tâche à contrainte de date, l'intitulé d'une colonne d'une
+        extraction de coûts réels tel que le fichier le porte ; vide pour ce qui ne se nomme
         pas, l'avancement ou les coûts. Jamais plus de `count`.
       items: { type: string }
 

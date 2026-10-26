@@ -191,6 +191,8 @@ paths:
     $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}~1hourly-rates
   /reference/cost-categories/{cost_category_id}/hourly-rates/{year}:
     $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}~1hourly-rates~1{year}
+  /reference/actual-cost-mapping:
+    $ref: ./paths/reference.yaml#/~1reference~1actual-cost-mapping
   /projects:
     $ref: ./paths/projects.yaml#/~1projects
   /projects/{project_id}:
