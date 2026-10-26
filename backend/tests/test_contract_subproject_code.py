@@ -13,9 +13,21 @@ from pydantic import ValidationError
 from waterfall.api.contract.models import DeclaredSubprojectCode
 
 
+# "Synthèse\n" is refused here because Python's `$` also stops before a final newline; ECMAScript
+# accepts it (its `$` is strict). A known divergence, documented in docs/api/DECISIONS.md.
 @pytest.mark.parametrize(
     "code",
-    ["SYNTHÈSE", "synthèse", "HORS SOUS-PROJET", "SP/01", "SP:01", "", "   ", "x" * 32],
+    [
+        "SYNTHÈSE",
+        "synthèse",
+        "HORS SOUS-PROJET",
+        "SP/01",
+        "SP:01",
+        "",
+        "   ",
+        "x" * 32,
+        "Synthèse\n",
+    ],
 )
 def test_the_model_refuses_a_code_that_cannot_name_a_tab(code: str) -> None:
     with pytest.raises(ValidationError):
