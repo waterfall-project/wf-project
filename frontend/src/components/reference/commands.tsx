@@ -36,6 +36,7 @@ import {
   useContext,
   useMemo,
   useState,
+  useTransition,
 } from "react";
 
 import { setActivation } from "@/api/actions/reference";
@@ -278,9 +279,7 @@ export function useRowCommand(
 ] {
   const list = useListReport();
   const commands = useContext(ListCommands);
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
-  // whose end would wait for every other write of the list under way (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   // The list, which tells the refusal, holds the navigations while the command answers: the row
   // may be gone meanwhile (#688).
   const own = useHeldCommand();
@@ -289,23 +288,22 @@ export function useRowCommand(
     action: () => Promise<Outcome<readonly ReferenceObject[]>>,
     said: (rows: readonly ReferenceObject[]) => string,
   ) => {
-    if (busy) {
+    if (pending) {
       return;
     }
     // The reading the command is pressed on: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
-    setBusy(true);
-    void held(action()).then((outcome) => {
+    startTransition(async () => {
+      const outcome = await held(action());
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
         commands?.say(said(outcome.data), { object: subject });
       } else {
         list?.report({ outcome, generation, names, target });
       }
-      setBusy(false);
     });
   };
-  return [busy, run];
+  return [pending, run];
 }
 
 /**

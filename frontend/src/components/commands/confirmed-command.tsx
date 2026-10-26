@@ -24,6 +24,7 @@ import {
   useId,
   useRef,
   useState,
+  useTransition,
 } from "react";
 
 import type { Outcome } from "@/api/problem";
@@ -93,9 +94,7 @@ export function ConfirmedCommand<T>({
   // What was told is kept as it was told: the page read again may change what `done` would say.
   const [result, setResult] = useState<{ readonly data: T; readonly title: string }>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  // Busy from the confirmation to the answer, and lifted in the very update that tells it — not a
-  // transition, whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   const button = useRef<HTMLButtonElement>(null);
   // The page read again may no longer offer the command: its confirmation is not shown.
   const offered = presented && offer.is_available;
@@ -122,12 +121,11 @@ export function ConfirmedCommand<T>({
 
   const confirm = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy || !ready) {
+    if (pending || !ready) {
       return;
     }
-    setBusy(true);
-    void held(run()).then((answer) => {
-      setBusy(false);
+    startTransition(async () => {
+      const answer = await held(run());
       if (answer.kind === "done") {
         setResult({ data: answer.data, title: done(answer.data) });
         setOutcome(undefined);
@@ -166,7 +164,7 @@ export function ConfirmedCommand<T>({
         <form
           id={form}
           aria-label={label}
-          aria-busy={busy}
+          aria-busy={pending}
           onSubmit={confirm}
           className="max-w-xl space-y-2 rounded-md border p-3 text-sm"
         >
@@ -187,10 +185,10 @@ export function ConfirmedCommand<T>({
               type="button"
               variant="outline"
               size="sm"
-              aria-disabled={busy ? true : undefined}
+              aria-disabled={pending ? true : undefined}
               className={UNAVAILABLE}
               onClick={() => {
-                if (!busy) {
+                if (!pending) {
                   close();
                 }
               }}

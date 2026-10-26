@@ -15,7 +15,7 @@
 
 import { FileSearch, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
 import type { ExchangeKind } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
@@ -106,9 +106,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a
-  // transition, whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   useEffect(() => {
     input.current?.focus();
   }, []);
@@ -118,7 +116,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   // in the language of the interface, and the field keeps the focus.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (pending) {
       return;
     }
     const file = input.current?.files?.[0];
@@ -131,9 +129,8 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
       kind === "actual_costs"
         ? { kind, period_from: from === "" ? null : from, period_to: to === "" ? null : to }
         : { kind };
-    setBusy(true);
-    void open(asked, file).then((result) => {
-      setBusy(false);
+    startTransition(async () => {
+      const result = await open(asked, file);
       if (result.kind === "done") {
         onClose();
       } else {
@@ -146,7 +143,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
     <form
       id={id}
       aria-label={t(`kinds.${kind}`)}
-      aria-busy={busy}
+      aria-busy={pending}
       noValidate
       onSubmit={submit}
       className="space-y-2 rounded-md border p-3"

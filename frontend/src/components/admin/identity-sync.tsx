@@ -23,7 +23,7 @@
 
 import { ChevronDown, ChevronRight, UserRoundSearch } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useState, useTransition } from "react";
 
 import { startIdentitySync } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
@@ -186,25 +186,24 @@ function StartIdentitySync() {
   const track = useTrackTask();
   const held = useHeldCommand();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
-  // whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   const start = () => {
-    if (busy) {
+    if (pending) {
       return;
     }
-    setBusy(true);
-    void held(startIdentitySync()).then((result) => {
+    startTransition(async () => {
+      const result = await held(startIdentitySync());
       if (result.kind === "done") {
+        setOutcome(undefined);
         track(result.data, { command: startIdentitySync });
+      } else {
+        setOutcome(result);
       }
-      setOutcome(result.kind === "done" ? undefined : result);
-      setBusy(false);
     });
   };
   return (
     <div className="space-y-2">
-      <Button type="button" variant="outline" size="sm" aria-busy={busy} onClick={start}>
+      <Button type="button" variant="outline" size="sm" aria-busy={pending} onClick={start}>
         <UserRoundSearch aria-hidden="true" />
         {t("start")}
       </Button>

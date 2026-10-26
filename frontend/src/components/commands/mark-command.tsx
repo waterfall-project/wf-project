@@ -15,7 +15,7 @@
 
 import { Stamp, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { markRevision } from "@/api/actions/revisions";
 import type { Outcome } from "@/api/problem";
@@ -27,7 +27,6 @@ import { Command } from "./command";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
-import { rejected } from "./rejection";
 
 /** The marking the revision offers, the revision, and the names that name a conflict. */
 export interface MarkCommandProps {
@@ -59,9 +58,7 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
   const [description, setDescription] = useState("");
   const [missing, setMissing] = useState(false);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a
-  // transition, whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     input.current?.focus();
@@ -71,7 +68,7 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
   // the language of the interface, and the field keeps the focus.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (pending) {
       return;
     }
     if (name.trim() === "") {
@@ -85,25 +82,22 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
       ...(description === "" ? {} : { description }),
     };
     const command = () => markRevision(revision.project_id, revision.revision_id, mark);
-    setBusy(true);
-    void command()
-      .catch(rejected)
-      .then((result) => {
-        setBusy(false);
-        if (result.kind === "done") {
-          track(result.data, { command, subject: name });
-          onClose();
-        } else {
-          setOutcome(result);
-        }
-      });
+    startTransition(async () => {
+      const result = await command();
+      if (result.kind === "done") {
+        track(result.data, { command, subject: name });
+        onClose();
+      } else {
+        setOutcome(result);
+      }
+    });
   };
 
   return (
     <form
       id={id}
       aria-label={t("enums.RevisionCommand.mark")}
-      aria-busy={busy}
+      aria-busy={pending}
       noValidate
       onSubmit={submit}
       className="space-y-2 rounded-md border p-3"

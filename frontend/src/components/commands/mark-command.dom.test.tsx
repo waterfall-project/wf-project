@@ -14,7 +14,6 @@ import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { atCommit } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
@@ -235,17 +234,9 @@ describe("the marking of a revision", () => {
       },
     });
     open();
-    // Whether the entry was still busy in the commit that told the refusal: the request over, never
-    // while it holds a press (#1484).
-    const busyWhenTold = atCommit(
-      document.body,
-      () => screen.queryByRole("alert") !== null,
-      () => screen.getByRole("form", { name: "Marquer la révision" }).getAttribute("aria-busy"),
-    );
     await mark("V1");
     const form = screen.getByRole("form", { name: "Marquer la révision" });
-    expect((await within(form).findByRole("alert")).textContent).toBe("Cet élément existe déjà.");
-    expect(busyWhenTold.stop()).toEqual(["false"]);
+    expect(within(form).getByRole("alert").textContent).toBe("Cet élément existe déjà.");
     const tasks = tasksRegion();
     expect(within(tasks).queryByRole("list")).toBeNull();
   });

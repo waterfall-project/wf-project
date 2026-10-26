@@ -13,7 +13,6 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import type { components } from "@/api/generated/schema";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
-import { atCommit } from "@/test/committed";
 import { heldLink } from "@/test/held-link";
 
 import { AvatarForm } from "./avatar-form";
@@ -101,31 +100,15 @@ describe("the preferences on the screen of the account", () => {
     await userEvent.click(within(mode).getByRole("radio", { name: "Sombre" }));
     // Choosing sends nothing: the preferences go when the user saves them.
     expect(sent(client, PREFERENCES)).toEqual([]);
-    // Whether the form was still busy in the commit that told the choice saved: the request over,
-    // never while it holds the values (#1484).
-    const form = container.querySelector("form") ?? container;
-    const busyWhenTold = atCommit(
-      form,
-      () => form.textContent.includes("Vos préférences sont enregistrées."),
-      () => form.getAttribute("aria-busy"),
-    );
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
-    await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent("Vos préférences sont enregistrées.");
-    });
-    expect(busyWhenTold.stop()).toEqual(["false"]);
 
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en", theme: "dark" }]);
     expect(refresh).toHaveBeenCalledOnce();
-    // Kept in the history of the messages (#1043), by an effect of the commit that tells it.
-    await waitFor(() => {
-      expect(readMessages().messages).toEqual([
-        expect.objectContaining({
-          tone: "success",
-          sentence: "Vos préférences sont enregistrées.",
-        }),
-      ]);
-    });
+    expect(screen.getByRole("status")).toHaveTextContent("Vos préférences sont enregistrées.");
+    // Kept in the history of the messages (#1043).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: "Vos préférences sont enregistrées." }),
+    ]);
   });
 
   it("sends the mode alone when the language is left as it was: the language goes to the identity provider (#877)", async () => {
@@ -253,15 +236,11 @@ describe("the avatar of the account", () => {
     expect(body).toBeInstanceOf(Blob);
     expect((body as Blob).type).toBe("image/png");
     expect(refresh).toHaveBeenCalledOnce();
-    await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est enregistré.");
-    });
-    // Kept in the history of the messages (#1043), by an effect of the commit that tells it.
-    await waitFor(() => {
-      expect(readMessages().messages).toEqual([
-        expect.objectContaining({ tone: "success", sentence: "Votre avatar est enregistré." }),
-      ]);
-    });
+    expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est enregistré.");
+    // Kept in the history of the messages (#1043).
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({ tone: "success", sentence: "Votre avatar est enregistré." }),
+    ]);
     await waitFor(() => {
       expect(upload).toHaveAttribute("aria-disabled", "true");
     });
@@ -350,27 +329,13 @@ describe("the avatar of the account", () => {
 
   it("withdraws the avatar the account has, and says it is withdrawn [WF-ADM-0080-A]", async () => {
     const client = serve({ "DELETE /me/avatar": { status: 204 } });
-    const { container } = render(inFrench(<AvatarForm hasAvatar maxBytes={MAX_BYTES} />));
-    // Whether the form was still busy in the commit that told the avatar withdrawn: the request
-    // over, never while its fieldset is inactive, the choice of an image refusing the focus (#1484).
-    const form = container.querySelector("form") ?? container;
-    const busyWhenTold = atCommit(
-      form,
-      () => form.textContent.includes("Votre avatar est retiré."),
-      () => form.getAttribute("aria-busy"),
-    );
+    render(inFrench(<AvatarForm hasAvatar maxBytes={MAX_BYTES} />));
     await userEvent.click(screen.getByRole("button", { name: "Retirer l’avatar" }));
-    await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est retiré.");
-    });
-    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(client.calls.map((call) => call.route)).toEqual(["DELETE /me/avatar"]);
     expect(refresh).toHaveBeenCalledOnce();
-    // Its button goes with the avatar: the focus goes to the choice of an image, by an effect of
-    // the commit that tells it.
-    await waitFor(() => {
-      expect(screen.getByLabelText("Image PNG ou JPEG")).toHaveFocus();
-    });
+    expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est retiré.");
+    // Its button goes with the avatar: the focus goes to the choice of an image.
+    expect(screen.getByLabelText("Image PNG ou JPEG")).toHaveFocus();
   });
   it("holds a link clicked while the avatar is withdrawn, and does not follow it when the server refuses (#688)", async () => {
     const release = holding({

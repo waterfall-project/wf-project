@@ -41,6 +41,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
 } from "react";
 
 import {
@@ -170,22 +171,20 @@ function StartBackupButton() {
   const track = useTrackTask();
   const own = useHeldCommand();
   const held = list?.held ?? own;
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
-  // whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
-      aria-busy={busy}
+      aria-busy={pending}
       onClick={() => {
-        if (busy) {
+        if (pending) {
           return;
         }
         const generation = list?.generation ?? 0;
-        setBusy(true);
-        void held(startBackup()).then((outcome) => {
+        startTransition(async () => {
+          const outcome = await held(startBackup());
           if (outcome.kind === "done") {
             track(outcome.data, { command: startBackup });
             // The tracker notes the task handed over: the history has it once.
@@ -193,7 +192,6 @@ function StartBackupButton() {
           } else {
             list?.report({ outcome, generation, names: {}, target: "start" });
           }
-          setBusy(false);
         });
       }}
     >
@@ -270,21 +268,19 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
   const date = useLocalTimestamp(backup.taken_at);
   const own = useHeldCommand();
   const held = list?.held ?? own;
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
-  // whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   const retained = backup.is_retained;
   const offer = offerOf(backup, retained ? "release" : "retain");
   const icon = retained ? <ArchiveRestore aria-hidden="true" /> : <Archive aria-hidden="true" />;
   const name = t(retained ? "releaseNamed" : "retainNamed", { date });
   const help = said(retained ? "releaseBackup.help" : "retainBackup.help");
   const retain = () => {
-    if (busy) {
+    if (pending) {
       return;
     }
     const generation = list?.generation ?? 0;
-    setBusy(true);
-    void held(retainBackup(backup.backup_id, !retained)).then((answer) => {
+    startTransition(async () => {
+      const answer = await held(retainBackup(backup.backup_id, !retained));
       const outcome =
         answer.kind === "done" && answer.data.backup_id !== backup.backup_id
           ? ANOTHER_OBJECT
@@ -300,7 +296,6 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
       } else {
         list?.report({ outcome, generation, names: {}, target: `retain ${backup.backup_id}` });
       }
-      setBusy(false);
     });
   };
   return (
@@ -312,7 +307,7 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
         </span>
       ) : null}
       {offer === undefined ? null : offer.is_available ? (
-        <CellCommand label={name} help={help} aria-busy={busy} onClick={retain}>
+        <CellCommand label={name} help={help} aria-busy={pending} onClick={retain}>
           {icon}
           {t(retained ? "release" : "retain")}
         </CellCommand>
@@ -574,25 +569,21 @@ export function BackupDeposit() {
   const [upload, setUpload] = useState<FileUpload>();
   const [confirming, setConfirming] = useState(false);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  // Busy from the press to the end of the deposit, and lifted in the very update that tells it — not a
-  // transition: a long deposit would hold the answer of every other async action of the page, a
-  // dialog's among them, until its end (#1484). The progress alone is told while it runs.
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   const send = () => {
-    if (busy || file === undefined) {
+    if (pending || file === undefined) {
       return;
     }
     setUpload(undefined);
     setOutcome(undefined);
-    setBusy(true);
-    void deposit(file, held, setSending).then((result) => {
+    startTransition(async () => {
+      const result = await deposit(file, held, setSending);
       setSending(undefined);
       if (result.kind === "done") {
         setUpload(result.data);
       } else {
         setOutcome(result);
       }
-      setBusy(false);
     });
   };
   const subject = upload === undefined ? undefined : deposited(upload);
@@ -620,7 +611,7 @@ export function BackupDeposit() {
           <Input
             id={field}
             type="file"
-            disabled={busy}
+            disabled={pending}
             onChange={(event) => {
               setFile(event.target.files?.[0]);
               setUpload(undefined);
@@ -631,7 +622,7 @@ export function BackupDeposit() {
           type="button"
           size="sm"
           variant="outline"
-          aria-busy={busy}
+          aria-busy={pending}
           disabled={file === undefined}
           onClick={send}
         >

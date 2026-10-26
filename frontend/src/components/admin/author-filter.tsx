@@ -19,7 +19,7 @@
 
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useRef, useState } from "react";
+import { type SubmitEvent, useId, useRef, useState, useTransition } from "react";
 
 import { findAccounts } from "@/api/actions/users";
 import type { Outcome } from "@/api/problem";
@@ -128,9 +128,7 @@ function AuthorSearch({
   const [text, setText] = useState("");
   const [told, setTold] = useState<number | undefined>(undefined);
   const [failure, setFailure] = useState<Outcome<unknown> | undefined>(undefined);
-  // Busy from the search sent last to its answer, and lifted in the very update that tells it — not a
-  // transition, whose end would wait for every other async action of the page (#1484).
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   // The search last sent: an answer to another is not shown.
   const sent = useRef(0);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -141,23 +139,20 @@ function AuthorSearch({
     }
     sent.current += 1;
     const mine = sent.current;
-    setBusy(true);
-    void findAccounts(search)
-      .catch(rejected)
-      .then((outcome) => {
-        if (mine !== sent.current) {
-          return;
-        }
-        if (outcome.kind === "done") {
-          setFailure(undefined);
-          setTold(outcome.data.length);
-          onFound(outcome.data);
-        } else {
-          setTold(undefined);
-          setFailure(outcome);
-        }
-        setBusy(false);
-      });
+    startTransition(async () => {
+      const outcome = await findAccounts(search).catch(rejected);
+      if (mine !== sent.current) {
+        return;
+      }
+      if (outcome.kind === "done") {
+        setFailure(undefined);
+        setTold(outcome.data.length);
+        onFound(outcome.data);
+      } else {
+        setTold(undefined);
+        setFailure(outcome);
+      }
+    });
   };
   return (
     <form
@@ -178,7 +173,7 @@ function AuthorSearch({
         }}
         className="h-8 w-44"
       />
-      <Button type="submit" size="sm" variant="outline" disabled={busy}>
+      <Button type="submit" size="sm" variant="outline" disabled={pending}>
         <Search aria-hidden="true" className="size-4" />
         {t("findButton")}
       </Button>

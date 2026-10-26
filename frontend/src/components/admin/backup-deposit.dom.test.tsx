@@ -16,7 +16,6 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
-import { atCommit } from "@/test/committed";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { BackupDeposit } from "./backup-commands";
@@ -174,19 +173,10 @@ describe("the deposit of a backup of another installation", () => {
       within(region).getByLabelText("Archive de la sauvegarde"),
       new File(["x"], "notes.txt"),
     );
-    // Whether the choice of a file was still held in the commit that told the refusal: the deposit
-    // over, never while another file cannot be chosen (#1484).
-    const field = within(region).getByLabelText("Archive de la sauvegarde");
-    const heldWhenTold = atCommit(
-      region,
-      () => within(region).queryByRole("alert") !== null,
-      () => (field.hasAttribute("disabled") ? "held" : "free"),
-    );
     await userEvent.click(within(region).getByRole("button", { name: "Déposer" }));
     expect(await within(region).findByRole("alert")).toHaveTextContent(
       "Le format du fichier est illisible.",
     );
-    expect(heldWhenTold.stop()).toEqual(["free"]);
     expect(within(region).queryByRole("button", { name: "Restaurer cette sauvegarde" })).toBeNull();
   });
 

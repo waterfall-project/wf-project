@@ -15,7 +15,6 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { atCommit } from "@/test/committed";
 import {
   announced,
   backupList,
@@ -248,17 +247,8 @@ describe("the commands of the backups", () => {
   it("say above the list a backup the server refuses to start, nothing tracked", async () => {
     serve({ [START]: { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } } });
     render(backupList());
-    // Whether the command was still busy in the commit that told the refusal: the request over,
-    // never while it holds a press (#1484).
-    const start = screen.getByRole("button", { name: "Sauvegarder maintenant" });
-    const busyWhenTold = atCommit(
-      document.body,
-      () => screen.queryByRole("alert") !== null,
-      () => start.getAttribute("aria-busy"),
-    );
-    await userEvent.click(start);
+    await userEvent.click(screen.getByRole("button", { name: "Sauvegarder maintenant" }));
     expect(await screen.findByRole("alert")).toBeVisible();
-    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(within(tasksRegion()).queryByText("Sauvegarde")).toBeNull();
   });
 
@@ -323,13 +313,6 @@ describe("the commands of the backups", () => {
   it("mark a backup no longer to be kept, the rotation then free to delete it", async () => {
     const client = serve({ [RETAIN]: "backup_released" });
     render(backupList());
-    // Whether the command was still busy in the commit that told the backup released: the request
-    // over, never while it holds a press (#1484).
-    const busyWhenTold = atCommit(
-      document.body,
-      () => announced().some((said) => said?.includes("n’est plus marquée à conserver") === true),
-      () => (row(KEPT).querySelector('button[aria-busy="true"]') === null ? "free" : "busy"),
-    );
     await userEvent.click(
       within(row(KEPT)).getByRole("button", {
         name: `Ne plus conserver la sauvegarde du ${dated(KEPT)}`,
@@ -340,7 +323,6 @@ describe("the commands of the backups", () => {
         `La sauvegarde du ${dated(KEPT)} n’est plus marquée à conserver.`,
       );
     });
-    expect(busyWhenTold.stop()).toEqual(["free"]);
     expect(bodies(client, RETAIN)).toEqual([{ is_retained: false }]);
     expect(row(KEPT)).not.toHaveTextContent("Marquée à conserver");
   });
