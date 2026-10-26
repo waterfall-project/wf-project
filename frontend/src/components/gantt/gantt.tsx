@@ -784,7 +784,9 @@ export function GanttAxis({ width }: { readonly width: number }) {
   const locale = useLocale();
   const view = use(GanttContext);
   const framed = view?.framed;
-  useEffect(() => {
+  // Told within the commit that draws the axis, before the page can take a gesture: a zoom or an
+  // export asked at once reads the width of the column, never a column of no width (#1473, #1479).
+  useLayoutEffect(() => {
     framed?.(width);
   }, [framed, width]);
   if (view === undefined || view.layout.ticks.length < 2) {

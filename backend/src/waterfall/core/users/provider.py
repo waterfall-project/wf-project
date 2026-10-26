@@ -428,9 +428,15 @@ def record_report(session: Session, report: SyncReport) -> None:
 
 
 def latest_report(session: Session) -> SyncReport | None:
-    """Read the report of the latest reading of the accounts, or ``None`` if none has ended."""
+    """Read the report of the latest reading of the accounts, or ``None`` if none has ended.
+
+    Two readings that ended at the same instant are told apart by their task, so that the choice
+    is the same each time it is made.
+    """
     row = session.scalars(
-        select(IdentitySyncReport).order_by(desc(IdentitySyncReport.finished_at)).limit(1)
+        select(IdentitySyncReport)
+        .order_by(desc(IdentitySyncReport.finished_at), desc(IdentitySyncReport.task_id))
+        .limit(1)
     ).first()
     if row is None:
         return None

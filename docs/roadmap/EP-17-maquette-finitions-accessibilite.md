@@ -99,7 +99,11 @@ que ce qui concerne le durcissement ou le contrat —, label et titre déjà `EP
   - #1384, point 2 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer » (l'issue
     reste en EP-16 pour son point 1, et se ferme avec lui ; le point se reprend ici au cadrage) ;
   - #1144 — front : la largeur mesurée de la barre des grilles denses n'est pas éprouvée au
-    redimensionnement (décision de l'auteur du 2026-10-25 : EP-17, non repris par EP-15).
+    redimensionnement (décision de l'auteur du 2026-10-25 : EP-17, non repris par EP-15) ;
+  - #1476 — front : trois mineurs des écritures retenues après « Précédent » (relevé par US-0590c ;
+    reporté vers EP-17 sur décision de l'auteur du 2026-10-25) ;
+  - #1481 — front : Échap dans le champ de recherche de l'aide ferme le panneau au lieu de vider le
+    champ (relevé par US-0670/L1 ; reporté vers EP-17 sur décision de l'auteur du 2026-10-25).
 
 **Le harnais d'accessibilité.**
 

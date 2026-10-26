@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -11,6 +12,9 @@ const COMPOSE = readFileSync(
   join(import.meta.dirname, "../../../deploy/compose/compose.dev.yaml"),
   "utf-8",
 );
+
+/** The root of the repository, where the Makefile is. */
+const REPOSITORY = join(import.meta.dirname, "../../..");
 
 /** The ports `make dev` publishes on the workstation: `- "3000:3000"`. */
 const DEVELOPMENT_PORTS = [...COMPOSE.matchAll(/- "(\d+):\d+"/g)].map((match) => match[1]);
@@ -26,6 +30,8 @@ const VARIABLES = [
   "E2E_PART",
   "E2E_BUILT",
   "E2E_DEV_SERVER",
+  "E2E_WORKERS",
+  "TEST_PARALLEL_INDEX",
   "CI",
   "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
 ];
@@ -46,9 +52,14 @@ function serversOf(config: PlaywrightTestConfig) {
   return [config.webServer ?? []].flat();
 }
 
-/** The front the harness starts: the server that is told where the API is. */
+/** The fronts the harness starts: the servers that are told where the API is. */
+function frontsOf(config: PlaywrightTestConfig) {
+  return serversOf(config).filter((server) => server.env !== undefined);
+}
+
+/** The front the harness starts, when it starts one alone. */
 async function frontOf(): Promise<NonNullable<ReturnType<typeof serversOf>[number]>> {
-  const fronts = serversOf(await harness()).filter((server) => server.env !== undefined);
+  const fronts = frontsOf(await harness());
   expect(fronts).toHaveLength(1);
   const [front] = fronts;
   if (front === undefined) {
@@ -69,6 +80,8 @@ beforeEach(() => {
   for (const variable of VARIABLES) {
     vi.stubEnv(variable, undefined);
   }
+  // One worker, one front, unless a test says otherwise.
+  vi.stubEnv("E2E_WORKERS", "1");
 });
 
 afterEach(() => {
@@ -272,4 +285,115 @@ describe("the paths against the development server, on a workstation (E2E_DEV_SE
     vi.stubEnv("E2E_BUILT", "1");
     expect((await frontOf()).command).toBe("pnpm start --hostname 127.0.0.1 --port 3100");
   });
+});
+
+describe("the fronts of the harness, one for each worker of the paths (#1477)", () => {
+  it("starts a front for each worker, on the ports after the first, the first alone building it", async () => {
+    vi.stubEnv("E2E_WORKERS", "3");
+    const config = await harness();
+    expect(config.workers).toBe(3);
+    expect(frontsOf(config).map((server) => [server.command, server.url])).toEqual([
+      [
+        "WATERFALL_API_ADDRESS=http://127.0.0.1:9 pnpm build && pnpm start --hostname 127.0.0.1 --port 3100",
+        "http://127.0.0.1:3100",
+      ],
+      ["pnpm start --hostname 127.0.0.1 --port 3101", "http://127.0.0.1:3101"],
+      ["pnpm start --hostname 127.0.0.1 --port 3102", "http://127.0.0.1:3102"],
+    ]);
+  });
+
+  it.each([
+    ["0", "http://127.0.0.1:3050"],
+    ["2", "http://127.0.0.1:3052"],
+    ["4", "http://127.0.0.1:3051"],
+  ])("has the worker of place %s play against its own front", async (index, front) => {
+    vi.stubEnv("E2E_WORKERS", "3");
+    vi.stubEnv("E2E_FRONT_PORT", "3050");
+    vi.stubEnv("TEST_PARALLEL_INDEX", index);
+    expect((await harness()).use?.baseURL).toBe(front);
+  });
+
+  it.each([
+    [12, 6],
+    [4, 2],
+    [3, 1],
+    [1, 1],
+  ])(
+    "plays on %i processors with %i workers, half of them, when the environment names no number of workers",
+    async (processors, expected) => {
+      vi.doMock("node:os", async (original) => ({
+        ...(await original<typeof import("node:os")>()),
+        availableParallelism: () => processors,
+      }));
+      vi.stubEnv("E2E_WORKERS", undefined);
+      vi.stubEnv("E2E_BUILT", "1");
+      try {
+        const config = await harness();
+        expect(config.workers).toBe(expected);
+        expect(frontsOf(config)).toHaveLength(expected);
+      } finally {
+        vi.doUnmock("node:os");
+      }
+    },
+  );
+
+  it.each([
+    ["the measure alone", { E2E_PART: "measure" }],
+    ["the development server", { E2E_DEV_SERVER: "1" }],
+  ])("starts one front alone for %s", async (_part, environment) => {
+    vi.stubEnv("E2E_WORKERS", "3");
+    for (const [variable, value] of Object.entries(environment)) {
+      vi.stubEnv(variable, value);
+    }
+    expect(frontsOf(await harness())).toHaveLength(1);
+  });
+
+  it("starts one front alone against the service, whose realm knows the address of one", async () => {
+    againstTheService();
+    vi.stubEnv("E2E_WORKERS", "3");
+    vi.stubEnv("TEST_PARALLEL_INDEX", "2");
+    const config = await harness();
+    expect(frontsOf(config)).toHaveLength(1);
+    expect(config.use?.baseURL).toBe("http://127.0.0.1:3100");
+  });
+
+  it.each(["0", "-1", "2.5", "two"])("refuses %j as a number of workers", async (named) => {
+    vi.stubEnv("E2E_WORKERS", named);
+    await expect(harness()).rejects.toThrow("E2E_WORKERS must be a whole number of workers");
+  });
+
+  it.each([
+    ["3", "3"],
+    ["", ""],
+  ])(
+    "is told the workers by make e2e WORKERS=%j, which passes none to Playwright itself",
+    (named, told) => {
+      // The recipe of make e2e run, its installation and its Playwright replaced: what Playwright
+      // would be started under, and with which arguments. Run apart from the make that runs the
+      // tests: in the chain, `make coverage-front SHARD=2/2` hands its part to make e2e through
+      // the environment and MAKEFLAGS, which then plays `--shard=2/2` of the paths (US-0590b).
+      const environment = { ...process.env };
+      delete environment.MAKEFLAGS;
+      delete environment.MFLAGS;
+      delete environment.MAKELEVEL;
+      const run = execFileSync(
+        "make",
+        [
+          "-s",
+          "e2e",
+          `WORKERS=${named}`,
+          "SHARD=",
+          "E2E_DEV_SERVER=",
+          "E2E_BUILT=1",
+          "TESTS=e2e/accessibility.spec.ts",
+          "PNPM=true",
+          "PNPM_HEAVY=printenv E2E_WORKERS; echo",
+        ],
+        { cwd: REPOSITORY, encoding: "utf-8", env: environment },
+      );
+      const [workersTold, playwright] = run.trimEnd().split("\n");
+      expect(workersTold).toBe(told);
+      expect(playwright).toBe("exec playwright test e2e/accessibility.spec.ts");
+    },
+  );
 });
