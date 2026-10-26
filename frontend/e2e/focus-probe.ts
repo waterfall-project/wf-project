@@ -191,24 +191,51 @@ async function install(page: Page): Promise<void> {
     const itself = (element: Element, found: Element) =>
       element.contains(found) || (found instanceof HTMLLabelElement && found.control === element);
 
-    // Every element made to take the pointer, while the page is measured: a layer the pointer
-    // passes through hides what it covers all the same. Only those that do not take it are changed,
-    // and given back as they were: a sheet over every element (`* { pointer-events: auto }`), added
-    // and taken away at each press, had the browser restyle the whole page twice — three fifths of
-    // the time of a press on a page of two thousand elements, the walk of the roles beyond a minute
-    // and a half under the load of four workers (#1263).
-    const measured = <T>(measure: () => T): T => {
-      const changed: [ElementCSSInlineStyle, string, string][] = [];
-      for (const element of document.querySelectorAll<HTMLElement | SVGElement>("*")) {
-        if (getComputedStyle(element).pointerEvents !== "auto") {
-          const { style } = element;
-          changed.push([
-            element,
-            style.getPropertyValue("pointer-events"),
-            style.getPropertyPriority("pointer-events"),
-          ]);
-          style.setProperty("pointer-events", "auto", "important");
-        }
+    // Whether two areas share any point, an edge or a corner counting.
+    const overlaps = (one: Area, other: Area) =>
+      one.left <= other.right &&
+      other.left <= one.right &&
+      one.top <= other.bottom &&
+      other.top <= one.bottom;
+    // An area grown by a point on each side, past the rounding of the boxes of the browser.
+    const grown = ({ left, top, right, bottom }: Area): Area => ({
+      left: left - 1,
+      top: top - 1,
+      right: right + 1,
+      bottom: bottom + 1,
+    });
+
+    // The elements made to take the pointer at the points measured within the boxes of some
+    // elements (`drawn`), while the page is measured: a layer the pointer passes through hides what
+    // it covers all the same. Every point the measure asks the browser about lies within one of
+    // those boxes — the middle of what the window shows of the element, the bands of an outline
+    // or a shadow drawn inside it —, and only an element over one of them can be found there: the
+    // others are left as they are. Only those that do not take the pointer are changed, and given
+    // back as they were. A sheet over every element (`* { pointer-events: auto }`), added and taken
+    // away at each press, had the browser restyle the whole page twice — three fifths of the time
+    // of a press on a page of two thousand elements, the walk of the roles beyond a minute and a
+    // half under the load of four workers (#1263); every element that did not take the pointer,
+    // changed at each press, still kept the browser busy 18 of the 22 seconds of a width of that
+    // walk, 3.3 of them restyling, against 10 seconds busy without any change. Every element is
+    // read first, then those found written, never one after the other: `pointer-events` is
+    // inherited, and a read after a write had the browser restyle the page again.
+    const measured = <T>(drawn: readonly Element[], measure: () => T): T => {
+      const boxes = drawn.map((element) => grown(element.getBoundingClientRect()));
+      const changed: [ElementCSSInlineStyle, string, string][] = [
+        ...document.querySelectorAll<HTMLElement | SVGElement>("*"),
+      ]
+        .filter((element) => getComputedStyle(element).pointerEvents !== "auto")
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          return boxes.some((around) => overlaps(box, around));
+        })
+        .map(({ style }) => [
+          { style },
+          style.getPropertyValue("pointer-events"),
+          style.getPropertyPriority("pointer-events"),
+        ]);
+      for (const [{ style }] of changed) {
+        style.setProperty("pointer-events", "auto", "important");
       }
       try {
         return measure();
@@ -538,11 +565,10 @@ async function install(page: Page): Promise<void> {
         reached.push(element);
         const said = say(element);
         const caught = covered(element);
-        const { hidden, looks } = measured(() => ({
+        const parts = [element, ...element.children];
+        const { hidden, looks } = measured(parts, () => ({
           hidden: unseen(element),
-          looks: new Map(
-            [element, ...element.children].map((drawn) => [drawn, shownLook(drawn)] as const),
-          ),
+          looks: new Map(parts.map((drawn) => [drawn, shownLook(drawn)] as const)),
         }));
         const now = baseline.has(element)
           ? marked(looks, (drawn) => baseline.get(drawn))

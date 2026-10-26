@@ -3492,12 +3492,17 @@ deux largeurs :
   doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
   l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
   l'atteint encore à 911 (`lost`). Pour voir ce qui peint par-dessus un élément, le parcours fait
-  prendre le pointeur, le temps de la mesure, aux seuls éléments qui ne le prennent pas, puis les
-  rend tels qu'ils étaient : une feuille posée sur tous (`* { pointer-events: auto }`) et retirée à
-  chaque Tab faisait recalculer deux fois le style de la page entière — les trois cinquièmes du
-  temps d'un Tab sur une page de deux mille éléments, et le parcours des rôles d'habilitation,
-  plus de 350 Tab à chaque largeur, à 84 des 90 secondes de son délai sous quatre workers, 66 une
-  fois la mesure ainsi faite (#1263).
+  prendre le pointeur, le temps de la mesure, aux seuls éléments qui ne le prennent pas et dont la
+  boîte touche celle de l'élément ou de l'un de ses enfants — chaque point que la mesure demande au
+  navigateur est dans l'une d'elles —, puis les rend tels qu'ils étaient ; il lit tous les éléments
+  d'abord, puis écrit ceux qu'il a trouvés, jamais l'un après l'autre, `pointer-events` étant
+  héritée. Une feuille posée sur tous (`* { pointer-events: auto }`) et retirée à chaque Tab
+  faisait recalculer deux fois le style de la page entière — les trois cinquièmes du temps d'un
+  Tab sur une page de deux mille éléments, et le parcours des rôles d'habilitation, plus de 350
+  Tab à chaque largeur, à 84 des 90 secondes de son délai sous quatre workers, 69 une fois les
+  seuls éléments sans pointeur changés, tous, à chaque Tab, 54 une fois changés ceux qui touchent
+  l'élément (#1263). Le reste est celui de la page et des allers-retours : seul, chaque largeur du
+  parcours occupe le navigateur 12 de ses 16 secondes, 10 sans aucune mesure du pointeur.
 
 `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
 d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
