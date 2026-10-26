@@ -149,9 +149,15 @@ TAB = SUBPROJECT_TESTS
 
 
 def tab_name(subproject: str) -> str:
-    """Return the name of the tab of a subproject, as the file names it: its label (ANNEXE B)."""
-    [name] = [label for label, key in subprojects().items() if key == subproject]
-    return name
+    """Return the name of the tab of a subproject, as the file names it: its code (ANNEXE B).
+
+    The code of a subproject is bounded so that it names a tab (`DeclaredSubprojectCode`,
+    WF-PRJ-0050; EP-16/US-0610); its label is not.
+    """
+    [name] = [
+        entry["code"] for entry in fixture("subprojects") if entry["subproject_id"] == subproject
+    ]
+    return cast("str", name)
 
 
 IMPORTED = (N.COMMISSIONING_LINE, N.LABOUR)
@@ -304,7 +310,8 @@ def examples() -> dict[str, JsonObject]:
             f"L'import d'un reste à engager lu aujourd'hui à {mocktext.hour(SUBMITTED)} et analysé "
             f"à {mocktext.hour(ANALYSED)}, une variante qu'imports ne reprend pas : deux lignes du "
             f"« {labels[SUBPROJECT_CONTROL]} "
-            f"» placées dans l'onglet « {labels[TAB]} ». « {moved['label']} », d'une tâche non "
+            f"» placées dans l'onglet « {tab_name(TAB)} », nommé par le code du sous-projet « "
+            f"{labels[TAB]} ». « {moved['label']} », d'une tâche non "
             f"démarrée, change de sous-projet, un écart au compte rendu ; « {refused} », du « "
             f"{wiring['label']} », démarré le {started}, est rejetée à la ligne "
             f"{rejected_at['row']} de l'onglet « {rejected_at['sheet']} », et le compte rendu "

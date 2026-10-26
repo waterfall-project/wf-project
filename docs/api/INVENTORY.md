@@ -131,7 +131,7 @@ Le contrat cite **187 des 212 exigences** de la spécification.
 | GET | `/projects` | Projets | WF-ADM-0110, WF-IHM-0120, WF-IHM-0130, WF-PRJ-0060, WF-PTF-0010, WF-PTF-0030 |
 | POST | `/projects` | Créer un projet | WF-CYC-0010, WF-CYC-0120, WF-PRJ-0060 |
 | GET | `/projects/{project_id}` | Un projet | WF-CYC-0010, WF-PRJ-0010, WF-PRJ-0080 |
-| PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-ADM-0110, WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0090 |
+| PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-ADM-0110, WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0080, WF-PRJ-0090 |
 | GET | `/projects/{project_id}/state-transitions` | Historique daté des états | WF-CYC-0090, WF-CYC-0130, WF-PTF-0050 |
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0050, WF-CYC-0060 |
 | POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |

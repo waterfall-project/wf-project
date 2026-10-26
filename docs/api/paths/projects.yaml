@@ -131,8 +131,9 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`
-          (WF-PRJ-0080), ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/code` plus
-          long que le schéma ne l'admet, `VALUE_TOO_LONG`.
+          (WF-PRJ-0080), ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/client` vide,
+          `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` (WF-PRJ-0080) ;
+          `/code` plus long que le schéma ne l'admet, `VALUE_TOO_LONG`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -174,8 +175,9 @@
     summary: Modifier les paramètres d'un projet
     description: >-
       Réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) et refusé sur un projet
-      terminal (WF-CYC-0100), comme la commande `update` du projet le dit d'avance. La
-      probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) : la commande
+      terminal (WF-CYC-0100), comme la commande `update` du projet le dit d'avance. Le nom du
+      client s'y saisit et s'y efface à tout moment, aucune transition ne l'exigeant
+      (WF-PRJ-0080). La probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) : la commande
       `update_win_probability` le dit d'avance, et la valeur envoyée malgré elle est refusée par
       champ (422) ; le taux d'inflation l'est à tout moment et n'affecte aucune révision marquée
       (WF-PRJ-0040). L'un et l'autre sont des rapports de `0` à `1`, hors desquels la valeur est
@@ -220,9 +222,9 @@
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/win_probability` ou
           `/inflation_rate` hors de `0` à `1`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou
-          `fields[].params.maximum` la borne franchie (WF-PRJ-0040, WF-PRJ-0090) ; `/label` vide,
-          `VALUE_REQUIRED`, ou, comme `/code`, plus long que le schéma ne l'admet, `VALUE_TOO_LONG`.
-          Rien n'est écrit.
+          `fields[].params.maximum` la borne franchie (WF-PRJ-0040, WF-PRJ-0090) ; `/label` ou
+          `/client` vides, `VALUE_REQUIRED`, ou, comme `/code`, plus longs que le schéma ne
+          l'admet, `VALUE_TOO_LONG` (WF-PRJ-0080). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -566,10 +568,17 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides,
-          `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG`.
+          `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG` —
+          `fields[].params.max_length` à `31` pour `/code` — ; `/code` portant un caractère
+          interdit ou valant un nom réservé, sans égard à la casse, `SUBPROJECT_CODE_INVALID`,
+          `fields[].params.forbidden_characters` ou `fields[].params.reserved_name` le nommant :
+          le code nomme l'onglet du sous-projet dans le fichier de reste à engager
+          (`DeclaredSubprojectCode`, WF-PRJ-0050). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/subprojects/{subproject_id}:
@@ -617,10 +626,17 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides,
-          `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG`.
+          `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG` —
+          `fields[].params.max_length` à `31` pour `/code` — ; `/code` portant un caractère
+          interdit ou valant un nom réservé, sans égard à la casse, `SUBPROJECT_CODE_INVALID`,
+          `fields[].params.forbidden_characters` ou `fields[].params.reserved_name` le nommant :
+          le code nomme l'onglet du sous-projet dans le fichier de reste à engager
+          (`DeclaredSubprojectCode`, WF-PRJ-0050). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteSubproject

@@ -24,6 +24,11 @@ Project:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+    client:
+      anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
+      description: >-
+        Le nom du client du projet (WF-PRJ-0080) : facultatif, nul tant qu'il n'est pas saisi,
+        exigé par aucune transition. `createProject` et `updateProject` l'écrivent (EP-16/US-0610).
     code:
       anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
       description: >-
@@ -423,6 +428,18 @@ ProjectSummary:
       anyOf: [{ type: string }, { type: 'null' }]
     state: { $ref: '#/ProjectState' }
 
+ProjectClient:
+  type: string
+  minLength: 1
+  pattern: '\S'
+  maxLength: 300
+  description: >-
+    Le nom du client d'un projet, que porte la présentation d'un devis exporté (WF-PRJ-0080) : de
+    1 à 300 caractères comme le libellé, jamais blanc. Une écriture qui ne le respecte pas est
+    refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/client` : vide, par
+    `VALUE_REQUIRED` ; trop long, par `VALUE_TOO_LONG` ; fait seulement de blancs, comme tout
+    libellé, par `VALIDATION_FAILED` (EP-16/US-0610).
+
 ProjectCreate:
   type: object
   required: [label]
@@ -430,6 +447,10 @@ ProjectCreate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+    client:
+      anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
+      description: >-
+        Le nom du client (WF-PRJ-0080), facultatif : nul, ou absent, le projet n'en a pas.
     code:
       anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
 
@@ -440,6 +461,11 @@ ProjectUpdate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+    client:
+      anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
+      description: >-
+        Le nom du client (WF-PRJ-0080), saisissable à tout moment tant que le projet n'est pas
+        terminal : nul, il s'efface ; absent, il ne change pas.
     code:
       anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
     inflation_rate:
@@ -690,7 +716,7 @@ Subproject:
     le disent d'avance.
   properties:
     subproject_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    code: { $ref: '#/DeclaredSubprojectCode' }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     has_actual_costs:
       type: boolean
@@ -712,6 +738,26 @@ Subproject:
       items: { $ref: '#/SubprojectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+DeclaredSubprojectCode:
+  type: string
+  minLength: 1
+  maxLength: 31
+  pattern: '^(?![Ss][Yy][Nn][Tt][Hh][Èè][Ss][Ee]$|[Hh][Oo][Rr][Ss] [Ss][Oo][Uu][Ss]-[Pp][Rr][Oo][Jj][Ee][Tt]$)[^:\\/?*\[\]]*[^:\\/?*\[\]\s][^:\\/?*\[\]]*$'
+  description: >-
+    Le code d'un sous-projet déclaré, sous lequel l'ERP le connaît, qui nomme son onglet dans le
+    fichier de reste à engager (ANNEXE B, WF-PRJ-0050) : de 1 à 31 caractères, jamais blanc, sans
+    aucun des caractères `:`, `\`, `/`, `?`, `*`, `[` ni `]`, et ni « Synthèse » ni « Hors
+    sous-projet », les deux onglets que Waterfall nomme, comparés sans égard à la casse — ce que
+    dit le motif (D-7, EP-16/US-0610). Une écriture qui ne le respecte pas est refusée par 422
+    `VALIDATION_FAILED`, `fields` désignant `/code` : trop long, par `VALUE_TOO_LONG`,
+    `fields[].params.max_length` à `31` ; portant un caractère interdit, par
+    `SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` les caractères interdits
+    qu'il porte, chacun une fois, dans l'ordre où le code les porte ; valant un nom réservé, par
+    `SUBPROJECT_CODE_INVALID`, `fields[].params.reserved_name` ce nom tel que Waterfall l'écrit.
+    Le code lu dans l'élément d'OTP d'une ligne de coût réel (`ActualCostLine.subproject_code`)
+    n'est pas celui-ci et garde sa borne de 50 : une ligne au code inconnu se conserve telle
+    quelle (WF-CRE-0020).
 
 SubprojectCommand:
   type: string
@@ -748,7 +794,7 @@ SubprojectWrite:
   type: object
   required: [code, label]
   properties:
-    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    code: { $ref: '#/DeclaredSubprojectCode' }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
 SubprojectUpdate:
