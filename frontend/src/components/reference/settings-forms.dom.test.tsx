@@ -261,7 +261,7 @@ describe("the form of the risk matrix", () => {
     ]);
   });
 
-  it("tells under the form the permission the session lacks, which the server names, in the commit that ends the request [WF-IHM-0090-A]", async () => {
+  it("tells under the form the permission the session lacks, which the server names, in the commit that ends the request", async () => {
     serve({
       [UPDATE]: {
         problem: example("reference_settings_permission_missing") as Problem & { status: 403 },

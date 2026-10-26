@@ -354,7 +354,7 @@ describe("the work breakdown edited in its grid", () => {
     },
   );
 
-  it("notes once a refusal said at the field of the dialog, its rest told under it, the field described by its refusal as it takes the focus [WF-IHM-0090-A]", async () => {
+  it("notes once a refusal said at the field of the dialog, its rest told under it, the field described by its refusal as it takes the focus", async () => {
     serve({
       [SET]: {
         problem: {

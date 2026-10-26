@@ -146,7 +146,7 @@ describe("the creation of a role in line", () => {
     expect(readMessages().messages).toEqual([]);
   });
 
-  it("notes once, with the label sent, a label the server refuses at its field, which takes the focus described by its refusal [WF-IHM-0090-A]", async () => {
+  it("notes once, with the label sent, a label the server refuses at its field, which takes the focus described by its refusal", async () => {
     serve({
       [CREATED]: {
         problem: {
