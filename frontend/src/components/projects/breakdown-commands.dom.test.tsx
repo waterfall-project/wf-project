@@ -343,11 +343,12 @@ describe("the work breakdown edited in its grid", () => {
       await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
       const dialog = await enter(ADDED);
       const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+      // The focus comes after the commit that says the refusal at the field (#1484).
       await vi.waitFor(() => {
-        expect(field).toHaveAttribute("aria-invalid", "true");
+        expect(field).toHaveFocus();
       });
+      expect(field).toHaveAttribute("aria-invalid", "true");
       expect(field).toHaveAccessibleDescription(sentence);
-      expect(field).toHaveFocus();
       expect(within(dialog).queryByRole("alert")).toBeNull();
       expect(refresh).not.toHaveBeenCalled();
     },

@@ -268,11 +268,12 @@ describe("the modification of the contributors of a project", () => {
     const form = await modify();
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const capacity = within(form).getByRole("combobox", { name: "Qualité de Alix Moreau" });
+    // The focus comes after the commit that says the refusal at the field (#1484).
     await vi.waitFor(() => {
-      expect(capacity).toHaveAttribute("aria-invalid", "true");
+      expect(capacity).toHaveFocus();
     });
+    expect(capacity).toHaveAttribute("aria-invalid", "true");
     expect(capacity).toHaveAccessibleDescription("Alix Moreau : Ce compte est désactivé.");
-    expect(capacity).toHaveFocus();
     // What points at no row is told under the form, without the row said already.
     const alert = within(form).getByRole("alert");
     expect(alert).toHaveTextContent("Les données saisies ne sont pas valides.");

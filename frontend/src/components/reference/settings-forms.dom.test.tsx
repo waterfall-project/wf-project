@@ -409,12 +409,13 @@ describe("the form of the name of the company", () => {
     const name = within(form).getByRole("textbox", { name: /Nom de l’entreprise/ });
     await retype(name, "Autre nom");
     await save(form);
+    // The focus comes after the commit that says the refusal at the field (#1484).
     await vi.waitFor(() => {
-      expect(name).toHaveAttribute("aria-invalid", "true");
+      expect(name).toHaveFocus();
     });
+    expect(name).toHaveAttribute("aria-invalid", "true");
     expect(client.calls).toHaveLength(1);
     expect(name).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_REQUIRED);
-    expect(name).toHaveFocus();
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
     expect(screen.getByText("Delmas Automatismes")).toBeInTheDocument();

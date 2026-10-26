@@ -396,11 +396,12 @@ describe("« Identifier un risque »", () => {
     await fill(form, "Retard de livraison", "120");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     const probability = await within(form).findByRole("textbox", { name: "Probabilité (%)" });
+    // The focus comes after the commit that says the refusal at the field (#1484).
     await vi.waitFor(() => {
-      expect(probability).toHaveAccessibleDescription(/100/);
+      expect(probability).toHaveFocus();
     });
+    expect(probability).toHaveAccessibleDescription(/100/);
     expect(probability).not.toHaveAccessibleDescription(/\b1\b/);
-    expect(probability).toHaveFocus();
   });
 
   it("says at their fields the category and the sub-project the server refuses, and gives the focus to the first", async () => {
@@ -416,12 +417,13 @@ describe("« Identifier un risque »", () => {
     ]);
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     const category = await within(form).findByRole("combobox", { name: "Catégorie" });
+    // The focus comes after the commit that says the refusal at the field (#1484).
     await vi.waitFor(() => {
-      expect(category).toHaveAccessibleDescription(
-        "La provision d’un risque porte une catégorie de type provision pour risques.",
-      );
+      expect(category).toHaveFocus();
     });
-    expect(category).toHaveFocus();
+    expect(category).toHaveAccessibleDescription(
+      "La provision d’un risque porte une catégorie de type provision pour risques.",
+    );
     expect(within(form).getByRole("combobox", { name: "Sous-projet" })).toHaveAccessibleDescription(
       "Sous-projet inconnu.",
     );
@@ -769,11 +771,12 @@ describe("« Modifier » a risk", () => {
     await userEvent.clear(probability);
     await userEvent.type(probability, "120");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    // The focus comes after the commit that says the refusal at the field (#1484).
     await vi.waitFor(() => {
-      expect(probability).toHaveAccessibleDescription(/100/);
+      expect(probability).toHaveFocus();
     });
+    expect(probability).toHaveAccessibleDescription(/100/);
     expect(probability).not.toHaveAccessibleDescription(/\b1\b/);
-    expect(probability).toHaveFocus();
     expect(screen.getByRole("dialog")).toBeVisible();
   });
 
