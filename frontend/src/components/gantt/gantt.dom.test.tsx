@@ -347,6 +347,57 @@ describe("the Gantt of the planning", () => {
     }
   });
 
+  it("zooms by a wheel given at once after the commit of its mount, with the zoom of that render [WF-QUA-0010]", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(384);
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(8);
+    const row = planning.items.find((item) => item.task !== null && item.task !== undefined) ?? {
+      node_id: "none",
+    };
+    // Mounted outside `act`, as the browser mounts it: the effects come in a later task, and the
+    // page can take a gesture between the commit and them. Ctrl and the wheel come at the first
+    // moment it can, once the commit of the mount is over.
+    const acting: unknown = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
+    Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false);
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    // happy-dom keeps no modifier key of a wheel event: Ctrl is held by hand.
+    const wheel = new WheelEvent("wheel", { deltaY: -100, bubbles: true, cancelable: true });
+    Object.defineProperty(wheel, "ctrlKey", { value: true });
+    // Given from a ref above the Gantt: React attaches it in the layout phase of the commit, after
+    // the layout effects of the Gantt and before any passive effect of the page.
+    let given = false;
+    const give = (element: HTMLElement | null) => {
+      if (element !== null && !given) {
+        given = true;
+        element.querySelector("[data-gantt]")?.dispatchEvent(wheel);
+      }
+    };
+    try {
+      root.render(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          <div ref={give}>
+            <GanttRows rows={planning.items} scope="wheel">
+              <GanttAxis width={400} />
+              <GanttCell row={row} />
+            </GanttRows>
+          </div>
+        </NextIntlClientProvider>,
+      );
+      await waitFor(() => {
+        expect(given).toBe(true);
+      });
+      expect(wheel.defaultPrevented).toBe(true);
+      // Zoomed in from the fit: the drawing no longer takes the whole of its column.
+      await waitFor(() => {
+        expect(container.querySelector<SVGElement>("svg[style]")?.style.width).toMatch(/px$/);
+      });
+    } finally {
+      root.unmount();
+      container.remove();
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", acting);
+    }
+  });
+
   it("draws nothing outside a grid of the planning", () => {
     const { container } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">

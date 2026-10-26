@@ -374,7 +374,6 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
       // the environment and MAKEFLAGS, which then plays `--shard=2/2` of the paths (US-0590b).
       const environment = { ...process.env };
       delete environment.MAKEFLAGS;
-      delete environment.MFLAGS;
       delete environment.MAKELEVEL;
       const run = execFileSync(
         "make",

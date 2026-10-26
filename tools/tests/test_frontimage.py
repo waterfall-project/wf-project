@@ -235,13 +235,16 @@ def test_the_manifest_of_a_build_on_the_checkout_is_held_without_docker(
 def dry_run(target: str, tier: str, *variables: str) -> list[str]:
     """Return the commands make would run for a target in a tier, without running them.
 
-    The environment of the caller does not leak in: a test that wants E2E_BUILT or E2E_DEV_SERVER
-    passes it as a variable of make.
+    The environment of the caller does not leak in: a test that wants E2E_BUILT, E2E_DEV_SERVER or
+    SHARD passes it as a variable of make. MAKEFLAGS is that of a make that runs pytest and carries
+    its variables; MAKELEVEL is its depth. Only MAKEFLAGS is proven to change the dry run (the test
+    below); MAKELEVEL changes nothing of the output under --no-print-directory, so dropping it is
+    a hardening that no test can prove.
     """
     environment = {
         name: value
         for name, value in os.environ.items()
-        if name not in {"E2E_BUILT", "E2E_DEV_SERVER"}
+        if name not in {"E2E_BUILT", "E2E_DEV_SERVER", "SHARD", "MAKEFLAGS", "MAKELEVEL"}
     }
     result = subprocess.run(
         ["make", "--dry-run", "--no-print-directory", target, f"TIER={tier}", *variables],
@@ -314,6 +317,25 @@ def test_a_front_built_already_is_not_built_again(target: str) -> None:
     commands = dry_run(target, "full", "E2E_BUILT=1", *shard)
     assert not [command for command in commands if builds_the_front(command)]
     assert [command for command in commands if "playwright test" in command]
+
+
+@pytest.mark.requirement("WF-QUA-0010-A")
+@pytest.mark.parametrize("target", ["e2e", "check-front"])
+def test_the_dry_run_ignores_the_variables_of_a_make_that_runs_the_tests(
+    target: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Run under a make that exports SHARD (as the parts of the chain do) and its flags, a dry run
+    # would otherwise change its commands: the failure of front / tests (2/2), run 40255427902.
+    # SHARD is proven on e2e (it splits the Playwright run) and MAKEFLAGS on e2e too (E2E_BUILT=1
+    # there drops the build of the front). MAKELEVEL is set for the same make but cannot change the
+    # output under --no-print-directory: nothing here depends on it.
+    alone = dry_run(target, "full")
+    if target == "e2e":
+        assert any(builds_the_front(command) for command in alone)
+    monkeypatch.setenv("SHARD", "2/2")
+    monkeypatch.setenv("MAKEFLAGS", " -- E2E_BUILT=1")
+    monkeypatch.setenv("MAKELEVEL", "1")
+    assert dry_run(target, "full") == alone
 
 
 @pytest.mark.parametrize(
