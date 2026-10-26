@@ -471,8 +471,7 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     annonce le champ sans son refus (`reference-form.tsx`, `role-commands.tsx`,
     `user-dialogs.tsx`, `breakdown-commands.tsx`). Une réponse portée par un magasin externe — la
     tâche remise au suivi, `task-entry.tsx` — est sans objet : aucune transition ne la porte
-    (n° 18). Les tests relèvent l'état du geste au commit qui montre
-    la réponse (`atCommit`, `src/test/committed.ts`), et la description d'un champ refusé quand il
-    prend le focus (`atFocus`) ; `command.dom.test.tsx` et `cost-commands.dom.test.tsx` lancent une
-    commande courte pendant une action longue, et la courte dit sa réponse et n'est plus occupée
-    sans l'attendre. Aucun outil ne le tient : la revue le cherche.
+    (n° 18). Les tests relèvent l'état du geste au commit qui montre la réponse (`atCommit`,
+    `src/test/committed.ts`), et la description d'un champ refusé quand il prend le focus (`atFocus`) ;
+    `command.dom.test.tsx` et `cost-commands.dom.test.tsx` lancent une commande courte pendant une
+    action longue, et la courte dit sa réponse et n'est plus occupée sans l'attendre. Aucun outil ne le tient : la revue le cherche.

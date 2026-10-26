@@ -296,13 +296,13 @@ export function useRowCommand(
     const generation = list?.generation ?? 0;
     setBusy(true);
     void held(action()).then((outcome) => {
+      setBusy(false);
       if (outcome.kind === "done") {
         commands?.answer(outcome.data);
         commands?.say(said(outcome.data), { object: subject });
       } else {
         list?.report({ outcome, generation, names, target });
       }
-      setBusy(false);
     });
   };
   return [busy, run];

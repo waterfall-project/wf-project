@@ -195,11 +195,11 @@ function StartIdentitySync() {
     }
     setBusy(true);
     void held(startIdentitySync()).then((result) => {
+      setBusy(false);
       if (result.kind === "done") {
         track(result.data, { command: startIdentitySync });
       }
       setOutcome(result.kind === "done" ? undefined : result);
-      setBusy(false);
     });
   };
   return (

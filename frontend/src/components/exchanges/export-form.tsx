@@ -105,11 +105,11 @@ function OfferedExports({
     const command = () => requestFileExport(projectId, request);
     setBusy(true);
     void held(command()).then((result) => {
+      setBusy(false);
       if (result.kind === "done") {
         track(result.data, { command, subject: t(`enums.ExportRequest.kind.${kind}`) });
       }
       setOutcome(result.kind === "done" ? undefined : result);
-      setBusy(false);
     });
   };
   return (

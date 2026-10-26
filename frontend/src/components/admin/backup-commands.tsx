@@ -186,6 +186,7 @@ function StartBackupButton() {
         const generation = list?.generation ?? 0;
         setBusy(true);
         void held(startBackup()).then((outcome) => {
+          setBusy(false);
           if (outcome.kind === "done") {
             track(outcome.data, { command: startBackup });
             // The tracker notes the task handed over: the history has it once.
@@ -193,7 +194,6 @@ function StartBackupButton() {
           } else {
             list?.report({ outcome, generation, names: {}, target: "start" });
           }
-          setBusy(false);
         });
       }}
     >
@@ -285,6 +285,7 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
     const generation = list?.generation ?? 0;
     setBusy(true);
     void held(retainBackup(backup.backup_id, !retained)).then((answer) => {
+      setBusy(false);
       const outcome =
         answer.kind === "done" && answer.data.backup_id !== backup.backup_id
           ? ANOTHER_OBJECT
@@ -300,7 +301,6 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
       } else {
         list?.report({ outcome, generation, names: {}, target: `retain ${backup.backup_id}` });
       }
-      setBusy(false);
     });
   };
   return (
@@ -586,13 +586,13 @@ export function BackupDeposit() {
     setOutcome(undefined);
     setBusy(true);
     void deposit(file, held, setSending).then((result) => {
+      setBusy(false);
       setSending(undefined);
       if (result.kind === "done") {
         setUpload(result.data);
       } else {
         setOutcome(result);
       }
-      setBusy(false);
     });
   };
   const subject = upload === undefined ? undefined : deposited(upload);

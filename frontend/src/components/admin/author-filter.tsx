@@ -19,7 +19,7 @@
 
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useRef, useState } from "react";
+import { type SubmitEvent, useId, useState } from "react";
 
 import { findAccounts } from "@/api/actions/users";
 import type { Outcome } from "@/api/problem";
@@ -112,9 +112,9 @@ type Found = readonly NamedAuthor[];
 
 /**
  * The search of the accounts that may be chosen as the author of a column: a text sent to the server,
- * which finds the accounts on their names and address; the last search sent alone answers, an older
- * one arriving after it said nothing (défaut n° 1 de `typescript.md`). How many it found is said, a
- * refusal told by the catalogue of the codes of error.
+ * which finds the accounts on their names and address; one search at a time, the button busy till its
+ * answer (défaut n° 1 de `typescript.md`). How many it found is said, a refusal told by the
+ * catalogue of the codes of error.
  */
 function AuthorSearch({
   column,
@@ -131,23 +131,17 @@ function AuthorSearch({
   // Busy from the search sent last to its answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
-  // The search last sent: an answer to another is not shown.
-  const sent = useRef(0);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const search = text.trim();
     if (search === "") {
       return;
     }
-    sent.current += 1;
-    const mine = sent.current;
     setBusy(true);
     void findAccounts(search)
       .catch(rejected)
       .then((outcome) => {
-        if (mine !== sent.current) {
-          return;
-        }
+        setBusy(false);
         if (outcome.kind === "done") {
           setFailure(undefined);
           setTold(outcome.data.length);
@@ -156,7 +150,6 @@ function AuthorSearch({
           setTold(undefined);
           setFailure(outcome);
         }
-        setBusy(false);
       });
   };
   return (
