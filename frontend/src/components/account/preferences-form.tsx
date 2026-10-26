@@ -106,7 +106,12 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
     startTransition(async () => {
       // The language only when it changed: the API reports it to the identity provider (#877).
       const changed = chosen.language === read.language ? {} : { language: chosen.language };
-      setOutcome(await held(updateDisplay({ theme: chosen.theme, ...changed })));
+      const outcome = await held(updateDisplay({ theme: chosen.theme, ...changed }));
+      // In the transition too, which an update after an await is not by itself: the outcome is told
+      // in the commit that ends the request, never while the values are still held (#1484).
+      startTransition(() => {
+        setOutcome(outcome);
+      });
     });
   };
   return (

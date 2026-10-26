@@ -88,7 +88,11 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
         track(result.data, { command, subject: name });
         onClose();
       } else {
-        setOutcome(result);
+        // In the transition too, which an update after an await is not by itself: the refusal is
+        // told in the commit that ends the request, never while the press is held (#1484).
+        startTransition(() => {
+          setOutcome(result);
+        });
       }
     });
   };

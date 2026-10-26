@@ -13,6 +13,7 @@ import { useNavigationHold } from "@/components/shell/navigation-hold";
 import { SESSION_LOST_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import { example, fakeClient, type Problem } from "@/test/fixtures";
 
 import { Command } from "./command";
@@ -297,9 +298,18 @@ describe("the outcome of a command", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Modifier le planning" }));
+    // Whether the command was still busy in the commit that told the refusal: the request over,
+    // never while it holds a press (#1484).
+    const command = screen.getByRole("button", { name: "Modifier le planning" });
+    const busyWhenTold = atCommit(
+      container,
+      () => screen.queryByRole("alert") !== null,
+      () => command.getAttribute("aria-busy"),
+    );
+    await userEvent.click(command);
 
     const alert = await screen.findByRole("alert");
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(alert.textContent).toBe(
       "Seuls les contributeurs du projet peuvent le faire. " +
         "Condition non remplie\u00A0: être contributeur du projet.",

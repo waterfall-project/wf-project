@@ -211,7 +211,12 @@ export function UserCreation({
         if (answer.data.invitation_sent) {
           onClose();
         } else {
-          setUninvited(answer.data);
+          // In the transition too, which an update after an await is not by itself: the link is
+          // offered in the commit that ends the request, never while the dialog holds a press
+          // (#1484).
+          startTransition(() => {
+            setUninvited(answer.data);
+          });
         }
       } else if (!open.current) {
         list?.report({ outcome: answer, generation, names: {} });
@@ -220,9 +225,15 @@ export function UserCreation({
         if (told.refused.size > 0) {
           // Said at its fields: noted whole, the notice of the rest noting nothing more.
           noteRefusal(answer, { parts: [told.told] });
+          refuse(told.refused);
+          setOutcome(told.told);
+        } else {
+          // In the transition too: the refusal is told in the commit that ends the request (#1484).
+          startTransition(() => {
+            refuse(told.refused);
+            setOutcome(told.told);
+          });
         }
-        refuse(told.refused);
-        setOutcome(told.told);
       }
     });
   };

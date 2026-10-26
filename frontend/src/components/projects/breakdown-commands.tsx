@@ -514,8 +514,15 @@ function useSend(commands: Commands, opened: Opened) {
             // Said at its fields: noted whole, the notice of the rest noting nothing more.
             noteRefusal(answer, { subject: told.label, parts: [rest?.outcome] });
             onField(field);
+            setRefusal(rest);
+          } else {
+            // In the transition too, which an update after an await is not by itself: the refusal
+            // is told in the commit that ends the request, never while the dialog holds a press
+            // (#1484).
+            startTransition(() => {
+              setRefusal(rest);
+            });
           }
-          setRefusal(rest);
         } else {
           // Gone, or a deletion confirmed: everything is told above the grid, naming its element.
           commands.refuse(split(answer, sent, undefined).refusal);

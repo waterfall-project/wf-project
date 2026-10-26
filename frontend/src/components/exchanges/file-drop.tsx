@@ -94,14 +94,18 @@ export function FileDrop({
     setSending(file.name);
     startTransition(async () => {
       const result = await open({ kind: "ms_project_schedule" }, file);
-      setSending(undefined);
-      setProblem(undefined);
-      if (result.kind === "done") {
-        setSent(file.name);
-        setAnalysis(result.data.task?.task_id);
-      } else {
-        setOutcome(result);
-      }
+      // In the transition too, which an update after an await is not by itself: the answer is told
+      // in the commit that ends the request, never while a file dropped is told one is sent (#1484).
+      startTransition(() => {
+        setSending(undefined);
+        setProblem(undefined);
+        if (result.kind === "done") {
+          setSent(file.name);
+          setAnalysis(result.data.task?.task_id);
+        } else {
+          setOutcome(result);
+        }
+      });
     });
   };
   const drop = (event: DragEvent<HTMLElement>) => {

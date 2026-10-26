@@ -10,6 +10,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages } from "@/components/notices/message-history";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -105,8 +106,16 @@ describe("« Supprimer le risque »", () => {
     render(detail(UNCITED));
     await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
     const form = screen.getByRole("form", { name: "Supprimer le risque" });
+    // Whether the confirmation was still busy in the commit that told the refusal: the request over,
+    // never while it holds its cancellation (#1484).
+    const busyWhenTold = atCommit(
+      form,
+      () => within(form).queryByRole("alert") !== null,
+      () => form.getAttribute("aria-busy"),
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
     const refusal = await within(form).findByRole("alert");
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(refusal).toHaveTextContent(/risque cité par aucune révision marquée/);
     expect(screen.getByRole("form", { name: "Supprimer le risque" })).toBe(form);
     expect(router.push).not.toHaveBeenCalled();

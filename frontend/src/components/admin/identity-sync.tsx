@@ -194,11 +194,13 @@ function StartIdentitySync() {
     startTransition(async () => {
       const result = await held(startIdentitySync());
       if (result.kind === "done") {
-        setOutcome(undefined);
         track(result.data, { command: startIdentitySync });
-      } else {
-        setOutcome(result);
       }
+      // In the transition too, which an update after an await is not by itself: the outcome is told
+      // in the commit that ends the request, never while the press is held (#1484).
+      startTransition(() => {
+        setOutcome(result.kind === "done" ? undefined : result);
+      });
     });
   };
   return (

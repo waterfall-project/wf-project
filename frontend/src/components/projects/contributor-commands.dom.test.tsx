@@ -12,6 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -335,10 +336,19 @@ describe("the modification of the contributors of a project", () => {
     });
     render(list());
     const form = await modify();
+    // Whether the dialog was still busy in the commit that told the refusal: the request over,
+    // never while it holds a press (#1484).
+    const dialog = screen.getByRole("dialog");
+    const busyWhenTold = atCommit(
+      dialog,
+      () => within(dialog).queryByRole("alert") !== null,
+      () => dialog.getAttribute("aria-busy"),
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "Un projet garde au moins un chef de projet.",
     );
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(refresh).not.toHaveBeenCalled();
   });
 

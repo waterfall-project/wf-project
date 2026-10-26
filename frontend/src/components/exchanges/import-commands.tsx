@@ -134,7 +134,11 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
       if (result.kind === "done") {
         onClose();
       } else {
-        setOutcome(result);
+        // In the transition too, which an update after an await is not by itself: the refusal is
+        // told in the commit that ends the request, never while the press is held (#1484).
+        startTransition(() => {
+          setOutcome(result);
+        });
       }
     });
   };

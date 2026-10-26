@@ -12,6 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -419,8 +420,18 @@ describe("the work breakdown edited in its grid", () => {
     });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));
+    // Whether the dialog was still busy in the commit that told the refusal: the request over,
+    // never while it holds a press (#1484).
+    const opened = screen.getByRole("dialog");
+    const busyWhenTold = atCommit(
+      opened,
+      () => within(opened).queryByRole("alert") !== null,
+      () => opened.querySelector('button[type="submit"]')?.getAttribute("aria-busy") ?? null,
+    );
     const dialog = await enter("Études");
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    expect(busyWhenTold.stop()).toEqual(["false"]);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
       "L’état actuel ne permet pas cette opération. Condition non remplie : aucun traitement de fond en cours sur l’objet.",
     );
     expect(screen.getByRole("dialog")).toBe(dialog);

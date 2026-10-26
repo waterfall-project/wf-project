@@ -22,6 +22,7 @@ import {
   writes,
 } from "@/test/accounts";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -604,8 +605,17 @@ describe("the creation of a local account", () => {
     await userEvent.type(within(form).getByLabelText("Nom"), "Garnier");
     await userEvent.type(within(form).getByLabelText("Prénom"), "Léa");
     await userEvent.type(within(form).getByLabelText("Adresse électronique"), "l@example.com");
+    // Whether the dialog was still busy in the commit that offered the link: the request over,
+    // never while it holds a press (#1484).
+    const creation = screen.getByRole("dialog");
+    const busyWhenOffered = atCommit(
+      creation,
+      () => within(creation).queryByRole("button", { name: "Remettre le lien" }) !== null,
+      () => creation.getAttribute("aria-busy"),
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     const offer = await screen.findByRole("button", { name: "Remettre le lien" });
+    expect(busyWhenOffered.stop()).toEqual(["false"]);
     await waitFor(() => {
       expect(offer).toHaveFocus();
     });

@@ -95,7 +95,11 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
       if (result.kind === "done") {
         onDone(result.data);
       } else {
-        onRefused(result);
+        // In the transition too, which an update after an await is not by itself: the refusal is
+        // told in the commit that ends the request, never while the cancellation is held (#1484).
+        startTransition(() => {
+          onRefused(result);
+        });
       }
     });
   };

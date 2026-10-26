@@ -68,12 +68,17 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
     }
     startTransition(async () => {
       const result = await held(action());
-      setOutcome(result);
-      setDone(result.kind === "done" ? success : undefined);
-      if (result.kind === "done") {
-        form?.reset();
-        setFile(undefined);
-      }
+      // In the transition too, which an update after an await is not by itself: the outcome is told
+      // in the commit that ends the request, the fieldset no longer inactive — the choice of an
+      // image takes the focus a withdrawal gives it (#1484).
+      startTransition(() => {
+        setOutcome(result);
+        setDone(result.kind === "done" ? success : undefined);
+        if (result.kind === "done") {
+          form?.reset();
+          setFile(undefined);
+        }
+      });
     });
   };
   const submit = (event: SubmitEvent<HTMLFormElement>) => {

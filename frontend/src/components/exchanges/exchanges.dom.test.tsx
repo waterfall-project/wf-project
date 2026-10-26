@@ -14,6 +14,7 @@ import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
 import { tasksRegion } from "@/test/task-panel";
@@ -294,9 +295,17 @@ describe("the first step of an import", () => {
       within(form).getByLabelText("Fichier à importer"),
       new File(["x"], "couts.xlsx"),
     );
+    // Whether the deposit was still busy in the commit that told the refusal: the request over, never
+    // while it holds a press (#1484).
+    const busyWhenTold = atCommit(
+      form,
+      () => within(form).queryByRole("alert") !== null,
+      () => form.getAttribute("aria-busy"),
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
     await settled(form);
     expect(within(form).getByRole("alert")).toHaveTextContent(CATALOGUES.fr.errors.FILE_TOO_LARGE);
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(routes(client)).toEqual([UPLOAD]);
     expect(router.push).not.toHaveBeenCalled();
   });
@@ -433,6 +442,13 @@ describe("the report of an import", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    // Whether the confirmation was still busy in the commit that told the refusal: the request over, never
+    // while it holds a press (#1484).
+    const busyWhenTold = atCommit(
+      confirmation,
+      () => within(confirmation).queryByRole("alert") !== null,
+      () => confirmation.getAttribute("aria-busy"),
+    );
     await userEvent.click(
       within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
     );
@@ -440,6 +456,7 @@ describe("the report of an import", () => {
     expect(within(confirmation).getByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.STATE_FORBIDS_OPERATION,
     );
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(within(tasks()).queryByText(/Application d’un import/)).toBeNull();
   });
 
@@ -624,6 +641,13 @@ describe("the request of an export", () => {
         .getAllByRole("option")
         .map((option) => option.textContent),
     ).toEqual(["Devis", "Reste à engager"]);
+    // Whether the request was still busy in the commit that told the refusal: the request over, never
+    // while it holds a press (#1484).
+    const busyWhenTold = atCommit(
+      form,
+      () => within(form).queryByRole("alert") !== null,
+      () => form.getAttribute("aria-busy"),
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
     await settled(form);
     expect(client.calls.map((call) => call.body)).toEqual([
@@ -632,6 +656,7 @@ describe("the request of an export", () => {
     expect(within(form).getByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.PERMISSION_MISSING,
     );
+    expect(busyWhenTold.stop()).toEqual(["false"]);
   });
 
   it("holds a link clicked while the export is asked, and does not follow it when the server refuses it (#688)", async () => {

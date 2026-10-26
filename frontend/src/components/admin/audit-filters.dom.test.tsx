@@ -12,6 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { AccessRoleList, UserList } from "./account-lists";
@@ -160,10 +161,19 @@ describe("the filter of a table on the author of an audit column", () => {
       within(search).getByRole("searchbox", { name: "Chercher un compte pour « Modifié par »" }),
       "ines roux",
     );
-    await userEvent.click(within(search).getByRole("button", { name: "Chercher" }));
+    // Whether the search was still held in the commit that told the accounts found: the request
+    // over, never while its button is inactive (#1484).
+    const button = within(search).getByRole("button", { name: "Chercher" });
+    const heldWhenTold = atCommit(
+      search,
+      () => search.textContent.includes("compte trouvé"),
+      () => (button.hasAttribute("disabled") ? "held" : "free"),
+    );
+    await userEvent.click(button);
     expect((await screen.findByText(/^1 compte trouvé/)).textContent).toBe(
       "1 compte trouvé, à choisir dans « Modifié par ».",
     );
+    expect(heldWhenTold.stop()).toEqual(["free"]);
     expect(client.calls.find(({ route }) => route === "GET /users")?.query.toString()).toBe(
       "search=ines+roux&include_inactive=true&limit=20",
     );

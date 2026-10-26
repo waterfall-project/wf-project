@@ -187,11 +187,17 @@ function StartBackupButton() {
           const outcome = await held(startBackup());
           if (outcome.kind === "done") {
             track(outcome.data, { command: startBackup });
-            // The tracker notes the task handed over: the history has it once.
-            commands?.say(t("started"), { noted: false });
-          } else {
-            list?.report({ outcome, generation, names: {}, target: "start" });
           }
+          // In the transition too, which an update after an await is not by itself: the list tells
+          // the answer in the commit that ends the request, never while the press is held (#1484).
+          startTransition(() => {
+            if (outcome.kind === "done") {
+              // The tracker notes the task handed over: the history has it once.
+              commands?.say(t("started"), { noted: false });
+            } else {
+              list?.report({ outcome, generation, names: {}, target: "start" });
+            }
+          });
         });
       }}
     >
@@ -285,17 +291,21 @@ export function RetentionCell({ backup }: { readonly backup: Backup }) {
         answer.kind === "done" && answer.data.backup_id !== backup.backup_id
           ? ANOTHER_OBJECT
           : answer;
-      if (outcome.kind === "done") {
-        commands?.answer(outcome.data);
-        commands?.say(
-          t(outcome.data.is_retained ? "retainedSaid" : "releasedSaid", {
-            date: formatTimestamp(backup.taken_at, locale),
-          }),
-          { object: formatTimestamp(backup.taken_at, locale) },
-        );
-      } else {
-        list?.report({ outcome, generation, names: {}, target: `retain ${backup.backup_id}` });
-      }
+      // In the transition too, which an update after an await is not by itself: the list tells the
+      // answer in the commit that ends the request, never while the press is held (#1484).
+      startTransition(() => {
+        if (outcome.kind === "done") {
+          commands?.answer(outcome.data);
+          commands?.say(
+            t(outcome.data.is_retained ? "retainedSaid" : "releasedSaid", {
+              date: formatTimestamp(backup.taken_at, locale),
+            }),
+            { object: formatTimestamp(backup.taken_at, locale) },
+          );
+        } else {
+          list?.report({ outcome, generation, names: {}, target: `retain ${backup.backup_id}` });
+        }
+      });
     });
   };
   return (
@@ -578,12 +588,17 @@ export function BackupDeposit() {
     setOutcome(undefined);
     startTransition(async () => {
       const result = await deposit(file, held, setSending);
-      setSending(undefined);
-      if (result.kind === "done") {
-        setUpload(result.data);
-      } else {
-        setOutcome(result);
-      }
+      // In the transition too, which an update after an await is not by itself — the progress
+      // alone is told while the deposit runs: its end is told in the commit that ends the request,
+      // never while the choice of a file is held (#1484).
+      startTransition(() => {
+        setSending(undefined);
+        if (result.kind === "done") {
+          setUpload(result.data);
+        } else {
+          setOutcome(result);
+        }
+      });
     });
   };
   const subject = upload === undefined ? undefined : deposited(upload);

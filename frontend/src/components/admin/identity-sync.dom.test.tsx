@@ -10,6 +10,7 @@ import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
 
@@ -243,8 +244,17 @@ describe("the reading of the accounts", () => {
     async (answer, sentence) => {
       const client = serve({ [START]: answer });
       open(undefined);
-      await userEvent.click(screen.getByRole("button", { name: "Lire les comptes" }));
-      expect(within(section()).getByRole("alert").textContent).toContain(sentence);
+      // Whether the command was still busy in the commit that told the refusal: the request over,
+      // never while it holds a press (#1484).
+      const start = screen.getByRole("button", { name: "Lire les comptes" });
+      const busyWhenTold = atCommit(
+        section(),
+        () => within(section()).queryByRole("alert") !== null,
+        () => start.getAttribute("aria-busy"),
+      );
+      await userEvent.click(start);
+      expect((await within(section()).findByRole("alert")).textContent).toContain(sentence);
+      expect(busyWhenTold.stop()).toEqual(["false"]);
       expect(screen.queryByText("En attente")).toBeNull();
       expect(client.calls.map((call) => call.route)).toEqual([START]);
     },

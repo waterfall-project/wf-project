@@ -104,11 +104,13 @@ function OfferedExports({
     startTransition(async () => {
       const result = await held(command());
       if (result.kind === "done") {
-        setOutcome(undefined);
         track(result.data, { command, subject: t(`enums.ExportRequest.kind.${kind}`) });
-      } else {
-        setOutcome(result);
       }
+      // In the transition too, which an update after an await is not by itself: the answer is told
+      // in the commit that ends the request, never while the press is held (#1484).
+      startTransition(() => {
+        setOutcome(result.kind === "done" ? undefined : result);
+      });
     });
   };
   return (

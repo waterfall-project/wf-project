@@ -144,14 +144,18 @@ function AuthorSearch({
       if (mine !== sent.current) {
         return;
       }
-      if (outcome.kind === "done") {
-        setFailure(undefined);
-        setTold(outcome.data.length);
-        onFound(outcome.data);
-      } else {
-        setTold(undefined);
-        setFailure(outcome);
-      }
+      // In the transition too, which an update after an await is not by itself: what was found is
+      // told in the commit that ends the request, never while the search is still held (#1484).
+      startTransition(() => {
+        if (outcome.kind === "done") {
+          setFailure(undefined);
+          setTold(outcome.data.length);
+          onFound(outcome.data);
+        } else {
+          setTold(undefined);
+          setFailure(outcome);
+        }
+      });
     });
   };
   return (

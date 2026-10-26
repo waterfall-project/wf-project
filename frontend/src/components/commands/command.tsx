@@ -136,7 +136,12 @@ export function Command({
       return;
     }
     startTransition(async () => {
-      setOutcome(await held(action()));
+      const outcome = await held(action());
+      // In the transition too, which an update after an await is not by itself: the outcome is told
+      // in the commit that ends the request, never while the press is held (#1484).
+      startTransition(() => {
+        setOutcome(outcome);
+      });
     });
   };
   return (

@@ -222,14 +222,21 @@ export function CreateRole() {
         startTransition(async () => {
           const outcome = await createAccessRole({ label: asked, permissions: [] }).catch(rejected);
           if (outcome.kind === "done") {
-            setLabel((typed) => (typed === asked ? "" : typed));
-            say?.(t("created", { name: outcome.data.label }));
+            // In the transition too, which an update after an await is not by itself: the role is
+            // told created in the commit that ends the request, never while the press is held
+            // (#1484).
+            startTransition(() => {
+              setLabel((typed) => (typed === asked ? "" : typed));
+              say?.(t("created", { name: outcome.data.label }));
+            });
             return;
           }
           const at = "problem" in outcome ? outcome.problem.fields : undefined;
           const own = at?.find(({ pointer }) => pointer === "/label");
           if (own === undefined) {
-            list?.report({ outcome, generation, names: {} });
+            startTransition(() => {
+              list?.report({ outcome, generation, names: {} });
+            });
             return;
           }
           // Said at its field, out of a notice: noted in the history of the messages.
