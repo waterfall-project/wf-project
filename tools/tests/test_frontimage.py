@@ -254,7 +254,7 @@ def dry_run(target: str, tier: str, *variables: str) -> list[str]:
     return result.stdout.splitlines()
 
 
-BUILD = re.compile(r"pnpm build(\s|$)")
+BUILD = re.compile(r"pnpm build(?![\w:-])")
 
 
 def builds_the_front(command: str) -> bool:
@@ -267,7 +267,11 @@ def builds_the_front(command: str) -> bool:
     [
         ("cd frontend && pnpm build", True),
         ("cd frontend && pnpm build --debug", True),
+        ("cd frontend && pnpm build; echo done", True),
+        ("cd frontend && pnpm build&&pnpm test", True),
+        ("(cd frontend && pnpm build)", True),
         ("cd frontend && pnpm build:analyze", False),
+        ("cd frontend && pnpm build-all", False),
         ("cd frontend && pnpm lint", False),
     ],
 )

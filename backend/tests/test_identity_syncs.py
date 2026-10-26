@@ -139,20 +139,24 @@ def test_a_reading_is_asked_for_under_the_permission_to_change_the_accounts(
     )
 
 
-@pytest.mark.requirement("WF-ADM-0070-A")
-def test_the_report_of_two_readings_ended_together_is_always_the_same_one(
-    database: Database, queue: TaskQueue
+@pytest.mark.parametrize("descending", [False, True])
+def test_the_report_of_two_readings_ended_together_is_that_of_the_greater_task(
+    database: Database, queue: TaskQueue, descending: bool
 ) -> None:
-    # « Le dernier compte administrateur, retiré de l'annuaire, reste actif et la synchronisation
-    # le signale. » : the report that tells it is the same each time it is read, whatever the
-    # order the rows are kept in; of two readings ended at the same instant, the greater task wins.
+    # No requirement: a detail of the choice. The reports are kept in the ascending order of their
+    # task, then in the descending one: whether a read goes forward or backward in the rows, one of
+    # the two orders gives the smaller task, were the order they are stored in to decide.
     kept = account(database, "Bernard", "Dominique", origin="directory")
-    tasks = [reported(database, queue, NIGHT, count, kept) for count in (1, 2, 3)]
-    for _ in range(3):
+    tasks = sorted(deposit(database, queue) for _ in range(3))
+    stored = tasks[::-1] if descending else tasks
+    for count, task_id in enumerate(stored, start=1):
         with database.transaction() as session:
-            report = latest_report(session)
-        assert report is not None
-        assert report.task_id == max(tasks)
+            skipped: list[Skipped] = [SkippedAccount(kept, "LAST_ADMINISTRATOR")]
+            record_report(session, SyncReport(task_id, NIGHT, count, 1, 0, 2, skipped, []))
+    with database.transaction() as session:
+        report = latest_report(session)
+    assert report is not None
+    assert report.task_id == tasks[-1]
 
 
 @pytest.mark.requirement("WF-ADM-0070-A")
