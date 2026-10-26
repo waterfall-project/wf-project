@@ -223,12 +223,32 @@ describe("the grid of the actual costs", () => {
     await sortBy("Périmètre suivi", "sort_by=in_tracked_scope&sort_order=asc");
     await sortBy("Motif de l’exclusion", "sort_by=excluded_reason&sort_order=asc");
     await sortBy("Fournisseur", "sort_by=passthrough.Fournisseur&sort_order=asc");
+    // A column kept is named by the file: one with an accent and an apostrophe is encoded in the
+    // address. The example, with "Texte de commande" renamed in the meta and in every line.
+    const OLD = "Texte de commande";
+    const NAME = "Élément d'OTP";
+    const list = listOf("actual_costs");
+    const renamed: CostRows = {
+      items: list.items.map((line) =>
+        costRow({
+          ...line,
+          passthrough: Object.fromEntries(
+            Object.entries(line.passthrough ?? {}).map(([key, value]) => [
+              key === OLD ? NAME : key,
+              value,
+            ]),
+          ),
+        }),
+      ),
+      totals: list.totals,
+      kept: list.meta.passthrough_columns.map((column) => (column === OLD ? NAME : column)),
+    };
+    rerender(costsGrid(renamed));
+    await sortBy(NAME, "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=asc");
     // Sorted ascending by a column kept, the address asks it descending.
-    const ascending = { column: "passthrough.Texte de commande", order: "asc" } as const;
-    rerender(
-      costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined, size: undefined }),
-    );
-    await sortBy("Texte de commande", "sort_by=passthrough.Texte+de+commande&sort_order=desc");
+    const ascending = { column: `passthrough.${NAME}`, order: "asc" } as const;
+    rerender(costsGrid(renamed, { sort: ascending, search: undefined, size: undefined }));
+    await sortBy(NAME, "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=desc");
   });
 
   it("is named and headed in English too", () => {
