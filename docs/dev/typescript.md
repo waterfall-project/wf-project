@@ -465,7 +465,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     transition imbriquée n'y vaut rien : React 19 rattache toutes les actions asynchrones en cours
     à une même voie (`currentEntangledLane`), et une transition imbriquée ne s'engage qu'une fois
     toutes réglées ; la réponse d'une commande courte attendrait une longue — un refus de
-    désactivation, une modification de la liste en route. Le refus dit à un champ qui prend le
+    désactivation, une modification de la liste en route. Sans transition, la commande en ligne ne
+    retient pas non plus l'écran quitté par « Précédent » (vercel/next.js#99612, `held.ts`) :
+    l'écran d'arrivée s'affiche aussitôt, l'écriture encore en route, et son refus est dit par la
+    barre de la coquille (#863, `shell.spec.ts`) ; la retenue, et `away`, ne valent plus que pour
+    un dialogue modal. Le refus dit à un champ qui prend le
     focus se pose avec la réponse, et le focus passe dans un effet, après le commit qui pose le
     refus : donné dans la foulée, il arrive avant la description du champ, et un lecteur d'écran
     annonce le champ sans son refus (`reference-form.tsx`, `role-commands.tsx`,

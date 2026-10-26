@@ -24,7 +24,7 @@
  * the bar does not say twice. One refused before its release was told where it was made, and is not
  * told again — save when its screen is `away` as the refusal arrives: left by « Précédent » or
  * « Suivant » for another path, and shown until the write answers, the router of Next waiting for it
- * (`useHeldWrites`), it goes with what tells the refusal.
+ * when the write is awaited in a transition (`useHeldWrites`), it goes with what tells the refusal.
  *
  * Each refusal the bar tells is kept with what the write answered — its outcome, when it gave one —
  * and the screen it was made on, for the bar to note it in the history of the messages

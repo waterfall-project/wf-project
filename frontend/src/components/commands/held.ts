@@ -39,9 +39,11 @@ import { rejected } from "./rejection";
  * where 16.3 applied it a microtask later, outside of it; and React gives a transition asked for
  * while an async action is pending the lane of that action (`requestTransitionLane`, the
  * `currentEntangledLane` of `react-dom`), which commits only once it settles — a write awaited in
- * `startTransition(async …)`, a dialog's (#1484). The screen left stays shown meanwhile, and what
- * would tell a refusal goes with it, unsaid: a write refused while its screen is left that way — made
- * before the traversal or after it — is told by the bar whatever `told` says (`away`). Brought back
+ * `startTransition(async …)`, a modal dialog's (#1484). The screen left stays shown meanwhile, and
+ * what would tell a refusal goes with it, unsaid: a write refused while its screen is left that way —
+ * made before the traversal or after it — is told by the bar whatever `told` says (`away`). A command
+ * in the page holds its gesture by a local state, no transition (#1484): its screen goes at once, and
+ * its write, released still under way, is told by the bar once refused. Brought back
  * to its path by « Suivant » or « Précédent » before the refusal, the screen tells it itself, the bar
  * nothing. This holds as long as the router keeps that order, a behaviour of Next that may change —
  * possibly a defect of it, a traversal waiting for an action it does not depend on.
