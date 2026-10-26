@@ -20,7 +20,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { IndicatorSettings, RiskSettings } from "./settings-forms";
+import { CompanySettings, IndicatorSettings, RiskSettings } from "./settings-forms";
 
 type ReferenceSettings = components["schemas"]["ReferenceSettings"];
 
@@ -323,6 +323,62 @@ describe("the form of the risk matrix", () => {
       risk_matrix: { probability_bounds: ["0.1", "0.25", "0.5"] },
       lock_version: 2,
     });
+  });
+});
+
+describe("the form of the name of the company", () => {
+  /** Open the form of the name, and give it back. */
+  async function openCompany(): Promise<HTMLElement> {
+    render(inFrench(<CompanySettings settings={witness} />));
+    await userEvent.click(screen.getByRole("button", { name: "Modifier le nom de l’entreprise" }));
+    return screen.getByRole("dialog", { name: "Modifier le nom de l’entreprise" });
+  }
+
+  it("reads the name, modifies it, sends it alone with the version read, and shows the answer in place of the reading", async () => {
+    const client = serve({ [UPDATE]: "reference_settings_company_updated" });
+    const form = await openCompany();
+    const name = within(form).getByRole("textbox", { name: /Nom de l’entreprise/ });
+    expect(name).toHaveValue("Delmas Automatismes");
+    await retype(name, "Delmas Automatismes Industriels");
+    await save(form);
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    expect(client.calls.map(({ body }) => body)).toEqual([
+      { company_name: "Delmas Automatismes Industriels", lock_version: 1 },
+    ]);
+    expect(said()).toHaveTextContent("Nom de l’entreprise enregistré.");
+    expect(screen.getByText("Delmas Automatismes Industriels")).toBeInTheDocument();
+  });
+
+  it("says at its field the empty name the server refuses, and writes nothing", async () => {
+    serve({
+      [UPDATE]: {
+        problem: example("reference_settings_company_refused") as Problem & { status: 422 },
+      },
+    });
+    const form = await openCompany();
+    // A blank name passes the form's own check; the server judges it.
+    await retype(within(form).getByRole("textbox", { name: /Nom de l’entreprise/ }), " ");
+    await save(form);
+    const name = within(form).getByRole("textbox", { name: /Nom de l’entreprise/ });
+    await vi.waitFor(() => {
+      expect(name).toHaveAttribute("aria-invalid", "true");
+    });
+    expect(within(form).queryByRole("alert")).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(screen.getByText("Delmas Automatismes")).toBeInTheDocument();
+  });
+
+  it("tells under the form the permission the session lacks, which the server names", async () => {
+    serve({
+      [UPDATE]: {
+        problem: example("reference_settings_permission_missing") as Problem & { status: 403 },
+      },
+    });
+    const form = await openCompany();
+    await save(form);
+    expect(await within(form).findByRole("alert")).toHaveTextContent("Permission requise");
   });
 });
 

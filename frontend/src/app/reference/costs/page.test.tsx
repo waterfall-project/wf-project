@@ -173,6 +173,25 @@ describe("the types of the natures the page hands the form of a category", () =>
   });
 });
 
+describe("the name of the company beside the currency", () => {
+  it("is read with the command that modifies it by a session that holds cost_settings.write", async () => {
+    const page = await costsAt();
+    expect(page).toContain("Delmas Automatismes");
+    expect(page).toContain("Modifier le nom de l’entreprise");
+  });
+
+  it("is read without any command to modify it by a session that does not hold cost_settings.write", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /me": "me_estimator",
+      [TYPES]: "cost_types_reader",
+    };
+    const page = await costsAt();
+    expect(page).toContain("Delmas Automatismes");
+    expect(page).not.toContain("Modifier le nom de l’entreprise");
+  });
+});
+
 describe("the layout of the settings of the costs", () => {
   it("stacks the natures, the categories and the hourly rates in a page that scrolls, as the settings of the resources do", async () => {
     const page = await costsAt();

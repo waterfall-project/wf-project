@@ -763,7 +763,7 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 
 ## US-0600 — Le nom de l'entreprise utilisatrice
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : `getReferenceSettings`, `updateReferenceSettings`
 - **issue** : #1314

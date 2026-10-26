@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the costs (FBS-3.1, US-0250), outside any project: the currency of the
- * installation, every amount expressed in it (WF-REF-0140); then, stacked one under the other in a
+ * installation, every amount expressed in it (WF-REF-0140), and beside it the name of the company the
+ * exported files bear (WF-EXP-0020), modified where the session may modify the cost settings; then, stacked one under the other in a
  * page that scrolls, as the settings of the resources are (US-0570, #1044), the natures and the
  * categories of cost (FBS-3.1.1), two dense grids searched, filtered, sorted and paged by the
  * server, as the address asks under the names of each grid (#510), and the grid of the hourly rates
@@ -30,6 +31,7 @@ import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { components } from "@/api/generated/schema";
 import { readEveryPage } from "@/api/every-page";
 import { type ExpectedRefusal, readOrFail, type ReadOrRefused, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
@@ -85,6 +87,7 @@ import {
 } from "@/components/reference/rate-columns";
 import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid";
 import { InactiveSwitch } from "@/components/reference/reference-filters";
+import { CompanyName, CompanySettings } from "@/components/reference/settings-forms";
 import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
@@ -95,6 +98,8 @@ import { type Permission, requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 import { readReferenceSettings } from "../settings";
+
+type ReferenceSettings = components["schemas"]["ReferenceSettings"];
 
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -265,11 +270,11 @@ async function readCosts(
  * nothing of what is written.
  */
 function CostsHeader({
-  currency,
+  settings,
   inactive,
   writes,
 }: {
-  readonly currency: string;
+  readonly settings: ReferenceSettings;
   readonly inactive: boolean | undefined;
   /** Whether the session may modify the cost settings, and its commands write. */
   readonly writes: boolean;
@@ -281,12 +286,17 @@ function CostsHeader({
         title={t("functions.costSettings")}
         icon={FUNCTION_ICONS.cost_settings}
         density={FUNCTION_DENSITY.cost_settings}
-        subtitle={t("reference.currency", { currency })}
+        subtitle={t("reference.currency", { currency: settings.currency_code })}
         actions={
           inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
         }
       />
       {writes ? <MockupNotice /> : null}
+      {writes ? (
+        <CompanySettings settings={settings} />
+      ) : (
+        <CompanyName name={settings.company_name} />
+      )}
     </>
   );
 }
@@ -354,7 +364,7 @@ export default async function CostSettingsPage({
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <PendingAddress>
         <CostsHeader
-          currency={settings.currency_code}
+          settings={settings}
           inactive={readsInactive ? queries.inactive.include_inactive === true : undefined}
           writes={editable}
         />

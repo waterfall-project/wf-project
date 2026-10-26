@@ -7,7 +7,7 @@
  * `updateReferenceObject`, `setActivation`); a calendar designated by default
  * (`designateDefaultCalendar`); the constants the units of duration convert by (`setDurationUnits`);
  * the risk matrix, or the thresholds of the indices and the delay
- * between two reviews, written (`updateReferenceSettings`) —: the screen asks the server of Next, which calls the API (§4.3.1),
+ * between two reviews, or the name of the company, written (`updateReferenceSettings`) —: the screen asks the server of Next, which calls the API (§4.3.1),
  * and gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). Nothing is
  * deleted (WF-REF-0010).
  */
@@ -294,6 +294,15 @@ export type IndicatorWrite = Pick<
 > & { readonly risk_matrix?: never };
 
 /**
+ * What the screen of the cost settings writes: the name of the company alone, from the version read
+ * (WF-EXP-0020) — never the matrix nor the thresholds, which the type refuses.
+ */
+export type CompanyWrite = Pick<
+  Required<Schemas["ReferenceSettingsWrite"]>,
+  "company_name" | "lock_version"
+> & { readonly risk_matrix?: never; readonly index_thresholds?: never };
+
+/**
  * Write the settings of one screen of the reference data from the version read — the risk matrix
  * (WF-REF-0160), or the thresholds of the indices and the delay between two reviews (WF-REF-0170,
  * WF-REF-0180) —, never the fields of the other screen, which another permission guards
@@ -301,7 +310,7 @@ export type IndicatorWrite = Pick<
  * currency (WF-REF-0140) and the default language of the installation are not written here.
  */
 export async function updateReferenceSettings(
-  write: RiskMatrixWrite | IndicatorWrite,
+  write: RiskMatrixWrite | IndicatorWrite | CompanyWrite,
 ): Promise<Outcome<Schemas["ReferenceSettings"]>> {
   return readAnew(await decode(() => serverClient().PATCH("/reference/settings", { body: write })));
 }
