@@ -1,0 +1,17 @@
+{
+  "summary": "Un sous-projet créé, ou les essais et mise en service recodés, sous « synthèse », un nom que porte déjà l'onglet de synthèse du fichier de reste à engager, sans égard à la casse : refusé, le code désigné par son motif, le nom réservé nommé tel que Waterfall l'écrit, que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0050).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "SUBPROJECT_CODE_INVALID",
+        "params": {
+          "reserved_name": "Synthèse"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001545"
+  }
+}
