@@ -1459,6 +1459,15 @@ class ReferenceSettings(ContractModel):
             pattern="^[A-Z]{3}$",
         ),
     ]
+    company_name: Annotated[
+        str,
+        Field(
+            description="Le nom de l'entreprise utilisatrice, saisi à l'installation et modifiable ensuite, que portent les fichiers exportés (WF-EXP-0020) : de 1 à 200 caractères, jamais blanc.",
+            max_length=200,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
     default_language: Language
     risk_matrix: RiskMatrixSettings
     index_thresholds: IndexThresholds
@@ -1467,6 +1476,15 @@ class ReferenceSettings(ContractModel):
 
 
 class ReferenceSettingsWrite(ContractModel):
+    company_name: Annotated[
+        str | None,
+        Field(
+            description="Le nom de l'entreprise utilisatrice (WF-EXP-0020), sous `cost_settings.write`, à côté de la devise. Il est obligatoire : absent, il reste tel qu'il est, mais un nom vide est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par `VALUE_REQUIRED`, et un nom de plus de 200 caractères par `VALUE_TOO_LONG` ; un nom fait seulement de blancs, comme tout libellé, par `VALIDATION_FAILED` au même pointeur.",
+            max_length=200,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ] = None
     risk_matrix: RiskMatrixSettings | None = None
     index_thresholds: IndexThresholds | None = None
     max_weeks_between_reviews: Annotated[
