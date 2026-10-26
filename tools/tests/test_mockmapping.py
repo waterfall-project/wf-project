@@ -167,6 +167,7 @@ def test_a_new_installation_has_an_empty_mapping_missing_the_four_required_colum
 # --- The rule of doubles -------------------------------------------------------------------------
 
 
+@pytest.mark.requirement("WF-REF-0190-A")
 def test_the_refusal_of_a_double_names_the_label_doubled_and_the_one_it_doubles() -> None:
     # The write the refusal answers: the witness's mapping, the element of the WBS kept as well.
     witness = fixture("actual_cost_mapping")
@@ -188,12 +189,14 @@ def test_the_refusal_of_a_double_names_the_label_doubled_and_the_one_it_doubles(
     assert "DUPLICATE_COLUMN_LABEL" in _schemas("../common.yaml")["ErrorCode"]["enum"]
 
 
+@pytest.mark.requirement("WF-REF-0190-A")
 def test_labels_compare_without_regard_to_case_accents_or_spaces_at_the_ends() -> None:
     assert normalized("  NOM MATRICULE ") == normalized("Nom Matricule")
     assert normalized("Élément d'OTP") == normalized("elément d'otp")
     assert normalized("Nom Matricule") != normalized("Nom  Matricule")
 
 
+@pytest.mark.requirement("WF-REF-0190-A")
 def test_the_bounds_of_a_label_and_of_its_lists_are_those_of_the_conception() -> None:
     schemas = _schemas("reference.yaml")
     label = schemas["ActualCostColumnLabel"]
@@ -301,7 +304,14 @@ def test_no_example_names_a_wbs_element_with_the_former_prefix() -> None:
     former = re.compile(r"\bWF\.[A-Z]")
     for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
         assert not former.search(path.read_text(encoding="utf-8")), path.name
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_the_analysed_import_names_the_element_of_the_subproject_of_the_control_station() -> None:
+    # The summary says the credit note's element now carries the code of the project, a slash and
+    # the code of the subproject of the control station, as the generator forms it.
+    line = next(line for line in mockcosts.lines() if line.code == "SP-CMD")
     summary = json.loads(
         (mockwitness.FIXTURES / "import_actual_costs_analysed.json").read_text(encoding="utf-8")
     )["summary"]
-    assert "PRJ-001/SP-CMD" in summary
+    assert mockcosts.wbs_element(line) in summary

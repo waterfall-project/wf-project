@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from wftools.mockwitness import COST_IMPORTS, Event
+from wftools.mockwitness import COST_IMPORTS, Event, fixture
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,7 +141,8 @@ subproject part, as their line 527 has none — its payment delay of thirty days
 disbursement, not the date of the document (decision of the author, review of EP-02/L25) —; and
 the screens of the control station, imputed to its subproject."""
 
-PASSTHROUGH = ("Fournisseur", "Texte de commande")
-"""The columns of the file the imports keep, in the order the mapping of the extraction declares
-them (``actual_cost_mapping``, WF-REF-0190, WF-CRE-0010). The element of the work breakdown
-structure is a column read: it is not kept as well, its label would double its own (EP-16)."""
+PASSTHROUGH: tuple[str, ...] = tuple(fixture("actual_cost_mapping")["kept_columns"])
+"""The columns of the file the imports keep, read from the mapping of the extraction the witness
+declares, in its order (``actual_cost_mapping``, WF-REF-0190, WF-CRE-0010). The element of the
+work breakdown structure is a column read: it is not kept as well, its label would double its own
+(EP-16)."""
