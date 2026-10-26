@@ -654,6 +654,22 @@ et ses exemples.
     critique, sans qu'un test perde une assertion ; aucun gain n'est promis.
   - Décisions écartées : une abstraction partagée pour la transition (avant l'audit) ;
     `useEffect` ou une écriture pendant le rendu pour la molette ; fermer #1485 et #1487 sans suite.
+- **US-0590e, la stabilité d'un parcours sous charge** (#1499 ; décision de l'auteur du 2026-10-26 :
+  la stabilité des tests relève d'EP-16, jamais d'EP-17). `shell.spec.ts:120` (« the menu of the
+  account leads to the pages of the account ») reçoit parfois `""` à `toHaveTitle("Changer l’avatar —
+  Waterfall")` (l. 137), alors que le `h1` de la même page a déjà passé son assertion. Il passe seul
+  et n'a jamais été reproduit en file ; relevé par le palier complet local d'US-0590d/L3. Un lot,
+  après US-0610/L2 et avant US-0620. Il commence par reproduire (charge, nombre de workers), avant
+  tout correctif, et dit sa cause dans la pull request. Le correctif tombe où la cause est — le
+  test, l'environnement ou le code de production —, sans attente allongée, `retries`, `fixme` ni
+  seuil baissé : il attend la condition que le titre suit, pas plus de temps. Pistes à départager par
+  la reproduction, aucune n'est posée comme cause : (a) la métadonnée que Next diffuse en flux après
+  une navigation côté client (`generateMetadata` de la page de l'avatar passe par `screenMetadata`),
+  qui arrive après le `h1` sous charge ; (b) un titre réellement perdu, défaut du produit ; (c) la
+  saturation d'un `next start` partagé, de la classe de `context.spec.ts:24`. À relire à la version
+  montée : `node_modules/next/dist/docs/` (`generate-metadata`, `streaming`, `htmlLimitedBots`).
+  Part détachée d'US-0590, comme US-0590b, c et d : US-0590 reste `fini`, le lot ne la rouvre que
+  par sa lettre. Écarté : le report vers EP-17, que la décision du 2026-10-26 interdit.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
@@ -664,7 +680,9 @@ et ses exemples.
    Gantt la rejetait trois fois de suite —, sans attendre trois paliers complets ; **US-0590c**
    ensuite, la montée de Next en 16.4 sur le front construit (décision de l'auteur du 2026-10-25,
    qui inverse l'ordre de US-0590b et US-0590c) ; **US-0590d** après US-0590c et US-0670/L1, avant
-   les lots de contrat (le durcissement restant des tests, décision de l'auteur du 2026-10-26).
+   les lots de contrat (le durcissement restant des tests, décision de l'auteur du 2026-10-26) ;
+   **US-0590e** après US-0610/L2 et avant US-0620 (la stabilité d'un parcours sous charge, #1499,
+   décision de l'auteur du 2026-10-26).
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
    EP-16), quand l'auteur peut la relire.
@@ -724,8 +742,12 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   l'environnement ; `harness.test.ts` ne retire plus `MFLAGS` ; le commentaire du test de
   `latest_report` dit que seul le cas croissant tombe sûrement ;
 - propre à l'US (US-0590d) : les 26 fichiers de `frontend/src` à `startTransition(async` sont audités,
-  chacun « corrigé » ou « sans objet » avec sa raison ; une mise à jour d'après un `await` y est
-  posée dans la transition, un test relève l'état au commit qui la montre, et
+  chacun « corrigé » ou « sans objet » avec sa raison ; une mise à jour d'après un `await` est posée
+  dans la transition imbriquée quand le geste est un dialogue modal, ou, pour une commande en ligne
+  qui peut tourner en même temps qu'une autre, tenue par un état « occupé » local levé dans la même
+  mise à jour que la réponse (écart : décision de l'auteur du 2026-10-26, option B de #1491 — React 19
+  fait attendre une transition imbriquée jusqu'à la fin de toutes les actions asynchrones de la
+  page ; reformulation de #1498) ; un test relève l'état au commit qui la montre, et
   `docs/dev/typescript.md` dit le défaut ;
 - propre à l'US (US-0590d) : la durée par étape de `service / paths` et des parts de `e2e / paths`
   est relevée dans la pull request ; une étape qui dépasse 10 % du chemin critique est abrégée sans
@@ -780,6 +802,37 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   `avatar-form.tsx`, `preferences-form.tsx`. US-0590c, US-0590d/L1 et L2 fusionnés, l'US est finie.
 
 **Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
+
+---
+
+## US-0590e — La stabilité d'un parcours sous charge
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1505
+
+**En tant que** développeur, **je veux** que `shell.spec.ts:120` ne reçoive plus un titre vide sous
+charge, **afin que** la file de fusion ne rejette plus un lot sur un échec qui disparaît au rejeu
+(#1499).
+
+**Critères d'acceptation.**
+
+- propre à l'US : la cause du titre vide est écrite dans la pull request, après une reproduction qui
+  la montre — la charge, le nombre de workers, le test qui échoue —, avant tout correctif ;
+- propre à l'US : un test échoue sans le correctif et passe avec ; le test ou le code de production
+  est corrigé à sa cause, et la pull request dit lequel des trois (test, environnement, production)
+  la porte ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front TIER=full`),
+  à quatre workers, voient `shell.spec.ts:120` vert, et la file de fusion verte du premier coup ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot, comme US-0590b, c et d) ; US-0590 reste `fini`.
+- Voir la conception, « Le harnais (US-0590) ».
+
+**Hors périmètre.** #1500 (deux mineurs de rédaction de `docs/dev/typescript.md`), qui se corrige
+avec le prochain lot qui touche ce fichier ; #1230 : EP-17.
 
 ---
 
