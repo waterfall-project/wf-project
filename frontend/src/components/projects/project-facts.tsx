@@ -3,12 +3,13 @@
 /**
  * What the screens of a project say of it, as the API reads it (WF-PRJ-0080): on its page, its
  * code, its state by its badge — its word, its icon and its colour —, the date its order was received and its description; on its
- * settings, what its form modifies (EP-02/L44a): its label, its code, the date its order was
+ * settings, what its form modifies (EP-02/L44a): its label, its code, its client, the date its order was
  * received, its description, its inflation rate and its probability of winning, formatted from the
  * exact decimal of the contract. A value the project does not have yet is said to be missing, never invented.
  * An icon before each fact, which a screen reader leaves out.
  */
 import {
+  Building2,
   CalendarCheck,
   FileText,
   FolderOpen,
@@ -104,6 +105,9 @@ export function SettingsFacts({ project }: { readonly project: Project }) {
       </Fact>
       <Fact icon={Hash} term={t("code")}>
         {project.code ?? t("missing")}
+      </Fact>
+      <Fact icon={Building2} term={t("client")}>
+        {project.client ?? t("missing")}
       </Fact>
       <OrderAndDescription project={project} />
       <Fact icon={Percent} term={t("inflationRate")}>

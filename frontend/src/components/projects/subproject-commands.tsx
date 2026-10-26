@@ -81,8 +81,8 @@ import { functionHref, functionOf } from "@/navigation/functions";
 import { leadsToEstimate } from "./estimate-lead";
 import type { Subproject } from "./settings-grids";
 
-/** The longest code and label of a sub-project the contract takes. */
-const CODE_LENGTH = 50;
+/** The longest code and label of a sub-project the contract takes: a code names a tab (WF-PRJ-0050). */
+const CODE_LENGTH = 31;
 const LABEL_LENGTH = 300;
 
 /** A command of a row pressed — its form or its confirmation —, and what opened it. */

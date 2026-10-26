@@ -430,6 +430,29 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says why a code cannot name the tab of a sub-project: the characters it bears, or its reserved name [WF-PRJ-0050-A]", () => {
+    // La création d'un sous-projet de code « SP/01 » ou « Synthèse » est refusée.
+    const forbidden = example("subproject_code_invalid") as {
+      fields: NonNullable<ProblemText["fields"]>;
+    };
+    expect(say({ code: "SUBPROJECT_CODE_INVALID", fields: forbidden.fields }, "fr")).toBe(
+      "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00A0: /.",
+    );
+    const reserved: ProblemText = {
+      code: "SUBPROJECT_CODE_INVALID",
+      params: { reserved_name: "synthèse" },
+    };
+    expect(say(reserved, "fr")).toMatch(/ «\u00A0synthèse\u00A0» est un nom réservé/);
+    expect(say(reserved, "en")).toMatch(/ “synthèse” is a reserved name/);
+    // Neither a list of characters that is empty, nor a name that is no text, says anything.
+    expect(
+      say(
+        { code: "SUBPROJECT_CODE_INVALID", params: { forbidden_characters: [], reserved_name: 3 } },
+        "en",
+      ),
+    ).toBe("This code cannot name the tab of the subproject in the estimate-to-complete file.");
+  });
+
   it("says the minimum a value falls short of", () => {
     // The retention of the copies outside the platform, at least that of the platform (#488).
     const problem: ProblemText = { code: "VALUE_OUT_OF_RANGE", params: { minimum: 7 } };

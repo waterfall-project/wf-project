@@ -182,6 +182,10 @@ describe("the creation and the modification of a sub-project", () => {
     const form = screen.getByRole("dialog", { name: "Modifier « SP-ESS »" });
     const label = within(form).getByRole("textbox", { name: "Libellé" });
     expect(label).toHaveValue("Essais et mise en service");
+    expect(within(form).getByRole("textbox", { name: "Code ERP" })).toHaveAttribute(
+      "maxlength",
+      "31",
+    );
     await userEvent.clear(label);
     await userEvent.type(label, "Essais, mise en service et réception");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
@@ -364,6 +368,48 @@ describe("the creation and the modification of a sub-project", () => {
     );
     expect(within(form).queryByRole("alert")).toBeNull();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("bounds the code to thirty-one characters, and says the reason the server refuses it, the form kept to be corrected [WF-PRJ-0050-A]", async () => {
+    // La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de trente et un
+    // caractères est refusée.
+    serve({
+      [CREATE]: { problem: example("subproject_code_invalid") as Problem & { status: 422 } },
+    });
+    render(list());
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
+    const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
+    const code = within(form).getByRole("textbox", { name: "Code ERP" });
+    expect(code).toHaveAttribute("maxlength", "31");
+    await userEvent.type(code, "SP/01");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Essais");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(code).toHaveFocus();
+    });
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(code).toHaveAccessibleDescription(
+      "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00a0: /.",
+    );
+    expect(within(form).queryByRole("alert")).toBeNull();
+  });
+
+  it("says the reserved name a code bears when the server refuses it [WF-PRJ-0050-A]", async () => {
+    serve({
+      [CREATE]: { problem: example("subproject_code_reserved") as Problem & { status: 422 } },
+    });
+    render(list());
+    await userEvent.click(screen.getByRole("button", { name: "Nouveau sous-projet" }));
+    const form = screen.getByRole("dialog", { name: "Nouveau sous-projet" });
+    const code = within(form).getByRole("textbox", { name: "Code ERP" });
+    await userEvent.type(code, "synthèse");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Essais");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(code).toHaveAccessibleDescription(
+        "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. «\u00a0Synthèse\u00a0» est un nom réservé, que le code ne peut pas porter.",
+      );
+    });
   });
 
   it("says the version stale under the form, with the offer to read the page anew", async () => {
