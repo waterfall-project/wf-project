@@ -203,7 +203,9 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
   #1263 (le rendu serveur du Kanban à 3,2 s, le parcours d'accessibilité d'`/admin/access-roles` à
   1 420 actions), #1145 (les cinq parcours qui échouaient au palier complet local), #776 (l'e2e « on
   a narrow window » de `grid.spec` sous concurrence), #1264 (trois choix d'une ligne sans ordre
-  déterminé, dans des tests du back et `latest_report`) ;
+  déterminé, dans des tests du back et `latest_report`), et, par la décision de l'auteur du
+  2026-10-25, #1473 et #1479 (le Gantt sur le front construit), #1474 (des tests unitaires hors
+  délai sous la couverture) et #1477 (`context.spec.ts:24` sous charge) ;
 - #1429 — front : l'adresse de retour de la connexion ne refuse ni tabulation ni saut de ligne
   (sécurité) — US-0690.
 
@@ -577,7 +579,8 @@ et ses exemples.
 ### Le harnais (US-0590)
 
 - `playwright.config.ts` remplace `developmentServer()` et `productionServer()` par un seul
-  serveur `next start`, sur `E2E_FRONT_PORT`.
+  serveur `next start`, sur `E2E_FRONT_PORT` ; US-0590b en démarre un par worker des parcours, sur
+  les ports qui suivent (#1477), et garde un seul front pour la mesure, le service et `next dev`.
   - Le build se fait avant, comme `build-front`, sauf si `E2E_BUILT` dit qu'il est déjà fait.
   - `E2E_DEV_SERVER=1`, en local seulement, remplace ce serveur par `next dev` pour les parcours.
     Posée avec `CI`, elle fait échouer le lancement, avec un message qui le dit.
@@ -600,7 +603,14 @@ et ses exemples.
   concurrence des parcours, l'ordre non déterminé —, jamais par une attente plus longue ; la règle
   provisoire de #1145 disparaît du guide avec lui. #1230, une lenteur du produit, reste à EP-17.
   Écarté : une US nouvelle, alors que le README nomme `[US-nnnnb]` la part détachée d'une US à un
-  seul lot.
+  seul lot. **Décision de l'auteur du 2026-10-25** (#1460, #1466) : le lot se livre avant US-0590c,
+  et sa condition des trois paliers complets joués avant d'arrêter son contenu est levée — son
+  travail est de les obtenir ; son périmètre s'élargit à toute la stabilité des tests, jamais
+  reportée à EP-17, et à leur durée — la file de fusion, visée en 8 à 12 minutes, et le palier local
+  du front ; il reprend le correctif du Gantt (#1473, #1479), décidé pour US-0590c, et #1474. Ce
+  qui en est fait : un front construit par worker des parcours (#1477), l'axe du Gantt qui dit sa
+  largeur dans le commit qui le dessine, le parcours au clavier qui ne restyle plus la page entière
+  à chaque Tab (#1263), Vitest sur quatre workers au plus (#1474).
 - **US-0590c, la montée de Next en 16.4** (#1466 ; décision de l'auteur du 2026-10-25) : les trois
   avis de sécurité du 2026-10-25 ne sont corrigés qu'à partir de 16.4.1, une version mineure qui
   remanie la navigation côté client (vercel/next.js#96252, #97397, #95439) ; au premier passage de
@@ -617,9 +627,10 @@ et ses exemples.
 ### L'ordre de construction
 
 1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent ;
-   **US-0590c** aussitôt après, la montée de Next en 16.4 sur le front construit ; **US-0590b**
-   quand trois paliers complets ont été joués sur le front construit, son contenu arrêté sur ce
-   qui tombe encore.
+   **US-0590b** aussitôt après, la stabilité et la durée des tests, que la file attendait — le
+   Gantt la rejetait trois fois de suite —, sans attendre trois paliers complets ; **US-0590c**
+   ensuite, la montée de Next en 16.4 sur le front construit (décision de l'auteur du 2026-10-25,
+   qui inverse l'ordre de US-0590b et US-0590c).
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
    EP-16), quand l'auteur peut la relire.
@@ -690,6 +701,20 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   US-0590c (#1466), parce qu'elle fait tomber deux parcours de navigation : v0.1.0 reste en 16.3.8,
   seul le déni de service par Server Actions concernant Waterfall (aucun `use cache`, aucun
   `next/image`).
+- Décision de l'auteur du 2026-10-25 (#1460, #1466) : US-0590b se livre avant US-0590c, sa
+  condition des trois paliers complets levée ; son périmètre s'élargit à toute la stabilité des
+  tests et à leur durée, et il reprend le correctif du Gantt (#1473, #1479) et #1474. Tout s'y
+  corrige à sa cause : ni délai allongé, ni `retries`, ni `fixme`, ni seuil baissé.
+- US-0590b : `planning.spec.ts:530` et `:562` tombaient parce que l'axe du Gantt n'apprenait la
+  largeur de sa colonne que dans un effet, une tâche après le montage — un défaut du produit, qu'un
+  test du geste pris juste après le montage tient (`gantt.dom.test.tsx`) ; `context.spec.ts:24`
+  parce qu'un seul `next start` rendait en série les pages des workers (3 échecs sur 60 sous six
+  workers, aucun avec un front par worker) ; le parcours au clavier d'`/admin/access-roles`, à 84
+  de ses 90 s, parce qu'une feuille posée et retirée à chaque Tab restylait toute la page (66 s) ;
+  les tests unitaires de #1474 parce que Vitest prenait douze workers sur un poste dont le débit
+  plafonne à quatre (300 s au lieu de 325, le test le plus lent 1,9 s au lieu de 5,4). Le rendu
+  serveur du Kanban (#1263), 0,1 s sur le front construit, et les parcours de #1145 et de #776 ne
+  tombent plus. US-0590 reste `en cours` : US-0590c reste à fusionner.
 
 **Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 
@@ -1030,7 +1055,7 @@ l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 
 
 ## US-0670 — Les aides des autres écrans et la recherche de l'aide
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre ; `getComputedValueDependencies`, déjà lue par les infobulles
 - **issue** : #1447

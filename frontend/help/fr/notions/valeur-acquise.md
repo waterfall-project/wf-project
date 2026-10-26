@@ -2,9 +2,9 @@
 
 ## Ce que dit le glossaire
 
-> **Valeur acquise** — Désigne la valeur, au prix budgété, du travail terminé à une date donnée (WF-IND-0030).
+> **Valeur acquise** — Désigne la valeur, au prix budgété, du travail terminé à une date donnée.
 
-> **Avancement physique** — Désigne la part du travail promis qui est faite : la valeur acquise rapportée au budget de référence (WF-IND-0060).
+> **Avancement physique** — Désigne la part du travail promis qui est faite : la valeur acquise rapportée au budget de référence.
 
 ## Dans Waterfall
 

@@ -139,10 +139,21 @@ describe("the deposit of a backup of another installation", () => {
     const dialog = screen.getByRole("dialog", { name: "Restaurer la plateforme" });
     await userEvent.click(within(dialog).getByRole("textbox"));
     await userEvent.paste(UPLOAD);
+    // Whether the dialog was still busy in the commit that told the refusal: the request over, never
+    // while it holds Escape (#1474).
+    const busyWhenTold: (string | null)[] = [];
+    const observer = new MutationObserver(() => {
+      if (busyWhenTold.length === 0 && within(dialog).queryByRole("alert") !== null) {
+        busyWhenTold.push(dialog.getAttribute("aria-busy"));
+      }
+    });
+    observer.observe(dialog, { subtree: true, childList: true, attributes: true });
     await userEvent.click(within(dialog).getByRole("button", { name: "Restaurer" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Cette opération demande une confirmation explicite.",
     );
+    observer.disconnect();
+    expect(busyWhenTold).toEqual(["false"]);
     expect(
       screen.queryByRole("status", { name: "Restauration de la plateforme en cours" }),
     ).toBeNull();

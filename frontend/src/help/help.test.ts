@@ -35,6 +35,7 @@ import {
   isHelpTarget,
   linkTarget,
   SCREEN_HEADINGS,
+  searched,
 } from "./help";
 import { helpDirectory, helpIndex, parseHelp, readHelpPage } from "./read";
 import { NOTIONS_TO_COME, SCREENS_TO_COME } from "./to-come";
@@ -74,6 +75,14 @@ function plain(text: string): string {
   return text.replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * A definition of the glossary as a notion quotes it: without the identifiers of requirement in
+ * brackets (« (WF-RIS-0050) »), which mean nothing to the reader of the help (#1440).
+ */
+function withoutIdentifiers(text: string): string {
+  return text.replace(/\s\(WF-[A-Z]{3}-\d{4}\)/g, "");
+}
+
 /** The glossary of the specification, its annex A, by term. */
 function glossary(): ReadonlyMap<string, string> {
   const spec = readFileSync(
@@ -86,7 +95,7 @@ function glossary(): ReadonlyMap<string, string> {
   for (const row of spec.slice(start, end).split("\n")) {
     const cells = /^\|([^|]+)\|([^|]+)\|$/.exec(row.trim());
     if (cells?.[1] !== undefined && cells[2] !== undefined && !cells[1].includes("---")) {
-      terms.set(plain(cells[1]), plain(cells[2]));
+      terms.set(plain(cells[1]), plain(withoutIdentifiers(cells[2])));
     }
   }
   return terms;
@@ -143,7 +152,7 @@ describe("the pages of the help", () => {
     }
   });
 
-  it("quotes the glossary of the specification in every notion, word for word [WF-IHM-0140-A]", () => {
+  it("quotes the glossary of the specification in every notion, word for word but the identifiers of requirement [WF-IHM-0140-A]", () => {
     const terms = glossary();
     expect(terms.size).toBeGreaterThan(50);
     for (const { target, text } of pages().filter((page) => page.target.kind === "notion")) {
@@ -160,6 +169,7 @@ describe("the pages of the help", () => {
       for (const quote of quotes) {
         expect(quote, fileOf(target)).not.toBeNull();
         const term = plain(quote?.[1] ?? "");
+        expect(quote?.[2], `${fileOf(target)}: ${term}`).not.toMatch(/WF-[A-Z]{3}-\d{4}/);
         expect(plain(quote?.[2] ?? ""), `${fileOf(target)}: ${term}`).toBe(terms.get(term));
       }
     }
@@ -201,14 +211,72 @@ afterEach(() => {
 });
 
 describe("the reading of the help", () => {
-  it("reads the page of a screen in its sections [WF-IHM-0140-A]", async () => {
+  it("reads the page of a screen in its sections, with the columns of its grid from the catalogues [WF-IHM-0140-A]", async () => {
     const page = await readHelpPage({ kind: "screen", code: "FBS-4.4" });
     expect(page.kind).toBe("written");
     if (page.kind === "written") {
       expect(page.title).toBe("Chiffrage et devis");
       expect(page.sections.map((section) => section.heading)).toEqual([...SCREEN_HEADINGS]);
+      expect(page.columns.map((column) => column.help)).toContain("estimate.referenceAmount");
+      expect(page.columns.find((column) => column.help === "estimate.category")?.computed).toBe(
+        false,
+      );
+      expect(
+        page.columns.find((column) => column.help === "estimate.referenceAmount")?.computed,
+      ).toBe(true);
     }
+    const column = await readHelpPage({ kind: "screen", code: "FBS-4.4.3" });
+    expect(column.kind === "written" ? column.columns.map((each) => each.label) : []).toEqual([
+      "referenceAmount",
+    ]);
   });
+
+  it.each([
+    ["FBS-4.3"],
+    ["FBS-4.3.2"],
+    ["FBS-4.3.3"],
+    ["FBS-4.4"],
+    ["FBS-4.4.2"],
+    ["FBS-4.4.3"],
+    ["FBS-4.5"],
+    ["FBS-4.5.2"],
+    ["FBS-4.6"],
+    ["FBS-4.6.1"],
+  ])(
+    "names the columns of %s, each with a label and a definition key [WF-IHM-0140-A]",
+    async (code) => {
+      const page = await readHelpPage({ kind: "screen", code });
+      expect(page.kind).toBe("written");
+      const columns = page.kind === "written" ? page.columns : [];
+      expect(columns.length).toBeGreaterThan(0);
+      for (const column of columns) {
+        expect(column.label.trim()).not.toBe("");
+        expect(column.help.trim()).not.toBe("");
+      }
+      if (code === "FBS-4.3.3" || code === "FBS-4.4.3") {
+        expect(columns).toHaveLength(1);
+      }
+    },
+  );
+
+  it.each([["FBS-4.6"], ["FBS-4.6.1"]])(
+    "defines the columns of %s as the risk grid orders them [WF-IHM-0140-A]",
+    async (code) => {
+      const page = await readHelpPage({ kind: "screen", code });
+      const helps = page.kind === "written" ? page.columns.map((column) => column.help) : [];
+      expect(helps).toHaveLength(7);
+      expect(helps.every((help) => help.startsWith("risks."))).toBe(true);
+      expect(helps).toEqual([
+        "risks.label",
+        "risks.probability",
+        "risks.severity",
+        "risks.provisionAmount",
+        "risks.state",
+        "risks.lastReview",
+        "risks.matrixCell",
+      ]);
+    },
+  );
 
   it("says a page not written yet is to come [WF-IHM-0140-A]", async () => {
     expect(await readHelpPage({ kind: "screen", code: "FBS-1.1" })).toEqual({
@@ -294,7 +362,7 @@ describe("the reading of the help", () => {
   });
 });
 
-describe("the links and the screens of the help", () => {
+describe("the links, the search and the screens of the help", () => {
   it.each([
     [{ kind: "screen", code: "FBS-4.3" }, "FBS-4.4.md", { kind: "screen", code: "FBS-4.4" }],
     [
@@ -314,6 +382,24 @@ describe("the links and the screens of the help", () => {
     [{ kind: "notion", name: "indices" }, "../../package.json", undefined],
   ] as const)("resolves a link of %o to %s", (from, href, to) => {
     expect(linkTarget(from, href)).toEqual(to);
+  });
+
+  it("finds the pages whose title holds every word, accents and capitals aside", () => {
+    const index = [
+      { target: { kind: "notion", name: "valeur-acquise" }, title: "La valeur acquise" },
+      { target: { kind: "notion", name: "budget-de-reference" }, title: "Le budget de référence" },
+    ] as const;
+    expect(searched(index, "REFERENCE").map((entry) => entry.title)).toEqual([
+      "Le budget de référence",
+    ]);
+    expect(searched(index, "acquise valeur")).toHaveLength(1);
+    expect(searched(index, "  ")).toEqual([]);
+    // The ligature NFD does not decompose is spelt out, on the title and on the query.
+    const ligatures = [
+      { target: { kind: "notion", name: "oeuvre" }, title: "Cœur de l’œuvre" },
+    ] as const;
+    expect(searched(ligatures, "coeur oeuvre")).toHaveLength(1);
+    expect(searched(ligatures, "CŒUR")).toHaveLength(1);
   });
 
   it.each([

@@ -117,8 +117,12 @@ export function RestoreDialog({
         // Told at the date, out of the notice: noted whole, the notice of the rest noting nothing more.
         noteRefusal(answer, { subject: date, parts: [refusal.told] });
       }
-      setDateRefused(refusal.date);
-      setOutcome(refusal.told);
+      // In the transition too, which an update after an await is not by itself: the refusal is told
+      // in the commit that ends the request, never before it, while Escape is still held (#1474).
+      startTransition(() => {
+        setDateRefused(refusal.date);
+        setOutcome(refusal.told);
+      });
       if (refusal.date !== undefined) {
         // The date stated is the list's: the list is no longer that of the backup, and reads anew.
         router.refresh();

@@ -2,9 +2,9 @@
 
 ## Ce que dit le glossaire
 
-> **Indice de coût** — Désigne l’indicateur qui rapporte la valeur acquise au coût réel : inférieur à 1, le travail fait a coûté plus que promis (WF-IND-0070).
+> **Indice de coût** — Désigne l’indicateur qui rapporte la valeur acquise au coût réel : inférieur à 1, le travail fait a coûté plus que promis.
 
-> **Indice de délai** — Désigne l’indicateur qui rapporte la valeur acquise à la valeur planifiée : inférieur à 1, moins de travail a été fait que prévu à cette date (WF-IND-0080).
+> **Indice de délai** — Désigne l’indicateur qui rapporte la valeur acquise à la valeur planifiée : inférieur à 1, moins de travail a été fait que prévu à cette date.
 
 > **Écart de coût** — Désigne la différence entre la valeur acquise et le coût réel à une date donnée. Négatif, le travail fait a coûté plus que promis.
 

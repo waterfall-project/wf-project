@@ -2181,17 +2181,17 @@ fichier entier. Les boutons de validation et d’annulation d’un formulaire ou
 est l’action, ne portent pas de phrase d’aide. Les tests du composant sont dans
 `command-tooltip.dom.test.tsx` (survol, focus, Échap dans un menu, touches, condition, fournisseur partagé,
 axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,
-et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à engager sans définition.
+et `column-help.test.ts` pour toute colonne de devis, de planning, de reste à engager ou du registre des risques sans définition.
 
 ### L'aide en ligne
 
 Chaque écran que la table des fonctions connaît ouvre son aide (WF-IHM-0140, US-0580) : le bouton
-« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, de la hauteur d'une ligne du titre,
+« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, au plus de la hauteur d'une ligne du titre,
 qui suit son dernier mot dans le même flux de texte : à droite, parmi les commandes, il rétrécirait le
 titre ; élément d'une rangée qui passe à la ligne, il prendrait une ligne à lui sous un titre sur deux
 lignes, celui du reste à engager en 1280 × 720 ; dans les deux cas, l'en-tête grandirait et
 pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
-`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine —, ou F1
+`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine, et il y est alors sans retrait : une espace le sépare du titre, non une marge —, ou F1
 partout sur l'écran, ouvre à côté de lui un panneau
 latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code de la FBS — celui de la route que
 suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, la liste des projets
@@ -2204,16 +2204,23 @@ standalone les emporte par `outputFileTracingIncludes` (`next.config.ts`). Le pa
 `react-markdown` et `remark-gfm`, sans HTML brut (`skipHtml`) et dans les seuls éléments d'un texte ;
 un code entre accents graves s'y lit comme une touche (`<kbd>`). Un lien relatif vers un code ou une
 notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` depuis une notion) montre sa page
-dans le panneau ; tout autre lien se lit comme du texte. Le panneau tient le focus, se ferme par Échap et rend le focus
+dans le panneau ; tout autre lien se lit comme du texte. La recherche porte sur les titres des pages
+écrites, que l'action rend avec la page. Le panneau tient le focus, se ferme par Échap et rend le focus
 à ce qui l'avait — le bouton, ou la cellule où F1 a été pressée ; une page suivie par un lien donne le
 focus à son titre. Une réponse arrivée après une autre demande est ignorée.
 
 La page d'un écran suit la structure de #1075, ses titres de second niveau dans cet ordre
 (`SCREEN_HEADINGS`) : « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses valeurs
-calculées », « Les gestes au clavier », « Voir aussi ». Une notion cite le glossaire de l'annexe A mot pour mot, une citation par
-terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
+calculées », « Les gestes au clavier », « Voir aussi ». Les définitions des colonnes ne s'y écrivent
+pas : le panneau les rend après la troisième section, depuis la configuration de la grille de l'écran
+et les clés de ses en-têtes (`columns.<grille>.<colonne>.help`, `COLUMNS` de `read.ts`), une seule
+source avec leurs infobulles. Une notion cite le glossaire de l'annexe A mot pour mot, sans les identifiants d'exigence entre
+parenthèses (« (WF-RIS-0050) »), qui ne disent rien à qui lit l'aide, et que `help.test.ts` ignore dans sa
+comparaison (#1440), une citation par terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
 « Voir aussi ». L'aide n'existe qu'en français : une interface en anglais la montre en français, écart
-de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075).
+de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075). `lang="fr"` ne couvre que la page rendue
+(`WrittenPage`), le titre du panneau et les titres que la recherche trouve : les messages de l'interface
+du corps (lecture, échec, nombre de résultats) gardent sa langue (#1442).
 
 _Contrôle_ : `src/help/help.test.ts` (`make test-front`) exige une page française par code de la table
 qui a un écran, ou sa place dans la liste des pages à venir avec le lot qui l'écrit (`SCREENS_TO_COME`,
@@ -2647,7 +2654,17 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   chacune, sur l'un (`SHARD=lint`, le projet `lint` de `frontend/vitest.config.ts`), les autres
   tests en deux moitiés sur les deux autres (`SHARD=1/2`, `SHARD=2/2`). Vitest répartit des
   fichiers entiers par l'empreinte de leur chemin, et les trois gardes tombaient dans le même
-  morceau. Au palier complet, un dernier runner rassemble la couverture des trois morceaux et
+  morceau. Vitest y prend un worker par processeur moins un, comme il le fait de lui-même hors
+  du mode veille, quatre au plus (`workers`, `frontend/vitest.config.ts`, #1474) : le processeur
+  laissé est celui du processus principal, qui rassemble les résultats et la couverture des
+  workers ; un runner, quatre processeurs, en joue donc trois. Le poste, douze processeurs, ne
+  gagnait rien au-delà de quatre, et chaque test y tournait plus lentement, un test de la grille,
+  moins d'une seconde seul, au-delà de ses cinq secondes sous la couverture. Sur quatre cœurs du
+  poste, la couverture de la moitié `2/2` prenait 121 s sur quatre workers et 131 s sur trois,
+  mais 29 de ses tests dépassaient la seconde sur quatre, 11 sur trois. `structure-busy.dom.test.tsx`
+  et `planning-entry.dom.test.tsx` cachent les colonnes qu'ils n'éprouvent pas, le Gantt d'abord :
+  la grille entière, rendue deux ou trois fois à chaque geste, doublait leur durée. Au palier
+  complet, un dernier runner rassemble la couverture des trois morceaux et
   la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu
   de chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute.
   `front-cache.yml` écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche
@@ -3193,19 +3210,34 @@ les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses
 serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front —, jamais ceux de
 `make dev`, et son faux back sert une variante du contrat écrite sous `frontend/.e2e/`, que
 `make dev` ne lit pas : un port déjà pris fait échouer le lancement en le disant. `E2E_API_PORT`
-et `E2E_FRONT_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un port
+et `E2E_FRONT_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste — le front des
+parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous) ; un port
 qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
-(`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
+(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier d'au moins 1, rien d'autre), moins que
+Playwright n'en prend de lui-même — la moitié des processeurs — sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
 **Les parcours se jouent contre le front construit pour la production** (US-0590), celui
-qu'ouvrent les utilisateurs : un seul serveur `next start`, sur `E2E_FRONT_PORT`, sert les
-parcours, la mesure de la seconde et les parcours du service. Le serveur de développement rendait
-en série les pages des quatre workers, au-delà des cinq secondes d'une assertion (#1262), et
-montait à plus de 9 Go après avoir compilé chaque route (#1309). `make e2e`, `make e2e-measure` et
+qu'ouvrent les utilisateurs : un serveur `next start` par worker des parcours, sur `E2E_FRONT_PORT`
+et les ports qui le suivent, chaque worker jouant contre celui de sa place parmi les workers
+(`TEST_PARALLEL_INDEX`) ; un seul pour la mesure de la seconde, jouée sur un worker, pour les
+parcours du service, dont le royaume ne connaît l'adresse que d'un front, et pour le serveur de
+développement. Le serveur de développement rendait en série les pages des quatre workers, au-delà
+des cinq secondes d'une assertion (#1262), et montait à plus de 9 Go après avoir compilé chaque
+route (#1309). Un seul front construit, un processus, les rendait en série lui aussi, plus vite :
+occupé les trois quarts du temps sous six workers, il laissait l'écran des risques en chargement
+cinq secondes après le clic, trois fois sur soixante (#1477) ; un front par worker, aucune sur
+soixante. Playwright démarre les fronts l'un après l'autre, et le premier construit le front quand
+il ne l'est pas. Il en démarre autant que de workers même pour un seul fichier
+(`make e2e TESTS=…`) ou un morceau : chacun répond en une seconde environ sur le poste, si bien
+qu'un rejeu sous quatre workers attend trois ou quatre secondes de plus son premier parcours. Le
+harnais ne sait pas, en lisant sa configuration, combien de workers le rejeu occupera : un plafond
+au nombre de fichiers donnerait un seul front aux quatre workers d'un fichier joué test par test
+(`mode: "parallel"`, `accessibility.spec.ts`), l'engorgement de #1477 ; `WORKERS=1` en démarre un
+seul. `make e2e`, `make e2e-measure` et
 `make e2e-service` construisent d'abord le front comme `make build-front`, sans API joignable
 (#131) — un même build sert donc le faux back et le vrai service —, puis lancent Playwright, qui le
 démarre ; en local, le cache de Next (`frontend/.next/cache`) abrège les builds suivants.
@@ -3230,11 +3262,13 @@ développement avant le premier parcours, est retiré avec ses tests : le front 
 rien à la demande. Une panne de l'API, du royaume ou de Redis se lit donc au premier parcours qui
 l'atteint, et non plus avant lui (#1265).
 
-**Un échec toléré, jusqu'à US-0590b** (#1460) : au palier complet local, l'échec d'un parcours que
-nomme #1263 — l'accessibilité d'`/admin/access-roles` (`accessibility.spec.ts`), un écran qui
-attend le rendu serveur du Kanban — n'empêche pas une fusion s'il passe rejoué seul
-(`make e2e WORKERS=2 TESTS=e2e/<fichier>`) ; le compte rendu du lot le dit. Tout autre échec est un
-échec. La règle disparaît avec US-0590b, qui corrige ces échecs à leur cause.
+**Aucun échec n'est toléré** (US-0590b, #1460) : au palier complet local comme dans la chaîne,
+l'échec d'un parcours est un échec, même s'il passe rejoué seul. La règle provisoire de #1145, qui
+laissait fusionner un lot dont les parcours de #1145 et de #1263 tombaient au palier local puis
+passaient rejoués seuls, a disparu avec US-0590b, qui a corrigé ces échecs à leur cause : le front
+construit, un par worker (ci-dessus), et le parcours au clavier allégé (ci-dessous). Un parcours
+qui tombe se corrige à sa cause, jamais par une attente plus longue, un `retries`, un `fixme` ni un
+`skip`.
 
 Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
 (`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
@@ -3482,7 +3516,18 @@ deux largeurs :
   fait défiler n'est jamais un bord : ce qu'elle cache, elle le montre en défilant, et c'est elle qui
   doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
   l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
-  l'atteint encore à 911 (`lost`).
+  l'atteint encore à 911 (`lost`). Pour voir ce qui peint par-dessus un élément, le parcours fait
+  prendre le pointeur, le temps de la mesure, aux seuls éléments qui ne le prennent pas et dont la
+  boîte touche celle de l'élément ou de l'un de ses enfants — chaque point que la mesure demande au
+  navigateur est dans l'une d'elles —, puis les rend tels qu'ils étaient ; il lit tous les éléments
+  d'abord, puis écrit ceux qu'il a trouvés, jamais l'un après l'autre, `pointer-events` étant
+  héritée. Une feuille posée sur tous (`* { pointer-events: auto }`) et retirée à chaque Tab
+  faisait recalculer deux fois le style de la page entière — les trois cinquièmes du temps d'un
+  Tab sur une page de deux mille éléments, et le parcours des rôles d'habilitation, plus de 350
+  Tab à chaque largeur, à 84 des 90 secondes de son délai sous quatre workers, 69 une fois les
+  seuls éléments sans pointeur changés, tous, à chaque Tab, 54 une fois changés ceux qui touchent
+  l'élément (#1263). Le reste est celui de la page et des allers-retours : seul, chaque largeur du
+  parcours occupe le navigateur 12 de ses 16 secondes, 10 sans aucune mesure du pointeur.
 
 `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
 d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
